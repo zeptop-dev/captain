@@ -1,5 +1,6 @@
-# Caddy terminates TLS and proxies to Captain (listen: 127.0.0.1:8080).
+# Caddy terminates TLS and proxies to Captain.
+# Bare metal: upstream 127.0.0.1:8080. Docker compose: captain:8080.
 panel.example.com {
 	encode zstd gzip
-	reverse_proxy 127.0.0.1:8080
+	reverse_proxy captain:8080
 }
