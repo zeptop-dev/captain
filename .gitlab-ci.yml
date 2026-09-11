@@ -75,7 +75,8 @@ publish:docker:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
     - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
     - docker run --privileged --rm tonistiigi/binfmt --install arm64
-    - docker buildx create --use --name multi
+    - docker context create ci
+    - docker buildx create --use ci
     - |
       docker buildx build --platform linux/amd64,linux/arm64 \
         --build-arg VERSION="$CI_COMMIT_TAG" \
