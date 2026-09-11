@@ -28,9 +28,13 @@ type Config struct {
 
 	Payments struct {
 		EPay *struct {
-			URL string `yaml:"url"` // gateway base URL
-			PID string `yaml:"pid"`
-			Key string `yaml:"key"`
+			Version            string `yaml:"version"` // v1 (MD5, default) | v2 (RSA)
+			URL                string `yaml:"url"`     // gateway base URL, e.g. https://zpayz.cn or https://www.ezfp.cn
+			PID                string `yaml:"pid"`
+			Key                string `yaml:"key"`                  // v1
+			Type               string `yaml:"type"`                 // alipay | wxpay | "" (cashier chooses)
+			MerchantPrivateKey string `yaml:"merchant_private_key"` // v2, PEM or bare base64
+			PlatformPublicKey  string `yaml:"platform_public_key"`  // v2, PEM or bare base64
 		} `yaml:"epay"`
 		Stripe *struct {
 			SecretKey     string `yaml:"secret_key"`
@@ -38,6 +42,12 @@ type Config struct {
 			Currency      string `yaml:"currency"`
 		} `yaml:"stripe"`
 	} `yaml:"payments"`
+
+	Portal struct {
+		Registration bool `yaml:"registration"` // allow self sign-up
+	} `yaml:"portal"`
+
+	SiteName string `yaml:"site_name"`
 }
 
 // Load reads and validates a config file.
@@ -87,5 +97,8 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Agent.PushSeconds == 0 {
 		c.Agent.PushSeconds = 60
+	}
+	if c.SiteName == "" {
+		c.SiteName = "Captain"
 	}
 }

@@ -99,3 +99,9 @@ func (s *Store) DeleteSession(ctx context.Context, id string) error {
 func (s *Store) UserByUUID(ctx context.Context, uuid string) (*domain.User, error) {
 	return scanUser(s.db.QueryRowContext(ctx, `SELECT `+userCols+` FROM users WHERE uuid = ?`, uuid))
 }
+
+// AdjustBalance adds delta (may be negative) to a user's balance.
+func (s *Store) AdjustBalance(ctx context.Context, userID, deltaCents int64) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE users SET balance_cents = balance_cents + ?, updated_at = ? WHERE id = ?`, deltaCents, now(), userID)
+	return err
+}
