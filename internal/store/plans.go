@@ -42,24 +42,43 @@ func (s *Store) GrantSubscription(ctx context.Context, userID int64, plan *domai
 		return nil, err
 	}
 	defer tx.Rollback()
+	if err := grantTx(ctx, tx, userID, plan, at); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return s.ActiveSubscription(ctx, userID)
+}
+
+func grantTx(ctx context.Context, tx *sql.Tx, userID int64, plan *domain.Plan, at time.Time) error {
 	if _, err := tx.ExecContext(ctx, `UPDATE subscriptions SET status = 'expired', updated_at = ? WHERE user_id = ? AND status = 'active'`, now(), userID); err != nil {
-		return nil, err
+		return err
 	}
-	sub := &domain.Subscription{UserID: userID, PlanID: plan.ID, StartsAt: at, QuotaBytes: plan.QuotaBytes, Status: "active"}
+	var expires sql.NullInt64
 	if plan.PeriodDays > 0 {
-		exp := at.AddDate(0, 0, plan.PeriodDays)
-		sub.ExpiresAt = &exp
+		expires = sql.NullInt64{Int64: at.AddDate(0, 0, plan.PeriodDays).Unix(), Valid: true}
 	}
-	res, err := tx.ExecContext(ctx, `INSERT INTO subscriptions (user_id, plan_id, starts_at, expires_at, quota_bytes, status, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`, userID, plan.ID, at.Unix(), nullTime(sub.ExpiresAt), plan.QuotaBytes, now(), now())
+	if _, err := tx.ExecContext(ctx, `INSERT INTO subscriptions (user_id, plan_id, starts_at, expires_at, quota_bytes, status, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`, userID, plan.ID, at.Unix(), expires, plan.QuotaBytes, now(), now()); err != nil {
+		return err
+	}
+	_, err := tx.ExecContext(ctx, `UPDATE users SET group_id = ?, updated_at = ? WHERE id = ?`, nullInt64(plan.GroupID), now(), userID)
+	return err
+}
+
+func planByIDTx(ctx context.Context, tx *sql.Tx, id int64) (*domain.Plan, error) {
+	var p domain.Plan
+	var group sql.NullInt64
+	var enabled int
+	err := tx.QueryRowContext(ctx, `SELECT id, name, price_cents, period_days, quota_bytes, device_limit, speed_limit_mbps, group_id, sort, enabled FROM plans WHERE id = ?`, id).
+		Scan(&p.ID, &p.Name, &p.PriceCents, &p.PeriodDays, &p.QuotaBytes, &p.DeviceLimit, &p.SpeedLimitMbps, &group, &p.Sort, &enabled)
 	if err != nil {
-		return nil, err
+		return nil, wrapNotFound(err)
 	}
-	sub.ID, _ = res.LastInsertId()
-	if _, err := tx.ExecContext(ctx, `UPDATE users SET group_id = ?, updated_at = ? WHERE id = ?`, nullInt64(plan.GroupID), now(), userID); err != nil {
-		return nil, err
-	}
-	return sub, tx.Commit()
+	p.GroupID = int64Ptr(group)
+	p.Enabled = enabled == 1
+	return &p, nil
 }
 
 // ActiveSubscription returns the user's current subscription, if any.

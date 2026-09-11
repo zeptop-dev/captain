@@ -11,11 +11,27 @@ agent:
   pull_seconds: 60
   push_seconds: 60
 
+site_name: Captain
+
+portal:
+  registration: true        # allow self sign-up
+
 payments:
-  # epay:
-  #   url: https://pay.example.com
+  # epay:                    # 易支付 v1 (MD5), e.g. z-pay.cn
+  #   version: v1
+  #   url: https://zpayz.cn
   #   pid: "1000"
   #   key: secret
+  #   type: ""               # alipay | wxpay | "" = cashier page
+  # epay:                    # 易支付 v2 (RSA), e.g. ezfp.cn
+  #   version: v2
+  #   url: https://www.ezfp.cn
+  #   pid: "1001"
+  #   merchant_private_key: |
+  #     -----BEGIN PRIVATE KEY-----
+  #     ...
+  #     -----END PRIVATE KEY-----
+  #   platform_public_key: MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...
   # stripe:
   #   secret_key: sk_live_...
   #   webhook_secret: whsec_...

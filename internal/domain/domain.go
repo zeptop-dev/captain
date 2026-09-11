@@ -122,3 +122,18 @@ type Entry struct {
 	Sort        int
 	Enabled     bool
 }
+
+// Order is a purchase of a plan. Status moves pending -> paid or cancelled;
+// paid is terminal and idempotent under repeated gateway notifications.
+type Order struct {
+	ID          int64
+	No          string
+	UserID      int64
+	PlanID      int64
+	AmountCents int64
+	Gateway     string
+	GatewayRef  string
+	Status      string
+	CreatedAt   time.Time
+	PaidAt      *time.Time
+}
