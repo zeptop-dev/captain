@@ -18,12 +18,13 @@ test:
 build:web:
   stage: test
   image: node:24
-  cache: { key: pnpm, paths: [web/admin/node_modules/] }
+  cache: { key: pnpm, paths: [web/admin/node_modules/, web/portal/node_modules/] }
   script:
     - corepack enable && corepack prepare pnpm@9 --activate
-    - cd web/admin && pnpm install --frozen-lockfile && pnpm exec tsc -b && pnpm build
+    - cd web/admin && pnpm install --frozen-lockfile && pnpm exec tsc -b && pnpm build && cd ../..
+    - cd web/portal && pnpm install --frozen-lockfile && pnpm exec tsc -b && pnpm build
   artifacts:
-    paths: [web/admin/dist/]
+    paths: [web/admin/dist/, web/portal/dist/]
     expire_in: 1 week
 
 build:captain:
