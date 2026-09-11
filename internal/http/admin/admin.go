@@ -46,6 +46,8 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("GET /api/admin/users/{id}", h.requireAdmin(h.getUser))
 	mux.HandleFunc("POST /api/admin/plans", h.requireAdmin(h.createPlan))
 	mux.HandleFunc("POST /api/admin/groups", h.requireAdmin(h.createGroup))
+	mux.HandleFunc("GET /api/admin/entries", h.requireAdmin(h.listEntries))
+	mux.HandleFunc("POST /api/admin/entries", h.requireAdmin(h.createEntry))
 	mux.HandleFunc("POST /api/admin/users/{id}/grant", h.requireAdmin(h.grantPlan))
 }
 
@@ -231,6 +233,32 @@ func (h *handlers) createGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, map[string]any{"id": id, "name": in.Name})
+}
+
+func (h *handlers) listEntries(w http.ResponseWriter, r *http.Request) {
+	list, err := h.Store.ListEntries(r.Context())
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if list == nil {
+		list = []*domain.Entry{}
+	}
+	ok(w, list)
+}
+
+func (h *handlers) createEntry(w http.ResponseWriter, r *http.Request) {
+	var e domain.Entry
+	if err := json.NewDecoder(r.Body).Decode(&e); err != nil || e.Name == "" || e.InboundID == 0 || e.DisplayHost == "" || e.DisplayPort == 0 {
+		fail(w, http.StatusBadRequest, "name, inbound_id, display_host and display_port are required")
+		return
+	}
+	e.Enabled = true
+	if err := h.Store.CreateEntry(r.Context(), &e); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, e)
 }
 
 // grantPlan gives a user a plan directly (manual order).

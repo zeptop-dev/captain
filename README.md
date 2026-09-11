@@ -24,8 +24,10 @@ traffic landing in the user's subscription:
   forward status, node liveness). A user whose subscription expires or runs
   out of quota disappears from the node's desired state.
 
-Not yet: bosun's Captain driver, subscription renderers, orders and payments
-(EPay, Stripe), user portal API, React frontends, jobs.
+- Subscriptions at `GET /sub/<token>` with client detection (`?client=` override): mihomo/Clash YAML, sing-box JSON, base64 share links (v2rayN, Shadowrocket), Surge. `Subscription-Userinfo` header with usage and expiry. Entries decide what users see: display host and port on top of the landing inbound's settings; group-restricted inbounds only appear for that group. Rendered mihomo and sing-box documents validated with the real clients.
+
+Not yet: orders and payments (EPay, Stripe), user portal API, React
+frontends, jobs, online device collection.
 
 ## Run
 
