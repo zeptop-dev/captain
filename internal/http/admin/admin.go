@@ -43,6 +43,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/admin/nodes", h.requireAdmin(h.createNode))
 	mux.HandleFunc("POST /api/admin/nodes/{id}/inbounds", h.requireAdmin(h.createInbound))
 	mux.HandleFunc("POST /api/admin/users", h.requireAdmin(h.createUser))
+	mux.HandleFunc("GET /api/admin/users/{id}", h.requireAdmin(h.getUser))
 	mux.HandleFunc("POST /api/admin/plans", h.requireAdmin(h.createPlan))
 	mux.HandleFunc("POST /api/admin/groups", h.requireAdmin(h.createGroup))
 	mux.HandleFunc("POST /api/admin/users/{id}/grant", h.requireAdmin(h.grantPlan))
@@ -178,6 +179,30 @@ func (h *handlers) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, map[string]any{"id": u.ID, "email": u.Email, "uuid": u.UUID, "sub_token": u.SubToken})
+}
+
+// getUser returns a user with their active subscription, if any.
+func (h *handlers) getUser(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		fail(w, http.StatusBadRequest, "bad user id")
+		return
+	}
+	u, err := h.Store.UserByID(r.Context(), id)
+	if errors.Is(err, store.ErrNotFound) {
+		fail(w, http.StatusNotFound, "user not found")
+		return
+	}
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	sub, err := h.Store.ActiveSubscription(r.Context(), id)
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, map[string]any{"id": u.ID, "email": u.Email, "uuid": u.UUID, "sub_token": u.SubToken, "group_id": u.GroupID, "status": u.Status, "subscription": sub})
 }
 
 func (h *handlers) createPlan(w http.ResponseWriter, r *http.Request) {
