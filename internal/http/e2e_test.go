@@ -138,11 +138,23 @@ func TestEndToEnd(t *testing.T) {
 	_, b, _ = c.do("POST", "/api/admin/plans", map[string]any{"Name": "basic", "PriceCents": 1000, "PeriodDays": 30, "QuotaBytes": 1 << 30}, nil)
 	plan := mustJSON[map[string]any](t, b)
 
+	// A VIP inbound restricted to a group nobody is in yet.
+	_, b, _ = c.do("POST", "/api/admin/groups", map[string]string{"Name": "vip"}, nil)
+	vipGroup := int64(mustJSON[map[string]any](t, b)["id"].(float64))
+	if st, b, _ := c.do("POST", "/api/admin/nodes/"+itoa(nodeID)+"/inbounds", map[string]any{
+		"Tag": "vip", "Protocol": "vless", "Port": 443, "GroupID": vipGroup,
+	}, nil); st != 200 {
+		t.Fatalf("vip inbound: %d %s", st, b)
+	}
+
 	// User without a subscription is not provisioned.
 	_, b, h = agent.do("GET", "/api/agent/state", nil, nil)
 	st1 := mustJSON[agentproto.State](t, b)
-	if len(st1.Node.Inbounds) != 1 || st1.Node.Inbounds[0].Protocol != spec.Mieru || st1.Node.Inbounds[0].MieruTransport != "TCP" || len(st1.Users) != 0 {
+	if len(st1.Node.Inbounds) != 2 || st1.Node.Inbounds[0].Protocol != spec.Mieru || st1.Node.Inbounds[0].MieruTransport != "TCP" || len(st1.Users) != 0 {
 		t.Fatalf("state after inbound: %+v", st1)
+	}
+	if vip := st1.Node.Inbounds[1]; !vip.ScopedUsers || len(vip.Users) != 0 {
+		t.Fatalf("vip inbound must be scoped: %+v", vip)
 	}
 	if h.Get("ETag") == etag0 {
 		t.Fatal("etag must change with inbounds")
@@ -156,6 +168,22 @@ func TestEndToEnd(t *testing.T) {
 	if len(st2.Users) != 1 || st2.Users[0].UUID != u1["uuid"].(string) || st2.Users[0].Name != st2.Users[0].UUID {
 		t.Fatalf("state after grant: %+v", st2)
 	}
+	// The basic plan has no group, so the user is on the shared list only.
+	if vip := st2.Node.Inbounds[1]; len(vip.Users) != 0 {
+		t.Fatalf("basic user leaked into vip inbound: %+v", vip.Users)
+	}
+	// A VIP plan puts its buyer on the vip inbound and on the shared list.
+	_, b, _ = c.do("POST", "/api/admin/users", map[string]string{"Email": "vip@test", "Password": "password123"}, nil)
+	u2 := mustJSON[map[string]any](t, b)
+	_, b, _ = c.do("POST", "/api/admin/plans", map[string]any{"Name": "vip", "PriceCents": 5000, "PeriodDays": 30, "GroupID": vipGroup}, nil)
+	vipPlan := mustJSON[map[string]any](t, b)
+	c.do("POST", "/api/admin/users/"+itoa(int64(u2["id"].(float64)))+"/grant", map[string]any{"PlanID": vipPlan["ID"]}, nil)
+	_, b, h = agent.do("GET", "/api/agent/state", nil, nil)
+	stVip := mustJSON[agentproto.State](t, b)
+	if len(stVip.Users) != 2 || len(stVip.Node.Inbounds[1].Users) != 1 || stVip.Node.Inbounds[1].Users[0].UUID != u2["uuid"].(string) {
+		t.Fatalf("vip scoping: shared=%d vip=%+v", len(stVip.Users), stVip.Node.Inbounds[1].Users)
+	}
+	st2 = stVip
 	etag2 := h.Get("ETag")
 	if code, _, _ := agent.do("GET", "/api/agent/state", nil, map[string]string{"If-None-Match": etag2}); code != http.StatusNotModified {
 		t.Fatalf("expected 304, got %d", code)

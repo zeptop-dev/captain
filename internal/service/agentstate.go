@@ -23,38 +23,49 @@ type AgentState struct {
 	PushSeconds int
 }
 
-// Build assembles the state bosun applies on node n. Users are the union of
-// users allowed on any of the node's inbounds; bosun provisions every user on
-// every inbound, so group restrictions are enforced by which inbounds exist
-// on a node (one node, one audience) until per-inbound user lists exist.
+// Build assembles the state bosun applies on node n. Inbounds open to
+// everyone use the node-level user list (all users with a usable
+// subscription); inbounds restricted to a group carry their own scoped list.
 func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*agentproto.State, error) {
 	inbounds, err := a.Store.InboundsByNode(ctx, n.ID)
 	if err != nil {
 		return nil, err
 	}
 	node := spec.Node{ID: strconv.FormatInt(n.ID, 10)}
-	seen := map[int64]bool{}
-	var users []spec.User
-	for _, ib := range inbounds {
-		node.Inbounds = append(node.Inbounds, ib.Spec())
-		list, err := a.Store.UsersWithAccess(ctx, ib.GroupID, at)
-		if err != nil {
-			return nil, err
-		}
-		for _, u := range list {
-			if seen[u.ID] {
-				continue
-			}
-			seen[u.ID] = true
-			users = append(users, spec.User{ID: u.ID, Name: u.UUID, UUID: u.UUID, Password: u.UUID})
-		}
+	all, err := a.Store.UsersWithAccess(ctx, nil, at)
+	if err != nil {
+		return nil, err
 	}
-	if users == nil {
-		users = []spec.User{}
+	users := toSpecUsers(all)
+	byGroup := map[int64][]spec.User{}
+	for _, ib := range inbounds {
+		si := ib.Spec()
+		if ib.GroupID != nil {
+			list, ok := byGroup[*ib.GroupID]
+			if !ok {
+				members, err := a.Store.UsersWithAccess(ctx, ib.GroupID, at)
+				if err != nil {
+					return nil, err
+				}
+				list = toSpecUsers(members)
+				byGroup[*ib.GroupID] = list
+			}
+			si.ScopedUsers = true
+			si.Users = list
+		}
+		node.Inbounds = append(node.Inbounds, si)
 	}
 	st := &agentproto.State{Node: node, Users: users, Forwards: []spec.Forward{}, PullSeconds: a.PullSeconds, PushSeconds: a.PushSeconds}
 	st.Revision = revision(st)
 	return st, nil
+}
+
+func toSpecUsers(list []*domain.User) []spec.User {
+	out := make([]spec.User, 0, len(list))
+	for _, u := range list {
+		out = append(out, spec.User{ID: u.ID, Name: u.UUID, UUID: u.UUID, Password: u.UUID})
+	}
+	return out
 }
 
 // revision is a content hash so identical state yields the same ETag.

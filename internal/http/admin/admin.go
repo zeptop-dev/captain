@@ -44,6 +44,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/admin/nodes/{id}/inbounds", h.requireAdmin(h.createInbound))
 	mux.HandleFunc("POST /api/admin/users", h.requireAdmin(h.createUser))
 	mux.HandleFunc("POST /api/admin/plans", h.requireAdmin(h.createPlan))
+	mux.HandleFunc("POST /api/admin/groups", h.requireAdmin(h.createGroup))
 	mux.HandleFunc("POST /api/admin/users/{id}/grant", h.requireAdmin(h.grantPlan))
 }
 
@@ -191,6 +192,20 @@ func (h *handlers) createPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, p)
+}
+
+func (h *handlers) createGroup(w http.ResponseWriter, r *http.Request) {
+	var in struct{ Name string }
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Name == "" {
+		fail(w, http.StatusBadRequest, "name is required")
+		return
+	}
+	id, err := h.Store.CreateGroup(r.Context(), in.Name)
+	if err != nil {
+		fail(w, http.StatusConflict, err.Error())
+		return
+	}
+	ok(w, map[string]any{"id": id, "name": in.Name})
 }
 
 // grantPlan gives a user a plan directly (manual order).

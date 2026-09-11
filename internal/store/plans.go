@@ -77,3 +77,12 @@ func (s *Store) ActiveSubscription(ctx context.Context, userID int64) (*domain.S
 	sub.ExpiresAt, sub.ResetAt = unixPtr(expires), unixPtr(reset)
 	return &sub, nil
 }
+
+// CreateGroup inserts a user group.
+func (s *Store) CreateGroup(ctx context.Context, name string) (int64, error) {
+	res, err := s.db.ExecContext(ctx, `INSERT INTO user_groups (name) VALUES (?)`, name)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
