@@ -13,6 +13,7 @@ import (
 	"gitlab.com/boyang-hu/captain/internal/domain"
 	"gitlab.com/boyang-hu/captain/internal/http/admin"
 	"gitlab.com/boyang-hu/captain/internal/http/agent"
+	"gitlab.com/boyang-hu/captain/internal/http/sub"
 	"gitlab.com/boyang-hu/captain/internal/service"
 	"gitlab.com/boyang-hu/captain/internal/store"
 )
@@ -33,6 +34,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger) *Server {
 	})
 	sessions := &sessionAuth{store: st}
 	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions})
+	sub.Register(s.mux, sub.Deps{Store: st, Log: log, Service: &service.Subscription{Store: st}})
 	agent.Register(s.mux, agent.Deps{
 		Store: st, Log: log,
 		State: &service.AgentState{Store: st, PullSeconds: cfg.Agent.PullSeconds, PushSeconds: cfg.Agent.PushSeconds},

@@ -96,6 +96,14 @@ func (s *Store) TouchNode(ctx context.Context, id int64, version, revision strin
 
 const inboundCols = "id, node_id, tag, protocol, listen, port, core, settings_json, group_id, enabled, sort"
 
+func inboundColsPrefixed(p string) string {
+	return p + ".id, " + p + ".node_id, " + p + ".tag, " + p + ".protocol, " + p + ".listen, " + p + ".port, " + p + ".core, " + p + ".settings_json, " + p + ".group_id, " + p + ".enabled, " + p + ".sort"
+}
+
+func unmarshalSettings(raw string, ib *domain.Inbound) error {
+	return json.Unmarshal([]byte(raw), &ib.Settings)
+}
+
 func scanInbound(row interface{ Scan(...any) error }) (*domain.Inbound, error) {
 	var ib domain.Inbound
 	var settings string

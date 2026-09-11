@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -10,6 +11,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"gitlab.com/boyang-hu/bosun/pkg/agentproto"
@@ -189,6 +191,28 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("expected 304, got %d", code)
 	}
 
+	// Entries + subscription documents.
+	if st, b, _ := c.do("POST", "/api/admin/entries", map[string]any{"Name": "JP mieru", "InboundID": 1, "DisplayHost": "entry.test", "DisplayPort": 24450}, nil); st != 200 {
+		t.Fatalf("entry: %d %s", st, b)
+	}
+	c.do("POST", "/api/admin/entries", map[string]any{"Name": "JP vip", "InboundID": 2, "DisplayHost": "entry.test", "DisplayPort": 443}, nil)
+	anon := &client{t: t, srv: srv}
+	code0, b, h := anon.do("GET", "/sub/"+u1["sub_token"].(string), nil, map[string]string{"User-Agent": "clash-verge/1.0"})
+	if code0 != 200 || !strings.Contains(h.Get("Content-Type"), "yaml") || !strings.Contains(string(b), "type: mieru") || strings.Contains(string(b), "JP vip") {
+		t.Fatalf("clash sub for basic user: %d %s\n%s", code0, h.Get("Content-Type"), b)
+	}
+	if !strings.HasPrefix(h.Get("Subscription-Userinfo"), "upload=0; download=0; total=1073741824; expire=") {
+		t.Fatalf("userinfo: %s", h.Get("Subscription-Userinfo"))
+	}
+	_, b, _ = anon.do("GET", "/sub/"+u2["sub_token"].(string)+"?client=uri", nil, nil)
+	raw, _ := base64.StdEncoding.DecodeString(string(b))
+	if !strings.Contains(string(raw), "mierus://") || !strings.Contains(string(raw), "vless://"+u2["uuid"].(string)+"@entry.test:443") {
+		t.Fatalf("uri sub for vip user:\n%s", raw)
+	}
+	if code, _, _ := anon.do("GET", "/sub/nope", nil, nil); code != http.StatusNotFound {
+		t.Fatalf("unknown token: %d", code)
+	}
+
 	// Report traffic: charged to the subscription; quota exhaustion drops the user.
 	uid := int64(u1["id"].(float64))
 	_, b, _ = agent.do("POST", "/api/agent/report", agentproto.Report{
@@ -212,6 +236,11 @@ func TestEndToEnd(t *testing.T) {
 	_, b, _ = agent.do("GET", "/api/agent/state", nil, nil)
 	if st3 := mustJSON[agentproto.State](t, b); len(st3.Users) != 1 || st3.Users[0].UUID != u2["uuid"].(string) {
 		t.Fatalf("exhausted user still provisioned (only the vip user should remain): %+v", st3.Users)
+	}
+	// Exhausted user gets an empty document but keeps the usage header.
+	code1, b, h := anon.do("GET", "/sub/"+u1["sub_token"].(string), nil, map[string]string{"User-Agent": "mihomo"})
+	if code1 != 200 || strings.Contains(string(b), "type: mieru") || !strings.Contains(h.Get("Subscription-Userinfo"), "total=1073741824") {
+		t.Fatalf("exhausted sub: %d %s\n%s", code1, h.Get("Subscription-Userinfo"), b)
 	}
 	n, _ := st.NodeByID(context.Background(), nodeID)
 	if n.LastSeenAt == nil || n.Version != "0.1.0" || !n.Paired {
