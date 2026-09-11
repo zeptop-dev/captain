@@ -1,6 +1,7 @@
-stages: [test, build]
+stages: [test, build, publish]
 
 variables:
+  REGISTRY: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic"
   GOFLAGS: "-mod=mod"
   GOTOOLCHAIN: auto
 
@@ -11,7 +12,7 @@ test:
   before_script:
     - export GOMODCACHE="$CI_PROJECT_DIR/.gocache/mod" GOCACHE="$CI_PROJECT_DIR/.gocache/build"
   script:
-    - gofmt -l . | tee /dev/stderr | test -z "$(cat)"
+    - git ls-files "*.go" | xargs gofmt -l | tee /dev/stderr | test -z "$(cat)"
     - go vet ./...
     - go test ./...
 
@@ -40,3 +41,17 @@ build:captain:
   artifacts:
     paths: [bin/]
     expire_in: 1 week
+
+publish:captain:
+  stage: publish
+  needs: [build:captain]
+  rules:
+    - if: $CI_COMMIT_TAG
+  script:
+    - |
+      cd bin
+      for f in captain-linux-* SHA256SUMS; do
+        curl --fail -sS --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file "$f" \
+          "$REGISTRY/captain/$CI_COMMIT_TAG/$f"
+        echo " uploaded $f"
+      done
