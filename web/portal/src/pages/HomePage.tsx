@@ -1,0 +1,83 @@
+import { Badge, Button, Card, CopyButton, Group, Progress, SimpleGrid, Stack, Text, Title, Menu } from '@mantine/core'
+import { IconCheck, IconCopy, IconDownload } from '@tabler/icons-react'
+import { QRCodeSVG } from 'qrcode.react'
+import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { useAuth } from '../lib/auth'
+import { bytes, money, when } from '../lib/format'
+
+// Deep links understood by the common clients.
+function importLinks(url: string) {
+  const enc = encodeURIComponent(url)
+  return [
+    { name: 'Clash / mihomo', href: `clash://install-config?url=${enc}` },
+    { name: 'sing-box', href: `sing-box://import-remote-profile?url=${enc}` },
+    { name: 'Shadowrocket', href: `shadowrocket://add/sub://${btoa(url)}?remark=Captain` },
+    { name: 'Surge', href: `surge:///install-config?url=${enc}` },
+  ]
+}
+
+export default function HomePage() {
+  const { t } = useTranslation()
+  const { me } = useAuth()
+  if (!me) return null
+  const sub = me.subscription
+  const daysLeft = sub?.expires_at ? Math.max(0, Math.ceil((new Date(sub.expires_at).getTime() - Date.now()) / 86400000)) : null
+  return (
+    <Stack gap="lg">
+      <Title order={2}>{t('home.hello', { email: me.email })}</Title>
+
+      {!sub && (
+        <Card>
+          <Title order={4}>{t('home.noPlan')}</Title>
+          <Text c="dimmed" mb="md">{t('home.noPlanHint')}</Text>
+          <Button component={Link} to="/plans">{t('home.browsePlans')}</Button>
+        </Card>
+      )}
+      {sub && !sub.usable && (
+        <Card style={{ borderColor: 'var(--mantine-color-orange-4)' }}>
+          <Group justify="space-between"><div><Title order={4}>{t('home.expired')}</Title><Text c="dimmed">{t('home.expiredHint')}</Text></div><Button component={Link} to="/plans" color="orange">{t('home.renew')}</Button></Group>
+        </Card>
+      )}
+      {sub && (
+        <SimpleGrid cols={{ base: 1, xs: 3 }}>
+          <Card>
+            <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.usage')}</Text>
+            <Text fz="xl" fw={700} mt={4}>{bytes(sub.used_bytes)}{sub.quota_bytes ? <Text span c="dimmed" fz="sm"> / {bytes(sub.quota_bytes)}</Text> : null}</Text>
+            {sub.quota_bytes ? <Progress value={Math.min(100, (sub.used_bytes / sub.quota_bytes) * 100)} mt="sm" /> : <Text size="sm" c="dimmed">{t('home.unlimited')}</Text>}
+          </Card>
+          <Card>
+            <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.expires')}</Text>
+            <Text fz="xl" fw={700} mt={4}>{sub.expires_at ? when(sub.expires_at).split(',')[0] : t('home.never')}</Text>
+            {daysLeft !== null && <Badge mt="sm" color={daysLeft > 7 ? 'teal' : 'orange'}>{t('home.daysLeft', { count: daysLeft })}</Badge>}
+          </Card>
+          <Card>
+            <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.balance')}</Text>
+            <Text fz="xl" fw={700} mt={4}>{money(me.balance_cents)}</Text>
+          </Card>
+        </SimpleGrid>
+      )}
+
+      <Card>
+        <Title order={4}>{t('home.subscribe')}</Title>
+        <Text c="dimmed" size="sm" mb="md">{t('home.subscribeHint')}</Text>
+        <Group align="flex-start" wrap="nowrap" gap="lg">
+          <Stack flex={1} gap="sm">
+            <Text size="sm" style={{ wordBreak: 'break-all' }} ff="monospace" p="sm" bg="var(--mantine-color-gray-1)">{me.subscription_url}</Text>
+            <Group>
+              <CopyButton value={me.subscription_url} timeout={1500}>{({ copied, copy }) => <Button leftSection={copied ? <IconCheck size={16} /> : <IconCopy size={16} />} color={copied ? 'teal' : undefined} onClick={copy}>{copied ? t('home.copied') : t('home.copy')}</Button>}</CopyButton>
+              <Menu shadow="md" width={200}>
+                <Menu.Target><Button variant="light" leftSection={<IconDownload size={16} />}>{t('home.import')}</Button></Menu.Target>
+                <Menu.Dropdown>{importLinks(me.subscription_url).map((l) => <Menu.Item key={l.name} component="a" href={l.href}>{l.name}</Menu.Item>)}</Menu.Dropdown>
+              </Menu>
+            </Group>
+          </Stack>
+          <Stack align="center" gap={4} visibleFrom="xs">
+            <QRCodeSVG value={me.subscription_url} size={112} />
+            <Text size="xs" c="dimmed">{t('home.qr')}</Text>
+          </Stack>
+        </Group>
+      </Card>
+    </Stack>
+  )
+}

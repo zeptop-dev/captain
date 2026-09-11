@@ -31,8 +31,10 @@ traffic landing in the user's subscription:
 
 - Admin console (`web/admin`, React 19 + Mantine 8 + TanStack Query, zh-CN and en) embedded at `/admin/`: overview with traffic chart, nodes with pairing codes and a bosun config snippet, node detail with host metrics and inbounds (quick-setup recipes for VLESS+REALITY, Hysteria2, mieru, SS2022, Trojan+WS), entries, users with an edit drawer (grant plan, balance, rotate subscription URL), plans, orders, settings.
 
-Not yet: user portal frontend, jobs (stale order cancellation, quota resets),
-online device collection.
+- User portal (`web/portal`, light theme, phone friendly) embedded at `/portal/` (the site root redirects there): sign up / sign in, home with usage, expiry, balance, subscription link with copy, QR code and one-tap import links (Clash, sing-box, Shadowrocket, Surge), plans with balance / EPay / Stripe checkout, orders, servers with per-server share links.
+
+Not yet: jobs (stale order cancellation, quota resets), online device
+collection, email (password reset, notifications).
 
 ## Run
 
