@@ -5,4 +5,7 @@
 .idea
 .vscode
 node_modules/
-vendor/
+bin/
+web/*/dist/
+*.db
+*.db-*

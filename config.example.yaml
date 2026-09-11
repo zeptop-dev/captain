@@ -1,0 +1,22 @@
+listen: 127.0.0.1:8080
+base_url: https://panel.example.com     # public URL; used in subscription links and payment callbacks
+data_dir: /var/lib/captain
+log_level: info
+
+database:
+  driver: sqlite
+  dsn: /var/lib/captain/captain.db
+
+agent:
+  pull_seconds: 60
+  push_seconds: 60
+
+payments:
+  # epay:
+  #   url: https://pay.example.com
+  #   pid: "1000"
+  #   key: secret
+  # stripe:
+  #   secret_key: sk_live_...
+  #   webhook_secret: whsec_...
+  #   currency: usd
