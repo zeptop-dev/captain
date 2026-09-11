@@ -2,6 +2,26 @@
 
 One Linux box, one binary, one SQLite file. Caddy (or nginx) in front for TLS.
 
+## 0. Docker (shortest path)
+
+Tagged pipelines push a multi-arch image to `registry.gitlab.com/boyang-hu/captain`
+and to Docker Hub as `zeptop/captain`. The GitLab one needs a login with a Deploy
+Token (`read_registry`); the Docker Hub one is public unless you make that
+repository private in your Docker Hub account.
+
+```sh
+mkdir -p /opt/captain && cd /opt/captain
+curl -fsSLO https://gitlab.com/boyang-hu/captain/-/raw/master/deploy/docker-compose.yml   # needs a token for a private repo; or copy the file
+cp deploy/Caddyfile deploy/config.example.yaml .                      # edit domain, base_url, payments; set listen: 0.0.0.0:8080
+mv config.example.yaml config.yaml
+docker login registry.gitlab.com   # username: anything, password: the Deploy Token (skip for zeptop/captain)
+docker compose up -d
+docker compose exec captain captain admin create -c /etc/captain/config.yaml -email you@example.com -password '...'
+```
+
+Data lives in the `captain-data` volume (`/var/lib/captain` inside). Upgrade with
+`docker compose pull && docker compose up -d`.
+
 ## 1. Binary
 
 Tagged pipelines publish `captain-linux-{amd64,arm64}` plus `SHA256SUMS` to the

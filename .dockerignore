@@ -1,0 +1,8 @@
+bin/
+web/admin/node_modules/
+web/admin/dist/
+web/portal/node_modules/
+web/portal/dist/
+.gocache/
+.git/
+*.db
