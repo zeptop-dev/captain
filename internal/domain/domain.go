@@ -137,3 +137,10 @@ type Order struct {
 	CreatedAt   time.Time
 	PaidAt      *time.Time
 }
+
+// Group is a user group; plans put buyers in a group and inbounds may be
+// restricted to one.
+type Group struct {
+	ID   int64
+	Name string
+}

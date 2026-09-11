@@ -105,3 +105,14 @@ func (s *Store) CreateGroup(ctx context.Context, name string) (int64, error) {
 	}
 	return res.LastInsertId()
 }
+
+func (s *Store) UpdatePlan(ctx context.Context, p *domain.Plan) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE plans SET name = ?, price_cents = ?, period_days = ?, quota_bytes = ?, device_limit = ?, speed_limit_mbps = ?, group_id = ?, sort = ?, enabled = ?, updated_at = ? WHERE id = ?`,
+		p.Name, p.PriceCents, p.PeriodDays, p.QuotaBytes, p.DeviceLimit, p.SpeedLimitMbps, nullInt64(p.GroupID), p.Sort, boolInt(p.Enabled), now(), p.ID)
+	return err
+}
+
+func (s *Store) DeletePlan(ctx context.Context, id int64) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM plans WHERE id = ?`, id)
+	return err
+}

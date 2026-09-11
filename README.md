@@ -29,13 +29,15 @@ traffic landing in the user's subscription:
 - Orders and payments: EPay 易支付 **v1 (MD5) and v2 (RSA)** behind one gateway (`payments.epay.version`), Stripe Checkout with webhook verification, and balance. Settlement is idempotent under repeated callbacks; EPay callbacks are also checked against the order amount.
 - Portal API under `/api/portal`: register (optional), login, me (subscription, usage, subscription URL), plans, servers with per-server share links, orders, create order (returns the payment URL).
 
-Not yet: React frontends, jobs (stale order cancellation, quota resets),
+- Admin console (`web/admin`, React 19 + Mantine 8 + TanStack Query, zh-CN and en) embedded at `/admin/`: overview with traffic chart, nodes with pairing codes and a bosun config snippet, node detail with host metrics and inbounds (quick-setup recipes for VLESS+REALITY, Hysteria2, mieru, SS2022, Trojan+WS), entries, users with an edit drawer (grant plan, balance, rotate subscription URL), plans, orders, settings.
+
+Not yet: user portal frontend, jobs (stale order cancellation, quota resets),
 online device collection.
 
 ## Run
 
 ```sh
-make build
+make build            # builds web/admin with pnpm, then the Go binary with it embedded
 cp config.example.yaml /etc/captain/config.yaml       # set base_url
 bin/captain admin create -c /etc/captain/config.yaml -email you@example.com -password '...'
 bin/captain serve -c /etc/captain/config.yaml

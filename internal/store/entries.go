@@ -96,3 +96,14 @@ func (s *Store) ListEntries(ctx context.Context) ([]*domain.Entry, error) {
 	}
 	return out, rows.Err()
 }
+
+func (s *Store) UpdateEntry(ctx context.Context, e *domain.Entry) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE entries SET name = ?, inbound_id = ?, chain_id = ?, display_host = ?, display_port = ?, rate = ?, sort = ?, enabled = ?, updated_at = ? WHERE id = ?`,
+		e.Name, e.InboundID, nullInt64(e.ChainID), e.DisplayHost, e.DisplayPort, e.Rate, e.Sort, boolInt(e.Enabled), now(), e.ID)
+	return err
+}
+
+func (s *Store) DeleteEntry(ctx context.Context, id int64) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM entries WHERE id = ?`, id)
+	return err
+}

@@ -160,3 +160,92 @@ func boolInt(b bool) int {
 	}
 	return 0
 }
+
+// UpdateNode changes editable node fields.
+func (s *Store) UpdateNode(ctx context.Context, n *domain.Node) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET name = ?, public_addr = ?, internal_addr = ?, v6_addr = ?, monitor_url = ?, updated_at = ? WHERE id = ?`,
+		n.Name, n.PublicAddr, n.InternalAddr, n.V6Addr, n.MonitorURL, now(), n.ID)
+	return err
+}
+
+// ResetPairCode issues a fresh pairing code and revokes the current token.
+func (s *Store) ResetPairCode(ctx context.Context, id int64, code string, ttl time.Duration) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET pair_code = ?, pair_code_expires_at = ?, token_hash = NULL, updated_at = ? WHERE id = ?`,
+		code, time.Now().Add(ttl).Unix(), now(), id)
+	return err
+}
+
+func (s *Store) DeleteNode(ctx context.Context, id int64) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM nodes WHERE id = ?`, id)
+	return err
+}
+
+// NodeStatus is the last reported host/core state.
+type NodeStatus struct {
+	Host  json.RawMessage `json:"host"`
+	Cores json.RawMessage `json:"cores"`
+}
+
+func (s *Store) NodeStatus(ctx context.Context, id int64) (*NodeStatus, error) {
+	var host, cores string
+	if err := s.db.QueryRowContext(ctx, `SELECT host_status_json, cores_json FROM nodes WHERE id = ?`, id).Scan(&host, &cores); err != nil {
+		return nil, wrapNotFound(err)
+	}
+	return &NodeStatus{Host: json.RawMessage(host), Cores: json.RawMessage(cores)}, nil
+}
+
+// AllInboundsByNode lists inbounds of a node including disabled ones.
+func (s *Store) AllInboundsByNode(ctx context.Context, nodeID int64) ([]*domain.Inbound, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+inboundCols+` FROM inbounds WHERE node_id = ? ORDER BY sort, id`, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*domain.Inbound
+	for rows.Next() {
+		ib, err := scanInbound(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, ib)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) InboundByID(ctx context.Context, id int64) (*domain.Inbound, error) {
+	return scanInbound(s.db.QueryRowContext(ctx, `SELECT `+inboundCols+` FROM inbounds WHERE id = ?`, id))
+}
+
+func (s *Store) UpdateInbound(ctx context.Context, ib *domain.Inbound) error {
+	settings, err := json.Marshal(ib.Settings)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.ExecContext(ctx, `UPDATE inbounds SET tag = ?, protocol = ?, listen = ?, port = ?, core = ?, settings_json = ?, group_id = ?, enabled = ?, sort = ?, updated_at = ? WHERE id = ?`,
+		ib.Tag, ib.Protocol, ib.Listen, ib.Port, ib.Core, string(settings), nullInt64(ib.GroupID), boolInt(ib.Enabled), ib.Sort, now(), ib.ID)
+	return err
+}
+
+func (s *Store) DeleteInbound(ctx context.Context, id int64) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM inbounds WHERE id = ?`, id)
+	return err
+}
+
+// NodeTrafficToday sums today's traffic per node from daily buckets.
+func (s *Store) NodeTrafficToday(ctx context.Context, day time.Time) (map[int64]int64, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT i.node_id, SUM(t.up_bytes + t.down_bytes) FROM traffic_daily t JOIN inbounds i ON i.id = t.inbound_id WHERE t.day = ? GROUP BY i.node_id`,
+		day.UTC().Truncate(24*time.Hour).Unix())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int64]int64{}
+	for rows.Next() {
+		var id, sum int64
+		if err := rows.Scan(&id, &sum); err != nil {
+			return nil, err
+		}
+		out[id] = sum
+	}
+	return out, rows.Err()
+}

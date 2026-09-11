@@ -6,6 +6,7 @@
 .vscode
 node_modules/
 bin/
-web/*/dist/
+web/*/dist/*
+!web/*/dist/.keep
 *.db
 *.db-*
