@@ -8,6 +8,7 @@ variables:
 test:
   stage: test
   image: golang:1.26
+  needs: [build:web]          # web/embed.go needs the SPA dist directories to exist
   cache: { key: gomod, paths: [.gocache/] }
   before_script:
     - export GOMODCACHE="$CI_PROJECT_DIR/.gocache/mod" GOCACHE="$CI_PROJECT_DIR/.gocache/build"
