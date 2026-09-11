@@ -210,8 +210,8 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatal("quota exhausted: state should change")
 	}
 	_, b, _ = agent.do("GET", "/api/agent/state", nil, nil)
-	if st3 := mustJSON[agentproto.State](t, b); len(st3.Users) != 0 {
-		t.Fatalf("exhausted user still provisioned: %+v", st3.Users)
+	if st3 := mustJSON[agentproto.State](t, b); len(st3.Users) != 1 || st3.Users[0].UUID != u2["uuid"].(string) {
+		t.Fatalf("exhausted user still provisioned (only the vip user should remain): %+v", st3.Users)
 	}
 	n, _ := st.NodeByID(context.Background(), nodeID)
 	if n.LastSeenAt == nil || n.Version != "0.1.0" || !n.Paired {
