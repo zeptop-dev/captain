@@ -45,11 +45,13 @@ export default function HomePage() {
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.usage')}</Text>
             <Text fz="xl" fw={700} mt={4}>{bytes(sub.used_bytes)}{sub.quota_bytes ? <Text span c="dimmed" fz="sm"> / {bytes(sub.quota_bytes)}</Text> : null}</Text>
             {sub.quota_bytes ? <Progress value={Math.min(100, (sub.used_bytes / sub.quota_bytes) * 100)} mt="sm" /> : <Text size="sm" c="dimmed">{t('home.unlimited')}</Text>}
+            {sub.reset_at && <Text size="xs" c="dimmed" mt={6}>{t('home.resetsOn', { date: when(sub.reset_at).split(',')[0] })}</Text>}
           </Card>
           <Card>
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.expires')}</Text>
             <Text fz="xl" fw={700} mt={4}>{sub.expires_at ? when(sub.expires_at).split(',')[0] : t('home.never')}</Text>
             {daysLeft !== null && <Badge mt="sm" color={daysLeft > 7 ? 'teal' : 'orange'}>{t('home.daysLeft', { count: daysLeft })}</Badge>}
+            <Text size="xs" c="dimmed" mt={6}>{t('home.devices', { count: sub.online_devices })}</Text>
           </Card>
           <Card>
             <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.balance')}</Text>

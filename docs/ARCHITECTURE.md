@@ -92,6 +92,12 @@ both sides compile against one definition.
 client's format. Entries carry the landing inbound's protocol settings plus
 the entry's display host and port.
 
+## Background jobs and limits
+
+`internal/jobs.Runner` ticks every minute: cancels unpaid orders older than 30 min, expires subscriptions, resets quota when `plans.reset_days` elapses (advancing `reset_at`), purges expired sessions and stale `online_devices` rows (10 min).
+
+Device limits: agents report per-user client IPs (`Report.Online`) for cores that know them (Xray, Hysteria). `AgentState.Build` withholds a user whose distinct IPs over the last 3 min exceed `plan.device_limit`; the user comes back automatically once old IPs age out. `limits.enforce_devices: false` turns this off. sing-box and mita inbounds never contribute IPs, so they cannot trigger the limit.
+
 ## Payments
 
 `payment.Gateway` interface: `Create(order) (redirectURL, error)` and

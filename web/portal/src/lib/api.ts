@@ -18,7 +18,7 @@ export const api = {
 
 export interface Me {
   id: number; email: string; balance_cents: number; subscription_url: string; gateways: string[]
-  subscription: { plan_id: number; starts_at: string; expires_at: string | null; quota_bytes: number; used_bytes: number; usable: boolean } | null
+  subscription: { plan_id: number; starts_at: string; expires_at: string | null; reset_at: string | null; quota_bytes: number; used_bytes: number; usable: boolean; online_devices: number } | null
 }
 export interface Plan { ID: number; Name: string; PriceCents: number; PeriodDays: number; QuotaBytes: number; DeviceLimit: number; SpeedLimitMbps: number }
 export interface Order { ID: number; No: string; PlanID: number; AmountCents: number; Gateway: string; Status: string; CreatedAt: string; PaidAt: string | null }

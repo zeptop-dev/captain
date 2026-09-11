@@ -285,3 +285,55 @@ func TestAdminLists(t *testing.T) {
 		t.Fatalf("banned not reflected: %s", b)
 	}
 }
+
+func TestDeviceLimit(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "http://test"
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	c := &client{t: t, srv: srv}
+	c.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+	_, b, _ := c.do("POST", "/api/admin/nodes", map[string]string{"Name": "n"}, nil)
+	node := mustJSON[map[string]any](t, b)
+	c.do("POST", "/api/admin/nodes/"+itoa(int64(node["id"].(float64)))+"/inbounds", map[string]any{"Tag": "t", "Protocol": "vless", "Port": 1}, nil)
+	_, b, _ = c.do("POST", "/api/admin/users", map[string]string{"Email": "u@test", "Password": "password123"}, nil)
+	u := mustJSON[map[string]any](t, b)
+	_, b, _ = c.do("POST", "/api/admin/plans", map[string]any{"Name": "two-devices", "PriceCents": 1, "PeriodDays": 30, "DeviceLimit": 2}, nil)
+	plan := mustJSON[map[string]any](t, b)
+	c.do("POST", "/api/admin/users/"+itoa(int64(u["id"].(float64)))+"/grant", map[string]any{"PlanID": plan["ID"]}, nil)
+	agent := &client{t: t, srv: srv}
+	_, b, _ = agent.do("POST", "/api/agent/pair", agentproto.PairRequest{Code: node["pair_code"].(string)}, nil)
+	agent.token = mustJSON[agentproto.PairResponse](t, b).Token
+
+	uuid := u["uuid"].(string)
+	// Two devices: fine.
+	agent.do("POST", "/api/agent/report", agentproto.Report{Online: map[string][]string{uuid: {"1.1.1.1", "2.2.2.2"}}}, nil)
+	_, b, _ = agent.do("GET", "/api/agent/state", nil, nil)
+	if stt := mustJSON[agentproto.State](t, b); len(stt.Users) != 1 {
+		t.Fatalf("two devices should be allowed: %+v", stt.Users)
+	}
+	// Third device: the user is withheld from nodes until the extra IP ages out.
+	_, b, _ = agent.do("POST", "/api/agent/report", agentproto.Report{Online: map[string][]string{uuid: {"3.3.3.3"}}}, nil)
+	if rr := mustJSON[agentproto.ReportResponse](t, b); !rr.StateChanged {
+		t.Fatal("exceeding the device limit should change state")
+	}
+	_, b, _ = agent.do("GET", "/api/agent/state", nil, nil)
+	if stt := mustJSON[agentproto.State](t, b); len(stt.Users) != 0 {
+		t.Fatalf("over-limit user still provisioned: %+v", stt.Users)
+	}
+	_, b, _ = c.do("GET", "/api/admin/users/"+itoa(int64(u["id"].(float64))), nil, nil)
+	if !strings.Contains(string(b), `"3.3.3.3"`) {
+		t.Fatalf("devices missing from user detail: %s", b)
+	}
+	// Age the IPs out and the user returns.
+	conn.Exec(`UPDATE online_devices SET last_seen_at = last_seen_at - 600`)
+	_, b, _ = agent.do("GET", "/api/agent/state", nil, nil)
+	if stt := mustJSON[agentproto.State](t, b); len(stt.Users) != 1 {
+		t.Fatalf("user should return after IPs age out: %+v", stt.Users)
+	}
+}

@@ -147,9 +147,11 @@ func (h *handlers) writeMe(w http.ResponseWriter, r *http.Request, u *domain.Use
 	}
 	var subView any
 	if sub != nil {
+		devices, _ := h.Store.OnlineDevices(r.Context(), u.ID, time.Now().Add(-5*time.Minute))
 		subView = map[string]any{
-			"plan_id": sub.PlanID, "starts_at": sub.StartsAt, "expires_at": sub.ExpiresAt,
+			"plan_id": sub.PlanID, "starts_at": sub.StartsAt, "expires_at": sub.ExpiresAt, "reset_at": sub.ResetAt,
 			"quota_bytes": sub.QuotaBytes, "used_bytes": sub.UsedUpBytes + sub.UsedDownBytes, "usable": sub.Usable(time.Now()),
+			"online_devices": len(devices),
 		}
 	}
 	ok(w, map[string]any{

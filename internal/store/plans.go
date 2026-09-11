@@ -10,9 +10,9 @@ import (
 
 func (s *Store) CreatePlan(ctx context.Context, p *domain.Plan) error {
 	ts := now()
-	res, err := s.db.ExecContext(ctx, `INSERT INTO plans (name, price_cents, period_days, quota_bytes, device_limit, speed_limit_mbps, group_id, sort, enabled, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.Name, p.PriceCents, p.PeriodDays, p.QuotaBytes, p.DeviceLimit, p.SpeedLimitMbps, nullInt64(p.GroupID), p.Sort, boolInt(p.Enabled), ts, ts)
+	res, err := s.db.ExecContext(ctx, `INSERT INTO plans (name, price_cents, period_days, quota_bytes, device_limit, speed_limit_mbps, reset_days, group_id, sort, enabled, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.Name, p.PriceCents, p.PeriodDays, p.QuotaBytes, p.DeviceLimit, p.SpeedLimitMbps, p.ResetDays, nullInt64(p.GroupID), p.Sort, boolInt(p.Enabled), ts, ts)
 	if err != nil {
 		return err
 	}
@@ -24,8 +24,8 @@ func (s *Store) PlanByID(ctx context.Context, id int64) (*domain.Plan, error) {
 	var p domain.Plan
 	var group sql.NullInt64
 	var enabled int
-	err := s.db.QueryRowContext(ctx, `SELECT id, name, price_cents, period_days, quota_bytes, device_limit, speed_limit_mbps, group_id, sort, enabled FROM plans WHERE id = ?`, id).
-		Scan(&p.ID, &p.Name, &p.PriceCents, &p.PeriodDays, &p.QuotaBytes, &p.DeviceLimit, &p.SpeedLimitMbps, &group, &p.Sort, &enabled)
+	err := s.db.QueryRowContext(ctx, `SELECT id, name, price_cents, period_days, quota_bytes, device_limit, speed_limit_mbps, reset_days, group_id, sort, enabled FROM plans WHERE id = ?`, id).
+		Scan(&p.ID, &p.Name, &p.PriceCents, &p.PeriodDays, &p.QuotaBytes, &p.DeviceLimit, &p.SpeedLimitMbps, &p.ResetDays, &group, &p.Sort, &enabled)
 	if err != nil {
 		return nil, wrapNotFound(err)
 	}
@@ -55,12 +55,15 @@ func grantTx(ctx context.Context, tx *sql.Tx, userID int64, plan *domain.Plan, a
 	if _, err := tx.ExecContext(ctx, `UPDATE subscriptions SET status = 'expired', updated_at = ? WHERE user_id = ? AND status = 'active'`, now(), userID); err != nil {
 		return err
 	}
-	var expires sql.NullInt64
+	var expires, reset sql.NullInt64
 	if plan.PeriodDays > 0 {
 		expires = sql.NullInt64{Int64: at.AddDate(0, 0, plan.PeriodDays).Unix(), Valid: true}
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO subscriptions (user_id, plan_id, starts_at, expires_at, quota_bytes, status, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`, userID, plan.ID, at.Unix(), expires, plan.QuotaBytes, now(), now()); err != nil {
+	if plan.ResetDays > 0 && plan.QuotaBytes > 0 {
+		reset = sql.NullInt64{Int64: at.AddDate(0, 0, plan.ResetDays).Unix(), Valid: true}
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO subscriptions (user_id, plan_id, starts_at, expires_at, quota_bytes, reset_at, status, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`, userID, plan.ID, at.Unix(), expires, plan.QuotaBytes, reset, now(), now()); err != nil {
 		return err
 	}
 	_, err := tx.ExecContext(ctx, `UPDATE users SET group_id = ?, updated_at = ? WHERE id = ?`, nullInt64(plan.GroupID), now(), userID)
@@ -71,8 +74,8 @@ func planByIDTx(ctx context.Context, tx *sql.Tx, id int64) (*domain.Plan, error)
 	var p domain.Plan
 	var group sql.NullInt64
 	var enabled int
-	err := tx.QueryRowContext(ctx, `SELECT id, name, price_cents, period_days, quota_bytes, device_limit, speed_limit_mbps, group_id, sort, enabled FROM plans WHERE id = ?`, id).
-		Scan(&p.ID, &p.Name, &p.PriceCents, &p.PeriodDays, &p.QuotaBytes, &p.DeviceLimit, &p.SpeedLimitMbps, &group, &p.Sort, &enabled)
+	err := tx.QueryRowContext(ctx, `SELECT id, name, price_cents, period_days, quota_bytes, device_limit, speed_limit_mbps, reset_days, group_id, sort, enabled FROM plans WHERE id = ?`, id).
+		Scan(&p.ID, &p.Name, &p.PriceCents, &p.PeriodDays, &p.QuotaBytes, &p.DeviceLimit, &p.SpeedLimitMbps, &p.ResetDays, &group, &p.Sort, &enabled)
 	if err != nil {
 		return nil, wrapNotFound(err)
 	}
@@ -107,8 +110,8 @@ func (s *Store) CreateGroup(ctx context.Context, name string) (int64, error) {
 }
 
 func (s *Store) UpdatePlan(ctx context.Context, p *domain.Plan) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE plans SET name = ?, price_cents = ?, period_days = ?, quota_bytes = ?, device_limit = ?, speed_limit_mbps = ?, group_id = ?, sort = ?, enabled = ?, updated_at = ? WHERE id = ?`,
-		p.Name, p.PriceCents, p.PeriodDays, p.QuotaBytes, p.DeviceLimit, p.SpeedLimitMbps, nullInt64(p.GroupID), p.Sort, boolInt(p.Enabled), now(), p.ID)
+	_, err := s.db.ExecContext(ctx, `UPDATE plans SET name = ?, price_cents = ?, period_days = ?, quota_bytes = ?, device_limit = ?, speed_limit_mbps = ?, reset_days = ?, group_id = ?, sort = ?, enabled = ?, updated_at = ? WHERE id = ?`,
+		p.Name, p.PriceCents, p.PeriodDays, p.QuotaBytes, p.DeviceLimit, p.SpeedLimitMbps, p.ResetDays, nullInt64(p.GroupID), p.Sort, boolInt(p.Enabled), now(), p.ID)
 	return err
 }
 

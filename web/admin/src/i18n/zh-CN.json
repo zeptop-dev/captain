@@ -48,11 +48,11 @@
     "expires": "到期", "usage": "用量", "balance": "余额", "status": "状态", "active": "正常", "banned": "封禁", "noPlan": "无订阅",
     "group": "用户组", "grant": "发放套餐", "grantHint": "立即生效，替换当前订阅。", "topUp": "调整余额", "topUpHint": "正数充值，负数扣减，单位分。",
     "subUrl": "订阅链接", "rotate": "重置订阅链接", "rotateHint": "旧链接立即失效。", "newPassword": "新密码（留空不改）", "uuid": "UUID",
-    "orders": "订单", "createdAt": "注册时间", "filterPlaceholder": "按邮箱搜索"
+    "orders": "订单", "createdAt": "注册时间", "filterPlaceholder": "按邮箱搜索", "devices": "在线设备（最近 5 分钟）", "noDevices": "最近没有设备在线"
   },
   "plans": {
     "title": "套餐", "subtitle": "价格、周期、流量和用户组。", "create": "添加套餐", "name": "名称", "price": "价格（分）", "period": "周期（天）",
-    "periodHint": "0 表示永不过期", "quota": "流量（GiB）", "quotaHint": "0 表示不限", "deviceLimit": "设备数", "speedLimit": "限速（Mbps）",
+    "periodHint": "0 表示永不过期", "resetDays": "流量重置（天）", "resetHint": "0 表示不重置", "deviceHint": "0 表示不限；超出则暂停下发", "quota": "流量（GiB）", "quotaHint": "0 表示不限", "deviceLimit": "设备数", "speedLimit": "限速（Mbps）",
     "group": "购买后加入用户组", "enabled": "上架"
   },
   "orders": { "title": "订单", "subtitle": "所有支付网关的订单。", "no": "订单号", "user": "用户", "plan": "套餐", "amount": "金额", "gateway": "网关", "status": "状态", "createdAt": "创建", "paidAt": "支付", "pending": "待支付", "paid": "已支付", "cancelled": "已取消" },
