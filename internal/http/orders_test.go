@@ -50,9 +50,9 @@ func TestPurchaseFlow(t *testing.T) {
 	planID := int64(mustJSON[map[string]any](t, b)["ID"].(float64))
 	_, b, _ = adm.do("POST", "/api/admin/nodes", map[string]string{"Name": "n"}, nil)
 	node := mustJSON[map[string]any](t, b)
-	adm.do("POST", "/api/admin/nodes/"+itoa(int64(node["ID"].(float64)))+"/inbounds", map[string]any{"Tag": "t", "Protocol": "vmess", "Port": 1}, nil)
+	adm.do("POST", "/api/admin/nodes/"+itoa(int64(node["id"].(float64)))+"/inbounds", map[string]any{"Tag": "t", "Protocol": "vmess", "Port": 1}, nil)
 	agent := &client{t: t, srv: srv}
-	_, b, _ = agent.do("POST", "/api/agent/pair", agentproto.PairRequest{Code: node["PairCode"].(string)}, nil)
+	_, b, _ = agent.do("POST", "/api/agent/pair", agentproto.PairRequest{Code: node["pair_code"].(string)}, nil)
 	agent.token = mustJSON[agentproto.PairResponse](t, b).Token
 
 	// Self sign-up, no subscription yet.

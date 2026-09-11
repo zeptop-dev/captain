@@ -84,6 +84,7 @@ func cmdServe(args []string) error {
 	if err != nil {
 		return err
 	}
+	cfg.Version = version
 	srv := &http.Server{Addr: cfg.Listen, Handler: chttp.New(cfg, st, log).Handler(), ReadHeaderTimeout: 10 * time.Second}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

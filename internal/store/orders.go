@@ -174,3 +174,128 @@ func (s *Store) ListPlans(ctx context.Context, enabledOnly bool) ([]*domain.Plan
 	}
 	return out, rows.Err()
 }
+
+// OrderRow is an order with user email and plan name for admin lists.
+type OrderRow struct {
+	Order    domain.Order
+	Email    string
+	PlanName string
+}
+
+func (s *Store) ListOrders(ctx context.Context, status string, limit, offset int) ([]OrderRow, int, error) {
+	where := ""
+	args := []any{}
+	if status != "" {
+		where = ` WHERE o.status = ?`
+		args = append(args, status)
+	}
+	var total int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM orders o`+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT o.id, o.no, o.user_id, o.plan_id, o.amount_cents, o.gateway, o.gateway_ref, o.status, o.created_at, o.paid_at, u.email, p.name
+		FROM orders o JOIN users u ON u.id = o.user_id JOIN plans p ON p.id = o.plan_id`+where+` ORDER BY o.id DESC LIMIT ? OFFSET ?`, append(args, limit, offset)...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	var out []OrderRow
+	for rows.Next() {
+		var r OrderRow
+		var ref sql.NullString
+		var created int64
+		var paid sql.NullInt64
+		if err := rows.Scan(&r.Order.ID, &r.Order.No, &r.Order.UserID, &r.Order.PlanID, &r.Order.AmountCents, &r.Order.Gateway, &ref, &r.Order.Status, &created, &paid, &r.Email, &r.PlanName); err != nil {
+			return nil, 0, err
+		}
+		r.Order.GatewayRef = ref.String
+		r.Order.CreatedAt, r.Order.PaidAt = unix(created), unixPtr(paid)
+		out = append(out, r)
+	}
+	return out, total, rows.Err()
+}
+
+// DashboardStats are the headline numbers.
+type DashboardStats struct {
+	Users         int   `json:"users"`
+	ActiveSubs    int   `json:"active_subs"`
+	Nodes         int   `json:"nodes"`
+	NodesOnline   int   `json:"nodes_online"`
+	RevenueToday  int64 `json:"revenue_today_cents"`
+	RevenueMonth  int64 `json:"revenue_month_cents"`
+	OrdersPending int   `json:"orders_pending"`
+	TrafficToday  int64 `json:"traffic_today_bytes"`
+	OnlineDevices int   `json:"online_devices"`
+}
+
+func (s *Store) Dashboard(ctx context.Context, at time.Time) (*DashboardStats, error) {
+	d := &DashboardStats{}
+	day := at.UTC().Truncate(24 * time.Hour)
+	month := time.Date(at.UTC().Year(), at.UTC().Month(), 1, 0, 0, 0, 0, time.UTC)
+	q := func(dst any, query string, args ...any) error {
+		return s.db.QueryRowContext(ctx, query, args...).Scan(dst)
+	}
+	if err := q(&d.Users, `SELECT COUNT(*) FROM users WHERE role = 'user'`); err != nil {
+		return nil, err
+	}
+	if err := q(&d.ActiveSubs, `SELECT COUNT(*) FROM subscriptions WHERE status = 'active' AND (expires_at IS NULL OR expires_at > ?) AND (quota_bytes = 0 OR used_up_bytes + used_down_bytes < quota_bytes)`, at.Unix()); err != nil {
+		return nil, err
+	}
+	if err := q(&d.Nodes, `SELECT COUNT(*) FROM nodes`); err != nil {
+		return nil, err
+	}
+	if err := q(&d.NodesOnline, `SELECT COUNT(*) FROM nodes WHERE last_seen_at > ?`, at.Add(-3*time.Minute).Unix()); err != nil {
+		return nil, err
+	}
+	if err := q(&d.RevenueToday, `SELECT COALESCE(SUM(amount_cents),0) FROM orders WHERE status = 'paid' AND paid_at >= ?`, day.Unix()); err != nil {
+		return nil, err
+	}
+	if err := q(&d.RevenueMonth, `SELECT COALESCE(SUM(amount_cents),0) FROM orders WHERE status = 'paid' AND paid_at >= ?`, month.Unix()); err != nil {
+		return nil, err
+	}
+	if err := q(&d.OrdersPending, `SELECT COUNT(*) FROM orders WHERE status = 'pending'`); err != nil {
+		return nil, err
+	}
+	if err := q(&d.TrafficToday, `SELECT COALESCE(SUM(up_bytes + down_bytes),0) FROM traffic_daily WHERE day = ?`, day.Unix()); err != nil {
+		return nil, err
+	}
+	if err := q(&d.OnlineDevices, `SELECT COUNT(*) FROM online_devices WHERE last_seen_at > ?`, at.Add(-5*time.Minute).Unix()); err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+// TrafficSeries returns daily totals for the last n days, oldest first.
+func (s *Store) TrafficSeries(ctx context.Context, at time.Time, days int) ([]DayTraffic, error) {
+	start := at.UTC().Truncate(24*time.Hour).AddDate(0, 0, -(days - 1))
+	rows, err := s.db.QueryContext(ctx, `SELECT day, SUM(up_bytes), SUM(down_bytes) FROM traffic_daily WHERE day >= ? GROUP BY day ORDER BY day`, start.Unix())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	byDay := map[int64]DayTraffic{}
+	for rows.Next() {
+		var d DayTraffic
+		var day int64
+		if err := rows.Scan(&day, &d.Up, &d.Down); err != nil {
+			return nil, err
+		}
+		d.Day = day
+		byDay[day] = d
+	}
+	out := make([]DayTraffic, 0, days)
+	for i := 0; i < days; i++ {
+		day := start.AddDate(0, 0, i).Unix()
+		d := byDay[day]
+		d.Day = day
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
+// DayTraffic is one day's totals.
+type DayTraffic struct {
+	Day  int64 `json:"day"`
+	Up   int64 `json:"up"`
+	Down int64 `json:"down"`
+}

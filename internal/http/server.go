@@ -22,6 +22,7 @@ import (
 	"gitlab.com/boyang-hu/captain/internal/payment/stripe"
 	"gitlab.com/boyang-hu/captain/internal/service"
 	"gitlab.com/boyang-hu/captain/internal/store"
+	"gitlab.com/boyang-hu/captain/web"
 )
 
 // Server is the HTTP front.
@@ -58,7 +59,11 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	subSvc := &service.Subscription{Store: st}
 	base := strings.TrimRight(cfg.BaseURL, "/")
 
-	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions})
+	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Version: cfg.Version})
+	s.mux.Handle("/admin/", web.Admin("/admin/"))
+	s.mux.HandleFunc("GET /admin", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/admin/", http.StatusMovedPermanently)
+	})
 	portal.Register(s.mux, portal.Deps{Store: st, Log: log, Sessions: sessions, Orders: orders, Subscription: subSvc, BaseURL: base, Gateways: names, Registration: cfg.Portal.Registration})
 	paymenthttp.Register(s.mux, paymenthttp.Deps{Log: log, Orders: orders, ReturnTo: base + "/portal/orders", Gateways: gateways, Store: st})
 	sub.Register(s.mux, sub.Deps{Store: st, Log: log, Service: subSvc, Name: cfg.SiteName})

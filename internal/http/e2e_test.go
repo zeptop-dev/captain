@@ -104,8 +104,8 @@ func TestEndToEnd(t *testing.T) {
 	// Node + pairing.
 	_, b, _ := c.do("POST", "/api/admin/nodes", map[string]string{"Name": "jp-1", "PublicAddr": "203.0.113.5"}, nil)
 	node := mustJSON[map[string]any](t, b)
-	code := node["PairCode"].(string)
-	nodeID := int64(node["ID"].(float64))
+	code := node["pair_code"].(string)
+	nodeID := int64(node["id"].(float64))
 	agent := &client{t: t, srv: srv}
 	if st, b, _ := agent.do("POST", "/api/agent/pair", agentproto.PairRequest{Code: "NOPE-NOPE"}, nil); st != http.StatusNotFound {
 		t.Fatalf("bad code: %d %s", st, b)
@@ -249,3 +249,39 @@ func TestEndToEnd(t *testing.T) {
 }
 
 func itoa(i int64) string { return strconv.FormatInt(i, 10) }
+
+func TestAdminLists(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "http://test"
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	c := &client{t: t, srv: srv}
+	c.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+	c.do("POST", "/api/admin/users", map[string]string{"Email": "a@test", "Password": "password123"}, nil)
+	_, b, _ := c.do("POST", "/api/admin/plans", map[string]any{"Name": "p", "PriceCents": 100, "PeriodDays": 30}, nil)
+	plan := mustJSON[map[string]any](t, b)
+	c.do("POST", "/api/admin/users/2/grant", map[string]any{"PlanID": plan["ID"]}, nil)
+	// Every list endpoint must answer 200 with the expected shape.
+	for _, path := range []string{"/api/admin/users?q=a&page=1", "/api/admin/users", "/api/admin/orders", "/api/admin/plans", "/api/admin/groups", "/api/admin/entries", "/api/admin/nodes", "/api/admin/dashboard"} {
+		code, body, _ := c.do("GET", path, nil, nil)
+		if code != 200 {
+			t.Fatalf("%s: %d %s", path, code, body)
+		}
+	}
+	_, b, _ = c.do("GET", "/api/admin/users?q=a", nil, nil)
+	if !strings.Contains(string(b), `"plan_name":"p"`) || !strings.Contains(string(b), `"total":1`) {
+		t.Fatalf("users list: %s", b)
+	}
+	if code, _, _ := c.do("PATCH", "/api/admin/users/2", map[string]any{"Status": "banned"}, nil); code != 200 {
+		t.Fatal("update user")
+	}
+	_, b, _ = c.do("GET", "/api/admin/users", nil, nil)
+	if !strings.Contains(string(b), `"status":"banned"`) {
+		t.Fatalf("banned not reflected: %s", b)
+	}
+}

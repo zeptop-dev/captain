@@ -105,3 +105,99 @@ func (s *Store) AdjustBalance(ctx context.Context, userID, deltaCents int64) err
 	_, err := s.db.ExecContext(ctx, `UPDATE users SET balance_cents = balance_cents + ?, updated_at = ? WHERE id = ?`, deltaCents, now(), userID)
 	return err
 }
+
+// UserRow is a user with subscription summary for admin lists.
+type UserRow struct {
+	User       domain.User
+	PlanName   string
+	ExpiresAt  *time.Time
+	QuotaBytes int64
+	UsedBytes  int64
+	SubUsable  bool
+}
+
+// ListUsers returns users matching q (email substring) with their active
+// subscription summary, newest first.
+func (s *Store) ListUsers(ctx context.Context, q string, limit, offset int, at time.Time) ([]UserRow, int, error) {
+	where := `WHERE u.role = 'user'`
+	args := []any{}
+	if q != "" {
+		where += ` AND u.email LIKE ?`
+		args = append(args, "%"+q+"%")
+	}
+	var total int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users u `+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT u.id, u.email, u.password_hash, u.role, u.uuid, u.sub_token, u.group_id, u.balance_cents, u.status, u.created_at, u.updated_at, p.name, sub.expires_at, sub.quota_bytes, sub.used_up_bytes + sub.used_down_bytes
+		FROM users u
+		LEFT JOIN subscriptions sub ON sub.user_id = u.id AND sub.status = 'active'
+		LEFT JOIN plans p ON p.id = sub.plan_id
+		`+where+` ORDER BY u.id DESC LIMIT ? OFFSET ?`, append(args, limit, offset)...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	var out []UserRow
+	for rows.Next() {
+		var r UserRow
+		var group, expires, quota, used sql.NullInt64
+		var plan sql.NullString
+		var created, updated int64
+		if err := rows.Scan(&r.User.ID, &r.User.Email, &r.User.PasswordHash, &r.User.Role, &r.User.UUID, &r.User.SubToken, &group, &r.User.BalanceCents, &r.User.Status, &created, &updated,
+			&plan, &expires, &quota, &used); err != nil {
+			return nil, 0, err
+		}
+		r.User.GroupID = int64Ptr(group)
+		r.User.CreatedAt, r.User.UpdatedAt = unix(created), unix(updated)
+		r.PlanName = plan.String
+		r.ExpiresAt = unixPtr(expires)
+		r.QuotaBytes, r.UsedBytes = quota.Int64, used.Int64
+		if plan.Valid {
+			r.SubUsable = (r.ExpiresAt == nil || at.Before(*r.ExpiresAt)) && (r.QuotaBytes == 0 || r.UsedBytes < r.QuotaBytes)
+		}
+		out = append(out, r)
+	}
+	return out, total, rows.Err()
+}
+
+// UpdateUser changes status, group and password (when non-empty).
+func (s *Store) UpdateUser(ctx context.Context, id int64, status string, groupID *int64, passwordHash string) error {
+	if passwordHash != "" {
+		if _, err := s.db.ExecContext(ctx, `UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?`, passwordHash, now(), id); err != nil {
+			return err
+		}
+	}
+	_, err := s.db.ExecContext(ctx, `UPDATE users SET status = ?, group_id = ?, updated_at = ? WHERE id = ?`, status, nullInt64(groupID), now(), id)
+	return err
+}
+
+// RotateSubToken issues a new subscription token.
+func (s *Store) RotateSubToken(ctx context.Context, id int64, token string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE users SET sub_token = ?, updated_at = ? WHERE id = ?`, token, now(), id)
+	return err
+}
+
+// DeleteUser removes a user and, via cascades, sessions and subscriptions.
+func (s *Store) DeleteUser(ctx context.Context, id int64) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM users WHERE id = ? AND role = 'user'`, id)
+	return err
+}
+
+// ListGroups returns all user groups.
+func (s *Store) ListGroups(ctx context.Context) ([]domain.Group, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, name FROM user_groups ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []domain.Group
+	for rows.Next() {
+		var g domain.Group
+		if err := rows.Scan(&g.ID, &g.Name); err != nil {
+			return nil, err
+		}
+		out = append(out, g)
+	}
+	return out, rows.Err()
+}

@@ -1,0 +1,41 @@
+stages: [test, build]
+
+variables:
+  GOFLAGS: "-mod=mod"
+  GOTOOLCHAIN: auto
+
+test:
+  stage: test
+  image: golang:1.26
+  cache: { key: gomod, paths: [.gocache/] }
+  before_script:
+    - export GOMODCACHE="$CI_PROJECT_DIR/.gocache/mod" GOCACHE="$CI_PROJECT_DIR/.gocache/build"
+  script:
+    - gofmt -l . | tee /dev/stderr | test -z "$(cat)"
+    - go vet ./...
+    - go test ./...
+
+build:web:
+  stage: test
+  image: node:24
+  cache: { key: pnpm, paths: [web/admin/node_modules/] }
+  script:
+    - corepack enable && corepack prepare pnpm@9 --activate
+    - cd web/admin && pnpm install --frozen-lockfile && pnpm exec tsc -b && pnpm build
+  artifacts:
+    paths: [web/admin/dist/]
+    expire_in: 1 week
+
+build:captain:
+  stage: build
+  image: golang:1.26
+  needs: [test, build:web]
+  cache: { key: gomod, paths: [.gocache/] }
+  before_script:
+    - export GOMODCACHE="$CI_PROJECT_DIR/.gocache/mod" GOCACHE="$CI_PROJECT_DIR/.gocache/build"
+  script:
+    - for arch in amd64 arm64; do CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}" -o bin/captain-linux-$arch ./cmd/captain; done
+    - cd bin && sha256sum captain-linux-* > SHA256SUMS && cat SHA256SUMS
+  artifacts:
+    paths: [bin/]
+    expire_in: 1 week

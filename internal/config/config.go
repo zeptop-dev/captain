@@ -48,6 +48,7 @@ type Config struct {
 	} `yaml:"portal"`
 
 	SiteName string `yaml:"site_name"`
+	Version  string `yaml:"-"` // set by main
 }
 
 // Load reads and validates a config file.
