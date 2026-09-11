@@ -38,6 +38,7 @@ type Plan struct {
 	QuotaBytes     int64
 	DeviceLimit    int
 	SpeedLimitMbps int
+	ResetDays      int // quota resets every N days within the period; 0 = never
 	GroupID        *int64
 	Sort           int
 	Enabled        bool

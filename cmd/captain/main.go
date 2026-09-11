@@ -16,6 +16,7 @@ import (
 	"gitlab.com/boyang-hu/captain/internal/db"
 	chttp "gitlab.com/boyang-hu/captain/internal/http"
 	"gitlab.com/boyang-hu/captain/internal/http/admin"
+	"gitlab.com/boyang-hu/captain/internal/jobs"
 	"gitlab.com/boyang-hu/captain/internal/store"
 )
 
@@ -88,6 +89,7 @@ func cmdServe(args []string) error {
 	srv := &http.Server{Addr: cfg.Listen, Handler: chttp.New(cfg, st, log).Handler(), ReadHeaderTimeout: 10 * time.Second}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	go (&jobs.Runner{Store: st, Log: log}).Run(ctx)
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)

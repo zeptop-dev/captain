@@ -4,7 +4,7 @@
   "home": {
     "hello": "你好，{{email}}", "noPlan": "还没有订阅", "noPlanHint": "选一个套餐开始使用。", "browsePlans": "查看套餐",
     "expired": "订阅已失效", "expiredHint": "到期或流量用完。续费后立即恢复。", "renew": "续费",
-    "usage": "流量用量", "unlimited": "不限流量", "expires": "到期时间", "never": "永不过期", "daysLeft": "剩余 {{count}} 天",
+    "usage": "流量用量", "unlimited": "不限流量", "expires": "到期时间", "never": "永不过期", "resetsOn": "{{date}} 重置流量", "devices": "当前在线设备 {{count}} 台", "daysLeft": "剩余 {{count}} 天",
     "balance": "余额",
     "subscribe": "订阅链接", "subscribeHint": "导入到客户端后，节点会自动更新。不要把这个链接给别人。",
     "copy": "复制链接", "copied": "已复制", "import": "一键导入", "qr": "扫码导入"

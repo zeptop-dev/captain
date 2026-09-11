@@ -425,8 +425,12 @@ func (h *handlers) getUser(w http.ResponseWriter, r *http.Request) {
 	if orders == nil {
 		orders = []*domain.Order{}
 	}
+	devices, _ := h.Store.OnlineDevices(r.Context(), id, time.Now().Add(-5*time.Minute))
+	if devices == nil {
+		devices = []store.OnlineDevice{}
+	}
 	ok(w, map[string]any{"id": u.ID, "email": u.Email, "uuid": u.UUID, "sub_token": u.SubToken, "group_id": u.GroupID, "status": u.Status,
-		"balance_cents": u.BalanceCents, "created_at": u.CreatedAt, "subscription": sub, "orders": orders})
+		"balance_cents": u.BalanceCents, "created_at": u.CreatedAt, "subscription": sub, "orders": orders, "devices": devices})
 }
 
 func (h *handlers) updateUser(w http.ResponseWriter, r *http.Request) {

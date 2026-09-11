@@ -39,13 +39,15 @@ export interface Inbound {
 }
 export interface Group { ID: number; Name: string }
 export interface Plan {
-  ID: number; Name: string; PriceCents: number; PeriodDays: number; QuotaBytes: number; DeviceLimit: number
+  ID: number; Name: string; PriceCents: number; PeriodDays: number; ResetDays: number; QuotaBytes: number; DeviceLimit: number
   SpeedLimitMbps: number; GroupID: number | null; Sort: number; Enabled: boolean
 }
 export interface UserRow {
   id: number; email: string; uuid: string; sub_token: string; group_id: number | null; balance_cents: number; status: string
   created_at: string; plan_name: string; expires_at: string | null; quota_bytes: number; used_bytes: number; sub_usable: boolean
 }
+export interface OnlineDevice { ip: string; node_id: number; last_seen_at: string }
+
 export interface Entry {
   ID: number; Name: string; InboundID: number; ChainID: number | null; DisplayHost: string; DisplayPort: number
   Rate: number; Sort: number; Enabled: boolean

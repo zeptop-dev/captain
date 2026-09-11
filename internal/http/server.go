@@ -76,7 +76,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	sub.Register(s.mux, sub.Deps{Store: st, Log: log, Service: subSvc, Name: cfg.SiteName})
 	agent.Register(s.mux, agent.Deps{
 		Store: st, Log: log,
-		State: &service.AgentState{Store: st, PullSeconds: cfg.Agent.PullSeconds, PushSeconds: cfg.Agent.PushSeconds},
+		State: &service.AgentState{Store: st, PullSeconds: cfg.Agent.PullSeconds, PushSeconds: cfg.Agent.PushSeconds, EnforceDevices: cfg.EnforceDevices()},
 	})
 	return s
 }

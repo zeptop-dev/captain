@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { IconPlus, IconSearch, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { api, type Group as UGroup, type Page, type Plan, type UserRow } from '../lib/api'
+import { api, type Group as UGroup, type OnlineDevice, type Page, type Plan, type UserRow } from '../lib/api'
 import { bytes, money, when } from '../lib/format'
 import { toast } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
@@ -30,6 +30,7 @@ export default function UsersPage() {
 
   const editForm = useForm({ initialValues: { Status: 'active', GroupID: '', Password: '' } })
   const update = useMutation({ mutationFn: (v: typeof editForm.values) => api.patch(`/api/admin/users/${sel!.id}`, { Status: v.Status, GroupID: v.GroupID ? Number(v.GroupID) : null, Password: v.Password }), onSuccess: () => { toast.ok(t('common.saved')); invalidate() }, onError: toast.err })
+  const detail = useQuery({ queryKey: ['user', sel?.id], queryFn: () => api.get<{ devices: OnlineDevice[] }>(`/api/admin/users/${sel!.id}`), enabled: sel !== null, refetchInterval: 15000 })
   const [grantPlan, setGrantPlan] = useState<string | null>(null)
   const grant = useMutation({ mutationFn: () => api.post(`/api/admin/users/${sel!.id}/grant`, { PlanID: Number(grantPlan) }), onSuccess: () => { toast.ok(t('common.saved')); invalidate(); setSel(null) }, onError: toast.err })
   const [delta, setDelta] = useState<number | string>(0)
@@ -86,6 +87,10 @@ export default function UsersPage() {
               <Text size="xs" c="dimmed">{t('users.subUrl')}</Text>
               <Group gap={4} wrap="nowrap"><Code style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{subURL}</Code><Copy value={subURL} /></Group>
               <Button size="xs" variant="subtle" color="orange" mt={4} onClick={() => modals.openConfirmModal({ title: t('users.rotate'), children: <Text size="sm">{t('users.rotateHint')}</Text>, labels: { confirm: t('common.confirm'), cancel: t('common.cancel') }, onConfirm: () => rotate.mutate() })}>{t('users.rotate')}</Button>
+            </div>
+            <div>
+              <Text size="xs" c="dimmed">{t('users.devices')}</Text>
+              {detail.data?.devices?.length ? <Group gap={6} mt={4}>{detail.data.devices.map((d) => <Badge key={d.ip} variant="light" color="teal" title={when(d.last_seen_at)}>{d.ip}</Badge>)}</Group> : <Text size="sm" c="dimmed">{t('users.noDevices')}</Text>}
             </div>
             <Divider />
             <form onSubmit={editForm.onSubmit((v) => update.mutate(v))}><Stack gap="sm">

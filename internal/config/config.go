@@ -47,6 +47,12 @@ type Config struct {
 		Registration bool `yaml:"registration"` // allow self sign-up
 	} `yaml:"portal"`
 
+	Limits struct {
+		// EnforceDevices drops a user from nodes while more distinct IPs than
+		// the plan allows were seen in the last few minutes. Default true.
+		EnforceDevices *bool `yaml:"enforce_devices"`
+	} `yaml:"limits"`
+
 	SiteName string `yaml:"site_name"`
 	Version  string `yaml:"-"` // set by main
 }
@@ -102,4 +108,9 @@ func (c *Config) applyDefaults() {
 	if c.SiteName == "" {
 		c.SiteName = "Captain"
 	}
+}
+
+// EnforceDevices reports whether device limits are enforced.
+func (c *Config) EnforceDevices() bool {
+	return c.Limits.EnforceDevices == nil || *c.Limits.EnforceDevices
 }

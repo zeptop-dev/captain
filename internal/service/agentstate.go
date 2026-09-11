@@ -18,10 +18,14 @@ import (
 
 // AgentState builds desired state for nodes.
 type AgentState struct {
-	Store       *store.Store
-	PullSeconds int
-	PushSeconds int
+	Store          *store.Store
+	PullSeconds    int
+	PushSeconds    int
+	EnforceDevices bool
 }
+
+// deviceWindow is how far back online IPs count toward the device limit.
+const deviceWindow = 3 * time.Minute
 
 // Build assembles the state bosun applies on node n. Inbounds open to
 // everyone use the node-level user list (all users with a usable
@@ -32,11 +36,17 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 		return nil, err
 	}
 	node := spec.Node{ID: strconv.FormatInt(n.ID, 10)}
+	over := map[int64]bool{}
+	if a.EnforceDevices {
+		if over, err = a.Store.OverDeviceLimit(ctx, at.Add(-deviceWindow)); err != nil {
+			return nil, err
+		}
+	}
 	all, err := a.Store.UsersWithAccess(ctx, nil, at)
 	if err != nil {
 		return nil, err
 	}
-	users := toSpecUsers(all)
+	users := toSpecUsers(all, over)
 	byGroup := map[int64][]spec.User{}
 	for _, ib := range inbounds {
 		si := ib.Spec()
@@ -47,7 +57,7 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 				if err != nil {
 					return nil, err
 				}
-				list = toSpecUsers(members)
+				list = toSpecUsers(members, over)
 				byGroup[*ib.GroupID] = list
 			}
 			si.ScopedUsers = true
@@ -60,9 +70,13 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 	return st, nil
 }
 
-func toSpecUsers(list []*domain.User) []spec.User {
+// toSpecUsers converts users, skipping those currently over their device limit.
+func toSpecUsers(list []*domain.User, over map[int64]bool) []spec.User {
 	out := make([]spec.User, 0, len(list))
 	for _, u := range list {
+		if over[u.ID] {
+			continue
+		}
 		out = append(out, spec.User{ID: u.ID, Name: u.UUID, UUID: u.UUID, Password: u.UUID})
 	}
 	return out

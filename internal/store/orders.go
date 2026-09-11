@@ -151,7 +151,7 @@ func (s *Store) CancelStaleOrders(ctx context.Context, cutoff time.Time) (int64,
 
 // ListPlans returns enabled plans for the portal.
 func (s *Store) ListPlans(ctx context.Context, enabledOnly bool) ([]*domain.Plan, error) {
-	q := `SELECT id, name, price_cents, period_days, quota_bytes, device_limit, speed_limit_mbps, group_id, sort, enabled FROM plans`
+	q := `SELECT id, name, price_cents, period_days, quota_bytes, device_limit, speed_limit_mbps, reset_days, group_id, sort, enabled FROM plans`
 	if enabledOnly {
 		q += ` WHERE enabled = 1`
 	}
@@ -165,7 +165,7 @@ func (s *Store) ListPlans(ctx context.Context, enabledOnly bool) ([]*domain.Plan
 		var p domain.Plan
 		var group sql.NullInt64
 		var enabled int
-		if err := rows.Scan(&p.ID, &p.Name, &p.PriceCents, &p.PeriodDays, &p.QuotaBytes, &p.DeviceLimit, &p.SpeedLimitMbps, &group, &p.Sort, &enabled); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.PriceCents, &p.PeriodDays, &p.QuotaBytes, &p.DeviceLimit, &p.SpeedLimitMbps, &p.ResetDays, &group, &p.Sort, &enabled); err != nil {
 			return nil, err
 		}
 		p.GroupID = int64Ptr(group)
