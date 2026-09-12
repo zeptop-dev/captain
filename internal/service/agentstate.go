@@ -36,6 +36,13 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 		return nil, err
 	}
 	node := spec.Node{ID: strconv.FormatInt(n.ID, 10)}
+	var acme store.ACMESettings
+	if err := a.Store.GetSetting(ctx, store.SettingACME, &acme); err != nil {
+		return nil, err
+	}
+	if acme.Email != "" || acme.CloudflareToken != "" {
+		node.ACME = &spec.ACME{Email: acme.Email, CloudflareToken: acme.CloudflareToken}
+	}
 	over := map[int64]bool{}
 	if a.EnforceDevices {
 		if over, err = a.Store.OverDeviceLimit(ctx, at.Add(-deviceWindow)); err != nil {

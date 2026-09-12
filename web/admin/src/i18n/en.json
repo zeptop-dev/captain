@@ -104,7 +104,11 @@
     "upgradeAllConfirm": "{{count}} nodes will move to bosun {{version}}, each on its next report. Continue?",
     "upgradeAllQueued": "{{count}} nodes told to upgrade to {{version}}",
     "upgrading": "upgrading → {{version}}",
-    "outdated": "{{version}} available"
+    "outdated": "{{version}} available",
+    "certs": "Automatic certificates",
+    "certExpires": "expires {{date}}",
+    "certOk": "ok",
+    "certProblem": "A certificate failed or expires soon"
   },
   "inbounds": {
     "title": "Inbounds",
@@ -120,7 +124,7 @@
     "groupAll": "Everyone",
     "enabled": "Enabled",
     "settings": "Protocol settings",
-    "settingsHint": "JSON matching bosun spec.Inbound, e.g. {\"flow\":\"xtls-rprx-vision\",\"tls\":{...}}",
+    "settingsHint": "JSON matching bosun spec.Inbound. Automatic TLS: \"tls\":{\"mode\":1,\"server_name\":\"domain\",\"auto_cert\":true,\"acme\":\"http\"} (acme: http or dns)",
     "recipe": "Quick setup",
     "recipeHint": "Pick a recipe to fill the fields; edit anything afterwards.",
     "recipes": {
@@ -216,7 +220,13 @@
     "groups": "User groups",
     "createGroup": "Add group",
     "groupName": "Group name",
-    "version": "Version"
+    "version": "Version",
+    "acme": "Automatic certificates (ACME)",
+    "acmeHint": "Nodes whose inbounds have “auto_cert” use this account with Let's Encrypt. HTTP needs port 80 reachable on the node; DNS goes through Cloudflare. Pushed to every node on save.",
+    "acmeEmail": "Let's Encrypt email",
+    "cfToken": "Cloudflare API token",
+    "cfTokenHint": "DNS challenge only; permission Zone.DNS edit. Blank keeps, - clears",
+    "cfTokenSet": "Set; blank keeps it, - clears it"
   },
   "update": {
     "title": "Version and updates",

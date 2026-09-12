@@ -111,7 +111,7 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 	now := time.Now()
-	if err := h.Store.TouchNode(ctx, n.ID, rep.Version, rep.Revision, rep.Host, rep.Cores); err != nil {
+	if err := h.Store.TouchNode(ctx, n.ID, rep.Version, rep.Revision, rep.Host, rep.Cores, rep.Certs); err != nil {
 		h.Log.Error("touch node", "err", err)
 	}
 	// Traffic is attributed to the node's first inbound for daily stats; the

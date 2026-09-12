@@ -24,6 +24,7 @@ export const api = {
   get: <T>(url: string) => request<T>('GET', url),
   post: <T>(url: string, body?: unknown) => request<T>('POST', url, body ?? {}),
   patch: <T>(url: string, body: unknown) => request<T>('PATCH', url, body),
+  put: <T>(url: string, body: unknown) => request<T>('PUT', url, body),
   del: <T>(url: string) => request<T>('DELETE', url),
 }
 
@@ -31,8 +32,10 @@ export interface Me { id: number; email: string; role: string; version?: string 
 export interface Node {
   id: number; name: string; public_addr: string; internal_addr: string; v6_addr: string; monitor_url: string
   version: string; platform: string; hostname: string; last_seen_at: string | null; online: boolean; paired: boolean
-  pair_code?: string; traffic_today_bytes: number; inbounds: number; upgrade_to?: string; outdated: boolean
+  pair_code?: string; traffic_today_bytes: number; inbounds: number; upgrade_to?: string; outdated: boolean; cert_problem: boolean
 }
+export interface CertStatus { domain: string; method: string; not_after: string; error?: string }
+export interface ACMESettings { email: string; has_cloudflare_token: boolean }
 export interface Inbound {
   ID: number; NodeID: number; Tag: string; Protocol: string; Listen: string; Port: number; Core: string
   Settings: Record<string, unknown>; GroupID: number | null; Enabled: boolean; Sort: number

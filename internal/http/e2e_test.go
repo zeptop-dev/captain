@@ -447,3 +447,57 @@ func TestSecureCookie(t *testing.T) {
 		t.Fatal("no session cookie")
 	}
 }
+
+func TestACMESettingsReachNodes(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "http://test"
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	c := &client{t: t, srv: srv}
+	c.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+	_, b, _ := c.do("POST", "/api/admin/nodes", map[string]string{"Name": "n"}, nil)
+	node := mustJSON[map[string]any](t, b)
+	agent := &client{t: t, srv: srv}
+	_, b, _ = agent.do("POST", "/api/agent/pair", agentproto.PairRequest{Code: node["pair_code"].(string)}, nil)
+	agent.token = mustJSON[agentproto.PairResponse](t, b).Token
+
+	_, b, _ = agent.do("GET", "/api/agent/state", nil, nil)
+	before := mustJSON[agentproto.State](t, b)
+	if before.Node.ACME != nil {
+		t.Fatal("no acme settings yet")
+	}
+	if code, b, _ := c.do("PUT", "/api/admin/settings/acme", map[string]string{"Email": "ops@test", "CloudflareToken": "cf-secret"}, nil); code != 200 || !strings.Contains(string(b), `"has_cloudflare_token":true`) || strings.Contains(string(b), "cf-secret") {
+		t.Fatalf("put acme: %d %s", code, b)
+	}
+	_, b, _ = agent.do("GET", "/api/agent/state", nil, nil)
+	after := mustJSON[agentproto.State](t, b)
+	if after.Node.ACME == nil || after.Node.ACME.Email != "ops@test" || after.Node.ACME.CloudflareToken != "cf-secret" || after.Revision == before.Revision {
+		t.Fatalf("acme settings should reach the node with a new revision: %+v", after.Node.ACME)
+	}
+	// Blank token keeps it, "-" clears it.
+	c.do("PUT", "/api/admin/settings/acme", map[string]string{"Email": "ops@test", "CloudflareToken": ""}, nil)
+	_, b, _ = agent.do("GET", "/api/agent/state", nil, nil)
+	if mustJSON[agentproto.State](t, b).Node.ACME.CloudflareToken != "cf-secret" {
+		t.Fatal("blank token must keep the current one")
+	}
+	c.do("PUT", "/api/admin/settings/acme", map[string]string{"Email": "ops@test", "CloudflareToken": "-"}, nil)
+	_, b, _ = agent.do("GET", "/api/agent/state", nil, nil)
+	if mustJSON[agentproto.State](t, b).Node.ACME.CloudflareToken != "" {
+		t.Fatal("- must clear the token")
+	}
+	// Cert status from the report lands in the node detail and flags problems.
+	agent.do("POST", "/api/agent/report", agentproto.Report{Certs: []agentproto.CertStatus{{Domain: "jp.test", Method: "http", Error: "port 80 unreachable"}}}, nil)
+	_, b, _ = c.do("GET", "/api/admin/nodes", nil, nil)
+	if !strings.Contains(string(b), `"cert_problem":true`) {
+		t.Fatalf("cert problem should be flagged: %s", b)
+	}
+	_, b, _ = c.do("GET", "/api/admin/nodes/"+itoa(int64(node["id"].(float64))), nil, nil)
+	if !strings.Contains(string(b), `"jp.test"`) {
+		t.Fatalf("node detail should list certs: %s", b)
+	}
+}
