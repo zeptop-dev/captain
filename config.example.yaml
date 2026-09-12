@@ -1,5 +1,14 @@
-listen: 127.0.0.1:8080
+listen: 127.0.0.1:8080                  # becomes :443 automatically when tls is on
 base_url: https://panel.example.com     # public URL; used in subscription links and payment callbacks
+
+# Built-in HTTPS. `auto` obtains and renews a Let's Encrypt certificate for the
+# base_url host; ports 80 and 443 must be free and reachable from the internet.
+# Leave it off when a reverse proxy (Caddy, nginx, a CDN) terminates TLS.
+tls:
+  auto: false
+  email: you@example.com
+  # cert: /etc/captain/fullchain.pem     # or bring your own files
+  # key: /etc/captain/privkey.pem
 data_dir: /var/lib/captain
 log_level: info
 

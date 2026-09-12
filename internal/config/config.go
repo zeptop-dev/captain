@@ -4,6 +4,7 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -11,10 +12,23 @@ import (
 
 // Config is the on-disk configuration.
 type Config struct {
-	Listen   string `yaml:"listen"`   // HTTP listen address, default 127.0.0.1:8080
+	Listen   string `yaml:"listen"`   // listen address; default 127.0.0.1:8080, or :443 when tls is on
 	BaseURL  string `yaml:"base_url"` // public URL, used in subscription links and payment callbacks
 	DataDir  string `yaml:"data_dir"`
 	LogLevel string `yaml:"log_level"`
+
+	// TLS lets Captain terminate HTTPS itself. With Auto it obtains and renews
+	// a Let's Encrypt certificate for the base_url host (ports 80 and 443
+	// must be reachable from the internet); with Cert/Key it serves your
+	// own files. Off by default: put a reverse proxy in front instead.
+	TLS struct {
+		Auto       bool   `yaml:"auto"`
+		Email      string `yaml:"email"`       // ACME account contact (recommended)
+		Domain     string `yaml:"domain"`      // default: host of base_url
+		HTTPListen string `yaml:"http_listen"` // ACME HTTP-01 + redirect to https; default :80
+		Cert       string `yaml:"cert"`
+		Key        string `yaml:"key"`
+	} `yaml:"tls"`
 
 	Database struct {
 		Driver string `yaml:"driver"` // "sqlite" (default) or "postgres"
@@ -83,9 +97,29 @@ func Default() *Config {
 	return c
 }
 
+// TLSEnabled reports whether Captain serves HTTPS itself.
+func (c *Config) TLSEnabled() bool { return c.TLS.Auto || (c.TLS.Cert != "" && c.TLS.Key != "") }
+
+// TLSDomain is the certificate host: tls.domain or the base_url host.
+func (c *Config) TLSDomain() string {
+	if c.TLS.Domain != "" {
+		return c.TLS.Domain
+	}
+	if u, err := url.Parse(c.BaseURL); err == nil {
+		return u.Hostname()
+	}
+	return ""
+}
+
 func (c *Config) applyDefaults() {
 	if c.Listen == "" {
 		c.Listen = "127.0.0.1:8080"
+		if c.TLSEnabled() {
+			c.Listen = ":443"
+		}
+	}
+	if c.TLS.HTTPListen == "" {
+		c.TLS.HTTPListen = ":80"
 	}
 	if c.DataDir == "" {
 		c.DataDir = "/var/lib/captain"

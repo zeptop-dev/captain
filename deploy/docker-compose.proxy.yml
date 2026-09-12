@@ -1,0 +1,13 @@
+# Captain behind a reverse proxy you already run on the host (Caddy, nginx,
+# a CDN tunnel): plain HTTP on 127.0.0.1:8080, TLS terminated by the proxy.
+# config.yaml: listen: 0.0.0.0:8080, tls.auto: false, base_url: https://<domain>
+services:
+  captain:
+    image: zeptop/captain:latest
+    restart: unless-stopped
+    ports: ["127.0.0.1:8080:8080"]
+    volumes:
+      - ./config.yaml:/etc/captain/config.yaml:ro
+      - captain-data:/var/lib/captain
+volumes:
+  captain-data:
