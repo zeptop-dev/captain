@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"database/sql"
+	"github.com/zeptop-dev/captain/internal/domain"
 	"os"
 	"time"
 )
@@ -18,20 +20,20 @@ func (s *Store) ExpireSubscriptions(ctx context.Context, at time.Time) (int64, e
 // ResetQuotas zeroes usage on subscriptions whose reset time has passed and
 // schedules the next reset from the plan's reset_days. Returns rows reset.
 func (s *Store) ResetQuotas(ctx context.Context, at time.Time) (int64, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT sub.id, sub.reset_at, p.reset_days FROM subscriptions sub JOIN plans p ON p.id = sub.plan_id
-		WHERE sub.status = 'active' AND sub.reset_at IS NOT NULL AND sub.reset_at <= ? AND p.reset_days > 0`, at.Unix())
+	rows, err := s.db.QueryContext(ctx, `SELECT sub.id, sub.reset_at, p.reset_days, p.reset_mode FROM subscriptions sub JOIN plans p ON p.id = sub.plan_id
+		WHERE sub.status = 'active' AND sub.reset_at IS NOT NULL AND sub.reset_at <= ?`, at.Unix())
 	if err != nil {
 		return 0, err
 	}
 	type due struct {
 		id      int64
 		resetAt int64
-		days    int
+		plan    domain.Plan
 	}
 	var list []due
 	for rows.Next() {
 		var d due
-		if err := rows.Scan(&d.id, &d.resetAt, &d.days); err != nil {
+		if err := rows.Scan(&d.id, &d.resetAt, &d.plan.ResetDays, &d.plan.ResetMode); err != nil {
 			rows.Close()
 			return 0, err
 		}
@@ -40,11 +42,18 @@ func (s *Store) ResetQuotas(ctx context.Context, at time.Time) (int64, error) {
 	rows.Close()
 	var n int64
 	for _, d := range list {
-		next := time.Unix(d.resetAt, 0)
-		for !next.After(at) {
-			next = next.AddDate(0, 0, d.days)
+		var nextVal sql.NullInt64
+		if d.plan.EffectiveResetMode() == "days" && d.plan.ResetDays > 0 {
+			// Keep the cadence anchored to the original schedule.
+			next := time.Unix(d.resetAt, 0)
+			for !next.After(at) {
+				next = next.AddDate(0, 0, d.plan.ResetDays)
+			}
+			nextVal = sql.NullInt64{Int64: next.Unix(), Valid: true}
+		} else if next := NextReset(&d.plan, at); next != nil {
+			nextVal = sql.NullInt64{Int64: next.Unix(), Valid: true}
 		}
-		if _, err := s.db.ExecContext(ctx, `UPDATE subscriptions SET used_up_bytes = 0, used_down_bytes = 0, reset_at = ?, updated_at = ? WHERE id = ?`, next.Unix(), now(), d.id); err != nil {
+		if _, err := s.db.ExecContext(ctx, `UPDATE subscriptions SET used_up_bytes = 0, used_down_bytes = 0, reset_at = ?, updated_at = ? WHERE id = ?`, nextVal, now(), d.id); err != nil {
 			return n, err
 		}
 		n++

@@ -39,3 +39,13 @@ type ACMESettings struct {
 
 // SettingACME is the settings key for ACMESettings.
 const SettingACME = "acme"
+
+// NoticeSettings is the announcement shown on the portal home page.
+type NoticeSettings struct {
+	Enabled bool   `json:"enabled"`
+	Title   string `json:"title"`
+	Body    string `json:"body"`
+}
+
+// SettingNotice is the settings key.
+const SettingNotice = "notice"

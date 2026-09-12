@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
 	"github.com/zeptop-dev/bosun/pkg/spec"
@@ -698,4 +699,141 @@ func TestMailVerificationAndReset(t *testing.T) {
 func extractCode(subject string) string {
 	f := strings.Fields(subject)
 	return f[len(f)-1]
+}
+
+func TestPeriodsCouponsInvites(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "http://test"
+	cfg.Portal.Registration = true
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	ac := &client{t: t, srv: srv}
+	ac.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+
+	// A plan with a monthly base price, a cheaper quarterly period, monthly quota reset.
+	_, b, _ := ac.do("POST", "/api/admin/plans", map[string]any{"Name": "pro", "PriceCents": 1000, "PeriodDays": 30, "QuotaBytes": 1 << 30, "ResetMode": "monthly",
+		"Prices": []map[string]any{{"period_days": 90, "price_cents": 2700}}}, nil)
+	plan := mustJSON[map[string]any](t, b)
+	planID := int64(plan["ID"].(float64))
+	if !strings.Contains(string(b), `"ResetMode":"monthly"`) || !strings.Contains(string(b), `"period_days":90`) {
+		t.Fatalf("plan: %s", b)
+	}
+	_, b, _ = ac.do("POST", "/api/admin/coupons", map[string]any{"Code": "SAVE10", "Kind": "percent", "Value": 10, "PerUser": 1, "Enabled": true}, nil)
+	if !strings.Contains(string(b), `"Code":"SAVE10"`) {
+		t.Fatalf("coupon: %s", b)
+	}
+	ac.do("PUT", "/api/admin/settings/invite", map[string]any{"enabled": true, "percent": 20}, nil)
+
+	// Inviter registers, gets a code.
+	inviter := &client{t: t, srv: srv}
+	inviter.do("POST", "/api/portal/register", map[string]string{"Email": "inviter@test", "Password": "password123"}, nil)
+	_, b, _ = inviter.do("GET", "/api/portal/invite", nil, nil)
+	var inv struct {
+		Code string `json:"code"`
+		URL  string `json:"url"`
+	}
+	_ = json.Unmarshal(b, &inv)
+	if len(inv.Code) != 8 || !strings.HasSuffix(inv.URL, "/?ref="+inv.Code) {
+		t.Fatalf("invite: %s", b)
+	}
+
+	// Invitee arrives through the link (cookie), registers, buys a quarter with the coupon.
+	u := &client{t: t, srv: srv}
+	if code, _, _ := u.do("POST", "/api/portal/ref", map[string]string{"Code": inv.Code}, nil); code != 200 {
+		t.Fatal("ref cookie")
+	}
+	// The test client keeps only the session cookie, so hand the code over
+	// the way the cookie would (the header form is what browsers send).
+	u.do("POST", "/api/portal/register", map[string]string{"Email": "buyer@test", "Password": "password123"}, map[string]string{"Cookie": "captain_ref=" + inv.Code})
+	_, b, _ = u.do("POST", "/api/portal/orders/quote", map[string]any{"plan_id": planID, "period_days": 90, "coupon": "save10"}, nil)
+	if !strings.Contains(string(b), `"list_cents":2700`) || !strings.Contains(string(b), `"discount_cents":270`) || !strings.Contains(string(b), `"amount_cents":2430`) {
+		t.Fatalf("quote: %s", b)
+	}
+	if code, b, _ := u.do("POST", "/api/portal/orders/quote", map[string]any{"plan_id": planID, "period_days": 45}, nil); code != 400 {
+		t.Fatalf("unoffered period should be refused: %d %s", code, b)
+	}
+	buyer, _ := st.UserByEmail(context.Background(), "buyer@test")
+	ac.do("POST", "/api/admin/users/"+itoa(buyer.ID)+"/balance", map[string]any{"DeltaCents": 10000}, nil)
+	_, b, _ = u.do("POST", "/api/portal/orders", map[string]any{"plan_id": planID, "period_days": 90, "coupon": "SAVE10", "gateway": "balance"}, nil)
+	if !strings.Contains(string(b), `"status":"paid"`) || !strings.Contains(string(b), `"amount_cents":2430`) {
+		t.Fatalf("order: %s", b)
+	}
+	sub, _ := st.ActiveSubscription(context.Background(), buyer.ID)
+	if d := sub.ExpiresAt.Sub(sub.StartsAt).Hours() / 24; d < 89 || d > 91 {
+		t.Fatalf("quarter should last 90 days, got %.0f", d)
+	}
+	if sub.ResetAt == nil || sub.ResetAt.Day() != 1 {
+		t.Fatalf("monthly reset should land on the 1st: %v", sub.ResetAt)
+	}
+	// Coupon is single-use per user.
+	if code, _, _ := u.do("POST", "/api/portal/orders/quote", map[string]any{"plan_id": planID, "coupon": "SAVE10"}, nil); code != 400 {
+		t.Fatal("second use of a per-user coupon should fail")
+	}
+	// Inviter earned 20% of 2430.
+	_, b, _ = inviter.do("GET", "/api/portal/invite", nil, nil)
+	if !strings.Contains(string(b), `"invited":1`) || !strings.Contains(string(b), `"earned_cents":486`) {
+		t.Fatalf("commission: %s", b)
+	}
+	inv2, _ := st.UserByEmail(context.Background(), "inviter@test")
+	if inv2.BalanceCents != 486 {
+		t.Fatalf("inviter balance %d", inv2.BalanceCents)
+	}
+	// Renewing the same plan before expiry extends the time instead of replacing it.
+	before := *sub.ExpiresAt
+	u.do("POST", "/api/portal/orders", map[string]any{"plan_id": planID, "gateway": "balance"}, nil)
+	sub2, _ := st.ActiveSubscription(context.Background(), buyer.ID)
+	if sub2.ID != sub.ID || sub2.ExpiresAt.Sub(before).Hours()/24 < 29 {
+		t.Fatalf("renewal should extend the existing subscription: %v -> %v (id %d/%d)", before, sub2.ExpiresAt, sub.ID, sub2.ID)
+	}
+	// Notice appears on the portal once enabled.
+	ac.do("PUT", "/api/admin/settings/notice", map[string]any{"enabled": true, "title": "维护", "body": "今晚"}, nil)
+	_, b, _ = u.do("GET", "/api/portal/notice", nil, nil)
+	if !strings.Contains(string(b), `"title":"维护"`) {
+		t.Fatalf("notice: %s", b)
+	}
+}
+
+func TestAgentLongPoll(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "http://test"
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	c := &client{t: t, srv: srv}
+	c.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+	_, b, _ := c.do("POST", "/api/admin/nodes", map[string]string{"Name": "n"}, nil)
+	node := mustJSON[map[string]any](t, b)
+	agent := &client{t: t, srv: srv}
+	_, b, _ = agent.do("POST", "/api/agent/pair", agentproto.PairRequest{Code: node["pair_code"].(string)}, nil)
+	agent.token = mustJSON[agentproto.PairResponse](t, b).Token
+	_, _, hdr := agent.do("GET", "/api/agent/state", nil, nil)
+	etag := hdr.Get("ETag")
+	if etag == "" {
+		t.Fatal("no etag")
+	}
+	// Unchanged: the request is held for the wait window and answers 304.
+	start := time.Now()
+	code, _, _ := agent.do("GET", "/api/agent/state?wait=3s", nil, map[string]string{"If-None-Match": etag})
+	if code != 304 || time.Since(start) < 2*time.Second {
+		t.Fatalf("expected a held 304, got %d after %v", code, time.Since(start))
+	}
+	// A change made while waiting returns the new state early.
+	go func() {
+		time.Sleep(1500 * time.Millisecond)
+		c.do("POST", "/api/admin/nodes/"+itoa(int64(node["id"].(float64)))+"/inbounds", map[string]any{"Tag": "t", "Protocol": "vless", "Port": 1}, nil)
+	}()
+	start = time.Now()
+	code, b, hdr = agent.do("GET", "/api/agent/state?wait=20s", nil, map[string]string{"If-None-Match": etag})
+	if code != 200 || time.Since(start) > 10*time.Second || hdr.Get("ETag") == etag || !strings.Contains(string(b), `"tag":"t"`) {
+		t.Fatalf("expected the new state promptly: %d after %v", code, time.Since(start))
+	}
 }

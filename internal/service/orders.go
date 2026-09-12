@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/zeptop-dev/captain/internal/domain"
@@ -24,12 +25,60 @@ var ErrGateway = errors.New("orders: gateway not available")
 
 // Create makes a pending order for plan and starts the payment. For
 // "balance" the order settles immediately and Checkout is nil.
-func (o *Orders) Create(ctx context.Context, user *domain.User, planID int64, gateway, clientIP string) (*domain.Order, *payment.Checkout, error) {
+// Quote prices a plan period for a user with an optional coupon.
+type Quote struct {
+	PlanID        int64  `json:"plan_id"`
+	PeriodDays    int    `json:"period_days"`
+	ListCents     int64  `json:"list_cents"`
+	DiscountCents int64  `json:"discount_cents"`
+	AmountCents   int64  `json:"amount_cents"`
+	CouponID      *int64 `json:"-"`
+	CouponName    string `json:"coupon,omitempty"`
+}
+
+// Price computes what a user pays for plan/period with couponCode ("" for none).
+func (o *Orders) Price(ctx context.Context, user *domain.User, planID int64, periodDays int, couponCode string) (*Quote, *domain.Plan, error) {
 	plan, err := o.Store.PlanByID(ctx, planID)
 	if err != nil || !plan.Enabled {
 		return nil, nil, fmt.Errorf("orders: plan not available")
 	}
-	order := &domain.Order{No: newOrderNo(), UserID: user.ID, PlanID: plan.ID, AmountCents: plan.PriceCents, Gateway: gateway}
+	list, ok := plan.PriceFor(periodDays)
+	if !ok {
+		return nil, nil, fmt.Errorf("orders: period not offered for this plan")
+	}
+	if periodDays == 0 {
+		periodDays = plan.PeriodDays
+	}
+	q := &Quote{PlanID: plan.ID, PeriodDays: periodDays, ListCents: list, AmountCents: list}
+	if code := strings.TrimSpace(couponCode); code != "" {
+		c, err := o.Store.CouponByCode(ctx, code)
+		if err != nil {
+			return nil, nil, fmt.Errorf("orders: unknown coupon")
+		}
+		if err := c.Usable(time.Now(), plan.ID); err != nil {
+			return nil, nil, fmt.Errorf("orders: %w", err)
+		}
+		if c.PerUser > 0 {
+			if n, _ := o.Store.CouponUsesByUser(ctx, c.ID, user.ID); n >= c.PerUser {
+				return nil, nil, fmt.Errorf("orders: coupon already used")
+			}
+		}
+		q.DiscountCents = c.Discount(list)
+		q.AmountCents = list - q.DiscountCents
+		q.CouponID, q.CouponName = &c.ID, c.Name
+		if q.CouponName == "" {
+			q.CouponName = c.Code
+		}
+	}
+	return q, plan, nil
+}
+
+func (o *Orders) Create(ctx context.Context, user *domain.User, planID int64, periodDays int, couponCode, gateway, clientIP string) (*domain.Order, *payment.Checkout, error) {
+	q, plan, err := o.Price(ctx, user, planID, periodDays, couponCode)
+	if err != nil {
+		return nil, nil, err
+	}
+	order := &domain.Order{No: newOrderNo(), UserID: user.ID, PlanID: plan.ID, AmountCents: q.AmountCents, Gateway: gateway, PeriodDays: q.PeriodDays, CouponID: q.CouponID, DiscountCents: q.DiscountCents}
 	switch gateway {
 	case "balance":
 		if err := o.Store.CreateOrder(ctx, order); err != nil {
@@ -45,8 +94,8 @@ func (o *Orders) Create(ctx context.Context, user *domain.User, planID int64, ga
 		if !ok {
 			return nil, nil, ErrGateway
 		}
-		if plan.PriceCents == 0 {
-			return nil, nil, fmt.Errorf("orders: free plan: use balance")
+		if order.AmountCents == 0 {
+			return nil, nil, fmt.Errorf("orders: nothing to pay: use balance")
 		}
 		if err := o.Store.CreateOrder(ctx, order); err != nil {
 			return nil, nil, err

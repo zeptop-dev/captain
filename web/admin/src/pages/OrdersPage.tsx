@@ -23,7 +23,7 @@ export default function OrdersPage() {
           <Table.Tbody>
             {(q.data?.items ?? []).map((o) => (
               <Table.Tr key={o.ID}>
-                <Table.Td><Code>{o.No}</Code></Table.Td><Table.Td>{o.email}</Table.Td><Table.Td>{o.plan_name}</Table.Td><Table.Td>{money(o.AmountCents)}</Table.Td>
+                <Table.Td><Code>{o.No}</Code></Table.Td><Table.Td>{o.email}</Table.Td><Table.Td>{o.plan_name}</Table.Td><Table.Td>{money(o.AmountCents)}{o.DiscountCents > 0 && <Text span size="xs" c="dimmed"> (-{money(o.DiscountCents)})</Text>}{o.PeriodDays > 0 && <Text size="xs" c="dimmed">{o.PeriodDays} d</Text>}</Table.Td>
                 <Table.Td>{o.Gateway}{o.GatewayRef && <Text size="xs" c="dimmed">{o.GatewayRef}</Text>}</Table.Td>
                 <Table.Td><Badge color={colors[o.Status] ?? 'gray'}>{t(`orders.${o.Status}`)}</Badge></Table.Td>
                 <Table.Td>{when(o.CreatedAt)}</Table.Td><Table.Td>{when(o.PaidAt)}</Table.Td>

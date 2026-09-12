@@ -3,32 +3,34 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"time"
 
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-const orderCols = "id, no, user_id, plan_id, amount_cents, gateway, gateway_ref, status, created_at, paid_at"
+const orderCols = "id, no, user_id, plan_id, amount_cents, gateway, gateway_ref, status, created_at, paid_at, period_days, coupon_id, discount_cents"
 
 func scanOrder(row interface{ Scan(...any) error }) (*domain.Order, error) {
 	var o domain.Order
 	var ref sql.NullString
 	var created int64
-	var paid sql.NullInt64
-	if err := row.Scan(&o.ID, &o.No, &o.UserID, &o.PlanID, &o.AmountCents, &o.Gateway, &ref, &o.Status, &created, &paid); err != nil {
+	var paid, coupon sql.NullInt64
+	if err := row.Scan(&o.ID, &o.No, &o.UserID, &o.PlanID, &o.AmountCents, &o.Gateway, &ref, &o.Status, &created, &paid, &o.PeriodDays, &coupon, &o.DiscountCents); err != nil {
 		return nil, wrapNotFound(err)
 	}
 	o.GatewayRef = ref.String
 	o.CreatedAt = unix(created)
 	o.PaidAt = unixPtr(paid)
+	o.CouponID = int64Ptr(coupon)
 	return &o, nil
 }
 
 func (s *Store) CreateOrder(ctx context.Context, o *domain.Order) error {
 	ts := now()
-	res, err := s.db.ExecContext(ctx, `INSERT INTO orders (no, user_id, plan_id, amount_cents, gateway, status, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
-		o.No, o.UserID, o.PlanID, o.AmountCents, o.Gateway, ts)
+	res, err := s.db.ExecContext(ctx, `INSERT INTO orders (no, user_id, plan_id, amount_cents, gateway, status, created_at, period_days, coupon_id, discount_cents) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
+		o.No, o.UserID, o.PlanID, o.AmountCents, o.Gateway, ts, o.PeriodDays, nullInt64(o.CouponID), o.DiscountCents)
 	if err != nil {
 		return err
 	}
@@ -88,7 +90,10 @@ func (s *Store) MarkPaid(ctx context.Context, no, gatewayRef string, at time.Tim
 	if err != nil {
 		return nil, err
 	}
-	if err := grantTx(ctx, tx, o.UserID, plan, at); err != nil {
+	if err := grantTx(ctx, tx, o.UserID, plan, o.PeriodDays, at); err != nil {
+		return nil, err
+	}
+	if err := s.paidHooksTx(ctx, tx, o); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -127,7 +132,10 @@ func (s *Store) PayWithBalance(ctx context.Context, no string, at time.Time) (*d
 	if err != nil {
 		return nil, err
 	}
-	if err := grantTx(ctx, tx, o.UserID, plan, at); err != nil {
+	if err := grantTx(ctx, tx, o.UserID, plan, o.PeriodDays, at); err != nil {
+		return nil, err
+	}
+	if err := s.paidHooksTx(ctx, tx, o); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -151,7 +159,7 @@ func (s *Store) CancelStaleOrders(ctx context.Context, cutoff time.Time) (int64,
 
 // ListPlans returns enabled plans for the portal.
 func (s *Store) ListPlans(ctx context.Context, enabledOnly bool) ([]*domain.Plan, error) {
-	q := `SELECT id, name, price_cents, period_days, quota_bytes, device_limit, speed_limit_mbps, reset_days, group_id, sort, enabled FROM plans`
+	q := `SELECT id, name, price_cents, period_days, quota_bytes, device_limit, speed_limit_mbps, reset_days, reset_mode, prices_json, group_id, sort, enabled FROM plans`
 	if enabledOnly {
 		q += ` WHERE enabled = 1`
 	}
@@ -165,11 +173,13 @@ func (s *Store) ListPlans(ctx context.Context, enabledOnly bool) ([]*domain.Plan
 		var p domain.Plan
 		var group sql.NullInt64
 		var enabled int
-		if err := rows.Scan(&p.ID, &p.Name, &p.PriceCents, &p.PeriodDays, &p.QuotaBytes, &p.DeviceLimit, &p.SpeedLimitMbps, &p.ResetDays, &group, &p.Sort, &enabled); err != nil {
+		var prices string
+		if err := rows.Scan(&p.ID, &p.Name, &p.PriceCents, &p.PeriodDays, &p.QuotaBytes, &p.DeviceLimit, &p.SpeedLimitMbps, &p.ResetDays, &p.ResetMode, &prices, &group, &p.Sort, &enabled); err != nil {
 			return nil, err
 		}
 		p.GroupID = int64Ptr(group)
 		p.Enabled = enabled == 1
+		p.Prices = decodePrices(prices)
 		out = append(out, &p)
 	}
 	return out, rows.Err()
@@ -193,7 +203,7 @@ func (s *Store) ListOrders(ctx context.Context, status string, limit, offset int
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM orders o`+where, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT o.id, o.no, o.user_id, o.plan_id, o.amount_cents, o.gateway, o.gateway_ref, o.status, o.created_at, o.paid_at, u.email, p.name
+	rows, err := s.db.QueryContext(ctx, `SELECT o.id, o.no, o.user_id, o.plan_id, o.amount_cents, o.gateway, o.gateway_ref, o.status, o.created_at, o.paid_at, o.period_days, o.discount_cents, u.email, p.name
 		FROM orders o JOIN users u ON u.id = o.user_id JOIN plans p ON p.id = o.plan_id`+where+` ORDER BY o.id DESC LIMIT ? OFFSET ?`, append(args, limit, offset)...)
 	if err != nil {
 		return nil, 0, err
@@ -205,7 +215,7 @@ func (s *Store) ListOrders(ctx context.Context, status string, limit, offset int
 		var ref sql.NullString
 		var created int64
 		var paid sql.NullInt64
-		if err := rows.Scan(&r.Order.ID, &r.Order.No, &r.Order.UserID, &r.Order.PlanID, &r.Order.AmountCents, &r.Order.Gateway, &ref, &r.Order.Status, &created, &paid, &r.Email, &r.PlanName); err != nil {
+		if err := rows.Scan(&r.Order.ID, &r.Order.No, &r.Order.UserID, &r.Order.PlanID, &r.Order.AmountCents, &r.Order.Gateway, &ref, &r.Order.Status, &created, &paid, &r.Order.PeriodDays, &r.Order.DiscountCents, &r.Email, &r.PlanName); err != nil {
 			return nil, 0, err
 		}
 		r.Order.GatewayRef = ref.String
@@ -298,4 +308,47 @@ type DayTraffic struct {
 	Day  int64 `json:"day"`
 	Up   int64 `json:"up"`
 	Down int64 `json:"down"`
+}
+
+// paidHooksTx runs the bookkeeping that follows a payment: coupon usage and
+// the inviter's commission.
+func (s *Store) paidHooksTx(ctx context.Context, tx *sql.Tx, o *domain.Order) error {
+	if o.CouponID != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE coupons SET used = used + 1 WHERE id = ?`, *o.CouponID); err != nil {
+			return err
+		}
+	}
+	// Read through the transaction: the pool may hold a single connection
+	// and a query on s.db would wait on our own lock.
+	var inv InviteSettings
+	var raw string
+	if err := tx.QueryRowContext(ctx, `SELECT value_json FROM settings WHERE key = ?`, SettingInvite).Scan(&raw); err == nil {
+		_ = json.Unmarshal([]byte(raw), &inv)
+	}
+	if !inv.Enabled || inv.Percent <= 0 || o.AmountCents <= 0 {
+		return nil
+	}
+	var inviter sql.NullInt64
+	if err := tx.QueryRowContext(ctx, `SELECT invited_by FROM users WHERE id = ?`, o.UserID).Scan(&inviter); err != nil || !inviter.Valid {
+		return nil
+	}
+	if inv.FirstOrderOnly {
+		var n int
+		_ = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM commissions WHERE invitee_id = ?`, o.UserID).Scan(&n)
+		if n > 0 {
+			return nil
+		}
+	}
+	amount := o.AmountCents * int64(inv.Percent) / 100
+	if amount <= 0 {
+		return nil
+	}
+	res, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO commissions (order_id, inviter_id, invitee_id, amount_cents, created_at) VALUES (?, ?, ?, ?, ?)`, o.ID, inviter.Int64, o.UserID, amount, now())
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 1 {
+		_, err = tx.ExecContext(ctx, `UPDATE users SET balance_cents = balance_cents + ?, updated_at = ? WHERE id = ?`, amount, now(), inviter.Int64)
+	}
+	return err
 }

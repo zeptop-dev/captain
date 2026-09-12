@@ -60,9 +60,15 @@ export interface Inbound {
 }
 export interface Group { ID: number; Name: string }
 export interface Plan {
-  ID: number; Name: string; PriceCents: number; PeriodDays: number; ResetDays: number; QuotaBytes: number; DeviceLimit: number
+  ID: number; Name: string; PriceCents: number; PeriodDays: number; ResetDays: number; ResetMode: string; Prices: { period_days: number; price_cents: number }[] | null; QuotaBytes: number; DeviceLimit: number
   SpeedLimitMbps: number; GroupID: number | null; Sort: number; Enabled: boolean
 }
+export interface Coupon {
+  ID: number; Code: string; Name: string; Kind: string; Value: number; PlanIDs: number[] | null; MaxUses: number; Used: number; PerUser: number
+  StartsAt: string | null; ExpiresAt: string | null; Enabled: boolean; CreatedAt: string
+}
+export interface InviteSettings { enabled: boolean; percent: number; first_order_only: boolean }
+export interface NoticeSettings { enabled: boolean; title: string; body: string }
 export interface UserRow {
   id: number; email: string; uuid: string; sub_token: string; sub_url: string; group_id: number | null; balance_cents: number; status: string
   created_at: string; plan_name: string; expires_at: string | null; quota_bytes: number; used_bytes: number; sub_usable: boolean
@@ -75,7 +81,7 @@ export interface Entry {
 }
 export interface Order {
   ID: number; No: string; UserID: number; PlanID: number; AmountCents: number; Gateway: string; GatewayRef: string
-  Status: string; CreatedAt: string; PaidAt: string | null; email: string; plan_name: string
+  Status: string; CreatedAt: string; PaidAt: string | null; PeriodDays: number; DiscountCents: number; email: string; plan_name: string
 }
 export interface Dashboard {
   stats: {

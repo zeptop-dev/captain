@@ -16,7 +16,8 @@
     "orders": "Orders",
     "system": "System",
     "settings": "Settings",
-    "site": "Landing page"
+    "site": "Landing page",
+    "coupons": "Coupons"
   },
   "login": {
     "title": "Sign in to Captain",
@@ -199,7 +200,14 @@
     "deviceLimit": "Devices",
     "speedLimit": "Speed (Mbps)",
     "group": "Group after purchase",
-    "enabled": "Listed"
+    "enabled": "Listed",
+    "resetMode": "Quota reset",
+    "resetNever": "Never",
+    "resetDaysMode": "Every N days from purchase",
+    "resetMonthly": "1st of each month",
+    "resetYearly": "January 1st",
+    "prices": "More periods",
+    "pricesHint": "One per line: days:cents, e.g. 90:2700 for a quarter at ¥27. The price above is the default period."
   },
   "orders": {
     "title": "Orders",
@@ -234,7 +242,15 @@
     "oidc": "External login (OIDC)",
     "oidcHint": "One entry per provider: Casdoor, Authentik, Keycloak, Google or any standard OIDC issuer. issuer is the discovery root, e.g. https://door.example.com; leave client_secret blank to keep it.",
     "passwordLogin": "Allow password login (off = external login only)",
-    "oidcCallback": "Redirect URI to register at the provider:"
+    "oidcCallback": "Redirect URI to register at the provider:",
+    "notice": "Announcement",
+    "noticeHint": "Shown at the top of the portal home page when enabled.",
+    "noticeTitle": "Title",
+    "noticeBody": "Body",
+    "invite": "Referral rewards",
+    "inviteHint": "Users share /?ref=CODE; when an invitee pays, a share of the amount is credited to the inviter's balance.",
+    "invitePercent": "Reward (%)",
+    "inviteFirstOnly": "First order only"
   },
   "update": {
     "title": "Version and updates",
@@ -294,5 +310,29 @@
     "testTo": "Test recipient",
     "test": "Send test email",
     "testSent": "Test email sent"
+  },
+  "coupons": {
+    "title": "Coupons",
+    "subtitle": "Discount codes entered at checkout.",
+    "create": "Add coupon",
+    "code": "Code",
+    "codeHint": "Blank = generated",
+    "name": "Name",
+    "kind": "Kind",
+    "percent": "Percent off",
+    "fixed": "Fixed amount off",
+    "valuePercent": "Discount (%)",
+    "valueCents": "Off (cents)",
+    "discount": "Discount",
+    "plans": "Limit to plans",
+    "plansHint": "Blank = any plan",
+    "uses": "Used",
+    "maxUses": "Total uses",
+    "perUser": "Uses per user",
+    "zeroUnlimited": "0 = unlimited",
+    "startsAt": "Starts",
+    "expiresAt": "Expires",
+    "validity": "Validity",
+    "limitedPlans": "{{count}} plans"
   }
 }

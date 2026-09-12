@@ -11,6 +11,7 @@ import PlansPage from './pages/PlansPage'
 import OrdersPage from './pages/OrdersPage'
 import SettingsPage from './pages/SettingsPage'
 import SitePage from './pages/SitePage'
+import CouponsPage from './pages/CouponsPage'
 import { Center, Loader } from '@mantine/core'
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/users" element={<UsersPage />} />
           <Route path="/plans" element={<PlansPage />} />
           <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/coupons" element={<CouponsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/site" element={<SitePage />} />
         </Route>

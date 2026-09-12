@@ -1,4 +1,4 @@
-import { Badge, Button, Card, CopyButton, Group, Progress, SimpleGrid, Stack, Text, Title, Menu } from '@mantine/core'
+import { Alert, Badge, Button, Card, CopyButton, Group, Progress, SimpleGrid, Stack, Text, Title, Menu } from '@mantine/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { IconCheck, IconCopy, IconDownload } from '@tabler/icons-react'
@@ -22,6 +22,7 @@ function importLinks(url: string) {
 export default function HomePage() {
   const { t } = useTranslation()
   const qc = useQueryClient()
+  const notice = useQuery({ queryKey: ['notice'], queryFn: () => api.get<{ enabled: boolean; title?: string; body?: string }>('/api/portal/notice') })
   const providers = useQuery({ queryKey: ['oauth-providers'], queryFn: () => api.get<{ providers: { id: string; name: string }[] }>('/api/oauth/providers') })
   const identities = useQuery({ queryKey: ['identities'], queryFn: () => api.get<{ provider: string; email: string }[]>('/api/oauth/identities') })
   const unlink = useMutation({ mutationFn: (p: string) => api.del(`/api/oauth/identities/${p}`), onSuccess: () => qc.invalidateQueries({ queryKey: ['identities'] }) })
@@ -31,6 +32,7 @@ export default function HomePage() {
   const daysLeft = sub?.expires_at ? Math.max(0, Math.ceil((new Date(sub.expires_at).getTime() - Date.now()) / 86400000)) : null
   return (
     <Stack gap="lg">
+      {notice.data?.enabled && <Alert color="blue" title={notice.data.title}><Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{notice.data.body}</Text></Alert>}
       <Title order={2}>{t('home.hello', { email: me.email })}</Title>
 
       {!sub && (

@@ -48,8 +48,14 @@ func TestTick(t *testing.T) {
 	if want := start.AddDate(0, 0, 14); sub.ResetAt.Unix() != want.Unix() {
 		t.Fatalf("reset_at = %v, want %v", sub.ResetAt, want)
 	}
-	old, _ := st.OrderByNo(ctx, "old")
-	fresh, _ := st.OrderByNo(ctx, "new")
+	old, err := st.OrderByNo(ctx, "old")
+	if err != nil {
+		t.Fatalf("order old: %v", err)
+	}
+	fresh, err := st.OrderByNo(ctx, "new")
+	if err != nil {
+		t.Fatalf("order new: %v", err)
+	}
 	if old.Status != "cancelled" || fresh.Status != "pending" {
 		t.Fatalf("orders: old=%s new=%s", old.Status, fresh.Status)
 	}

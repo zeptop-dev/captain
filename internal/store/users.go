@@ -8,16 +8,17 @@ import (
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-const userCols = "id, email, password_hash, role, uuid, sub_token, group_id, balance_cents, status, created_at, updated_at"
+const userCols = "id, email, password_hash, role, uuid, sub_token, group_id, balance_cents, status, created_at, updated_at, COALESCE(invite_code, ''), invited_by"
 
 func scanUser(row interface{ Scan(...any) error }) (*domain.User, error) {
 	var u domain.User
-	var group sql.NullInt64
+	var group, invitedBy sql.NullInt64
 	var created, updated int64
-	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.UUID, &u.SubToken, &group, &u.BalanceCents, &u.Status, &created, &updated); err != nil {
+	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.UUID, &u.SubToken, &group, &u.BalanceCents, &u.Status, &created, &updated, &u.InviteCode, &invitedBy); err != nil {
 		return nil, wrapNotFound(err)
 	}
 	u.GroupID = int64Ptr(group)
+	u.InvitedBy = int64Ptr(invitedBy)
 	u.CreatedAt, u.UpdatedAt = unix(created), unix(updated)
 	return &u, nil
 }
@@ -25,9 +26,12 @@ func scanUser(row interface{ Scan(...any) error }) (*domain.User, error) {
 // CreateUser inserts a user and sets its ID.
 func (s *Store) CreateUser(ctx context.Context, u *domain.User) error {
 	ts := now()
-	res, err := s.db.ExecContext(ctx, `INSERT INTO users (email, password_hash, role, uuid, sub_token, group_id, balance_cents, status, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		u.Email, u.PasswordHash, u.Role, u.UUID, u.SubToken, nullInt64(u.GroupID), u.BalanceCents, u.Status, ts, ts)
+	if u.InviteCode == "" {
+		u.InviteCode = newInviteCode()
+	}
+	res, err := s.db.ExecContext(ctx, `INSERT INTO users (email, password_hash, role, uuid, sub_token, group_id, balance_cents, status, created_at, updated_at, invite_code, invited_by)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		u.Email, u.PasswordHash, u.Role, u.UUID, u.SubToken, nullInt64(u.GroupID), u.BalanceCents, u.Status, ts, ts, u.InviteCode, nullInt64(u.InvitedBy))
 	if err != nil {
 		return err
 	}

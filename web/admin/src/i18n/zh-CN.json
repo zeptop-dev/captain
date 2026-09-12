@@ -16,7 +16,8 @@
     "orders": "订单",
     "system": "系统",
     "settings": "设置",
-    "site": "展示页"
+    "site": "展示页",
+    "coupons": "优惠券"
   },
   "login": {
     "title": "登录 Captain",
@@ -199,7 +200,14 @@
     "deviceLimit": "设备数",
     "speedLimit": "限速（Mbps）",
     "group": "购买后加入用户组",
-    "enabled": "上架"
+    "enabled": "上架",
+    "resetMode": "流量重置",
+    "resetNever": "不重置",
+    "resetDaysMode": "按购买日每 N 天",
+    "resetMonthly": "每月 1 号",
+    "resetYearly": "每年 1 月 1 日",
+    "prices": "更多周期",
+    "pricesHint": "每行一个：天数:价格（分），例如 90:2700 表示季付 27 元。上面的价格是默认周期。"
   },
   "orders": {
     "title": "订单",
@@ -234,7 +242,15 @@
     "oidc": "外部登录（OIDC）",
     "oidcHint": "每个提供方一条：Casdoor、Authentik、Keycloak、Google 等标准 OIDC 都行。issuer 填发现地址的根，例如 https://door.example.com；client_secret 留空保持不变。",
     "passwordLogin": "允许密码登录（关闭后只能用外部登录）",
-    "oidcCallback": "在提供方那边填回调地址："
+    "oidcCallback": "在提供方那边填回调地址：",
+    "notice": "公告",
+    "noticeHint": "开启后显示在用户中心首页顶部。",
+    "noticeTitle": "标题",
+    "noticeBody": "内容",
+    "invite": "邀请返利",
+    "inviteHint": "用户分享 /?ref=邀请码 链接，被邀请人付款后按比例把金额计入邀请人余额。",
+    "invitePercent": "返利比例（%）",
+    "inviteFirstOnly": "只返首单"
   },
   "update": {
     "title": "版本与升级",
@@ -294,5 +310,29 @@
     "testTo": "测试收件人",
     "test": "发送测试邮件",
     "testSent": "测试邮件已发送"
+  },
+  "coupons": {
+    "title": "优惠券",
+    "subtitle": "结账时输入的折扣码。",
+    "create": "新建优惠券",
+    "code": "代码",
+    "codeHint": "留空自动生成",
+    "name": "名称",
+    "kind": "类型",
+    "percent": "按百分比",
+    "fixed": "减固定金额",
+    "valuePercent": "折扣（%）",
+    "valueCents": "减免（分）",
+    "discount": "折扣",
+    "plans": "限定套餐",
+    "plansHint": "留空对所有套餐有效",
+    "uses": "已用",
+    "maxUses": "总次数上限",
+    "perUser": "每人次数上限",
+    "zeroUnlimited": "0 表示不限",
+    "startsAt": "生效日期",
+    "expiresAt": "失效日期",
+    "validity": "有效期",
+    "limitedPlans": "限 {{count}} 个套餐"
   }
 }

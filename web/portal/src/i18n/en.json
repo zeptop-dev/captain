@@ -4,7 +4,8 @@
     "plans": "Plans",
     "orders": "Orders",
     "servers": "Servers",
-    "logout": "Log out"
+    "logout": "Log out",
+    "invite": "Invite"
   },
   "auth": {
     "login": "Sign in",
@@ -26,7 +27,9 @@
     "forgotTitle": "Reset password",
     "forgotHint": "Enter your email and we will send a code.",
     "newPassword": "New password",
-    "resetSubmit": "Reset password"
+    "resetSubmit": "Reset password",
+    "invite": "Invite code (optional)",
+    "inviteHint": "A friend's invite code"
   },
   "home": {
     "hello": "Hi, {{email}}",
@@ -68,7 +71,14 @@
     "epay": "Alipay / WeChat",
     "stripe": "Card",
     "insufficient": "Insufficient balance",
-    "paid": "Paid. Your subscription is active."
+    "paid": "Paid. Your subscription is active.",
+    "years": "{{count}} yr",
+    "months": "{{count}} mo",
+    "morePeriods": "{{count}} periods available",
+    "choosePeriod": "Period",
+    "coupon": "Coupon",
+    "couponHint": "Have a code? Enter it here",
+    "discount": "{{amount}} off"
   },
   "orders": {
     "title": "Orders",
@@ -82,5 +92,17 @@
     "title": "Servers",
     "empty": "No servers available",
     "copyLink": "Copy server link"
+  },
+  "invite": {
+    "title": "Invite friends",
+    "hint": "Share the link; every payment by someone you invited credits {{percent}}% to your balance.",
+    "disabledHint": "Rewards are off right now, but you can still share the link.",
+    "code": "Invite code",
+    "invited": "Invited",
+    "earned": "Earned",
+    "bindTitle": "Record your inviter",
+    "bindHint": "Missed it at sign-up? You can add it once here.",
+    "bind": "Bind",
+    "bound": "Inviter recorded"
   }
 }
