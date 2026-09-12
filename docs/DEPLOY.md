@@ -82,7 +82,12 @@ on its next report and restarts itself.
 `tls.auto: true` in config.yaml makes Captain listen on :443 with a Let's
 Encrypt certificate for the `base_url` host (renewed automatically, cached in
 `<data_dir>/certs`); :80 answers the ACME challenge and redirects. The systemd
-unit carries `CAP_NET_BIND_SERVICE` for that. To terminate TLS elsewhere set
+unit carries `CAP_NET_BIND_SERVICE` for that. Set `tls.cloudflare_token` (a
+token with Zone:DNS:Edit on the zone) to switch to DNS-01: Captain then obtains
+`example.com` **and** `*.example.com` up front, so www and every subscription
+host under the domain are covered, port 80 is no longer required and the
+Cloudflare proxy can stay on (SSL mode Full (strict)). Hosts outside that
+zone still get their own certificate on first request. To terminate TLS elsewhere set
 `tls.auto: false`, keep `listen: 127.0.0.1:8080` and use `deploy/Caddyfile` (or
 an nginx equivalent). `base_url` must be the public URL either way: subscription
 links, EPay and Stripe callbacks use it.
