@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"os"
 	"time"
 )
 
@@ -119,4 +120,12 @@ func (s *Store) OverDeviceLimit(ctx context.Context, cutoff time.Time) (map[int6
 		out[id] = true
 	}
 	return out, rows.Err()
+}
+
+// Backup writes a consistent snapshot of the database to path using
+// SQLite's online VACUUM INTO, which works while the panel is serving.
+func (s *Store) Backup(ctx context.Context, path string) error {
+	_ = os.Remove(path)
+	_, err := s.db.ExecContext(ctx, "VACUUM INTO ?", path)
+	return err
 }

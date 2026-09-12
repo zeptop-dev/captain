@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
+	"github.com/zeptop-dev/captain/internal/http/ratelimit"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -60,7 +61,9 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	subSvc := &service.Subscription{Store: st}
 	base := strings.TrimRight(cfg.BaseURL, "/")
 
-	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Version: cfg.Version,
+	logins := ratelimit.New()
+	secure := strings.HasPrefix(strings.ToLower(cfg.BaseURL), "https://")
+	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Version: cfg.Version, Logins: logins, Secure: secure,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 	})
@@ -75,7 +78,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	s.mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/portal/", http.StatusFound)
 	})
-	portal.Register(s.mux, portal.Deps{Store: st, Log: log, Sessions: sessions, Orders: orders, Subscription: subSvc, BaseURL: base, Gateways: names, Registration: cfg.Portal.Registration})
+	portal.Register(s.mux, portal.Deps{Store: st, Log: log, Sessions: sessions, Orders: orders, Subscription: subSvc, BaseURL: base, Gateways: names, Registration: cfg.Portal.Registration, Logins: logins, Secure: secure})
 	paymenthttp.Register(s.mux, paymenthttp.Deps{Log: log, Orders: orders, ReturnTo: base + "/portal/orders", Gateways: gateways, Store: st})
 	sub.Register(s.mux, sub.Deps{Store: st, Log: log, Service: subSvc, Name: cfg.SiteName})
 	agent.Register(s.mux, agent.Deps{

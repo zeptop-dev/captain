@@ -70,9 +70,13 @@ Day-to-day:
 ```sh
 docker compose logs -f captain            # logs
 docker compose pull && docker compose up -d   # upgrade (the console shows a red dot when a release is out)
-docker compose exec captain sh -c 'cp /var/lib/captain/captain.db /var/lib/captain/backup-$(date +%F).db'   # backup
-docker run --rm -v captain_captain-data:/d -v $PWD:/out alpine cp /d/backup-*.db /out/   # copy backups to the host
+docker run --rm -v captain_captain-data:/d -v $PWD:/out alpine sh -c 'cp /d/backups/*.db /out/'   # copy the daily snapshots to the host
 ```
+
+Captain snapshots its database every day into `backups/` inside the data volume
+and keeps the last seven, so a restore is a copy of one file. Logins lock an
+address for 15 minutes after five failures; session cookies are HTTPS-only
+whenever `base_url` is https.
 
 No domain yet? `deploy/docker-compose.plain.yml` runs Captain alone on
 `http://<server>:8080` with `base_url: http://<server>:8080`; switch to the
