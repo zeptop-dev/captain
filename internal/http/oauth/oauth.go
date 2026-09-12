@@ -272,7 +272,21 @@ func (h *handlers) resolveUser(ctx context.Context, r *http.Request, p *store.OI
 		return u, h.Store.LinkIdentity(ctx, u.ID, p.ID, subject, email)
 	}
 	if uid, err := h.Store.UserByIdentity(ctx, p.ID, subject); err == nil {
-		return h.Store.UserByID(ctx, uid)
+		u, err := h.Store.UserByID(ctx, uid)
+		if err != nil {
+			return nil, err
+		}
+		// Follow an email change at the provider, unless the new address
+		// already belongs to another account.
+		if verified && email != "" && email != u.Email {
+			if _, taken := h.Store.UserByEmail(ctx, email); taken != nil {
+				if err := h.Store.UpdateUserEmail(ctx, u.ID, email); err == nil {
+					u.Email = email
+					_ = h.Store.LinkIdentity(ctx, u.ID, p.ID, subject, email)
+				}
+			}
+		}
+		return u, nil
 	}
 	if email != "" && verified {
 		if u, err := h.Store.UserByEmail(ctx, email); err == nil {
