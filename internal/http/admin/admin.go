@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
+	"github.com/zeptop-dev/bosun/pkg/spec"
 	"github.com/zeptop-dev/captain/internal/http/ratelimit"
+	"github.com/zeptop-dev/captain/internal/service"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -35,6 +37,8 @@ type Deps struct {
 	// looks up the latest bosun tag for the node list. Either may be nil.
 	Updater       *selfupdate.Client
 	BosunReleases *selfupdate.Client
+	// SubLinks builds user subscription URLs; nil falls back to nothing.
+	SubLinks *service.SubLinks
 	// Logins throttles failed sign-ins per client address; nil disables.
 	Logins *ratelimit.Limiter
 	// Secure marks session cookies HTTPS-only (base_url is https).
@@ -61,6 +65,8 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/admin/nodes/{id}/repair", h.requireAdmin(h.repairNode))
 	mux.HandleFunc("POST /api/admin/nodes/{id}/upgrade", h.requireAdmin(h.upgradeNode))
 	mux.HandleFunc("POST /api/admin/nodes/upgrade-all", h.requireAdmin(h.upgradeAllNodes))
+	mux.HandleFunc("GET /api/admin/settings/subscription", h.requireAdmin(h.getSubscription))
+	mux.HandleFunc("PUT /api/admin/settings/subscription", h.requireAdmin(h.putSubscription))
 	mux.HandleFunc("GET /api/admin/settings/acme", h.requireAdmin(h.getACME))
 	mux.HandleFunc("PUT /api/admin/settings/acme", h.requireAdmin(h.putACME))
 	mux.HandleFunc("GET /api/admin/system/update", h.requireAdmin(h.systemUpdate))
@@ -411,6 +417,7 @@ type userView struct {
 	Email        string     `json:"email"`
 	UUID         string     `json:"uuid"`
 	SubToken     string     `json:"sub_token"`
+	SubURL       string     `json:"sub_url"`
 	GroupID      *int64     `json:"group_id"`
 	BalanceCents int64      `json:"balance_cents"`
 	Status       string     `json:"status"`
@@ -437,7 +444,7 @@ func (h *handlers) listUsers(w http.ResponseWriter, r *http.Request) {
 	out := make([]userView, 0, len(rows))
 	for _, row := range rows {
 		u := row.User
-		out = append(out, userView{ID: u.ID, Email: u.Email, UUID: u.UUID, SubToken: u.SubToken, GroupID: u.GroupID, BalanceCents: u.BalanceCents, Status: u.Status, CreatedAt: u.CreatedAt,
+		out = append(out, userView{ID: u.ID, Email: u.Email, UUID: u.UUID, SubToken: u.SubToken, SubURL: h.subURL(r.Context(), u.SubToken), GroupID: u.GroupID, BalanceCents: u.BalanceCents, Status: u.Status, CreatedAt: u.CreatedAt,
 			PlanName: row.PlanName, ExpiresAt: row.ExpiresAt, QuotaBytes: row.QuotaBytes, UsedBytes: row.UsedBytes, SubUsable: row.SubUsable})
 	}
 	ok(w, map[string]any{"items": out, "total": total, "page": page, "per_page": per})
@@ -481,7 +488,7 @@ func (h *handlers) getUser(w http.ResponseWriter, r *http.Request) {
 	if devices == nil {
 		devices = []store.OnlineDevice{}
 	}
-	ok(w, map[string]any{"id": u.ID, "email": u.Email, "uuid": u.UUID, "sub_token": u.SubToken, "group_id": u.GroupID, "status": u.Status,
+	ok(w, map[string]any{"id": u.ID, "email": u.Email, "uuid": u.UUID, "sub_token": u.SubToken, "sub_url": h.subURL(r.Context(), u.SubToken), "group_id": u.GroupID, "status": u.Status,
 		"balance_cents": u.BalanceCents, "created_at": u.CreatedAt, "subscription": sub, "orders": orders, "devices": devices})
 }
 
@@ -543,7 +550,7 @@ func (h *handlers) rotateToken(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	ok(w, map[string]string{"sub_token": tok})
+	ok(w, map[string]string{"sub_token": tok, "sub_url": h.subURL(r.Context(), tok)})
 }
 
 func (h *handlers) adjustBalance(w http.ResponseWriter, r *http.Request) {
@@ -687,10 +694,41 @@ func (h *handlers) listEntries(w http.ResponseWriter, r *http.Request) {
 	ok(w, list)
 }
 
+// fillEntryDefaults resolves a blank display address: the inbound's TLS
+// domain (it has to point at the node anyway), else the node's public
+// address; a blank port is the inbound's port.
+func (h *handlers) fillEntryDefaults(ctx context.Context, e *domain.Entry) error {
+	if e.DisplayHost != "" && e.DisplayPort != 0 {
+		return nil
+	}
+	ib, err := h.Store.InboundByID(ctx, e.InboundID)
+	if err != nil {
+		return err
+	}
+	if e.DisplayPort == 0 {
+		e.DisplayPort = ib.Port
+	}
+	if e.DisplayHost == "" {
+		if sp := ib.Spec(); sp.TLS != nil && sp.TLS.Mode == spec.TLSStandard && sp.TLS.ServerName != "" {
+			e.DisplayHost = sp.TLS.ServerName
+		} else if n, err := h.Store.NodeByID(ctx, ib.NodeID); err == nil && n.PublicAddr != "" {
+			e.DisplayHost = n.PublicAddr
+		}
+	}
+	if e.DisplayHost == "" {
+		return errors.New("display_host is required: the inbound has no TLS domain and the node no public address")
+	}
+	return nil
+}
+
 func (h *handlers) createEntry(w http.ResponseWriter, r *http.Request) {
 	var e domain.Entry
-	if !decode(r, &e) || e.Name == "" || e.InboundID == 0 || e.DisplayHost == "" || e.DisplayPort == 0 {
-		fail(w, http.StatusBadRequest, "name, inbound_id, display_host and display_port are required")
+	if !decode(r, &e) || e.Name == "" || e.InboundID == 0 {
+		fail(w, http.StatusBadRequest, "name and inbound_id are required")
+		return
+	}
+	if err := h.fillEntryDefaults(r.Context(), &e); err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	e.Enabled = true
@@ -704,8 +742,12 @@ func (h *handlers) createEntry(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) updateEntry(w http.ResponseWriter, r *http.Request) {
 	id, okID := pathID(r)
 	var e domain.Entry
-	if !okID || !decode(r, &e) || e.Name == "" || e.InboundID == 0 || e.DisplayHost == "" || e.DisplayPort == 0 {
-		fail(w, http.StatusBadRequest, "name, inbound_id, display_host and display_port are required")
+	if !okID || !decode(r, &e) || e.Name == "" || e.InboundID == 0 {
+		fail(w, http.StatusBadRequest, "name and inbound_id are required")
+		return
+	}
+	if err := h.fillEntryDefaults(r.Context(), &e); err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	e.ID = id
@@ -923,4 +965,53 @@ func (h *handlers) putACME(w http.ResponseWriter, r *http.Request) {
 	// The state revision hashes node.ACME, so every node pulls the new
 	// account settings on its next report.
 	ok(w, map[string]any{"email": cur.Email, "has_cloudflare_token": cur.CloudflareToken != ""})
+}
+
+func (h *handlers) subURL(ctx context.Context, token string) string {
+	if h.SubLinks == nil {
+		return ""
+	}
+	return h.SubLinks.URL(ctx, token)
+}
+
+// ---- subscription URL settings ------------------------------------------------
+
+func (h *handlers) getSubscription(w http.ResponseWriter, r *http.Request) {
+	var v service.SubscriptionSettings
+	if err := h.Store.GetSetting(r.Context(), service.SettingSubscription, &v); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if v.URLs == nil {
+		v.URLs = []string{}
+	}
+	ok(w, v)
+}
+
+func (h *handlers) putSubscription(w http.ResponseWriter, r *http.Request) {
+	var in service.SubscriptionSettings
+	if !decode(r, &in) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	clean := make([]string, 0, len(in.URLs))
+	for _, u := range in.URLs {
+		u = strings.TrimSpace(u)
+		if u == "" {
+			continue
+		}
+		if !strings.HasPrefix(u, "http://") && !strings.HasPrefix(u, "https://") {
+			fail(w, http.StatusBadRequest, "each subscription URL must start with http:// or https://")
+			return
+		}
+		clean = append(clean, strings.TrimRight(u, "/"))
+	}
+	if err := h.Store.SetSetting(r.Context(), service.SettingSubscription, service.SubscriptionSettings{URLs: clean}); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if h.SubLinks != nil {
+		h.SubLinks.Invalidate()
+	}
+	ok(w, service.SubscriptionSettings{URLs: clean})
 }

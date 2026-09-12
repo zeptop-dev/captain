@@ -35,6 +35,7 @@ export interface Node {
   pair_code?: string; traffic_today_bytes: number; inbounds: number; upgrade_to?: string; outdated: boolean; cert_problem: boolean
 }
 export interface CertStatus { domain: string; method: string; not_after: string; error?: string }
+export interface SubscriptionSettings { urls: string[] }
 export interface ACMESettings { email: string; has_cloudflare_token: boolean }
 export interface Inbound {
   ID: number; NodeID: number; Tag: string; Protocol: string; Listen: string; Port: number; Core: string
@@ -46,7 +47,7 @@ export interface Plan {
   SpeedLimitMbps: number; GroupID: number | null; Sort: number; Enabled: boolean
 }
 export interface UserRow {
-  id: number; email: string; uuid: string; sub_token: string; group_id: number | null; balance_cents: number; status: string
+  id: number; email: string; uuid: string; sub_token: string; sub_url: string; group_id: number | null; balance_cents: number; status: string
   created_at: string; plan_name: string; expires_at: string | null; quota_bytes: number; used_bytes: number; sub_usable: boolean
 }
 export interface OnlineDevice { ip: string; node_id: number; last_seen_at: string }

@@ -90,6 +90,18 @@ links, EPay and Stripe callbacks use it.
 Routes: `/admin/` console, `/portal/` user site (root redirects there), `/sub/{token}`
 subscriptions, `/api/agent/*` for bosun, `/api/payment/*` gateway callbacks.
 
+## 3a. Subscription domain
+
+Settings → "Subscription URLs" lists the addresses put into users' subscription
+links (one per line, picked at random; blank means `base_url`). `[1-9]` and
+`[uuid]` placeholders combine with a wildcard DNS record so every user gets a
+different hostname. Requests arriving on those hosts reach only `/sub/…`;
+the login pages answer 404 there, so the address users pass around exposes
+nothing else. With `tls.auto` Captain obtains certificates for these hosts on
+first use as well (point their DNS at the same server; Let's Encrypt limits
+about 50 certificates per registered domain per week, so keep placeholder
+ranges small).
+
 ## 3b. Node certificates
 
 Settings → "Automatic certificates": enter the Let's Encrypt email (and a

@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -88,8 +89,8 @@ func cmdServe(args []string) error {
 		return err
 	}
 	cfg.Version = version
-	handler := chttp.New(cfg, st, log).Handler()
-	srv := &http.Server{Addr: cfg.Listen, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
+	web := chttp.New(cfg, st, log)
+	srv := &http.Server{Addr: cfg.Listen, Handler: web.Handler(), ReadHeaderTimeout: 10 * time.Second}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	go (&jobs.Runner{Store: st, Log: log, BackupDir: filepath.Join(cfg.DataDir, "backups")}).Run(ctx)
@@ -102,10 +103,15 @@ func cmdServe(args []string) error {
 		}
 		if cfg.TLS.Auto {
 			m := &autocert.Manager{
-				Prompt:     autocert.AcceptTOS,
-				Cache:      autocert.DirCache(filepath.Join(cfg.DataDir, "certs")),
-				HostPolicy: autocert.HostWhitelist(domain),
-				Email:      cfg.TLS.Email,
+				Prompt: autocert.AcceptTOS,
+				Cache:  autocert.DirCache(filepath.Join(cfg.DataDir, "certs")),
+				HostPolicy: func(ctx context.Context, host string) error {
+					if strings.EqualFold(host, domain) || web.SubLinks().AllowedTLSHost(ctx, host) {
+						return nil
+					}
+					return fmt.Errorf("host %q is neither the panel nor a subscription host", host)
+				},
+				Email: cfg.TLS.Email,
 			}
 			srv.TLSConfig = m.TLSConfig()
 			// Port 80 answers HTTP-01 challenges and redirects everything else.

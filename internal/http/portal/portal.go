@@ -31,6 +31,7 @@ type Deps struct {
 	Gateways     []string // names offered to users, e.g. epay, stripe, balance
 	Registration bool
 	Logins       *ratelimit.Limiter // throttles failed sign-ins; nil disables
+	SubLinks     *service.SubLinks  // subscription URL builder
 	Secure       bool               // HTTPS-only session cookies
 }
 
@@ -172,7 +173,7 @@ func (h *handlers) writeMe(w http.ResponseWriter, r *http.Request, u *domain.Use
 	}
 	ok(w, map[string]any{
 		"id": u.ID, "email": u.Email, "balance_cents": u.BalanceCents,
-		"subscription_url": strings.TrimRight(h.BaseURL, "/") + "/sub/" + u.SubToken,
+		"subscription_url": h.subURL(r.Context(), u.SubToken),
 		"subscription":     subView,
 		"gateways":         h.Gateways,
 	})
@@ -264,4 +265,11 @@ func fail(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
+func (h *handlers) subURL(ctx context.Context, token string) string {
+	if h.SubLinks != nil {
+		return h.SubLinks.URL(ctx, token)
+	}
+	return strings.TrimRight(h.BaseURL, "/") + "/sub/" + token
 }

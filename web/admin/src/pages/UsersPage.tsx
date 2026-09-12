@@ -35,11 +35,11 @@ export default function UsersPage() {
   const grant = useMutation({ mutationFn: () => api.post(`/api/admin/users/${sel!.id}/grant`, { PlanID: Number(grantPlan) }), onSuccess: () => { toast.ok(t('common.saved')); invalidate(); setSel(null) }, onError: toast.err })
   const [delta, setDelta] = useState<number | string>(0)
   const topUp = useMutation({ mutationFn: () => api.post(`/api/admin/users/${sel!.id}/balance`, { DeltaCents: Number(delta) }), onSuccess: () => { toast.ok(t('common.saved')); invalidate(); setSel(null) }, onError: toast.err })
-  const rotate = useMutation({ mutationFn: () => api.post<{ sub_token: string }>(`/api/admin/users/${sel!.id}/rotate-token`), onSuccess: (r) => { toast.ok(t('common.saved')); setSel({ ...sel!, sub_token: r.sub_token }); invalidate() }, onError: toast.err })
+  const rotate = useMutation({ mutationFn: () => api.post<{ sub_token: string; sub_url: string }>(`/api/admin/users/${sel!.id}/rotate-token`), onSuccess: (r) => { toast.ok(t('common.saved')); setSel({ ...sel!, sub_token: r.sub_token, sub_url: r.sub_url }); invalidate() }, onError: toast.err })
   const del = useMutation({ mutationFn: () => api.del(`/api/admin/users/${sel!.id}`), onSuccess: () => { toast.ok(t('common.deleted')); setSel(null); invalidate() }, onError: toast.err })
 
   const open = (u: UserRow) => { setSel(u); editForm.setValues({ Status: u.status, GroupID: u.group_id ? String(u.group_id) : '', Password: '' }); setGrantPlan(null); setDelta(0) }
-  const subURL = sel ? `${window.location.origin}/sub/${sel.sub_token}` : ''
+  const subURL = sel ? (sel.sub_url || `${window.location.origin}/sub/${sel.sub_token}`) : ''
   const pages = q.data ? Math.max(1, Math.ceil(q.data.total / q.data.per_page)) : 1
 
   return (

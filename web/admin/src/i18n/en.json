@@ -149,7 +149,8 @@
     "displayHost": "Display host",
     "displayPort": "Display port",
     "rate": "Rate",
-    "enabled": "Enabled"
+    "enabled": "Enabled",
+    "displayHostHint": "Blank uses the inbound's TLS domain, else the node's public address"
   },
   "users": {
     "title": "Users",
@@ -226,7 +227,9 @@
     "acmeEmail": "Let's Encrypt email",
     "cfToken": "Cloudflare API token",
     "cfTokenHint": "DNS challenge only; permission Zone.DNS edit. Blank keeps, - clears",
-    "cfTokenSet": "Set; blank keeps it, - clears it"
+    "cfTokenSet": "Set; blank keeps it, - clears it",
+    "subUrls": "Subscription URLs",
+    "subUrlsHint": "Addresses used in user subscription links, one per line, picked at random; blank means the site URL. [1-9] and [uuid] placeholders work with wildcard DNS. These hosts serve only the subscription path; everything else is 404."
   },
   "update": {
     "title": "Version and updates",

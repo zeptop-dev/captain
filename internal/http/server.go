@@ -29,10 +29,11 @@ import (
 
 // Server is the HTTP front.
 type Server struct {
-	cfg   *config.Config
-	store *store.Store
-	log   *slog.Logger
-	mux   *http.ServeMux
+	subLinks *service.SubLinks
+	cfg      *config.Config
+	store    *store.Store
+	log      *slog.Logger
+	mux      *http.ServeMux
 }
 
 // Options carries wiring the config alone cannot express (test gateways).
@@ -63,7 +64,8 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 
 	logins := ratelimit.New()
 	secure := strings.HasPrefix(strings.ToLower(cfg.BaseURL), "https://")
-	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Version: cfg.Version, Logins: logins, Secure: secure,
+	s.subLinks = &service.SubLinks{Store: st, BaseURL: base}
+	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 	})
@@ -78,7 +80,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	s.mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/portal/", http.StatusFound)
 	})
-	portal.Register(s.mux, portal.Deps{Store: st, Log: log, Sessions: sessions, Orders: orders, Subscription: subSvc, BaseURL: base, Gateways: names, Registration: cfg.Portal.Registration, Logins: logins, Secure: secure})
+	portal.Register(s.mux, portal.Deps{Store: st, Log: log, Sessions: sessions, Orders: orders, Subscription: subSvc, BaseURL: base, Gateways: names, Registration: cfg.Portal.Registration, Logins: logins, Secure: secure, SubLinks: s.subLinks})
 	paymenthttp.Register(s.mux, paymenthttp.Deps{Log: log, Orders: orders, ReturnTo: base + "/portal/orders", Gateways: gateways, Store: st})
 	sub.Register(s.mux, sub.Deps{Store: st, Log: log, Service: subSvc, Name: cfg.SiteName})
 	agent.Register(s.mux, agent.Deps{
@@ -115,9 +117,12 @@ func buildGateways(cfg *config.Config, log *slog.Logger) map[string]payment.Gate
 }
 
 // Handler returns the root handler with common middleware.
-func (s *Server) Handler() http.Handler {
-	return s.recover(s.logRequests(s.mux))
-}
+// Handler returns the root handler. Requests on a subscription-only host
+// reach nothing but /sub/.
+func (s *Server) Handler() http.Handler { return s.subLinks.SubscriptionOnly(s.mux) }
+
+// SubLinks exposes the subscription link service (autocert host policy).
+func (s *Server) SubLinks() *service.SubLinks { return s.subLinks }
 
 func (s *Server) logRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
