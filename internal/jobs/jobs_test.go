@@ -63,3 +63,33 @@ func TestTick(t *testing.T) {
 		t.Fatal("expired subscription still active")
 	}
 }
+
+func TestBackup(t *testing.T) {
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	dir := filepath.Join(t.TempDir(), "backups")
+	r := &Runner{Store: st, Log: slog.Default(), BackupDir: dir, BackupKeep: 2}
+	now := time.Now()
+	for i := 0; i < 3; i++ {
+		if _, err := r.backup(context.Background(), now.AddDate(0, 0, i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	files, _ := filepath.Glob(filepath.Join(dir, "captain-*.db"))
+	if len(files) != 2 {
+		t.Fatalf("expected 2 kept backups, got %v", files)
+	}
+	if made, _ := r.backup(context.Background(), now.AddDate(0, 0, 2)); made != "" {
+		t.Fatal("same day should not back up twice")
+	}
+	// The snapshot is a usable database.
+	c2, err := db.Open("sqlite", files[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	if err := c2.QueryRow("SELECT count(*) FROM users").Scan(&n); err != nil {
+		t.Fatalf("backup not readable: %v", err)
+	}
+}

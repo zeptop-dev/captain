@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/zeptop-dev/captain/internal/http/ratelimit"
 	"log/slog"
 	"net"
 	"net/http"
@@ -29,6 +30,8 @@ type Deps struct {
 	BaseURL      string
 	Gateways     []string // names offered to users, e.g. epay, stripe, balance
 	Registration bool
+	Logins       *ratelimit.Limiter // throttles failed sign-ins; nil disables
+	Secure       bool               // HTTPS-only session cookies
 }
 
 const cookieName = "captain_session"
@@ -103,10 +106,23 @@ func (h *handlers) login(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "bad json")
 		return
 	}
+	ip := ratelimit.ClientIP(r)
+	if h.Logins != nil {
+		if allowed, wait := h.Logins.Allow(ip); !allowed {
+			fail(w, http.StatusTooManyRequests, "too many failed attempts; try again in "+wait.String())
+			return
+		}
+	}
 	u, err := h.Store.UserByEmail(r.Context(), strings.ToLower(strings.TrimSpace(in.Email)))
 	if errors.Is(err, store.ErrNotFound) || (err == nil && !auth.VerifyPassword(u.PasswordHash, in.Password)) {
+		if h.Logins != nil {
+			h.Logins.Fail(ip)
+		}
 		fail(w, http.StatusUnauthorized, "invalid credentials")
 		return
+	}
+	if h.Logins != nil {
+		h.Logins.Reset(ip)
 	}
 	if err != nil {
 		fail(w, http.StatusInternalServerError, "internal error")
@@ -125,7 +141,7 @@ func (h *handlers) startSession(w http.ResponseWriter, r *http.Request, u *domai
 		fail(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: cookieName, Value: sess.ID, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, Expires: sess.ExpiresAt})
+	http.SetCookie(w, &http.Cookie{Name: cookieName, Value: sess.ID, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, Secure: h.Secure, Expires: sess.ExpiresAt})
 	h.writeMe(w, r, u)
 }
 

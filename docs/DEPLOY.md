@@ -90,5 +90,7 @@ Then add inbounds and entries for that node; bosun pulls the state within a minu
 
 ## 5. Backups
 
-Everything is in `/var/lib/captain/captain.db` plus the config file. `sqlite3
-captain.db ".backup /path/captain-$(date +%F).db"` is a consistent copy.
+Everything is in `/var/lib/captain/captain.db` plus the config file. Captain
+writes a consistent snapshot to `/var/lib/captain/backups/captain-YYYY-MM-DD.db`
+once a day and keeps seven; copy that directory off the machine. To restore,
+stop Captain, replace `captain.db` with a snapshot, start it again.

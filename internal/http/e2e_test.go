@@ -392,3 +392,58 @@ func TestNodeUpgradeRequest(t *testing.T) {
 		t.Fatalf("upgrade-all should skip up-to-date nodes: %s", b)
 	}
 }
+
+func TestLoginRateLimit(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "https://test"
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	c := &client{t: t, srv: srv}
+	for i := 0; i < 5; i++ {
+		if code, _, _ := c.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "wrong"}, nil); code != 401 {
+			t.Fatalf("attempt %d: %d", i, code)
+		}
+	}
+	if code, b, _ := c.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil); code != 429 {
+		t.Fatalf("sixth attempt should be locked even with the right password: %d %s", code, b)
+	}
+	// The portal shares the limiter, so it is locked too.
+	if code, _, _ := c.do("POST", "/api/portal/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil); code != 429 {
+		t.Fatalf("portal should be locked as well: %d", code)
+	}
+}
+
+func TestSecureCookie(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "https://test"
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	body, _ := json.Marshal(map[string]string{"Email": "admin@test", "Password": "password123"})
+	resp, err := http.Post(srv.URL+"/api/admin/login", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var found bool
+	for _, ck := range resp.Cookies() {
+		if ck.Name == "captain_session" {
+			found = true
+			if !ck.Secure || !ck.HttpOnly {
+				t.Fatalf("cookie flags: secure=%v httponly=%v", ck.Secure, ck.HttpOnly)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("no session cookie")
+	}
+}
