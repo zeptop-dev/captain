@@ -501,3 +501,108 @@ func TestACMESettingsReachNodes(t *testing.T) {
 		t.Fatalf("node detail should list certs: %s", b)
 	}
 }
+
+func TestSubscriptionURLsAndHosts(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "https://my.test"
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	server := New(cfg, st, slog.Default())
+	srv := httptest.NewServer(server.Handler())
+	defer srv.Close()
+	c := &client{t: t, srv: srv}
+	c.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+	_, b, _ := c.do("POST", "/api/admin/users", map[string]string{"Email": "u@test", "Password": "password123"}, nil)
+	u := mustJSON[map[string]any](t, b)
+	uid := itoa(int64(u["id"].(float64)))
+	tok := u["sub_token"].(string)
+
+	_, b, _ = c.do("GET", "/api/admin/users/"+uid, nil, nil)
+	if !strings.Contains(string(b), `"sub_url":"https://my.test/sub/`+tok+`"`) {
+		t.Fatalf("default sub url should use base_url: %s", b)
+	}
+	if code, b, _ := c.do("PUT", "/api/admin/settings/subscription", map[string]any{"URLs": []string{"sub.test"}}, nil); code != 400 {
+		t.Fatalf("scheme-less url should be rejected: %d %s", code, b)
+	}
+	if code, b, _ := c.do("PUT", "/api/admin/settings/subscription", map[string]any{"URLs": []string{"https://s[1-3].test/", "https://[uuid].sub.test"}}, nil); code != 200 {
+		t.Fatalf("put: %d %s", code, b)
+	}
+	seen := map[string]bool{}
+	for i := 0; i < 20; i++ {
+		_, b, _ = c.do("GET", "/api/admin/users/"+uid, nil, nil)
+		var v struct {
+			SubURL string `json:"sub_url"`
+		}
+		_ = json.Unmarshal(b, &v)
+		if !strings.HasSuffix(v.SubURL, "/sub/"+tok) {
+			t.Fatalf("bad sub url %s", v.SubURL)
+		}
+		host := strings.TrimPrefix(strings.SplitN(v.SubURL, "/sub/", 2)[0], "https://")
+		seen[host] = true
+		if !server.SubLinks().IsSubscriptionHost(context.Background(), host) {
+			t.Fatalf("generated host %q should be recognised as a subscription host", host)
+		}
+	}
+	if len(seen) < 2 {
+		t.Fatalf("placeholders should vary the host: %v", seen)
+	}
+	if server.SubLinks().IsSubscriptionHost(context.Background(), "my.test") || server.SubLinks().IsSubscriptionHost(context.Background(), "evil.test") {
+		t.Fatal("panel host and strangers are not subscription hosts")
+	}
+	// On a subscription host only /sub/ is served.
+	req, _ := http.NewRequest("GET", srv.URL+"/admin/", nil)
+	req.Host = "s2.test"
+	resp, _ := http.DefaultClient.Do(req)
+	if resp.StatusCode != 404 {
+		t.Fatalf("admin on a subscription host should be 404, got %d", resp.StatusCode)
+	}
+	req, _ = http.NewRequest("GET", srv.URL+"/sub/"+tok, nil)
+	req.Host = "s2.test"
+	resp, _ = http.DefaultClient.Do(req)
+	if resp.StatusCode == 404 {
+		t.Fatal("subscription must be served on the subscription host")
+	}
+	req, _ = http.NewRequest("GET", srv.URL+"/admin/", nil)
+	req.Host = "my.test"
+	resp, _ = http.DefaultClient.Do(req)
+	if resp.StatusCode == 404 {
+		t.Fatal("the panel host keeps serving the console")
+	}
+}
+
+func TestEntryDefaultsFromInbound(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "http://test"
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	c := &client{t: t, srv: srv}
+	c.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+	_, b, _ := c.do("POST", "/api/admin/nodes", map[string]any{"Name": "jp", "PublicAddr": "203.0.113.5"}, nil)
+	node := mustJSON[map[string]any](t, b)
+	nid := itoa(int64(node["id"].(float64)))
+	_, b, _ = c.do("POST", "/api/admin/nodes/"+nid+"/inbounds", map[string]any{"Tag": "hy2", "Protocol": "hysteria2", "Port": 8443, "Settings": map[string]any{"tls": map[string]any{"mode": 1, "server_name": "jp.test", "auto_cert": true}}}, nil)
+	tlsIB := mustJSON[map[string]any](t, b)
+	_, b, _ = c.do("POST", "/api/admin/nodes/"+nid+"/inbounds", map[string]any{"Tag": "ss", "Protocol": "shadowsocks", "Port": 8388, "Settings": map[string]any{"cipher": "aes-128-gcm"}}, nil)
+	plainIB := mustJSON[map[string]any](t, b)
+
+	_, b, _ = c.do("POST", "/api/admin/entries", map[string]any{"Name": "jp", "InboundID": tlsIB["ID"]}, nil)
+	if !strings.Contains(string(b), `"DisplayHost":"jp.test"`) || !strings.Contains(string(b), `"DisplayPort":8443`) {
+		t.Fatalf("entry should default to the TLS domain and inbound port: %s", b)
+	}
+	_, b, _ = c.do("POST", "/api/admin/entries", map[string]any{"Name": "ss", "InboundID": plainIB["ID"]}, nil)
+	if !strings.Contains(string(b), `"DisplayHost":"203.0.113.5"`) {
+		t.Fatalf("entry should fall back to the node address: %s", b)
+	}
+	_, b, _ = c.do("POST", "/api/admin/entries", map[string]any{"Name": "iplc", "InboundID": tlsIB["ID"], "DisplayHost": "entrance.provider.net", "DisplayPort": 30001}, nil)
+	if !strings.Contains(string(b), `"DisplayHost":"entrance.provider.net"`) {
+		t.Fatalf("explicit address must win: %s", b)
+	}
+}

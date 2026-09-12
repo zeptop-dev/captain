@@ -149,7 +149,8 @@
     "displayHost": "展示地址",
     "displayPort": "展示端口",
     "rate": "倍率",
-    "enabled": "启用"
+    "enabled": "启用",
+    "displayHostHint": "留空用入站的 TLS 域名，否则用节点公网地址"
   },
   "users": {
     "title": "用户",
@@ -226,7 +227,9 @@
     "acmeEmail": "Let's Encrypt 邮箱",
     "cfToken": "Cloudflare API Token",
     "cfTokenHint": "仅 DNS 验证需要，权限 Zone.DNS 编辑；留空不改，填 - 清除",
-    "cfTokenSet": "已设置；留空保持不变，填 - 清除"
+    "cfTokenSet": "已设置；留空保持不变，填 - 清除",
+    "subUrls": "订阅地址",
+    "subUrlsHint": "用户订阅链接使用的地址，每行一个，随机分配；留空用站点地址。支持 [1-9] 随机数和 [uuid] 占位符配合泛域名解析。这些域名上只开放订阅路径，其它请求返回 404。"
   },
   "update": {
     "title": "版本与升级",

@@ -30,7 +30,7 @@ export default function EntriesPage() {
     setEditing(e)
   }
   // Picking an inbound pre-fills the display address from the node.
-  const onInbound = (id: string | null) => { form.setFieldValue('InboundID', id ?? ''); const x = inbounds.find((i) => String(i.ib.ID) === id); if (x && !form.values.DisplayHost) form.setValues({ DisplayHost: x.node.public_addr, DisplayPort: x.ib.Port }) }
+  const onInbound = (id: string | null) => { form.setFieldValue('InboundID', id ?? ''); const x = inbounds.find((i) => String(i.ib.ID) === id); if (x && !form.values.DisplayHost) { const tls = x.ib.Settings?.tls as { mode?: number; server_name?: string } | undefined; form.setValues({ DisplayHost: (tls?.mode === 1 && tls.server_name) || x.node.public_addr || '', DisplayPort: x.ib.Port }) } }
   return (
     <>
       <PageHeader title={t('entries.title')} subtitle={t('entries.subtitle')} actions={<Button leftSection={<IconPlus size={16} />} onClick={() => openEdit('new')}>{t('entries.create')}</Button>} />
@@ -54,7 +54,7 @@ export default function EntriesPage() {
         <form onSubmit={form.onSubmit((v) => save.mutate(v))}><Stack>
           <TextInput label={t('entries.name')} required placeholder="🇯🇵 Tokyo IPLC" {...form.getInputProps('Name')} />
           <Select label={t('entries.inbound')} required searchable data={inbounds.map((i) => ({ value: String(i.ib.ID), label: label(i.ib.ID) }))} value={form.values.InboundID} onChange={onInbound} />
-          <Group grow><TextInput label={t('entries.displayHost')} required {...form.getInputProps('DisplayHost')} /><NumberInput label={t('entries.displayPort')} required min={1} max={65535} {...form.getInputProps('DisplayPort')} /></Group>
+          <Group grow><TextInput label={t('entries.displayHost')} placeholder={t('entries.displayHostHint')} {...form.getInputProps('DisplayHost')} /><NumberInput label={t('entries.displayPort')} required min={1} max={65535} {...form.getInputProps('DisplayPort')} /></Group>
           <Group grow><NumberInput label={t('entries.rate')} min={0} step={0.1} decimalScale={2} {...form.getInputProps('Rate')} /><NumberInput label="Sort" {...form.getInputProps('Sort')} /></Group>
           <Switch label={t('entries.enabled')} {...form.getInputProps('Enabled', { type: 'checkbox' })} />
           <Group justify="flex-end"><Button variant="default" onClick={() => setEditing(null)}>{t('common.cancel')}</Button><Button type="submit" loading={save.isPending}>{t('common.save')}</Button></Group>
