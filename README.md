@@ -51,7 +51,9 @@ login, then installs with Docker when it is present (`docker compose` in
 `/opt/captain`) or as a systemd service otherwise (`--mode binary` to force).
 It does not install Docker for you: put it on first
 (`curl -fsSL https://get.docker.com | sh`) if that is the way you want to run it.
-Every answer can be given as a flag, see `install.sh --help`.
+Every answer can be given as a flag, see `install.sh --help`. Piped through `sh`
+the script never lands on disk; `... | sh -s -- uninstall` takes the whole
+installation away again (`--keep-data` keeps the database).
 
 Already running Caddy or nginx on that host? Add `--behind-proxy`: Captain then
 serves plain HTTP on 127.0.0.1:8080 and `deploy/Caddyfile` shows the proxy
