@@ -46,7 +46,9 @@ proxy needed.
 curl -fsSL https://raw.githubusercontent.com/zeptop-dev/captain/master/install.sh | sh
 ```
 
-The script asks for the domain, an email for the certificate, and the admin
+The script asks for the domain, an email for the certificate, an optional
+Cloudflare API token (DNS-01: one wildcard certificate covers the domain, www
+and subscription hosts; without it HTTP-01 on port 80 is used), and the admin
 login, then installs with Docker when it is present (`docker compose` in
 `/opt/captain`) or as a systemd service otherwise (`--mode binary` to force).
 It does not install Docker for you: put it on first

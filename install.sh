@@ -14,7 +14,7 @@ set -eu
 
 REPO="zeptop-dev/captain"
 IMAGE="zeptop/captain:latest"
-MODE="" DOMAIN="" EMAIL="" ADMIN_EMAIL="" ADMIN_PASS="" PROXY=0 VERSION="" ACTION=install KEEP_DATA=0
+MODE="" DOMAIN="" EMAIL="" CF_TOKEN="" ADMIN_EMAIL="" ADMIN_PASS="" PROXY=0 VERSION="" ACTION=install KEEP_DATA=0
 while [ $# -gt 0 ]; do
   case "$1" in
     uninstall) ACTION=uninstall; shift ;;
@@ -22,6 +22,7 @@ while [ $# -gt 0 ]; do
     --mode) MODE="$2"; shift 2 ;;
     --domain) DOMAIN="$2"; shift 2 ;;
     --email) EMAIL="$2"; shift 2 ;;
+    --cloudflare-token) CF_TOKEN="$2"; shift 2 ;;
     --admin-email) ADMIN_EMAIL="$2"; shift 2 ;;
     --admin-password) ADMIN_PASS="$2"; shift 2 ;;
     --behind-proxy) PROXY=1; shift ;;
@@ -79,7 +80,13 @@ if [ "$MODE" = docker ]; then
 fi
 
 ask DOMAIN "Panel domain (DNS A record must point here)" domain
-if [ "$PROXY" = 0 ]; then ask EMAIL "Email for the Let's Encrypt account" email; fi
+if [ "$PROXY" = 0 ]; then
+  ask EMAIL "Email for the Let's Encrypt account" email
+  if [ -z "$CF_TOKEN" ] && [ -r /dev/tty ]; then
+    printf '%s' "Cloudflare API token for a wildcard certificate via DNS-01 (Enter to skip and use HTTP-01 on port 80): " >/dev/tty
+    stty -echo </dev/tty; read -r CF_TOKEN </dev/tty; stty echo </dev/tty; echo >/dev/tty
+  fi
+fi
 ask ADMIN_EMAIL "Admin login email" admin-email "$EMAIL"
 ask_secret ADMIN_PASS "Admin password (8+ characters)" admin-password
 [ ${#ADMIN_PASS} -ge 8 ] || { echo "password too short" >&2; exit 1; }
@@ -95,6 +102,8 @@ else
   TLS="tls:
   auto: true
   email: $EMAIL"
+  [ -n "$CF_TOKEN" ] && TLS="$TLS
+  cloudflare_token: $CF_TOKEN"
 fi
 CFG=/etc/captain/config.yaml
 [ "$MODE" = docker ] && CFG="$DIR/config.yaml"

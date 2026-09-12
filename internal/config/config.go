@@ -26,8 +26,12 @@ type Config struct {
 		Email      string `yaml:"email"`       // ACME account contact (recommended)
 		Domain     string `yaml:"domain"`      // default: host of base_url
 		HTTPListen string `yaml:"http_listen"` // ACME HTTP-01 + redirect to https; default :80
-		Cert       string `yaml:"cert"`
-		Key        string `yaml:"key"`
+		// CloudflareToken switches to DNS-01 and obtains a wildcard for
+		// tls.domain as well, so port 80 is no longer needed.
+		CloudflareToken string `yaml:"cloudflare_token"`
+		Staging         bool   `yaml:"staging"` // Let's Encrypt staging CA (test certificates)
+		Cert            string `yaml:"cert"`
+		Key             string `yaml:"key"`
 	} `yaml:"tls"`
 
 	Database struct {

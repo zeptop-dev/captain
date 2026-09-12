@@ -5,8 +5,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/zeptop-dev/captain/internal/certs"
 	"github.com/zeptop-dev/captain/internal/mail"
-	"golang.org/x/crypto/acme/autocert"
 	"log/slog"
 	"net/http"
 	"os"
@@ -103,26 +103,33 @@ func cmdServe(args []string) error {
 		if domain == "" {
 			return fmt.Errorf("tls: cannot derive a domain from base_url %q; set tls.domain", cfg.BaseURL)
 		}
+		redirect := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "https://"+domain+r.URL.RequestURI(), http.StatusMovedPermanently)
+		})
 		if cfg.TLS.Auto {
-			m := &autocert.Manager{
-				Prompt: autocert.AcceptTOS,
-				Cache:  autocert.DirCache(filepath.Join(cfg.DataDir, "certs")),
-				HostPolicy: func(ctx context.Context, host string) error {
-					if strings.EqualFold(host, domain) || web.SubLinks().AllowedTLSHost(ctx, host) {
+			m, err := certs.New(certs.Options{
+				Dir: filepath.Join(cfg.DataDir, "certs"), Email: cfg.TLS.Email, Domain: domain,
+				CloudflareToken: cfg.TLS.CloudflareToken, Staging: cfg.TLS.Staging, Log: log,
+				Allow: func(ctx context.Context, host string) error {
+					if web.SubLinks().AllowedTLSHost(ctx, host) {
 						return nil
 					}
 					return fmt.Errorf("host %q is neither the panel nor a subscription host", host)
 				},
-				Email: cfg.TLS.Email,
+			})
+			if err != nil {
+				return err
+			}
+			defer m.Stop()
+			if err := m.Start(ctx); err != nil {
+				return fmt.Errorf("tls: %w", err)
 			}
 			srv.TLSConfig = m.TLSConfig()
 			// Port 80 answers HTTP-01 challenges and redirects everything else.
-			httpSrv = &http.Server{Addr: cfg.TLS.HTTPListen, Handler: m.HTTPHandler(nil), ReadHeaderTimeout: 10 * time.Second}
-			log.Info("automatic certificate", "domain", domain, "cache", filepath.Join(cfg.DataDir, "certs"))
+			httpSrv = &http.Server{Addr: cfg.TLS.HTTPListen, Handler: m.HTTPHandler(redirect), ReadHeaderTimeout: 10 * time.Second}
+			log.Info("automatic certificates", "names", m.Managed(), "dns01", m.DNS(), "store", filepath.Join(cfg.DataDir, "certs"))
 		} else {
-			httpSrv = &http.Server{Addr: cfg.TLS.HTTPListen, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				http.Redirect(w, r, "https://"+domain+r.URL.RequestURI(), http.StatusMovedPermanently)
-			}), ReadHeaderTimeout: 10 * time.Second}
+			httpSrv = &http.Server{Addr: cfg.TLS.HTTPListen, Handler: redirect, ReadHeaderTimeout: 10 * time.Second}
 		}
 		go func() {
 			if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {

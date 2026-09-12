@@ -9,6 +9,7 @@ log_level: info
 tls:
   auto: true
   email: you@example.com
+  # cloudflare_token: ...   # optional: DNS-01 wildcard certificate, port 80 not needed
 
 database:
   driver: sqlite

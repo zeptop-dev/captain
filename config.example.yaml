@@ -7,6 +7,7 @@ base_url: https://panel.example.com     # public URL; used in subscription links
 tls:
   auto: false
   email: you@example.com
+  # cloudflare_token: ...   # DNS-01: wildcard for the domain, port 80 not needed
   # cert: /etc/captain/fullchain.pem     # or bring your own files
   # key: /etc/captain/privkey.pem
 data_dir: /var/lib/captain
