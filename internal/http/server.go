@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/zeptop-dev/bosun/pkg/selfupdate"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -59,7 +60,10 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	subSvc := &service.Subscription{Store: st}
 	base := strings.TrimRight(cfg.BaseURL, "/")
 
-	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Version: cfg.Version})
+	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Version: cfg.Version,
+		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version},
+		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
+	})
 	s.mux.Handle("/admin/", web.Admin("/admin/"))
 	s.mux.HandleFunc("GET /admin", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/admin/", http.StatusMovedPermanently)

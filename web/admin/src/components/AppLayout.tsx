@@ -4,6 +4,9 @@ import { IconLayoutDashboard, IconServer, IconRoute, IconUsers, IconPackage, Ico
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../lib/auth'
+import { useQuery } from '@tanstack/react-query'
+import { api, type SystemUpdate } from '../lib/api'
+import { Indicator } from '@mantine/core'
 
 const sections = [
   { key: 'workspace', items: [
@@ -28,6 +31,7 @@ export function AppLayout() {
   const nav = useNavigate()
   const loc = useLocation()
   const active = (to: string) => (to === '/' ? loc.pathname === '/' : loc.pathname.startsWith(to))
+  const upd = useQuery({ queryKey: ['update'], queryFn: () => api.get<SystemUpdate>('/api/admin/system/update'), staleTime: 10 * 60_000, refetchInterval: 30 * 60_000, retry: false })
 
   return (
     <AppShell navbar={{ width: 240, breakpoint: 'sm', collapsed: { mobile: !opened } }} header={{ height: 52 }} padding="lg">
@@ -36,7 +40,7 @@ export function AppLayout() {
           <Group gap="sm">
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
             <Text fw={700} size="lg" style={{ letterSpacing: '0.02em' }}>Captain</Text>
-            {me?.version && <Badge size="xs" variant="outline" color="gray">{me.version}</Badge>}
+            {me?.version && <Indicator disabled={!upd.data?.captain?.has_update} color="red" size={8} offset={2} processing><Badge size="xs" variant="outline" color="gray" style={{ cursor: 'pointer' }} onClick={() => nav('/settings')} title={upd.data?.captain?.has_update ? t('update.available', { version: upd.data.captain.latest }) : undefined}>{me.version}</Badge></Indicator>}
           </Group>
           <Group gap="xs">
             <Menu shadow="md">

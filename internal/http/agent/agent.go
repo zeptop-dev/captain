@@ -136,7 +136,11 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 	}
 	st, err := h.State.Build(ctx, n, now)
 	changed := err == nil && st.Revision != rep.Revision
-	ok(w, agentproto.ReportResponse{StateChanged: changed})
+	resp := agentproto.ReportResponse{StateChanged: changed}
+	if n.UpgradeTo != "" && n.UpgradeTo != rep.Version {
+		resp.UpgradeTo = n.UpgradeTo
+	}
+	ok(w, resp)
 }
 
 func ok(w http.ResponseWriter, v any) {

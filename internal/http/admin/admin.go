@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/zeptop-dev/bosun/pkg/selfupdate"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/zeptop-dev/captain/internal/auth"
@@ -28,6 +30,10 @@ type Deps struct {
 	Log      *slog.Logger
 	Sessions SessionStore
 	Version  string
+	// Updater checks/applies Captain's own releases; BosunReleases only
+	// looks up the latest bosun tag for the node list. Either may be nil.
+	Updater       *selfupdate.Client
+	BosunReleases *selfupdate.Client
 }
 
 const cookieName = "captain_session"
@@ -48,6 +54,12 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("PATCH /api/admin/nodes/{id}", h.requireAdmin(h.updateNode))
 	mux.HandleFunc("DELETE /api/admin/nodes/{id}", h.requireAdmin(h.deleteNode))
 	mux.HandleFunc("POST /api/admin/nodes/{id}/repair", h.requireAdmin(h.repairNode))
+	mux.HandleFunc("POST /api/admin/nodes/{id}/upgrade", h.requireAdmin(h.upgradeNode))
+	mux.HandleFunc("POST /api/admin/nodes/upgrade-all", h.requireAdmin(h.upgradeAllNodes))
+	mux.HandleFunc("GET /api/admin/system/update", h.requireAdmin(h.systemUpdate))
+	mux.HandleFunc("POST /api/admin/system/update/apply", h.requireAdmin(h.systemUpdateApply))
+	mux.HandleFunc("POST /api/admin/system/update/rollback", h.requireAdmin(h.systemUpdateRollback))
+	mux.HandleFunc("POST /api/admin/system/restart", h.requireAdmin(h.systemRestart))
 	mux.HandleFunc("POST /api/admin/nodes/{id}/inbounds", h.requireAdmin(h.createInbound))
 	mux.HandleFunc("PATCH /api/admin/inbounds/{id}", h.requireAdmin(h.updateInbound))
 	mux.HandleFunc("DELETE /api/admin/inbounds/{id}", h.requireAdmin(h.deleteInbound))
@@ -188,6 +200,8 @@ type nodeView struct {
 	PairCode     string     `json:"pair_code,omitempty"`
 	TrafficToday int64      `json:"traffic_today_bytes"`
 	Inbounds     int        `json:"inbounds"`
+	UpgradeTo    string     `json:"upgrade_to,omitempty"` // pending upgrade request
+	Outdated     bool       `json:"outdated"`             // reported version older than the latest bosun release
 }
 
 func toNodeView(n *domain.Node, at time.Time) nodeView {
@@ -195,7 +209,20 @@ func toNodeView(n *domain.Node, at time.Time) nodeView {
 		ID: n.ID, Name: n.Name, PublicAddr: n.PublicAddr, InternalAddr: n.InternalAddr, V6Addr: n.V6Addr, MonitorURL: n.MonitorURL,
 		Version: n.Version, Platform: n.Platform, Hostname: n.Hostname, LastSeenAt: n.LastSeenAt,
 		Online: n.LastSeenAt != nil && at.Sub(*n.LastSeenAt) < 3*time.Minute, Paired: n.Paired, PairCode: n.PairCode,
+		UpgradeTo: n.UpgradeTo,
 	}
+}
+
+// bosunLatest returns the newest bosun release tag, "" when unknown.
+func (h *handlers) bosunLatest(ctx context.Context) string {
+	if h.BosunReleases == nil {
+		return ""
+	}
+	info := h.BosunReleases.Check(ctx, false)
+	if info.Warning != "" && info.Latest == h.BosunReleases.Version {
+		return ""
+	}
+	return info.Latest
 }
 
 func (h *handlers) listNodes(w http.ResponseWriter, r *http.Request) {
@@ -206,11 +233,13 @@ func (h *handlers) listNodes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	traffic, _ := h.Store.NodeTrafficToday(r.Context(), now)
+	latest := h.bosunLatest(r.Context())
 	out := make([]nodeView, 0, len(nodes))
 	for _, n := range nodes {
 		v := toNodeView(n, now)
 		v.PairCode = "" // only shown on create/repair
 		v.TrafficToday = traffic[n.ID]
+		v.Outdated = latest != "" && n.Version != "" && selfupdate.Newer(latest, n.Version)
 		if ibs, err := h.Store.AllInboundsByNode(r.Context(), n.ID); err == nil {
 			v.Inbounds = len(ibs)
 		}
@@ -721,4 +750,115 @@ func fail(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
+// ---- upgrades ---------------------------------------------------------------
+
+type upgradeInput struct {
+	Version string // release tag; empty = latest bosun release
+}
+
+func (h *handlers) resolveBosunVersion(ctx context.Context, in upgradeInput) (string, error) {
+	v := strings.TrimSpace(in.Version)
+	if v == "" {
+		v = h.bosunLatest(ctx)
+	}
+	if v == "" {
+		return "", errors.New("could not determine the latest bosun release; pass a version")
+	}
+	if !strings.HasPrefix(v, "v") {
+		return "", errors.New("version must be a release tag like v0.6.0")
+	}
+	return v, nil
+}
+
+// upgradeNode asks one node to move to a bosun release; the request rides
+// on the next report response and clears once the node reports that version.
+func (h *handlers) upgradeNode(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		fail(w, http.StatusBadRequest, "bad id")
+		return
+	}
+	var in upgradeInput
+	_ = json.NewDecoder(r.Body).Decode(&in)
+	v, err := h.resolveBosunVersion(r.Context(), in)
+	if err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := h.Store.SetNodeUpgrade(r.Context(), id, v); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, map[string]any{"upgrade_to": v})
+}
+
+func (h *handlers) upgradeAllNodes(w http.ResponseWriter, r *http.Request) {
+	var in upgradeInput
+	_ = json.NewDecoder(r.Body).Decode(&in)
+	v, err := h.resolveBosunVersion(r.Context(), in)
+	if err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	n, err := h.Store.SetAllNodesUpgrade(r.Context(), v)
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, map[string]any{"upgrade_to": v, "nodes": n})
+}
+
+// systemUpdate reports Captain's own update state plus the latest bosun tag.
+func (h *handlers) systemUpdate(w http.ResponseWriter, r *http.Request) {
+	out := map[string]any{"bosun_latest": h.bosunLatest(r.Context())}
+	if h.Updater != nil {
+		out["captain"] = h.Updater.Check(r.Context(), r.URL.Query().Get("force") == "1")
+	}
+	ok(w, out)
+}
+
+func (h *handlers) systemUpdateApply(w http.ResponseWriter, r *http.Request) {
+	if h.Updater == nil {
+		fail(w, http.StatusNotFound, "self-update disabled")
+		return
+	}
+	var in struct{ Version string }
+	_ = json.NewDecoder(r.Body).Decode(&in)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	ver, err := h.Updater.Apply(ctx, in.Version)
+	if err != nil {
+		code := http.StatusBadGateway
+		if errors.Is(err, selfupdate.ErrInContainer) || errors.Is(err, selfupdate.ErrUpToDate) {
+			code = http.StatusConflict
+		}
+		fail(w, code, err.Error())
+		return
+	}
+	h.Log.Warn("captain updated; restarting", "version", ver)
+	ok(w, map[string]any{"installed": ver, "restarting": true})
+	selfupdate.Restart(500 * time.Millisecond)
+}
+
+func (h *handlers) systemUpdateRollback(w http.ResponseWriter, r *http.Request) {
+	if h.Updater == nil {
+		fail(w, http.StatusNotFound, "self-update disabled")
+		return
+	}
+	ver, err := h.Updater.Rollback()
+	if err != nil {
+		fail(w, http.StatusConflict, err.Error())
+		return
+	}
+	h.Log.Warn("captain rolled back; restarting", "version", ver)
+	ok(w, map[string]any{"installed": ver, "restarting": true})
+	selfupdate.Restart(500 * time.Millisecond)
+}
+
+func (h *handlers) systemRestart(w http.ResponseWriter, r *http.Request) {
+	h.Log.Warn("restart requested from the admin console")
+	ok(w, map[string]bool{"restarting": true})
+	selfupdate.Restart(500 * time.Millisecond)
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-const nodeCols = "id, name, token_hash, pair_code, public_addr, internal_addr, v6_addr, monitor_url, version, platform, hostname, last_seen_at, applied_revision, created_at"
+const nodeCols = "id, name, token_hash, pair_code, public_addr, internal_addr, v6_addr, monitor_url, version, platform, hostname, last_seen_at, applied_revision, upgrade_to, created_at"
 
 func scanNode(row interface{ Scan(...any) error }) (*domain.Node, error) {
 	var n domain.Node
@@ -19,7 +19,7 @@ func scanNode(row interface{ Scan(...any) error }) (*domain.Node, error) {
 	var lastSeen sql.NullInt64
 	var created int64
 	if err := row.Scan(&n.ID, &n.Name, &tokenHash, &pairCode, &n.PublicAddr, &n.InternalAddr, &n.V6Addr, &n.MonitorURL,
-		&n.Version, &n.Platform, &n.Hostname, &lastSeen, &n.AppliedRevision, &created); err != nil {
+		&n.Version, &n.Platform, &n.Hostname, &lastSeen, &n.AppliedRevision, &n.UpgradeTo, &created); err != nil {
 		return nil, wrapNotFound(err)
 	}
 	n.Paired = tokenHash.Valid && tokenHash.String != ""
@@ -89,8 +89,10 @@ func (s *Store) ListNodes(ctx context.Context) ([]*domain.Node, error) {
 func (s *Store) TouchNode(ctx context.Context, id int64, version, revision string, host spec.SystemStatus, cores any) error {
 	hostJSON, _ := json.Marshal(host)
 	coresJSON, _ := json.Marshal(cores)
-	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET last_seen_at = ?, version = COALESCE(NULLIF(?, ''), version), applied_revision = ?, host_status_json = ?, cores_json = ?, updated_at = ? WHERE id = ?`,
-		now(), version, revision, string(hostJSON), string(coresJSON), now(), id)
+	// A node that reports the requested release has finished upgrading.
+	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET last_seen_at = ?, version = COALESCE(NULLIF(?, ''), version), applied_revision = ?, host_status_json = ?, cores_json = ?,
+		upgrade_to = CASE WHEN upgrade_to = ? THEN '' ELSE upgrade_to END, updated_at = ? WHERE id = ?`,
+		now(), version, revision, string(hostJSON), string(coresJSON), version, now(), id)
 	return err
 }
 
@@ -248,4 +250,19 @@ func (s *Store) NodeTrafficToday(ctx context.Context, day time.Time) (map[int64]
 		out[id] = sum
 	}
 	return out, rows.Err()
+}
+
+// SetNodeUpgrade records the release a node should upgrade to ("" cancels).
+func (s *Store) SetNodeUpgrade(ctx context.Context, id int64, version string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET upgrade_to = ?, updated_at = ? WHERE id = ?`, version, now(), id)
+	return err
+}
+
+// SetAllNodesUpgrade asks every paired node not already on version to upgrade.
+func (s *Store) SetAllNodesUpgrade(ctx context.Context, version string) (int64, error) {
+	res, err := s.db.ExecContext(ctx, `UPDATE nodes SET upgrade_to = ?, updated_at = ? WHERE token_hash <> '' AND version <> ?`, version, now(), version)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }

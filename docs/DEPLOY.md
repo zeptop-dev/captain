@@ -28,10 +28,14 @@ GitHub Release:
 ```sh
 V=$(curl -fsSL https://api.github.com/repos/zeptop-dev/captain/releases/latest | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p'); ARCH=amd64
 B="https://github.com/zeptop-dev/captain/releases/download/$V"
-curl -fsSL -o /usr/local/bin/captain "$B/captain-linux-$ARCH"
-curl -fsSL "$B/SHA256SUMS" | grep "captain-linux-$ARCH" | sed 's# .*# /usr/local/bin/captain#' | sha256sum -c
-chmod 0755 /usr/local/bin/captain
+mkdir -p /opt/captain
+curl -fsSL -o /opt/captain/captain "$B/captain-linux-$ARCH"
+curl -fsSL "$B/SHA256SUMS" | grep "captain-linux-$ARCH" | sed 's# .*# /opt/captain/captain#' | sha256sum -c
+chmod 0755 /opt/captain/captain
 ```
+
+The binary lives in `/opt/captain`, owned by the service user, so the in-app
+updater can replace it.
 
 Or build locally with `make build` (needs Go 1.26 and pnpm) and copy `bin/captain`.
 
@@ -39,7 +43,7 @@ Or build locally with `make build` (needs Go 1.26 and pnpm) and copy `bin/captai
 
 ```sh
 useradd --system --home /var/lib/captain --shell /usr/sbin/nologin captain
-mkdir -p /etc/captain /var/lib/captain && chown captain:captain /var/lib/captain
+mkdir -p /etc/captain /var/lib/captain && chown -R captain:captain /var/lib/captain /opt/captain
 cp config.example.yaml /etc/captain/config.yaml   # set base_url, payments; keep listen on 127.0.0.1
 chmod 0600 /etc/captain/config.yaml && chown captain /etc/captain/config.yaml
 cp deploy/captain.service /etc/systemd/system/
@@ -49,8 +53,20 @@ systemctl daemon-reload && systemctl enable --now captain
 Migrations run automatically on start. Create the first admin:
 
 ```sh
-sudo -u captain captain admin create -c /etc/captain/config.yaml -email you@example.com -password '...'
+sudo -u captain /opt/captain/captain admin create -c /etc/captain/config.yaml -email you@example.com -password '...'
 ```
+
+## Updating
+
+Settings → "Version and updates" (and a red dot on the version badge) shows
+when a newer release exists. "Update and restart" downloads the binary for
+this platform, verifies it against `SHA256SUMS`, swaps `/opt/captain/captain`
+(keeping the old one as `captain.backup` for "Roll back") and exits; systemd
+restarts it. Docker installs show the `docker compose pull` command instead.
+
+Nodes → an orange "vX available" badge marks bosun nodes older than the latest
+bosun release; click it, or "Upgrade all", and each node installs that release
+on its next report and restarts itself.
 
 ## 3. Reverse proxy
 

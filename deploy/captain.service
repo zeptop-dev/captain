@@ -6,7 +6,9 @@ Wants=network-online.target
 [Service]
 User=captain
 Group=captain
-ExecStart=/usr/local/bin/captain serve -c /etc/captain/config.yaml
+# The binary lives in a directory the service user owns so the in-app
+# updater can swap it; systemd restarts the new one (Restart=always).
+ExecStart=/opt/captain/captain serve -c /etc/captain/config.yaml
 Restart=always
 RestartSec=3
 StateDirectory=captain
@@ -14,7 +16,7 @@ WorkingDirectory=/var/lib/captain
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/captain
+ReadWritePaths=/var/lib/captain /opt/captain
 
 [Install]
 WantedBy=multi-user.target

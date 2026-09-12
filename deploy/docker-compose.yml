@@ -25,3 +25,11 @@ volumes:
   captain-data:
   caddy-data:
   caddy-config:
+
+# Optional: keep the images fresh automatically. Watchtower polls the
+# registries and recreates containers when a new image is pushed.
+#  watchtower:
+#    image: containrrr/watchtower
+#    restart: unless-stopped
+#    volumes: ["/var/run/docker.sock:/var/run/docker.sock"]
+#    command: --cleanup --interval 3600 captain
