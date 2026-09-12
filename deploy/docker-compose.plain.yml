@@ -1,0 +1,12 @@
+# Captain without Caddy: plain HTTP on port 8080. For testing, or when
+# another reverse proxy on the host terminates TLS.
+services:
+  captain:
+    image: zeptop/captain:latest
+    restart: unless-stopped
+    volumes:
+      - ./config.yaml:/etc/captain/config.yaml:ro
+      - captain-data:/var/lib/captain
+    ports: ["8080:8080"]
+volumes:
+  captain-data:

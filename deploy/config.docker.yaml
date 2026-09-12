@@ -1,0 +1,31 @@
+# Captain config for Docker. Copy to config.yaml next to docker-compose.yml,
+# set base_url (and payments when you have them), keep listen as is: Caddy
+# in the same compose network reaches it as captain:8080.
+listen: 0.0.0.0:8080
+base_url: https://panel.example.com
+data_dir: /var/lib/captain
+log_level: info
+
+database:
+  driver: sqlite
+  dsn: /var/lib/captain/captain.db
+
+agent:
+  pull_seconds: 60
+  push_seconds: 60
+
+site_name: Captain
+
+portal:
+  registration: true
+
+payments: {}
+  # epay:
+  #   version: v1
+  #   url: https://zpayz.cn
+  #   pid: "1000"
+  #   key: secret
+  # stripe:
+  #   secret_key: sk_live_...
+  #   webhook_secret: whsec_...
+  #   currency: usd
