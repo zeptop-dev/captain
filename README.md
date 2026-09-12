@@ -36,6 +36,48 @@ traffic landing in the user's subscription:
 Not yet: jobs (stale order cancellation, quota resets), online device
 collection, email (password reset, notifications).
 
+## Docker Compose (recommended install)
+
+One Linux server with Docker (Ubuntu/Debian: `curl -fsSL https://get.docker.com | sh`),
+a domain whose A record points at it, and ports 80/443 free.
+
+```sh
+mkdir -p /opt/captain && cd /opt/captain
+B=https://raw.githubusercontent.com/zeptop-dev/captain/master/deploy
+curl -fsSLO $B/docker-compose.yml
+curl -fsSLO $B/Caddyfile
+curl -fsSL -o config.yaml $B/config.docker.yaml
+```
+
+Edit two files:
+
+- `Caddyfile`: replace `panel.example.com` with your domain (leave `captain:8080`).
+- `config.yaml`: set `base_url` to `https://<your domain>` (subscription links and
+  payment callbacks use it); add `payments` when you have gateway credentials.
+
+Then:
+
+```sh
+docker compose up -d
+docker compose exec captain captain admin create -c /etc/captain/config.yaml -email you@example.com -password 'choose-a-long-one'
+```
+
+Open `https://<your domain>/admin/` and sign in. Caddy fetches the certificate
+on the first request, which can take a few seconds.
+
+Day-to-day:
+
+```sh
+docker compose logs -f captain            # logs
+docker compose pull && docker compose up -d   # upgrade (the console shows a red dot when a release is out)
+docker compose exec captain sh -c 'cp /var/lib/captain/captain.db /var/lib/captain/backup-$(date +%F).db'   # backup
+docker run --rm -v captain_captain-data:/d -v $PWD:/out alpine cp /d/backup-*.db /out/   # copy backups to the host
+```
+
+No domain yet? `deploy/docker-compose.plain.yml` runs Captain alone on
+`http://<server>:8080` with `base_url: http://<server>:8080`; switch to the
+Caddy variant later and keep the same `captain-data` volume.
+
 ## Run
 
 ```sh

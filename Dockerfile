@@ -29,6 +29,8 @@ RUN apk add --no-cache ca-certificates tzdata && adduser -D -H -u 1000 captain
 ENV IN_CONTAINER=1
 COPY --from=build /out/captain /usr/local/bin/captain
 COPY config.example.yaml /etc/captain/config.example.yaml
+COPY deploy/config.docker.yaml /etc/captain/config.yaml
+RUN mkdir -p /var/lib/captain && chown captain:captain /var/lib/captain
 USER captain
 VOLUME /var/lib/captain
 EXPOSE 8080

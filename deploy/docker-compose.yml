@@ -1,10 +1,9 @@
-# Captain + Caddy. Put config.yaml and Caddyfile next to this file:
-#   config.yaml : copy of config.example.yaml with listen: 0.0.0.0:8080 and
-#                 base_url set to https://<your domain>
-#   Caddyfile   : the one in this directory, domain edited, upstream captain:8080
+# Captain behind Caddy (automatic HTTPS). Files expected next to this one:
+#   config.yaml  - copy of config.docker.yaml with base_url set
+#   Caddyfile    - copy of deploy/Caddyfile with your domain
 services:
   captain:
-    image: ghcr.io/zeptop-dev/captain:latest   # or zeptop/captain:latest
+    image: zeptop/captain:latest        # or ghcr.io/zeptop-dev/captain:latest
     restart: unless-stopped
     volumes:
       - ./config.yaml:/etc/captain/config.yaml:ro
@@ -21,15 +20,14 @@ services:
       - caddy-config:/config
     depends_on: [captain]
 
+  # Optional: recreate containers automatically when a new image is pushed.
+  # watchtower:
+  #   image: containrrr/watchtower
+  #   restart: unless-stopped
+  #   volumes: ["/var/run/docker.sock:/var/run/docker.sock"]
+  #   command: --cleanup --interval 3600 captain
+
 volumes:
   captain-data:
   caddy-data:
   caddy-config:
-
-# Optional: keep the images fresh automatically. Watchtower polls the
-# registries and recreates containers when a new image is pushed.
-#  watchtower:
-#    image: containrrr/watchtower
-#    restart: unless-stopped
-#    volumes: ["/var/run/docker.sock:/var/run/docker.sock"]
-#    command: --cleanup --interval 3600 captain
