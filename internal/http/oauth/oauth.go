@@ -306,6 +306,11 @@ func (h *handlers) resolveUser(ctx context.Context, r *http.Request, p *store.OI
 	if err != nil {
 		return nil, err
 	}
+	if c, err := r.Cookie("captain_ref"); err == nil && c.Value != "" {
+		if inviter, err := h.Store.UserByInviteCode(ctx, c.Value); err == nil {
+			u.InvitedBy = &inviter.ID
+		}
+	}
 	if err := h.Store.CreateUser(ctx, u); err != nil {
 		return nil, err
 	}

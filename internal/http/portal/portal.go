@@ -56,6 +56,11 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("GET /api/portal/servers", h.requireUser(h.servers))
 	mux.HandleFunc("GET /api/portal/orders", h.requireUser(h.orders))
 	mux.HandleFunc("POST /api/portal/orders", h.requireUser(h.createOrder))
+	mux.HandleFunc("POST /api/portal/orders/quote", h.requireUser(h.quote))
+	mux.HandleFunc("GET /api/portal/notice", h.notice)
+	mux.HandleFunc("POST /api/portal/ref", h.ref)
+	mux.HandleFunc("GET /api/portal/invite", h.requireUser(h.invite))
+	mux.HandleFunc("POST /api/portal/invite/bind", h.requireUser(h.bindInvite))
 }
 
 type ctxKey struct{}
@@ -90,7 +95,7 @@ func (h *handlers) register(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusForbidden, "registration is closed")
 		return
 	}
-	var in struct{ Email, Password, Code string }
+	var in struct{ Email, Password, Code, Invite string }
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || !strings.Contains(in.Email, "@") || len(in.Password) < 8 {
 		fail(w, http.StatusBadRequest, "valid email and a password of 8+ chars are required")
 		return
@@ -107,6 +112,7 @@ func (h *handlers) register(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, "internal error")
 		return
 	}
+	u.InvitedBy = h.inviterFrom(r, in.Invite)
 	if err := h.Store.CreateUser(r.Context(), u); err != nil {
 		fail(w, http.StatusConflict, "email already registered")
 		return
@@ -232,14 +238,16 @@ func (h *handlers) orders(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) createOrder(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		PlanID  int64  `json:"plan_id"`
-		Gateway string `json:"gateway"`
+		PlanID     int64  `json:"plan_id"`
+		PeriodDays int    `json:"period_days"`
+		Coupon     string `json:"coupon"`
+		Gateway    string `json:"gateway"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.PlanID == 0 || in.Gateway == "" {
 		fail(w, http.StatusBadRequest, "plan_id and gateway are required")
 		return
 	}
-	order, co, err := h.Orders.Create(r.Context(), userFrom(r), in.PlanID, in.Gateway, clientIP(r))
+	order, co, err := h.Orders.Create(r.Context(), userFrom(r), in.PlanID, in.PeriodDays, in.Coupon, in.Gateway, clientIP(r))
 	switch {
 	case errors.Is(err, store.ErrInsufficientBalance):
 		fail(w, http.StatusPaymentRequired, "insufficient balance")
@@ -377,6 +385,106 @@ func (h *handlers) resetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.Store.UpdateUser(r.Context(), u.ID, u.Status, u.GroupID, hash); err != nil {
 		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, map[string]bool{"ok": true})
+}
+
+// RefCookie carries an invite code from a ?ref= link to account creation.
+const RefCookie = "captain_ref"
+
+// inviterFrom resolves an explicit invite code or the ref cookie to a user ID.
+func (h *handlers) inviterFrom(r *http.Request, code string) *int64 {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		if c, err := r.Cookie(RefCookie); err == nil {
+			code = c.Value
+		}
+	}
+	if code == "" {
+		return nil
+	}
+	u, err := h.Store.UserByInviteCode(r.Context(), code)
+	if err != nil {
+		return nil
+	}
+	return &u.ID
+}
+
+// ref stores an invite code in a cookie (30 days) so the landing page and
+// the portal can record it when the visitor signs up later, by any method.
+func (h *handlers) ref(w http.ResponseWriter, r *http.Request) {
+	var in struct{ Code string }
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || strings.TrimSpace(in.Code) == "" {
+		fail(w, http.StatusBadRequest, "code required")
+		return
+	}
+	code := strings.ToUpper(strings.TrimSpace(in.Code))
+	if _, err := h.Store.UserByInviteCode(r.Context(), code); err != nil {
+		fail(w, http.StatusNotFound, "unknown invite code")
+		return
+	}
+	http.SetCookie(w, &http.Cookie{Name: RefCookie, Value: code, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, Secure: h.Secure, MaxAge: 30 * 24 * 3600})
+	ok(w, map[string]bool{"ok": true})
+}
+
+func (h *handlers) quote(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		PlanID     int64  `json:"plan_id"`
+		PeriodDays int    `json:"period_days"`
+		Coupon     string `json:"coupon"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.PlanID == 0 {
+		fail(w, http.StatusBadRequest, "plan_id required")
+		return
+	}
+	q, _, err := h.Orders.Price(r.Context(), userFrom(r), in.PlanID, in.PeriodDays, in.Coupon)
+	if err != nil {
+		fail(w, http.StatusBadRequest, strings.TrimPrefix(err.Error(), "orders: "))
+		return
+	}
+	ok(w, q)
+}
+
+func (h *handlers) notice(w http.ResponseWriter, r *http.Request) {
+	var n store.NoticeSettings
+	_ = h.Store.GetSetting(r.Context(), store.SettingNotice, &n)
+	if !n.Enabled {
+		ok(w, map[string]any{"enabled": false})
+		return
+	}
+	ok(w, n)
+}
+
+// invite returns the user's referral link and stats.
+func (h *handlers) invite(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r)
+	if err := h.Store.EnsureInviteCode(r.Context(), u); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	var inv store.InviteSettings
+	_ = h.Store.GetSetting(r.Context(), store.SettingInvite, &inv)
+	stats, _ := h.Store.InviteStatsFor(r.Context(), u.ID)
+	ok(w, map[string]any{"code": u.InviteCode, "url": strings.TrimRight(h.BaseURL, "/") + "/?ref=" + u.InviteCode,
+		"enabled": inv.Enabled, "percent": inv.Percent, "first_order_only": inv.FirstOrderOnly,
+		"invited": stats.Invited, "earned_cents": stats.EarnedCents, "invited_by": u.InvitedBy != nil})
+}
+
+// bindInvite lets a user who signed up without a code record one, once.
+func (h *handlers) bindInvite(w http.ResponseWriter, r *http.Request) {
+	var in struct{ Code string }
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || strings.TrimSpace(in.Code) == "" {
+		fail(w, http.StatusBadRequest, "code required")
+		return
+	}
+	inviter, err := h.Store.UserByInviteCode(r.Context(), in.Code)
+	if err != nil {
+		fail(w, http.StatusNotFound, "unknown invite code")
+		return
+	}
+	if err := h.Store.SetInvitedBy(r.Context(), userFrom(r).ID, inviter.ID); err != nil {
+		fail(w, http.StatusConflict, err.Error())
 		return
 	}
 	ok(w, map[string]bool{"ok": true})

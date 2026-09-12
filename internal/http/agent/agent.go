@@ -85,21 +85,41 @@ func (h *handlers) pair(w http.ResponseWriter, r *http.Request) {
 }
 
 // state returns the desired state; a matching If-None-Match yields 304.
+// state returns the node's desired state. With ?wait=30s and a matching
+// If-None-Match the request is held (re-checking every two seconds) until
+// the revision changes or the window ends, so edits reach nodes almost at
+// once without a persistent connection.
 func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 	n := nodeFrom(r)
-	st, err := h.State.Build(r.Context(), n, time.Now())
-	if err != nil {
-		h.Log.Error("build state", "node", n.ID, "err", err)
-		fail(w, http.StatusInternalServerError, "internal error")
-		return
+	wait, _ := time.ParseDuration(r.URL.Query().Get("wait"))
+	if wait > 50*time.Second {
+		wait = 50 * time.Second
 	}
-	etag := `"` + st.Revision + `"`
-	w.Header().Set("ETag", etag)
-	if strings.Contains(r.Header.Get("If-None-Match"), etag) {
-		w.WriteHeader(http.StatusNotModified)
-		return
+	deadline := time.Now().Add(wait)
+	for {
+		st, err := h.State.Build(r.Context(), n, time.Now())
+		if err != nil {
+			h.Log.Error("build state", "node", n.ID, "err", err)
+			fail(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+		etag := `"` + st.Revision + `"`
+		if !strings.Contains(r.Header.Get("If-None-Match"), etag) {
+			w.Header().Set("ETag", etag)
+			ok(w, st)
+			return
+		}
+		if time.Now().After(deadline) {
+			w.Header().Set("ETag", etag)
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		select {
+		case <-r.Context().Done():
+			return
+		case <-time.After(2 * time.Second):
+		}
 	}
-	ok(w, st)
 }
 
 func (h *handlers) report(w http.ResponseWriter, r *http.Request) {

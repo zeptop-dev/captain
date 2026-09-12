@@ -4,7 +4,8 @@
     "plans": "套餐",
     "orders": "订单",
     "servers": "节点",
-    "logout": "退出"
+    "logout": "退出",
+    "invite": "邀请"
   },
   "auth": {
     "login": "登录",
@@ -26,7 +27,9 @@
     "forgotTitle": "重置密码",
     "forgotHint": "输入注册邮箱，我们会发送一个验证码。",
     "newPassword": "新密码",
-    "resetSubmit": "重置密码"
+    "resetSubmit": "重置密码",
+    "invite": "邀请码（可选）",
+    "inviteHint": "朋友给你的邀请码"
   },
   "home": {
     "hello": "你好，{{email}}",
@@ -68,7 +71,14 @@
     "epay": "支付宝 / 微信",
     "stripe": "银行卡",
     "insufficient": "余额不足",
-    "paid": "支付成功，订阅已生效"
+    "paid": "支付成功，订阅已生效",
+    "years": "{{count}} 年",
+    "months": "{{count}} 个月",
+    "morePeriods": "{{count}} 种周期可选",
+    "choosePeriod": "选择周期",
+    "coupon": "优惠码",
+    "couponHint": "有优惠码填这里",
+    "discount": "已优惠 {{amount}}"
   },
   "orders": {
     "title": "订单",
@@ -82,5 +92,17 @@
     "title": "节点",
     "empty": "当前没有可用节点",
     "copyLink": "复制节点链接"
+  },
+  "invite": {
+    "title": "邀请好友",
+    "hint": "把链接发给朋友，对方注册后每次付款你都能得到 {{percent}}% 的余额返利。",
+    "disabledHint": "邀请返利暂未开启，但你仍可以分享链接。",
+    "code": "邀请码",
+    "invited": "已邀请",
+    "earned": "累计返利",
+    "bindTitle": "填写邀请人",
+    "bindHint": "注册时没填？可以在这里补填一次。",
+    "bind": "绑定",
+    "bound": "已绑定邀请人"
   }
 }

@@ -4,7 +4,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../lib/auth'
 
-const items = [{ to: '/', key: 'home' }, { to: '/plans', key: 'plans' }, { to: '/orders', key: 'orders' }, { to: '/servers', key: 'servers' }]
+const items = [{ to: '/', key: 'home' }, { to: '/plans', key: 'plans' }, { to: '/orders', key: 'orders' }, { to: '/servers', key: 'servers' }, { to: '/invite', key: 'invite' }]
 
 // Top navigation only; the portal is a handful of pages and must work on phones.
 export function Layout() {

@@ -3,6 +3,7 @@
 package domain
 
 import (
+	"errors"
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/spec"
@@ -10,6 +11,8 @@ import (
 
 type User struct {
 	ID           int64
+	InviteCode   string
+	InvitedBy    *int64
 	Email        string
 	PasswordHash string
 	Role         string // "admin" | "user"
@@ -38,10 +41,40 @@ type Plan struct {
 	QuotaBytes     int64
 	DeviceLimit    int
 	SpeedLimitMbps int
-	ResetDays      int // quota resets every N days within the period; 0 = never
+	ResetDays      int // quota resets every N days within the period (ResetMode "days")
+	ResetMode      string // "" never, "days", "monthly" (1st of each month), "yearly" (Jan 1)
+	Prices         []PlanPrice // extra periods on top of PeriodDays/PriceCents
 	GroupID        *int64
 	Sort           int
 	Enabled        bool
+}
+
+// PlanPrice is one purchasable period of a plan.
+type PlanPrice struct {
+	PeriodDays int   `json:"period_days"`
+	PriceCents int64 `json:"price_cents"`
+}
+
+// PriceFor returns the price for a period: the base period, one of the
+// extra ones, or false.
+func (p *Plan) PriceFor(periodDays int) (int64, bool) {
+	if periodDays == 0 || periodDays == p.PeriodDays {
+		return p.PriceCents, true
+	}
+	for _, pp := range p.Prices {
+		if pp.PeriodDays == periodDays {
+			return pp.PriceCents, true
+		}
+	}
+	return 0, false
+}
+
+// EffectiveResetMode maps the legacy reset_days field onto ResetMode.
+func (p *Plan) EffectiveResetMode() string {
+	if p.ResetMode == "" && p.ResetDays > 0 {
+		return "days"
+	}
+	return p.ResetMode
 }
 
 type Subscription struct {
@@ -138,6 +171,72 @@ type Order struct {
 	Status      string
 	CreatedAt   time.Time
 	PaidAt      *time.Time
+	PeriodDays    int    // chosen period, 0 = plan base
+	CouponID      *int64 //
+	DiscountCents int64  //
+}
+
+// Coupon is a discount code applied at checkout.
+type Coupon struct {
+	ID        int64
+	Code      string
+	Name      string
+	Kind      string // "percent" | "fixed"
+	Value     int64
+	PlanIDs   []int64 // empty = any plan
+	MaxUses   int
+	Used      int
+	PerUser   int
+	StartsAt  *time.Time
+	ExpiresAt *time.Time
+	Enabled   bool
+	CreatedAt time.Time
+}
+
+// Discount returns the cents taken off amount.
+func (c *Coupon) Discount(amount int64) int64 {
+	var d int64
+	switch c.Kind {
+	case "percent":
+		d = amount * c.Value / 100
+	case "fixed":
+		d = c.Value
+	}
+	if d > amount {
+		d = amount
+	}
+	if d < 0 {
+		d = 0
+	}
+	return d
+}
+
+// Usable reports whether the coupon may be applied now to plan.
+func (c *Coupon) Usable(at time.Time, planID int64) error {
+	if !c.Enabled {
+		return errors.New("coupon disabled")
+	}
+	if c.StartsAt != nil && at.Before(*c.StartsAt) {
+		return errors.New("coupon not active yet")
+	}
+	if c.ExpiresAt != nil && at.After(*c.ExpiresAt) {
+		return errors.New("coupon expired")
+	}
+	if c.MaxUses > 0 && c.Used >= c.MaxUses {
+		return errors.New("coupon fully used")
+	}
+	if len(c.PlanIDs) > 0 {
+		found := false
+		for _, id := range c.PlanIDs {
+			if id == planID {
+				found = true
+			}
+		}
+		if !found {
+			return errors.New("coupon does not apply to this plan")
+		}
+	}
+	return nil
 }
 
 // Group is a user group; plans put buyers in a group and inbounds may be

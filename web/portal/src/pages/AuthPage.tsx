@@ -25,7 +25,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
     try { await api.post('/api/portal/verify/send', { Email: form.values.Email, Purpose: 'register' }); setCodeSent(true) } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setSending(false) }
   }
   const passwordLogin = oauth.data?.password_login ?? true
-  const form = useForm({ initialValues: { Email: '', Password: '', Code: '' } })
+  const form = useForm({ initialValues: { Email: '', Password: '', Code: '', Invite: new URLSearchParams(window.location.search).get('ref') ?? '' } })
   const submit = form.onSubmit(async (v) => {
     setBusy(true); setError('')
     try { await api.post(`/api/portal/${mode}`, v); refresh(); nav('/') } catch (e) {
@@ -53,6 +53,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
               <Button variant="default" size="md" loading={sending} disabled={!form.values.Email.includes('@')} onClick={sendCode}>{codeSent ? t('auth.resend') : t('auth.sendCode')}</Button>
             </Group>
           )}
+          {mode === 'register' && <TextInput label={t('auth.invite')} placeholder={t('auth.inviteHint')} {...form.getInputProps('Invite')} />}
           {mode === 'login' && policy.data?.reset && <Text size="sm" ta="right"><Anchor component={Link} to="/forgot">{t('auth.forgot')}</Anchor></Text>}
           {error && <Text c="red" size="sm">{error}</Text>}
           <Button type="submit" size="md" loading={busy}>{t(`auth.${mode}`)}</Button>

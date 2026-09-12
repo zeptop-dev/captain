@@ -70,6 +70,14 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/admin/nodes/{id}/repair", h.requireAdmin(h.repairNode))
 	mux.HandleFunc("POST /api/admin/nodes/{id}/upgrade", h.requireAdmin(h.upgradeNode))
 	mux.HandleFunc("POST /api/admin/nodes/upgrade-all", h.requireAdmin(h.upgradeAllNodes))
+	mux.HandleFunc("GET /api/admin/coupons", h.requireAdmin(h.listCoupons))
+	mux.HandleFunc("POST /api/admin/coupons", h.requireAdmin(h.createCoupon))
+	mux.HandleFunc("PATCH /api/admin/coupons/{id}", h.requireAdmin(h.updateCoupon))
+	mux.HandleFunc("DELETE /api/admin/coupons/{id}", h.requireAdmin(h.deleteCoupon))
+	mux.HandleFunc("GET /api/admin/settings/invite", h.requireAdmin(h.getInvite))
+	mux.HandleFunc("PUT /api/admin/settings/invite", h.requireAdmin(h.putInvite))
+	mux.HandleFunc("GET /api/admin/settings/notice", h.requireAdmin(h.getNotice))
+	mux.HandleFunc("PUT /api/admin/settings/notice", h.requireAdmin(h.putNotice))
 	mux.HandleFunc("GET /api/admin/settings/mail", h.requireAdmin(h.getMail))
 	mux.HandleFunc("PUT /api/admin/settings/mail", h.requireAdmin(h.putMail))
 	mux.HandleFunc("POST /api/admin/settings/mail/test", h.requireAdmin(h.testMail))
@@ -501,6 +509,7 @@ func (h *handlers) getUser(w http.ResponseWriter, r *http.Request) {
 		devices = []store.OnlineDevice{}
 	}
 	ok(w, map[string]any{"id": u.ID, "email": u.Email, "uuid": u.UUID, "sub_token": u.SubToken, "sub_url": h.subURL(r.Context(), u.SubToken), "group_id": u.GroupID, "status": u.Status,
+		"invite_code": u.InviteCode, "invited_by": u.InvitedBy,
 		"balance_cents": u.BalanceCents, "created_at": u.CreatedAt, "subscription": sub, "orders": orders, "devices": devices})
 }
 
@@ -1161,4 +1170,97 @@ func (h *handlers) testMail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, map[string]bool{"sent": true})
+}
+
+// ---- coupons, invites, notices ---------------------------------------------------
+
+func (h *handlers) listCoupons(w http.ResponseWriter, r *http.Request) {
+	list, err := h.Store.ListCoupons(r.Context())
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, list)
+}
+
+func (h *handlers) createCoupon(w http.ResponseWriter, r *http.Request) {
+	var c domain.Coupon
+	if !decode(r, &c) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	if strings.TrimSpace(c.Code) == "" {
+		c.Code = store.GenerateCouponCode()
+	}
+	if err := h.Store.CreateCoupon(r.Context(), &c); err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	ok(w, c)
+}
+
+func (h *handlers) updateCoupon(w http.ResponseWriter, r *http.Request) {
+	id, okID := pathID(r)
+	var c domain.Coupon
+	if !okID || !decode(r, &c) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	c.ID = id
+	if err := h.Store.UpdateCoupon(r.Context(), &c); err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	ok(w, c)
+}
+
+func (h *handlers) deleteCoupon(w http.ResponseWriter, r *http.Request) {
+	id, okID := pathID(r)
+	if !okID {
+		fail(w, http.StatusBadRequest, "bad id")
+		return
+	}
+	if err := h.Store.DeleteCoupon(r.Context(), id); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, map[string]bool{"ok": true})
+}
+
+func (h *handlers) getInvite(w http.ResponseWriter, r *http.Request) {
+	var v store.InviteSettings
+	_ = h.Store.GetSetting(r.Context(), store.SettingInvite, &v)
+	ok(w, v)
+}
+
+func (h *handlers) putInvite(w http.ResponseWriter, r *http.Request) {
+	var v store.InviteSettings
+	if !decode(r, &v) || v.Percent < 0 || v.Percent > 100 {
+		fail(w, http.StatusBadRequest, "percent must be 0-100")
+		return
+	}
+	if err := h.Store.SetSetting(r.Context(), store.SettingInvite, v); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, v)
+}
+
+func (h *handlers) getNotice(w http.ResponseWriter, r *http.Request) {
+	var v store.NoticeSettings
+	_ = h.Store.GetSetting(r.Context(), store.SettingNotice, &v)
+	ok(w, v)
+}
+
+func (h *handlers) putNotice(w http.ResponseWriter, r *http.Request) {
+	var v store.NoticeSettings
+	if !decode(r, &v) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	if err := h.Store.SetSetting(r.Context(), store.SettingNotice, v); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, v)
 }

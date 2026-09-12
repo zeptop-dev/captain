@@ -86,6 +86,25 @@ edited under Admin → Landing page (no rebuild, saves apply at once). Want your
 own design? Drop an `index.html` (plus assets) into `<data_dir>/site/` and
 Captain serves that directory instead.
 
+## Plans, coupons, invites
+
+A plan has a base period and price plus any number of extra periods (quarter,
+year …) with their own prices; buyers pick one at checkout. Renewing the same
+plan before it expires extends the time and refills the quota; buying a
+different plan replaces the current one. Quota reset: never, every N days from
+purchase, on the 1st of each month, or on January 1st.
+
+Coupons (Admin → Coupons) take a percentage or a fixed amount off, optionally
+limited to plans, total uses, uses per user and a date range; the checkout
+shows the discounted price as the code is typed. Invites: every user has a
+referral link `/?ref=CODE`; a visitor who arrives through it is recorded as
+invited when the account is created (by password or OIDC), and each paid order
+credits a configurable share to the inviter's balance (Settings → Referral
+rewards). Settings → Announcement puts a notice on the portal home page.
+
+Nodes learn about changes within seconds: bosun keeps a long-poll request open
+on the state endpoint, no persistent connection needed.
+
 ## Mail
 
 Admin → Settings → Mail: SMTP (any provider; port 587 STARTTLS, 465 TLS or 25

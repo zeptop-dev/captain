@@ -2,8 +2,8 @@ import { Button, Card, Group, Stack, Table, Text, TextInput, Title } from '@mant
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { api, type ACMESettings, type Group as UGroup, type OIDCSettings, type SubscriptionSettings } from '../lib/api'
-import { JsonInput, Switch } from '@mantine/core'
+import { api, type ACMESettings, type Group as UGroup, type InviteSettings, type NoticeSettings, type OIDCSettings, type SubscriptionSettings } from '../lib/api'
+import { JsonInput, NumberInput, Switch } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { useEffect } from 'react'
 import { PasswordInput, Textarea } from '@mantine/core'
@@ -23,6 +23,14 @@ export default function SettingsPage() {
   const subs = useQuery({ queryKey: ['subscription-settings'], queryFn: () => api.get<SubscriptionSettings>('/api/admin/settings/subscription') })
   const [subText, setSubText] = useState<string | null>(null)
   const saveSubs = useMutation({ mutationFn: (urls: string[]) => api.put('/api/admin/settings/subscription', { URLs: urls }), onSuccess: () => { toast.ok(t('common.saved')); setSubText(null); qc.invalidateQueries({ queryKey: ['subscription-settings'] }); qc.invalidateQueries({ queryKey: ['users'] }) }, onError: toast.err })
+  const invite = useQuery({ queryKey: ['invite-settings'], queryFn: () => api.get<InviteSettings>('/api/admin/settings/invite') })
+  const iform = useForm<InviteSettings>({ initialValues: { enabled: false, percent: 10, first_order_only: false } })
+  useEffect(() => { if (invite.data) iform.setValues(invite.data) }, [invite.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  const saveInvite = useMutation({ mutationFn: (v: InviteSettings) => api.put('/api/admin/settings/invite', v), onSuccess: () => { toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['invite-settings'] }) }, onError: toast.err })
+  const notice = useQuery({ queryKey: ['notice-settings'], queryFn: () => api.get<NoticeSettings>('/api/admin/settings/notice') })
+  const nform = useForm<NoticeSettings>({ initialValues: { enabled: false, title: '', body: '' } })
+  useEffect(() => { if (notice.data) nform.setValues(notice.data) }, [notice.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  const saveNotice = useMutation({ mutationFn: (v: NoticeSettings) => api.put('/api/admin/settings/notice', v), onSuccess: () => { toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['notice-settings'] }) }, onError: toast.err })
   const oidc = useQuery({ queryKey: ['oidc'], queryFn: () => api.get<OIDCSettings>('/api/admin/settings/oidc') })
   const [oidcText, setOidcText] = useState<string | null>(null)
   const [pwLogin, setPwLogin] = useState<boolean | null>(null)
@@ -53,6 +61,26 @@ export default function SettingsPage() {
             <TextInput label={t('settings.acmeEmail')} placeholder="you@example.com" {...aform.getInputProps('Email')} />
             <PasswordInput label={t('settings.cfToken')} description={acme.data?.has_cloudflare_token ? t('settings.cfTokenSet') : t('settings.cfTokenHint')} placeholder={acme.data?.has_cloudflare_token ? '••••••••' : ''} {...aform.getInputProps('CloudflareToken')} />
             <Group justify="flex-end"><Button type="submit" size="xs" loading={saveAcme.isPending}>{t('common.save')}</Button></Group>
+          </Stack></form>
+        </Card>
+        <Card>
+          <Title order={5} mb="xs">{t('settings.notice')}</Title>
+          <Text size="xs" c="dimmed" mb="sm">{t('settings.noticeHint')}</Text>
+          <form onSubmit={nform.onSubmit((v) => saveNotice.mutate(v))}><Stack gap="sm">
+            <TextInput label={t('settings.noticeTitle')} {...nform.getInputProps('title')} />
+            <Textarea label={t('settings.noticeBody')} autosize minRows={2} {...nform.getInputProps('body')} />
+            <Group justify="space-between"><Switch label={t('common.enabled')} {...nform.getInputProps('enabled', { type: 'checkbox' })} /><Button type="submit" size="xs" loading={saveNotice.isPending}>{t('common.save')}</Button></Group>
+          </Stack></form>
+        </Card>
+        <Card>
+          <Title order={5} mb="xs">{t('settings.invite')}</Title>
+          <Text size="xs" c="dimmed" mb="sm">{t('settings.inviteHint')}</Text>
+          <form onSubmit={iform.onSubmit((v) => saveInvite.mutate(v))}><Stack gap="sm">
+            <Group grow align="flex-end">
+              <NumberInput label={t('settings.invitePercent')} min={0} max={100} {...iform.getInputProps('percent')} />
+              <Switch label={t('settings.inviteFirstOnly')} {...iform.getInputProps('first_order_only', { type: 'checkbox' })} />
+            </Group>
+            <Group justify="space-between"><Switch label={t('common.enabled')} {...iform.getInputProps('enabled', { type: 'checkbox' })} /><Button type="submit" size="xs" loading={saveInvite.isPending}>{t('common.save')}</Button></Group>
           </Stack></form>
         </Card>
         <MailCard />
