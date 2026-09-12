@@ -201,3 +201,9 @@ func (s *Store) ListGroups(ctx context.Context) ([]domain.Group, error) {
 	}
 	return out, rows.Err()
 }
+
+// UpdateUserEmail changes a user's login email.
+func (s *Store) UpdateUserEmail(ctx context.Context, id int64, email string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE users SET email = ?, updated_at = ? WHERE id = ?`, email, now(), id)
+	return err
+}

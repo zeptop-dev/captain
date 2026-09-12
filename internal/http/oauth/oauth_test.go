@@ -123,10 +123,16 @@ func TestOIDCLogin(t *testing.T) {
 	c2 := &http.Client{Jar: jar2}
 	c2.Get(srv.URL + "/api/oauth/idp/start")
 	resp, _ = c2.Get(srv.URL + "/api/portal/me")
-	var me2 struct{ ID int64 }
+	var me2 struct {
+		ID    int64
+		Email string
+	}
 	json.NewDecoder(resp.Body).Decode(&me2)
 	if me2.ID != uid {
 		t.Fatalf("subject should map to the same user: %d vs %d", me2.ID, uid)
+	}
+	if me2.Email != "renamed@idp.test" {
+		t.Fatalf("a verified email change at the provider should follow: %s", me2.Email)
 	}
 	// Existing password account with the provider's (verified) email gets linked, not duplicated.
 	idp.sub, idp.email = "user-2", "admin@test"
