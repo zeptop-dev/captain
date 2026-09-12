@@ -12,6 +12,7 @@ import { toast } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
 import { UpdateCard } from '../components/UpdateCard'
 import { MailCard } from '../components/MailCard'
+import { RegistrationCard } from '../components/RegistrationCard'
 
 export default function SettingsPage() {
   const { t } = useTranslation()
@@ -83,6 +84,7 @@ export default function SettingsPage() {
             <Group justify="space-between"><Switch label={t('common.enabled')} {...iform.getInputProps('enabled', { type: 'checkbox' })} /><Button type="submit" size="xs" loading={saveInvite.isPending}>{t('common.save')}</Button></Group>
           </Stack></form>
         </Card>
+        <RegistrationCard />
         <MailCard />
         <Card>
           <Title order={5} mb="xs">{t('settings.oidc')}</Title>

@@ -67,6 +67,7 @@ export interface Coupon {
   ID: number; Code: string; Name: string; Kind: string; Value: number; PlanIDs: number[] | null; MaxUses: number; Used: number; PerUser: number
   StartsAt: string | null; ExpiresAt: string | null; Enabled: boolean; CreatedAt: string
 }
+export interface RegistrationSettings { email_suffixes: string[]; invite_only: boolean; ip_limit: number; ip_window_hours: number; captcha: { provider: string; site_key: string; secret_key: string } }
 export interface InviteSettings { enabled: boolean; percent: number; first_order_only: boolean }
 export interface NoticeSettings { enabled: boolean; title: string; body: string }
 export interface UserRow {

@@ -334,5 +334,16 @@
     "expiresAt": "Expires",
     "validity": "Validity",
     "limitedPlans": "{{count}} plans"
+  },
+  "registration": {
+    "title": "Registration limits",
+    "hint": "Apply to password sign-up; the email whitelist and invite-only rule also govern accounts auto-created by external login.",
+    "suffixes": "Email domain whitelist",
+    "suffixesHint": "One domain per line; blank = any",
+    "ipLimit": "Sign-ups per IP",
+    "ipLimitHint": "0 = unlimited",
+    "ipWindow": "Window (hours)",
+    "inviteOnly": "Invite only",
+    "captcha": "Captcha"
   }
 }

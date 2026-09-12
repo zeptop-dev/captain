@@ -29,7 +29,9 @@
     "newPassword": "新密码",
     "resetSubmit": "重置密码",
     "invite": "邀请码（可选）",
-    "inviteHint": "朋友给你的邀请码"
+    "inviteHint": "朋友给你的邀请码",
+    "suffixes": "仅接受这些邮箱：{{list}}",
+    "inviteRequired": "邀请码（必填）"
   },
   "home": {
     "hello": "你好，{{email}}",

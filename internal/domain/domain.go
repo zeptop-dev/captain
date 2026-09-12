@@ -13,6 +13,7 @@ type User struct {
 	ID           int64
 	InviteCode   string
 	InvitedBy    *int64
+	RegisterIP   string
 	Email        string
 	PasswordHash string
 	Role         string // "admin" | "user"

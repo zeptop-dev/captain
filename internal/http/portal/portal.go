@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/zeptop-dev/captain/internal/captcha"
 	"github.com/zeptop-dev/captain/internal/http/ratelimit"
 	"github.com/zeptop-dev/captain/internal/mail"
 	"log/slog"
@@ -95,12 +96,18 @@ func (h *handlers) register(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusForbidden, "registration is closed")
 		return
 	}
-	var in struct{ Email, Password, Code, Invite string }
+	var in struct{ Email, Password, Code, Invite, Captcha string }
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || !strings.Contains(in.Email, "@") || len(in.Password) < 8 {
 		fail(w, http.StatusBadRequest, "valid email and a password of 8+ chars are required")
 		return
 	}
 	email := strings.ToLower(strings.TrimSpace(in.Email))
+	ip := ratelimit.ClientIP(r)
+	inviter := h.inviterFrom(r, in.Invite)
+	if err := h.registrationAllowed(r, email, ip, inviter, in.Captcha); err != nil {
+		fail(w, http.StatusForbidden, err.Error())
+		return
+	}
 	if ms := h.mailSettings(r); ms.Enabled() && ms.VerifyRegistration {
 		if err := h.Store.CheckCode(r.Context(), email, "register", strings.TrimSpace(in.Code)); err != nil {
 			fail(w, http.StatusBadRequest, err.Error())
@@ -112,7 +119,8 @@ func (h *handlers) register(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	u.InvitedBy = h.inviterFrom(r, in.Invite)
+	u.InvitedBy = inviter
+	u.RegisterIP = ip
 	if err := h.Store.CreateUser(r.Context(), u); err != nil {
 		fail(w, http.StatusConflict, "email already registered")
 		return
@@ -305,7 +313,14 @@ func (h *handlers) mailSettings(r *http.Request) mail.Settings {
 // registerPolicy tells the sign-up page whether a code is required.
 func (h *handlers) registerPolicy(w http.ResponseWriter, r *http.Request) {
 	ms := h.mailSettings(r)
-	ok(w, map[string]any{"open": h.Registration, "verify": ms.Enabled() && ms.VerifyRegistration, "reset": ms.Enabled()})
+	var reg store.RegistrationSettings
+	_ = h.Store.GetSetting(r.Context(), store.SettingRegistration, &reg)
+	out := map[string]any{"open": h.Registration, "verify": ms.Enabled() && ms.VerifyRegistration, "reset": ms.Enabled(),
+		"invite_only": reg.InviteOnly, "email_suffixes": reg.EmailSuffixes}
+	if cs := (captcha.Settings{Provider: reg.Captcha.Provider, SiteKey: reg.Captcha.SiteKey, SecretKey: reg.Captcha.SecretKey}); cs.Enabled() {
+		out["captcha"] = map[string]string{"provider": cs.Provider, "site_key": cs.SiteKey}
+	}
+	ok(w, out)
 }
 
 // sendCode mails a verification code for registration or password reset.
@@ -333,6 +348,12 @@ func (h *handlers) sendCode(w http.ResponseWriter, r *http.Request) {
 	case "register":
 		if !h.Registration {
 			fail(w, http.StatusForbidden, "registration is closed")
+			return
+		}
+		var reg store.RegistrationSettings
+		_ = h.Store.GetSetting(r.Context(), store.SettingRegistration, &reg)
+		if !reg.EmailAllowed(email) {
+			fail(w, http.StatusForbidden, "this email domain is not accepted")
 			return
 		}
 		if _, err := h.Store.UserByEmail(r.Context(), email); err == nil {
@@ -488,4 +509,31 @@ func (h *handlers) bindInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, map[string]bool{"ok": true})
+}
+
+// registrationAllowed applies the sign-up limits: email whitelist, invite
+// requirement, per-IP cap and captcha.
+func (h *handlers) registrationAllowed(r *http.Request, email, ip string, inviter *int64, captchaToken string) error {
+	var reg store.RegistrationSettings
+	_ = h.Store.GetSetting(r.Context(), store.SettingRegistration, &reg)
+	if !reg.EmailAllowed(email) {
+		return errors.New("this email domain is not accepted")
+	}
+	if reg.InviteOnly && inviter == nil {
+		return errors.New("registration requires an invite code")
+	}
+	if reg.IPLimit > 0 {
+		hours := reg.IPWindowHours
+		if hours <= 0 {
+			hours = 24
+		}
+		if n, _ := h.Store.RegistrationsFromIP(r.Context(), ip, time.Now().Add(-time.Duration(hours)*time.Hour)); n >= reg.IPLimit {
+			return errors.New("too many sign-ups from this address; try again later")
+		}
+	}
+	cs := captcha.Settings{Provider: reg.Captcha.Provider, SiteKey: reg.Captcha.SiteKey, SecretKey: reg.Captcha.SecretKey}
+	if err := captcha.Verify(r.Context(), cs, captchaToken, ip); err != nil {
+		return err
+	}
+	return nil
 }

@@ -78,6 +78,8 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("PUT /api/admin/settings/invite", h.requireAdmin(h.putInvite))
 	mux.HandleFunc("GET /api/admin/settings/notice", h.requireAdmin(h.getNotice))
 	mux.HandleFunc("PUT /api/admin/settings/notice", h.requireAdmin(h.putNotice))
+	mux.HandleFunc("GET /api/admin/settings/registration", h.requireAdmin(h.getRegistration))
+	mux.HandleFunc("PUT /api/admin/settings/registration", h.requireAdmin(h.putRegistration))
 	mux.HandleFunc("GET /api/admin/settings/mail", h.requireAdmin(h.getMail))
 	mux.HandleFunc("PUT /api/admin/settings/mail", h.requireAdmin(h.putMail))
 	mux.HandleFunc("POST /api/admin/settings/mail/test", h.requireAdmin(h.testMail))
@@ -1263,4 +1265,42 @@ func (h *handlers) putNotice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, v)
+}
+
+// ---- registration limits ---------------------------------------------------------
+
+func (h *handlers) getRegistration(w http.ResponseWriter, r *http.Request) {
+	var v store.RegistrationSettings
+	_ = h.Store.GetSetting(r.Context(), store.SettingRegistration, &v)
+	if v.EmailSuffixes == nil {
+		v.EmailSuffixes = []string{}
+	}
+	has := v.Captcha.SecretKey != ""
+	v.Captcha.SecretKey = ""
+	ok(w, map[string]any{"settings": v, "has_captcha_secret": has})
+}
+
+func (h *handlers) putRegistration(w http.ResponseWriter, r *http.Request) {
+	var v store.RegistrationSettings
+	if !decode(r, &v) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	var cur store.RegistrationSettings
+	_ = h.Store.GetSetting(r.Context(), store.SettingRegistration, &cur)
+	if strings.TrimSpace(v.Captcha.SecretKey) == "" {
+		v.Captcha.SecretKey = cur.Captcha.SecretKey
+	}
+	clean := []string{}
+	for _, sfx := range v.EmailSuffixes {
+		if sfx = strings.ToLower(strings.TrimPrefix(strings.TrimSpace(sfx), "@")); sfx != "" {
+			clean = append(clean, sfx)
+		}
+	}
+	v.EmailSuffixes = clean
+	if err := h.Store.SetSetting(r.Context(), store.SettingRegistration, v); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	h.getRegistration(w, r)
 }

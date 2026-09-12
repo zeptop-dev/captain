@@ -7,6 +7,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import { Captcha } from '../components/Captcha'
 
 export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const { t } = useTranslation()
@@ -17,7 +18,8 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const oauth = useQuery({ queryKey: ['oauth-providers'], queryFn: () => api.get<{ providers: { id: string; name: string }[]; password_login: boolean }>('/api/oauth/providers') })
   useEffect(() => { const e = new URLSearchParams(window.location.search).get('error'); if (e) setError(e) }, [])
   const providers = oauth.data?.providers ?? []
-  const policy = useQuery({ queryKey: ['register-policy'], queryFn: () => api.get<{ open: boolean; verify: boolean; reset: boolean }>('/api/portal/register/policy') })
+  const policy = useQuery({ queryKey: ['register-policy'], queryFn: () => api.get<{ open: boolean; verify: boolean; reset: boolean; invite_only: boolean; email_suffixes: string[]; captcha?: { provider: string; site_key: string } }>('/api/portal/register/policy') })
+  const [captcha, setCaptcha] = useState('')
   const [codeSent, setCodeSent] = useState(false)
   const [sending, setSending] = useState(false)
   const sendCode = async () => {
@@ -25,10 +27,10 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
     try { await api.post('/api/portal/verify/send', { Email: form.values.Email, Purpose: 'register' }); setCodeSent(true) } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setSending(false) }
   }
   const passwordLogin = oauth.data?.password_login ?? true
-  const form = useForm({ initialValues: { Email: '', Password: '', Code: '', Invite: new URLSearchParams(window.location.search).get('ref') ?? '' } })
+  const form = useForm({ initialValues: { Email: '', Password: '', Code: '', Invite: new URLSearchParams(window.location.search).get('ref') ?? '', Captcha: '' } })
   const submit = form.onSubmit(async (v) => {
     setBusy(true); setError('')
-    try { await api.post(`/api/portal/${mode}`, v); refresh(); nav('/') } catch (e) {
+    try { await api.post(`/api/portal/${mode}`, { ...v, Captcha: captcha }); refresh(); nav('/') } catch (e) {
       setError(e instanceof ApiError && e.status === 403 ? t('auth.closed') : e instanceof ApiError && e.status !== 401 ? e.message : t('auth.failed'))
     } finally { setBusy(false) }
   })
@@ -53,7 +55,9 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
               <Button variant="default" size="md" loading={sending} disabled={!form.values.Email.includes('@')} onClick={sendCode}>{codeSent ? t('auth.resend') : t('auth.sendCode')}</Button>
             </Group>
           )}
-          {mode === 'register' && <TextInput label={t('auth.invite')} placeholder={t('auth.inviteHint')} {...form.getInputProps('Invite')} />}
+          {mode === 'register' && (policy.data?.email_suffixes ?? []).length > 0 && <Text size="xs" c="dimmed">{t('auth.suffixes', { list: policy.data!.email_suffixes.join(', ') })}</Text>}
+          {mode === 'register' && <TextInput label={policy.data?.invite_only ? t('auth.inviteRequired') : t('auth.invite')} placeholder={t('auth.inviteHint')} required={policy.data?.invite_only} {...form.getInputProps('Invite')} />}
+          {mode === 'register' && policy.data?.captcha && <Captcha provider={policy.data.captcha.provider} siteKey={policy.data.captcha.site_key} onToken={setCaptcha} />}
           {mode === 'login' && policy.data?.reset && <Text size="sm" ta="right"><Anchor component={Link} to="/forgot">{t('auth.forgot')}</Anchor></Text>}
           {error && <Text c="red" size="sm">{error}</Text>}
           <Button type="submit" size="md" loading={busy}>{t(`auth.${mode}`)}</Button>

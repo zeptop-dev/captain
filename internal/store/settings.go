@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
+	"time"
 )
 
 // GetSetting reads a JSON setting into v; missing keys leave v untouched.
@@ -49,3 +51,51 @@ type NoticeSettings struct {
 
 // SettingNotice is the settings key.
 const SettingNotice = "notice"
+
+// RegistrationSettings limits who can sign up.
+type RegistrationSettings struct {
+	// EmailSuffixes, when non-empty, allows only these domains ("gmail.com").
+	EmailSuffixes []string `json:"email_suffixes"`
+	// InviteOnly requires a valid invite code (link or field) to register.
+	InviteOnly bool `json:"invite_only"`
+	// IPLimit caps sign-ups per address within IPWindowHours; 0 = off.
+	IPLimit       int `json:"ip_limit"`
+	IPWindowHours int `json:"ip_window_hours"`
+	// Captcha protects the password sign-up form.
+	Captcha captchaSettings `json:"captcha"`
+}
+
+type captchaSettings = struct {
+	Provider  string `json:"provider"`
+	SiteKey   string `json:"site_key"`
+	SecretKey string `json:"secret_key"`
+}
+
+// SettingRegistration is the settings key.
+const SettingRegistration = "registration"
+
+// EmailAllowed applies the suffix whitelist.
+func (r RegistrationSettings) EmailAllowed(email string) bool {
+	if len(r.EmailSuffixes) == 0 {
+		return true
+	}
+	at := strings.LastIndexByte(email, '@')
+	if at < 0 {
+		return false
+	}
+	domain := strings.ToLower(email[at+1:])
+	for _, s := range r.EmailSuffixes {
+		s = strings.ToLower(strings.TrimPrefix(strings.TrimSpace(s), "@"))
+		if s != "" && (domain == s || strings.HasSuffix(domain, "."+s)) {
+			return true
+		}
+	}
+	return false
+}
+
+// RegistrationsFromIP counts accounts created from ip since the cutoff.
+func (s *Store) RegistrationsFromIP(ctx context.Context, ip string, since time.Time) (int, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE register_ip = ? AND created_at >= ?`, ip, since.Unix()).Scan(&n)
+	return n, err
+}
