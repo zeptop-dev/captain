@@ -3,6 +3,7 @@ import { Center, Loader } from '@mantine/core'
 import { AuthProvider, useAuth } from './lib/auth'
 import { Layout } from './components/Layout'
 import AuthPage from './pages/AuthPage'
+import ForgotPage from './pages/ForgotPage'
 import HomePage from './pages/HomePage'
 import PlansPage from './pages/PlansPage'
 import OrdersPage from './pages/OrdersPage'
@@ -21,6 +22,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<AuthPage mode="login" />} />
         <Route path="/register" element={<AuthPage mode="register" />} />
+        <Route path="/forgot" element={<ForgotPage />} />
         <Route element={<Protected><Layout /></Protected>}>
           <Route path="/" element={<HomePage />} />
           <Route path="/plans" element={<PlansPage />} />

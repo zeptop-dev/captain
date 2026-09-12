@@ -9,6 +9,7 @@ import (
 	"github.com/zeptop-dev/bosun/pkg/spec"
 	"github.com/zeptop-dev/captain/internal/http/ratelimit"
 	"github.com/zeptop-dev/captain/internal/http/site"
+	"github.com/zeptop-dev/captain/internal/mail"
 	"github.com/zeptop-dev/captain/internal/service"
 	"log/slog"
 	"net/http"
@@ -38,6 +39,9 @@ type Deps struct {
 	// looks up the latest bosun tag for the node list. Either may be nil.
 	Updater       *selfupdate.Client
 	BosunReleases *selfupdate.Client
+	// Mail reads the mail settings; nil disables mail features.
+	Mail     *mail.Loader
+	SiteName string
 	// SubLinks builds user subscription URLs; nil falls back to nothing.
 	SubLinks *service.SubLinks
 	// Logins throttles failed sign-ins per client address; nil disables.
@@ -66,6 +70,9 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/admin/nodes/{id}/repair", h.requireAdmin(h.repairNode))
 	mux.HandleFunc("POST /api/admin/nodes/{id}/upgrade", h.requireAdmin(h.upgradeNode))
 	mux.HandleFunc("POST /api/admin/nodes/upgrade-all", h.requireAdmin(h.upgradeAllNodes))
+	mux.HandleFunc("GET /api/admin/settings/mail", h.requireAdmin(h.getMail))
+	mux.HandleFunc("PUT /api/admin/settings/mail", h.requireAdmin(h.putMail))
+	mux.HandleFunc("POST /api/admin/settings/mail/test", h.requireAdmin(h.testMail))
 	mux.HandleFunc("GET /api/admin/settings/site", h.requireAdmin(h.getSite))
 	mux.HandleFunc("PUT /api/admin/settings/site", h.requireAdmin(h.putSite))
 	mux.HandleFunc("GET /api/admin/settings/oidc", h.requireAdmin(h.getOIDC))
@@ -1100,4 +1107,58 @@ func (h *handlers) putOIDC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.getOIDC(w, r)
+}
+
+// ---- mail ----------------------------------------------------------------------
+
+func (h *handlers) getMail(w http.ResponseWriter, r *http.Request) {
+	var v mail.Settings
+	_ = h.Store.GetSetting(r.Context(), mail.SettingKey, &v)
+	hasPass, hasKey := v.SMTP.Password != "", v.Resend.APIKey != ""
+	v.SMTP.Password, v.Resend.APIKey = "", ""
+	ok(w, map[string]any{"settings": v, "has_smtp_password": hasPass, "has_resend_key": hasKey})
+}
+
+// putMail stores the settings; blank secrets keep the stored ones.
+func (h *handlers) putMail(w http.ResponseWriter, r *http.Request) {
+	var in mail.Settings
+	if !decode(r, &in) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	var cur mail.Settings
+	_ = h.Store.GetSetting(r.Context(), mail.SettingKey, &cur)
+	if strings.TrimSpace(in.SMTP.Password) == "" {
+		in.SMTP.Password = cur.SMTP.Password
+	}
+	if strings.TrimSpace(in.Resend.APIKey) == "" {
+		in.Resend.APIKey = cur.Resend.APIKey
+	}
+	if err := h.Store.SetSetting(r.Context(), mail.SettingKey, in); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if h.Mail != nil {
+		h.Mail.Invalidate()
+	}
+	h.getMail(w, r)
+}
+
+func (h *handlers) testMail(w http.ResponseWriter, r *http.Request) {
+	var in struct{ To string }
+	if !decode(r, &in) || !strings.Contains(in.To, "@") {
+		fail(w, http.StatusBadRequest, "recipient required")
+		return
+	}
+	if h.Mail == nil {
+		fail(w, http.StatusConflict, "mail disabled")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 40*time.Second)
+	defer cancel()
+	if err := mail.Send(ctx, h.Mail.Settings(ctx), mail.TestMessage(h.SiteName, in.To)); err != nil {
+		fail(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	ok(w, map[string]bool{"sent": true})
 }

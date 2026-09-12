@@ -86,6 +86,15 @@ edited under Admin → Landing page (no rebuild, saves apply at once). Want your
 own design? Drop an `index.html` (plus assets) into `<data_dir>/site/` and
 Captain serves that directory instead.
 
+## Mail
+
+Admin → Settings → Mail: SMTP (any provider; port 587 STARTTLS, 465 TLS or 25
+plain) or the Resend HTTP API for hosts that block mail ports, plus a "send
+test email" button. With mail configured you can require an emailed code to
+register, users can reset their password themselves, and the hourly job sends
+reminders three days before a subscription expires and when 90% of the quota is
+used (each once). Templates are plain, mail-client-safe HTML in Chinese.
+
 ## External login (OIDC)
 
 Admin → Settings → "External login" takes any OpenID Connect provider
