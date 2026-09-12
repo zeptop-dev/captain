@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"github.com/zeptop-dev/captain/internal/captcha"
 	"io"
 	"log/slog"
 	"net/http"
@@ -835,5 +837,118 @@ func TestAgentLongPoll(t *testing.T) {
 	code, b, hdr = agent.do("GET", "/api/agent/state?wait=20s", nil, map[string]string{"If-None-Match": etag})
 	if code != 200 || time.Since(start) > 10*time.Second || hdr.Get("ETag") == etag || !strings.Contains(string(b), `"tag":"t"`) {
 		t.Fatalf("expected the new state promptly: %d after %v", code, time.Since(start))
+	}
+}
+
+func TestRegistrationLimits(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "http://test"
+	cfg.Portal.Registration = true
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	ac := &client{t: t, srv: srv}
+	ac.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+
+	reg := func(email, ip, invite, cap string) (int, string) {
+		c := &client{t: t, srv: srv}
+		code, b, _ := c.do("POST", "/api/portal/register", map[string]string{"Email": email, "Password": "password123", "Invite": invite, "Captcha": cap}, map[string]string{"X-Real-IP": ip})
+		return code, string(b)
+	}
+	put := func(v map[string]any) {
+		if code, b, _ := ac.do("PUT", "/api/admin/settings/registration", v, nil); code != 200 {
+			t.Fatalf("put registration: %d %s", code, b)
+		}
+	}
+
+	// Email whitelist: suffixes are normalised, subdomains accepted.
+	put(map[string]any{"email_suffixes": []string{"@Example.com "}})
+	if code, b := reg("a@gmail.com", "1.1.1.1", "", ""); code != 403 || !strings.Contains(b, "domain") {
+		t.Fatalf("whitelist: %d %s", code, b)
+	}
+	if code, b := reg("a@mail.example.com", "1.1.1.1", "", ""); code != 200 {
+		t.Fatalf("whitelist ok: %d %s", code, b)
+	}
+	_, b, _ := ac.do("GET", "/api/portal/register/policy", nil, nil)
+	if !strings.Contains(string(b), `"email_suffixes":["example.com"]`) {
+		t.Fatalf("policy: %s", b)
+	}
+
+	// Per-IP cap: 2 per window from the same address; another address is fine.
+	put(map[string]any{"ip_limit": 2, "ip_window_hours": 1})
+	reg("b@test", "2.2.2.2", "", "")
+	reg("c@test", "2.2.2.2", "", "")
+	if code, b := reg("d@test", "2.2.2.2", "", ""); code != 403 || !strings.Contains(b, "address") {
+		t.Fatalf("ip cap: %d %s", code, b)
+	}
+	if code, _ := reg("d@test", "3.3.3.3", "", ""); code != 200 {
+		t.Fatal("other ip should pass")
+	}
+	if n, _ := st.RegistrationsFromIP(context.Background(), "2.2.2.2", time.Now().Add(-time.Hour)); n != 2 {
+		t.Fatalf("count %d", n)
+	}
+
+	// Invite-only: needs a valid code; the policy tells the SPA.
+	put(map[string]any{"invite_only": true})
+	_, b, _ = ac.do("GET", "/api/portal/register/policy", nil, nil)
+	if !strings.Contains(string(b), `"invite_only":true`) {
+		t.Fatalf("policy: %s", b)
+	}
+	if code, b := reg("e@test", "4.4.4.4", "", ""); code != 403 || !strings.Contains(b, "invite") {
+		t.Fatalf("invite only: %d %s", code, b)
+	}
+	if code, b := reg("e@test", "4.4.4.4", "nope", ""); code != 403 {
+		t.Fatalf("bad invite: %d %s", code, b)
+	}
+	ac.do("PUT", "/api/admin/settings/invite", map[string]any{"enabled": true, "percent": 10}, nil)
+	inviter := &client{t: t, srv: srv}
+	inviter.cookie = nil
+	inviter.do("POST", "/api/portal/login", map[string]string{"Email": "d@test", "Password": "password123"}, nil)
+	_, b, _ = inviter.do("GET", "/api/portal/invite", nil, nil)
+	var inv struct {
+		Code string `json:"code"`
+	}
+	_ = json.Unmarshal(b, &inv)
+	if code, b := reg("e@test", "4.4.4.4", inv.Code, ""); code != 200 {
+		t.Fatalf("with invite: %d %s", code, b)
+	}
+
+	// Captcha: verified through the provider; the secret never leaves the admin API.
+	var seen []string
+	orig := captcha.VerifyFunc
+	captcha.VerifyFunc = func(_ context.Context, s captcha.Settings, token, ip string) error {
+		seen = append(seen, s.Provider+":"+s.SecretKey+":"+token+":"+ip)
+		if token != "good" {
+			return errors.New("captcha failed")
+		}
+		return nil
+	}
+	defer func() { captcha.VerifyFunc = orig }()
+	put(map[string]any{"invite_only": false, "captcha": map[string]string{"provider": "turnstile", "site_key": "sk", "secret_key": "sec"}})
+	_, b, _ = ac.do("GET", "/api/admin/settings/registration", nil, nil)
+	if strings.Contains(string(b), `"sec"`) || !strings.Contains(string(b), `"has_captcha_secret":true`) {
+		t.Fatalf("secret leaked: %s", b)
+	}
+	// Saving without a secret keeps the old one.
+	put(map[string]any{"captcha": map[string]string{"provider": "turnstile", "site_key": "sk2", "secret_key": ""}})
+	_, b, _ = ac.do("GET", "/api/portal/register/policy", nil, nil)
+	if !strings.Contains(string(b), `"captcha":{"provider":"turnstile","site_key":"sk2"}`) {
+		t.Fatalf("policy captcha: %s", b)
+	}
+	if code, b := reg("f@test", "5.5.5.5", "", ""); code != 403 || !strings.Contains(b, "captcha required") {
+		t.Fatalf("missing captcha: %d %s", code, b)
+	}
+	if code, _ := reg("f@test", "5.5.5.5", "", "bad"); code != 403 {
+		t.Fatal("bad captcha should fail")
+	}
+	if code, b := reg("f@test", "5.5.5.5", "", "good"); code != 200 {
+		t.Fatalf("good captcha: %d %s", code, b)
+	}
+	if len(seen) != 2 || seen[1] != "turnstile:sec:good:5.5.5.5" {
+		t.Fatalf("verify calls: %v", seen)
 	}
 }

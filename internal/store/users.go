@@ -29,9 +29,9 @@ func (s *Store) CreateUser(ctx context.Context, u *domain.User) error {
 	if u.InviteCode == "" {
 		u.InviteCode = newInviteCode()
 	}
-	res, err := s.db.ExecContext(ctx, `INSERT INTO users (email, password_hash, role, uuid, sub_token, group_id, balance_cents, status, created_at, updated_at, invite_code, invited_by)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		u.Email, u.PasswordHash, u.Role, u.UUID, u.SubToken, nullInt64(u.GroupID), u.BalanceCents, u.Status, ts, ts, u.InviteCode, nullInt64(u.InvitedBy))
+	res, err := s.db.ExecContext(ctx, `INSERT INTO users (email, password_hash, role, uuid, sub_token, group_id, balance_cents, status, created_at, updated_at, invite_code, invited_by, register_ip)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		u.Email, u.PasswordHash, u.Role, u.UUID, u.SubToken, nullInt64(u.GroupID), u.BalanceCents, u.Status, ts, ts, u.InviteCode, nullInt64(u.InvitedBy), u.RegisterIP)
 	if err != nil {
 		return err
 	}

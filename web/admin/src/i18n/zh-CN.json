@@ -334,5 +334,16 @@
     "expiresAt": "失效日期",
     "validity": "有效期",
     "limitedPlans": "限 {{count}} 个套餐"
+  },
+  "registration": {
+    "title": "注册限制",
+    "hint": "对密码注册生效；邮箱白名单和邀请制同样约束外部登录的自动建号。",
+    "suffixes": "邮箱后缀白名单",
+    "suffixesHint": "每行一个域名，留空不限制",
+    "ipLimit": "同 IP 注册上限",
+    "ipLimitHint": "0 表示不限",
+    "ipWindow": "时间窗口（小时）",
+    "inviteOnly": "邀请制（必须有邀请码）",
+    "captcha": "验证码"
   }
 }

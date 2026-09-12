@@ -105,6 +105,19 @@ rewards). Settings → Announcement puts a notice on the portal home page.
 Nodes learn about changes within seconds: bosun keeps a long-poll request open
 on the state endpoint, no persistent connection needed.
 
+## Registration limits
+
+Settings → Registration limits (all optional, applied to password sign-up;
+the email whitelist and invite-only rule also govern accounts auto-created by
+external login):
+
+- **Email domain whitelist** — only listed domains (and their subdomains) may register.
+- **Sign-ups per IP** — at most N accounts per address within the window (default 24 h).
+- **Invite only** — a valid invite code or `/?ref=` link is required.
+- **Captcha** — Cloudflare Turnstile, Google reCAPTCHA v2 or hCaptcha. Enter the
+  site key and secret; the widget appears on the sign-up form automatically and
+  the token is verified server-side.
+
 ## Mail
 
 Admin → Settings → Mail: SMTP (any provider; port 587 STARTTLS, 465 TLS or 25

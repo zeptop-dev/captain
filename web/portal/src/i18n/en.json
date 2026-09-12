@@ -29,7 +29,9 @@
     "newPassword": "New password",
     "resetSubmit": "Reset password",
     "invite": "Invite code (optional)",
-    "inviteHint": "A friend's invite code"
+    "inviteHint": "A friend's invite code",
+    "suffixes": "Accepted email domains: {{list}}",
+    "inviteRequired": "Invite code (required)"
   },
   "home": {
     "hello": "Hi, {{email}}",

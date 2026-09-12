@@ -296,6 +296,16 @@ func (h *handlers) resolveUser(ctx context.Context, r *http.Request, p *store.OI
 	if !h.Registration && !p.AutoRegister {
 		return nil, errors.New("no account for this login and registration is closed")
 	}
+	var reg store.RegistrationSettings
+	_ = h.Store.GetSetting(ctx, store.SettingRegistration, &reg)
+	if !reg.EmailAllowed(email) {
+		return nil, errors.New("this email domain is not accepted")
+	}
+	if reg.InviteOnly {
+		if c, err := r.Cookie("captain_ref"); err != nil || c.Value == "" {
+			return nil, errors.New("registration requires an invite link")
+		}
+	}
 	if email == "" {
 		return nil, errors.New("the provider did not share an email address; cannot create an account")
 	}
