@@ -3,6 +3,7 @@ package jobs
 
 import (
 	"context"
+	"github.com/zeptop-dev/captain/internal/mail"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -23,6 +24,12 @@ type Runner struct {
 	// the newest BackupKeep files are kept. Empty disables backups.
 	BackupDir  string
 	BackupKeep int // default 7
+	// Mail enables expiry/traffic reminders when the settings allow them.
+	Mail      *mail.Loader
+	SiteName  string
+	PortalURL string
+
+	lastReminders time.Time
 }
 
 // Run blocks until ctx ends.
@@ -70,6 +77,10 @@ func (r *Runner) Tick(ctx context.Context) {
 	report("purged sessions", n, err)
 	n, err = r.Store.PurgeOnline(ctx, now.Add(-r.OnlineRetain))
 	report("purged online devices", n, err)
+	if r.Mail != nil && now.Sub(r.lastReminders) >= time.Hour {
+		r.lastReminders = now
+		r.reminders(ctx, now, log)
+	}
 	if r.BackupDir != "" {
 		if made, err := r.backup(ctx, now); err != nil {
 			log.Error("backup failed", "err", err)
@@ -102,4 +113,38 @@ func (r *Runner) backup(ctx context.Context, now time.Time) (string, error) {
 		files = files[1:]
 	}
 	return name, nil
+}
+
+// reminders mails users whose subscription expires within three days or
+// whose quota is 90% used, once per expiry / quota period.
+func (r *Runner) reminders(ctx context.Context, now time.Time, log *slog.Logger) {
+	ms := r.Mail.Settings(ctx)
+	if !ms.Enabled() || !ms.Reminders {
+		return
+	}
+	exp, err := r.Store.ExpiringSubscriptions(ctx, now, 3*24*time.Hour)
+	if err != nil {
+		log.Error("expiry reminders", "err", err)
+	}
+	for _, e := range exp {
+		if err := mail.Send(ctx, ms, mail.ExpiryMessage(r.SiteName, e.Email, r.PortalURL, e.ExpiresAt)); err != nil {
+			log.Warn("expiry reminder", "to", e.Email, "err", err)
+			continue
+		}
+		_ = r.Store.MarkNotified(ctx, e.UserID, "expiry", e.Ref)
+	}
+	high, err := r.Store.HighTrafficSubscriptions(ctx, 90)
+	if err != nil {
+		log.Error("traffic reminders", "err", err)
+	}
+	for _, e := range high {
+		if err := mail.Send(ctx, ms, mail.TrafficMessage(r.SiteName, e.Email, r.PortalURL, e.UsedPct)); err != nil {
+			log.Warn("traffic reminder", "to", e.Email, "err", err)
+			continue
+		}
+		_ = r.Store.MarkNotified(ctx, e.UserID, "traffic", e.Ref)
+	}
+	if len(exp)+len(high) > 0 {
+		log.Info("reminders sent", "expiry", len(exp), "traffic", len(high))
+	}
 }

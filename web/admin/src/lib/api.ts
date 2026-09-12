@@ -46,6 +46,12 @@ export interface SiteSettings {
 }
 export interface OIDCProvider { id: string; name: string; issuer: string; client_id: string; client_secret?: string; scopes?: string[]; trust_email: boolean; auto_register: boolean; has_secret?: boolean }
 export interface OIDCSettings { providers: OIDCProvider[]; password_login: boolean }
+export interface MailSettings {
+  provider: string; from_name: string; from_address: string
+  smtp: { host: string; port: number; username: string; password: string; security: string }
+  resend: { api_key: string }
+  verify_registration: boolean; reminders: boolean
+}
 export interface SubscriptionSettings { urls: string[] }
 export interface ACMESettings { email: string; has_cloudflare_token: boolean }
 export interface Inbound {

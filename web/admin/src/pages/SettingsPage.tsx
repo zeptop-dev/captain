@@ -11,6 +11,7 @@ import { useAuth } from '../lib/auth'
 import { toast } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
 import { UpdateCard } from '../components/UpdateCard'
+import { MailCard } from '../components/MailCard'
 
 export default function SettingsPage() {
   const { t } = useTranslation()
@@ -54,6 +55,7 @@ export default function SettingsPage() {
             <Group justify="flex-end"><Button type="submit" size="xs" loading={saveAcme.isPending}>{t('common.save')}</Button></Group>
           </Stack></form>
         </Card>
+        <MailCard />
         <Card>
           <Title order={5} mb="xs">{t('settings.oidc')}</Title>
           <Text size="xs" c="dimmed" mb="sm">{t('settings.oidcHint')}</Text>

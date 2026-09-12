@@ -274,5 +274,25 @@
     "featuresHint": "icon: bolt, shield, world, devices, refresh, headset",
     "faq": "FAQ (JSON array: q, a)",
     "overrideHint": "For a fully custom page drop your own index.html into the site/ folder of the data directory; Captain serves it as is."
+  },
+  "mail": {
+    "title": "Mail",
+    "hint": "Powers registration codes, password reset and expiry/traffic reminders. SMTP works everywhere; use the Resend API when the host blocks mail ports. Send a test after saving.",
+    "provider": "Provider",
+    "off": "Off",
+    "fromName": "From name",
+    "fromAddress": "From address",
+    "port": "Port",
+    "security": "Security",
+    "securityAuto": "By port",
+    "securityNone": "None",
+    "username": "Username",
+    "password": "Password",
+    "keep": "Blank keeps the current one",
+    "verify": "Registration requires an emailed code",
+    "reminders": "Remind 3 days before expiry and at 90% traffic",
+    "testTo": "Test recipient",
+    "test": "Send test email",
+    "testSent": "Test email sent"
   }
 }

@@ -274,5 +274,25 @@
     "featuresHint": "icon 可选：bolt, shield, world, devices, refresh, headset",
     "faq": "常见问题（JSON 数组：q, a）",
     "overrideHint": "想完全自定义页面：把自己的 index.html 放到数据目录的 site/ 文件夹里，Captain 会直接服务它。"
+  },
+  "mail": {
+    "title": "邮件",
+    "hint": "注册验证码、找回密码、到期和流量提醒都靠它。SMTP 通用；服务器封了发信端口就用 Resend API。保存后先发一封测试邮件。",
+    "provider": "发送方式",
+    "off": "关闭",
+    "fromName": "发件人名称",
+    "fromAddress": "发件地址",
+    "port": "端口",
+    "security": "加密",
+    "securityAuto": "按端口自动",
+    "securityNone": "无",
+    "username": "用户名",
+    "password": "密码",
+    "keep": "留空保持不变",
+    "verify": "注册需要邮箱验证码",
+    "reminders": "到期前 3 天和流量 90% 时提醒",
+    "testTo": "测试收件人",
+    "test": "发送测试邮件",
+    "testSent": "测试邮件已发送"
   }
 }

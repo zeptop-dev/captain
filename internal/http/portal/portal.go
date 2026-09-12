@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/zeptop-dev/captain/internal/http/ratelimit"
+	"github.com/zeptop-dev/captain/internal/mail"
 	"log/slog"
 	"net"
 	"net/http"
@@ -32,7 +33,9 @@ type Deps struct {
 	Registration bool
 	Logins       *ratelimit.Limiter // throttles failed sign-ins; nil disables
 	SubLinks     *service.SubLinks  // subscription URL builder
-	Secure       bool               // HTTPS-only session cookies
+	Mail         *mail.Loader       // nil = mail off
+	SiteName     string
+	Secure       bool // HTTPS-only session cookies
 }
 
 const cookieName = "captain_session"
@@ -43,6 +46,9 @@ type handlers struct{ Deps }
 func Register(mux *http.ServeMux, d Deps) {
 	h := &handlers{d}
 	mux.HandleFunc("POST /api/portal/register", h.register)
+	mux.HandleFunc("GET /api/portal/register/policy", h.registerPolicy)
+	mux.HandleFunc("POST /api/portal/verify/send", h.sendCode)
+	mux.HandleFunc("POST /api/portal/password/reset", h.resetPassword)
 	mux.HandleFunc("POST /api/portal/login", h.login)
 	mux.HandleFunc("POST /api/portal/logout", h.logout)
 	mux.HandleFunc("GET /api/portal/me", h.requireUser(h.me))
@@ -84,12 +90,19 @@ func (h *handlers) register(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusForbidden, "registration is closed")
 		return
 	}
-	var in struct{ Email, Password string }
+	var in struct{ Email, Password, Code string }
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || !strings.Contains(in.Email, "@") || len(in.Password) < 8 {
 		fail(w, http.StatusBadRequest, "valid email and a password of 8+ chars are required")
 		return
 	}
-	u, err := admin.NewUser(strings.ToLower(strings.TrimSpace(in.Email)), in.Password, "user")
+	email := strings.ToLower(strings.TrimSpace(in.Email))
+	if ms := h.mailSettings(r); ms.Enabled() && ms.VerifyRegistration {
+		if err := h.Store.CheckCode(r.Context(), email, "register", strings.TrimSpace(in.Code)); err != nil {
+			fail(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
+	u, err := admin.NewUser(email, in.Password, "user")
 	if err != nil {
 		fail(w, http.StatusInternalServerError, "internal error")
 		return
@@ -272,4 +285,99 @@ func (h *handlers) subURL(ctx context.Context, token string) string {
 		return h.SubLinks.URL(ctx, token)
 	}
 	return strings.TrimRight(h.BaseURL, "/") + "/sub/" + token
+}
+
+func (h *handlers) mailSettings(r *http.Request) mail.Settings {
+	if h.Mail == nil {
+		return mail.Settings{}
+	}
+	return h.Mail.Settings(r.Context())
+}
+
+// registerPolicy tells the sign-up page whether a code is required.
+func (h *handlers) registerPolicy(w http.ResponseWriter, r *http.Request) {
+	ms := h.mailSettings(r)
+	ok(w, map[string]any{"open": h.Registration, "verify": ms.Enabled() && ms.VerifyRegistration, "reset": ms.Enabled()})
+}
+
+// sendCode mails a verification code for registration or password reset.
+// Replies are deliberately the same whether or not the address exists.
+func (h *handlers) sendCode(w http.ResponseWriter, r *http.Request) {
+	var in struct{ Email, Purpose string }
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || !strings.Contains(in.Email, "@") {
+		fail(w, http.StatusBadRequest, "valid email required")
+		return
+	}
+	email := strings.ToLower(strings.TrimSpace(in.Email))
+	ms := h.mailSettings(r)
+	if !ms.Enabled() {
+		fail(w, http.StatusConflict, "mail is not configured")
+		return
+	}
+	ip := ratelimit.ClientIP(r)
+	if h.Logins != nil {
+		if allowed, wait := h.Logins.Allow(ip); !allowed {
+			fail(w, http.StatusTooManyRequests, "too many attempts; try again in "+wait.String())
+			return
+		}
+	}
+	switch in.Purpose {
+	case "register":
+		if !h.Registration {
+			fail(w, http.StatusForbidden, "registration is closed")
+			return
+		}
+		if _, err := h.Store.UserByEmail(r.Context(), email); err == nil {
+			fail(w, http.StatusConflict, "email already registered")
+			return
+		}
+	case "reset":
+		if _, err := h.Store.UserByEmail(r.Context(), email); err != nil {
+			ok(w, map[string]bool{"sent": true}) // do not reveal whether the account exists
+			return
+		}
+	default:
+		fail(w, http.StatusBadRequest, "purpose must be register or reset")
+		return
+	}
+	code, err := h.Store.NewCode(r.Context(), email, in.Purpose, 10*time.Minute)
+	if err != nil {
+		fail(w, http.StatusTooManyRequests, err.Error())
+		return
+	}
+	if err := mail.Send(r.Context(), ms, mail.CodeMessage(h.SiteName, email, in.Purpose, code)); err != nil {
+		h.Log.Error("send code", "to", email, "err", err)
+		fail(w, http.StatusBadGateway, "could not send the email; contact the administrator")
+		return
+	}
+	ok(w, map[string]bool{"sent": true})
+}
+
+// resetPassword sets a new password after a mailed code.
+func (h *handlers) resetPassword(w http.ResponseWriter, r *http.Request) {
+	var in struct{ Email, Code, Password string }
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || len(in.Password) < 8 {
+		fail(w, http.StatusBadRequest, "email, code and a password of 8+ chars are required")
+		return
+	}
+	email := strings.ToLower(strings.TrimSpace(in.Email))
+	u, err := h.Store.UserByEmail(r.Context(), email)
+	if err != nil {
+		fail(w, http.StatusBadRequest, "wrong code")
+		return
+	}
+	if err := h.Store.CheckCode(r.Context(), email, "reset", strings.TrimSpace(in.Code)); err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	hash, err := auth.HashPassword(in.Password)
+	if err != nil {
+		fail(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	if err := h.Store.UpdateUser(r.Context(), u.ID, u.Status, u.GroupID, hash); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, map[string]bool{"ok": true})
 }

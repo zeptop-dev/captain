@@ -18,7 +18,15 @@
     "closed": "Registration is closed",
     "with": "Continue with {{name}}",
     "or": "or",
-    "home": "Back to the site"
+    "home": "Back to the site",
+    "code": "Code",
+    "sendCode": "Send code",
+    "resend": "Resend",
+    "forgot": "Forgot password?",
+    "forgotTitle": "Reset password",
+    "forgotHint": "Enter your email and we will send a code.",
+    "newPassword": "New password",
+    "resetSubmit": "Reset password"
   },
   "home": {
     "hello": "Hi, {{email}}",

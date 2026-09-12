@@ -5,6 +5,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/zeptop-dev/captain/internal/mail"
 	"golang.org/x/crypto/acme/autocert"
 	"log/slog"
 	"net/http"
@@ -93,7 +94,8 @@ func cmdServe(args []string) error {
 	srv := &http.Server{Addr: cfg.Listen, Handler: web.Handler(), ReadHeaderTimeout: 10 * time.Second}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-	go (&jobs.Runner{Store: st, Log: log, BackupDir: filepath.Join(cfg.DataDir, "backups")}).Run(ctx)
+	go (&jobs.Runner{Store: st, Log: log, BackupDir: filepath.Join(cfg.DataDir, "backups"),
+		Mail: &mail.Loader{Store: st}, SiteName: cfg.SiteName, PortalURL: strings.TrimRight(cfg.BaseURL, "/") + "/portal/"}).Run(ctx)
 
 	var httpSrv *http.Server // port 80 helper when serving HTTPS ourselves
 	if cfg.TLSEnabled() {

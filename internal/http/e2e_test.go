@@ -20,6 +20,8 @@ import (
 	"github.com/zeptop-dev/captain/internal/config"
 	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/http/admin"
+	"github.com/zeptop-dev/captain/internal/jobs"
+	"github.com/zeptop-dev/captain/internal/mail"
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
@@ -605,4 +607,95 @@ func TestEntryDefaultsFromInbound(t *testing.T) {
 	if !strings.Contains(string(b), `"DisplayHost":"entrance.provider.net"`) {
 		t.Fatalf("explicit address must win: %s", b)
 	}
+}
+
+func TestMailVerificationAndReset(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "http://test"
+	cfg.Portal.Registration = true
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	ms := mail.Settings{Provider: "smtp", FromAddress: "noreply@test", VerifyRegistration: true, Reminders: true}
+	ms.SMTP.Host = "smtp.test"
+	_ = st.SetSetting(context.Background(), mail.SettingKey, ms)
+	var sent []mail.Message
+	mail.SendFunc = func(ctx context.Context, s mail.Settings, m mail.Message) error { sent = append(sent, m); return nil }
+	defer func() { mail.SendFunc = nil }()
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	c := &client{t: t, srv: srv}
+
+	if code, b, _ := c.do("GET", "/api/portal/register/policy", nil, nil); code != 200 || !strings.Contains(string(b), `"verify":true`) {
+		t.Fatalf("policy: %d %s", code, b)
+	}
+	// Registration without a code is refused.
+	if code, _, _ := c.do("POST", "/api/portal/register", map[string]string{"Email": "new@test", "Password": "password123"}, nil); code != 400 {
+		t.Fatalf("register without code: %d", code)
+	}
+	if code, b, _ := c.do("POST", "/api/portal/verify/send", map[string]string{"Email": "new@test", "Purpose": "register"}, nil); code != 200 {
+		t.Fatalf("send code: %d %s", code, b)
+	}
+	if len(sent) != 1 || sent[0].To != "new@test" {
+		t.Fatalf("code mail: %+v", sent)
+	}
+	code := extractCode(sent[0].Subject)
+	if code2, _, _ := c.do("POST", "/api/portal/verify/send", map[string]string{"Email": "new@test", "Purpose": "register"}, nil); code2 != 429 {
+		t.Fatalf("a second code within a minute should be refused: %d", code2)
+	}
+	if c2, _, _ := c.do("POST", "/api/portal/register", map[string]string{"Email": "new@test", "Password": "password123", "Code": "000000"}, nil); c2 != 400 {
+		t.Fatalf("wrong code: %d", c2)
+	}
+	if c2, b, _ := c.do("POST", "/api/portal/register", map[string]string{"Email": "new@test", "Password": "password123", "Code": code}, nil); c2 != 200 {
+		t.Fatalf("register with code: %d %s", c2, b)
+	}
+	c.do("POST", "/api/portal/logout", nil, nil)
+
+	// Password reset by code.
+	if c2, _, _ := c.do("POST", "/api/portal/verify/send", map[string]string{"Email": "nobody@test", "Purpose": "reset"}, nil); c2 != 200 {
+		t.Fatalf("unknown address must look the same: %d", c2)
+	}
+	if len(sent) != 1 {
+		t.Fatal("no mail to unknown addresses")
+	}
+	c.do("POST", "/api/portal/verify/send", map[string]string{"Email": "new@test", "Purpose": "reset"}, nil)
+	reset := extractCode(sent[1].Subject)
+	if c2, b, _ := c.do("POST", "/api/portal/password/reset", map[string]string{"Email": "new@test", "Code": reset, "Password": "newpassword9"}, nil); c2 != 200 {
+		t.Fatalf("reset: %d %s", c2, b)
+	}
+	if c2, _, _ := c.do("POST", "/api/portal/login", map[string]string{"Email": "new@test", "Password": "password123"}, nil); c2 != 401 {
+		t.Fatal("old password must stop working")
+	}
+	if c2, _, _ := c.do("POST", "/api/portal/login", map[string]string{"Email": "new@test", "Password": "newpassword9"}, nil); c2 != 200 {
+		t.Fatal("new password should work")
+	}
+
+	// Reminders: expiring within 3 days and 90% traffic, each once.
+	u, _ := st.UserByEmail(context.Background(), "new@test")
+	_, b, _ := (&client{t: t, srv: srv}).do("GET", "/api/health", nil, nil)
+	_ = b
+	ac := &client{t: t, srv: srv}
+	ac.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+	_, b, _ = ac.do("POST", "/api/admin/plans", map[string]any{"Name": "p", "PriceCents": 1, "PeriodDays": 2, "QuotaBytes": 1000}, nil)
+	plan := mustJSON[map[string]any](t, b)
+	ac.do("POST", "/api/admin/users/"+itoa(u.ID)+"/grant", map[string]any{"PlanID": plan["ID"]}, nil)
+	conn.Exec(`UPDATE subscriptions SET used_up_bytes = 950 WHERE user_id = ?`, u.ID)
+	r := &jobs.Runner{Store: st, Log: slog.Default(), Mail: &mail.Loader{Store: st}, SiteName: "T", PortalURL: "http://test/portal/"}
+	before := len(sent)
+	r.Tick(context.Background())
+	r.Tick(context.Background()) // an hour has not passed; nothing new
+	subjects := []string{}
+	for _, m := range sent[before:] {
+		subjects = append(subjects, m.Subject)
+	}
+	if len(subjects) != 2 || !strings.Contains(subjects[0], "到期") || !strings.Contains(subjects[1], "95%") {
+		t.Fatalf("reminders: %v", subjects)
+	}
+}
+
+func extractCode(subject string) string {
+	f := strings.Fields(subject)
+	return f[len(f)-1]
 }

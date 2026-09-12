@@ -17,8 +17,15 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const oauth = useQuery({ queryKey: ['oauth-providers'], queryFn: () => api.get<{ providers: { id: string; name: string }[]; password_login: boolean }>('/api/oauth/providers') })
   useEffect(() => { const e = new URLSearchParams(window.location.search).get('error'); if (e) setError(e) }, [])
   const providers = oauth.data?.providers ?? []
+  const policy = useQuery({ queryKey: ['register-policy'], queryFn: () => api.get<{ open: boolean; verify: boolean; reset: boolean }>('/api/portal/register/policy') })
+  const [codeSent, setCodeSent] = useState(false)
+  const [sending, setSending] = useState(false)
+  const sendCode = async () => {
+    setSending(true); setError('')
+    try { await api.post('/api/portal/verify/send', { Email: form.values.Email, Purpose: 'register' }); setCodeSent(true) } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setSending(false) }
+  }
   const passwordLogin = oauth.data?.password_login ?? true
-  const form = useForm({ initialValues: { Email: '', Password: '' } })
+  const form = useForm({ initialValues: { Email: '', Password: '', Code: '' } })
   const submit = form.onSubmit(async (v) => {
     setBusy(true); setError('')
     try { await api.post(`/api/portal/${mode}`, v); refresh(); nav('/') } catch (e) {
@@ -40,6 +47,13 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
           {passwordLogin && (<>
           <TextInput label={t('auth.email')} type="email" size="md" required autoFocus {...form.getInputProps('Email')} />
           <PasswordInput label={t('auth.password')} size="md" required minLength={8} description={mode === 'register' ? t('auth.passwordHint') : undefined} {...form.getInputProps('Password')} />
+          {mode === 'register' && policy.data?.verify && (
+            <Group align="flex-end" wrap="nowrap">
+              <TextInput flex={1} label={t('auth.code')} size="md" required placeholder="000000" {...form.getInputProps('Code')} />
+              <Button variant="default" size="md" loading={sending} disabled={!form.values.Email.includes('@')} onClick={sendCode}>{codeSent ? t('auth.resend') : t('auth.sendCode')}</Button>
+            </Group>
+          )}
+          {mode === 'login' && policy.data?.reset && <Text size="sm" ta="right"><Anchor component={Link} to="/forgot">{t('auth.forgot')}</Anchor></Text>}
           {error && <Text c="red" size="sm">{error}</Text>}
           <Button type="submit" size="md" loading={busy}>{t(`auth.${mode}`)}</Button>
           <Text size="sm" ta="center"><Anchor component={Link} to={mode === 'login' ? '/register' : '/login'}>{t(mode === 'login' ? 'auth.toRegister' : 'auth.toLogin')}</Anchor></Text>

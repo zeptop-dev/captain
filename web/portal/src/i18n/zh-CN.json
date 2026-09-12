@@ -18,7 +18,15 @@
     "closed": "暂不开放注册",
     "with": "用 {{name}} 登录",
     "or": "或",
-    "home": "返回首页"
+    "home": "返回首页",
+    "code": "验证码",
+    "sendCode": "发送验证码",
+    "resend": "重新发送",
+    "forgot": "忘记密码？",
+    "forgotTitle": "重置密码",
+    "forgotHint": "输入注册邮箱，我们会发送一个验证码。",
+    "newPassword": "新密码",
+    "resetSubmit": "重置密码"
   },
   "home": {
     "hello": "你好，{{email}}",
