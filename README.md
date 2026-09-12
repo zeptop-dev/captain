@@ -44,3 +44,7 @@ cp config.example.yaml /etc/captain/config.yaml       # set base_url
 bin/captain admin create -c /etc/captain/config.yaml -email you@example.com -password '...'
 bin/captain serve -c /etc/captain/config.yaml
 ```
+
+## License
+
+MIT, see `LICENSE`.
