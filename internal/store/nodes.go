@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"time"
 
-	"gitlab.com/boyang-hu/bosun/pkg/spec"
+	"github.com/zeptop-dev/bosun/pkg/spec"
 
-	"gitlab.com/boyang-hu/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/domain"
 )
 
 const nodeCols = "id, name, token_hash, pair_code, public_addr, internal_addr, v6_addr, monitor_url, version, platform, hostname, last_seen_at, applied_revision, created_at"

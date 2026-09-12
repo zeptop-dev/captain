@@ -17,8 +17,8 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/boyang-hu/captain/internal/domain"
-	"gitlab.com/boyang-hu/captain/internal/payment"
+	"github.com/zeptop-dev/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/payment"
 )
 
 // Config is the account setup.

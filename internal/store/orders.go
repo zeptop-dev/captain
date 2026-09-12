@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	"gitlab.com/boyang-hu/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/domain"
 )
 
 const orderCols = "id, no, user_id, plan_id, amount_cents, gateway, gateway_ref, status, created_at, paid_at"

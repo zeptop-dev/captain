@@ -3,7 +3,7 @@ package subscription
 import (
 	"encoding/json"
 
-	"gitlab.com/boyang-hu/bosun/pkg/spec"
+	"github.com/zeptop-dev/bosun/pkg/spec"
 )
 
 // SingBox renders a sing-box client JSON document.

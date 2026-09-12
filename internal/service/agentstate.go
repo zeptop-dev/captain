@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"time"
 
-	"gitlab.com/boyang-hu/bosun/pkg/agentproto"
-	"gitlab.com/boyang-hu/bosun/pkg/spec"
+	"github.com/zeptop-dev/bosun/pkg/agentproto"
+	"github.com/zeptop-dev/bosun/pkg/spec"
 
-	"gitlab.com/boyang-hu/captain/internal/domain"
-	"gitlab.com/boyang-hu/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/store"
 )
 
 // AgentState builds desired state for nodes.

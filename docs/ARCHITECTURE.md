@@ -2,7 +2,7 @@
 
 Captain is the unified panel: users, plans, orders and payments, subscription
 output, node fleet, forwarding policy, and configuration push to
-[bosun](https://gitlab.com/boyang-hu/bosun) agents. It is a fresh project; it
+[bosun](https://github.com/zeptop-dev/bosun) agents. It is a fresh project; it
 does not import or emulate Xboard.
 
 ## Shape

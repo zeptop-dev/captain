@@ -12,12 +12,12 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/boyang-hu/bosun/pkg/agentproto"
+	"github.com/zeptop-dev/bosun/pkg/agentproto"
 
-	"gitlab.com/boyang-hu/captain/internal/auth"
-	"gitlab.com/boyang-hu/captain/internal/domain"
-	"gitlab.com/boyang-hu/captain/internal/service"
-	"gitlab.com/boyang-hu/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/auth"
+	"github.com/zeptop-dev/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/service"
+	"github.com/zeptop-dev/captain/internal/store"
 )
 
 // Deps are the handlers' dependencies.

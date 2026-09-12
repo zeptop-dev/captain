@@ -1,6 +1,6 @@
 # Captain
 
-Unified management panel for [bosun](https://gitlab.com/boyang-hu/bosun)
+Unified management panel for [bosun](https://github.com/zeptop-dev/bosun)
 nodes: users, plans, orders and payments, subscription output, node fleet,
 forwarding policy and configuration push. One Go binary with the admin console
 and user portal embedded. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

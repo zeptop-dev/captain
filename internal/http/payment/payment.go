@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"net/http"
 
-	"gitlab.com/boyang-hu/captain/internal/payment"
-	"gitlab.com/boyang-hu/captain/internal/payment/epay"
-	"gitlab.com/boyang-hu/captain/internal/service"
-	"gitlab.com/boyang-hu/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/payment"
+	"github.com/zeptop-dev/captain/internal/payment/epay"
+	"github.com/zeptop-dev/captain/internal/service"
+	"github.com/zeptop-dev/captain/internal/store"
 )
 
 // Deps are the handlers' dependencies.

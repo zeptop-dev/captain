@@ -11,15 +11,15 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/boyang-hu/bosun/pkg/agentproto"
+	"github.com/zeptop-dev/bosun/pkg/agentproto"
 
-	"gitlab.com/boyang-hu/captain/internal/config"
-	"gitlab.com/boyang-hu/captain/internal/db"
-	"gitlab.com/boyang-hu/captain/internal/http/admin"
-	"gitlab.com/boyang-hu/captain/internal/payment"
-	"gitlab.com/boyang-hu/captain/internal/payment/epay"
-	"gitlab.com/boyang-hu/captain/internal/payment/stripe"
-	"gitlab.com/boyang-hu/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/config"
+	"github.com/zeptop-dev/captain/internal/db"
+	"github.com/zeptop-dev/captain/internal/http/admin"
+	"github.com/zeptop-dev/captain/internal/payment"
+	"github.com/zeptop-dev/captain/internal/payment/epay"
+	"github.com/zeptop-dev/captain/internal/payment/stripe"
+	"github.com/zeptop-dev/captain/internal/store"
 )
 
 func TestPurchaseFlow(t *testing.T) {

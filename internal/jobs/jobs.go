@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"gitlab.com/boyang-hu/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/store"
 )
 
 // Runner executes housekeeping on a fixed interval.

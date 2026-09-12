@@ -5,7 +5,7 @@ import (
 	"context"
 	"net/http"
 
-	"gitlab.com/boyang-hu/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/domain"
 )
 
 // Checkout is what the client needs to pay: a URL to open.

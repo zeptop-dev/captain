@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"time"
 
-	"gitlab.com/boyang-hu/captain/internal/service"
-	"gitlab.com/boyang-hu/captain/internal/store"
-	"gitlab.com/boyang-hu/captain/internal/subscription"
+	"github.com/zeptop-dev/captain/internal/service"
+	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/subscription"
 )
 
 // Deps are the handler's dependencies.

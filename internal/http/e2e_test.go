@@ -14,13 +14,13 @@ import (
 	"strings"
 	"testing"
 
-	"gitlab.com/boyang-hu/bosun/pkg/agentproto"
-	"gitlab.com/boyang-hu/bosun/pkg/spec"
+	"github.com/zeptop-dev/bosun/pkg/agentproto"
+	"github.com/zeptop-dev/bosun/pkg/spec"
 
-	"gitlab.com/boyang-hu/captain/internal/config"
-	"gitlab.com/boyang-hu/captain/internal/db"
-	"gitlab.com/boyang-hu/captain/internal/http/admin"
-	"gitlab.com/boyang-hu/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/config"
+	"github.com/zeptop-dev/captain/internal/db"
+	"github.com/zeptop-dev/captain/internal/http/admin"
+	"github.com/zeptop-dev/captain/internal/store"
 )
 
 type client struct {

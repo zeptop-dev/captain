@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.com/boyang-hu/captain/internal/domain"
-	"gitlab.com/boyang-hu/captain/internal/payment"
-	"gitlab.com/boyang-hu/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/payment"
+	"github.com/zeptop-dev/captain/internal/store"
 )
 
 // Orders creates orders and settles them through gateways or balance.

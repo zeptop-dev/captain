@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"strings"
 
-	"gitlab.com/boyang-hu/bosun/pkg/spec"
+	"github.com/zeptop-dev/bosun/pkg/spec"
 )
 
 // Line is one server as the client should see it: the landing inbound's
