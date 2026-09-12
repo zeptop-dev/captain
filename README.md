@@ -36,51 +36,45 @@ traffic landing in the user's subscription:
 Not yet: jobs (stale order cancellation, quota resets), online device
 collection, email (password reset, notifications).
 
-## Docker Compose (recommended install)
+## Install
 
-One Linux server with Docker (Ubuntu/Debian: `curl -fsSL https://get.docker.com | sh`),
-a domain whose A record points at it, and ports 80/443 free.
+One Linux server, a domain whose A record points at it, ports 80 and 443 free.
+Captain terminates HTTPS itself with a Let's Encrypt certificate; no reverse
+proxy needed.
 
 ```sh
-mkdir -p /opt/captain && cd /opt/captain
-B=https://raw.githubusercontent.com/zeptop-dev/captain/master/deploy
-curl -fsSLO $B/docker-compose.yml
-curl -fsSLO $B/Caddyfile
-curl -fsSL -o config.yaml $B/config.docker.yaml
+curl -fsSL https://raw.githubusercontent.com/zeptop-dev/captain/master/install.sh | sh
 ```
 
-Edit two files:
+The script asks for the domain, an email for the certificate, and the admin
+login, then installs with Docker when it is present (`docker compose` in
+`/opt/captain`) or as a systemd service otherwise (`--mode binary` to force).
+It does not install Docker for you: put it on first
+(`curl -fsSL https://get.docker.com | sh`) if that is the way you want to run it.
+Every answer can be given as a flag, see `install.sh --help`.
 
-- `Caddyfile`: replace `panel.example.com` with your domain (leave `captain:8080`).
-- `config.yaml`: set `base_url` to `https://<your domain>` (subscription links and
-  payment callbacks use it); add `payments` when you have gateway credentials.
+Already running Caddy or nginx on that host? Add `--behind-proxy`: Captain then
+serves plain HTTP on 127.0.0.1:8080 and `deploy/Caddyfile` shows the proxy
+block.
 
-Then:
-
-```sh
-docker compose up -d
-docker compose exec captain captain admin create -c /etc/captain/config.yaml -email you@example.com -password 'choose-a-long-one'
-```
-
-Open `https://<your domain>/admin/` and sign in. Caddy fetches the certificate
-on the first request, which can take a few seconds.
-
-Day-to-day:
+Day-to-day (Docker):
 
 ```sh
-docker compose logs -f captain            # logs
+cd /opt/captain
+docker compose logs -f                        # logs
 docker compose pull && docker compose up -d   # upgrade (the console shows a red dot when a release is out)
 docker run --rm -v captain_captain-data:/d -v $PWD:/out alpine sh -c 'cp /d/backups/*.db /out/'   # copy the daily snapshots to the host
 ```
 
-Captain snapshots its database every day into `backups/` inside the data volume
-and keeps the last seven, so a restore is a copy of one file. Logins lock an
-address for 15 minutes after five failures; session cookies are HTTPS-only
-whenever `base_url` is https.
+Captain snapshots its database every day into `backups/` inside the data
+directory and keeps the last seven, so a restore is a copy of one file. Logins
+lock an address for 15 minutes after five failures; session cookies are
+HTTPS-only whenever `base_url` is https. Certificates live in `certs/` in the
+same directory and renew themselves.
 
-No domain yet? `deploy/docker-compose.plain.yml` runs Captain alone on
-`http://<server>:8080` with `base_url: http://<server>:8080`; switch to the
-Caddy variant later and keep the same `captain-data` volume.
+Manual layouts (`deploy/docker-compose.yml`, `deploy/docker-compose.proxy.yml`,
+`deploy/captain.service`) are what the script writes; use them directly if you
+prefer.
 
 ## Run
 

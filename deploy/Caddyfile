@@ -1,6 +1,6 @@
-# Caddy terminates TLS and proxies to Captain.
-# Bare metal: upstream 127.0.0.1:8080. Docker compose: captain:8080.
+# Only for the reverse-proxy layout (docker-compose.proxy.yml or a bare-metal
+# install with tls.auto off). Captain's default is to serve HTTPS itself.
 panel.example.com {
 	encode zstd gzip
-	reverse_proxy captain:8080
+	reverse_proxy 127.0.0.1:8080
 }

@@ -1,26 +1,16 @@
-# Captain behind Caddy (automatic HTTPS). Files expected next to this one:
-#   config.yaml  - copy of config.docker.yaml with base_url set
-#   Caddyfile    - copy of deploy/Caddyfile with your domain
+# Captain alone. It terminates HTTPS itself (tls.auto in config.yaml), so
+# nothing else is needed on the host. Files expected next to this one:
+#   config.yaml  - copy of config.docker.yaml with base_url and tls.email set
 services:
   captain:
     image: zeptop/captain:latest        # or ghcr.io/zeptop-dev/captain:latest
     restart: unless-stopped
+    ports: ["80:80", "443:443"]
     volumes:
       - ./config.yaml:/etc/captain/config.yaml:ro
-      - captain-data:/var/lib/captain
-    expose: ["8080"]
+      - captain-data:/var/lib/captain     # database, daily backups, certificates
 
-  caddy:
-    image: caddy:2
-    restart: unless-stopped
-    ports: ["80:80", "443:443", "443:443/udp"]
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    depends_on: [captain]
-
-  # Optional: recreate containers automatically when a new image is pushed.
+  # Optional: recreate the container automatically when a new image is pushed.
   # watchtower:
   #   image: containrrr/watchtower
   #   restart: unless-stopped
@@ -29,5 +19,3 @@ services:
 
 volumes:
   captain-data:
-  caddy-data:
-  caddy-config:

@@ -1,10 +1,14 @@
-# Captain config for Docker. Copy to config.yaml next to docker-compose.yml,
-# set base_url (and payments when you have them), keep listen as is: Caddy
-# in the same compose network reaches it as captain:8080.
-listen: 0.0.0.0:8080
+# Captain config for Docker. Copy to config.yaml next to docker-compose.yml.
+# Captain terminates HTTPS itself: base_url's host gets a Let's Encrypt
+# certificate on first start (ports 80/443 published by the compose file).
+listen: 0.0.0.0:443
 base_url: https://panel.example.com
 data_dir: /var/lib/captain
 log_level: info
+
+tls:
+  auto: true
+  email: you@example.com
 
 database:
   driver: sqlite

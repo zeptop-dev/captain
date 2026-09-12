@@ -5,6 +5,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"golang.org/x/crypto/acme/autocert"
 	"log/slog"
 	"net/http"
 	"os"
@@ -87,19 +88,58 @@ func cmdServe(args []string) error {
 		return err
 	}
 	cfg.Version = version
-	srv := &http.Server{Addr: cfg.Listen, Handler: chttp.New(cfg, st, log).Handler(), ReadHeaderTimeout: 10 * time.Second}
+	handler := chttp.New(cfg, st, log).Handler()
+	srv := &http.Server{Addr: cfg.Listen, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	go (&jobs.Runner{Store: st, Log: log, BackupDir: filepath.Join(cfg.DataDir, "backups")}).Run(ctx)
+
+	var httpSrv *http.Server // port 80 helper when serving HTTPS ourselves
+	if cfg.TLSEnabled() {
+		domain := cfg.TLSDomain()
+		if domain == "" {
+			return fmt.Errorf("tls: cannot derive a domain from base_url %q; set tls.domain", cfg.BaseURL)
+		}
+		if cfg.TLS.Auto {
+			m := &autocert.Manager{
+				Prompt:     autocert.AcceptTOS,
+				Cache:      autocert.DirCache(filepath.Join(cfg.DataDir, "certs")),
+				HostPolicy: autocert.HostWhitelist(domain),
+				Email:      cfg.TLS.Email,
+			}
+			srv.TLSConfig = m.TLSConfig()
+			// Port 80 answers HTTP-01 challenges and redirects everything else.
+			httpSrv = &http.Server{Addr: cfg.TLS.HTTPListen, Handler: m.HTTPHandler(nil), ReadHeaderTimeout: 10 * time.Second}
+			log.Info("automatic certificate", "domain", domain, "cache", filepath.Join(cfg.DataDir, "certs"))
+		} else {
+			httpSrv = &http.Server{Addr: cfg.TLS.HTTPListen, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "https://"+domain+r.URL.RequestURI(), http.StatusMovedPermanently)
+			}), ReadHeaderTimeout: 10 * time.Second}
+		}
+		go func() {
+			if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Error("http listener", "addr", cfg.TLS.HTTPListen, "err", err)
+			}
+		}()
+	}
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(shutdown)
+		if httpSrv != nil {
+			_ = httpSrv.Shutdown(shutdown)
+		}
 	}()
-	log.Info("captain listening", "addr", cfg.Listen, "base_url", cfg.BaseURL, "version", version)
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		return err
+	log.Info("captain listening", "addr", cfg.Listen, "tls", cfg.TLSEnabled(), "base_url", cfg.BaseURL, "version", version)
+	var err2 error
+	if cfg.TLSEnabled() {
+		err2 = srv.ListenAndServeTLS(cfg.TLS.Cert, cfg.TLS.Key) // empty paths use TLSConfig's GetCertificate
+	} else {
+		err2 = srv.ListenAndServe()
+	}
+	if err2 != nil && err2 != http.ErrServerClosed {
+		return err2
 	}
 	return nil
 }

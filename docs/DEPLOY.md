@@ -2,23 +2,32 @@
 
 One Linux box, one binary, one SQLite file. Caddy (or nginx) in front for TLS.
 
-## 0. Docker (shortest path)
+## 0. The installer (shortest path)
 
-Tags push a multi-arch image to `ghcr.io/zeptop-dev/captain` and Docker Hub
-`zeptop/captain`; both are public, no login needed.
+```sh
+curl -fsSL https://raw.githubusercontent.com/zeptop-dev/captain/master/install.sh | sh
+```
+
+Asks for domain, certificate email and admin login; installs with Docker if
+present, otherwise as a systemd service. Everything below is what it does by
+hand.
+
+## 0b. Docker by hand
 
 ```sh
 mkdir -p /opt/captain && cd /opt/captain
-curl -fsSLO https://raw.githubusercontent.com/zeptop-dev/captain/master/deploy/docker-compose.yml
-curl -fsSLO https://raw.githubusercontent.com/zeptop-dev/captain/master/deploy/Caddyfile
-curl -fsSL -o config.yaml https://raw.githubusercontent.com/zeptop-dev/captain/master/config.example.yaml
-# edit: Caddyfile domain; config.yaml listen: 0.0.0.0:8080, base_url, payments
+B=https://raw.githubusercontent.com/zeptop-dev/captain/master/deploy
+curl -fsSLO $B/docker-compose.yml
+curl -fsSL -o config.yaml $B/config.docker.yaml    # set base_url and tls.email
 docker compose up -d
 docker compose exec captain captain admin create -c /etc/captain/config.yaml -email you@example.com -password '...'
 ```
 
-Data lives in the `captain-data` volume (`/var/lib/captain` inside). Upgrade with
-`docker compose pull && docker compose up -d`.
+The container publishes 80 and 443 and obtains its certificate on the first
+request. Data (database, daily backups, certificates) lives in the
+`captain-data` volume. Upgrade with `docker compose pull && docker compose up -d`.
+With an existing reverse proxy use `docker-compose.proxy.yml` and set
+`tls.auto: false`, `listen: 0.0.0.0:8080` in config.yaml.
 
 ## 1. Binary
 
@@ -68,10 +77,15 @@ Nodes → an orange "vX available" badge marks bosun nodes older than the latest
 bosun release; click it, or "Upgrade all", and each node installs that release
 on its next report and restarts itself.
 
-## 3. Reverse proxy
+## 3. HTTPS
 
-`deploy/Caddyfile` is the whole thing: Caddy fetches certificates itself. Point
-`base_url` at the public URL: subscription links, EPay and Stripe callbacks use it.
+`tls.auto: true` in config.yaml makes Captain listen on :443 with a Let's
+Encrypt certificate for the `base_url` host (renewed automatically, cached in
+`<data_dir>/certs`); :80 answers the ACME challenge and redirects. The systemd
+unit carries `CAP_NET_BIND_SERVICE` for that. To terminate TLS elsewhere set
+`tls.auto: false`, keep `listen: 127.0.0.1:8080` and use `deploy/Caddyfile` (or
+an nginx equivalent). `base_url` must be the public URL either way: subscription
+links, EPay and Stripe callbacks use it.
 
 Routes: `/admin/` console, `/portal/` user site (root redirects there), `/sub/{token}`
 subscriptions, `/api/agent/*` for bosun, `/api/payment/*` gateway callbacks.
