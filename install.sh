@@ -3,7 +3,10 @@
 #   curl -fsSL https://raw.githubusercontent.com/zeptop-dev/captain/master/install.sh | sh
 #   ... | sh -s -- --mode docker --domain panel.example.com --email you@example.com \
 #                  --admin-email you@example.com --admin-password 'long-secret'
+#   ... | sh -s -- uninstall [--keep-data]     remove everything this script set up
 # Modes: docker (default when Docker is present) or binary (systemd service).
+# Piped through sh the script never touches the disk; nothing to clean up
+# afterwards besides the installation itself.
 # TLS: Captain gets a Let's Encrypt certificate itself; ports 80/443 must be free.
 # Use --behind-proxy when something else on the host terminates TLS (Captain
 # then listens on 127.0.0.1:8080 over plain HTTP).
@@ -11,9 +14,11 @@ set -eu
 
 REPO="zeptop-dev/captain"
 IMAGE="zeptop/captain:latest"
-MODE="" DOMAIN="" EMAIL="" ADMIN_EMAIL="" ADMIN_PASS="" PROXY=0 VERSION=""
+MODE="" DOMAIN="" EMAIL="" ADMIN_EMAIL="" ADMIN_PASS="" PROXY=0 VERSION="" ACTION=install KEEP_DATA=0
 while [ $# -gt 0 ]; do
   case "$1" in
+    uninstall) ACTION=uninstall; shift ;;
+    --keep-data) KEEP_DATA=1; shift ;;
     --mode) MODE="$2"; shift 2 ;;
     --domain) DOMAIN="$2"; shift 2 ;;
     --email) EMAIL="$2"; shift 2 ;;
@@ -27,6 +32,23 @@ while [ $# -gt 0 ]; do
 done
 [ "$(id -u)" = 0 ] || { echo "run as root (sudo)" >&2; exit 1; }
 command -v curl >/dev/null || { echo "curl is required" >&2; exit 1; }
+
+if [ "$ACTION" = uninstall ]; then
+  echo "This removes Captain: service/containers, /opt/captain, /etc/captain$( [ "$KEEP_DATA" = 1 ] || echo ', the database, backups and certificates')."
+  if [ -r /dev/tty ]; then printf 'Type yes to continue: ' >/dev/tty; read -r ans </dev/tty; [ "$ans" = yes ] || { echo "aborted"; exit 1; }; fi
+  if [ -f /opt/captain/docker-compose.yml ] && command -v docker >/dev/null 2>&1; then
+    (cd /opt/captain && if [ "$KEEP_DATA" = 1 ]; then docker compose down; else docker compose down -v; fi) || true
+  fi
+  if systemctl list-unit-files captain.service >/dev/null 2>&1; then
+    systemctl disable --now captain 2>/dev/null || true
+    rm -f /etc/systemd/system/captain.service; systemctl daemon-reload
+  fi
+  rm -rf /opt/captain /etc/captain
+  [ "$KEEP_DATA" = 1 ] || rm -rf /var/lib/captain
+  id captain >/dev/null 2>&1 && userdel captain 2>/dev/null || true
+  echo "Captain removed.$( [ "$KEEP_DATA" = 1 ] && echo ' Data kept in /var/lib/captain (binary install) or the captain-data docker volume.')"
+  exit 0
+fi
 
 # Read from the terminal even when the script itself comes through a pipe.
 ask() { # var prompt [default]
