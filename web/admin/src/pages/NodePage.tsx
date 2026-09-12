@@ -6,14 +6,14 @@ import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
-import { api, type Group as UGroup, type Inbound, type Node } from '../lib/api'
-import { ago, bytes } from '../lib/format'
+import { api, type CertStatus, type Group as UGroup, type Inbound, type Node } from '../lib/api'
+import { ago, bytes, when } from '../lib/format'
 import { toast } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
 import { InboundForm, toPayload, toValues, type InboundValues } from '../components/InboundForm'
 import { NodeStatus, PairCodeBox } from './NodesPage'
 
-interface Detail { node: Node; inbounds: Inbound[]; status: { host: Record<string, number> | null; cores: Record<string, { running: boolean }> | null } | null }
+interface Detail { node: Node; inbounds: Inbound[]; status: { host: Record<string, number> | null; cores: Record<string, { running: boolean }> | null; certs: CertStatus[] | null } | null }
 
 export default function NodePage() {
   const { id } = useParams()
@@ -51,6 +51,23 @@ export default function NodePage() {
       </>} />
 
       {!n.paired && n.pair_code && <Card mb="lg"><Title order={5} mb="sm">{t('nodes.pairTitle')}</Title><PairCodeBox code={n.pair_code} /></Card>}
+      {d.status?.certs && d.status.certs.length > 0 && (
+        <Card mb="lg">
+          <Text size="xs" tt="uppercase" c="dimmed" fw={600} mb="xs">{t('nodes.certs')}</Text>
+          <Table>
+            <Table.Tbody>
+              {d.status.certs.map((c) => (
+                <Table.Tr key={c.domain}>
+                  <Table.Td><Code>{c.domain}</Code></Table.Td>
+                  <Table.Td><Badge variant="outline" color="gray">{c.method}</Badge></Table.Td>
+                  <Table.Td><Text size="sm">{c.not_after && !c.not_after.startsWith('0001') ? t('nodes.certExpires', { date: when(c.not_after).split(',')[0] }) : '—'}</Text></Table.Td>
+                  <Table.Td>{c.error ? <Text size="xs" c="red">{c.error}</Text> : <Badge color="teal">{t('nodes.certOk')}</Badge>}</Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </Card>
+      )}
 
       <SimpleGrid cols={{ base: 1, md: 3 }} mb="lg">
         <Card>

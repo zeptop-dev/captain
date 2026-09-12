@@ -104,7 +104,11 @@
     "upgradeAllConfirm": "{{count}} 个节点将升级到 bosun {{version}}，各自在下次上报时执行。继续？",
     "upgradeAllQueued": "已通知 {{count}} 个节点升级到 {{version}}",
     "upgrading": "升级中 → {{version}}",
-    "outdated": "可升级到 {{version}}"
+    "outdated": "可升级到 {{version}}",
+    "certs": "自动证书",
+    "certExpires": "{{date}} 到期",
+    "certOk": "正常",
+    "certProblem": "有证书申请失败或即将到期"
   },
   "inbounds": {
     "title": "入站",
@@ -120,7 +124,7 @@
     "groupAll": "所有用户",
     "enabled": "启用",
     "settings": "协议参数",
-    "settingsHint": "JSON，字段与 bosun spec.Inbound 一致，例如 {\"flow\":\"xtls-rprx-vision\",\"tls\":{...}}",
+    "settingsHint": "JSON，字段与 bosun spec.Inbound 一致。TLS 自动证书：\"tls\":{\"mode\":1,\"server_name\":\"域名\",\"auto_cert\":true,\"acme\":\"http\"}（acme 可为 http 或 dns）",
     "recipe": "快速配置",
     "recipeHint": "选一个模板填好参数，仍可手工修改。",
     "recipes": {
@@ -216,7 +220,13 @@
     "groups": "用户组",
     "createGroup": "添加用户组",
     "groupName": "组名",
-    "version": "版本"
+    "version": "版本",
+    "acme": "自动证书（ACME）",
+    "acmeHint": "入站里开了“自动证书”的节点用这个账号向 Let's Encrypt 申请。HTTP 验证只需节点 80 端口可达；DNS 验证走 Cloudflare。保存后下发到所有节点。",
+    "acmeEmail": "Let's Encrypt 邮箱",
+    "cfToken": "Cloudflare API Token",
+    "cfTokenHint": "仅 DNS 验证需要，权限 Zone.DNS 编辑；留空不改，填 - 清除",
+    "cfTokenSet": "已设置；留空保持不变，填 - 清除"
   },
   "update": {
     "title": "版本与升级",

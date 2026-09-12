@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"github.com/zeptop-dev/bosun/pkg/agentproto"
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/spec"
@@ -86,13 +87,17 @@ func (s *Store) ListNodes(ctx context.Context) ([]*domain.Node, error) {
 }
 
 // TouchNode records a report: liveness, applied revision, host and core status.
-func (s *Store) TouchNode(ctx context.Context, id int64, version, revision string, host spec.SystemStatus, cores any) error {
+func (s *Store) TouchNode(ctx context.Context, id int64, version, revision string, host spec.SystemStatus, cores any, certs any) error {
 	hostJSON, _ := json.Marshal(host)
 	coresJSON, _ := json.Marshal(cores)
+	certsJSON, _ := json.Marshal(certs)
+	if certs == nil {
+		certsJSON = []byte("[]")
+	}
 	// A node that reports the requested release has finished upgrading.
-	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET last_seen_at = ?, version = COALESCE(NULLIF(?, ''), version), applied_revision = ?, host_status_json = ?, cores_json = ?,
+	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET last_seen_at = ?, version = COALESCE(NULLIF(?, ''), version), applied_revision = ?, host_status_json = ?, cores_json = ?, certs_json = ?,
 		upgrade_to = CASE WHEN upgrade_to = ? THEN '' ELSE upgrade_to END, updated_at = ? WHERE id = ?`,
-		now(), version, revision, string(hostJSON), string(coresJSON), version, now(), id)
+		now(), version, revision, string(hostJSON), string(coresJSON), string(certsJSON), version, now(), id)
 	return err
 }
 
@@ -186,14 +191,18 @@ func (s *Store) DeleteNode(ctx context.Context, id int64) error {
 type NodeStatus struct {
 	Host  json.RawMessage `json:"host"`
 	Cores json.RawMessage `json:"cores"`
+	Certs json.RawMessage `json:"certs"`
 }
 
 func (s *Store) NodeStatus(ctx context.Context, id int64) (*NodeStatus, error) {
-	var host, cores string
-	if err := s.db.QueryRowContext(ctx, `SELECT host_status_json, cores_json FROM nodes WHERE id = ?`, id).Scan(&host, &cores); err != nil {
+	var host, cores, certs string
+	if err := s.db.QueryRowContext(ctx, `SELECT host_status_json, cores_json, certs_json FROM nodes WHERE id = ?`, id).Scan(&host, &cores, &certs); err != nil {
 		return nil, wrapNotFound(err)
 	}
-	return &NodeStatus{Host: json.RawMessage(host), Cores: json.RawMessage(cores)}, nil
+	if certs == "" {
+		certs = "[]"
+	}
+	return &NodeStatus{Host: json.RawMessage(host), Cores: json.RawMessage(cores), Certs: json.RawMessage(certs)}, nil
 }
 
 // AllInboundsByNode lists inbounds of a node including disabled ones.
@@ -265,4 +274,30 @@ func (s *Store) SetAllNodesUpgrade(ctx context.Context, version string) (int64, 
 		return 0, err
 	}
 	return res.RowsAffected()
+}
+
+// CertProblems returns, per node, whether any automatic certificate has an
+// error or expires within 14 days.
+func (s *Store) CertProblems(ctx context.Context, at time.Time) (map[int64]bool, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, certs_json FROM nodes WHERE certs_json <> '' AND certs_json <> '[]'`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int64]bool{}
+	for rows.Next() {
+		var id int64
+		var raw string
+		if err := rows.Scan(&id, &raw); err != nil {
+			return nil, err
+		}
+		var certs []agentproto.CertStatus
+		_ = json.Unmarshal([]byte(raw), &certs)
+		for _, c := range certs {
+			if c.Error != "" || (!c.NotAfter.IsZero() && c.NotAfter.Before(at.Add(14*24*time.Hour))) {
+				out[id] = true
+			}
+		}
+	}
+	return out, rows.Err()
 }

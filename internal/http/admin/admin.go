@@ -61,6 +61,8 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/admin/nodes/{id}/repair", h.requireAdmin(h.repairNode))
 	mux.HandleFunc("POST /api/admin/nodes/{id}/upgrade", h.requireAdmin(h.upgradeNode))
 	mux.HandleFunc("POST /api/admin/nodes/upgrade-all", h.requireAdmin(h.upgradeAllNodes))
+	mux.HandleFunc("GET /api/admin/settings/acme", h.requireAdmin(h.getACME))
+	mux.HandleFunc("PUT /api/admin/settings/acme", h.requireAdmin(h.putACME))
 	mux.HandleFunc("GET /api/admin/system/update", h.requireAdmin(h.systemUpdate))
 	mux.HandleFunc("POST /api/admin/system/update/apply", h.requireAdmin(h.systemUpdateApply))
 	mux.HandleFunc("POST /api/admin/system/update/rollback", h.requireAdmin(h.systemUpdateRollback))
@@ -220,6 +222,7 @@ type nodeView struct {
 	Inbounds     int        `json:"inbounds"`
 	UpgradeTo    string     `json:"upgrade_to,omitempty"` // pending upgrade request
 	Outdated     bool       `json:"outdated"`             // reported version older than the latest bosun release
+	CertProblem  bool       `json:"cert_problem"`         // an automatic certificate failed or expires soon
 }
 
 func toNodeView(n *domain.Node, at time.Time) nodeView {
@@ -252,12 +255,14 @@ func (h *handlers) listNodes(w http.ResponseWriter, r *http.Request) {
 	}
 	traffic, _ := h.Store.NodeTrafficToday(r.Context(), now)
 	latest := h.bosunLatest(r.Context())
+	certProblems, _ := h.Store.CertProblems(r.Context(), now)
 	out := make([]nodeView, 0, len(nodes))
 	for _, n := range nodes {
 		v := toNodeView(n, now)
 		v.PairCode = "" // only shown on create/repair
 		v.TrafficToday = traffic[n.ID]
 		v.Outdated = latest != "" && n.Version != "" && selfupdate.Newer(latest, n.Version)
+		v.CertProblem = certProblems[n.ID]
 		if ibs, err := h.Store.AllInboundsByNode(r.Context(), n.ID); err == nil {
 			v.Inbounds = len(ibs)
 		}
@@ -879,4 +884,43 @@ func (h *handlers) systemRestart(w http.ResponseWriter, r *http.Request) {
 	h.Log.Warn("restart requested from the admin console")
 	ok(w, map[string]bool{"restarting": true})
 	selfupdate.Restart(500 * time.Millisecond)
+}
+
+// ---- certificate automation settings ------------------------------------------
+
+func (h *handlers) getACME(w http.ResponseWriter, r *http.Request) {
+	var v store.ACMESettings
+	if err := h.Store.GetSetting(r.Context(), store.SettingACME, &v); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	// The token is write-only; tell the UI whether one is set.
+	ok(w, map[string]any{"email": v.Email, "has_cloudflare_token": v.CloudflareToken != ""})
+}
+
+// putACME stores the ACME account; an empty token keeps the current one,
+// "-" clears it.
+func (h *handlers) putACME(w http.ResponseWriter, r *http.Request) {
+	var in struct{ Email, CloudflareToken string }
+	if !decode(r, &in) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	var cur store.ACMESettings
+	_ = h.Store.GetSetting(r.Context(), store.SettingACME, &cur)
+	cur.Email = strings.TrimSpace(in.Email)
+	switch strings.TrimSpace(in.CloudflareToken) {
+	case "":
+	case "-":
+		cur.CloudflareToken = ""
+	default:
+		cur.CloudflareToken = strings.TrimSpace(in.CloudflareToken)
+	}
+	if err := h.Store.SetSetting(r.Context(), store.SettingACME, cur); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	// The state revision hashes node.ACME, so every node pulls the new
+	// account settings on its next report.
+	ok(w, map[string]any{"email": cur.Email, "has_cloudflare_token": cur.CloudflareToken != ""})
 }

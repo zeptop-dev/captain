@@ -10,10 +10,10 @@ const cores = ['', 'singbox', 'xray', 'mita', 'hysteria']
 // spec.Inbound JSON so bosun renders them without translation.
 const recipes: { key: string; protocol: string; port: number; settings: Record<string, unknown> }[] = [
   { key: 'vlessReality', protocol: 'vless', port: 443, settings: { flow: 'xtls-rprx-vision', tls: { mode: 2, server_name: 'www.apple.com', reality: { private_key: '', public_key: '', short_ids: ['0123abcd'], handshake_server: 'www.apple.com', handshake_port: 443 } } } },
-  { key: 'hysteria2', protocol: 'hysteria2', port: 8443, settings: { tls: { mode: 1, server_name: 'node.example.com' }, obfs: 'salamander', obfs_password: 'change-me', up_mbps: 100, down_mbps: 500 } },
+  { key: 'hysteria2', protocol: 'hysteria2', port: 8443, settings: { tls: { mode: 1, server_name: 'node.example.com', auto_cert: true, acme: 'http' }, obfs: 'salamander', obfs_password: 'change-me', up_mbps: 100, down_mbps: 500 } },
   { key: 'mieru', protocol: 'mieru', port: 24450, settings: { mieru_transport: 'TCP' } },
   { key: 'ss2022', protocol: 'shadowsocks', port: 8388, settings: { cipher: '2022-blake3-aes-128-gcm', server_key: '' } },
-  { key: 'trojanWs', protocol: 'trojan', port: 443, settings: { tls: { mode: 1, server_name: 'node.example.com' }, transport: { type: 'ws', path: '/trojan', host: 'node.example.com' } } },
+  { key: 'trojanWs', protocol: 'trojan', port: 443, settings: { tls: { mode: 1, server_name: 'node.example.com', auto_cert: true, acme: 'http' }, transport: { type: 'ws', path: '/trojan', host: 'node.example.com' } } },
 ]
 
 export type InboundValues = { Tag: string; Protocol: string; Listen: string; Port: number; Core: string; GroupID: string; Enabled: boolean; Settings: string }

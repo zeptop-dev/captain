@@ -20,8 +20,8 @@ github.com/sethvargo/go-retry v0.4.0 h1:9qy1OoIAxBL+gBYnkTnTnWle5wlfsXQlwRzIbbpd
 github.com/sethvargo/go-retry v0.4.0/go.mod h1:tvsjdKG6xfiCx4LSiUZ06kcv38xvdVQwv8R6/VnnVWg=
 github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=
 github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
-github.com/zeptop-dev/bosun v0.6.0 h1:vJA/iSyeE8cLOpKqq4Up5mNIwhO4xUourcayi7ehqqM=
-github.com/zeptop-dev/bosun v0.6.0/go.mod h1:OEwtUK5HmfbY/S5Z3TgTI0j3m83z7NPeDnkT2CQ3v5A=
+github.com/zeptop-dev/bosun v0.7.0 h1:E7hQpM0Q1Mr0dHd/Is3epByfM6EdQ2SwtqbvqCPB0Ro=
+github.com/zeptop-dev/bosun v0.7.0/go.mod h1:pIuyXzZNC8xpKPJuZJiXvKpVK56k2M9r1auQ7Zi7ovc=
 go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=
 go.uber.org/multierr v1.11.0/go.mod h1:20+QtiLqy0Nd6FdQB9TLXag12DsQkrbs3htMFfDN80Y=
 go.yaml.in/yaml/v3 v3.0.5 h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=

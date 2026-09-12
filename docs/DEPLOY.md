@@ -90,6 +90,14 @@ links, EPay and Stripe callbacks use it.
 Routes: `/admin/` console, `/portal/` user site (root redirects there), `/sub/{token}`
 subscriptions, `/api/agent/*` for bosun, `/api/payment/*` gateway callbacks.
 
+## 3b. Node certificates
+
+Settings → "Automatic certificates": enter the Let's Encrypt email (and a
+Cloudflare API token for DNS challenges). Inbounds whose TLS settings carry
+`"auto_cert": true` then get their certificate obtained and renewed on the node
+itself; the node page lists each certificate with its expiry, and the node list
+shows a red TLS badge when one failed or expires within two weeks.
+
 ## 4. Nodes
 
 Admin → Nodes → Add node gives a pair code. On the node:
