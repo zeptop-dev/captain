@@ -27,7 +27,9 @@ type entry struct {
 }
 
 // New returns a limiter with the defaults.
-func New() *Limiter { return &Limiter{Max: 5, Window: 15 * time.Minute, Lock: 15 * time.Minute, entries: map[string]*entry{}} }
+func New() *Limiter {
+	return &Limiter{Max: 5, Window: 15 * time.Minute, Lock: 15 * time.Minute, entries: map[string]*entry{}}
+}
 
 // Allow reports whether the address may attempt a login now, and how long it
 // has to wait otherwise.
