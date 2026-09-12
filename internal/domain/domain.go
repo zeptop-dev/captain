@@ -41,8 +41,8 @@ type Plan struct {
 	QuotaBytes     int64
 	DeviceLimit    int
 	SpeedLimitMbps int
-	ResetDays      int // quota resets every N days within the period (ResetMode "days")
-	ResetMode      string // "" never, "days", "monthly" (1st of each month), "yearly" (Jan 1)
+	ResetDays      int         // quota resets every N days within the period (ResetMode "days")
+	ResetMode      string      // "" never, "days", "monthly" (1st of each month), "yearly" (Jan 1)
 	Prices         []PlanPrice // extra periods on top of PeriodDays/PriceCents
 	GroupID        *int64
 	Sort           int
@@ -161,16 +161,16 @@ type Entry struct {
 // Order is a purchase of a plan. Status moves pending -> paid or cancelled;
 // paid is terminal and idempotent under repeated gateway notifications.
 type Order struct {
-	ID          int64
-	No          string
-	UserID      int64
-	PlanID      int64
-	AmountCents int64
-	Gateway     string
-	GatewayRef  string
-	Status      string
-	CreatedAt   time.Time
-	PaidAt      *time.Time
+	ID            int64
+	No            string
+	UserID        int64
+	PlanID        int64
+	AmountCents   int64
+	Gateway       string
+	GatewayRef    string
+	Status        string
+	CreatedAt     time.Time
+	PaidAt        *time.Time
 	PeriodDays    int    // chosen period, 0 = plan base
 	CouponID      *int64 //
 	DiscountCents int64  //
