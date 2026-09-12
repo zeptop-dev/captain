@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
+	"github.com/zeptop-dev/captain/internal/http/oauth"
 	"github.com/zeptop-dev/captain/internal/http/ratelimit"
+	"github.com/zeptop-dev/captain/internal/http/site"
 	"log/slog"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -77,9 +80,24 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	s.mux.HandleFunc("GET /portal", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/portal/", http.StatusMovedPermanently)
 	})
-	s.mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/portal/", http.StatusFound)
-	})
+	// Landing page at the root (custom design under <data_dir>/site wins);
+	// unknown paths outside the SPAs fall through to it as well.
+	siteHandler := web.Site(filepath.Join(cfg.DataDir, "site"))
+	s.mux.Handle("GET /{$}", siteHandler)
+	s.mux.Handle("GET /assets/", siteHandler)
+	site.Register(s.mux, site.Deps{Store: st, SiteName: cfg.SiteName, Registration: cfg.Portal.Registration})
+	oauth.Register(s.mux, oauth.Deps{Store: st, Sessions: sessions, Log: log, BaseURL: base, Secure: secure, Registration: cfg.Portal.Registration,
+		Resolve: func(r *http.Request) *domain.User {
+			c, err := r.Cookie("captain_session")
+			if err != nil {
+				return nil
+			}
+			u, err := sessions.Resolve(r.Context(), c.Value)
+			if err != nil {
+				return nil
+			}
+			return u
+		}})
 	portal.Register(s.mux, portal.Deps{Store: st, Log: log, Sessions: sessions, Orders: orders, Subscription: subSvc, BaseURL: base, Gateways: names, Registration: cfg.Portal.Registration, Logins: logins, Secure: secure, SubLinks: s.subLinks})
 	paymenthttp.Register(s.mux, paymenthttp.Deps{Log: log, Orders: orders, ReturnTo: base + "/portal/orders", Gateways: gateways, Store: st})
 	sub.Register(s.mux, sub.Deps{Store: st, Log: log, Service: subSvc, Name: cfg.SiteName})

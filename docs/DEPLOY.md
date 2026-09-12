@@ -110,6 +110,14 @@ Cloudflare API token for DNS challenges). Inbounds whose TLS settings carry
 itself; the node page lists each certificate with its expiry, and the node list
 shows a red TLS badge when one failed or expires within two weeks.
 
+## 3c. Domain layout
+
+One domain is enough: `/` landing page, `/portal/` user site, `/admin/`
+console, `/sub/…` subscriptions. Put subscriptions on their own host with
+Settings → Subscription URLs when you want the address users share to serve
+nothing else. `base_url` is the public URL of the site; payment callbacks and
+OIDC redirect URIs derive from it.
+
 ## 4. Nodes
 
 Admin → Nodes → Add node gives a pair code. On the node:

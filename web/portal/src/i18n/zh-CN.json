@@ -1,15 +1,78 @@
 {
-  "nav": { "home": "首页", "plans": "套餐", "orders": "订单", "servers": "节点", "logout": "退出" },
-  "auth": { "login": "登录", "register": "注册", "email": "邮箱", "password": "密码", "passwordHint": "至少 8 位", "toRegister": "没有账号？注册", "toLogin": "已有账号？登录", "failed": "邮箱或密码错误", "closed": "暂不开放注册" },
-  "home": {
-    "hello": "你好，{{email}}", "noPlan": "还没有订阅", "noPlanHint": "选一个套餐开始使用。", "browsePlans": "查看套餐",
-    "expired": "订阅已失效", "expiredHint": "到期或流量用完。续费后立即恢复。", "renew": "续费",
-    "usage": "流量用量", "unlimited": "不限流量", "expires": "到期时间", "never": "永不过期", "resetsOn": "{{date}} 重置流量", "devices": "当前在线设备 {{count}} 台", "daysLeft": "剩余 {{count}} 天",
-    "balance": "余额",
-    "subscribe": "订阅链接", "subscribeHint": "导入到客户端后，节点会自动更新。不要把这个链接给别人。",
-    "copy": "复制链接", "copied": "已复制", "import": "一键导入", "qr": "扫码导入"
+  "nav": {
+    "home": "首页",
+    "plans": "套餐",
+    "orders": "订单",
+    "servers": "节点",
+    "logout": "退出"
   },
-  "plans": { "title": "套餐", "period": "{{days}} 天", "forever": "永久", "quota": "{{gb}} GiB", "unlimited": "不限流量", "devices": "{{count}} 台设备", "buy": "购买", "payWith": "支付方式", "confirm": "确认购买 {{amount}}", "balance": "余额支付", "epay": "支付宝 / 微信", "stripe": "银行卡", "insufficient": "余额不足", "paid": "支付成功，订阅已生效" },
-  "orders": { "title": "订单", "empty": "还没有订单", "pending": "待支付", "paid": "已支付", "cancelled": "已取消", "pay": "去支付" },
-  "servers": { "title": "节点", "empty": "当前没有可用节点", "copyLink": "复制节点链接" }
+  "auth": {
+    "login": "登录",
+    "register": "注册",
+    "email": "邮箱",
+    "password": "密码",
+    "passwordHint": "至少 8 位",
+    "toRegister": "没有账号？注册",
+    "toLogin": "已有账号？登录",
+    "failed": "邮箱或密码错误",
+    "closed": "暂不开放注册",
+    "with": "用 {{name}} 登录",
+    "or": "或",
+    "home": "返回首页"
+  },
+  "home": {
+    "hello": "你好，{{email}}",
+    "noPlan": "还没有订阅",
+    "noPlanHint": "选一个套餐开始使用。",
+    "browsePlans": "查看套餐",
+    "expired": "订阅已失效",
+    "expiredHint": "到期或流量用完。续费后立即恢复。",
+    "renew": "续费",
+    "usage": "流量用量",
+    "unlimited": "不限流量",
+    "expires": "到期时间",
+    "never": "永不过期",
+    "resetsOn": "{{date}} 重置流量",
+    "devices": "当前在线设备 {{count}} 台",
+    "daysLeft": "剩余 {{count}} 天",
+    "balance": "余额",
+    "subscribe": "订阅链接",
+    "subscribeHint": "导入到客户端后，节点会自动更新。不要把这个链接给别人。",
+    "copy": "复制链接",
+    "copied": "已复制",
+    "import": "一键导入",
+    "qr": "扫码导入",
+    "logins": "登录方式",
+    "link": "绑定",
+    "unlink": "解绑"
+  },
+  "plans": {
+    "title": "套餐",
+    "period": "{{days}} 天",
+    "forever": "永久",
+    "quota": "{{gb}} GiB",
+    "unlimited": "不限流量",
+    "devices": "{{count}} 台设备",
+    "buy": "购买",
+    "payWith": "支付方式",
+    "confirm": "确认购买 {{amount}}",
+    "balance": "余额支付",
+    "epay": "支付宝 / 微信",
+    "stripe": "银行卡",
+    "insufficient": "余额不足",
+    "paid": "支付成功，订阅已生效"
+  },
+  "orders": {
+    "title": "订单",
+    "empty": "还没有订单",
+    "pending": "待支付",
+    "paid": "已支付",
+    "cancelled": "已取消",
+    "pay": "去支付"
+  },
+  "servers": {
+    "title": "节点",
+    "empty": "当前没有可用节点",
+    "copyLink": "复制节点链接"
+  }
 }

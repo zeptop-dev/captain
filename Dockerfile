@@ -7,9 +7,10 @@ RUN corepack enable && corepack prepare pnpm@9 --activate
 WORKDIR /src
 COPY web/admin/package.json web/admin/pnpm-lock.yaml web/admin/
 COPY web/portal/package.json web/portal/pnpm-lock.yaml web/portal/
-RUN cd web/admin && pnpm install --frozen-lockfile && cd ../portal && pnpm install --frozen-lockfile
+COPY web/site/package.json web/site/pnpm-lock.yaml web/site/
+RUN cd web/admin && pnpm install --frozen-lockfile && cd ../portal && pnpm install --frozen-lockfile && cd ../site && pnpm install --frozen-lockfile
 COPY web/ web/
-RUN cd web/admin && pnpm build && cd ../portal && pnpm build
+RUN cd web/admin && pnpm build && cd ../portal && pnpm build && cd ../site && pnpm build
 
 FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS build
 ARG TARGETOS TARGETARCH VERSION=docker
@@ -19,6 +20,7 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
 COPY --from=web /src/web/admin/dist web/admin/dist
 COPY --from=web /src/web/portal/dist web/portal/dist
+COPY --from=web /src/web/site/dist web/site/dist
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o /out/captain ./cmd/captain

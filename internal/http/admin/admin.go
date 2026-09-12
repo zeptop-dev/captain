@@ -8,6 +8,7 @@ import (
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
 	"github.com/zeptop-dev/bosun/pkg/spec"
 	"github.com/zeptop-dev/captain/internal/http/ratelimit"
+	"github.com/zeptop-dev/captain/internal/http/site"
 	"github.com/zeptop-dev/captain/internal/service"
 	"log/slog"
 	"net/http"
@@ -65,6 +66,10 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/admin/nodes/{id}/repair", h.requireAdmin(h.repairNode))
 	mux.HandleFunc("POST /api/admin/nodes/{id}/upgrade", h.requireAdmin(h.upgradeNode))
 	mux.HandleFunc("POST /api/admin/nodes/upgrade-all", h.requireAdmin(h.upgradeAllNodes))
+	mux.HandleFunc("GET /api/admin/settings/site", h.requireAdmin(h.getSite))
+	mux.HandleFunc("PUT /api/admin/settings/site", h.requireAdmin(h.putSite))
+	mux.HandleFunc("GET /api/admin/settings/oidc", h.requireAdmin(h.getOIDC))
+	mux.HandleFunc("PUT /api/admin/settings/oidc", h.requireAdmin(h.putOIDC))
 	mux.HandleFunc("GET /api/admin/settings/subscription", h.requireAdmin(h.getSubscription))
 	mux.HandleFunc("PUT /api/admin/settings/subscription", h.requireAdmin(h.putSubscription))
 	mux.HandleFunc("GET /api/admin/settings/acme", h.requireAdmin(h.getACME))
@@ -1014,4 +1019,85 @@ func (h *handlers) putSubscription(w http.ResponseWriter, r *http.Request) {
 		h.SubLinks.Invalidate()
 	}
 	ok(w, service.SubscriptionSettings{URLs: clean})
+}
+
+// ---- landing page and external logins -------------------------------------------
+
+func (h *handlers) getSite(w http.ResponseWriter, r *http.Request) {
+	v := site.Defaults("")
+	_ = h.Store.GetSetting(r.Context(), site.SettingSite, &v)
+	ok(w, v)
+}
+
+func (h *handlers) putSite(w http.ResponseWriter, r *http.Request) {
+	var v site.Settings
+	if !decode(r, &v) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	if err := h.Store.SetSetting(r.Context(), site.SettingSite, v); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, v)
+}
+
+// getOIDC returns the providers with secrets replaced by a flag.
+func (h *handlers) getOIDC(w http.ResponseWriter, r *http.Request) {
+	var v store.OIDCSettings
+	_ = h.Store.GetSetting(r.Context(), store.SettingOIDC, &v)
+	type view struct {
+		store.OIDCProvider
+		HasSecret bool `json:"has_secret"`
+	}
+	out := []view{}
+	for _, p := range v.Providers {
+		has := p.ClientSecret != ""
+		p.ClientSecret = ""
+		out = append(out, view{OIDCProvider: p, HasSecret: has})
+	}
+	pw := v.PasswordLogin == nil || *v.PasswordLogin
+	ok(w, map[string]any{"providers": out, "password_login": pw})
+}
+
+// putOIDC replaces the provider list; a blank client_secret keeps the stored one.
+func (h *handlers) putOIDC(w http.ResponseWriter, r *http.Request) {
+	var in store.OIDCSettings
+	if !decode(r, &in) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	var cur store.OIDCSettings
+	_ = h.Store.GetSetting(r.Context(), store.SettingOIDC, &cur)
+	old := map[string]string{}
+	for _, p := range cur.Providers {
+		old[p.ID] = p.ClientSecret
+	}
+	seen := map[string]bool{}
+	for i := range in.Providers {
+		p := &in.Providers[i]
+		p.ID = strings.ToLower(strings.TrimSpace(p.ID))
+		p.Issuer = strings.TrimSpace(p.Issuer)
+		p.ClientID = strings.TrimSpace(p.ClientID)
+		if p.ID == "" || strings.ContainsAny(p.ID, " /") || seen[p.ID] {
+			fail(w, http.StatusBadRequest, "each provider needs a unique id made of letters, digits or dashes")
+			return
+		}
+		seen[p.ID] = true
+		if !strings.HasPrefix(p.Issuer, "https://") && !strings.HasPrefix(p.Issuer, "http://") {
+			fail(w, http.StatusBadRequest, "issuer must be a URL, e.g. https://casdoor.example.com")
+			return
+		}
+		if p.Name == "" {
+			p.Name = p.ID
+		}
+		if strings.TrimSpace(p.ClientSecret) == "" {
+			p.ClientSecret = old[p.ID]
+		}
+	}
+	if err := h.Store.SetSetting(r.Context(), store.SettingOIDC, in); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	h.getOIDC(w, r)
 }

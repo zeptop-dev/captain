@@ -78,6 +78,28 @@ Manual layouts (`deploy/docker-compose.yml`, `deploy/docker-compose.proxy.yml`,
 `deploy/captain.service`) are what the script writes; use them directly if you
 prefer.
 
+## Landing page
+
+`/` is a public landing page: hero with a rotating globe showing your node
+locations and arcs from a hub, feature cards, the plan list and an FAQ, all
+edited under Admin → Landing page (no rebuild, saves apply at once). Want your
+own design? Drop an `index.html` (plus assets) into `<data_dir>/site/` and
+Captain serves that directory instead.
+
+## External login (OIDC)
+
+Admin → Settings → "External login" takes any OpenID Connect provider
+(Casdoor, Authentik, Keycloak, Zitadel, Google …): id, display name, issuer
+URL, client id and secret. Register `https://<your domain>/api/oauth/<id>/callback`
+as the redirect URI at the provider. The portal then shows "Continue with …";
+accounts are matched by the provider's subject, linked to an existing account
+with the same verified email, or created when registration is open (or
+`auto_register` is set for that provider). Users can link and unlink logins
+from the portal home page, and password login can be switched off entirely.
+
+Casdoor example: issuer `https://door.example.com`, scopes default
+(`openid profile email`), `trust_email: true` since you run it yourself.
+
 ## Run
 
 ```sh

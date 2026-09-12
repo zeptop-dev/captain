@@ -9,7 +9,7 @@ build: web
 
 web:
 	cd web/admin && pnpm install --frozen-lockfile && pnpm build
-	cd web/portal && pnpm install --frozen-lockfile && pnpm build
+	cd web/portal && pnpm install --frozen-lockfile && pnpm build && cd ../site && pnpm install --frozen-lockfile && pnpm build
 
 dev-web:
 	cd web/admin && pnpm dev

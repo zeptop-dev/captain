@@ -1,6 +1,8 @@
 import { Anchor, Button, Card, Center, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core'
 import { useForm } from '@mantine/form'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Divider, Group } from '@mantine/core'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError } from '../lib/api'
@@ -12,6 +14,10 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const { refresh } = useAuth()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const oauth = useQuery({ queryKey: ['oauth-providers'], queryFn: () => api.get<{ providers: { id: string; name: string }[]; password_login: boolean }>('/api/oauth/providers') })
+  useEffect(() => { const e = new URLSearchParams(window.location.search).get('error'); if (e) setError(e) }, [])
+  const providers = oauth.data?.providers ?? []
+  const passwordLogin = oauth.data?.password_login ?? true
   const form = useForm({ initialValues: { Email: '', Password: '' } })
   const submit = form.onSubmit(async (v) => {
     setBusy(true); setError('')
@@ -24,11 +30,21 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
       <Card w={400}>
         <form onSubmit={submit}><Stack>
           <Title order={2}>{t(`auth.${mode}`)}</Title>
+          {providers.length > 0 && (
+            <Stack gap="xs">
+              {providers.map((p) => <Button key={p.id} component="a" href={`/api/oauth/${p.id}/start?next=/portal/`} variant="default" size="md">{t('auth.with', { name: p.name })}</Button>)}
+              {passwordLogin && <Divider label={t('auth.or')} labelPosition="center" />}
+            </Stack>
+          )}
+          {!passwordLogin && error && <Text c="red" size="sm">{error}</Text>}
+          {passwordLogin && (<>
           <TextInput label={t('auth.email')} type="email" size="md" required autoFocus {...form.getInputProps('Email')} />
           <PasswordInput label={t('auth.password')} size="md" required minLength={8} description={mode === 'register' ? t('auth.passwordHint') : undefined} {...form.getInputProps('Password')} />
           {error && <Text c="red" size="sm">{error}</Text>}
           <Button type="submit" size="md" loading={busy}>{t(`auth.${mode}`)}</Button>
           <Text size="sm" ta="center"><Anchor component={Link} to={mode === 'login' ? '/register' : '/login'}>{t(mode === 'login' ? 'auth.toRegister' : 'auth.toLogin')}</Anchor></Text>
+          </>)}
+          <Group justify="center"><Anchor href="/" size="xs" c="dimmed">{t('auth.home')}</Anchor></Group>
         </Stack></form>
       </Card>
     </Center>
