@@ -35,6 +35,17 @@ export interface Node {
   pair_code?: string; traffic_today_bytes: number; inbounds: number; upgrade_to?: string; outdated: boolean; cert_problem: boolean
 }
 export interface CertStatus { domain: string; method: string; not_after: string; error?: string }
+export interface SiteSettings {
+  name: string; tagline: string; description: string
+  features: { title: string; text: string; icon?: string }[]
+  locations: { name: string; lat: number; lng: number; tag?: string }[]
+  hub: { name: string; lat: number; lng: number } | null
+  faq: { q: string; a: string }[]
+  links: { telegram?: string; tos?: string; download?: string; github?: string }
+  show_plans: boolean
+}
+export interface OIDCProvider { id: string; name: string; issuer: string; client_id: string; client_secret?: string; scopes?: string[]; trust_email: boolean; auto_register: boolean; has_secret?: boolean }
+export interface OIDCSettings { providers: OIDCProvider[]; password_login: boolean }
 export interface SubscriptionSettings { urls: string[] }
 export interface ACMESettings { email: string; has_cloudflare_token: boolean }
 export interface Inbound {

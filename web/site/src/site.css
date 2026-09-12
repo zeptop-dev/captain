@@ -1,0 +1,22 @@
+:root { color-scheme: dark; }
+html, body { margin: 0; background: #06080f; color: #e6e9f2; }
+.site-bg {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(1200px 600px at 70% -10%, rgba(34, 211, 238, 0.14), transparent 60%),
+    radial-gradient(900px 500px at 10% 110%, rgba(129, 140, 248, 0.12), transparent 60%);
+}
+.grid-bg {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.35;
+  background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at 50% 30%, black 20%, transparent 70%);
+}
+.glass { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; backdrop-filter: blur(6px); }
+.glass:hover { border-color: rgba(34, 211, 238, 0.35); }
+.gradient-text { background: linear-gradient(90deg, #67e8f9, #a5b4fc 60%, #f0abfc); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.globe-wrap { position: relative; width: 100%; aspect-ratio: 1; max-width: 560px; margin: 0 auto; }
+.globe-wrap canvas { outline: none; }
+.globe-glow { position: absolute; inset: 8%; border-radius: 50%; box-shadow: 0 0 120px 20px rgba(34, 211, 238, 0.18) inset, 0 0 80px rgba(34, 211, 238, 0.12); pointer-events: none; }
+@keyframes pulse { 0%, 100% { opacity: 0.5 } 50% { opacity: 1 } }
+.live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #34d399; box-shadow: 0 0 12px #34d399; animation: pulse 2s infinite; }

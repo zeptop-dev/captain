@@ -7,7 +7,9 @@ import (
 	"embed"
 	"io/fs"
 	"net/http"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -17,6 +19,25 @@ var adminFS embed.FS
 
 //go:embed all:portal/dist
 var portalFS embed.FS
+
+//go:embed all:site/dist
+var siteFS embed.FS
+
+// Site serves the landing page at "/". When overrideDir contains an
+// index.html it is served instead of the built-in page, so operators can
+// drop in their own design without rebuilding.
+func Site(overrideDir string) http.Handler {
+	builtin := spa(siteFS, "site/dist", "/", "site")
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if overrideDir != "" {
+			if st, err := os.Stat(filepath.Join(overrideDir, "index.html")); err == nil && !st.IsDir() {
+				http.FileServer(http.Dir(overrideDir)).ServeHTTP(w, r)
+				return
+			}
+		}
+		builtin.ServeHTTP(w, r)
+	})
+}
 
 // Admin serves the admin SPA under prefix (e.g. "/admin/").
 func Admin(prefix string) http.Handler { return spa(adminFS, "admin/dist", prefix, "admin console") }

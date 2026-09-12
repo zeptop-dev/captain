@@ -1,4 +1,6 @@
 import { Badge, Button, Card, CopyButton, Group, Progress, SimpleGrid, Stack, Text, Title, Menu } from '@mantine/core'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { api } from '../lib/api'
 import { IconCheck, IconCopy, IconDownload } from '@tabler/icons-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { Link } from 'react-router-dom'
@@ -19,6 +21,10 @@ function importLinks(url: string) {
 
 export default function HomePage() {
   const { t } = useTranslation()
+  const qc = useQueryClient()
+  const providers = useQuery({ queryKey: ['oauth-providers'], queryFn: () => api.get<{ providers: { id: string; name: string }[] }>('/api/oauth/providers') })
+  const identities = useQuery({ queryKey: ['identities'], queryFn: () => api.get<{ provider: string; email: string }[]>('/api/oauth/identities') })
+  const unlink = useMutation({ mutationFn: (p: string) => api.del(`/api/oauth/identities/${p}`), onSuccess: () => qc.invalidateQueries({ queryKey: ['identities'] }) })
   const { me } = useAuth()
   if (!me) return null
   const sub = me.subscription
@@ -80,6 +86,24 @@ export default function HomePage() {
           </Stack>
         </Group>
       </Card>
+      {(providers.data?.providers ?? []).length > 0 && (
+        <Card mt="lg">
+          <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.logins')}</Text>
+          <Stack gap="xs" mt="sm">
+            {providers.data!.providers.map((p) => {
+              const linked = identities.data?.find((i) => i.provider === p.id)
+              return (
+                <Group key={p.id} justify="space-between">
+                  <Text size="sm">{p.name}{linked && <Text span c="dimmed"> · {linked.email}</Text>}</Text>
+                  {linked
+                    ? <Button size="xs" variant="subtle" color="red" onClick={() => unlink.mutate(p.id)}>{t('home.unlink')}</Button>
+                    : <Button size="xs" variant="light" component="a" href={`/api/oauth/${p.id}/start?link=1&next=/portal/`}>{t('home.link')}</Button>}
+                </Group>
+              )
+            })}
+          </Stack>
+        </Card>
+      )}
     </Stack>
   )
 }

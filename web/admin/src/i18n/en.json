@@ -15,7 +15,8 @@
     "plans": "Plans",
     "orders": "Orders",
     "system": "System",
-    "settings": "Settings"
+    "settings": "Settings",
+    "site": "Landing page"
   },
   "login": {
     "title": "Sign in to Captain",
@@ -229,7 +230,11 @@
     "cfTokenHint": "DNS challenge only; permission Zone.DNS edit. Blank keeps, - clears",
     "cfTokenSet": "Set; blank keeps it, - clears it",
     "subUrls": "Subscription URLs",
-    "subUrlsHint": "Addresses used in user subscription links, one per line, picked at random; blank means the site URL. [1-9] and [uuid] placeholders work with wildcard DNS. These hosts serve only the subscription path; everything else is 404."
+    "subUrlsHint": "Addresses used in user subscription links, one per line, picked at random; blank means the site URL. [1-9] and [uuid] placeholders work with wildcard DNS. These hosts serve only the subscription path; everything else is 404.",
+    "oidc": "External login (OIDC)",
+    "oidcHint": "One entry per provider: Casdoor, Authentik, Keycloak, Google or any standard OIDC issuer. issuer is the discovery root, e.g. https://door.example.com; leave client_secret blank to keep it.",
+    "passwordLogin": "Allow password login (off = external login only)",
+    "oidcCallback": "Redirect URI to register at the provider:"
   },
   "update": {
     "title": "Version and updates",
@@ -248,5 +253,26 @@
     "restart": "Restart",
     "restartConfirm": "The process exits and systemd or Docker starts it again. Continue?",
     "restarting": "Restarting, waiting for the service to come back…"
+  },
+  "site": {
+    "title": "Landing page",
+    "subtitle": "Copy for the home page, node locations on the globe and the plan section. Saves take effect at once.",
+    "open": "Open the page",
+    "copy": "Copy",
+    "name": "Site name",
+    "tagline": "Tagline",
+    "description": "Description",
+    "tos": "Terms link",
+    "download": "Client download link",
+    "showPlans": "Show plans on the page",
+    "globe": "Globe",
+    "globeHint": "Locations show as glowing points; arcs are drawn from the hub to each of them. Decimal degrees.",
+    "hub": "Hub (JSON, blank = no arcs)",
+    "locations": "Locations (JSON array: name, lat, lng)",
+    "sections": "Sections",
+    "features": "Features (JSON array: title, text, icon)",
+    "featuresHint": "icon: bolt, shield, world, devices, refresh, headset",
+    "faq": "FAQ (JSON array: q, a)",
+    "overrideHint": "For a fully custom page drop your own index.html into the site/ folder of the data directory; Captain serves it as is."
   }
 }

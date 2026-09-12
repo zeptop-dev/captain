@@ -6,3 +6,5 @@ web/portal/dist/
 .gocache/
 .git/
 *.db
+web/site/node_modules/
+web/site/dist/

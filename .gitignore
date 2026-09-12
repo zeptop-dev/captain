@@ -10,3 +10,6 @@ web/*/dist/*
 !web/*/dist/.keep
 *.db
 *.db-*
+web/site/node_modules/
+web/site/dist/*
+!web/site/dist/.gitkeep

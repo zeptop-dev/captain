@@ -15,7 +15,8 @@
     "plans": "套餐",
     "orders": "订单",
     "system": "系统",
-    "settings": "设置"
+    "settings": "设置",
+    "site": "展示页"
   },
   "login": {
     "title": "登录 Captain",
@@ -229,7 +230,11 @@
     "cfTokenHint": "仅 DNS 验证需要，权限 Zone.DNS 编辑；留空不改，填 - 清除",
     "cfTokenSet": "已设置；留空保持不变，填 - 清除",
     "subUrls": "订阅地址",
-    "subUrlsHint": "用户订阅链接使用的地址，每行一个，随机分配；留空用站点地址。支持 [1-9] 随机数和 [uuid] 占位符配合泛域名解析。这些域名上只开放订阅路径，其它请求返回 404。"
+    "subUrlsHint": "用户订阅链接使用的地址，每行一个，随机分配；留空用站点地址。支持 [1-9] 随机数和 [uuid] 占位符配合泛域名解析。这些域名上只开放订阅路径，其它请求返回 404。",
+    "oidc": "外部登录（OIDC）",
+    "oidcHint": "每个提供方一条：Casdoor、Authentik、Keycloak、Google 等标准 OIDC 都行。issuer 填发现地址的根，例如 https://door.example.com；client_secret 留空保持不变。",
+    "passwordLogin": "允许密码登录（关闭后只能用外部登录）",
+    "oidcCallback": "在提供方那边填回调地址："
   },
   "update": {
     "title": "版本与升级",
@@ -248,5 +253,26 @@
     "restart": "重启",
     "restartConfirm": "进程退出后由 systemd 或 Docker 拉起。继续？",
     "restarting": "正在重启，等待服务恢复…"
+  },
+  "site": {
+    "title": "展示页",
+    "subtitle": "网站首页的文案、地球上的节点位置和套餐展示。保存即生效。",
+    "open": "打开首页",
+    "copy": "文案",
+    "name": "站名",
+    "tagline": "一句话标语",
+    "description": "描述",
+    "tos": "服务条款链接",
+    "download": "客户端下载链接",
+    "showPlans": "首页展示套餐",
+    "globe": "地球",
+    "globeHint": "节点位置显示为亮点，从中心点画弧线到各节点。经纬度用小数。",
+    "hub": "中心点（JSON，留空不画弧线）",
+    "locations": "节点位置（JSON 数组：name, lat, lng）",
+    "sections": "版块",
+    "features": "卖点（JSON 数组：title, text, icon）",
+    "featuresHint": "icon 可选：bolt, shield, world, devices, refresh, headset",
+    "faq": "常见问题（JSON 数组：q, a）",
+    "overrideHint": "想完全自定义页面：把自己的 index.html 放到数据目录的 site/ 文件夹里，Captain 会直接服务它。"
   }
 }
