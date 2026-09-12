@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/boyang-hu/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/domain"
 )
 
 func TestSignKnownVector(t *testing.T) {

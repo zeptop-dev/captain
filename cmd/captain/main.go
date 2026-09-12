@@ -12,12 +12,12 @@ import (
 	"syscall"
 	"time"
 
-	"gitlab.com/boyang-hu/captain/internal/config"
-	"gitlab.com/boyang-hu/captain/internal/db"
-	chttp "gitlab.com/boyang-hu/captain/internal/http"
-	"gitlab.com/boyang-hu/captain/internal/http/admin"
-	"gitlab.com/boyang-hu/captain/internal/jobs"
-	"gitlab.com/boyang-hu/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/config"
+	"github.com/zeptop-dev/captain/internal/db"
+	chttp "github.com/zeptop-dev/captain/internal/http"
+	"github.com/zeptop-dev/captain/internal/http/admin"
+	"github.com/zeptop-dev/captain/internal/jobs"
+	"github.com/zeptop-dev/captain/internal/store"
 )
 
 var version = "dev"

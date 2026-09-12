@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"time"
 
-	"gitlab.com/boyang-hu/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/domain"
 )
 
 func (s *Store) CreatePlan(ctx context.Context, p *domain.Plan) error {

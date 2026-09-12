@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"time"
 
-	"gitlab.com/boyang-hu/captain/internal/auth"
-	"gitlab.com/boyang-hu/captain/internal/domain"
-	"gitlab.com/boyang-hu/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/auth"
+	"github.com/zeptop-dev/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/store"
 )
 
 // SessionStore is the cookie session backend.

@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gitlab.com/boyang-hu/bosun/pkg/spec"
+	"github.com/zeptop-dev/bosun/pkg/spec"
 )
 
 // URIList renders share links, one per line, base64-encoded as a whole.

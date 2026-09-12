@@ -4,7 +4,7 @@
 #   Caddyfile   : the one in this directory, domain edited, upstream captain:8080
 services:
   captain:
-    image: registry.gitlab.com/boyang-hu/captain:latest   # or zeptop/captain:latest
+    image: ghcr.io/zeptop-dev/captain:latest   # or zeptop/captain:latest
     restart: unless-stopped
     volumes:
       - ./config.yaml:/etc/captain/config.yaml:ro

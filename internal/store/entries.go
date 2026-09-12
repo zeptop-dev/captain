@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"gitlab.com/boyang-hu/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/domain"
 )
 
 const entryCols = "e.id, e.name, e.inbound_id, e.chain_id, e.display_host, e.display_port, e.rate, e.sort, e.enabled"

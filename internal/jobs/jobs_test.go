@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/boyang-hu/captain/internal/db"
-	"gitlab.com/boyang-hu/captain/internal/domain"
-	"gitlab.com/boyang-hu/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/db"
+	"github.com/zeptop-dev/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/store"
 )
 
 func TestTick(t *testing.T) {

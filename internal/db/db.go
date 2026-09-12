@@ -12,7 +12,7 @@ import (
 	"github.com/pressly/goose/v3"
 	_ "modernc.org/sqlite"
 
-	"gitlab.com/boyang-hu/captain/migrations"
+	"github.com/zeptop-dev/captain/migrations"
 )
 
 // Open connects to the configured database. Only sqlite is wired for now;

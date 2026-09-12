@@ -1,10 +1,10 @@
-module gitlab.com/boyang-hu/captain
+module github.com/zeptop-dev/captain
 
 go 1.26.0
 
 require (
 	github.com/pressly/goose/v3 v3.28.0
-	gitlab.com/boyang-hu/bosun v0.3.0
+	github.com/zeptop-dev/bosun v0.5.0
 	golang.org/x/crypto v0.57.0
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.58.0

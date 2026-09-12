@@ -5,7 +5,7 @@ package domain
 import (
 	"time"
 
-	"gitlab.com/boyang-hu/bosun/pkg/spec"
+	"github.com/zeptop-dev/bosun/pkg/spec"
 )
 
 type User struct {

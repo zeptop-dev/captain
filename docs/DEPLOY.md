@@ -4,17 +4,15 @@ One Linux box, one binary, one SQLite file. Caddy (or nginx) in front for TLS.
 
 ## 0. Docker (shortest path)
 
-Tagged pipelines push a multi-arch image to `registry.gitlab.com/boyang-hu/captain`
-and to Docker Hub as `zeptop/captain`. The GitLab one needs a login with a Deploy
-Token (`read_registry`); the Docker Hub one is public unless you make that
-repository private in your Docker Hub account.
+Tags push a multi-arch image to `ghcr.io/zeptop-dev/captain` and Docker Hub
+`zeptop/captain`; both are public, no login needed.
 
 ```sh
 mkdir -p /opt/captain && cd /opt/captain
-curl -fsSLO https://gitlab.com/boyang-hu/captain/-/raw/master/deploy/docker-compose.yml   # needs a token for a private repo; or copy the file
-cp deploy/Caddyfile deploy/config.example.yaml .                      # edit domain, base_url, payments; set listen: 0.0.0.0:8080
-mv config.example.yaml config.yaml
-docker login registry.gitlab.com   # username: anything, password: the Deploy Token (skip for zeptop/captain)
+curl -fsSLO https://raw.githubusercontent.com/zeptop-dev/captain/master/deploy/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/zeptop-dev/captain/master/deploy/Caddyfile
+curl -fsSL -o config.yaml https://raw.githubusercontent.com/zeptop-dev/captain/master/config.example.yaml
+# edit: Caddyfile domain; config.yaml listen: 0.0.0.0:8080, base_url, payments
 docker compose up -d
 docker compose exec captain captain admin create -c /etc/captain/config.yaml -email you@example.com -password '...'
 ```
@@ -24,15 +22,14 @@ Data lives in the `captain-data` volume (`/var/lib/captain` inside). Upgrade wit
 
 ## 1. Binary
 
-Tagged pipelines publish `captain-linux-{amd64,arm64}` plus `SHA256SUMS` to the
-project's generic package registry. The project is private, so downloads need a
-Deploy Token with `read_package_registry` (Settings → Repository → Deploy tokens):
+Every `v*` tag attaches `captain-linux-{amd64,arm64}` plus `SHA256SUMS` to the
+GitHub Release:
 
 ```sh
-V=v0.1.0; ARCH=amd64
-B="https://gitlab.com/api/v4/projects/boyang-hu%2Fcaptain/packages/generic/captain/$V"
-curl -fsSL -H "Deploy-Token: $TOKEN" -o /usr/local/bin/captain "$B/captain-linux-$ARCH"
-curl -fsSL -H "Deploy-Token: $TOKEN" "$B/SHA256SUMS" | grep "captain-linux-$ARCH" | sed 's# .*# /usr/local/bin/captain#' | sha256sum -c
+V=$(curl -fsSL https://api.github.com/repos/zeptop-dev/captain/releases/latest | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p'); ARCH=amd64
+B="https://github.com/zeptop-dev/captain/releases/download/$V"
+curl -fsSL -o /usr/local/bin/captain "$B/captain-linux-$ARCH"
+curl -fsSL "$B/SHA256SUMS" | grep "captain-linux-$ARCH" | sed 's# .*# /usr/local/bin/captain#' | sha256sum -c
 chmod 0755 /usr/local/bin/captain
 ```
 
@@ -68,7 +65,7 @@ subscriptions, `/api/agent/*` for bosun, `/api/payment/*` gateway callbacks.
 Admin → Nodes → Add node gives a pair code. On the node:
 
 ```sh
-curl -fsSL https://gitlab.com/boyang-hu/bosun/-/raw/master/scripts/install.sh | sh -s -- \
+curl -fsSL https://raw.githubusercontent.com/zeptop-dev/bosun/master/scripts/install.sh | sh -s -- \
   --captain https://panel.example.com --pair ABCD-EFGH
 ```
 

@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"gitlab.com/boyang-hu/captain/internal/domain"
-	"gitlab.com/boyang-hu/captain/internal/store"
-	"gitlab.com/boyang-hu/captain/internal/subscription"
+	"github.com/zeptop-dev/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/subscription"
 )
 
 // Subscription assembles a user's subscription lines and account summary.
