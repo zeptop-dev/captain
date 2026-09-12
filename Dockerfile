@@ -25,6 +25,8 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 
 FROM alpine:3.21
 RUN apk add --no-cache ca-certificates tzdata && adduser -D -H -u 1000 captain
+# The self-updater points at `docker compose pull` instead of swapping the binary.
+ENV IN_CONTAINER=1
 COPY --from=build /out/captain /usr/local/bin/captain
 COPY config.example.yaml /etc/captain/config.example.yaml
 USER captain

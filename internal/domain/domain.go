@@ -83,6 +83,7 @@ type Node struct {
 	Hostname        string
 	LastSeenAt      *time.Time
 	AppliedRevision string
+	UpgradeTo       string // bosun release the operator asked the node to move to
 	Paired          bool
 	PairCode        string // only set right after creation
 	CreatedAt       time.Time

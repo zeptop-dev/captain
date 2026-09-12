@@ -6,6 +6,7 @@ import { api, type Group as UGroup } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { toast } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
+import { UpdateCard } from '../components/UpdateCard'
 
 export default function SettingsPage() {
   const { t } = useTranslation()
@@ -23,6 +24,7 @@ export default function SettingsPage() {
           <Table mb="md"><Table.Tbody>{(groups.data ?? []).map((g) => <Table.Tr key={g.ID}><Table.Td w={60}><Text c="dimmed">#{g.ID}</Text></Table.Td><Table.Td>{g.Name}</Table.Td></Table.Tr>)}</Table.Tbody></Table>
           <Group align="flex-end"><TextInput label={t('settings.groupName')} value={name} onChange={(e) => setName(e.currentTarget.value)} /><Button disabled={!name} loading={create.isPending} onClick={() => create.mutate()}>{t('settings.createGroup')}</Button></Group>
         </Card>
+        <UpdateCard />
         <Card><Text size="sm" c="dimmed">{t('settings.version')}: {me?.version ?? '—'}</Text></Card>
       </Stack>
     </>

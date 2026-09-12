@@ -2,11 +2,12 @@ import { Badge, Button, Card, Code, Group, Modal, Stack, Table, Text, TextInput,
 import { useForm } from '@mantine/form'
 import { useDisclosure } from '@mantine/hooks'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { IconPlus } from '@tabler/icons-react'
+import { IconPlus, IconArrowUp } from '@tabler/icons-react'
+import { modals } from '@mantine/modals'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { api, type Node } from '../lib/api'
+import { api, type Node, type SystemUpdate } from '../lib/api'
 import { ago, bytes } from '../lib/format'
 import { toast } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
@@ -38,6 +39,10 @@ export default function NodesPage() {
   const [opened, { open, close }] = useDisclosure()
   const [created, setCreated] = useState<Node | null>(null)
   const form = useForm({ initialValues: { Name: '', PublicAddr: '', InternalAddr: '', V6Addr: '', MonitorURL: '' } })
+  const sys = useQuery({ queryKey: ['update'], queryFn: () => api.get<SystemUpdate>('/api/admin/system/update'), staleTime: 10 * 60_000, retry: false })
+  const upgrade = useMutation({ mutationFn: (id: number) => api.post(`/api/admin/nodes/${id}/upgrade`, {}), onSuccess: () => { toast.ok(t('nodes.upgradeQueued')); qc.invalidateQueries({ queryKey: ['nodes'] }) }, onError: toast.err })
+  const upgradeAll = useMutation({ mutationFn: () => api.post<{ nodes: number; upgrade_to: string }>('/api/admin/nodes/upgrade-all', {}), onSuccess: (r) => { toast.ok(t('nodes.upgradeAllQueued', { count: r.nodes, version: r.upgrade_to })); qc.invalidateQueries({ queryKey: ['nodes'] }) }, onError: toast.err })
+  const outdated = (q.data ?? []).filter((n) => n.outdated && n.paired).length
   const create = useMutation({
     mutationFn: (v: typeof form.values) => api.post<Node>('/api/admin/nodes', v),
     onSuccess: (n) => { setCreated(n); form.reset(); qc.invalidateQueries({ queryKey: ['nodes'] }) },
@@ -45,7 +50,10 @@ export default function NodesPage() {
   })
   return (
     <>
-      <PageHeader title={t('nodes.title')} subtitle={t('nodes.subtitle')} actions={<Button leftSection={<IconPlus size={16} />} onClick={open}>{t('nodes.create')}</Button>} />
+      <PageHeader title={t('nodes.title')} subtitle={t('nodes.subtitle')} actions={<>
+        {outdated > 0 && <Button variant="light" color="orange" leftSection={<IconArrowUp size={16} />} loading={upgradeAll.isPending} onClick={() => modals.openConfirmModal({ title: t('nodes.upgradeAll'), children: <Text size="sm">{t('nodes.upgradeAllConfirm', { count: outdated, version: sys.data?.bosun_latest ?? '' })}</Text>, labels: { confirm: t('nodes.upgradeAll'), cancel: t('common.cancel') }, confirmProps: { color: 'orange' }, onConfirm: () => upgradeAll.mutate() })}>{t('nodes.upgradeAll', { count: outdated })}</Button>}
+        <Button leftSection={<IconPlus size={16} />} onClick={open}>{t('nodes.create')}</Button>
+      </>} />
       <Card p={0}>
         <Table.ScrollContainer minWidth={720}>
           <Table>
@@ -61,7 +69,13 @@ export default function NodesPage() {
                   <Table.Td><Code>{n.public_addr || '—'}</Code></Table.Td>
                   <Table.Td>{n.inbounds}</Table.Td>
                   <Table.Td>{bytes(n.traffic_today_bytes)}</Table.Td>
-                  <Table.Td><Text size="sm">{n.version || '—'}</Text><Text size="xs" c="dimmed">{n.platform}</Text></Table.Td>
+                  <Table.Td>
+                    <Group gap={6} wrap="nowrap">
+                      <Text size="sm">{n.version || '—'}</Text>
+                      {n.upgrade_to ? <Badge size="xs" color="blue">{t('nodes.upgrading', { version: n.upgrade_to })}</Badge> : n.outdated && n.paired && <Badge size="xs" color="orange" style={{ cursor: 'pointer' }} onClick={() => modals.openConfirmModal({ title: t('nodes.upgrade'), children: <Text size="sm">{t('nodes.upgradeConfirm', { name: n.name, version: sys.data?.bosun_latest ?? '' })}</Text>, labels: { confirm: t('nodes.upgrade'), cancel: t('common.cancel') }, confirmProps: { color: 'orange' }, onConfirm: () => upgrade.mutate(n.id) })}>{t('nodes.outdated', { version: sys.data?.bosun_latest ?? '' })}</Badge>}
+                    </Group>
+                    <Text size="xs" c="dimmed">{n.platform}</Text>
+                  </Table.Td>
                   <Table.Td>{ago(n.last_seen_at)}</Table.Td>
                 </Table.Tr>
               ))}

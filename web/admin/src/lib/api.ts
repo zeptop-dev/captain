@@ -31,7 +31,7 @@ export interface Me { id: number; email: string; role: string; version?: string 
 export interface Node {
   id: number; name: string; public_addr: string; internal_addr: string; v6_addr: string; monitor_url: string
   version: string; platform: string; hostname: string; last_seen_at: string | null; online: boolean; paired: boolean
-  pair_code?: string; traffic_today_bytes: number; inbounds: number
+  pair_code?: string; traffic_today_bytes: number; inbounds: number; upgrade_to?: string; outdated: boolean
 }
 export interface Inbound {
   ID: number; NodeID: number; Tag: string; Protocol: string; Listen: string; Port: number; Core: string
@@ -63,4 +63,10 @@ export interface Dashboard {
   }
   traffic: { day: number; up: number; down: number }[]
 }
+export interface UpdateInfo {
+  current: string; latest: string; has_update: boolean; release_build: boolean; in_container: boolean
+  notes?: string; published_at?: string; url?: string; checked_at: string; cached: boolean; warning?: string
+  has_backup: boolean; backup_version?: string
+}
+export interface SystemUpdate { captain?: UpdateInfo; bosun_latest: string }
 export interface Page<T> { items: T[]; total: number; page: number; per_page: number }

@@ -337,3 +337,58 @@ func TestDeviceLimit(t *testing.T) {
 		t.Fatalf("user should return after IPs age out: %+v", stt.Users)
 	}
 }
+
+func TestNodeUpgradeRequest(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "http://test"
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	c := &client{t: t, srv: srv}
+	c.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+	_, b, _ := c.do("POST", "/api/admin/nodes", map[string]string{"Name": "n"}, nil)
+	node := mustJSON[map[string]any](t, b)
+	nodeID := itoa(int64(node["id"].(float64)))
+	agent := &client{t: t, srv: srv}
+	_, b, _ = agent.do("POST", "/api/agent/pair", agentproto.PairRequest{Code: node["pair_code"].(string), Version: "v0.5.0"}, nil)
+	agent.token = mustJSON[agentproto.PairResponse](t, b).Token
+
+	// Nothing requested: no upgrade in the response.
+	_, b, _ = agent.do("POST", "/api/agent/report", agentproto.Report{Version: "v0.5.0"}, nil)
+	if rr := mustJSON[agentproto.ReportResponse](t, b); rr.UpgradeTo != "" {
+		t.Fatalf("unexpected upgrade request: %+v", rr)
+	}
+	// Explicit version (the latest-release lookup needs the network, so pass one).
+	if code, b, _ := c.do("POST", "/api/admin/nodes/"+nodeID+"/upgrade", map[string]string{"Version": "v0.6.0"}, nil); code != 200 {
+		t.Fatalf("upgrade: %d %s", code, b)
+	}
+	if code, b, _ := c.do("POST", "/api/admin/nodes/"+nodeID+"/upgrade", map[string]string{"Version": "0.6.0"}, nil); code != 400 {
+		t.Fatalf("bad tag should be rejected: %d %s", code, b)
+	}
+	_, b, _ = agent.do("POST", "/api/agent/report", agentproto.Report{Version: "v0.5.0"}, nil)
+	if rr := mustJSON[agentproto.ReportResponse](t, b); rr.UpgradeTo != "v0.6.0" {
+		t.Fatalf("upgrade should be requested: %+v", rr)
+	}
+	_, b, _ = c.do("GET", "/api/admin/nodes", nil, nil)
+	if !strings.Contains(string(b), `"upgrade_to":"v0.6.0"`) {
+		t.Fatalf("node list should show the pending upgrade: %s", b)
+	}
+	// Once the node reports the target version the request clears.
+	_, b, _ = agent.do("POST", "/api/agent/report", agentproto.Report{Version: "v0.6.0"}, nil)
+	if rr := mustJSON[agentproto.ReportResponse](t, b); rr.UpgradeTo != "" {
+		t.Fatalf("request should clear after the node reports the version: %+v", rr)
+	}
+	_, b, _ = c.do("GET", "/api/admin/nodes", nil, nil)
+	if strings.Contains(string(b), `"upgrade_to"`) {
+		t.Fatalf("pending upgrade should be gone: %s", b)
+	}
+	// Upgrade-all skips nodes already on the version.
+	_, b, _ = c.do("POST", "/api/admin/nodes/upgrade-all", map[string]string{"Version": "v0.6.0"}, nil)
+	if !strings.Contains(string(b), `"nodes":0`) {
+		t.Fatalf("upgrade-all should skip up-to-date nodes: %s", b)
+	}
+}
