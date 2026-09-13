@@ -7,14 +7,18 @@
 # Modes: docker (default when Docker is present) or binary (systemd service).
 # Piped through sh the script never touches the disk; nothing to clean up
 # afterwards besides the installation itself.
-# TLS: Captain gets a Let's Encrypt certificate itself; ports 80/443 must be free.
+# TLS: Captain gets a Let's Encrypt certificate itself when ports 80/443 are free.
+# When something else (nginx, OpenResty/1Panel, Caddy) already owns them the script
+# switches to --behind-proxy: Captain listens on 127.0.0.1:8080 in plain HTTP and
+# prints the reverse-proxy snippet; that proxy then terminates TLS.
+# --reconfigure rewrites config.yaml (backup kept) when switching modes.
 # Use --behind-proxy when something else on the host terminates TLS (Captain
 # then listens on 127.0.0.1:8080 over plain HTTP).
 set -eu
 
 REPO="zeptop-dev/captain"
 IMAGE="zeptop/captain:latest"
-MODE="" DOMAIN="" EMAIL="" CF_TOKEN="" ADMIN_EMAIL="" ADMIN_PASS="" PROXY=0 VERSION="" ACTION=install KEEP_DATA=0
+MODE="" DOMAIN="" EMAIL="" CF_TOKEN="" ADMIN_EMAIL="" ADMIN_PASS="" PROXY=0 VERSION="" ACTION=install KEEP_DATA=0 RECONFIG=0
 while [ $# -gt 0 ]; do
   case "$1" in
     uninstall) ACTION=uninstall; shift ;;
@@ -26,8 +30,9 @@ while [ $# -gt 0 ]; do
     --admin-email) ADMIN_EMAIL="$2"; shift 2 ;;
     --admin-password) ADMIN_PASS="$2"; shift 2 ;;
     --behind-proxy) PROXY=1; shift ;;
+    --reconfigure) RECONFIG=1; shift ;;
     --version) VERSION="$2"; shift 2 ;;
-    -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -98,6 +103,32 @@ if [ "$MODE" = docker ]; then
   docker compose version >/dev/null 2>&1 || { echo "Docker Compose plugin missing (docker compose version fails). Install docker-compose-plugin, then retry." >&2; exit 1; }
 fi
 
+# Who owns a listening TCP port: "nginx", "docker:<container>" or "".
+port_owner() { # port
+  pid=$(ss -ltnpH "sport = :$1" 2>/dev/null | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | head -1)
+  [ -n "$pid" ] || return 0
+  name=$(ps -o comm= -p "$pid" 2>/dev/null)
+  if [ "$name" = docker-proxy ] || [ -z "$name" ]; then
+    c=$(docker ps --filter "publish=$1" --format '{{.Names}}' 2>/dev/null | head -1)
+    [ -n "$c" ] && { echo "docker:$c"; return 0; }
+  fi
+  echo "$name"
+}
+OWNER=$(port_owner 80); [ -n "$OWNER" ] || OWNER=$(port_owner 443)
+if [ "$PROXY" = 0 ]; then
+  if [ -n "$OWNER" ]; then
+    echo "Ports 80/443 are already used by: $OWNER"
+    if [ -r /dev/tty ]; then
+      printf '%s' "Run Captain behind it as a reverse proxy (127.0.0.1:8080, it terminates TLS)? [Y/n]: " >/dev/tty
+      read -r yn </dev/tty
+      case "$yn" in n|N) echo "Free ports 80/443 or rerun with --behind-proxy." >&2; exit 1 ;; esac
+    else
+      echo "Rerun with --behind-proxy, or free the ports." >&2; exit 1
+    fi
+    PROXY=1
+  fi
+fi
+
 ask DOMAIN "Panel domain (DNS A record must point here)" domain
 if [ "$PROXY" = 0 ]; then
   ask EMAIL "Email for the Let's Encrypt account" email
@@ -126,6 +157,11 @@ else
 fi
 CFG=/etc/captain/config.yaml
 [ "$MODE" = docker ] && CFG="$DIR/config.yaml"
+if [ -f "$CFG" ] && [ "$RECONFIG" = 0 ]; then
+  if grep -q '^  auto: true' "$CFG"; then HAD=0; else HAD=1; fi
+  if [ "$HAD" != "$PROXY" ]; then echo "existing $CFG was written for another TLS mode; rewriting it (backup: $CFG.bak)"; RECONFIG=1; fi
+fi
+if [ -f "$CFG" ] && [ "$RECONFIG" = 1 ]; then cp "$CFG" "$CFG.bak"; rm -f "$CFG"; fi
 if [ ! -f "$CFG" ]; then
   cat > "$CFG" <<YAML
 listen: $LISTEN
@@ -156,20 +192,43 @@ else
   echo "keeping existing $CFG"
 fi
 
+UPSTREAM="http://127.0.0.1:8080"
 if [ "$MODE" = docker ]; then
   if [ "$PROXY" = 1 ]; then PORTS='["127.0.0.1:8080:8080"]'; else PORTS='["80:80", "443:443"]'; fi
+  NETS=""; NETDEF=""
+  # A containerised proxy (1Panel's OpenResty, nginx-proxy...) on a bridge network
+  # cannot reach 127.0.0.1 of the host: join its network so it can use http://captain:8080.
+  if [ "$PROXY" = 1 ]; then
+    case "$OWNER" in docker:*)
+      PC=${OWNER#docker:}
+      if [ "$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$PC" 2>/dev/null)" != host ]; then
+        PNET=$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' "$PC" 2>/dev/null | tr ' ' '\n' | grep -v '^$' | head -1)
+        if [ -n "$PNET" ]; then
+          NETS="    networks: [default, $PNET]"
+          NETDEF="networks:
+  $PNET:
+    external: true"
+          UPSTREAM="http://captain:8080"
+        fi
+      fi ;;
+    esac
+  fi
   cat > "$DIR/docker-compose.yml" <<YAML
 services:
   captain:
     image: $IMAGE
+    container_name: captain
     restart: unless-stopped
     ports: $PORTS
+$NETS
     volumes:
       - ./config.yaml:/etc/captain/config.yaml:ro
       - captain-data:/var/lib/captain
+$NETDEF
 volumes:
   captain-data:
 YAML
+  sed -i '/^$/d' "$DIR/docker-compose.yml"
   cd "$DIR"
   docker compose pull -q
   docker compose up -d
@@ -177,7 +236,7 @@ YAML
   docker compose exec -T captain captain admin create -c /etc/captain/config.yaml -email "$ADMIN_EMAIL" -password "$ADMIN_PASS" || true
   echo
   echo "Captain is running (docker). Console: https://$DOMAIN/admin/   Users: https://$DOMAIN/portal/"
-  echo "The certificate is requested on the first visit; watch it with: docker compose logs -f"
+  [ "$PROXY" = 1 ] || echo "The certificate is requested at startup; watch it with: docker compose logs -f"
   echo "Manage: cd $DIR && docker compose logs -f | docker compose pull && docker compose up -d"
 else
   case "$(uname -m)" in x86_64|amd64) ARCH=amd64 ;; aarch64|arm64) ARCH=arm64 ;; *) echo "unsupported arch" >&2; exit 1 ;; esac
@@ -202,3 +261,27 @@ else
   echo "Captain is running (systemd, $VERSION). Console: https://$DOMAIN/admin/   Users: https://$DOMAIN/portal/"
   echo "Manage: journalctl -u captain -f | updates from the console (Settings -> Version)"
 fi
+
+if [ "$PROXY" = 1 ]; then
+  cat <<EOT
+
+Captain listens on $UPSTREAM in plain HTTP. Point your reverse proxy at it and
+let the proxy hold the certificate for $DOMAIN (and any subscription domains):
+
+  nginx / OpenResty (1Panel: Websites -> Create -> Reverse proxy, domain $DOMAIN,
+  proxy address $UPSTREAM, then enable HTTPS on that site):
+
+    location / {
+        proxy_pass $UPSTREAM;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 120s;
+    }
+
+  Caddy:  $DOMAIN { reverse_proxy $UPSTREAM }
+EOT
+fi
+
