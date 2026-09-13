@@ -81,7 +81,7 @@ function PingTasks() {
       {adding && (
         <form onSubmit={form.onSubmit((v) => save.mutate(v))}><Group align="flex-end" wrap="wrap">
           <TextInput label={t('probe.taskName')} required style={{ flex: 1, minWidth: 120 }} {...form.getInputProps('Name')} />
-          <Select label={t('probe.taskType')} data={['icmp', 'tcp', 'http']} allowDeselect={false} style={{ width: 100 }} {...form.getInputProps('Type')} />
+          <Select label={t('probe.taskType')} data={['icmp', 'tcp', 'http', 'download']} allowDeselect={false} style={{ width: 110 }} {...form.getInputProps('Type')} />
           <TextInput label={t('probe.taskTarget')} placeholder="1.1.1.1 / host:443 / https://…" required style={{ flex: 2, minWidth: 180 }} {...form.getInputProps('Target')} />
           <NumberInput label={t('probe.taskInterval')} min={5} style={{ width: 110 }} {...form.getInputProps('IntervalSeconds')} />
           <MultiSelect label={t('probe.taskNodes')} placeholder={t('common.all')} data={(nodes.data ?? []).map((n) => ({ value: String(n.id), label: n.name }))} style={{ flex: 1, minWidth: 160 }} {...form.getInputProps('NodeIDs')} />

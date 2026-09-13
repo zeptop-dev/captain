@@ -24,7 +24,8 @@
     "withdrawals": "Withdrawals",
     "admins": "Staff",
     "subTemplates": "Sub templates",
-    "external": "External nodes"
+    "external": "External nodes",
+    "speedtest": "Speed test"
   },
   "login": {
     "title": "Sign in to Captain",
@@ -690,5 +691,21 @@
     "resetDay": "Monthly reset day",
     "resetDayHint": "1-28, blank = plan rule",
     "hint": "Applies to the current subscription; the quota override and reset day survive renewals of the same plan and clear on a plan change."
+  },
+  "speedtest": {
+    "title": "Speed test",
+    "subtitle": "Left: TCP connect latency from the panel to each entry's public address (what clients connect to). Below: latency and download throughput the nodes measure themselves.",
+    "pingAll": "TCPing all",
+    "entry": "Entry",
+    "address": "Address",
+    "tcping": "TCPing",
+    "when": "When",
+    "ping": "TCPing",
+    "unreachable": "unreachable",
+    "nodeSide": "Node-side results",
+    "nodeSideHint": "Carrier latency and probe tasks. For download throughput add a task of type download in Settings → Probe with a large file URL (e.g. https://speed.cloudflare.com/__down?bytes=100000000); nodes run it every 10 minutes and it uses real traffic.",
+    "probeOff": "The probe is off, so there is no node-side data.",
+    "node": "Node",
+    "results": "Results"
   }
 }

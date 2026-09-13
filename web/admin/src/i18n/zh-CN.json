@@ -24,7 +24,8 @@
     "withdrawals": "提现",
     "admins": "管理员",
     "subTemplates": "订阅模板",
-    "external": "外部节点"
+    "external": "外部节点",
+    "speedtest": "测速"
   },
   "login": {
     "title": "登录 Captain",
@@ -690,5 +691,21 @@
     "resetDay": "每月重置日",
     "resetDayHint": "1 到 28，留空按套餐规则",
     "hint": "这里改的是当前这一期订阅；续费同一套餐时上限覆写和重置日会保留，换套餐则清除。"
+  },
+  "speedtest": {
+    "title": "测速",
+    "subtitle": "左边是面板到各入口公网地址的 TCP 连接延迟（用户实际连的地址）；下面是节点自己探测到的延迟和下行吞吐。",
+    "pingAll": "全部 TCPing",
+    "entry": "入口",
+    "address": "地址",
+    "tcping": "TCPing",
+    "when": "时间",
+    "ping": "TCPing",
+    "unreachable": "不通",
+    "nodeSide": "节点侧结果",
+    "nodeSideHint": "来自探针的三网延迟和探测任务。要测下行吞吐，在 设置 → 探针 里加一个类型为 download 的任务，目标填一个大文件地址（例如 https://speed.cloudflare.com/__down?bytes=100000000），节点每 10 分钟测一次，会消耗真实流量。",
+    "probeOff": "探针未开启，节点侧没有数据。",
+    "node": "节点",
+    "results": "结果"
   }
 }

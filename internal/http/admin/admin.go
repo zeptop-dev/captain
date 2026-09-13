@@ -85,6 +85,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/admin/nodes/upgrade-all", h.requireAdmin(h.upgradeAllNodes))
 	h.registerOps(mux)
 	h.registerExternal(mux)
+	h.registerSpeedtest(mux)
 	h.registerSubTemplates(mux)
 	mux.HandleFunc("GET /api/admin/coupons", h.requireAdmin(h.listCoupons))
 	mux.HandleFunc("POST /api/admin/coupons", h.requireAdmin(h.createCoupon))
