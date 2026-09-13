@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/zeptop-dev/captain/internal/mail"
+	"github.com/zeptop-dev/captain/internal/service"
 	"github.com/zeptop-dev/captain/internal/telegram"
 	"github.com/zeptop-dev/captain/internal/webhook"
 	"log/slog"
@@ -32,7 +33,10 @@ type Runner struct {
 	// Bot delivers reminders to users who linked Telegram (nil = off).
 	Bot *telegram.Bot
 	// Hooks receives subscription.expiring events (nil = off).
-	Hooks     *webhook.Hub
+	Hooks *webhook.Hub
+	// Probe raises offline notices and prunes metrics (nil = off).
+	Probe     *service.Probe
+	lastPrune time.Time
 	SiteName  string
 	PortalURL string
 
@@ -84,6 +88,15 @@ func (r *Runner) Tick(ctx context.Context) {
 	report("purged sessions", n, err)
 	n, err = r.Store.PurgeOnline(ctx, now.Add(-r.OnlineRetain))
 	report("purged online devices", n, err)
+	if r.Probe != nil {
+		r.Probe.CheckOffline(ctx, now)
+		if now.Sub(r.lastPrune) >= time.Hour {
+			r.lastPrune = now
+			if err := r.Store.PruneStats(ctx, now); err != nil {
+				log.Error("prune stats", "err", err)
+			}
+		}
+	}
 	if r.Mail != nil && now.Sub(r.lastReminders) >= time.Hour {
 		r.lastReminders = now
 		r.reminders(ctx, now, log)

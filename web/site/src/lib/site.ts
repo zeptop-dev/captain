@@ -5,7 +5,7 @@ export interface Site {
   name: string; tagline: string; description: string
   features: Feature[]; locations: Location[]; hub: { name: string; lat: number; lng: number } | null
   faq: FAQ[]; links: { telegram?: string; tos?: string; download?: string; github?: string }
-  show_plans: boolean; registration: boolean
+  show_plans: boolean; registration: boolean; probe_url?: string
   stats: { nodes: number; online: number; users: number; locations: number }
 }
 export interface Plan { ID: number; Name: string; PriceCents: number; PeriodDays: number; QuotaBytes: number; DeviceLimit: number; SpeedLimitMbps: number }

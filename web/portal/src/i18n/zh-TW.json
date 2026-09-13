@@ -7,7 +7,8 @@
     "logout": "登出",
     "invite": "邀請",
     "tickets": "工單",
-    "help": "說明"
+    "help": "說明",
+    "status": "狀態"
   },
   "auth": {
     "login": "登入",

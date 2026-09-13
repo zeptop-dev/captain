@@ -7,7 +7,8 @@
     "logout": "Log out",
     "invite": "Invite",
     "tickets": "Tickets",
-    "help": "Help"
+    "help": "Help",
+    "status": "Status"
   },
   "auth": {
     "login": "Sign in",

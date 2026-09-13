@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { type ReactNode } from 'react'
 
 export interface SiteTheme { primary?: string; radius?: string; scheme?: string; site_scheme?: string; font_family?: string; portal_title?: string }
-export interface SiteInfo { name: string; theme?: SiteTheme }
+export interface SiteInfo { name: string; theme?: SiteTheme; probe_url?: string }
 
 const colors = new Set(['cyan', 'blue', 'indigo', 'violet', 'grape', 'pink', 'red', 'orange', 'yellow', 'lime', 'green', 'teal', 'gray'])
 const radii = new Set(['xs', 'sm', 'md', 'lg', 'xl'])

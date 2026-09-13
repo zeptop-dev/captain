@@ -7,7 +7,8 @@
     "logout": "ログアウト",
     "invite": "招待",
     "tickets": "チケット",
-    "help": "ヘルプ"
+    "help": "ヘルプ",
+    "status": "ステータス"
   },
   "auth": {
     "login": "ログイン",

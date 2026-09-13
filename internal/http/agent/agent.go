@@ -28,6 +28,8 @@ type Deps struct {
 	State *service.AgentState
 	// BaseURL is the public panel address baked into install scripts.
 	BaseURL string
+	// Probe takes host beats; nil ignores them.
+	Probe *service.Probe
 	// BosunInstaller overrides the upstream bosun install script URL (tests).
 	BosunInstaller string
 }
@@ -41,6 +43,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("GET /api/agent/install.sh", h.installScript)
 	mux.HandleFunc("GET /api/agent/state", h.requireNode(h.state))
 	mux.HandleFunc("POST /api/agent/report", h.requireNode(h.report))
+	mux.HandleFunc("POST /api/agent/beat", h.requireNode(h.beat))
 }
 
 type ctxKey struct{}
@@ -212,4 +215,19 @@ set -eu
 command -v curl >/dev/null || { echo "curl is required" >&2; exit 1; }
 curl -fsSL %q | sh -s -- --captain %q --pair %q
 `, h.BaseURL, upstream, h.BaseURL, code)
+}
+
+// beat stores one frequent host sample while probing is enabled.
+func (h *handlers) beat(w http.ResponseWriter, r *http.Request) {
+	var b agentproto.Beat
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	if h.Probe != nil {
+		if err := h.Probe.Record(r.Context(), nodeFrom(r), b.Version, b.Host, time.Now()); err != nil {
+			h.Log.Error("record beat", "node", nodeFrom(r).ID, "err", err)
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

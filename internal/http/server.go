@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
 	"github.com/zeptop-dev/captain/internal/http/oauth"
+	"github.com/zeptop-dev/captain/internal/http/probe"
 	"github.com/zeptop-dev/captain/internal/http/ratelimit"
 	"github.com/zeptop-dev/captain/internal/http/site"
 	"github.com/zeptop-dev/captain/internal/mail"
@@ -42,6 +43,8 @@ import (
 
 // Server is the HTTP front.
 type Server struct {
+	probe    *probe.Router
+	probeSvc *service.Probe
 	hooks    *webhook.Hub
 	bot      *telegram.Bot
 	subLinks *service.SubLinks
@@ -97,7 +100,17 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 		}
 		notifier.Admin(ctx, fmt.Sprintf("💰 Order %s paid: %.2f via %s\n%s", o.No, float64(o.AmountCents)/100, o.Gateway, email))
 	}
-	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks,
+	s.probeSvc = &service.Probe{Store: st, Notify: notifier, Log: log}
+	resolve := func(r *http.Request) *domain.User {
+		c, err := r.Cookie("captain_session")
+		if err != nil {
+			return nil
+		}
+		u, _ := sessions.Resolve(r.Context(), c.Value)
+		return u
+	}
+	s.probe = probe.Register(s.mux, probe.Deps{Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe()})
+	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 	})
@@ -119,7 +132,19 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	siteHandler := web.Site(filepath.Join(cfg.DataDir, "site"))
 	s.mux.Handle("GET /{$}", siteHandler)
 	s.mux.Handle("GET /assets/", siteHandler)
-	site.Register(s.mux, site.Deps{Store: st, SiteName: cfg.SiteName, Registration: cfg.Portal.Registration})
+	site.Register(s.mux, site.Deps{Store: st, SiteName: cfg.SiteName, Registration: cfg.Portal.Registration, ProbeURL: func(r *http.Request) string {
+		ps := s.probeSvc.Settings(r.Context())
+		if !ps.Enabled || ps.Visibility == "admins" {
+			return ""
+		}
+		if len(ps.Hosts) > 0 {
+			return "https://" + ps.Hosts[0] + "/"
+		}
+		if ps.Path != "" {
+			return ps.Path + "/"
+		}
+		return ""
+	}})
 	oauth.Register(s.mux, oauth.Deps{Store: st, Sessions: sessions, Log: log, Hooks: s.hooks, BaseURL: base, Secure: secure, Registration: cfg.Portal.Registration,
 		Resolve: func(r *http.Request) *domain.User {
 			c, err := r.Cookie("captain_session")
@@ -137,7 +162,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	sub.Register(s.mux, sub.Deps{Store: st, Log: log, Service: subSvc, Name: cfg.SiteName})
 	agent.Register(s.mux, agent.Deps{
 		Store: st, Log: log, BaseURL: base,
-		State: &service.AgentState{Store: st, PullSeconds: cfg.Agent.PullSeconds, PushSeconds: cfg.Agent.PushSeconds, EnforceDevices: cfg.EnforceDevices()},
+		State: &service.AgentState{Store: st, PullSeconds: cfg.Agent.PullSeconds, PushSeconds: cfg.Agent.PushSeconds, EnforceDevices: cfg.EnforceDevices(), Probe: s.probeSvc}, Probe: s.probeSvc,
 	})
 	return s
 }
@@ -202,7 +227,10 @@ func buildGateways(cfg *config.Config, log *slog.Logger) map[string]payment.Gate
 // Handler returns the root handler with common middleware.
 // Handler returns the root handler. Requests on a subscription-only host
 // reach nothing but /sub/.
-func (s *Server) Handler() http.Handler { return s.subLinks.SubscriptionOnly(s.mux) }
+func (s *Server) Handler() http.Handler { return s.probe.Wrap(s.subLinks.SubscriptionOnly(s.mux)) }
+
+// Probe exposes the probe service (jobs).
+func (s *Server) Probe() *service.Probe { return s.probeSvc }
 
 // SubLinks exposes the subscription link service (autocert host policy).
 func (s *Server) SubLinks() *service.SubLinks { return s.subLinks }

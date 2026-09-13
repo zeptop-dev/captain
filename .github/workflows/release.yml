@@ -19,6 +19,7 @@ jobs:
       - run: cd web/admin && pnpm install --frozen-lockfile && pnpm build
       - run: cd web/portal && pnpm install --frozen-lockfile && pnpm build
       - run: cd web/site && pnpm install --frozen-lockfile && pnpm build
+      - run: cd web/probe && pnpm install --frozen-lockfile && pnpm build
       - uses: actions/setup-go@v5
         with: { go-version-file: go.mod }
       - run: go test ./...

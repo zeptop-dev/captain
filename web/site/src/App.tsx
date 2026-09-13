@@ -19,6 +19,7 @@ export default function App() {
         <Group justify="space-between">
           <Group gap="xs"><Text fw={800} fz="xl" className="gradient-text">{s.name}</Text></Group>
           <Group gap="sm">
+            {s.probe_url && <Anchor href={s.probe_url} c="dimmed" size="sm">服务状态</Anchor>}
             {s.links.telegram && <Anchor href={s.links.telegram} c="dimmed" size="sm" target="_blank"><Group gap={4}><IconBrandTelegram size={16} />Telegram</Group></Anchor>}
             <Button component="a" href="/portal/login" variant="default" size="sm">登录</Button>
             {s.registration && <Button component="a" href="/portal/register" size="sm">注册</Button>}

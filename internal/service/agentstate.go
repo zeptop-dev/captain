@@ -22,6 +22,7 @@ type AgentState struct {
 	PullSeconds    int
 	PushSeconds    int
 	EnforceDevices bool
+	Probe          *Probe // nil = no probe config in state
 }
 
 // deviceWindow is how far back online IPs count toward the device limit.
@@ -79,6 +80,9 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 		node.Inbounds = append(node.Inbounds, si)
 	}
 	st := &agentproto.State{Node: node, Users: users, Forwards: []spec.Forward{}, PullSeconds: a.PullSeconds, PushSeconds: a.PushSeconds}
+	if a.Probe != nil {
+		st.Probe = a.Probe.AgentConfig(ctx, n.ID)
+	}
 	st.Revision = revision(st)
 	return st, nil
 }
@@ -101,7 +105,8 @@ func revision(st *agentproto.State) string {
 		N spec.Node
 		U []spec.User
 		F []spec.Forward
-	}{st.Node, st.Users, st.Forwards})
+		P *spec.Probe
+	}{st.Node, st.Users, st.Forwards, st.Probe})
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:8])
 }

@@ -57,6 +57,8 @@ type Deps struct {
 	Bot *telegram.Bot
 	// Hooks is the webhook hub (settings cache invalidation, test delivery).
 	Hooks *webhook.Hub
+	// Probe is the monitoring service (settings cache, live data).
+	Probe *service.Probe
 }
 
 const cookieName = "captain_session"

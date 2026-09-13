@@ -7,7 +7,8 @@
     "logout": "로그아웃",
     "invite": "초대",
     "tickets": "티켓",
-    "help": "도움말"
+    "help": "도움말",
+    "status": "상태"
   },
   "auth": {
     "login": "로그인",

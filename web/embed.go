@@ -23,6 +23,13 @@ var portalFS embed.FS
 //go:embed all:site/dist
 var siteFS embed.FS
 
+//go:embed all:probe/dist
+var probeFS embed.FS
+
+// Probe serves the status page SPA; the caller mounts it at "/" of a
+// dedicated host or strips its path prefix first.
+func Probe() http.Handler { return spa(probeFS, "probe/dist", "/", "status page") }
+
 // Injector returns operator HTML to add before </head> and </body>.
 type Injector func(r *http.Request) (head, body string)
 
