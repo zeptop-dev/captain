@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/zeptop-dev/captain/internal/captcha"
 	"github.com/zeptop-dev/captain/internal/http/ratelimit"
 	"github.com/zeptop-dev/captain/internal/mail"
@@ -13,6 +14,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -66,6 +68,9 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/portal/ref", h.ref)
 	mux.HandleFunc("GET /api/portal/invite", h.requireUser(h.invite))
 	mux.HandleFunc("POST /api/portal/invite/bind", h.requireUser(h.bindInvite))
+	mux.HandleFunc("POST /api/portal/invite/transfer", h.requireUser(h.transferCommission))
+	mux.HandleFunc("POST /api/portal/invite/withdraw", h.requireUser(h.withdraw))
+	mux.HandleFunc("GET /api/portal/invite/withdrawals", h.requireUser(h.withdrawals))
 	h.registerOps(mux)
 }
 
@@ -495,8 +500,14 @@ func (h *handlers) invite(w http.ResponseWriter, r *http.Request) {
 	var inv store.InviteSettings
 	_ = h.Store.GetSetting(r.Context(), store.SettingInvite, &inv)
 	stats, _ := h.Store.InviteStatsFor(r.Context(), u.ID)
+	commission, _ := h.Store.CommissionCents(r.Context(), u.ID)
+	methods := inv.WithdrawMethods
+	if methods == nil {
+		methods = []string{}
+	}
 	ok(w, map[string]any{"code": u.InviteCode, "url": strings.TrimRight(h.BaseURL, "/") + "/?ref=" + u.InviteCode,
-		"enabled": inv.Enabled, "percent": inv.Percent, "first_order_only": inv.FirstOrderOnly,
+		"enabled": inv.Enabled, "percent": inv.Percent, "first_order_only": inv.FirstOrderOnly, "levels": inv.LevelPercents(),
+		"payout": inv.Payout, "commission_cents": commission, "min_withdraw_cents": inv.MinWithdrawCents, "withdraw_methods": methods,
 		"invited": stats.Invited, "earned_cents": stats.EarnedCents, "invited_by": u.InvitedBy != nil})
 }
 
@@ -544,4 +555,64 @@ func (h *handlers) registrationAllowed(r *http.Request, email, ip string, invite
 		return err
 	}
 	return nil
+}
+
+// transferCommission moves referral earnings into the spendable balance.
+func (h *handlers) transferCommission(w http.ResponseWriter, r *http.Request) {
+	var in struct{ AmountCents int64 }
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.AmountCents <= 0 {
+		fail(w, http.StatusBadRequest, "amount required")
+		return
+	}
+	if err := h.Store.TransferCommission(r.Context(), userFrom(r).ID, in.AmountCents); err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	h.invite(w, r)
+}
+
+// withdraw files a payout request against the commission balance.
+func (h *handlers) withdraw(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		AmountCents     int64
+		Method, Account string
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.AmountCents <= 0 || strings.TrimSpace(in.Account) == "" {
+		fail(w, http.StatusBadRequest, "amount and account are required")
+		return
+	}
+	var inv store.InviteSettings
+	_ = h.Store.GetSetting(r.Context(), store.SettingInvite, &inv)
+	if inv.Payout != store.PayoutCommission {
+		fail(w, http.StatusBadRequest, "withdrawals are not enabled")
+		return
+	}
+	if in.AmountCents < inv.MinWithdrawCents {
+		fail(w, http.StatusBadRequest, "below the minimum withdrawal amount")
+		return
+	}
+	if len(inv.WithdrawMethods) > 0 && !slices.Contains(inv.WithdrawMethods, in.Method) {
+		fail(w, http.StatusBadRequest, "unknown withdrawal method")
+		return
+	}
+	u := userFrom(r)
+	wd, err := h.Store.CreateWithdrawal(r.Context(), u.ID, in.AmountCents, in.Method, strings.TrimSpace(in.Account))
+	if err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	h.Notify.Admin(r.Context(), fmt.Sprintf("💸 Withdrawal #%d: %.2f via %s (%s)\n%s", wd.ID, float64(wd.AmountCents)/100, wd.Method, wd.Account, u.Email))
+	ok(w, wd)
+}
+
+func (h *handlers) withdrawals(w http.ResponseWriter, r *http.Request) {
+	list, err := h.Store.ListWithdrawals(r.Context(), userFrom(r).ID, "", 50)
+	if err != nil {
+		fail(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	if list == nil {
+		list = []store.Withdrawal{}
+	}
+	ok(w, list)
 }

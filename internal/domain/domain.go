@@ -175,6 +175,7 @@ type Order struct {
 	PeriodDays    int    // chosen period, 0 = plan base
 	CouponID      *int64 //
 	DiscountCents int64  //
+	SurplusCents  int64  // credit from the replaced plan's unused remainder
 }
 
 // Coupon is a discount code applied at checkout.

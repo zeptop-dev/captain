@@ -33,6 +33,7 @@ type Quote struct {
 	PeriodDays    int    `json:"period_days"`
 	ListCents     int64  `json:"list_cents"`
 	DiscountCents int64  `json:"discount_cents"`
+	SurplusCents  int64  `json:"surplus_cents"` // credit for the unused part of the plan being replaced
 	AmountCents   int64  `json:"amount_cents"`
 	CouponID      *int64 `json:"-"`
 	CouponName    string `json:"coupon,omitempty"`
@@ -72,6 +73,13 @@ func (o *Orders) Price(ctx context.Context, user *domain.User, planID int64, per
 			q.CouponName = c.Code
 		}
 	}
+	if credit, _ := o.Store.SurplusFor(ctx, user.ID, plan.ID, time.Now()); credit > 0 {
+		if credit > q.AmountCents {
+			credit = q.AmountCents
+		}
+		q.SurplusCents = credit
+		q.AmountCents -= credit
+	}
 	return q, plan, nil
 }
 
@@ -80,7 +88,7 @@ func (o *Orders) Create(ctx context.Context, user *domain.User, planID int64, pe
 	if err != nil {
 		return nil, nil, err
 	}
-	order := &domain.Order{No: newOrderNo(), UserID: user.ID, PlanID: plan.ID, AmountCents: q.AmountCents, Gateway: gateway, PeriodDays: q.PeriodDays, CouponID: q.CouponID, DiscountCents: q.DiscountCents}
+	order := &domain.Order{No: newOrderNo(), UserID: user.ID, PlanID: plan.ID, AmountCents: q.AmountCents, Gateway: gateway, PeriodDays: q.PeriodDays, CouponID: q.CouponID, DiscountCents: q.DiscountCents, SurplusCents: q.SurplusCents}
 	switch gateway {
 	case "balance":
 		if err := o.Store.CreateOrder(ctx, order); err != nil {

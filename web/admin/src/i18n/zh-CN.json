@@ -20,7 +20,8 @@
     "coupons": "优惠券",
     "tickets": "工单",
     "gifts": "兑换码",
-    "articles": "知识库"
+    "articles": "知识库",
+    "withdrawals": "提现"
   },
   "login": {
     "title": "登录 Captain",
@@ -257,7 +258,17 @@
     "invite": "邀请返利",
     "inviteHint": "用户分享 /?ref=邀请码 链接，被邀请人付款后按比例把金额计入邀请人余额。",
     "invitePercent": "返利比例（%）",
-    "inviteFirstOnly": "只返首单"
+    "inviteFirstOnly": "只返首单",
+    "inviteMulti": "多级返利",
+    "inviteLevel2": "二级比例（%）",
+    "inviteLevel3": "三级比例（%）",
+    "invitePayout": "返利去向",
+    "payoutBalance": "直接进余额",
+    "payoutCommission": "进佣金账户（可提现）",
+    "minWithdraw": "最低提现金额",
+    "withdrawMethods": "提现方式（逗号分隔）",
+    "surplus": "换套餐折算",
+    "surplusHint": "用户换购其他套餐时，把当前套餐未用完的部分按剩余时间（无到期时间则按剩余流量）折成抵扣，直接从新订单里减掉。"
   },
   "update": {
     "title": "版本与升级",
@@ -463,5 +474,24 @@
     "plan": "套餐",
     "off": "不启用",
     "days": "试用天数"
+  },
+  "withdrawals": {
+    "title": "提现申请",
+    "subtitle": "用户申请提取佣金。线下打款后标记已打款；拒绝会把金额退回佣金账户。",
+    "user": "用户",
+    "amount": "金额",
+    "payTo": "收款",
+    "statusCol": "状态",
+    "when": "申请时间",
+    "markPaid": "标记已打款",
+    "reject": "拒绝",
+    "note": "备注（用户可见）",
+    "noteHintPaid": "如交易号",
+    "noteHintReject": "拒绝原因",
+    "status": {
+      "pending": "待处理",
+      "paid": "已打款",
+      "rejected": "已拒绝"
+    }
   }
 }

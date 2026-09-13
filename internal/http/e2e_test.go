@@ -1146,3 +1146,143 @@ func TestOpsBatch(t *testing.T) {
 		t.Fatalf("telegram: %s", b)
 	}
 }
+
+func TestSurplusAndMultiLevelCommission(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "https://panel.test"
+	cfg.Portal.Registration = true
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	ac := &client{t: t, srv: srv}
+	ac.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+	planID := func(name string, price int64, days int) int64 {
+		_, b, _ := ac.do("POST", "/api/admin/plans", map[string]any{"Name": name, "PriceCents": price, "PeriodDays": days, "QuotaBytes": 1 << 30}, nil)
+		return int64(mustJSON[map[string]any](t, b)["ID"].(float64))
+	}
+	basic, pro := planID("basic", 3000, 30), planID("pro", 9000, 30)
+
+	// Three-level referral chain: a invites b invites c. Rewards go to the commission balance.
+	ac.do("PUT", "/api/admin/settings/invite", map[string]any{"enabled": true, "percent": 20, "multi_level": true, "level2": 10, "level3": 5, "payout": "commission", "min_withdraw_cents": 500, "withdraw_methods": []string{"USDT", "Alipay"}}, nil)
+	ac.do("PUT", "/api/admin/settings/surplus", map[string]any{"enabled": true}, nil)
+	signup := func(email, ref string) (*client, map[string]any) {
+		c := &client{t: t, srv: srv}
+		hdr := map[string]string{}
+		if ref != "" {
+			hdr["Cookie"] = "captain_ref=" + ref
+		}
+		c.do("POST", "/api/portal/register", map[string]string{"Email": email, "Password": "password123"}, hdr)
+		_, b, _ := c.do("GET", "/api/portal/invite", nil, nil)
+		return c, mustJSON[map[string]any](t, b)
+	}
+	a, ai := signup("a@test", "")
+	b, bi := signup("b@test", ai["code"].(string))
+	c, _ := signup("c@test", bi["code"].(string))
+	if lv := ai["levels"].([]any); len(lv) != 3 {
+		t.Fatalf("levels %v", lv)
+	}
+	// c buys basic (3000) with balance: b (level 1) gets 20%, a (level 2) gets 10%.
+	cu, _ := st.UserByEmail(context.Background(), "c@test")
+	_ = st.AdjustBalance(context.Background(), cu.ID, 20000)
+	if code, body, _ := c.do("POST", "/api/portal/orders", map[string]any{"plan_id": basic, "gateway": "balance"}, nil); code != 200 {
+		t.Fatalf("c buys basic: %d %s", code, body)
+	}
+	_, body, _ := b.do("GET", "/api/portal/invite", nil, nil)
+	if !strings.Contains(string(body), `"commission_cents":600`) {
+		t.Fatalf("b commission: %s", body)
+	}
+	_, body, _ = a.do("GET", "/api/portal/invite", nil, nil)
+	if !strings.Contains(string(body), `"commission_cents":300`) {
+		t.Fatalf("a level-2 commission: %s", body)
+	}
+	au, _ := st.UserByEmail(context.Background(), "a@test")
+	if au.BalanceCents != 0 {
+		t.Fatalf("commission leaked into balance: %d", au.BalanceCents)
+	}
+
+	// Surplus: c switches to pro right away; ~100% of basic's 3000 is credited.
+	_, body, _ = c.do("POST", "/api/portal/orders/quote", map[string]any{"plan_id": pro}, nil)
+	q := mustJSON[map[string]any](t, body)
+	surplus := int64(q["surplus_cents"].(float64))
+	if surplus < 2990 || surplus > 3000 || int64(q["amount_cents"].(float64)) != 9000-surplus {
+		t.Fatalf("surplus quote: %s", body)
+	}
+	// Renewing the same plan gets no surplus.
+	_, body, _ = c.do("POST", "/api/portal/orders/quote", map[string]any{"plan_id": basic}, nil)
+	if !strings.Contains(string(body), `"surplus_cents":0`) {
+		t.Fatalf("renewal quote: %s", body)
+	}
+	code, body, _ := c.do("POST", "/api/portal/orders", map[string]any{"plan_id": pro, "gateway": "balance"}, nil)
+	if code != 200 {
+		t.Fatalf("c switches: %d %s", code, body)
+	}
+	paid := int64(mustJSON[map[string]any](t, body)["amount_cents"].(float64))
+	if credit := 9000 - paid; credit > surplus || credit < surplus-5 { // a second may have passed since the quote
+		t.Fatalf("credit at purchase %d vs quote %d", credit, surplus)
+	}
+	cu, _ = st.UserByEmail(context.Background(), "c@test")
+	if cu.BalanceCents != 20000-3000-paid {
+		t.Fatalf("balance after switch: %d", cu.BalanceCents)
+	}
+	_, body, _ = c.do("GET", "/api/portal/me", nil, nil)
+	if !strings.Contains(string(body), `"plan_id":`+itoa(pro)) {
+		t.Fatalf("plan after switch: %s", body)
+	}
+
+	// Commission: transfer part to balance, withdraw the rest; admin rejects then pays.
+	if code, body, _ := b.do("POST", "/api/portal/invite/transfer", map[string]any{"AmountCents": 100}, nil); code != 200 || !strings.Contains(string(body), `"commission_cents":`) {
+		t.Fatalf("transfer: %d %s", code, body)
+	}
+	bu, _ := st.UserByEmail(context.Background(), "b@test")
+	if bu.BalanceCents != 100 {
+		t.Fatalf("transfer balance %d", bu.BalanceCents)
+	}
+	if code, _, _ := b.do("POST", "/api/portal/invite/withdraw", map[string]any{"AmountCents": 300, "Method": "USDT", "Account": "T..."}, nil); code != 400 {
+		t.Fatal("below minimum should fail")
+	}
+	if code, _, _ := b.do("POST", "/api/portal/invite/withdraw", map[string]any{"AmountCents": 9999, "Method": "USDT", "Account": "T..."}, nil); code != 400 {
+		t.Fatal("over balance should fail")
+	}
+	code, body, _ = b.do("POST", "/api/portal/invite/withdraw", map[string]any{"AmountCents": 500, "Method": "PayPal", "Account": "x"}, nil)
+	if code != 400 {
+		t.Fatalf("unknown method: %d %s", code, body)
+	}
+	_, body, _ = b.do("GET", "/api/portal/invite", nil, nil)
+	before := int64(mustJSON[map[string]any](t, body)["commission_cents"].(float64)) // b also earned on c's second order
+	code, body, _ = b.do("POST", "/api/portal/invite/withdraw", map[string]any{"AmountCents": 1000, "Method": "USDT", "Account": "TXYZ"}, nil)
+	if code != 200 {
+		t.Fatalf("withdraw: %d %s", code, body)
+	}
+	wid := itoa(int64(mustJSON[map[string]any](t, body)["id"].(float64)))
+	_, body, _ = b.do("GET", "/api/portal/invite", nil, nil)
+	if !strings.Contains(string(body), `"commission_cents":`+itoa(before-1000)+`,`) {
+		t.Fatalf("reserved on withdraw: %s", body)
+	}
+	_, body, _ = ac.do("GET", "/api/admin/withdrawals?status=pending", nil, nil)
+	if !strings.Contains(string(body), `"email":"b@test"`) || !strings.Contains(string(body), `"amount_cents":1000`) {
+		t.Fatalf("admin withdrawals: %s", body)
+	}
+	ac.do("POST", "/api/admin/withdrawals/"+wid+"/status", map[string]string{"Status": "rejected", "Note": "wrong address"}, nil)
+	_, body, _ = b.do("GET", "/api/portal/invite", nil, nil)
+	if !strings.Contains(string(body), `"commission_cents":`+itoa(before)+`,`) {
+		t.Fatalf("refund after reject: %s", body)
+	}
+	if code, _, _ := ac.do("POST", "/api/admin/withdrawals/"+wid+"/status", map[string]string{"Status": "paid"}, nil); code != 404 {
+		t.Fatalf("re-deciding should 404: %d", code)
+	}
+	_, body, _ = b.do("POST", "/api/portal/invite/withdraw", map[string]any{"AmountCents": 1000, "Method": "Alipay", "Account": "b@test"}, nil)
+	wid = itoa(int64(mustJSON[map[string]any](t, body)["id"].(float64)))
+	ac.do("POST", "/api/admin/withdrawals/"+wid+"/status", map[string]string{"Status": "paid", "Note": "sent"}, nil)
+	_, body, _ = b.do("GET", "/api/portal/invite/withdrawals", nil, nil)
+	if !strings.Contains(string(body), `"status":"paid"`) || !strings.Contains(string(body), `"status":"rejected"`) {
+		t.Fatalf("withdrawal history: %s", body)
+	}
+	_, body, _ = b.do("GET", "/api/portal/invite", nil, nil)
+	if !strings.Contains(string(body), `"commission_cents":`+itoa(before-1000)+`,`) {
+		t.Fatalf("commission after payout: %s", body)
+	}
+}

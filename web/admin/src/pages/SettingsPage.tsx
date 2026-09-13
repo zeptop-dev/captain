@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, type ACMESettings, type Group as UGroup, type InviteSettings, type NoticeSettings, type OIDCSettings, type SubscriptionSettings } from '../lib/api'
-import { JsonInput, NumberInput, Switch } from '@mantine/core'
+import { JsonInput, NumberInput, Select, Switch } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { useEffect } from 'react'
 import { PasswordInput, Textarea } from '@mantine/core'
@@ -26,9 +26,11 @@ export default function SettingsPage() {
   const [subText, setSubText] = useState<string | null>(null)
   const saveSubs = useMutation({ mutationFn: (urls: string[]) => api.put('/api/admin/settings/subscription', { URLs: urls }), onSuccess: () => { toast.ok(t('common.saved')); setSubText(null); qc.invalidateQueries({ queryKey: ['subscription-settings'] }); qc.invalidateQueries({ queryKey: ['users'] }) }, onError: toast.err })
   const invite = useQuery({ queryKey: ['invite-settings'], queryFn: () => api.get<InviteSettings>('/api/admin/settings/invite') })
-  const iform = useForm<InviteSettings>({ initialValues: { enabled: false, percent: 10, first_order_only: false } })
-  useEffect(() => { if (invite.data) iform.setValues(invite.data) }, [invite.data]) // eslint-disable-line react-hooks/exhaustive-deps
-  const saveInvite = useMutation({ mutationFn: (v: InviteSettings) => api.put('/api/admin/settings/invite', v), onSuccess: () => { toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['invite-settings'] }) }, onError: toast.err })
+  const iform = useForm<InviteSettings & { methods: string }>({ initialValues: { enabled: false, percent: 10, first_order_only: false, multi_level: false, level2: 0, level3: 0, payout: 'balance', min_withdraw_cents: 0, withdraw_methods: [], methods: '' } })
+  useEffect(() => { if (invite.data) iform.setValues({ ...invite.data, payout: invite.data.payout || 'balance', methods: (invite.data.withdraw_methods ?? []).join(', ') }) }, [invite.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  const surplus = useQuery({ queryKey: ['surplus-settings'], queryFn: () => api.get<{ enabled: boolean }>('/api/admin/settings/surplus') })
+  const saveSurplus = useMutation({ mutationFn: (enabled: boolean) => api.put('/api/admin/settings/surplus', { enabled }), onSuccess: () => { toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['surplus-settings'] }) }, onError: toast.err })
+  const saveInvite = useMutation({ mutationFn: (v: InviteSettings & { methods: string }) => api.put('/api/admin/settings/invite', { ...v, withdraw_methods: v.methods.split(/[,，\n]/).map((s) => s.trim()).filter(Boolean) }), onSuccess: () => { toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['invite-settings'] }) }, onError: toast.err })
   const notice = useQuery({ queryKey: ['notice-settings'], queryFn: () => api.get<NoticeSettings>('/api/admin/settings/notice') })
   const nform = useForm<NoticeSettings>({ initialValues: { enabled: false, title: '', body: '' } })
   useEffect(() => { if (notice.data) nform.setValues(notice.data) }, [notice.data]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -81,9 +83,24 @@ export default function SettingsPage() {
             <Group grow align="flex-end">
               <NumberInput label={t('settings.invitePercent')} min={0} max={100} {...iform.getInputProps('percent')} />
               <Switch label={t('settings.inviteFirstOnly')} {...iform.getInputProps('first_order_only', { type: 'checkbox' })} />
+              <Switch label={t('settings.inviteMulti')} {...iform.getInputProps('multi_level', { type: 'checkbox' })} />
+            </Group>
+            {iform.values.multi_level && <Group grow>
+              <NumberInput label={t('settings.inviteLevel2')} min={0} max={100} {...iform.getInputProps('level2')} />
+              <NumberInput label={t('settings.inviteLevel3')} min={0} max={100} {...iform.getInputProps('level3')} />
+            </Group>}
+            <Group grow align="flex-end">
+              <Select label={t('settings.invitePayout')} data={[{ value: 'balance', label: t('settings.payoutBalance') }, { value: 'commission', label: t('settings.payoutCommission') }]} allowDeselect={false} {...iform.getInputProps('payout')} />
+              {iform.values.payout === 'commission' && <NumberInput label={t('settings.minWithdraw')} min={0} value={iform.values.min_withdraw_cents / 100} onChange={(v) => iform.setFieldValue('min_withdraw_cents', Math.round(Number(v) * 100))} />}
+              {iform.values.payout === 'commission' && <TextInput label={t('settings.withdrawMethods')} placeholder="USDT-TRC20, Alipay" {...iform.getInputProps('methods')} />}
             </Group>
             <Group justify="space-between"><Switch label={t('common.enabled')} {...iform.getInputProps('enabled', { type: 'checkbox' })} /><Button type="submit" size="xs" loading={saveInvite.isPending}>{t('common.save')}</Button></Group>
           </Stack></form>
+        </Card>
+        <Card>
+          <Title order={5} mb="xs">{t('settings.surplus')}</Title>
+          <Text size="xs" c="dimmed" mb="sm">{t('settings.surplusHint')}</Text>
+          <Switch label={t('common.enabled')} checked={surplus.data?.enabled ?? false} onChange={(e) => saveSurplus.mutate(e.currentTarget.checked)} />
         </Card>
         <RegistrationCard />
         <TrialCard />

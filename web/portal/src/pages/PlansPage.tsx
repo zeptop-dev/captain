@@ -66,6 +66,7 @@ export default function PlansPage() {
             <SegmentedControl fullWidth value={gateway} onChange={setGateway} data={gateways.map((g) => ({ value: g, label: t(`plans.${g}`, { defaultValue: g }) }))} />
             {gateway === 'balance' && <Text size="sm" c="dimmed">{t('home.balance')}: {money(me?.balance_cents ?? 0)}</Text>}
             {quote && quote.discount_cents > 0 && <Text size="sm" c="teal">{t('plans.discount', { amount: money(quote.discount_cents) })}</Text>}
+            {quote && quote.surplus_cents > 0 && <Text size="sm" c="teal">{t('plans.surplus', { amount: money(quote.surplus_cents) })}</Text>}
             <Group justify="flex-end"><Button loading={buy.isPending} disabled={!quote} onClick={() => buy.mutate()}>{t('plans.confirm', { amount: money(quote?.amount_cents ?? 0) })}</Button></Group>
           </Stack>
         )}
