@@ -253,6 +253,14 @@ new inbound recipes use it as the TLS name and entries advertise it instead
 of the IP, so a certificate for it reaches the node without further setup.
 ## Backups
 
+**Automatic DNS records.** A registered Cloudflare domain with *Auto DNS
+records* on (the default) gets A/AAAA records created or updated whenever a
+node with a host name under it is saved (node domain → public / IPv6
+address) or a line ingress with an *entry domain* is saved (entry domain →
+the provider's entry IP). Records are never deleted, never proxied, and the
+outcome is shown in a toast; the token needs DNS edit permission on the
+zone, which the DNS-01 token already has.
+
 Captain snapshots its SQLite database once a day (`VACUUM INTO`, so the
 copy is consistent while the panel keeps running) into `<data_dir>/backups`
 and keeps the newest seven. Settings → Database backups sets the hour and

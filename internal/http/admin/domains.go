@@ -124,13 +124,16 @@ func (h *handlers) listDomains(w http.ResponseWriter, r *http.Request) {
 	_ = h.Store.GetSetting(r.Context(), store.SettingACME, &acme)
 	out := make([]map[string]any, 0, len(list))
 	for _, d := range list {
-		out = append(out, map[string]any{"id": d.ID, "name": d.Name, "provider": d.Provider, "has_token": d.HasToken, "usage": use[d.ID], "certificates": certs[d.ID], "created_at": d.CreatedAt})
+		out = append(out, map[string]any{"id": d.ID, "name": d.Name, "provider": d.Provider, "has_token": d.HasToken, "auto_dns": d.AutoDNS, "usage": use[d.ID], "certificates": certs[d.ID], "created_at": d.CreatedAt})
 	}
 	ok(w, map[string]any{"domains": out, "global_token": acme.CloudflareToken != "", "can_issue": h.Certs.Available()})
 }
 
 func (h *handlers) createDomain(w http.ResponseWriter, r *http.Request) {
-	var in struct{ Name, Provider, CFToken string }
+	var in struct {
+		Name, Provider, CFToken string
+		AutoDNS                 *bool
+	}
 	if !decode(r, &in) {
 		fail(w, http.StatusBadRequest, "bad json")
 		return
@@ -143,7 +146,7 @@ func (h *handlers) createDomain(w http.ResponseWriter, r *http.Request) {
 	if in.Provider != "manual" {
 		in.Provider = "cloudflare"
 	}
-	d := &store.Domain{Name: name, Provider: in.Provider, CFToken: strings.TrimSpace(in.CFToken)}
+	d := &store.Domain{Name: name, Provider: in.Provider, CFToken: strings.TrimSpace(in.CFToken), AutoDNS: in.AutoDNS == nil || *in.AutoDNS}
 	if err := h.Store.CreateDomain(r.Context(), d); err != nil {
 		fail(w, http.StatusBadRequest, err.Error())
 		return
@@ -154,7 +157,10 @@ func (h *handlers) createDomain(w http.ResponseWriter, r *http.Request) {
 // updateDomain changes the provider and token; a blank token keeps the
 // stored one, "-" clears it.
 func (h *handlers) updateDomain(w http.ResponseWriter, r *http.Request) {
-	var in struct{ Provider, CFToken string }
+	var in struct {
+		Provider, CFToken string
+		AutoDNS           *bool
+	}
 	if !decode(r, &in) {
 		fail(w, http.StatusBadRequest, "bad json")
 		return
@@ -166,6 +172,9 @@ func (h *handlers) updateDomain(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.Provider == "manual" || in.Provider == "cloudflare" {
 		d.Provider = in.Provider
+	}
+	if in.AutoDNS != nil {
+		d.AutoDNS = *in.AutoDNS
 	}
 	switch strings.TrimSpace(in.CFToken) {
 	case "":

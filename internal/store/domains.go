@@ -16,6 +16,7 @@ type Domain struct {
 	Provider  string    `json:"provider"` // cloudflare | manual
 	CFToken   string    `json:"-"`
 	HasToken  bool      `json:"has_token"`
+	AutoDNS   bool      `json:"auto_dns"` // create A/AAAA records for names under it
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -23,14 +24,15 @@ type Domain struct {
 func scanDomain(row interface{ Scan(...any) error }) (*Domain, error) {
 	var d Domain
 	var cr, up int64
-	if err := row.Scan(&d.ID, &d.Name, &d.Provider, &d.CFToken, &cr, &up); err != nil {
+	var auto int
+	if err := row.Scan(&d.ID, &d.Name, &d.Provider, &d.CFToken, &auto, &cr, &up); err != nil {
 		return nil, wrapNotFound(err)
 	}
-	d.HasToken, d.CreatedAt, d.UpdatedAt = d.CFToken != "", unix(cr), unix(up)
+	d.HasToken, d.AutoDNS, d.CreatedAt, d.UpdatedAt = d.CFToken != "", auto == 1, unix(cr), unix(up)
 	return &d, nil
 }
 
-const domainCols = "id, name, provider, cf_token, created_at, updated_at"
+const domainCols = "id, name, provider, cf_token, auto_dns, created_at, updated_at"
 
 func (s *Store) CreateDomain(ctx context.Context, d *Domain) error {
 	d.Name = strings.ToLower(strings.TrimSpace(d.Name))
@@ -38,7 +40,7 @@ func (s *Store) CreateDomain(ctx context.Context, d *Domain) error {
 		d.Provider = "cloudflare"
 	}
 	ts := now()
-	res, err := s.db.ExecContext(ctx, `INSERT INTO domains (name, provider, cf_token, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`, d.Name, d.Provider, d.CFToken, ts, ts)
+	res, err := s.db.ExecContext(ctx, `INSERT INTO domains (name, provider, cf_token, auto_dns, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`, d.Name, d.Provider, d.CFToken, boolInt(d.AutoDNS), ts, ts)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
 			return errors.New("domain already registered")
@@ -50,7 +52,7 @@ func (s *Store) CreateDomain(ctx context.Context, d *Domain) error {
 }
 
 func (s *Store) UpdateDomain(ctx context.Context, d *Domain) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE domains SET provider = ?, cf_token = ?, updated_at = ? WHERE id = ?`, d.Provider, d.CFToken, now(), d.ID)
+	_, err := s.db.ExecContext(ctx, `UPDATE domains SET provider = ?, cf_token = ?, auto_dns = ?, updated_at = ? WHERE id = ?`, d.Provider, d.CFToken, boolInt(d.AutoDNS), now(), d.ID)
 	return err
 }
 

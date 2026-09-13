@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, type Ingress, type CertStatus, type Group as UGroup, type Inbound, type Node } from '../lib/api'
 import { ago, bytes, when } from '../lib/format'
-import { toast } from '../lib/notify'
+import { dnsToast, toast, type DNSResult } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
 import { InboundForm, toPayload, toValues, type InboundValues } from '../components/InboundForm'
 import { NodeStatus, PairCodeBox } from './NodesPage'
@@ -33,7 +33,7 @@ export default function NodePage() {
   const save = useMutation({
     mutationFn: async (v: InboundValues) => {
       // An inline line ingress from the IPLC recipe is created first, then referenced.
-      if (v.NewIngress) { const g = await api.post<Ingress>(`/api/admin/nodes/${id}/ingresses`, ingressPayload(v.NewIngress)); v = { ...v, IngressID: String(g.id), NewIngress: undefined } }
+      if (v.NewIngress) { const r = await api.post<{ ingress: Ingress; dns?: DNSResult[] }>(`/api/admin/nodes/${id}/ingresses`, ingressPayload(v.NewIngress)); dnsToast(r.dns); v = { ...v, IngressID: String(r.ingress.id), NewIngress: undefined } }
       return editing === 'new' ? api.post(`/api/admin/nodes/${id}/inbounds`, toPayload(v)) : api.patch(`/api/admin/inbounds/${(editing as Inbound).ID}`, toPayload(v))
     },
     onSuccess: () => { toast.ok(t('common.saved')); setEditing(null); invalidate() }, onError: toast.err,
@@ -43,7 +43,7 @@ export default function NodePage() {
   const delNode = useMutation({ mutationFn: () => api.del(`/api/admin/nodes/${id}`), onSuccess: () => { toast.ok(t('common.deleted')); qc.invalidateQueries({ queryKey: ['nodes'] }); nav('/nodes') }, onError: toast.err })
   const nodeForm = useForm({ initialValues: { Name: '', PublicAddr: '', InternalAddr: '', V6Addr: '', Domain: '', MonitorURL: '' } })
   const domainList = useQuery({ queryKey: ['domains'], queryFn: () => api.get<{ domains: { name: string }[] }>('/api/admin/domains') })
-  const saveNode = useMutation({ mutationFn: (v: typeof nodeForm.values) => api.patch(`/api/admin/nodes/${id}`, v), onSuccess: () => { toast.ok(t('common.saved')); setEditNode(false); invalidate() }, onError: toast.err })
+  const saveNode = useMutation({ mutationFn: (v: typeof nodeForm.values) => api.patch<{ ok: boolean; dns?: DNSResult[] }>(`/api/admin/nodes/${id}`, v), onSuccess: (r) => { toast.ok(t('common.saved')); setEditNode(false); invalidate(); dnsToast(r.dns) }, onError: toast.err })
 
   const d = q.data
   if (!d) return null

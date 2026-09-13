@@ -40,7 +40,7 @@ export default function EntriesPage() {
   }
   // Picking an inbound pre-fills the display address from the node.
   // Address prefill: a line ingress gives its public entry and mapped port; otherwise the TLS name, the node domain, then the node IP.
-  const onInbound = (id: string | null) => { form.setFieldValue('InboundID', id ?? ''); const x = inbounds.find((i) => String(i.ib.ID) === id); if (x && !form.values.DisplayHost) { if (x.ingress) { form.setValues({ DisplayHost: x.ingress.entry_host, DisplayPort: x.ib.Port + (x.ingress.port_offset || 0) }); return } const tls = x.ib.Settings?.tls as { mode?: number; server_name?: string } | undefined; form.setValues({ DisplayHost: (tls?.mode === 1 && tls.server_name) || x.node.domain || x.node.public_addr || '', DisplayPort: x.ib.Port }) } }
+  const onInbound = (id: string | null) => { form.setFieldValue('InboundID', id ?? ''); const x = inbounds.find((i) => String(i.ib.ID) === id); if (x && !form.values.DisplayHost) { if (x.ingress) { form.setValues({ DisplayHost: x.ingress.entry_domain || x.ingress.entry_host, DisplayPort: x.ib.Port + (x.ingress.port_offset || 0) }); return } const tls = x.ib.Settings?.tls as { mode?: number; server_name?: string } | undefined; form.setValues({ DisplayHost: (tls?.mode === 1 && tls.server_name) || x.node.domain || x.node.public_addr || '', DisplayPort: x.ib.Port }) } }
 
   // Local order for drag-and-drop; the server is told the new id order on drop.
   const [rows, setRows] = useState<Entry[]>([])
