@@ -3,10 +3,14 @@ package sub
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/zeptop-dev/captain/internal/http/site"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -70,15 +74,47 @@ func Register(mux *http.ServeMux, d Deps) {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
+		// The profile name clients show: the admin-edited site name, else the
+		// config one. Sent three ways because clients disagree on which they
+		// read: an ASCII filename (no quotes, some clients keep them
+		// literally), an RFC 5987 UTF-8 filename*, and Clash-style
+		// profile-title (base64) which mihomo/Stash/Verge prefer.
 		name := d.Name
+		var ss site.Settings
+		if err := d.Store.GetSetting(r.Context(), site.SettingSite, &ss); err == nil && strings.TrimSpace(ss.Name) != "" {
+			name = strings.TrimSpace(ss.Name)
+		}
 		if name == "" {
 			name = "captain"
 		}
 		w.Header().Set("Content-Type", rd.ContentType())
-		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", name))
+		w.Header().Set("Content-Disposition", "attachment; filename="+asciiName(name)+"; filename*=UTF-8''"+url.PathEscape(name))
+		w.Header().Set("Profile-Title", "base64:"+base64.StdEncoding.EncodeToString([]byte(name)))
 		w.Header().Set("Subscription-Userinfo", fmt.Sprintf("upload=%d; download=%d; total=%d; expire=%d", acct.Upload, acct.Download, acct.Total, acct.Expire))
 		w.Header().Set("Profile-Update-Interval", "12")
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write(body)
 	})
+}
+
+// asciiName reduces a name to the token characters every client accepts
+// unquoted in Content-Disposition.
+func asciiName(name string) string {
+	var b strings.Builder
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_', r == '.':
+			b.WriteRune(r)
+		case r == ' ':
+			b.WriteRune('_')
+		}
+	}
+	out := strings.Trim(b.String(), "_.-")
+	for strings.Contains(out, "__") {
+		out = strings.ReplaceAll(out, "__", "_")
+	}
+	if out == "" {
+		return "subscription"
+	}
+	return out
 }
