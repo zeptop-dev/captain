@@ -23,7 +23,8 @@
     "articles": "Knowledge base",
     "withdrawals": "Withdrawals",
     "admins": "Staff",
-    "subTemplates": "Sub templates"
+    "subTemplates": "Sub templates",
+    "external": "External nodes"
   },
   "login": {
     "title": "Sign in to Captain",
@@ -624,5 +625,52 @@
     "note": "Note",
     "hidden": "Hide from the status page",
     "reset": "Reset this period"
+  },
+  "external": {
+    "title": "External nodes",
+    "subtitle": "Import other providers' share links or airport subscriptions and offer them in your subscriptions. No bosun behind them, so traffic is not charged to user quotas.",
+    "addSource": "Add subscription",
+    "import": "Import links",
+    "source": "Subscription",
+    "nodes": "Nodes",
+    "lastSync": "Last sync",
+    "manual": "manual",
+    "name": "Name",
+    "link": "Link",
+    "from": "From",
+    "empty": "No external nodes yet",
+    "subUrl": "Subscription URL",
+    "subUrlHint": "Must be a base64 / URI-list subscription (the v2rayN kind); Clash YAML is not parsed. Re-synced hourly.",
+    "saveAndSync": "Save and sync",
+    "synced": "Synced {{count}} nodes",
+    "imported": "Imported {{added}}, skipped {{skipped}}",
+    "links": "Share links",
+    "linksHint": "One vless:// vmess:// trojan:// ss:// hysteria2:// tuic:// anytls:// link per line, or a whole base64 subscription body.",
+    "deleteSourceHint": "Nodes synced from this subscription are removed with it."
+  },
+  "routing": {
+    "title": "Outbounds & landing",
+    "hint": "Add exits (landing servers) to this node, then send all traffic or specific inbounds through one of them — a relay. An outbound can itself go via another outbound (chain). Nodes pick changes up within seconds.",
+    "direct": "Direct",
+    "block": "Block",
+    "raw": "raw config",
+    "via": "via {{tag}}",
+    "isDefault": "default exit",
+    "chain": "Chain",
+    "noChain": "No chain",
+    "addFromLink": "Add an outbound from a share link",
+    "tag": "Tag",
+    "add": "Add",
+    "badLink": "Unrecognised link",
+    "rawJSON": "Raw outbounds JSON (advanced)",
+    "rawHint": "Passed to the core untranslated in its own dialect; normally not needed.",
+    "default": "Default exit",
+    "defaultHint": "Traffic matching no rule goes here; picking an outbound relays the whole node.",
+    "rules": "Rules",
+    "match": "Match",
+    "matchHint": "Comma separated: inbound:tag, domain:example.com, full:host, ip:1.2.3.0/24, protocol:bittorrent, port:443",
+    "to": "To",
+    "addRule": "Add rule",
+    "routeInbound": "Inbound {{tag}} → outbound"
   }
 }

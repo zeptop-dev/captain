@@ -194,6 +194,20 @@ external login):
 - **Languages** — the console and portal ship in 简体中文, 繁體中文, English,
   日本語, Русский and 한국어.
 
+## External nodes, outbounds and relays
+
+- **External nodes** (Admin → External nodes): paste share links (vless,
+  vmess, trojan, ss, hysteria2, tuic, anytls) or add an airport subscription
+  (base64 / URI-list form, re-synced hourly, per-source User-Agent). They are
+  offered in your subscriptions like your own entries, optionally restricted to
+  a user group. Nothing runs behind them, so their traffic is not charged.
+- **Outbounds & landing** (node page): add an exit from a share link (bosun
+  renders it in the serving core's dialect: sing-box takes every protocol,
+  Xray vless/vmess/trojan/ss/socks/http), chain exits (`via`), then pick a
+  default exit for the whole node or add rules such as `inbound:tag`,
+  `domain:`, `ip:`, `protocol:`, `port:` → outbound / direct / block. Needs
+  bosun >= 0.12.
+
 ## Probe / status page
 
 Settings → Probe. Off by default; nothing extra runs on nodes until it is on.

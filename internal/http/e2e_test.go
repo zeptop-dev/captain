@@ -1586,3 +1586,92 @@ func TestProbePageAndBeats(t *testing.T) {
 		t.Fatal("cpu alert should already have fired during the beats")
 	}
 }
+
+func TestExternalNodesAndRouting(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "https://panel.test"
+	cfg.Portal.Registration = true
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	ac := &client{t: t, srv: srv}
+	ac.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+
+	// A fake airport serving a base64 URI list; it records the User-Agent.
+	var gotUA string
+	airport := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotUA = r.UserAgent()
+		body := "trojan://pw@air1.test:443?sni=air1.test#Air%20HK\nss://" + base64.StdEncoding.EncodeToString([]byte("aes-256-gcm:k")) + "@air2.test:8388#Air%20JP\n"
+		_, _ = w.Write([]byte(base64.StdEncoding.EncodeToString([]byte(body))))
+	}))
+	defer airport.Close()
+	code, b, _ := ac.do("POST", "/api/admin/external/sources", map[string]any{"name": "air", "url": airport.URL + "/sub", "user_agent": "v2rayN/7.0", "rate": 2}, nil)
+	if code != 200 || !strings.Contains(string(b), `"synced":2`) || gotUA != "v2rayN/7.0" {
+		t.Fatalf("add source: %d %s ua=%s", code, b, gotUA)
+	}
+	// Manual import with one bad line; group-restricted.
+	_, b, _ = ac.do("POST", "/api/admin/groups", map[string]string{"Name": "vip"}, nil)
+	gid := int64(mustJSON[map[string]any](t, b)["id"].(float64))
+	code, b, _ = ac.do("POST", "/api/admin/external/nodes", map[string]any{"Text": "vless://11111111-1111-1111-1111-111111111111@vip.test:443?security=reality&pbk=PUB&sid=ab&sni=www.apple.com&type=tcp&flow=xtls-rprx-vision#VIP%20Exit\nnope://x", "GroupID": gid}, nil)
+	if code != 200 || !strings.Contains(string(b), `"added":1`) || !strings.Contains(string(b), `"skipped":1`) {
+		t.Fatalf("import: %d %s", code, b)
+	}
+	_, b, _ = ac.do("GET", "/api/admin/external/nodes", nil, nil)
+	if strings.Count(string(b), `"uri"`) != 3 {
+		t.Fatalf("external list: %s", b)
+	}
+
+	// A plan + user: the subscription lists the airport nodes but not the vip one.
+	_, b, _ = ac.do("POST", "/api/admin/plans", map[string]any{"Name": "p", "PriceCents": 0, "PeriodDays": 30, "QuotaBytes": 1 << 30}, nil)
+	planID := int64(mustJSON[map[string]any](t, b)["ID"].(float64))
+	uc := &client{t: t, srv: srv}
+	uc.do("POST", "/api/portal/register", map[string]string{"Email": "u@test", "Password": "password123"}, nil)
+	u, _ := st.UserByEmail(context.Background(), "u@test")
+	ac.do("POST", "/api/admin/users/"+itoa(u.ID)+"/grant", map[string]any{"PlanID": planID}, nil)
+	anon := &client{t: t, srv: srv}
+	_, b, _ = anon.do("GET", "/sub/"+u.SubToken+"?client=clash", nil, nil)
+	if !strings.Contains(string(b), "name: Air HK") || !strings.Contains(string(b), "server: air2.test") || strings.Contains(string(b), "VIP Exit") {
+		t.Fatalf("subscription with external nodes:\n%s", b)
+	}
+	ac.do("PATCH", "/api/admin/users/"+itoa(u.ID), map[string]any{"Status": "active", "GroupID": gid}, nil)
+	_, b, _ = anon.do("GET", "/sub/"+u.SubToken+"?client=clash", nil, nil)
+	if !strings.Contains(string(b), "VIP Exit") || !strings.Contains(string(b), "public-key: PUB") {
+		t.Fatalf("vip external node for group member:\n%s", b)
+	}
+
+	// Node routing: outbound from a share link, default exit, per-inbound rule; validation.
+	_, b, _ = ac.do("POST", "/api/admin/nodes", map[string]string{"Name": "relay", "PublicAddr": "relay.test"}, nil)
+	node := mustJSON[map[string]any](t, b)
+	nodeID := itoa(int64(node["id"].(float64)))
+	_, b, _ = ac.do("POST", "/api/admin/external/parse", map[string]string{"Text": "ss://" + base64.StdEncoding.EncodeToString([]byte("aes-128-gcm:pw")) + "@exit.test:8388#exit"}, nil)
+	var parsed struct {
+		Nodes []struct {
+			Remote map[string]any `json:"remote"`
+		} `json:"nodes"`
+	}
+	_ = json.Unmarshal(b, &parsed)
+	if len(parsed.Nodes) != 1 || parsed.Nodes[0].Remote["host"] != "exit.test" {
+		t.Fatalf("parse: %s", b)
+	}
+	if code, b, _ := ac.do("PUT", "/api/admin/nodes/"+nodeID+"/routing", map[string]any{"outbounds": []map[string]any{{"tag": "exit", "remote": parsed.Nodes[0].Remote}}, "routes": []map[string]any{{"match": []string{"inbound:in-a"}, "action": "outbound", "value": "nope"}}}, nil); code != 400 {
+		t.Fatalf("unknown outbound accepted: %d %s", code, b)
+	}
+	code, b, _ = ac.do("PUT", "/api/admin/nodes/"+nodeID+"/routing", map[string]any{"outbounds": []map[string]any{{"tag": "exit", "remote": parsed.Nodes[0].Remote}, {"tag": "hop", "proxy_tag": "exit", "remote": parsed.Nodes[0].Remote}},
+		"routes": []map[string]any{{"match": []string{"inbound:in-a"}, "action": "outbound", "value": "hop"}, {"match": []string{"domain:cn"}, "action": "direct"}}, "default_outbound": "exit"}, nil)
+	if code != 200 {
+		t.Fatalf("routing: %d %s", code, b)
+	}
+	nc := &client{t: t, srv: srv}
+	_, b, _ = nc.do("POST", "/api/agent/pair", map[string]string{"Code": node["pair_code"].(string), "Hostname": "relay", "Version": "v0.12.0", "Platform": "linux/amd64"}, nil)
+	nc.token = mustJSON[map[string]any](t, b)["token"].(string)
+	_, b, _ = nc.do("GET", "/api/agent/state", nil, nil)
+	for _, want := range []string{`"default_outbound":"exit"`, `"tag":"hop","proxy_tag":"exit"`, `"host":"exit.test"`, `"match":["inbound:in-a"],"action":"outbound","value":"hop"`} {
+		if !strings.Contains(string(b), want) {
+			t.Fatalf("state missing %s:\n%s", want, b)
+		}
+	}
+}

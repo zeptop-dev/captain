@@ -35,7 +35,10 @@ type Runner struct {
 	// Hooks receives subscription.expiring events (nil = off).
 	Hooks *webhook.Hub
 	// Probe raises offline notices and prunes metrics (nil = off).
-	Probe     *service.Probe
+	Probe *service.Probe
+	// External re-syncs airport subscriptions hourly (nil = off).
+	External  *service.External
+	lastSync  time.Time
 	lastPrune time.Time
 	SiteName  string
 	PortalURL string
@@ -88,6 +91,10 @@ func (r *Runner) Tick(ctx context.Context) {
 	report("purged sessions", n, err)
 	n, err = r.Store.PurgeOnline(ctx, now.Add(-r.OnlineRetain))
 	report("purged online devices", n, err)
+	if r.External != nil && now.Sub(r.lastSync) >= time.Hour {
+		r.lastSync = now
+		r.External.SyncAll(ctx, now)
+	}
 	if r.Probe != nil {
 		r.Probe.CheckOffline(ctx, now)
 		if now.Sub(r.lastPrune) >= time.Hour {
