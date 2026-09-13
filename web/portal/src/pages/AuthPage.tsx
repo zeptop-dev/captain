@@ -30,7 +30,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const form = useForm({ initialValues: { Email: '', Password: '', Code: '', Invite: new URLSearchParams(window.location.search).get('ref') ?? '', Captcha: '' } })
   const submit = form.onSubmit(async (v) => {
     setBusy(true); setError('')
-    try { await api.post(`/api/portal/${mode}`, { ...v, Captcha: captcha }); refresh(); nav('/') } catch (e) {
+    try { await api.post(`/api/portal/${mode}`, { ...v, Captcha: captcha }); await refresh(); nav('/') } catch (e) {
       setError(e instanceof ApiError && e.status === 403 ? t('auth.closed') : e instanceof ApiError && e.status !== 401 ? e.message : t('auth.failed'))
     } finally { setBusy(false) }
   })
