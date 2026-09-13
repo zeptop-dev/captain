@@ -113,7 +113,7 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
           <Select label={t('inbounds.protocol')} data={protocols} required allowDeselect={false} {...form.getInputProps('Protocol')} />
         </Group>
         <Select label={t('inbounds.ingress')} description={form.values.NewIngress ? t('inbounds.ingressNewHint') : selectedIngress ? t('inbounds.ingressHint', { host: selectedIngress.entry_host || t('ingress.noEntry'), ports: selectedIngress.port_from ? `${selectedIngress.port_from}–${selectedIngress.port_to}` : t('ingress.anyPort') }) : t('inbounds.ingressDirectHint')} allowDeselect={false}
-          data={[{ value: '', label: t('inbounds.ingressDirect') }, ...ingresses.map((g) => ({ value: String(g.id), label: `${g.name} → ${g.entry_host || t('ingress.noEntry')}` })), { value: 'new', label: t('inbounds.ingressNew') }]}
+          data={[{ value: '', label: t('inbounds.ingressDirect') }, ...ingresses.map((g) => ({ value: String(g.id), label: `${g.name} → ${g.entry_domain || g.entry_host || t('ingress.noEntry')}` })), { value: 'new', label: t('inbounds.ingressNew') }]}
           value={form.values.NewIngress ? 'new' : form.values.IngressID} onChange={onIngress} />
         {form.values.NewIngress && <Stack gap="xs" p="sm" style={{ border: '1px dashed var(--mantine-color-default-border)', borderRadius: 8 }}><Text size="xs" c="dimmed">{t('inbounds.ingressNewFields')}</Text><IngressFields form={ingressForm} /></Stack>}
         <Group grow>

@@ -60,6 +60,8 @@ type Deps struct {
 	Backups *backup.Manager
 	// Certs issues panel-managed certificates; nil = uploads/webhooks only.
 	Certs *service.Certs
+	// DNS keeps Cloudflare records in step with node and entry names.
+	DNS *service.DNS
 	// Bot exposes the Telegram settings cache; nil disables.
 	Bot *telegram.Bot
 	// Hooks is the webhook hub (settings cache invalidation, test delivery).
@@ -377,7 +379,11 @@ func (h *handlers) createNode(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	ok(w, toNodeView(n, time.Now())) // includes the pairing code once
+	v := toNodeView(n, time.Now()) // includes the pairing code once
+	ok(w, struct {
+		nodeView
+		DNS []service.Result `json:"dns,omitempty"`
+	}{v, h.DNS.EnsureMany(r.Context(), [2]string{n.Domain, n.PublicAddr}, [2]string{n.Domain, n.V6Addr})})
 }
 
 func (h *handlers) getNode(w http.ResponseWriter, r *http.Request) {
@@ -416,7 +422,7 @@ func (h *handlers) updateNode(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	ok(w, map[string]bool{"ok": true})
+	ok(w, map[string]any{"ok": true, "dns": h.DNS.EnsureMany(r.Context(), [2]string{n.Domain, n.PublicAddr}, [2]string{n.Domain, n.V6Addr})})
 }
 
 func (h *handlers) deleteNode(w http.ResponseWriter, r *http.Request) {
@@ -832,10 +838,10 @@ func (h *handlers) fillEntryDefaults(ctx context.Context, e *domain.Entry) error
 				e.DisplayPort = g.EntryPort(ib.Port)
 			}
 			if e.DisplayHost == "" {
-				if g.EntryHost == "" {
+				if g.ClientHost() == "" {
 					return errors.New("this ingress has no public entry: add a port forward on a relay node and use the relay's address here")
 				}
-				e.DisplayHost = g.EntryHost
+				e.DisplayHost = g.ClientHost()
 			}
 			return nil
 		}

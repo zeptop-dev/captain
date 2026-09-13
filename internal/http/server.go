@@ -66,6 +66,8 @@ type Options struct {
 	Gateways map[string]payment.Gateway // overrides config-built gateways when set
 	// CertIssuer replaces the Let's Encrypt issuer (tests).
 	CertIssuer certs.Issuer
+	// DNSBase overrides the Cloudflare API base (tests).
+	DNSBase string
 }
 
 // New builds the router.
@@ -77,6 +79,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	sessions := &sessionAuth{store: st}
 	gateways := buildGateways(cfg, log)
 	var certIssuer certs.Issuer
+	var dnsBase string
 	if cfg.DataDir != "" {
 		certIssuer = &certs.ACMEIssuer{Dir: filepath.Join(cfg.DataDir, "certs-issued"), Staging: cfg.TLS.Staging}
 	}
@@ -86,6 +89,9 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 		}
 		if o.CertIssuer != nil {
 			certIssuer = o.CertIssuer
+		}
+		if o.DNSBase != "" {
+			dnsBase = o.DNSBase
 		}
 	}
 	names := []string{"balance"}
@@ -146,7 +152,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	}
 	s.certs = &service.Certs{Store: st, Issuer: certIssuer, Log: log, Notify: notifier}
 	s.probe = probe.Register(s.mux, probe.Deps{Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe()})
-	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Backups: s.backups, Certs: s.certs, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external,
+	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 	})

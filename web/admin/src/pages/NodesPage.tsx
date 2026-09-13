@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { api, type Node, type SystemUpdate } from '../lib/api'
 import { ago, bytes } from '../lib/format'
-import { toast } from '../lib/notify'
+import { dnsToast, toast, type DNSResult } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
 import { Copy } from '../components/Copy'
 
@@ -51,8 +51,8 @@ export default function NodesPage() {
   const upgradeAll = useMutation({ mutationFn: () => api.post<{ nodes: number; upgrade_to: string }>('/api/admin/nodes/upgrade-all', {}), onSuccess: (r) => { toast.ok(t('nodes.upgradeAllQueued', { count: r.nodes, version: r.upgrade_to })); qc.invalidateQueries({ queryKey: ['nodes'] }) }, onError: toast.err })
   const outdated = (q.data ?? []).filter((n) => n.outdated && n.paired).length
   const create = useMutation({
-    mutationFn: (v: typeof form.values) => api.post<Node>('/api/admin/nodes', v),
-    onSuccess: (n) => { setCreated(n); form.reset(); qc.invalidateQueries({ queryKey: ['nodes'] }) },
+    mutationFn: (v: typeof form.values) => api.post<Node & { dns?: DNSResult[] }>('/api/admin/nodes', v),
+    onSuccess: (n) => { setCreated(n); form.reset(); qc.invalidateQueries({ queryKey: ['nodes'] }); dnsToast(n.dns) },
     onError: toast.err,
   })
   return (

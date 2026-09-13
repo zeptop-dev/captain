@@ -29,8 +29,8 @@ func (h *handlers) listIngresses(w http.ResponseWriter, r *http.Request) {
 }
 
 type ingressInput struct {
-	Name, Kind, BindIP, LineIP, EntryHost string
-	PortFrom, PortTo, PortOffset          int
+	Name, Kind, BindIP, LineIP, EntryHost, EntryDomain string
+	PortFrom, PortTo, PortOffset                       int
 }
 
 func (in *ingressInput) apply(g *store.Ingress) string {
@@ -50,6 +50,13 @@ func (in *ingressInput) apply(g *store.Ingress) string {
 	g.EntryHost = strings.ToLower(strings.TrimSpace(in.EntryHost))
 	if strings.ContainsAny(g.EntryHost, " /:") {
 		return "entry host must be a host name or IP without a port"
+	}
+	g.EntryDomain = strings.ToLower(strings.TrimSpace(in.EntryDomain))
+	if g.EntryDomain != "" && (strings.ContainsAny(g.EntryDomain, " /:") || net.ParseIP(g.EntryDomain) != nil || !strings.Contains(g.EntryDomain, ".")) {
+		return "entry domain must be a host name"
+	}
+	if g.EntryDomain != "" && net.ParseIP(g.EntryHost) == nil {
+		return "an entry domain needs the public entry to be an IP address to point at"
 	}
 	if g.LineIP == "" && g.EntryHost == "" {
 		return "give the line's far-end address, its public entry, or both"
@@ -80,7 +87,7 @@ func (h *handlers) createIngress(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	ok(w, g)
+	ok(w, map[string]any{"ingress": g, "dns": h.DNS.EnsureMany(r.Context(), [2]string{g.EntryDomain, g.EntryHost})})
 }
 
 func (h *handlers) updateIngress(w http.ResponseWriter, r *http.Request) {
@@ -102,7 +109,7 @@ func (h *handlers) updateIngress(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	ok(w, g)
+	ok(w, map[string]any{"ingress": g, "dns": h.DNS.EnsureMany(r.Context(), [2]string{g.EntryDomain, g.EntryHost})})
 }
 
 func (h *handlers) deleteIngress(w http.ResponseWriter, r *http.Request) {

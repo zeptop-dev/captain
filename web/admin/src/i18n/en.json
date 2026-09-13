@@ -877,7 +877,9 @@
     "useSub": "{{n}} subscription hosts",
     "usePanel": "panel",
     "deleteHint": "Removes the registration only; nodes and certificates stay.",
-    "empty": "No domains registered yet."
+    "empty": "No domains registered yet.",
+    "autoDNS": "Auto DNS records",
+    "autoDNSHint": "When a node domain or line entry domain falls under this domain, saving the node or ingress creates/updates the A/AAAA record on Cloudflare (node public address / entry IP). The token needs DNS edit permission."
   },
   "ingress": {
     "title": "Line ingresses",
@@ -900,6 +902,8 @@
     "anyPort": "any port",
     "noEntry": "no public entry",
     "noEntryHint": "This line has no public entry: add a port forward on a relay node that can reach it (target = the far-end address) and use the relay's address in entries.",
-    "deleteHint": "Inbounds using it fall back to direct; entry addresses are not rewritten."
+    "deleteHint": "Inbounds using it fall back to direct; entry addresses are not rewritten.",
+    "entryDomain": "Entry domain (optional)",
+    "entryDomainHint": "A name for the public entry: entries advertise it instead of the IP; with auto DNS on the registered domain, an A record pointing at the entry IP is created automatically."
   }
 }

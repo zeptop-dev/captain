@@ -12,7 +12,7 @@ import { Copy } from '../components/Copy'
 import { PageHeader } from '../components/PageHeader'
 
 interface Usage { nodes: string[]; tls: string[]; sub_hosts: string[]; panel: boolean }
-interface Domain { id: number; name: string; provider: string; has_token: boolean; usage: Usage; certificates: number; created_at: string }
+interface Domain { id: number; name: string; provider: string; has_token: boolean; auto_dns: boolean; usage: Usage; certificates: number; created_at: string }
 interface Cert { id: number; name: string; domain: string; names: string[]; not_after: string; source: string; issuer: string; renewals: number; last_error: string; auto_renew: boolean; domain_id: number | null; created_at: string; updated_at: string; nodes: string[] }
 interface Detail { certificate: Cert & { cert_pem: string }; nodes: string[] }
 
@@ -30,12 +30,12 @@ export default function DomainsPage() {
 
   // ---- domains ----
   const [editingDomain, setEditingDomain] = useState<Domain | 'new' | null>(null)
-  const dform = useForm({ initialValues: { Name: '', Provider: 'cloudflare', CFToken: '' } })
-  const saveDomain = useMutation({ mutationFn: (v: typeof dform.values) => editingDomain === 'new' ? api.post('/api/admin/domains', v) : api.patch(`/api/admin/domains/${(editingDomain as Domain).id}`, { Provider: v.Provider, CFToken: v.CFToken }), onSuccess: () => { toast.ok(t('common.saved')); setEditingDomain(null); refresh() }, onError: toast.err })
+  const dform = useForm({ initialValues: { Name: '', Provider: 'cloudflare', CFToken: '', AutoDNS: true } })
+  const saveDomain = useMutation({ mutationFn: (v: typeof dform.values) => editingDomain === 'new' ? api.post('/api/admin/domains', v) : api.patch(`/api/admin/domains/${(editingDomain as Domain).id}`, { Provider: v.Provider, CFToken: v.CFToken, AutoDNS: v.AutoDNS }), onSuccess: () => { toast.ok(t('common.saved')); setEditingDomain(null); refresh() }, onError: toast.err })
   const delDomain = useMutation({ mutationFn: (id: number) => api.del(`/api/admin/domains/${id}`), onSuccess: () => { toast.ok(t('common.deleted')); refresh() }, onError: toast.err })
   // The modal's children render even while closed, so never dereference a null selection.
   const hasToken = editingDomain !== null && editingDomain !== 'new' && editingDomain.has_token
-  const openDomain = (d: Domain | 'new') => { dform.setValues(d === 'new' ? { Name: '', Provider: 'cloudflare', CFToken: '' } : { Name: d.name, Provider: d.provider, CFToken: '' }); setEditingDomain(d) }
+  const openDomain = (d: Domain | 'new') => { dform.setValues(d === 'new' ? { Name: '', Provider: 'cloudflare', CFToken: '', AutoDNS: true } : { Name: d.name, Provider: d.provider, CFToken: '', AutoDNS: d.auto_dns }); setEditingDomain(d) }
   const useSummary = (u: Usage) => [u.nodes.length && t('domains.useNodes', { n: u.nodes.length }), u.tls.length && t('domains.useTLS', { n: u.tls.length }), u.sub_hosts.length && t('domains.useSub', { n: u.sub_hosts.length }), u.panel && t('domains.usePanel')].filter(Boolean).join(' · ')
   const useDetail = (u: Usage) => [...u.nodes, ...u.tls, ...u.sub_hosts].filter((v, i, a) => a.indexOf(v) === i).join('\n')
 
@@ -73,7 +73,7 @@ export default function DomainsPage() {
             {(domains.data?.domains ?? []).map((d) => (
               <Table.Tr key={d.id}>
                 <Table.Td><Code>{d.name}</Code></Table.Td>
-                <Table.Td>{d.provider === 'cloudflare' ? <Group gap={4}><Badge size="xs" variant="light" color="orange">Cloudflare</Badge><Text size="xs" c="dimmed">{d.has_token ? t('domains.ownToken') : domains.data?.global_token ? t('domains.globalToken') : t('domains.noToken')}</Text></Group> : <Badge size="xs" variant="outline" color="gray">{t('domains.manual')}</Badge>}</Table.Td>
+                <Table.Td>{d.provider === 'cloudflare' ? <Group gap={4}><Badge size="xs" variant="light" color="orange">Cloudflare</Badge><Text size="xs" c="dimmed">{d.has_token ? t('domains.ownToken') : domains.data?.global_token ? t('domains.globalToken') : t('domains.noToken')}</Text>{d.auto_dns && <Badge size="xs" variant="light" color="teal">{t('domains.autoDNS')}</Badge>}</Group> : <Badge size="xs" variant="outline" color="gray">{t('domains.manual')}</Badge>}</Table.Td>
                 <Table.Td>{useSummary(d.usage) ? <Tooltip label={<Text size="xs" style={{ whiteSpace: 'pre-line' }}>{useDetail(d.usage)}</Text>} multiline><Text size="sm">{useSummary(d.usage)}</Text></Tooltip> : <Text size="xs" c="dimmed">—</Text>}</Table.Td>
                 <Table.Td><Text size="sm">{d.certificates}</Text></Table.Td>
                 <Table.Td><Group gap={4} justify="flex-end"><ActionIcon variant="subtle" onClick={() => openDomain(d)}><IconPencil size={16} /></ActionIcon><ActionIcon variant="subtle" color="red" onClick={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text size="sm">{t('domains.deleteHint')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => delDomain.mutate(d.id) })}><IconTrash size={16} /></ActionIcon></Group></Table.Td>
@@ -124,6 +124,7 @@ export default function DomainsPage() {
         <form onSubmit={dform.onSubmit((v) => saveDomain.mutate(v))}><Stack>
           <TextInput label={t('domains.domain')} description={t('domains.domainHint')} placeholder="example.com" required disabled={editingDomain !== 'new'} {...dform.getInputProps('Name')} />
           <Select label="DNS" data={[{ value: 'cloudflare', label: 'Cloudflare' }, { value: 'manual', label: t('domains.manual') }]} allowDeselect={false} {...dform.getInputProps('Provider')} />
+          {dform.values.Provider === 'cloudflare' && <Switch label={t('domains.autoDNS')} description={t('domains.autoDNSHint')} {...dform.getInputProps('AutoDNS', { type: 'checkbox' })} />}
           {dform.values.Provider === 'cloudflare' && <PasswordInput label={t('domains.token')} description={hasToken ? t('domains.tokenSet') : domains.data?.global_token ? t('domains.tokenGlobalHint') : t('domains.tokenHint')} placeholder={hasToken ? '••••••••' : ''} {...dform.getInputProps('CFToken')} />}
           <Group justify="flex-end"><Button variant="default" onClick={() => setEditingDomain(null)}>{t('common.cancel')}</Button><Button type="submit" loading={saveDomain.isPending}>{t('common.save')}</Button></Group>
         </Stack></form>

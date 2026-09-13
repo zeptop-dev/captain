@@ -877,7 +877,9 @@
     "useSub": "{{n}} 个订阅域名",
     "usePanel": "面板",
     "deleteHint": "只删除登记，不影响节点和证书。",
-    "empty": "还没有登记域名。"
+    "empty": "还没有登记域名。",
+    "autoDNS": "自动建 DNS 记录",
+    "autoDNSHint": "节点域名、专线入口域名落在这个域名下时，保存节点或入口后自动在 Cloudflare 创建或更新 A/AAAA 记录，指向节点公网地址或入口 IP。需要 token 有 DNS 编辑权限。"
   },
   "ingress": {
     "title": "专线入口",
@@ -900,6 +902,8 @@
     "anyPort": "任意端口",
     "noEntry": "无公网入口",
     "noEntryHint": "这条线没有公网入口：在能连通它的前置节点上加一条端口转发到外部连接 IP，订阅行写前置的地址。",
-    "deleteHint": "删除后用它的入站会变回直连，订阅行地址不会自动改。"
+    "deleteHint": "删除后用它的入站会变回直连，订阅行地址不会自动改。",
+    "entryDomain": "入口域名（可选）",
+    "entryDomainHint": "给公网入口起个域名，订阅里写它而不是 IP；域名登记且开了自动 DNS 时会自动建 A 记录指向公网入口。"
   }
 }

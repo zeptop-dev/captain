@@ -6,11 +6,11 @@ import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, type Ingress } from '../lib/api'
-import { toast } from '../lib/notify'
+import { dnsToast, toast, type DNSResult } from '../lib/notify'
 
-export type IngressValues = { Name: string; BindIP: string; LineIP: string; EntryHost: string; PortFrom: number | string; PortTo: number | string; PortOffset: number | string }
-export const emptyIngress: IngressValues = { Name: 'IPLC', BindIP: '', LineIP: '', EntryHost: '', PortFrom: '', PortTo: '', PortOffset: 0 }
-export const ingressPayload = (v: IngressValues) => ({ Name: v.Name, BindIP: v.BindIP, LineIP: v.LineIP, EntryHost: v.EntryHost, PortFrom: Number(v.PortFrom) || 0, PortTo: Number(v.PortTo) || 0, PortOffset: Number(v.PortOffset) || 0 })
+export type IngressValues = { Name: string; BindIP: string; LineIP: string; EntryHost: string; EntryDomain: string; PortFrom: number | string; PortTo: number | string; PortOffset: number | string }
+export const emptyIngress: IngressValues = { Name: 'IPLC', BindIP: '', LineIP: '', EntryHost: '', EntryDomain: '', PortFrom: '', PortTo: '', PortOffset: 0 }
+export const ingressPayload = (v: IngressValues) => ({ Name: v.Name, BindIP: v.BindIP, LineIP: v.LineIP, EntryHost: v.EntryHost, EntryDomain: v.EntryDomain, PortFrom: Number(v.PortFrom) || 0, PortTo: Number(v.PortTo) || 0, PortOffset: Number(v.PortOffset) || 0 })
 
 // The fields of one line ingress, shared by the card and the inbound recipe.
 export function IngressFields({ form }: { form: ReturnType<typeof useForm<IngressValues>> }) {
@@ -25,6 +25,7 @@ export function IngressFields({ form }: { form: ReturnType<typeof useForm<Ingres
         <TextInput label={t('ingress.lineIP')} description={t('ingress.lineIPHint')} placeholder="198.51.100.20" {...form.getInputProps('LineIP')} />
         <TextInput label={t('ingress.entryHost')} description={t('ingress.entryHostHint')} placeholder="203.0.113.30" {...form.getInputProps('EntryHost')} />
       </Group>
+      <TextInput label={t('ingress.entryDomain')} description={t('ingress.entryDomainHint')} placeholder="iplc.jp1.example.com" {...form.getInputProps('EntryDomain')} />
       <Group grow>
         <NumberInput label={t('ingress.portFrom')} min={1} max={65535} placeholder="17701" {...form.getInputProps('PortFrom')} />
         <NumberInput label={t('ingress.portTo')} min={1} max={65535} placeholder="17799" {...form.getInputProps('PortTo')} />
@@ -44,9 +45,9 @@ export function IngressesCard({ nodeID, ingresses, inbounds, embedded }: { nodeI
   const [editing, setEditing] = useState<Ingress | 'new' | null>(null)
   const form = useForm<IngressValues>({ initialValues: emptyIngress })
   const invalidate = () => { qc.invalidateQueries({ queryKey: ['node', String(nodeID)] }); qc.invalidateQueries({ queryKey: ['node', nodeID] }) }
-  const save = useMutation({ mutationFn: (v: IngressValues) => editing === 'new' ? api.post(`/api/admin/nodes/${nodeID}/ingresses`, ingressPayload(v)) : api.patch(`/api/admin/ingresses/${(editing as Ingress).id}`, ingressPayload(v)), onSuccess: () => { toast.ok(t('common.saved')); setEditing(null); invalidate() }, onError: toast.err })
+  const save = useMutation({ mutationFn: (v: IngressValues) => editing === 'new' ? api.post<{ dns?: DNSResult[] }>(`/api/admin/nodes/${nodeID}/ingresses`, ingressPayload(v)) : api.patch<{ dns?: DNSResult[] }>(`/api/admin/ingresses/${(editing as Ingress).id}`, ingressPayload(v)), onSuccess: (r) => { toast.ok(t('common.saved')); setEditing(null); invalidate(); dnsToast(r.dns) }, onError: toast.err })
   const del = useMutation({ mutationFn: (id: number) => api.del(`/api/admin/ingresses/${id}`), onSuccess: () => { toast.ok(t('common.deleted')); invalidate() }, onError: toast.err })
-  const open = (g: Ingress | 'new') => { form.setValues(g === 'new' ? emptyIngress : { Name: g.name, BindIP: g.bind_ip, LineIP: g.line_ip, EntryHost: g.entry_host, PortFrom: g.port_from || '', PortTo: g.port_to || '', PortOffset: g.port_offset }); setEditing(g) }
+  const open = (g: Ingress | 'new') => { form.setValues(g === 'new' ? emptyIngress : { Name: g.name, BindIP: g.bind_ip, LineIP: g.line_ip, EntryHost: g.entry_host, EntryDomain: g.entry_domain ?? '', PortFrom: g.port_from || '', PortTo: g.port_to || '', PortOffset: g.port_offset }); setEditing(g) }
   const uses = (id: number) => inbounds.filter((ib) => ib.IngressID === id).length
   return (
     <Root mb={embedded ? 0 : "lg"}>
@@ -60,7 +61,7 @@ export function IngressesCard({ nodeID, ingresses, inbounds, embedded }: { nodeI
                 <Table.Td><Text fw={600}>{g.name}</Text></Table.Td>
                 <Table.Td>{g.bind_ip ? <Code>{g.bind_ip}</Code> : <Text size="xs" c="dimmed">{t('ingress.anyAddr')}</Text>}</Table.Td>
                 <Table.Td>{g.line_ip ? <Code>{g.line_ip}</Code> : '—'}</Table.Td>
-                <Table.Td>{g.entry_host ? <Code>{g.entry_host}</Code> : <Tooltip label={t('ingress.noEntryHint')}><Badge size="xs" color="orange" variant="light">{t('ingress.noEntry')}</Badge></Tooltip>}</Table.Td>
+                <Table.Td>{g.entry_host ? <><Code>{g.entry_host}</Code>{g.entry_domain && <Text size="xs" c="dimmed">{g.entry_domain}</Text>}</> : <Tooltip label={t('ingress.noEntryHint')}><Badge size="xs" color="orange" variant="light">{t('ingress.noEntry')}</Badge></Tooltip>}</Table.Td>
                 <Table.Td><Text size="xs">{g.port_from ? `${g.port_from}–${g.port_to}` : t('ingress.anyPort')}{g.port_offset ? ` (${g.port_offset > 0 ? '+' : ''}${g.port_offset})` : ''}</Text></Table.Td>
                 <Table.Td><Text size="xs">{uses(g.id)}</Text></Table.Td>
                 <Table.Td><Group gap={4} justify="flex-end"><ActionIcon variant="subtle" onClick={() => open(g)}><IconPencil size={14} /></ActionIcon><ActionIcon variant="subtle" color="red" onClick={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text size="sm">{t('ingress.deleteHint')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => del.mutate(g.id) })}><IconTrash size={14} /></ActionIcon></Group></Table.Td>

@@ -1588,7 +1588,7 @@ func TestProbePageAndBeats(t *testing.T) {
 	// A line ingress adds a source-bound RTT task to the far end on the
 	// first inbound's port.
 	_, b, _ = ac.do("POST", "/api/admin/nodes/"+nodeID+"/ingresses", map[string]any{"Name": "IPLC", "BindIP": "10.10.0.2", "LineIP": "198.51.100.20", "PortFrom": 17701, "PortTo": 17799}, nil)
-	gid := int64(mustJSON[map[string]any](t, b)["id"].(float64))
+	gid := int64(mustJSON[map[string]any](t, b)["ingress"].(map[string]any)["id"].(float64))
 	ac.do("POST", "/api/admin/nodes/"+nodeID+"/inbounds", map[string]any{"Tag": "m", "Protocol": "mieru", "Port": 17710, "IngressID": gid, "Settings": map[string]any{"mieru_transport": "TCP"}}, nil)
 	_, b, _ = nc.do("GET", "/api/agent/state", nil, nil)
 	if !strings.Contains(string(b), `{"id":-`+itoa(gid)+`,"name":"IPLC","type":"tcp","target":"198.51.100.20:17710","interval_seconds":30,"source_ip":"10.10.0.2"}`) {
@@ -2501,7 +2501,7 @@ func TestLineIngresses(t *testing.T) {
 	if code != 200 {
 		t.Fatalf("create ingress: %d %s", code, b)
 	}
-	gid := int64(mustJSON[map[string]any](t, b)["id"].(float64))
+	gid := int64(mustJSON[map[string]any](t, b)["ingress"].(map[string]any)["id"].(float64))
 
 	// Inbounds: port must fit the line; the node state binds to the line NIC.
 	if code, b, _ := ac.do("POST", "/api/admin/nodes/"+nid+"/inbounds", map[string]any{"Tag": "m", "Protocol": "mieru", "Port": 17800, "IngressID": gid, "Settings": map[string]any{"mieru_transport": "TCP"}}, nil); code != 400 || !strings.Contains(string(b), "range") {
@@ -2564,5 +2564,142 @@ func TestLineIngresses(t *testing.T) {
 	ib, err := st.InboundByID(context.Background(), int64(mieru["ID"].(float64)))
 	if err != nil || ib.IngressID != nil {
 		t.Fatalf("inbound after ingress delete: %+v %v", ib, err)
+	}
+}
+
+// fakeCloudflare answers the zone lookup and record list/create/update
+// calls the DNS service makes, recording records by name.
+type fakeCloudflare struct {
+	mu      sync.Mutex
+	records map[string]map[string]string // name -> type -> content
+	tokens  []string
+	puts    int
+}
+
+func (f *fakeCloudflare) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.records == nil {
+		f.records = map[string]map[string]string{}
+	}
+	f.tokens = append(f.tokens, strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+	w.Header().Set("Content-Type", "application/json")
+	ok := func(v any) { _ = json.NewEncoder(w).Encode(map[string]any{"success": true, "result": v}) }
+	switch {
+	case r.URL.Path == "/zones":
+		if r.URL.Query().Get("name") != "example.com" {
+			ok([]any{})
+			return
+		}
+		ok([]map[string]string{{"id": "zone1"}})
+	case r.URL.Path == "/zones/zone1/dns_records" && r.Method == "GET":
+		name, typ := r.URL.Query().Get("name"), r.URL.Query().Get("type")
+		if c, has := f.records[name][typ]; has {
+			ok([]map[string]any{{"id": name + "/" + typ, "type": typ, "name": name, "content": c, "proxied": false}})
+			return
+		}
+		ok([]any{})
+	case r.URL.Path == "/zones/zone1/dns_records" && r.Method == "POST":
+		var rec struct{ Type, Name, Content string }
+		_ = json.NewDecoder(r.Body).Decode(&rec)
+		if f.records[rec.Name] == nil {
+			f.records[rec.Name] = map[string]string{}
+		}
+		f.records[rec.Name][rec.Type] = rec.Content
+		ok(map[string]string{"id": rec.Name + "/" + rec.Type})
+	case strings.HasPrefix(r.URL.Path, "/zones/zone1/dns_records/") && r.Method == "PUT":
+		var rec struct{ Type, Name, Content string }
+		_ = json.NewDecoder(r.Body).Decode(&rec)
+		f.records[rec.Name][rec.Type] = rec.Content
+		f.puts++
+		ok(map[string]string{"id": rec.Name + "/" + rec.Type})
+	default:
+		w.WriteHeader(404)
+		_ = json.NewEncoder(w).Encode(map[string]any{"success": false, "errors": []map[string]string{{"message": "no route " + r.Method + " " + r.URL.Path}}})
+	}
+}
+
+func (f *fakeCloudflare) get(name, typ string) string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.records[name][typ]
+}
+
+func TestAutoDNS(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "https://panel.example.com"
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	cf := &fakeCloudflare{}
+	cfSrv := httptest.NewServer(cf)
+	defer cfSrv.Close()
+	srv := httptest.NewServer(New(cfg, st, slog.Default(), Options{DNSBase: cfSrv.URL}).Handler())
+	defer srv.Close()
+	ac := &client{t: t, srv: srv}
+	ac.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+
+	// No registered domain: nothing happens, the node still saves.
+	_, b, _ := ac.do("POST", "/api/admin/nodes", map[string]any{"Name": "jp", "PublicAddr": "192.0.2.10", "Domain": "jp1.example.com"}, nil)
+	node := mustJSON[map[string]any](t, b)
+	if node["pair_code"] == nil || node["dns"].([]any)[0].(map[string]any)["action"] != "skipped" {
+		t.Fatalf("create without domain: %s", b)
+	}
+	nid := itoa(int64(node["id"].(float64)))
+	// Registered domain with auto DNS but no token: an error, not a failure.
+	ac.do("POST", "/api/admin/domains", map[string]string{"Name": "example.com"}, nil)
+	_, b, _ = ac.do("PATCH", "/api/admin/nodes/"+nid, map[string]any{"Name": "jp", "PublicAddr": "192.0.2.10", "Domain": "jp1.example.com"}, nil)
+	if !strings.Contains(string(b), `"ok":true`) || !strings.Contains(string(b), "no Cloudflare token") {
+		t.Fatalf("update without token: %s", b)
+	}
+	ac.do("PUT", "/api/admin/settings/acme", map[string]string{"Email": "ops@test", "CloudflareToken": "cf-tok"}, nil)
+	_, b, _ = ac.do("PATCH", "/api/admin/nodes/"+nid, map[string]any{"Name": "jp", "PublicAddr": "192.0.2.10", "V6Addr": "2001:db8::10", "Domain": "jp1.example.com"}, nil)
+	if !strings.Contains(string(b), `"action":"created"`) || cf.get("jp1.example.com", "A") != "192.0.2.10" || cf.get("jp1.example.com", "AAAA") != "2001:db8::10" {
+		t.Fatalf("records after update: %s A=%s AAAA=%s", b, cf.get("jp1.example.com", "A"), cf.get("jp1.example.com", "AAAA"))
+	}
+	// Same address again is unchanged; a new address updates in place.
+	_, b, _ = ac.do("PATCH", "/api/admin/nodes/"+nid, map[string]any{"Name": "jp", "PublicAddr": "192.0.2.10", "V6Addr": "2001:db8::10", "Domain": "jp1.example.com"}, nil)
+	if !strings.Contains(string(b), `"action":"unchanged"`) || strings.Contains(string(b), `"created"`) {
+		t.Fatalf("unchanged: %s", b)
+	}
+	ac.do("PATCH", "/api/admin/nodes/"+nid, map[string]any{"Name": "jp", "PublicAddr": "192.0.2.11", "Domain": "jp1.example.com"}, nil)
+	if cf.get("jp1.example.com", "A") != "192.0.2.11" || cf.puts != 1 {
+		t.Fatalf("update in place: A=%s puts=%d", cf.get("jp1.example.com", "A"), cf.puts)
+	}
+	// A line ingress with an entry domain gets a record to the entry IP and
+	// entries advertise the domain.
+	code, b, _ := ac.do("POST", "/api/admin/nodes/"+nid+"/ingresses", map[string]any{"Name": "IPLC", "BindIP": "10.10.0.2", "LineIP": "198.51.100.20", "EntryHost": "203.0.113.30", "EntryDomain": "iplc.example.com", "PortFrom": 17701, "PortTo": 17799}, nil)
+	if code != 200 || cf.get("iplc.example.com", "A") != "203.0.113.30" {
+		t.Fatalf("ingress dns: %d %s", code, b)
+	}
+	gid := int64(mustJSON[map[string]any](t, b)["ingress"].(map[string]any)["id"].(float64))
+	if code, _, _ := ac.do("POST", "/api/admin/nodes/"+nid+"/ingresses", map[string]any{"Name": "bad", "EntryHost": "entry.example.net", "EntryDomain": "x.example.com"}, nil); code != 400 {
+		t.Fatal("entry domain over a host-name entry accepted")
+	}
+	_, b, _ = ac.do("POST", "/api/admin/nodes/"+nid+"/inbounds", map[string]any{"Tag": "m", "Protocol": "mieru", "Port": 17710, "IngressID": gid, "Settings": map[string]any{"mieru_transport": "TCP"}}, nil)
+	mieru := mustJSON[map[string]any](t, b)
+	_, b, _ = ac.do("POST", "/api/admin/entries", map[string]any{"Name": "line", "InboundID": mieru["ID"]}, nil)
+	if !strings.Contains(string(b), `"DisplayHost":"iplc.example.com"`) {
+		t.Fatalf("entry via domain: %s", b)
+	}
+	// Per-domain token wins; auto DNS off skips.
+	domID := func() int64 {
+		_, b, _ := ac.do("GET", "/api/admin/domains", nil, nil)
+		return int64(mustJSON[map[string]any](t, b)["domains"].([]any)[0].(map[string]any)["id"].(float64))
+	}()
+	ac.do("PATCH", "/api/admin/domains/"+itoa(domID), map[string]any{"CFToken": "own-tok"}, nil)
+	ac.do("PATCH", "/api/admin/nodes/"+nid, map[string]any{"Name": "jp", "PublicAddr": "192.0.2.12", "Domain": "jp1.example.com"}, nil)
+	cf.mu.Lock()
+	last := cf.tokens[len(cf.tokens)-1]
+	cf.mu.Unlock()
+	if last != "own-tok" {
+		t.Fatalf("token used: %s", last)
+	}
+	ac.do("PATCH", "/api/admin/domains/"+itoa(domID), map[string]any{"AutoDNS": false}, nil)
+	_, b, _ = ac.do("PATCH", "/api/admin/nodes/"+nid, map[string]any{"Name": "jp", "PublicAddr": "192.0.2.13", "Domain": "jp1.example.com"}, nil)
+	if !strings.Contains(string(b), `"action":"skipped"`) || cf.get("jp1.example.com", "A") != "192.0.2.12" {
+		t.Fatalf("auto dns off: %s", b)
 	}
 }
