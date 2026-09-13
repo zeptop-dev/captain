@@ -61,12 +61,31 @@ ask() { # var prompt [default]
   [ -n "$val" ] || val="${4:-}"
   eval "$1=\"\$val\""
 }
+# Read a secret from the terminal, echoing one * per character (backspace works).
+read_masked() { # var
+  val=""
+  old=$(stty -g </dev/tty)
+  stty raw -echo </dev/tty
+  while :; do
+    ch=$(dd bs=1 count=1 </dev/tty 2>/dev/null)
+    case "$ch" in
+      ""|"$(printf '\r')"|"$(printf '\n')") break ;;
+      "$(printf '\177')"|"$(printf '\b')")
+        if [ -n "$val" ]; then val=${val%?}; printf '\b \b' >/dev/tty; fi ;;
+      "$(printf '\3')") stty "$old" </dev/tty; echo >/dev/tty; exit 130 ;;
+      *) val="$val$ch"; printf '*' >/dev/tty ;;
+    esac
+  done
+  stty "$old" </dev/tty
+  echo >/dev/tty
+  eval "$1=\"\$val\""
+}
 ask_secret() {
   eval "cur=\${$1:-}"
   if [ -n "$cur" ]; then return; fi
   [ -r /dev/tty ] || { echo "$2 is required; pass --$3" >&2; exit 1; }
-  printf '%s: ' "$2" >/dev/tty; stty -echo </dev/tty; read -r val </dev/tty; stty echo </dev/tty; echo >/dev/tty
-  eval "$1=\"\$val\""
+  printf '%s: ' "$2" >/dev/tty
+  read_masked "$1"
 }
 
 if [ -z "$MODE" ]; then
@@ -84,7 +103,7 @@ if [ "$PROXY" = 0 ]; then
   ask EMAIL "Email for the Let's Encrypt account" email
   if [ -z "$CF_TOKEN" ] && [ -r /dev/tty ]; then
     printf '%s' "Cloudflare API token for a wildcard certificate via DNS-01 (Enter to skip and use HTTP-01 on port 80): " >/dev/tty
-    stty -echo </dev/tty; read -r CF_TOKEN </dev/tty; stty echo </dev/tty; echo >/dev/tty
+    read_masked CF_TOKEN
   fi
 fi
 ask ADMIN_EMAIL "Admin login email" admin-email "$EMAIL"
