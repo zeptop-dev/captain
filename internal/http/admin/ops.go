@@ -51,6 +51,9 @@ func (h *handlers) registerOps(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/admin/nodes/{id}/probe/reset-traffic", h.requireAdmin(h.resetNodeTraffic))
 	mux.HandleFunc("POST /api/admin/users/{id}/subscription", h.requireAdmin(h.adjustSubscription))
 	mux.HandleFunc("GET /api/admin/renewals", h.requireAdmin(h.renewals))
+	mux.HandleFunc("GET /api/admin/tokens", h.requireAdmin(h.listTokens))
+	mux.HandleFunc("POST /api/admin/tokens", h.requireAdmin(h.createToken))
+	mux.HandleFunc("DELETE /api/admin/tokens/{id}", h.requireAdmin(h.deleteToken))
 	mux.HandleFunc("GET /api/admin/settings/trial", h.requireAdmin(h.getTrial))
 	mux.HandleFunc("PUT /api/admin/settings/trial", h.requireAdmin(h.putTrial))
 }
@@ -862,4 +865,37 @@ func (h *handlers) renewals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, list)
+}
+
+// ---- personal API tokens -------------------------------------------------------------
+
+func (h *handlers) listTokens(w http.ResponseWriter, r *http.Request) {
+	list, err := h.Store.ListAPITokens(r.Context(), userFrom(r).ID)
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, list)
+}
+
+func (h *handlers) createToken(w http.ResponseWriter, r *http.Request) {
+	var in struct{ Name string }
+	if !decode(r, &in) || strings.TrimSpace(in.Name) == "" {
+		fail(w, http.StatusBadRequest, "name is required")
+		return
+	}
+	plain, tok, err := h.Store.CreateAPIToken(r.Context(), userFrom(r).ID, strings.TrimSpace(in.Name))
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, map[string]any{"token": plain, "id": tok.ID, "name": tok.Name})
+}
+
+func (h *handlers) deleteToken(w http.ResponseWriter, r *http.Request) {
+	if err := h.Store.DeleteAPIToken(r.Context(), userFrom(r).ID, idOf(r)); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, map[string]bool{"ok": true})
 }

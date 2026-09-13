@@ -707,5 +707,18 @@
     "probeOff": "The probe is off, so there is no node-side data.",
     "node": "Node",
     "results": "Results"
+  },
+  "tokens": {
+    "title": "API tokens & MCP",
+    "hint": "Personal tokens for scripts and AI agents; they carry your role and are shown once. Call the admin API with an Authorization: Bearer header.",
+    "name": "Name",
+    "create": "Create token",
+    "showOnce": "Copy it now; it will not be shown again:",
+    "created": "created",
+    "lastUsed": "last used",
+    "neverUsed": "never used",
+    "mcp": "AI agents (MCP)",
+    "mcpHint": "Built-in MCP server at {{url}}. Point Claude Code, Cursor or any MCP client at it to query nodes, users, orders, tickets and the probe in natural language; write tools require confirm=true.",
+    "mcpCli": "Claude Code one-liner:"
   }
 }

@@ -212,6 +212,13 @@ external login):
   `domain:`, `ip:`, `protocol:`, `port:` → outbound / direct / block. Needs
   bosun >= 0.12.
 
+## API tokens and MCP
+
+Settings → API tokens & MCP issues personal bearer tokens (`cap_...`) for the
+admin API and for AI agents: Captain serves the Model Context Protocol at
+`POST /mcp` with tools for nodes, users, plans, orders, tickets, the probe
+and TCPing; write tools require `confirm: true`. See `docs/MCP.md`.
+
 ## Speed test
 
 Admin → Speed test: TCP-connect latency from the panel to every entry's
