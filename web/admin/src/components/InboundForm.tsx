@@ -61,13 +61,14 @@ export function toPayload(v: InboundValues) {
   return { Tag: v.Tag, Protocol: v.Protocol, Listen: v.Listen, Port: v.Port, Core: v.Core, GroupID: v.GroupID ? Number(v.GroupID) : null, Enabled: v.Enabled, Settings: settings }
 }
 
-export function InboundForm({ initial, groups, onSubmit, busy, onCancel }: { initial: InboundValues; groups: UGroup[]; onSubmit: (v: InboundValues) => void; busy: boolean; onCancel: () => void }) {
+export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain }: { initial: InboundValues; groups: UGroup[]; onSubmit: (v: InboundValues) => void; busy: boolean; onCancel: () => void; domain?: string }) {
   const { t } = useTranslation()
   const form = useForm<InboundValues>({
     initialValues: initial,
     validate: { Tag: (v) => (v ? null : 'required'), Port: (v) => (v > 0 && v < 65536 ? null : 'port'), Settings: (v) => { try { JSON.parse(v || '{}'); return null } catch { return 'invalid JSON' } } },
   })
-  const apply = (r: (typeof recipes)[number]) => form.setValues({ Protocol: r.protocol, Port: r.port, Settings: JSON.stringify(r.settings, null, 2), Tag: form.values.Tag || r.protocol })
+  // Recipes name node.example.com; a node with a registered host name gets it instead.
+  const apply = (r: (typeof recipes)[number]) => form.setValues({ Protocol: r.protocol, Port: r.port, Settings: JSON.stringify(r.settings, null, 2).replaceAll('node.example.com', domain || 'node.example.com'), Tag: form.values.Tag || r.protocol })
   return (
     <form onSubmit={form.onSubmit(onSubmit)}>
       <Stack>

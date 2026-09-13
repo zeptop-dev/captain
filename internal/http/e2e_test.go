@@ -16,6 +16,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/auth"
 	"github.com/zeptop-dev/captain/internal/backup"
 	"github.com/zeptop-dev/captain/internal/captcha"
+	"github.com/zeptop-dev/captain/internal/certs"
 	"github.com/zeptop-dev/captain/internal/webhook"
 	"io"
 	"log/slog"
@@ -2304,4 +2305,162 @@ func selfSignedPEM(t *testing.T, names ...string) (string, string) {
 	der, _ := x509.CreateCertificate(rand.Reader, tpl, tpl, &key.PublicKey, key)
 	kb, _ := x509.MarshalECPrivateKey(key)
 	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})), string(pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: kb}))
+}
+
+// fakeIssuer signs whatever it is asked for and records the token used.
+type fakeIssuer struct {
+	mu     sync.Mutex
+	tokens []string
+	fail   error
+	t      *testing.T
+}
+
+func (f *fakeIssuer) Issue(_ context.Context, req certs.IssueRequest) (string, string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.tokens = append(f.tokens, req.CloudflareToken)
+	if f.fail != nil {
+		return "", "", f.fail
+	}
+	c, k := selfSignedPEM(f.t, req.Names...)
+	return c, k, nil
+}
+
+func TestDomainsAndIssuedCertificates(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "https://panel.example.com"
+	cfg.DataDir = t.TempDir()
+	conn, _ := db.Open("sqlite", filepath.Join(cfg.DataDir, "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	issuer := &fakeIssuer{t: t}
+	server := New(cfg, st, slog.Default(), Options{CertIssuer: issuer})
+	srv := httptest.NewServer(server.Handler())
+	defer srv.Close()
+	ac := &client{t: t, srv: srv}
+	ac.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+
+	// Domains: validation, registration, usage.
+	if code, _, _ := ac.do("POST", "/api/admin/domains", map[string]string{"Name": "not a domain"}, nil); code != 400 {
+		t.Fatal("bad domain accepted")
+	}
+	code, b, _ := ac.do("POST", "/api/admin/domains", map[string]string{"Name": "Example.COM"}, nil)
+	if code != 200 || !strings.Contains(string(b), `"name":"example.com"`) {
+		t.Fatalf("create domain: %d %s", code, b)
+	}
+	domID := int64(mustJSON[map[string]any](t, b)["id"].(float64))
+	if code, _, _ := ac.do("POST", "/api/admin/domains", map[string]string{"Name": "example.com"}, nil); code != 400 {
+		t.Fatal("duplicate domain accepted")
+	}
+	_, b, _ = ac.do("POST", "/api/admin/nodes", map[string]any{"Name": "jp", "PublicAddr": "203.0.113.5", "Domain": "JP1.example.com"}, nil)
+	node := mustJSON[map[string]any](t, b)
+	nid := itoa(int64(node["id"].(float64)))
+	if node["domain"] != "jp1.example.com" {
+		t.Fatalf("node domain: %v", node["domain"])
+	}
+	ac.do("POST", "/api/admin/nodes/"+nid+"/inbounds", map[string]any{"Tag": "t", "Protocol": "trojan", "Port": 443, "Settings": map[string]any{"tls": map[string]any{"mode": 1, "server_name": "jp1.example.com"}}}, nil)
+	_, b, _ = ac.do("POST", "/api/admin/nodes/"+nid+"/inbounds", map[string]any{"Tag": "ss", "Protocol": "shadowsocks", "Port": 8388, "Settings": map[string]any{"cipher": "aes-128-gcm"}}, nil)
+	ssIB := mustJSON[map[string]any](t, b)
+	ac.do("PUT", "/api/admin/settings/subscription", map[string]any{"URLs": []string{"https://sub.example.com"}}, nil)
+	_, b, _ = ac.do("GET", "/api/admin/domains", nil, nil)
+	if !strings.Contains(string(b), `"nodes":["jp1.example.com"]`) || !strings.Contains(string(b), `"tls":["jp1.example.com"]`) || !strings.Contains(string(b), `"sub_hosts":["sub.example.com"]`) || !strings.Contains(string(b), `"panel":true`) || !strings.Contains(string(b), `"global_token":false`) {
+		t.Fatalf("domain usage: %s", b)
+	}
+	// An entry on a plain inbound advertises the node domain, not the IP.
+	_, b, _ = ac.do("POST", "/api/admin/entries", map[string]any{"Name": "ss", "InboundID": ssIB["ID"]}, nil)
+	if !strings.Contains(string(b), `"DisplayHost":"jp1.example.com"`) {
+		t.Fatalf("entry default host: %s", b)
+	}
+
+	// Issuance needs a token; the global one from ACME settings works, a
+	// per-domain one wins, a manual domain refuses.
+	if code, b, _ := ac.do("POST", "/api/admin/certificates/issue", map[string]any{"Names": []string{"jp1.example.com"}}, nil); code != 502 || !strings.Contains(string(b), "Cloudflare token") {
+		t.Fatalf("issue without token: %d %s", code, b)
+	}
+	ac.do("PUT", "/api/admin/settings/acme", map[string]string{"Email": "ops@test", "CloudflareToken": "global-tok"}, nil)
+	code, b, _ = ac.do("POST", "/api/admin/certificates/issue", map[string]any{"Name": "日本节点", "Names": []string{"jp1.example.com", "*.example.com"}}, nil)
+	if code != 200 || !strings.Contains(string(b), `"name":"日本节点"`) || !strings.Contains(string(b), `"source":"acme"`) || !strings.Contains(string(b), `"names":["jp1.example.com","*.example.com"]`) || !strings.Contains(string(b), `"domain_id":`+itoa(domID)) {
+		t.Fatalf("issue: %d %s", code, b)
+	}
+	certID := int64(mustJSON[map[string]any](t, b)["id"].(float64))
+	if code, _, _ := ac.do("POST", "/api/admin/certificates/issue", map[string]any{"Names": []string{"bad name"}}, nil); code != 502 {
+		t.Fatal("bad name accepted")
+	}
+	ac.do("PATCH", "/api/admin/domains/"+itoa(domID), map[string]string{"CFToken": "own-tok"}, nil)
+	if code, b, _ := ac.do("POST", "/api/admin/certificates/"+itoa(certID)+"/renew", nil, nil); code != 200 || !strings.Contains(string(b), `"renewals":1`) {
+		t.Fatalf("renew: %d %s", code, b)
+	}
+	issuer.mu.Lock()
+	toks := append([]string{}, issuer.tokens...)
+	issuer.mu.Unlock()
+	if len(toks) != 2 || toks[0] != "global-tok" || toks[1] != "own-tok" {
+		t.Fatalf("tokens used: %v", toks)
+	}
+	ac.do("PATCH", "/api/admin/domains/"+itoa(domID), map[string]string{"Provider": "manual"}, nil)
+	if code, b, _ := ac.do("POST", "/api/admin/certificates/issue", map[string]any{"Names": []string{"x.example.com"}}, nil); code != 502 || !strings.Contains(string(b), "manual") {
+		t.Fatalf("manual domain should refuse: %d %s", code, b)
+	}
+	ac.do("PATCH", "/api/admin/domains/"+itoa(domID), map[string]string{"Provider": "cloudflare"}, nil)
+
+	// List: deployed nodes by coverage, no PEM; detail carries the chain but never the key.
+	_, b, _ = ac.do("GET", "/api/admin/certificates", nil, nil)
+	if !strings.Contains(string(b), `"nodes":["jp"]`) || strings.Contains(string(b), "BEGIN") || !strings.Contains(string(b), `"can_issue":true`) {
+		t.Fatalf("list: %s", b)
+	}
+	_, b, _ = ac.do("GET", "/api/admin/certificates/"+itoa(certID), nil, nil)
+	if !strings.Contains(string(b), "BEGIN CERTIFICATE") || strings.Contains(string(b), "PRIVATE KEY") || !strings.Contains(string(b), `"nodes":["jp"]`) {
+		t.Fatalf("detail: %s", b)
+	}
+	ac.do("PATCH", "/api/admin/certificates/"+itoa(certID), map[string]any{"Name": "JP", "AutoRenew": false}, nil)
+	_, b, _ = ac.do("GET", "/api/admin/certificates/"+itoa(certID), nil, nil)
+	if !strings.Contains(string(b), `"name":"JP"`) || !strings.Contains(string(b), `"auto_renew":false`) {
+		t.Fatalf("meta: %s", b)
+	}
+	// The node gets the certificate in its state.
+	nc := &client{t: t, srv: srv}
+	_, b, _ = nc.do("POST", "/api/agent/pair", agentproto.PairRequest{Code: node["pair_code"].(string)}, nil)
+	nc.token = mustJSON[agentproto.PairResponse](t, b).Token
+	_, b, _ = nc.do("GET", "/api/agent/state", nil, nil)
+	if st := mustJSON[agentproto.State](t, b); len(st.Node.Certificates) != 1 || st.Node.Certificates[0].Domain != "jp1.example.com" {
+		t.Fatalf("state certificates: %+v", mustJSON[agentproto.State](t, b).Node.Certificates)
+	}
+
+	// Scheduled renewal: only auto-renewing certificates within 30 days;
+	// a failure lands in last_error.
+	cs := server.Certs()
+	cert, _ := st.CertificateByID(context.Background(), certID)
+	cs.Now = func() time.Time { return cert.NotAfter.Add(-10 * 24 * time.Hour) }
+	cs.RenewDue(context.Background())
+	if c, _ := st.CertificateByID(context.Background(), certID); c.Renewals != 1 {
+		t.Fatal("auto_renew=false must not renew")
+	}
+	ac.do("PATCH", "/api/admin/certificates/"+itoa(certID), map[string]any{"AutoRenew": true}, nil)
+	cs.Now = func() time.Time { return cert.NotAfter.Add(-10*24*time.Hour + 2*time.Hour) } // past the hourly gate
+	cs.RenewDue(context.Background())
+	if c, _ := st.CertificateByID(context.Background(), certID); c.Renewals != 2 || c.LastError != "" {
+		t.Fatalf("scheduled renewal: %+v", c)
+	}
+	issuer.mu.Lock()
+	issuer.fail = errors.New("dns boom")
+	issuer.mu.Unlock()
+	cert, _ = st.CertificateByID(context.Background(), certID)
+	cs.Now = func() time.Time { return cert.NotAfter.Add(-10*24*time.Hour + 4*time.Hour) }
+	cs.RenewDue(context.Background())
+	if c, _ := st.CertificateByID(context.Background(), certID); !strings.Contains(c.LastError, "dns boom") || c.Renewals != 2 {
+		t.Fatalf("failed renewal: %+v", c)
+	}
+	// Uploads cannot be renewed; deleting the domain keeps the certificate.
+	cp, kp := selfSignedPEM(t, "up.example.com")
+	_, b, _ = ac.do("POST", "/api/admin/certificates", map[string]string{"CertPEM": cp, "KeyPEM": kp}, nil)
+	upID := int64(mustJSON[map[string]any](t, b)["id"].(float64))
+	if code, _, _ := ac.do("POST", "/api/admin/certificates/"+itoa(upID)+"/renew", nil, nil); code != 502 {
+		t.Fatal("upload renewed")
+	}
+	ac.do("DELETE", "/api/admin/domains/"+itoa(domID), nil, nil)
+	_, b, _ = ac.do("GET", "/api/admin/certificates", nil, nil)
+	if !strings.Contains(string(b), `"name":"JP"`) {
+		t.Fatalf("certificate lost with domain: %s", b)
+	}
 }

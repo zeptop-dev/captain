@@ -227,16 +227,30 @@ external login):
   `domain:`, `ip:`, `protocol:`, `port:` → outbound / direct / block. Needs
   bosun >= 0.12.
 
-## Your own certificates
+## Domains and certificates
 
-Settings → Your own certificates takes a PEM pair (pasted, or delivered by
-a certificate manager such as Certimate or an acme.sh deploy hook through
-the per-panel webhook URL shown there, with lenient JSON keys: `domain` /
-`domains`, `certificate`, `privateKey` / `private_key`). Every node whose
-standard-TLS inbounds use a covered name (exact or `*.wildcard`) receives
-the pair in its state and bosun (>= 0.13) uses it ahead of ACME; the node
-page lists it with method `custom`. Delete it to fall back to ACME.
+Admin → Domains & certs registers the domains you own (each with
+Cloudflare as the DNS provider, using the global token from Settings → ACME
+or its own token when the zone lives in another account, or "manual"), shows
+what uses each one (node host names, inbound TLS names, subscription hosts,
+the panel itself) and manages certificates:
 
+- **Issue** — Let's Encrypt through DNS-01 on the panel, one certificate for
+  any set of names (`example.com` + `*.example.com` together is fine), stored
+  in the database and renewed by the panel 30 days before expiry; the first
+  failed renewal notifies the admin. The Cloudflare token stays on the panel;
+  nodes need neither a token nor port 80.
+- **Upload** a PEM pair, or let a certificate manager (Certimate, an acme.sh
+  deploy hook) POST renewals to the per-panel webhook shown on the page
+  (lenient JSON keys: `domain`/`domains`, `certificate`, `privateKey`/`private_key`).
+- **Deploy by coverage** — every node whose standard-TLS inbounds use a
+  covered name (exact or wildcard) receives the pair in its state; bosun
+  (>= 0.13) uses it ahead of ACME and lists it as method `custom`. Deleting
+  a certificate lets the nodes fall back to node-side ACME.
+
+Nodes take an optional host name (Node → Domain, e.g. `jp1.example.com`):
+new inbound recipes use it as the TLS name and entries advertise it instead
+of the IP, so a certificate for it reaches the node without further setup.
 ## Backups
 
 Captain snapshots its SQLite database once a day (`VACUUM INTO`, so the

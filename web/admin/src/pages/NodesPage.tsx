@@ -1,4 +1,4 @@
-import { Badge, Button, Card, Code, Group, Modal, Stack, Table, Text, TextInput, Anchor } from '@mantine/core'
+import { Badge, Button, Card, Code, Group, Modal, Stack, Table, Text, TextInput, Anchor, Autocomplete } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { useDisclosure } from '@mantine/hooks'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -44,7 +44,8 @@ export default function NodesPage() {
   const q = useQuery({ queryKey: ['nodes'], queryFn: () => api.get<Node[]>('/api/admin/nodes'), refetchInterval: 15_000 })
   const [opened, { open, close }] = useDisclosure()
   const [created, setCreated] = useState<Node | null>(null)
-  const form = useForm({ initialValues: { Name: '', PublicAddr: '', InternalAddr: '', V6Addr: '', MonitorURL: '' } })
+  const form = useForm({ initialValues: { Name: '', PublicAddr: '', InternalAddr: '', V6Addr: '', Domain: '', MonitorURL: '' } })
+  const domainList = useQuery({ queryKey: ['domains'], queryFn: () => api.get<{ domains: { name: string }[] }>('/api/admin/domains') })
   const sys = useQuery({ queryKey: ['update'], queryFn: () => api.get<SystemUpdate>('/api/admin/system/update'), staleTime: 10 * 60_000, retry: false })
   const upgrade = useMutation({ mutationFn: (id: number) => api.post(`/api/admin/nodes/${id}/upgrade`, {}), onSuccess: () => { toast.ok(t('nodes.upgradeQueued')); qc.invalidateQueries({ queryKey: ['nodes'] }) }, onError: toast.err })
   const upgradeAll = useMutation({ mutationFn: () => api.post<{ nodes: number; upgrade_to: string }>('/api/admin/nodes/upgrade-all', {}), onSuccess: (r) => { toast.ok(t('nodes.upgradeAllQueued', { count: r.nodes, version: r.upgrade_to })); qc.invalidateQueries({ queryKey: ['nodes'] }) }, onError: toast.err })
@@ -96,6 +97,7 @@ export default function NodesPage() {
             <Stack>
               <TextInput label={t('nodes.name')} placeholder="jp-1" required {...form.getInputProps('Name')} />
               <TextInput label={t('nodes.publicAddr')} placeholder="203.0.113.5" {...form.getInputProps('PublicAddr')} />
+              <Autocomplete label={t('nodes.domain')} description={t('nodes.domainHint')} placeholder="jp1.example.com" data={(domainList.data?.domains ?? []).map((d) => (form.values.Domain.includes('.') && !form.values.Domain.endsWith('.' + d.name) ? `${form.values.Domain.split('.')[0]}.${d.name}` : d.name))} {...form.getInputProps('Domain')} />
               <Group grow>
                 <TextInput label={t('nodes.internalAddr')} {...form.getInputProps('InternalAddr')} />
                 <TextInput label={t('nodes.v6Addr')} {...form.getInputProps('V6Addr')} />

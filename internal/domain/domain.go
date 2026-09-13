@@ -130,6 +130,7 @@ type Node struct {
 	PublicAddr      string
 	InternalAddr    string
 	V6Addr          string
+	Domain          string // host name under a registered domain, e.g. jp1.example.com
 	MonitorURL      string
 	Version         string
 	Platform        string

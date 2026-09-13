@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
 	"github.com/zeptop-dev/captain/internal/backup"
+	"github.com/zeptop-dev/captain/internal/certs"
 	"github.com/zeptop-dev/captain/internal/http/mcp"
 	"github.com/zeptop-dev/captain/internal/http/oauth"
 	"github.com/zeptop-dev/captain/internal/http/probe"
@@ -47,6 +48,7 @@ import (
 // Server is the HTTP front.
 type Server struct {
 	backups  *backup.Manager
+	certs    *service.Certs
 	external *service.External
 	probe    *probe.Router
 	probeSvc *service.Probe
@@ -62,6 +64,8 @@ type Server struct {
 // Options carries wiring the config alone cannot express (test gateways).
 type Options struct {
 	Gateways map[string]payment.Gateway // overrides config-built gateways when set
+	// CertIssuer replaces the Let's Encrypt issuer (tests).
+	CertIssuer certs.Issuer
 }
 
 // New builds the router.
@@ -72,9 +76,16 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	})
 	sessions := &sessionAuth{store: st}
 	gateways := buildGateways(cfg, log)
+	var certIssuer certs.Issuer
+	if cfg.DataDir != "" {
+		certIssuer = &certs.ACMEIssuer{Dir: filepath.Join(cfg.DataDir, "certs-issued"), Staging: cfg.TLS.Staging}
+	}
 	for _, o := range opts {
 		if o.Gateways != nil {
 			gateways = o.Gateways
+		}
+		if o.CertIssuer != nil {
+			certIssuer = o.CertIssuer
 		}
 	}
 	names := []string{"balance"}
@@ -133,8 +144,9 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	if cfg.DataDir != "" {
 		s.backups = &backup.Manager{Store: st, Dir: filepath.Join(cfg.DataDir, "backups"), Log: log}
 	}
+	s.certs = &service.Certs{Store: st, Issuer: certIssuer, Log: log, Notify: notifier}
 	s.probe = probe.Register(s.mux, probe.Deps{Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe()})
-	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Backups: s.backups, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external,
+	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Backups: s.backups, Certs: s.certs, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 	})
@@ -326,3 +338,6 @@ func (s *Server) External() *service.External { return s.external }
 
 // Backups exposes the snapshot manager (jobs); nil without a data dir.
 func (s *Server) Backups() *backup.Manager { return s.backups }
+
+// Certs exposes the certificate service (jobs renew through it).
+func (s *Server) Certs() *service.Certs { return s.certs }
