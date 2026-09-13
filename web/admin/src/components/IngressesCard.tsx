@@ -1,4 +1,4 @@
-import { ActionIcon, Badge, Button, Card, Code, Group, Modal, NumberInput, Stack, Table, Text, TextInput, Title, Tooltip } from '@mantine/core'
+import { ActionIcon, Badge, Button, Card, Code, Group, Modal, NumberInput, Stack, Table, Text, TextInput, Title, Tooltip, Box } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -36,7 +36,9 @@ export function IngressFields({ form }: { form: ReturnType<typeof useForm<Ingres
 
 // Line ingresses of one node (IPLC / dedicated NICs). Inbounds pick one;
 // entries and relay forwards derive their addresses from it.
-export function IngressesCard({ nodeID, ingresses, inbounds }: { nodeID: number; ingresses: Ingress[]; inbounds: { IngressID: number | null }[] }) {
+export function IngressesCard({ nodeID, ingresses, inbounds, embedded }: { nodeID: number; ingresses: Ingress[]; inbounds: { IngressID: number | null }[]; embedded?: boolean }) {
+  // Embedded inside the node page's advanced section: no card frame, no title.
+  const Root = embedded ? Box : Card
   const { t } = useTranslation()
   const qc = useQueryClient()
   const [editing, setEditing] = useState<Ingress | 'new' | null>(null)
@@ -47,8 +49,8 @@ export function IngressesCard({ nodeID, ingresses, inbounds }: { nodeID: number;
   const open = (g: Ingress | 'new') => { form.setValues(g === 'new' ? emptyIngress : { Name: g.name, BindIP: g.bind_ip, LineIP: g.line_ip, EntryHost: g.entry_host, PortFrom: g.port_from || '', PortTo: g.port_to || '', PortOffset: g.port_offset }); setEditing(g) }
   const uses = (id: number) => inbounds.filter((ib) => ib.IngressID === id).length
   return (
-    <Card mb="lg">
-      <Group justify="space-between" mb={4}><Title order={5}>{t('ingress.title')}</Title><Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => open('new')}>{t('ingress.add')}</Button></Group>
+    <Root mb={embedded ? 0 : "lg"}>
+      <Group justify={embedded ? 'flex-end' : 'space-between'} mb={4}>{!embedded && <Title order={5}>{t('ingress.title')}</Title>}<Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => open('new')}>{t('ingress.add')}</Button></Group>
       <Text size="xs" c="dimmed" mb="sm">{t('ingress.hint')}</Text>
       {ingresses.length > 0 && (
         <Table fz="sm"><Table.Thead><Table.Tr><Table.Th>{t('ingress.name')}</Table.Th><Table.Th>{t('ingress.bindIP')}</Table.Th><Table.Th>{t('ingress.lineIP')}</Table.Th><Table.Th>{t('ingress.entryHost')}</Table.Th><Table.Th>{t('ingress.ports')}</Table.Th><Table.Th>{t('ingress.inbounds')}</Table.Th><Table.Th /></Table.Tr></Table.Thead>
@@ -72,6 +74,6 @@ export function IngressesCard({ nodeID, ingresses, inbounds }: { nodeID: number;
           <Group justify="flex-end"><Button variant="default" onClick={() => setEditing(null)}>{t('common.cancel')}</Button><Button type="submit" loading={save.isPending}>{t('common.save')}</Button></Group>
         </Stack></form>
       </Modal>
-    </Card>
+    </Root>
   )
 }

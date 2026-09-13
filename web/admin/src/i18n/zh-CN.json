@@ -128,7 +128,11 @@
     "manualHint": "已经装好 bosun？用配对码手动接管，或复制配置片段：",
     "monitorUrlHint": "用别的探针（Komari、哪吒）时填该节点的页面地址，节点页会显示一个跳转链接。",
     "domain": "域名（可选）",
-    "domainHint": "这台节点的主机名，比如 jp1.example.com。新建入站的 TLS 域名和入口展示地址默认用它；证书按域名自动匹配下发。"
+    "domainHint": "这台节点的主机名，比如 jp1.example.com。新建入站的 TLS 域名和入口展示地址默认用它；证书按域名自动匹配下发。",
+    "advIngressCount": "{{count}} 条专线",
+    "advIngressHint": "IPLC / 专线在节点前面时才需要",
+    "advRoutingHint": "让流量从落地服务器出去，做中转",
+    "advForwardsHint": "把端口原样转发到别的节点，做前置"
   },
   "inbounds": {
     "title": "入站",
