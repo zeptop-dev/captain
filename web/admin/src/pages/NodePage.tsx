@@ -129,7 +129,7 @@ export default function NodePage() {
           <TextInput label={t('nodes.name')} required {...nodeForm.getInputProps('Name')} />
           <TextInput label={t('nodes.publicAddr')} {...nodeForm.getInputProps('PublicAddr')} />
           <Group grow><TextInput label={t('nodes.internalAddr')} {...nodeForm.getInputProps('InternalAddr')} /><TextInput label={t('nodes.v6Addr')} {...nodeForm.getInputProps('V6Addr')} /></Group>
-          <TextInput label={t('nodes.monitorUrl')} {...nodeForm.getInputProps('MonitorURL')} />
+          <TextInput label={t('nodes.monitorUrl')} description={t('nodes.monitorUrlHint')} placeholder="https://komari.example.com/..." {...nodeForm.getInputProps('MonitorURL')} />
           <Group justify="flex-end"><Button variant="default" onClick={() => setEditNode(false)}>{t('common.cancel')}</Button><Button type="submit" loading={saveNode.isPending}>{t('common.save')}</Button></Group>
         </Stack></form>
       </Modal>

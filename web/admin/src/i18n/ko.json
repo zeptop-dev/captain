@@ -85,7 +85,7 @@
     "publicAddr": "공인 주소",
     "internalAddr": "내부 주소",
     "v6Addr": "IPv6 주소",
-    "monitorUrl": "모니터링 링크",
+    "monitorUrl": "외부 모니터링 링크(선택)",
     "status": "상태",
     "online": "온라인",
     "offline": "오프라인",
@@ -120,7 +120,8 @@
     "certProblem": "인증서 발급 실패 또는 만료 임박",
     "installCmd": "원라인 설치(systemd)",
     "dockerCmd": "Docker(host 네트워크)",
-    "manualHint": "bosun이 이미 설치되어 있나요? 페어링 코드로 직접 연결하거나 설정 조각을 복사하세요:"
+    "manualHint": "bosun이 이미 설치되어 있나요? 페어링 코드로 직접 연결하거나 설정 조각을 복사하세요:",
+    "monitorUrlHint": "다른 모니터링(Komari, Nezha)을 쓰는 경우 이 노드의 페이지 주소를 입력하면 노드 페이지에 링크가 표시됩니다."
   },
   "inbounds": {
     "title": "인바운드",

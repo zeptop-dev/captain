@@ -85,7 +85,7 @@
     "publicAddr": "パブリックアドレス",
     "internalAddr": "内部アドレス",
     "v6Addr": "IPv6 アドレス",
-    "monitorUrl": "監視リンク",
+    "monitorUrl": "外部監視リンク（任意）",
     "status": "状態",
     "online": "オンライン",
     "offline": "オフライン",
@@ -120,7 +120,8 @@
     "certProblem": "証明書の取得に失敗したか、期限が近づいています",
     "installCmd": "ワンライナーインストール（systemd）",
     "dockerCmd": "Docker（host ネットワーク）",
-    "manualHint": "bosun をインストール済みですか？ペアリングコードで手動で引き継ぐか、設定スニペットをコピーしてください："
+    "manualHint": "bosun をインストール済みですか？ペアリングコードで手動で引き継ぐか、設定スニペットをコピーしてください：",
+    "monitorUrlHint": "別の監視ツール（Komari、Nezha）を使う場合、このノードのページURLを入力すると、ノードページにリンクが表示されます。"
   },
   "inbounds": {
     "title": "インバウンド",

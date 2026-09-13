@@ -85,7 +85,7 @@
     "publicAddr": "公網位址",
     "internalAddr": "內網位址",
     "v6Addr": "IPv6 位址",
-    "monitorUrl": "監控連結",
+    "monitorUrl": "外部監控連結（選填）",
     "status": "狀態",
     "online": "在線",
     "offline": "離線",
@@ -120,7 +120,8 @@
     "certProblem": "有憑證申請失敗或即將到期",
     "installCmd": "一鍵安裝（systemd）",
     "dockerCmd": "Docker（host 網路）",
-    "manualHint": "已經裝好 bosun？用配對碼手動接管，或複製設定片段："
+    "manualHint": "已經裝好 bosun？用配對碼手動接管，或複製設定片段：",
+    "monitorUrlHint": "使用其他探針（Komari、哪吒）時填該節點的頁面網址，節點頁會顯示跳轉連結。"
   },
   "inbounds": {
     "title": "入站",
