@@ -24,6 +24,8 @@ func (h *handlers) registerExternal(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/admin/external/parse", h.requireAdmin(h.parseLinks))
 	mux.HandleFunc("GET /api/admin/nodes/{id}/routing", h.requireAdmin(h.getNodeRouting))
 	mux.HandleFunc("PUT /api/admin/nodes/{id}/routing", h.requireAdmin(h.putNodeRouting))
+	mux.HandleFunc("GET /api/admin/nodes/{id}/forwards", h.requireAdmin(h.getNodeForwards))
+	mux.HandleFunc("PUT /api/admin/nodes/{id}/forwards", h.requireAdmin(h.putNodeForwards))
 }
 
 func (h *handlers) listExternalSources(w http.ResponseWriter, r *http.Request) {

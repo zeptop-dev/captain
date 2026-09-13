@@ -14,6 +14,7 @@ import { InboundForm, toPayload, toValues, type InboundValues } from '../compone
 import { NodeStatus, PairCodeBox } from './NodesPage'
 import { NodeProbeCard } from '../components/NodeProbeCard'
 import { RoutingCard } from '../components/RoutingCard'
+import { ForwardsCard } from '../components/ForwardsCard'
 
 interface Detail { node: Node; inbounds: Inbound[]; status: { host: Record<string, number> | null; cores: Record<string, { running: boolean }> | null; certs: CertStatus[] | null } | null }
 
@@ -55,6 +56,7 @@ export default function NodePage() {
       {!n.paired && n.pair_code && <Card mb="lg"><Title order={5} mb="sm">{t('nodes.pairTitle')}</Title><PairCodeBox code={n.pair_code} /></Card>}
       {n.paired && <NodeProbeCard nodeID={n.id} />}
       <RoutingCard nodeID={n.id} inboundTags={d.inbounds.map((ib) => ib.Tag)} />
+      <ForwardsCard node={n} />
       {d.status?.certs && d.status.certs.length > 0 && (
         <Card mb="lg">
           <Text size="xs" tt="uppercase" c="dimmed" fw={600} mb="xs">{t('nodes.certs')}</Text>

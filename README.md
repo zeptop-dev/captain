@@ -227,6 +227,17 @@ external login):
   `domain:`, `ip:`, `protocol:`, `port:` → outbound / direct / block. Needs
   bosun >= 0.12.
 
+## Port forwards (relay tunnels)
+
+Node page → Port forwards: listen on a port of this node and relay raw
+TCP, UDP or both to a landing server. Clients connect to the relay while
+the landing inbound keeps doing auth and per-user accounting. Pick another
+managed node's inbound as the target and one click creates an entry that
+advertises this relay's address; the node reports each rule's reachability,
+RTT, connections and bytes. Ports are checked against the node's own
+inbounds. (Xray-style domain/IP splitting inside a tunnel is not offered:
+use the routing rules on the landing node instead.)
+
 ## API tokens and MCP
 
 Settings → API tokens & MCP issues personal bearer tokens (`cap_...`) for the
