@@ -17,6 +17,7 @@ type Line struct {
 	Inbound  spec.Inbound
 	UUID     string // user identity
 	Password string
+	Tags     []string // labels for the portal's server list; not rendered into configs
 }
 
 // Account is the usage summary sent in the subscription-userinfo header.

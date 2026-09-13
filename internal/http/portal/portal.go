@@ -242,7 +242,11 @@ func (h *handlers) servers(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]map[string]any, 0, len(lines))
 	for _, l := range lines {
-		out = append(out, map[string]any{"name": l.Name, "host": l.Host, "port": l.Port, "protocol": l.Inbound.Protocol, "uri": subscription.ShareURI(l)})
+		tags := l.Tags
+		if tags == nil {
+			tags = []string{}
+		}
+		out = append(out, map[string]any{"name": l.Name, "host": l.Host, "port": l.Port, "protocol": l.Inbound.Protocol, "uri": subscription.ShareURI(l), "tags": tags})
 	}
 	ok(w, out)
 }

@@ -29,7 +29,8 @@ export default function SettingsPage() {
   const subs = useQuery({ queryKey: ['subscription-settings'], queryFn: () => api.get<SubscriptionSettings>('/api/admin/settings/subscription') })
   const [subText, setSubText] = useState<string | null>(null)
   const [shortLinks, setShortLinks] = useState<boolean | null>(null)
-  const saveSubs = useMutation({ mutationFn: (urls: string[]) => api.put('/api/admin/settings/subscription', { URLs: urls, short_links: shortLinks ?? subs.data?.short_links ?? false }), onSuccess: () => { toast.ok(t('common.saved')); setSubText(null); qc.invalidateQueries({ queryKey: ['subscription-settings'] }); qc.invalidateQueries({ queryKey: ['users'] }) }, onError: toast.err })
+  const [autoFlags, setAutoFlags] = useState<boolean | null>(null)
+  const saveSubs = useMutation({ mutationFn: (urls: string[]) => api.put('/api/admin/settings/subscription', { URLs: urls, short_links: shortLinks ?? subs.data?.short_links ?? false, auto_flags: autoFlags ?? subs.data?.auto_flags ?? false }), onSuccess: () => { toast.ok(t('common.saved')); setSubText(null); qc.invalidateQueries({ queryKey: ['subscription-settings'] }); qc.invalidateQueries({ queryKey: ['users'] }) }, onError: toast.err })
   const invite = useQuery({ queryKey: ['invite-settings'], queryFn: () => api.get<InviteSettings>('/api/admin/settings/invite') })
   const iform = useForm<InviteSettings & { methods: string }>({ initialValues: { enabled: false, percent: 10, first_order_only: false, multi_level: false, level2: 0, level3: 0, payout: 'balance', min_withdraw_cents: 0, withdraw_methods: [], methods: '' } })
   useEffect(() => { if (invite.data) iform.setValues({ ...invite.data, payout: invite.data.payout || 'balance', methods: (invite.data.withdraw_methods ?? []).join(', ') }) }, [invite.data]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -62,6 +63,7 @@ export default function SettingsPage() {
           <Text size="xs" c="dimmed" mb="sm">{t('settings.subUrlsHint')}</Text>
           <Textarea autosize minRows={2} placeholder={'https://sub.example.com\nhttps://s[1-9].example.com'} value={subText ?? (subs.data?.urls ?? []).join('\n')} onChange={(e) => setSubText(e.currentTarget.value)} />
           <Switch mt="xs" label={t('settings.shortLinks')} description={t('settings.shortLinksHint')} checked={shortLinks ?? subs.data?.short_links ?? false} onChange={(e) => setShortLinks(e.currentTarget.checked)} />
+          <Switch mt="xs" label={t('settings.autoFlags')} description={t('settings.autoFlagsHint')} checked={autoFlags ?? subs.data?.auto_flags ?? false} onChange={(e) => setAutoFlags(e.currentTarget.checked)} />
           <Group justify="flex-end" mt="sm"><Button size="xs" loading={saveSubs.isPending} disabled={subText === null} onClick={() => saveSubs.mutate((subText ?? '').split('\n').map((l) => l.trim()).filter(Boolean))}>{t('common.save')}</Button></Group>
         </Card>
         <Card>

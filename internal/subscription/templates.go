@@ -1,9 +1,13 @@
 package subscription
 
 import (
+	"bytes"
 	"embed"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
 )
@@ -102,5 +106,29 @@ func applyYAML(tpl, format string, proxies []any, names []string) ([]byte, error
 			gm["proxies"] = expanded
 		}
 	}
-	return yaml.Marshal(doc)
+	b, err := yaml.Marshal(doc)
+	if err != nil {
+		return nil, err
+	}
+	return unescapeAstral(b), nil
+}
+
+// yaml.v3 escapes every character above U+FFFF (emoji flags included) as
+// \U0001F1EF inside double-quoted scalars. Valid, but ugly for anyone who
+// opens the file, so restore the literal characters. An even number of
+// backslashes means the "\\U" was an escaped backslash, not an escape.
+var astralEscape = regexp.MustCompile(`(\\+)U([0-9A-Fa-f]{8})`)
+
+func unescapeAstral(b []byte) []byte {
+	return astralEscape.ReplaceAllFunc(b, func(m []byte) []byte {
+		i := bytes.LastIndexByte(m, '\\') + 1
+		if i%2 == 0 {
+			return m
+		}
+		n, _ := strconv.ParseUint(string(m[i+1:]), 16, 32)
+		if n > 0x10FFFF || !utf8.ValidRune(rune(n)) {
+			return m
+		}
+		return append(m[:i-1:i-1], []byte(string(rune(n)))...)
+	})
 }

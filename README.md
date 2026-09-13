@@ -200,6 +200,12 @@ external login):
 - **Two-factor sign-in** — Settings → Two-factor authentication: each staff
   account can add a TOTP authenticator; the console then asks for the code
   after the password. API tokens are unaffected.
+- **Entry tags, regions and drag ordering** — Admin → Entries: drag the
+  handle to set the order clients see, add free-form tags (shown to users in
+  the portal and usable as a filter) and pick a region; Settings →
+  Subscription → *Auto flags* prefixes names that lack a flag emoji with
+  their region flag (explicit region, else detected from the name: "Tokyo",
+  "HK-02", "香港", "jp1.example.com"...).
 - **Short and temporary subscription links** — Settings → Subscription: turn
   on *Use short links* and users get `https://sub.example.com/s/<8 chars>`
   instead of the long token URL (old links keep working; rotating a user's

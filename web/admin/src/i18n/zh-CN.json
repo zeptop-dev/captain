@@ -178,7 +178,13 @@
     "enabled": "启用",
     "displayHostHint": "留空用入站的 TLS 域名，否则用节点公网地址",
     "sort": "排序",
-    "sortHint": "订阅里按此从小到大排列"
+    "sortHint": "订阅里按此从小到大排列",
+    "region": "地区",
+    "regionHint": "留空则按名称自动识别（需开启自动旗帜）",
+    "tags": "标签",
+    "tagsHint": "回车添加；显示给用户，也可用来筛选",
+    "filterTag": "按标签筛选",
+    "dragHint": "拖动左侧把手调整订阅里的顺序"
   },
   "users": {
     "title": "用户",
@@ -290,7 +296,9 @@
     "surplus": "换套餐折算",
     "surplusHint": "用户换购其他套餐时，把当前套餐未用完的部分按剩余时间（无到期时间则按剩余流量）折成抵扣，直接从新订单里减掉。",
     "shortLinks": "使用短链接",
-    "shortLinksHint": "订阅地址用 /s/短码 代替 /sub/长令牌，更短更好记；旧链接仍然有效。"
+    "shortLinksHint": "订阅地址用 /s/短码 代替 /sub/长令牌，更短更好记；旧链接仍然有效。",
+    "autoFlags": "自动加国旗",
+    "autoFlagsHint": "节点名没有旗帜 emoji 时，按地区（或从名称识别的地区）自动加上，例如 🇯🇵 Tokyo。"
   },
   "update": {
     "title": "版本与升级",
