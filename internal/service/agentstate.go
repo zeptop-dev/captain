@@ -44,8 +44,14 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 		node.ACME = &spec.ACME{Email: acme.Email, CloudflareToken: acme.CloudflareToken}
 	}
 	over := map[int64]bool{}
+	limits := map[int64]int{}
 	if a.EnforceDevices {
 		if over, err = a.Store.OverDeviceLimit(ctx, at.Add(-deviceWindow)); err != nil {
+			return nil, err
+		}
+		// Nodes see the limit too: sing-box only logs client addresses at a
+		// verbose level, which bosun switches on when a limited user exists.
+		if limits, err = a.Store.DeviceLimits(ctx); err != nil {
 			return nil, err
 		}
 	}
@@ -53,7 +59,7 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 	if err != nil {
 		return nil, err
 	}
-	users := toSpecUsers(all, over)
+	users := toSpecUsers(all, over, limits)
 	byGroup := map[int64][]spec.User{}
 	for _, ib := range inbounds {
 		si := ib.Spec()
@@ -64,7 +70,7 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 				if err != nil {
 					return nil, err
 				}
-				list = toSpecUsers(members, over)
+				list = toSpecUsers(members, over, limits)
 				byGroup[*ib.GroupID] = list
 			}
 			si.ScopedUsers = true
@@ -78,13 +84,13 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 }
 
 // toSpecUsers converts users, skipping those currently over their device limit.
-func toSpecUsers(list []*domain.User, over map[int64]bool) []spec.User {
+func toSpecUsers(list []*domain.User, over map[int64]bool, limits map[int64]int) []spec.User {
 	out := make([]spec.User, 0, len(list))
 	for _, u := range list {
 		if over[u.ID] {
 			continue
 		}
-		out = append(out, spec.User{ID: u.ID, Name: u.UUID, UUID: u.UUID, Password: u.UUID})
+		out = append(out, spec.User{ID: u.ID, Name: u.UUID, UUID: u.UUID, Password: u.UUID, DeviceLimit: limits[u.ID]})
 	}
 	return out
 }

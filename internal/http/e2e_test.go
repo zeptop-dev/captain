@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/zeptop-dev/captain/internal/captcha"
+	"github.com/zeptop-dev/captain/internal/webhook"
 	"io"
 	"log/slog"
 	"net/http"
@@ -1284,5 +1285,129 @@ func TestSurplusAndMultiLevelCommission(t *testing.T) {
 	_, body, _ = b.do("GET", "/api/portal/invite", nil, nil)
 	if !strings.Contains(string(body), `"commission_cents":`+itoa(before-1000)+`,`) {
 		t.Fatalf("commission after payout: %s", body)
+	}
+}
+
+func TestStaffRolesAndWebhooks(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "https://panel.test"
+	cfg.Portal.Registration = true
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	web := New(cfg, st, slog.Default())
+	web.Hooks().Sync = true
+	srv := httptest.NewServer(web.Handler())
+	defer srv.Close()
+	ac := &client{t: t, srv: srv}
+	ac.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+
+	// Webhook endpoint capturing signed deliveries.
+	type hit struct {
+		event, sig string
+		body       string
+	}
+	var hits []hit
+	sink := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		hits = append(hits, hit{r.Header.Get("X-Captain-Event"), r.Header.Get("X-Captain-Signature"), string(b)})
+	}))
+	defer sink.Close()
+	if code, b, _ := ac.do("PUT", "/api/admin/settings/webhooks", map[string]any{"endpoints": []map[string]any{{"url": sink.URL, "secret": "sec", "enabled": true}, {"url": "ftp://x", "enabled": true}}}, nil); code != 400 {
+		t.Fatalf("bad scheme accepted: %d %s", code, b)
+	}
+	ac.do("PUT", "/api/admin/settings/webhooks", map[string]any{"endpoints": []map[string]any{{"url": sink.URL, "secret": "sec", "enabled": true}}}, nil)
+	if code, _, _ := ac.do("POST", "/api/admin/settings/webhooks/test", map[string]string{"URL": sink.URL, "Secret": "sec"}, nil); code != 200 {
+		t.Fatal("test delivery failed")
+	}
+
+	// Staff: operator and support accounts.
+	code, b, _ := ac.do("POST", "/api/admin/admins", map[string]string{"Email": "op@test", "Password": "password123", "Role": "operator"}, nil)
+	if code != 200 {
+		t.Fatalf("create operator: %d %s", code, b)
+	}
+	ac.do("POST", "/api/admin/admins", map[string]string{"Email": "sup@test", "Password": "password123", "Role": "support"}, nil)
+	if code, _, _ := ac.do("POST", "/api/admin/admins", map[string]string{"Email": "x@test", "Password": "password123", "Role": "user"}, nil); code != 400 {
+		t.Fatal("role user must be rejected")
+	}
+	op := &client{t: t, srv: srv}
+	if code, b, _ := op.do("POST", "/api/admin/login", map[string]string{"Email": "op@test", "Password": "password123"}, nil); code != 200 {
+		t.Fatalf("operator login: %d %s", code, b)
+	}
+	if code, _, _ := op.do("GET", "/api/admin/nodes", nil, nil); code != 200 {
+		t.Fatal("operator should list nodes")
+	}
+	if code, _, _ := op.do("GET", "/api/admin/settings/mail", nil, nil); code != 403 {
+		t.Fatal("operator must not read settings")
+	}
+	if code, _, _ := op.do("GET", "/api/admin/admins", nil, nil); code != 403 {
+		t.Fatal("operator must not manage staff")
+	}
+	sup := &client{t: t, srv: srv}
+	sup.do("POST", "/api/admin/login", map[string]string{"Email": "sup@test", "Password": "password123"}, nil)
+	if code, _, _ := sup.do("GET", "/api/admin/tickets", nil, nil); code != 200 {
+		t.Fatal("support should list tickets")
+	}
+	if code, _, _ := sup.do("GET", "/api/admin/users", nil, nil); code != 200 {
+		t.Fatal("support should read users")
+	}
+	if code, _, _ := sup.do("POST", "/api/admin/users", map[string]string{"Email": "n@test", "Password": "password123"}, nil); code != 403 {
+		t.Fatal("support must not create users")
+	}
+	if code, _, _ := sup.do("GET", "/api/admin/nodes", nil, nil); code != 403 {
+		t.Fatal("support must not see nodes")
+	}
+	// The last admin is protected.
+	if code, _, _ := ac.do("PATCH", "/api/admin/admins/"+itoa(adminUser.ID), map[string]string{"Role": "support"}, nil); code != 409 {
+		t.Fatal("last admin demotion must fail")
+	}
+	if code, _, _ := ac.do("DELETE", "/api/admin/admins/"+itoa(adminUser.ID), nil, nil); code != 409 {
+		t.Fatal("deleting yourself must fail")
+	}
+	_, b, _ = ac.do("GET", "/api/admin/admins", nil, nil)
+	var staff []map[string]any
+	_ = json.Unmarshal(b, &staff)
+	var opID int64
+	for _, s := range staff {
+		if s["email"] == "op@test" {
+			opID = int64(s["id"].(float64))
+		}
+	}
+	ac.do("PATCH", "/api/admin/admins/"+itoa(opID), map[string]string{"Role": "admin"}, nil)
+	if code, _, _ := ac.do("PATCH", "/api/admin/admins/"+itoa(adminUser.ID), map[string]string{"Role": "support"}, nil); code != 200 {
+		t.Fatal("demotion with a second admin present should work")
+	}
+	// The demoted account cannot restore itself; the other admin does it.
+	if code, _, _ := ac.do("PATCH", "/api/admin/admins/"+itoa(adminUser.ID), map[string]string{"Role": "admin"}, nil); code != 403 {
+		t.Fatal("support session must not manage staff")
+	}
+	if code, _, _ := op.do("PATCH", "/api/admin/admins/"+itoa(adminUser.ID), map[string]string{"Role": "admin"}, nil); code != 200 {
+		t.Fatal("promoted admin should restore the original")
+	}
+
+	// Events: registration, ticket, balance-paid order.
+	uc := &client{t: t, srv: srv}
+	uc.do("POST", "/api/portal/register", map[string]string{"Email": "u@test", "Password": "password123"}, nil)
+	uc.do("POST", "/api/portal/tickets", map[string]string{"Subject": "hi", "Body": "help"}, nil)
+	_, b, _ = ac.do("POST", "/api/admin/plans", map[string]any{"Name": "p", "PriceCents": 100, "PeriodDays": 30, "QuotaBytes": 1}, nil)
+	planID := int64(mustJSON[map[string]any](t, b)["ID"].(float64))
+	uu, _ := st.UserByEmail(context.Background(), "u@test")
+	_ = st.AdjustBalance(context.Background(), uu.ID, 100)
+	uc.do("POST", "/api/portal/orders", map[string]any{"plan_id": planID, "gateway": "balance"}, nil)
+	events := []string{}
+	for _, h := range hits {
+		events = append(events, h.event)
+		if h.sig != "sha256="+webhook.Sign("sec", []byte(h.body)) {
+			t.Fatalf("bad signature on %s", h.event)
+		}
+	}
+	want := []string{"test", "user.registered", "ticket.created", "order.paid"}
+	if strings.Join(events, ",") != strings.Join(want, ",") {
+		t.Fatalf("events %v, want %v", events, want)
+	}
+	if !strings.Contains(hits[3].body, `"order_no"`) || !strings.Contains(hits[1].body, `"u@test"`) {
+		t.Fatalf("payloads: %+v", hits)
 	}
 }

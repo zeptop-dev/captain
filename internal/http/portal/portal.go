@@ -11,6 +11,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/mail"
 	"github.com/zeptop-dev/captain/internal/notify"
 	"github.com/zeptop-dev/captain/internal/telegram"
+	"github.com/zeptop-dev/captain/internal/webhook"
 	"log/slog"
 	"net"
 	"net/http"
@@ -138,6 +139,7 @@ func (h *handlers) register(w http.ResponseWriter, r *http.Request) {
 	if err := h.Store.ApplyTrial(r.Context(), u.ID, time.Now()); err != nil {
 		h.Log.Warn("trial grant", "user", u.ID, "err", err)
 	}
+	h.Notify.Event(r.Context(), webhook.UserRegistered, map[string]any{"user_id": u.ID, "email": u.Email, "invited_by": u.InvitedBy, "method": "password"})
 	h.startSession(w, r, u)
 }
 
@@ -602,6 +604,7 @@ func (h *handlers) withdraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.Notify.Admin(r.Context(), fmt.Sprintf("💸 Withdrawal #%d: %.2f via %s (%s)\n%s", wd.ID, float64(wd.AmountCents)/100, wd.Method, wd.Account, u.Email))
+	h.Notify.Event(r.Context(), webhook.WithdrawalRequested, map[string]any{"withdrawal_id": wd.ID, "user_id": u.ID, "email": u.Email, "amount_cents": wd.AmountCents, "method": wd.Method})
 	ok(w, wd)
 }
 

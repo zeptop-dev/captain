@@ -3,6 +3,8 @@ package admin
 import (
 	"context"
 	"errors"
+	"github.com/zeptop-dev/captain/internal/auth"
+	"github.com/zeptop-dev/captain/internal/webhook"
 	"net/http"
 	"strconv"
 	"strings"
@@ -31,6 +33,13 @@ func (h *handlers) registerOps(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/admin/settings/telegram", h.requireAdmin(h.getTelegram))
 	mux.HandleFunc("PUT /api/admin/settings/telegram", h.requireAdmin(h.putTelegram))
 	mux.HandleFunc("POST /api/admin/settings/telegram/test", h.requireAdmin(h.testTelegram))
+	mux.HandleFunc("GET /api/admin/admins", h.requireAdmin(h.listStaff))
+	mux.HandleFunc("POST /api/admin/admins", h.requireAdmin(h.createStaff))
+	mux.HandleFunc("PATCH /api/admin/admins/{id}", h.requireAdmin(h.updateStaff))
+	mux.HandleFunc("DELETE /api/admin/admins/{id}", h.requireAdmin(h.deleteStaff))
+	mux.HandleFunc("GET /api/admin/settings/webhooks", h.requireAdmin(h.getWebhooks))
+	mux.HandleFunc("PUT /api/admin/settings/webhooks", h.requireAdmin(h.putWebhooks))
+	mux.HandleFunc("POST /api/admin/settings/webhooks/test", h.requireAdmin(h.testWebhook))
 	mux.HandleFunc("GET /api/admin/settings/trial", h.requireAdmin(h.getTrial))
 	mux.HandleFunc("PUT /api/admin/settings/trial", h.requireAdmin(h.putTrial))
 }
@@ -497,4 +506,176 @@ func (h *handlers) withdrawalStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	ok(w, map[string]string{"status": in.Status})
+}
+
+// ---- staff accounts -------------------------------------------------------------------
+
+type staffView struct {
+	ID        int64     `json:"id"`
+	Email     string    `json:"email"`
+	Role      string    `json:"role"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (h *handlers) listStaff(w http.ResponseWriter, r *http.Request) {
+	list, err := h.Store.ListStaff(r.Context())
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	out := make([]staffView, 0, len(list))
+	for _, u := range list {
+		out = append(out, staffView{ID: u.ID, Email: u.Email, Role: u.Role, Status: u.Status, CreatedAt: u.CreatedAt})
+	}
+	ok(w, out)
+}
+
+func (h *handlers) createStaff(w http.ResponseWriter, r *http.Request) {
+	var in struct{ Email, Password, Role string }
+	if !decode(r, &in) || !strings.Contains(in.Email, "@") || len(in.Password) < 8 || !domain.ValidStaffRole(in.Role) {
+		fail(w, http.StatusBadRequest, "email, a password of 8+ chars and a role (admin, operator, support) are required")
+		return
+	}
+	u, err := NewUser(strings.ToLower(strings.TrimSpace(in.Email)), in.Password, in.Role)
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if err := h.Store.CreateUser(r.Context(), u); err != nil {
+		fail(w, http.StatusConflict, "email already registered")
+		return
+	}
+	ok(w, staffView{ID: u.ID, Email: u.Email, Role: u.Role, Status: u.Status, CreatedAt: u.CreatedAt})
+}
+
+func (h *handlers) updateStaff(w http.ResponseWriter, r *http.Request) {
+	var in struct{ Role, Status, Password string }
+	if !decode(r, &in) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	target, err := h.Store.UserByID(r.Context(), idOf(r))
+	if err != nil || !target.IsStaff() {
+		fail(w, http.StatusNotFound, "no such staff account")
+		return
+	}
+	if in.Role != "" && !domain.ValidStaffRole(in.Role) {
+		fail(w, http.StatusBadRequest, "role must be admin, operator or support")
+		return
+	}
+	// The last active admin keeps its role and stays active.
+	demoting := (in.Role != "" && in.Role != domain.RoleAdmin) || (in.Status != "" && in.Status != "active")
+	if target.IsAdmin() && demoting {
+		if n, _ := h.Store.CountAdmins(r.Context()); n <= 1 {
+			fail(w, http.StatusConflict, "cannot demote or disable the last admin")
+			return
+		}
+	}
+	if in.Role != "" && in.Role != target.Role {
+		if err := h.Store.SetRole(r.Context(), target.ID, in.Role); err != nil {
+			fail(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	status := target.Status
+	if in.Status == "active" || in.Status == "banned" {
+		status = in.Status
+	}
+	hash := ""
+	if in.Password != "" {
+		if len(in.Password) < 8 {
+			fail(w, http.StatusBadRequest, "password too short")
+			return
+		}
+		if hash, err = auth.HashPassword(in.Password); err != nil {
+			fail(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	if err := h.Store.UpdateUser(r.Context(), target.ID, status, target.GroupID, hash); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	h.listStaff(w, r)
+}
+
+func (h *handlers) deleteStaff(w http.ResponseWriter, r *http.Request) {
+	target, err := h.Store.UserByID(r.Context(), idOf(r))
+	if err != nil || !target.IsStaff() {
+		fail(w, http.StatusNotFound, "no such staff account")
+		return
+	}
+	if target.ID == userFrom(r).ID {
+		fail(w, http.StatusConflict, "cannot delete yourself")
+		return
+	}
+	if target.IsAdmin() {
+		if n, _ := h.Store.CountAdmins(r.Context()); n <= 1 {
+			fail(w, http.StatusConflict, "cannot delete the last admin")
+			return
+		}
+	}
+	if err := h.Store.DeleteStaff(r.Context(), target.ID); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, map[string]bool{"ok": true})
+}
+
+// ---- webhooks ---------------------------------------------------------------------------
+
+func (h *handlers) getWebhooks(w http.ResponseWriter, r *http.Request) {
+	var v webhook.Settings
+	_ = h.Store.GetSetting(r.Context(), webhook.SettingKey, &v)
+	if v.Endpoints == nil {
+		v.Endpoints = []webhook.Endpoint{}
+	}
+	ok(w, map[string]any{"settings": v, "events": webhook.Events})
+}
+
+func (h *handlers) putWebhooks(w http.ResponseWriter, r *http.Request) {
+	var v webhook.Settings
+	if !decode(r, &v) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	eps := make([]webhook.Endpoint, 0, len(v.Endpoints))
+	for _, ep := range v.Endpoints {
+		ep.URL = strings.TrimSpace(ep.URL)
+		if ep.URL == "" {
+			continue
+		}
+		if !strings.HasPrefix(ep.URL, "http://") && !strings.HasPrefix(ep.URL, "https://") {
+			fail(w, http.StatusBadRequest, "endpoint URLs must start with http:// or https://")
+			return
+		}
+		eps = append(eps, ep)
+	}
+	v.Endpoints = eps
+	if err := h.Store.SetSetting(r.Context(), webhook.SettingKey, v); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if h.Hooks != nil {
+		h.Hooks.Invalidate()
+	}
+	h.getWebhooks(w, r)
+}
+
+func (h *handlers) testWebhook(w http.ResponseWriter, r *http.Request) {
+	var in struct{ URL, Secret string }
+	if !decode(r, &in) || strings.TrimSpace(in.URL) == "" {
+		fail(w, http.StatusBadRequest, "url required")
+		return
+	}
+	hub := h.Hooks
+	if hub == nil {
+		hub = &webhook.Hub{}
+	}
+	if err := hub.Deliver(webhook.Endpoint{URL: strings.TrimSpace(in.URL), Secret: in.Secret, Enabled: true}, webhook.Test, map[string]any{"site": h.SiteName, "by": userFrom(r).Email}); err != nil {
+		fail(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	ok(w, map[string]bool{"ok": true})
 }

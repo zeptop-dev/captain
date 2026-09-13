@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/zeptop-dev/captain/internal/webhook"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -34,6 +35,7 @@ const (
 
 // Deps wires the handlers.
 type Deps struct {
+	Hooks    *webhook.Hub // nil = no webhooks
 	Store    *store.Store
 	Sessions admin.SessionStore
 	Log      *slog.Logger
@@ -242,7 +244,7 @@ func (h *handlers) callback(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, errors.New("account disabled"))
 		return
 	}
-	if strings.HasPrefix(f.Next, "/admin") && !user.IsAdmin() {
+	if strings.HasPrefix(f.Next, "/admin") && !user.IsStaff() {
 		h.fail(w, r, errors.New("admin only"))
 		return
 	}
@@ -327,6 +329,7 @@ func (h *handlers) resolveUser(ctx context.Context, r *http.Request, p *store.OI
 	if err := h.Store.ApplyTrial(ctx, u.ID, time.Now()); err != nil {
 		h.Log.Warn("trial grant", "user", u.ID, "err", err)
 	}
+	h.Hooks.Emit(ctx, webhook.UserRegistered, map[string]any{"user_id": u.ID, "email": u.Email, "invited_by": u.InvitedBy, "method": "oidc:" + p.ID})
 	return u, h.Store.LinkIdentity(ctx, u.ID, p.ID, subject, email)
 }
 

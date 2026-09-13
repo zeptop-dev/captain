@@ -211,3 +211,40 @@ func (s *Store) UpdateUserEmail(ctx context.Context, id int64, email string) err
 	_, err := s.db.ExecContext(ctx, `UPDATE users SET email = ?, updated_at = ? WHERE id = ?`, email, now(), id)
 	return err
 }
+
+// ListStaff returns console accounts (every role but "user").
+func (s *Store) ListStaff(ctx context.Context) ([]*domain.User, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+userCols+` FROM users WHERE role != 'user' ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*domain.User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
+}
+
+// SetRole changes a user's role.
+func (s *Store) SetRole(ctx context.Context, id int64, role string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE users SET role = ?, updated_at = ? WHERE id = ?`, role, now(), id)
+	return err
+}
+
+// CountAdmins returns how many full admins exist (the last one cannot go).
+func (s *Store) CountAdmins(ctx context.Context) (int, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE role = 'admin' AND status = 'active'`).Scan(&n)
+	return n, err
+}
+
+// DeleteStaff removes a console account (never a plain user).
+func (s *Store) DeleteStaff(ctx context.Context, id int64) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM users WHERE id = ? AND role != 'user'`, id)
+	return err
+}

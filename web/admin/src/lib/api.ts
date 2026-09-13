@@ -42,6 +42,8 @@ export interface SiteSettings {
   hub: { name: string; lat: number; lng: number } | null
   faq: { q: string; a: string }[]
   links: { telegram?: string; tos?: string; download?: string; github?: string }
+  theme?: { primary?: string; radius?: string; scheme?: string; site_scheme?: string; font_family?: string; portal_title?: string }
+  inject_head?: string; inject_body?: string
   show_plans: boolean
 }
 export interface OIDCProvider { id: string; name: string; issuer: string; client_id: string; client_secret?: string; scopes?: string[]; trust_email: boolean; auto_register: boolean; has_secret?: boolean }

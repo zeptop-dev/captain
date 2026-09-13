@@ -3,6 +3,7 @@ package portal
 import (
 	"encoding/json"
 	"errors"
+	"github.com/zeptop-dev/captain/internal/webhook"
 	"net/http"
 	"strconv"
 	"strings"
@@ -86,6 +87,7 @@ func (h *handlers) createTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.notifyAdminTicket(r, "🎫 New ticket #"+strconv.FormatInt(t.ID, 10)+" from "+u.Email+"\n"+t.Subject)
+	h.Notify.Event(r.Context(), webhook.TicketCreated, map[string]any{"ticket_id": t.ID, "user_id": u.ID, "email": u.Email, "subject": t.Subject, "priority": t.Priority})
 	msgs, _ := h.Store.TicketMessages(r.Context(), t.ID)
 	ok(w, ticketView(t, msgs))
 }
@@ -127,6 +129,7 @@ func (h *handlers) replyTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.notifyAdminTicket(r, "🎫 Reply on ticket #"+strconv.FormatInt(t.ID, 10)+" from "+userFrom(r).Email+"\n"+t.Subject)
+	h.Notify.Event(r.Context(), webhook.TicketReplied, map[string]any{"ticket_id": t.ID, "user_id": t.UserID, "email": userFrom(r).Email, "subject": t.Subject})
 	h.ticket(w, r)
 }
 

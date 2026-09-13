@@ -3,6 +3,7 @@ import { IconLanguage, IconLogout } from '@tabler/icons-react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../lib/auth'
+import { useSite } from '../lib/theme'
 
 const items = [{ to: '/', key: 'home' }, { to: '/plans', key: 'plans' }, { to: '/orders', key: 'orders' }, { to: '/servers', key: 'servers' }, { to: '/invite', key: 'invite' }, { to: '/tickets', key: 'tickets' }, { to: '/help', key: 'help' }]
 
@@ -12,13 +13,15 @@ export function Layout() {
   const { logout } = useAuth()
   const nav = useNavigate()
   const loc = useLocation()
+  const site = useSite()
+  const brand = site.data?.theme?.portal_title || site.data?.name || 'Captain'
   return (
     <AppShell header={{ height: 56 }} padding="md" styles={{ main: { background: 'var(--mantine-color-gray-0)' } }}>
       <AppShell.Header>
         <Container size="sm" h="100%">
           <Group h="100%" justify="space-between">
             <Group gap="lg">
-              <Text fw={800} size="lg">Captain</Text>
+              <Text fw={800} size="lg">{brand}</Text>
               <Group gap="xs" visibleFrom="xs">
                 {items.map((it) => {
                   const active = it.to === '/' ? loc.pathname === '/' : loc.pathname.startsWith(it.to)
