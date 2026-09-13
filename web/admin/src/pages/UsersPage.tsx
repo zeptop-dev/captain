@@ -11,6 +11,9 @@ import { bytes, money, when } from '../lib/format'
 import { toast } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
 import { Copy } from '../components/Copy'
+import { RenewalsPanel } from '../components/RenewalsPanel'
+import { SubAdjust } from '../components/SubAdjust'
+import { SegmentedControl } from '@mantine/core'
 
 export default function UsersPage() {
   const { t } = useTranslation()
@@ -23,6 +26,7 @@ export default function UsersPage() {
   const groups = useQuery({ queryKey: ['groups'], queryFn: () => api.get<UGroup[]>('/api/admin/groups') })
   const [sel, setSel] = useState<UserRow | null>(null)
   const [creating, setCreating] = useState(false)
+  const [view, setView] = useState('list')
   const invalidate = () => qc.invalidateQueries({ queryKey: ['users'] })
 
   const createForm = useForm({ initialValues: { Email: '', Password: '' } })
@@ -44,8 +48,8 @@ export default function UsersPage() {
 
   return (
     <>
-      <PageHeader title={t('users.title')} subtitle={t('users.subtitle')} actions={<Button leftSection={<IconPlus size={16} />} onClick={() => setCreating(true)}>{t('users.create')}</Button>} />
-      <Card p={0}>
+      <PageHeader title={t('users.title')} subtitle={t('users.subtitle')} actions={<><SegmentedControl size="xs" value={view} onChange={setView} data={[{ value: 'list', label: t('users.viewList') }, { value: 'renewals', label: t('users.viewRenewals') }]} /><Button leftSection={<IconPlus size={16} />} onClick={() => setCreating(true)}>{t('users.create')}</Button></>} />
+      {view === 'renewals' ? <RenewalsPanel /> : <Card p={0}>
         <Group p="md" pb="xs"><TextInput placeholder={t('users.filterPlaceholder')} leftSection={<IconSearch size={14} />} value={search} onChange={(e) => { setSearch(e.currentTarget.value); setPage(1) }} w={300} /><Text size="sm" c="dimmed">{t('common.total', { count: q.data?.total ?? 0 })}</Text></Group>
         <Table.ScrollContainer minWidth={760}>
           <Table>
@@ -66,7 +70,7 @@ export default function UsersPage() {
           </Table>
         </Table.ScrollContainer>
         {pages > 1 && <Group justify="center" p="md"><Pagination total={pages} value={page} onChange={setPage} /></Group>}
-      </Card>
+      </Card>}
 
       <Modal opened={creating} onClose={() => setCreating(false)} title={t('users.create')}>
         <form onSubmit={createForm.onSubmit((v) => create.mutate(v))}><Stack>
@@ -108,6 +112,7 @@ export default function UsersPage() {
               <Text size="xs" c="dimmed">{t('users.grantHint')}</Text>
               <Group align="flex-end"><Select flex={1} data={(plans.data ?? []).map((p) => ({ value: String(p.ID), label: `${p.Name} · ${money(p.PriceCents)}` }))} value={grantPlan} onChange={setGrantPlan} placeholder={t('users.plan')} /><Button size="xs" disabled={!grantPlan} loading={grant.isPending} onClick={() => grant.mutate()}>{t('users.grant')}</Button></Group>
             </Stack>
+            <SubAdjust userID={sel.id} hasPlan={!!sel.plan_name} onDone={() => setSel(null)} />
             <Stack gap="sm">
               <Title order={6}>{t('users.topUp')}</Title>
               <Text size="xs" c="dimmed">{t('users.topUpHint')} {t('users.balance')}: {money(sel.balance_cents)}</Text>

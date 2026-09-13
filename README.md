@@ -168,6 +168,10 @@ external login):
   balance, or a commission account the user can move to balance or withdraw
   (minimum amount, allowed methods). Admin → Withdrawals marks requests paid or
   rejected; rejecting refunds the commission.
+- **Subscription adjustments** — in a user's drawer: extend by N days
+  (+30/+60/+90), override the quota (kept across renewals of the same plan),
+  set a personal monthly reset day, reset usage. Users → Renewals lists
+  everyone by expiry with one-click extensions for batch renewals.
 - **Trial plan** — Settings → Trial plan hands every new account (password or
   external login) a plan once, for the configured number of days.
 

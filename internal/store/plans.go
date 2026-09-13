@@ -66,9 +66,10 @@ func grantTx(ctx context.Context, tx *sql.Tx, userID int64, plan *domain.Plan, p
 		reset = sql.NullInt64{Int64: next.Unix(), Valid: true}
 	}
 	// Renewal: same plan, still active.
-	var subID int64
+	var subID, override int64
+	var resetDay int
 	var curExpires sql.NullInt64
-	err := tx.QueryRowContext(ctx, `SELECT id, expires_at FROM subscriptions WHERE user_id = ? AND plan_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1`, userID, plan.ID).Scan(&subID, &curExpires)
+	err := tx.QueryRowContext(ctx, `SELECT id, expires_at, quota_override, reset_day FROM subscriptions WHERE user_id = ? AND plan_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1`, userID, plan.ID).Scan(&subID, &curExpires, &override, &resetDay)
 	if err == nil && (!curExpires.Valid || curExpires.Int64 > at.Unix()) {
 		var expires sql.NullInt64
 		if periodDays > 0 {
@@ -78,8 +79,20 @@ func grantTx(ctx context.Context, tx *sql.Tx, userID int64, plan *domain.Plan, p
 			}
 			expires = sql.NullInt64{Int64: base.AddDate(0, 0, periodDays).Unix(), Valid: true}
 		}
+		quota := plan.QuotaBytes
+		switch {
+		case override < 0:
+			quota = 0
+		case override > 0:
+			quota = override
+		}
+		if resetDay > 0 {
+			if next := nextResetFor(plan, resetDay, at); next != nil && quota > 0 {
+				reset = sql.NullInt64{Int64: next.Unix(), Valid: true}
+			}
+		}
 		_, err := tx.ExecContext(ctx, `UPDATE subscriptions SET expires_at = ?, quota_bytes = ?, used_up_bytes = 0, used_down_bytes = 0, reset_at = ?, updated_at = ? WHERE id = ?`,
-			expires, plan.QuotaBytes, reset, now(), subID)
+			expires, quota, reset, now(), subID)
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE subscriptions SET status = 'expired', updated_at = ? WHERE user_id = ? AND status = 'active'`, now(), userID); err != nil {

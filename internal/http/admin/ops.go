@@ -49,6 +49,8 @@ func (h *handlers) registerOps(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/admin/nodes/{id}/probe", h.requireAdmin(h.getNodeProbe))
 	mux.HandleFunc("PUT /api/admin/nodes/{id}/probe", h.requireAdmin(h.putNodeProbe))
 	mux.HandleFunc("POST /api/admin/nodes/{id}/probe/reset-traffic", h.requireAdmin(h.resetNodeTraffic))
+	mux.HandleFunc("POST /api/admin/users/{id}/subscription", h.requireAdmin(h.adjustSubscription))
+	mux.HandleFunc("GET /api/admin/renewals", h.requireAdmin(h.renewals))
 	mux.HandleFunc("GET /api/admin/settings/trial", h.requireAdmin(h.getTrial))
 	mux.HandleFunc("PUT /api/admin/settings/trial", h.requireAdmin(h.putTrial))
 }
@@ -823,4 +825,38 @@ func (h *handlers) resetNodeTraffic(w http.ResponseWriter, r *http.Request) {
 	_ = h.Store.ClearAlert(r.Context(), idOf(r), "traffic80")
 	_ = h.Store.ClearAlert(r.Context(), idOf(r), "traffic100")
 	h.getNodeProbe(w, r)
+}
+
+// ---- subscription adjustments / renewal view ----------------------------------------------
+
+func (h *handlers) adjustSubscription(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		AddDays       int
+		QuotaOverride *int64
+		ResetDay      *int
+		ResetUsage    bool
+	}
+	if !decode(r, &in) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	sub, err := h.Store.AdjustSubscription(r.Context(), idOf(r), store.SubAdjust{AddDays: in.AddDays, QuotaOverride: in.QuotaOverride, ResetDay: in.ResetDay, ResetUsage: in.ResetUsage}, time.Now())
+	if err != nil {
+		if errors.Is(err, store.ErrNoActiveSubscription) {
+			fail(w, http.StatusConflict, err.Error())
+			return
+		}
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	ok(w, sub)
+}
+
+func (h *handlers) renewals(w http.ResponseWriter, r *http.Request) {
+	list, err := h.Store.ExpiringUsers(r.Context(), queryInt(r, "limit", 200))
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, list)
 }

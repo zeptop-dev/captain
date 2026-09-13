@@ -1675,3 +1675,71 @@ func TestExternalNodesAndRouting(t *testing.T) {
 		}
 	}
 }
+
+func TestSubscriptionAdjustments(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "https://panel.test"
+	cfg.Portal.Registration = true
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	ac := &client{t: t, srv: srv}
+	ac.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+	_, b, _ := ac.do("POST", "/api/admin/plans", map[string]any{"Name": "p", "PriceCents": 100, "PeriodDays": 30, "QuotaBytes": 10 << 30, "ResetMode": "monthly"}, nil)
+	planID := int64(mustJSON[map[string]any](t, b)["ID"].(float64))
+	uc := &client{t: t, srv: srv}
+	uc.do("POST", "/api/portal/register", map[string]string{"Email": "u@test", "Password": "password123"}, nil)
+	u, _ := st.UserByEmail(context.Background(), "u@test")
+	uid := itoa(u.ID)
+	if code, _, _ := ac.do("POST", "/api/admin/users/"+uid+"/subscription", map[string]any{"AddDays": 30}, nil); code != 409 {
+		t.Fatalf("no plan should 409: %d", code)
+	}
+	ac.do("POST", "/api/admin/users/"+uid+"/grant", map[string]any{"PlanID": planID}, nil)
+	sub0, _ := st.ActiveSubscription(context.Background(), u.ID)
+
+	// +30 days, quota override 20 GB, reset day 15, then usage reset.
+	code, b, _ := ac.do("POST", "/api/admin/users/"+uid+"/subscription", map[string]any{"AddDays": 30, "QuotaOverride": 20 << 30, "ResetDay": 15}, nil)
+	if code != 200 {
+		t.Fatalf("adjust: %d %s", code, b)
+	}
+	sub, _ := st.ActiveSubscription(context.Background(), u.ID)
+	if !sub.ExpiresAt.Equal(sub0.ExpiresAt.AddDate(0, 0, 30)) || sub.QuotaBytes != 20<<30 || sub.ResetAt == nil || sub.ResetAt.Day() != 15 || !sub.ResetAt.After(time.Now()) {
+		t.Fatalf("adjusted: exp %v quota %d reset %v", sub.ExpiresAt, sub.QuotaBytes, sub.ResetAt)
+	}
+	_ = st.AddTraffic(context.Background(), u.ID, 0, 1<<20, 2<<20, time.Now())
+	ac.do("POST", "/api/admin/users/"+uid+"/subscription", map[string]any{"ResetUsage": true}, nil)
+	sub, _ = st.ActiveSubscription(context.Background(), u.ID)
+	if sub.UsedUpBytes+sub.UsedDownBytes != 0 {
+		t.Fatal("usage not reset")
+	}
+	// Renewing the same plan keeps the override and the reset day.
+	_ = st.AdjustBalance(context.Background(), u.ID, 100)
+	if code, b, _ := uc.do("POST", "/api/portal/orders", map[string]any{"plan_id": planID, "gateway": "balance"}, nil); code != 200 {
+		t.Fatalf("renew: %d %s", code, b)
+	}
+	sub, _ = st.ActiveSubscription(context.Background(), u.ID)
+	if sub.QuotaBytes != 20<<30 || sub.ResetAt == nil || sub.ResetAt.Day() != 15 {
+		t.Fatalf("override lost on renewal: quota %d reset %v", sub.QuotaBytes, sub.ResetAt)
+	}
+	// Unlimited override and back to plan default.
+	ac.do("POST", "/api/admin/users/"+uid+"/subscription", map[string]any{"QuotaOverride": -1}, nil)
+	if sub, _ = st.ActiveSubscription(context.Background(), u.ID); sub.QuotaBytes != 0 {
+		t.Fatalf("unlimited override: %d", sub.QuotaBytes)
+	}
+	ac.do("POST", "/api/admin/users/"+uid+"/subscription", map[string]any{"QuotaOverride": 0}, nil)
+	if sub, _ = st.ActiveSubscription(context.Background(), u.ID); sub.QuotaBytes != 10<<30 {
+		t.Fatalf("plan default override: %d", sub.QuotaBytes)
+	}
+	if code, _, _ := ac.do("POST", "/api/admin/users/"+uid+"/subscription", map[string]any{"ResetDay": 31}, nil); code != 400 {
+		t.Fatal("reset day 31 must be rejected")
+	}
+	// Renewal view lists the user with plan and expiry.
+	_, b, _ = ac.do("GET", "/api/admin/renewals", nil, nil)
+	if !strings.Contains(string(b), `"email":"u@test"`) || !strings.Contains(string(b), `"plan_name":"p"`) {
+		t.Fatalf("renewals: %s", b)
+	}
+}
