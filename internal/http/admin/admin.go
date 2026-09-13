@@ -96,6 +96,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	h.registerBackup(mux)
 	h.registerCertificates(mux)
 	h.registerDomains(mux)
+	h.registerIngresses(mux)
 	h.registerSubTemplates(mux)
 	mux.HandleFunc("GET /api/admin/coupons", h.requireAdmin(h.listCoupons))
 	mux.HandleFunc("POST /api/admin/coupons", h.requireAdmin(h.createCoupon))
@@ -398,8 +399,9 @@ func (h *handlers) getNode(w http.ResponseWriter, r *http.Request) {
 	if inbounds == nil {
 		inbounds = []*domain.Inbound{}
 	}
+	ingresses, _ := h.Store.IngressesByNode(r.Context(), id)
 	status, _ := h.Store.NodeStatus(r.Context(), id)
-	ok(w, map[string]any{"node": v, "inbounds": inbounds, "status": status})
+	ok(w, map[string]any{"node": v, "inbounds": inbounds, "ingresses": ingresses, "status": status})
 }
 
 func (h *handlers) updateNode(w http.ResponseWriter, r *http.Request) {
@@ -454,6 +456,10 @@ func (h *handlers) createInbound(w http.ResponseWriter, r *http.Request) {
 	}
 	ib.NodeID = nodeID
 	ib.Enabled = true
+	if msg := h.checkIngress(r, &ib); msg != "" {
+		fail(w, http.StatusBadRequest, msg)
+		return
+	}
 	if err := h.Store.CreateInbound(r.Context(), &ib); err != nil {
 		fail(w, http.StatusConflict, err.Error())
 		return
@@ -474,6 +480,10 @@ func (h *handlers) updateInbound(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ib.ID, ib.NodeID = cur.ID, cur.NodeID
+	if msg := h.checkIngress(r, &ib); msg != "" {
+		fail(w, http.StatusBadRequest, msg)
+		return
+	}
 	if err := h.Store.UpdateInbound(r.Context(), &ib); err != nil {
 		fail(w, http.StatusConflict, err.Error())
 		return
@@ -812,6 +822,23 @@ func (h *handlers) fillEntryDefaults(ctx context.Context, e *domain.Entry) error
 	ib, err := h.Store.InboundByID(ctx, e.InboundID)
 	if err != nil {
 		return err
+	}
+	if ib.IngressID != nil {
+		// A line ingress: clients dial the provider's public entry (or a
+		// relay in front of the line) on the mapped port.
+		g, err := h.Store.IngressByID(ctx, *ib.IngressID)
+		if err == nil {
+			if e.DisplayPort == 0 {
+				e.DisplayPort = g.EntryPort(ib.Port)
+			}
+			if e.DisplayHost == "" {
+				if g.EntryHost == "" {
+					return errors.New("this ingress has no public entry: add a port forward on a relay node and use the relay's address here")
+				}
+				e.DisplayHost = g.EntryHost
+			}
+			return nil
+		}
 	}
 	if e.DisplayPort == 0 {
 		e.DisplayPort = ib.Port

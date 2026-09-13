@@ -6,7 +6,7 @@ import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
-import { api, type CertStatus, type Group as UGroup, type Inbound, type Node } from '../lib/api'
+import { api, type Ingress, type CertStatus, type Group as UGroup, type Inbound, type Node } from '../lib/api'
 import { ago, bytes, when } from '../lib/format'
 import { toast } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
@@ -15,8 +15,9 @@ import { NodeStatus, PairCodeBox } from './NodesPage'
 import { NodeProbeCard } from '../components/NodeProbeCard'
 import { RoutingCard } from '../components/RoutingCard'
 import { ForwardsCard } from '../components/ForwardsCard'
+import { IngressesCard, ingressPayload } from '../components/IngressesCard'
 
-interface Detail { node: Node; inbounds: Inbound[]; status: { host: Record<string, number> | null; cores: Record<string, { running: boolean }> | null; certs: CertStatus[] | null } | null }
+interface Detail { node: Node; inbounds: Inbound[]; ingresses?: Ingress[]; status: { host: Record<string, number> | null; cores: Record<string, { running: boolean }> | null; certs: CertStatus[] | null } | null }
 
 export default function NodePage() {
   const { id } = useParams()
@@ -30,7 +31,11 @@ export default function NodePage() {
   const [pair, setPair] = useState<string | null>(null)
   const invalidate = () => { qc.invalidateQueries({ queryKey: ['node', id] }); qc.invalidateQueries({ queryKey: ['nodes'] }) }
   const save = useMutation({
-    mutationFn: (v: InboundValues) => editing === 'new' ? api.post(`/api/admin/nodes/${id}/inbounds`, toPayload(v)) : api.patch(`/api/admin/inbounds/${(editing as Inbound).ID}`, toPayload(v)),
+    mutationFn: async (v: InboundValues) => {
+      // An inline line ingress from the IPLC recipe is created first, then referenced.
+      if (v.NewIngress) { const g = await api.post<Ingress>(`/api/admin/nodes/${id}/ingresses`, ingressPayload(v.NewIngress)); v = { ...v, IngressID: String(g.id), NewIngress: undefined } }
+      return editing === 'new' ? api.post(`/api/admin/nodes/${id}/inbounds`, toPayload(v)) : api.patch(`/api/admin/inbounds/${(editing as Inbound).ID}`, toPayload(v))
+    },
     onSuccess: () => { toast.ok(t('common.saved')); setEditing(null); invalidate() }, onError: toast.err,
   })
   const del = useMutation({ mutationFn: (ibID: number) => api.del(`/api/admin/inbounds/${ibID}`), onSuccess: () => { toast.ok(t('common.deleted')); invalidate() }, onError: toast.err })
@@ -57,6 +62,7 @@ export default function NodePage() {
       {!n.paired && n.pair_code && <Card mb="lg"><Title order={5} mb="sm">{t('nodes.pairTitle')}</Title><PairCodeBox code={n.pair_code} /></Card>}
       {n.paired && <NodeProbeCard nodeID={n.id} />}
       <RoutingCard nodeID={n.id} inboundTags={d.inbounds.map((ib) => ib.Tag)} />
+      <IngressesCard nodeID={n.id} ingresses={d.ingresses ?? []} inbounds={d.inbounds} />
       <ForwardsCard node={n} />
       {d.status?.certs && d.status.certs.length > 0 && (
         <Card mb="lg">
@@ -127,7 +133,7 @@ export default function NodePage() {
       </Card>
 
       <Modal opened={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? t('inbounds.create') : t('common.edit')} size="xl">
-        {editing !== null && <InboundForm domain={n.domain} initial={toValues(editing === 'new' ? undefined : editing)} groups={groups.data ?? []} busy={save.isPending} onSubmit={(v) => save.mutate(v)} onCancel={() => setEditing(null)} />}
+        {editing !== null && <InboundForm domain={n.domain} ingresses={d.ingresses ?? []} usedPorts={d.inbounds.filter((ib) => editing === 'new' || ib.ID !== (editing as Inbound).ID).map((ib) => ib.Port)} initial={toValues(editing === 'new' ? undefined : editing)} groups={groups.data ?? []} busy={save.isPending} onSubmit={(v) => save.mutate(v)} onCancel={() => setEditing(null)} />}
       </Modal>
       <Modal opened={editNode} onClose={() => setEditNode(false)} title={t('common.edit')}>
         <form onSubmit={nodeForm.onSubmit((v) => saveNode.mutate(v))}><Stack>

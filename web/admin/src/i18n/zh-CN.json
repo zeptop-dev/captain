@@ -157,7 +157,9 @@
       "ss2022": "Shadowsocks 2022",
       "ss2022Desc": "轻量，需要 base64 服务端密钥。",
       "trojanWs": "Trojan + WS + TLS",
-      "trojanWsDesc": "可套 CDN，需要证书。"
+      "trojanWsDesc": "可套 CDN，需要证书。",
+      "mieruLine": "mieru · IPLC 专线",
+      "mieruLineDesc": "走专线网卡，订阅写移动入口；从服务商网络信息页抄地址和端口段。"
     },
     "mieruStrategy": "mieru 策略",
     "mieruStrategyHint": "同 nobrand-oneclick 的预设：专线不伪装，公网保守伪装，强化伪装加分片和填充；自定义则直接改下面的 traffic_pattern。",
@@ -167,7 +169,15 @@
       "balanced": "普通公网（保守伪装）",
       "stealth": "强化伪装",
       "custom": "自定义"
-    }
+    },
+    "ingress": "入口",
+    "ingressDirect": "直连（节点公网地址 / 域名）",
+    "ingressNew": "新建专线入口…",
+    "ingressDirectHint": "客户端直接连节点的公网地址或域名。",
+    "ingressHint": "客户端连 {{host}}，本地端口范围 {{ports}}。",
+    "ingressNewHint": "保存时会先创建这个专线入口，再创建入站。",
+    "ingressNewFields": "从服务商的网络信息页抄这几项：",
+    "listenIngressHint": "留空 = 绑定到入口的本地 IP {{ip}}"
   },
   "entries": {
     "title": "入口",
@@ -864,5 +874,28 @@
     "usePanel": "面板",
     "deleteHint": "只删除登记，不影响节点和证书。",
     "empty": "还没有登记域名。"
+  },
+  "ingress": {
+    "title": "专线入口",
+    "add": "添加入口",
+    "hint": "IPLC / 专线在节点前面时在这里登记：入站绑定到专线网卡，订阅行写服务商给的公网入口，没有公网入口的线路由前置节点转发到「外部连接 IP」。直连不用登记。",
+    "name": "名称",
+    "bindIP": "本地监听 IP",
+    "bindIPHint": "专线网卡在 VPS 上的地址，入站绑定到它；留空则监听全部",
+    "lineIP": "外部连接 IP",
+    "lineIPHint": "专线在对端的地址，前置节点往这里转发；公网连不通",
+    "entryHost": "公网入口",
+    "entryHostHint": "服务商自带的入口地址（如移动入口），客户端连它；没有就留空",
+    "portFrom": "可用端口从",
+    "portTo": "到",
+    "portOffset": "端口偏移",
+    "portOffsetHint": "入口端口 = 本地端口 + 偏移，一般为 0",
+    "ports": "端口",
+    "inbounds": "入站",
+    "anyAddr": "全部地址",
+    "anyPort": "任意端口",
+    "noEntry": "无公网入口",
+    "noEntryHint": "这条线没有公网入口：在能连通它的前置节点上加一条端口转发到外部连接 IP，订阅行写前置的地址。",
+    "deleteHint": "删除后用它的入站会变回直连，订阅行地址不会自动改。"
   }
 }

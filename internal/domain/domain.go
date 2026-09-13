@@ -146,17 +146,18 @@ type Node struct {
 // Inbound is a protocol server on a node. Settings carries the protocol
 // specific part of spec.Inbound; the identifying fields are columns.
 type Inbound struct {
-	ID       int64
-	NodeID   int64
-	Tag      string
-	Protocol spec.Protocol
-	Listen   string
-	Port     int
-	Core     string
-	Settings spec.Inbound // only protocol-specific fields are used
-	GroupID  *int64
-	Enabled  bool
-	Sort     int
+	ID        int64
+	NodeID    int64
+	Tag       string
+	Protocol  spec.Protocol
+	Listen    string
+	Port      int
+	Core      string
+	Settings  spec.Inbound // only protocol-specific fields are used
+	GroupID   *int64
+	Enabled   bool
+	Sort      int
+	IngressID *int64 // nil = the node's direct entry
 }
 
 // Spec materializes the full spec.Inbound bosun renders.

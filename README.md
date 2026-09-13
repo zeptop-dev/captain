@@ -262,6 +262,23 @@ receives each gzipped snapshot with its own retention, tests the remote,
 runs a backup on demand and downloads local copies. Restore by stopping
 Captain, replacing `captain.db` with a snapshot and starting it again.
 
+## Line ingresses (IPLC)
+
+A node behind an IPLC or dedicated line has more than one way in. Node page
+→ Line ingresses registers each line with the addresses the provider gives
+you: the local NIC address on the VPS (inbounds bind to it so replies go
+back through the line), the line's far-end address (what a relay must
+forward to; not reachable from the public internet), the provider's public
+entry if the service includes one (e.g. a China Mobile entry IP), the
+usable port range and an optional port offset. Inbounds pick an ingress
+(direct is the default); entries then advertise the public entry on the
+mapped port, and the "mieru · IPLC line" recipe creates the ingress and the
+inbound in one step, picking the first free port in the range. A line
+without a public entry is served through a relay node: add a port forward
+there whose target is the far-end address (the picker fills it in) and use
+the relay's address in the entry. Direct inbounds on the same node (hy2,
+REALITY) keep using the node's public address or domain.
+
 ## Port forwards (relay tunnels)
 
 Node page → Port forwards: listen on a port of this node and relay raw

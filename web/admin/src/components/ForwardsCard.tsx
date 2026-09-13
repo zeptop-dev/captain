@@ -3,7 +3,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/rea
 import { IconLink, IconPlus, IconTrash } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { api, type Inbound, type Node } from '../lib/api'
+import { api, type Inbound, type Ingress, type Node } from '../lib/api'
 import { bytes } from '../lib/format'
 import { toast } from '../lib/notify'
 
@@ -17,8 +17,8 @@ export function ForwardsCard({ node }: { node: Node }) {
   const qc = useQueryClient()
   const q = useQuery({ queryKey: ['forwards', node.id], queryFn: () => api.get<{ forwards: Forward[]; status: Record<string, Status> }>(`/api/admin/nodes/${node.id}/forwards`), refetchInterval: 10000 })
   const nodes = useQuery({ queryKey: ['nodes'], queryFn: () => api.get<Node[]>('/api/admin/nodes') })
-  const details = useQueries({ queries: (nodes.data ?? []).filter((n) => n.id !== node.id).map((n) => ({ queryKey: ['node', String(n.id)], queryFn: () => api.get<{ node: Node; inbounds: Inbound[] }>(`/api/admin/nodes/${n.id}`) })) })
-  const targets = details.flatMap((d) => (d.data ? d.data.inbounds.map((ib) => ({ ib, node: d.data!.node })) : []))
+  const details = useQueries({ queries: (nodes.data ?? []).filter((n) => n.id !== node.id).map((n) => ({ queryKey: ['node', String(n.id)], queryFn: () => api.get<{ node: Node; inbounds: Inbound[]; ingresses?: Ingress[] }>(`/api/admin/nodes/${n.id}`) })) })
+  const targets = details.flatMap((d) => (d.data ? d.data.inbounds.map((ib) => ({ ib, node: d.data!.node, ingress: (d.data!.ingresses ?? []).find((g) => g.id === ib.IngressID) })) : []))
   const [list, setList] = useState<Forward[]>([])
   useEffect(() => { if (q.data) setList(q.data.forwards ?? []) }, [q.data])
   const save = useMutation({ mutationFn: (v: Forward[]) => api.put(`/api/admin/nodes/${node.id}/forwards`, { Forwards: v }), onSuccess: () => { toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['forwards', node.id] }) }, onError: toast.err })
@@ -30,7 +30,8 @@ export function ForwardsCard({ node }: { node: Node }) {
     const p = Number(port)
     if (!p) return
     const pick = targets.find((x) => String(x.ib.ID) === target)
-    const tgt = pick ? `${pick.node.public_addr}:${pick.ib.Port}` : manual.trim()
+    // A line ingress is reached through its far-end address, never the node's public IP.
+    const tgt = pick ? `${pick.ingress?.line_ip || pick.node.public_addr}:${pick.ib.Port}` : manual.trim()
     if (!tgt) return
     setList((cur) => [...cur, { tag: `fwd-${p}`, port: p, protocol: proto, target: tgt, inbound_id: pick?.ib.ID }])
     setPort(''); setTarget(null); setManual('')
@@ -62,7 +63,7 @@ export function ForwardsCard({ node }: { node: Node }) {
         <Group align="flex-end" wrap="nowrap">
           <NumberInput label={t('forwards.port')} w={110} min={1} max={65535} value={port} onChange={setPort} />
           <Select label={t('forwards.protocol')} w={110} data={[{ value: 'both', label: 'tcp+udp' }, { value: 'tcp', label: 'tcp' }, { value: 'udp', label: 'udp' }]} value={proto} onChange={(v) => setProto(v ?? 'both')} allowDeselect={false} />
-          <Select label={t('forwards.target')} style={{ flex: 2 }} searchable clearable placeholder={t('forwards.pickInbound')} data={targets.map((x) => ({ value: String(x.ib.ID), label: `${x.node.name} / ${x.ib.Tag} (${x.ib.Protocol}:${x.ib.Port})` }))} value={target} onChange={setTarget} />
+          <Select label={t('forwards.target')} style={{ flex: 2 }} searchable clearable placeholder={t('forwards.pickInbound')} data={targets.map((x) => ({ value: String(x.ib.ID), label: `${x.node.name} / ${x.ib.Tag} (${x.ib.Protocol}:${x.ib.Port})${x.ingress ? ` · ${x.ingress.name} ${x.ingress.line_ip || ''}` : ''}` }))} value={target} onChange={setTarget} />
           {!target && <TextInput label={t('forwards.manual')} placeholder="1.2.3.4:443" style={{ flex: 2 }} value={manual} onChange={(e) => setManual(e.currentTarget.value)} />}
           <Button variant="light" leftSection={<IconPlus size={14} />} onClick={add} disabled={!port || (!target && !manual.trim())}>{t('forwards.add')}</Button>
         </Group>
