@@ -12,6 +12,10 @@ type SingBox struct{}
 func (SingBox) Name() string        { return "singbox" }
 func (SingBox) ContentType() string { return "application/json; charset=utf-8" }
 
+func (r SingBox) RenderWith(lines []Line, acct Account, _ string) ([]byte, error) {
+	return r.Render(lines, acct)
+}
+
 func (SingBox) Render(lines []Line, _ Account) ([]byte, error) {
 	var outbounds []any
 	var names []string

@@ -14,21 +14,26 @@ type Surge struct{}
 func (Surge) Name() string        { return "surge" }
 func (Surge) ContentType() string { return "text/plain; charset=utf-8" }
 
-func (Surge) Render(lines []Line, _ Account) ([]byte, error) {
+func (s Surge) Render(lines []Line, acct Account) ([]byte, error) {
+	return s.RenderWith(lines, acct, "")
+}
+
+func (Surge) RenderWith(lines []Line, _ Account, tpl string) ([]byte, error) {
+	body, names := iniLines(lines, surgeLine)
+	return applyINI(tpl, "surge", body, names), nil
+}
+
+// iniLines renders each line with fn, skipping the ones it cannot express.
+func iniLines(lines []Line, fn func(Line) string) (string, []string) {
 	var b strings.Builder
-	b.WriteString("[Proxy]\n")
-	var names []string
+	names := []string{}
 	for _, l := range lines {
-		if s := surgeLine(l); s != "" {
+		if s := fn(l); s != "" {
 			b.WriteString(s + "\n")
 			names = append(names, l.Name)
 		}
 	}
-	b.WriteString("\n[Proxy Group]\n")
-	b.WriteString("PROXY = select, AUTO, " + strings.Join(names, ", ") + "\n")
-	b.WriteString("AUTO = url-test, " + strings.Join(names, ", ") + ", url=https://www.gstatic.com/generate_204, interval=300\n")
-	b.WriteString("\n[Rule]\nGEOIP,CN,DIRECT\nFINAL,PROXY\n")
-	return []byte(b.String()), nil
+	return strings.TrimRight(b.String(), "\n"), names
 }
 
 func surgeLine(l Line) string {
