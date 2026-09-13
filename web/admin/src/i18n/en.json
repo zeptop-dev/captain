@@ -88,7 +88,7 @@
     "trafficToday": "Traffic today",
     "inbounds": "Inbounds",
     "pairTitle": "Pairing code",
-    "pairHint": "Put it in the bosun config on the node and start it. Valid 24h, single use.",
+    "pairHint": "Run either command as root on the node: it installs bosun and pairs it. The code is valid for 24h, single use.",
     "repair": "Re-pair",
     "repairHint": "Revokes the current token and issues a new code; the node must pair again.",
     "deleteHint": "Inbounds on this node are deleted too.",
@@ -110,7 +110,10 @@
     "certs": "Automatic certificates",
     "certExpires": "expires {{date}}",
     "certOk": "ok",
-    "certProblem": "A certificate failed or expires soon"
+    "certProblem": "A certificate failed or expires soon",
+    "installCmd": "One-line install (systemd)",
+    "dockerCmd": "Docker (host network)",
+    "manualHint": "bosun already installed? Adopt with the code, or copy the config snippet:"
   },
   "inbounds": {
     "title": "Inbounds",

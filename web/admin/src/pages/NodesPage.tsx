@@ -15,13 +15,19 @@ import { Copy } from '../components/Copy'
 
 export function PairCodeBox({ code }: { code: string }) {
   const { t } = useTranslation()
-  const snippet = `panel:\n  driver: captain\n  captain:\n    url: ${window.location.origin}\n    pair_code: ${code}`
+  const origin = window.location.origin
+  const install = `curl -fsSL "${origin}/api/agent/install.sh?pair=${code}" | sh`
+  const docker = `docker run -d --name bosun --restart unless-stopped --network host -v bosun-data:/var/lib/bosun -e BOSUN_CAPTAIN=${origin} -e BOSUN_PAIR=${code} zeptop/bosun:latest`
+  const snippet = `panel:\n  driver: captain\n  captain:\n    url: ${origin}\n    pair_code: ${code}`
   return (
     <Stack gap="xs">
       <Text size="sm" c="dimmed">{t('nodes.pairHint')}</Text>
-      <Group gap="xs"><Code fz="xl" px="md" py={6}>{code}</Code><Copy value={code} /></Group>
-      <Text size="xs" c="dimmed" mt="xs">{t('nodes.configSnippet')}</Text>
-      <Group align="flex-start" gap="xs"><Code block style={{ flex: 1 }}>{snippet}</Code><Copy value={snippet} /></Group>
+      <Text size="xs" fw={600}>{t('nodes.installCmd')}</Text>
+      <Group align="flex-start" gap="xs"><Code block style={{ flex: 1, wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{install}</Code><Copy value={install} /></Group>
+      <Text size="xs" fw={600}>{t('nodes.dockerCmd')}</Text>
+      <Group align="flex-start" gap="xs"><Code block style={{ flex: 1, wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{docker}</Code><Copy value={docker} /></Group>
+      <Text size="xs" c="dimmed" mt="xs">{t('nodes.manualHint')}</Text>
+      <Group gap="xs"><Code px="md" py={4}>{code}</Code><Copy value={code} /><Text size="xs" c="dimmed" ml="sm">{t('nodes.configSnippet')}</Text><Copy value={snippet} /></Group>
     </Stack>
   )
 }
