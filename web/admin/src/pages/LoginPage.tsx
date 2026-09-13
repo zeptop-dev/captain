@@ -16,7 +16,7 @@ export default function LoginPage() {
   const form = useForm({ initialValues: { Email: '', Password: '', Code: '' } })
   const submit = form.onSubmit(async (v) => {
     setBusy(true); setError('')
-    try { await api.post('/api/admin/login', v); refresh(); nav('/') } catch (e) { if (e instanceof ApiError && e.status === 428) setNeedCode(true); else setError(needCode ? t('login.badCode') : t('login.failed')) } finally { setBusy(false) }
+    try { await api.post('/api/admin/login', v); await refresh(); nav('/') } catch (e) { if (e instanceof ApiError && e.status === 428) setNeedCode(true); else setError(needCode ? t('login.badCode') : t('login.failed')) } finally { setBusy(false) }
   })
   return (
     <Center h="100vh" p="md">
