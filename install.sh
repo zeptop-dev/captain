@@ -187,6 +187,8 @@ portal:
 payments: {}
 YAML
   chmod 0600 "$CFG"
+  # The image runs Captain as uid 1000; the file stays 0600 but must be readable by it.
+  [ "$MODE" = docker ] && chown 1000 "$CFG"
   echo "wrote $CFG"
 else
   echo "keeping existing $CFG"
