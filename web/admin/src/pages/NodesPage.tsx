@@ -100,7 +100,6 @@ export default function NodesPage() {
                 <TextInput label={t('nodes.internalAddr')} {...form.getInputProps('InternalAddr')} />
                 <TextInput label={t('nodes.v6Addr')} {...form.getInputProps('V6Addr')} />
               </Group>
-              <TextInput label={t('nodes.monitorUrl')} placeholder="https://komari.example.com/..." {...form.getInputProps('MonitorURL')} />
               <Group justify="flex-end"><Button variant="default" onClick={close}>{t('common.cancel')}</Button><Button type="submit" loading={create.isPending}>{t('common.create')}</Button></Group>
             </Stack>
           </form>

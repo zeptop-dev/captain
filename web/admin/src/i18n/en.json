@@ -85,7 +85,7 @@
     "publicAddr": "Public address",
     "internalAddr": "Internal address",
     "v6Addr": "IPv6 address",
-    "monitorUrl": "Monitor URL",
+    "monitorUrl": "External monitor link (optional)",
     "status": "Status",
     "online": "Online",
     "offline": "Offline",
@@ -120,7 +120,8 @@
     "certProblem": "A certificate failed or expires soon",
     "installCmd": "One-line install (systemd)",
     "dockerCmd": "Docker (host network)",
-    "manualHint": "bosun already installed? Adopt with the code, or copy the config snippet:"
+    "manualHint": "bosun already installed? Adopt with the code, or copy the config snippet:",
+    "monitorUrlHint": "If you run another probe (Komari, Nezha), paste this node's page there; the node page shows a link."
   },
   "inbounds": {
     "title": "Inbounds",
