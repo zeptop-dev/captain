@@ -279,6 +279,12 @@ there whose target is the far-end address (the picker fills it in) and use
 the relay's address in the entry. Direct inbounds on the same node (hy2,
 REALITY) keep using the node's public address or domain.
 
+When the probe is on, every ingress with a local NIC address and a far-end
+address gets an automatic RTT task (bosun >= 0.15 binds the TCP connect to
+the NIC; a refused port still measures the line) shown under the ingress
+name on the status and speed-test pages. Lines are usually private, so
+carrier latency is not measured through them.
+
 ## Port forwards (relay tunnels)
 
 Node page → Port forwards: listen on a port of this node and relay raw

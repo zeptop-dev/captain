@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -103,6 +105,28 @@ func (p *Probe) AgentConfig(ctx context.Context, nodeID int64) *spec.Probe {
 			}
 		}
 		cfg.Tasks = append(cfg.Tasks, spec.PingTask{ID: t.ID, Name: t.Name, Type: t.Type, Target: t.Target, IntervalSeconds: t.IntervalSeconds})
+	}
+	// Dedicated lines: measure each ingress from its own NIC to the far
+	// end (a refused connect still yields the line RTT). Task ids are the
+	// negative ingress id so they never collide with panel tasks.
+	if ingresses, err := p.Store.IngressesByNode(ctx, nodeID); err == nil && len(ingresses) > 0 {
+		inbounds, _ := p.Store.InboundsByNode(ctx, nodeID)
+		for _, g := range ingresses {
+			if g.BindIP == "" || g.LineIP == "" {
+				continue
+			}
+			port := g.PortFrom
+			for _, ib := range inbounds {
+				if ib.IngressID != nil && *ib.IngressID == g.ID {
+					port = ib.Port
+					break
+				}
+			}
+			if port == 0 {
+				port = 80
+			}
+			cfg.Tasks = append(cfg.Tasks, spec.PingTask{ID: -g.ID, Name: g.Name, Type: "tcp", Target: net.JoinHostPort(g.LineIP, strconv.Itoa(port)), IntervalSeconds: 30, SourceIP: g.BindIP})
+		}
 	}
 	return cfg
 }
