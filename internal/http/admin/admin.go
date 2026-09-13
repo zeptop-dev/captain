@@ -7,6 +7,7 @@ import (
 	"errors"
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
 	"github.com/zeptop-dev/bosun/pkg/spec"
+	"github.com/zeptop-dev/captain/internal/backup"
 	"github.com/zeptop-dev/captain/internal/http/ratelimit"
 	"github.com/zeptop-dev/captain/internal/http/site"
 	"github.com/zeptop-dev/captain/internal/mail"
@@ -53,6 +54,8 @@ type Deps struct {
 	Secure bool
 	// Notify reaches users (Telegram/mail); nil disables.
 	Notify *notify.Notifier
+	// Backups runs database snapshots; nil hides the backup card.
+	Backups *backup.Manager
 	// Bot exposes the Telegram settings cache; nil disables.
 	Bot *telegram.Bot
 	// Hooks is the webhook hub (settings cache invalidation, test delivery).
@@ -86,6 +89,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	h.registerOps(mux)
 	h.registerExternal(mux)
 	h.registerSpeedtest(mux)
+	h.registerBackup(mux)
 	h.registerSubTemplates(mux)
 	mux.HandleFunc("GET /api/admin/coupons", h.requireAdmin(h.listCoupons))
 	mux.HandleFunc("POST /api/admin/coupons", h.requireAdmin(h.createCoupon))
