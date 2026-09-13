@@ -33,7 +33,7 @@ func qxLine(l Line) string {
 	case spec.Shadowsocks:
 		parts = []string{"shadowsocks=" + addr, "method=" + ib.Cipher, "password=" + ssPassword(l)}
 	case spec.VMess:
-		parts = []string{"vmess=" + addr, "method=auto", "password=" + l.UUID}
+		parts = []string{"vmess=" + addr, "method=aes-128-gcm", "password=" + l.UUID}
 		t, ok := qxTransport(l, false)
 		if !ok {
 			return ""

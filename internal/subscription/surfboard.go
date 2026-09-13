@@ -7,8 +7,9 @@ import (
 	"github.com/zeptop-dev/bosun/pkg/spec"
 )
 
-// Surfboard renders a Surge-style config for Surfboard (Android), which
-// only speaks ss, vmess, trojan and anytls.
+// Surfboard renders a Surge-style config for Surfboard (Android). Per its
+// manual (manual.getsurfboard.com) it speaks http, socks5, ss, vmess and
+// trojan only: no vless, hysteria2, tuic or anytls, no grpc/h2 transports.
 type Surfboard struct{}
 
 func (Surfboard) Name() string        { return "surfboard" }
@@ -29,16 +30,13 @@ func surfboardLine(l Line) string {
 	var parts []string
 	switch ib.Protocol {
 	case spec.Shadowsocks:
-		parts = append(parts, "encrypt-method="+ib.Cipher, "password="+ssPassword(l), "tfo=true", "udp-relay=true")
+		if ss2022KeyLen(ib.Cipher) > 0 {
+			return "" // no SS2022 multi-user keys, as in Surge
+		}
+		parts = append(parts, "encrypt-method="+ib.Cipher, "password="+ssPassword(l), "udp-relay=true")
 		return fmt.Sprintf(base, "ss") + ", " + strings.Join(parts, ", ")
 	case spec.VMess:
-		parts = append(parts, "username="+l.UUID, "vmess-aead=true", "tfo=true", "udp-relay=true")
-		if hasTLS(l) {
-			parts = append(parts, "tls=true")
-			if sn := serverName(l); sn != "" {
-				parts = append(parts, "sni="+sn)
-			}
-		}
+		parts = append(parts, "username="+l.UUID, "udp-relay=true")
 		switch transportType(l) {
 		case "ws":
 			parts = append(parts, "ws=true", "ws-path="+ib.Transport.Path)
@@ -49,23 +47,17 @@ func surfboardLine(l Line) string {
 		default:
 			return ""
 		}
+		if hasTLS(l) {
+			parts = append(parts, "tls=true", "sni="+serverName(l), "skip-cert-verify=false")
+		}
+		parts = append(parts, "vmess-aead=true")
 		return fmt.Sprintf(base, "vmess") + ", " + strings.Join(parts, ", ")
 	case spec.Trojan:
-		if transportType(l) != "tcp" {
+		if transportType(l) != "tcp" || isReality(l) {
 			return ""
 		}
-		parts = append(parts, "password="+l.Password)
-		if sn := serverName(l); sn != "" {
-			parts = append(parts, "sni="+sn)
-		}
-		parts = append(parts, "tfo=true", "udp-relay=true")
+		parts = append(parts, "password="+l.Password, "udp-relay=true", "sni="+serverName(l), "skip-cert-verify=false")
 		return fmt.Sprintf(base, "trojan") + ", " + strings.Join(parts, ", ")
-	case spec.AnyTLS:
-		parts = append(parts, "password="+l.Password, "tfo=true", "udp-relay=true")
-		if sn := serverName(l); sn != "" {
-			parts = append(parts, "sni="+sn)
-		}
-		return fmt.Sprintf(base, "anytls") + ", " + strings.Join(parts, ", ")
 	}
 	return ""
 }

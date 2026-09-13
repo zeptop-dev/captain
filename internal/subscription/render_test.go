@@ -133,19 +133,18 @@ func TestLoon(t *testing.T) {
 	out, _ := Loon{}.Render(sample(), Account{})
 	s := string(out)
 	for _, want := range []string{
-		"reality=VLESS,entry.test,443,11111111-1111-1111-1111-111111111111,alterId=0,udp=true,flow=xtls-rprx-vision,over-tls=true,skip-cert-verify=false,sni=www.apple.com,public-key=PUB,short-id=0123,transport=tcp",
-		"vmess-ws=vmess,entry.test,443,auto,11111111-1111-1111-1111-111111111111,fast-open=false,udp=true,alterId=0,over-tls=true,skip-cert-verify=false,tls-name=node1.test,transport=ws,path=/ws,host=cdn.test",
-		"trojan-grpc=trojan,entry.test,443,11111111-1111-1111-1111-111111111111,tls-name=node1.test,skip-cert-verify=false,transport=grpc,grpc-service-name=svc",
-		"ss2022=Shadowsocks,entry.test,443,2022-blake3-aes-128-gcm,c2VydmVya2V5c2VydmVya2V5:",
-		"hy2=Hysteria2,entry.test,443,11111111-1111-1111-1111-111111111111,sni=node1.test,download-bandwidth=500,udp=true",
-		"anytls=anytls,entry.test,443,",
+		`reality = VLESS,entry.test,443,"11111111-1111-1111-1111-111111111111",transport=tcp,flow=xtls-rprx-vision,over-tls=true,sni=www.apple.com,skip-cert-verify=false,public-key=PUB,short-id=0123,udp=true`,
+		`vmess-ws = vmess,entry.test,443,aes-128-gcm,"11111111-1111-1111-1111-111111111111",transport=ws,path=/ws,host=cdn.test,alterId=0,over-tls=true,sni=node1.test,skip-cert-verify=false,udp=true`,
+		`hy2 = Hysteria2,entry.test,443,"11111111-1111-1111-1111-111111111111",sni=node1.test,skip-cert-verify=false,fast-open=true,salamander-password="obfs",udp=true`,
+		`anytls = AnyTLS,entry.test,443,"11111111-1111-1111-1111-111111111111",sni=node1.test,skip-cert-verify=false,udp=true`,
 	} {
 		if !strings.Contains(s, want) {
 			t.Fatalf("loon missing %q:\n%s", want, s)
 		}
 	}
-	for _, skip := range []string{"tuic", "mieru", "xhttp"} {
-		if strings.Contains(s, skip+"=") {
+	// grpc trojan, SS2022, tuic, mieru and xhttp have no Loon form.
+	for _, skip := range []string{"trojan-grpc", "ss2022", "tuic", "mieru", "xhttp"} {
+		if strings.Contains(s, skip+" =") {
 			t.Fatalf("loon must skip %s:\n%s", skip, s)
 		}
 	}
@@ -160,7 +159,7 @@ func TestQuantumultX(t *testing.T) {
 	s := string(raw)
 	for _, want := range []string{
 		"vless=entry.test:443, method=none, password=11111111-1111-1111-1111-111111111111, obfs=over-tls, reality-base64-pubkey=PUB, reality-hex-shortid=0123, obfs-host=www.apple.com, vless-flow=xtls-rprx-vision, fast-open=true, udp-relay=true, tag=reality",
-		"vmess=entry.test:443, method=auto, password=11111111-1111-1111-1111-111111111111, obfs=wss, obfs-uri=/ws, tls-verification=true, obfs-host=cdn.test, fast-open=true, udp-relay=true, tag=vmess-ws",
+		"vmess=entry.test:443, method=aes-128-gcm, password=11111111-1111-1111-1111-111111111111, obfs=wss, obfs-uri=/ws, tls-verification=true, obfs-host=cdn.test, fast-open=true, udp-relay=true, tag=vmess-ws",
 		"shadowsocks=entry.test:443, method=2022-blake3-aes-128-gcm, password=c2VydmVya2V5c2VydmVya2V5:",
 	} {
 		if !strings.Contains(s, want) {
@@ -178,17 +177,18 @@ func TestSurfboard(t *testing.T) {
 	s := string(out)
 	for _, want := range []string{
 		"[General]",
-		"vmess-ws = vmess, entry.test, 443, username=11111111-1111-1111-1111-111111111111, vmess-aead=true, tfo=true, udp-relay=true, tls=true, sni=node1.test, ws=true, ws-path=/ws, ws-headers=Host:cdn.test",
-		"ss2022 = ss, entry.test, 443, encrypt-method=2022-blake3-aes-128-gcm, password=c2VydmVya2V5c2VydmVya2V5:",
-		"anytls = anytls, entry.test, 443, password=",
-		"PROXY = select, AUTO, vmess-ws, ss2022, anytls",
+		"vmess-ws = vmess, entry.test, 443, username=11111111-1111-1111-1111-111111111111, udp-relay=true, ws=true, ws-path=/ws, ws-headers=Host:cdn.test, tls=true, sni=node1.test, skip-cert-verify=false, vmess-aead=true",
+		"PROXY = select, AUTO, vmess-ws\n",
 	} {
 		if !strings.Contains(s, want) {
 			t.Fatalf("surfboard missing %q:\n%s", want, s)
 		}
 	}
-	if strings.Contains(s, "hy2 =") || strings.Contains(s, "reality =") || strings.Contains(s, "trojan-grpc =") {
-		t.Fatalf("surfboard must skip unsupported lines:\n%s", s)
+	// Surfboard has no vless, hysteria2, tuic, anytls, SS2022 or grpc.
+	for _, skip := range []string{"hy2 =", "reality =", "trojan-grpc =", "anytls =", "ss2022 =", "tuic ="} {
+		if strings.Contains(s, skip) {
+			t.Fatalf("surfboard must skip %s:\n%s", skip, s)
+		}
 	}
 }
 
@@ -203,6 +203,18 @@ func TestStashAndTemplates(t *testing.T) {
 	}
 	if len(doc["proxies"].([]any)) != 9 || doc["mixed-port"] != nil {
 		t.Fatalf("stash doc: %v", doc)
+	}
+	// Stash dialect: sni not servername, hysteria2 auth + up-speed/down-speed, tuic version/alpn, no smux.
+	stashOut := string(out)
+	for _, want := range []string{"sni: www.apple.com", "auth: 11111111-1111-1111-1111-111111111111", "up-speed: 100", "down-speed: 500", "version: 5", "transport: tcp\n"} {
+		if !strings.Contains(stashOut, want) {
+			t.Fatalf("stash missing %q:\n%s", want, stashOut)
+		}
+	}
+	for _, bad := range []string{"servername:", "smux:", "congestion-controller:", "udp-relay-mode:"} {
+		if strings.Contains(stashOut, bad) {
+			t.Fatalf("stash must not emit %s:\n%s", bad, stashOut)
+		}
 	}
 	// Custom YAML template: an extra group with the placeholder expands in place; DIRECT survives.
 	tpl := "mode: rule\nproxy-groups:\n  - name: MAIN\n    type: select\n    proxies: [\"{{proxy_names}}\", DIRECT]\n  - name: FAST\n    type: url-test\n    proxies: [\"{{proxy_names}}\"]\nrules:\n  - MATCH,MAIN\n"
