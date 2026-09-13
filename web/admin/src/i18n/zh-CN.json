@@ -765,5 +765,28 @@
     "down": "不通",
     "makeEntry": "生成经由本机的入口",
     "entryMade": "入口已生成，去「入口」页调整名称"
+  },
+  "backup": {
+    "title": "数据库备份",
+    "hint": "每天在设定的小时做一次 SQLite 快照到 {{dir}}，本地保留最近 N 份；可以再推到 WebDAV 或 S3 兼容存储（Cloudflare R2、Backblaze B2、MinIO）。恢复：停掉 Captain，用快照替换 captain.db 后启动。",
+    "hour": "每天几点（服务器时区）",
+    "keep": "本地保留份数",
+    "remote": "远端",
+    "remoteNone": "不上传",
+    "remoteKeep": "远端保留份数",
+    "remoteKeepHint": "0 = 全部保留",
+    "username": "用户名",
+    "password": "密码",
+    "keepSecret": "已保存，留空不改",
+    "prefix": "前缀（目录）",
+    "pathStyle": "Path-style 地址",
+    "pathStyleHint": "MinIO 或不支持 bucket 子域名时开启",
+    "runNow": "立即备份",
+    "test": "测试远端",
+    "testOk": "远端可写",
+    "ran": "备份完成",
+    "last": "上次 {{at}}：{{file}}",
+    "uploaded": "已上传 {{name}}",
+    "uploadFailed": "上传失败"
   }
 }

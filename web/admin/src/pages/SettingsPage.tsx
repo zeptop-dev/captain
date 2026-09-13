@@ -18,6 +18,7 @@ import { WebhooksCard } from '../components/WebhooksCard'
 import { ProbeCard } from '../components/ProbeCard'
 import { TokensCard } from '../components/TokensCard'
 import { TwoFactorCard } from '../components/TwoFactorCard'
+import { BackupCard } from '../components/BackupCard'
 
 export default function SettingsPage() {
   const { t } = useTranslation()
@@ -118,6 +119,7 @@ export default function SettingsPage() {
         <ProbeCard />
         <TokensCard />
         <TwoFactorCard />
+        <BackupCard />
         <ClientsCard />
         <Card>
           <Title order={5} mb="xs">{t('settings.oidc')}</Title>

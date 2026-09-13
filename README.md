@@ -227,6 +227,17 @@ external login):
   `domain:`, `ip:`, `protocol:`, `port:` → outbound / direct / block. Needs
   bosun >= 0.12.
 
+## Backups
+
+Captain snapshots its SQLite database once a day (`VACUUM INTO`, so the
+copy is consistent while the panel keeps running) into `<data_dir>/backups`
+and keeps the newest seven. Settings → Database backups sets the hour and
+retention, adds a remote (WebDAV with basic auth, or any S3-compatible
+bucket: AWS, Cloudflare R2, Backblaze B2, MinIO with path-style) that
+receives each gzipped snapshot with its own retention, tests the remote,
+runs a backup on demand and downloads local copies. Restore by stopping
+Captain, replacing `captain.db` with a snapshot and starting it again.
+
 ## Port forwards (relay tunnels)
 
 Node page → Port forwards: listen on a port of this node and relay raw

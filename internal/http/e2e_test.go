@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/zeptop-dev/captain/internal/auth"
+	"github.com/zeptop-dev/captain/internal/backup"
 	"github.com/zeptop-dev/captain/internal/captcha"
 	"github.com/zeptop-dev/captain/internal/webhook"
 	"io"
@@ -19,6 +20,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -2078,5 +2080,138 @@ func TestSubLinksAndTOTP(t *testing.T) {
 	}
 	if code, _, _ := (&client{t: t, srv: srv}).do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil); code != 200 {
 		t.Fatal("login after disable")
+	}
+}
+
+// fakeObjectStore answers both the S3 (path-style) and WebDAV verbs the
+// backup remotes use, recording what was stored.
+type fakeObjectStore struct {
+	mu   sync.Mutex
+	objs map[string][]byte
+	auth []string
+}
+
+func (f *fakeObjectStore) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.objs == nil {
+		f.objs = map[string][]byte{}
+	}
+	f.auth = append(f.auth, r.Header.Get("Authorization"))
+	key := strings.TrimPrefix(r.URL.Path, "/")
+	switch r.Method {
+	case "PUT":
+		b, _ := io.ReadAll(r.Body)
+		f.objs[key] = b
+		w.WriteHeader(201)
+	case "DELETE":
+		delete(f.objs, key)
+		w.WriteHeader(204)
+	case "GET": // S3 ListObjectsV2
+		w.Header().Set("Content-Type", "application/xml")
+		fmt.Fprint(w, `<?xml version="1.0"?><ListBucketResult>`)
+		for k := range f.objs {
+			fmt.Fprintf(w, "<Contents><Key>%s</Key></Contents>", k)
+		}
+		fmt.Fprint(w, `</ListBucketResult>`)
+	case "PROPFIND":
+		w.WriteHeader(207)
+		fmt.Fprint(w, `<?xml version="1.0"?><d:multistatus xmlns:d="DAV:">`)
+		for k := range f.objs {
+			fmt.Fprintf(w, "<d:response><d:href>/%s</d:href></d:response>", k)
+		}
+		fmt.Fprint(w, `</d:multistatus>`)
+	default:
+		w.WriteHeader(405)
+	}
+}
+
+func TestBackups(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "https://panel.test"
+	cfg.DataDir = t.TempDir()
+	conn, _ := db.Open("sqlite", filepath.Join(cfg.DataDir, "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	fake := &fakeObjectStore{}
+	remote := httptest.NewServer(fake)
+	defer remote.Close()
+	ac := &client{t: t, srv: srv}
+	ac.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+
+	// S3 (path-style against the fake), keep 2 remote copies.
+	s3 := map[string]any{"remote": "s3", "keep": 7, "hour": 0, "remote_keep": 2, "s3": map[string]any{"endpoint": remote.URL, "bucket": "bk", "prefix": "cap", "access_key": "AK", "secret_key": "SK", "path_style": true}}
+	if code, b, _ := ac.do("PUT", "/api/admin/settings/backup", s3, nil); code != 200 {
+		t.Fatalf("put: %d %s", code, b)
+	}
+	if code, b, _ := ac.do("POST", "/api/admin/settings/backup/test", map[string]any{"remote": "s3", "s3": map[string]any{"endpoint": remote.URL, "bucket": "bk", "access_key": "AK", "path_style": true}}, nil); code != 200 {
+		t.Fatalf("test remote: %d %s", code, b)
+	}
+	for i := 0; i < 3; i++ {
+		if code, b, _ := ac.do("POST", "/api/admin/settings/backup/run", nil, nil); code != 200 {
+			t.Fatalf("run %d: %d %s", i, code, b)
+		}
+		time.Sleep(1100 * time.Millisecond) // distinct time-suffixed names
+	}
+	fake.mu.Lock()
+	n := len(fake.objs)
+	var keys []string
+	for k := range fake.objs {
+		keys = append(keys, k)
+	}
+	signed := strings.HasPrefix(fake.auth[len(fake.auth)-1], "AWS4-HMAC-SHA256 Credential=AK/")
+	fake.mu.Unlock()
+	if n != 2 || !signed || !strings.HasPrefix(keys[0], "bk/cap/captain-") || !strings.HasSuffix(keys[0], ".db.gz") {
+		t.Fatalf("remote objects: %v signed=%v", keys, signed)
+	}
+	_, b, _ := ac.do("GET", "/api/admin/settings/backup", nil, nil)
+	view := mustJSON[map[string]any](t, b)
+	if view["has_s3_secret"] != true || view["settings"].(map[string]any)["s3"].(map[string]any)["secret_key"] != "" {
+		t.Fatalf("secret leaked or missing: %s", b)
+	}
+	files := view["files"].([]any)
+	if len(files) != 3 || view["status"].(map[string]any)["remote_error"] != "" {
+		t.Fatalf("files/status: %s", b)
+	}
+	name := files[0].(map[string]any)["name"].(string)
+	code, b, h := ac.do("GET", "/api/admin/settings/backup/files/"+name, nil, nil)
+	if code != 200 || !strings.HasPrefix(string(b), "SQLite format 3") || !strings.Contains(h.Get("Content-Disposition"), name) {
+		t.Fatalf("download: %d %s", code, h.Get("Content-Disposition"))
+	}
+	if code, _, _ := ac.do("GET", "/api/admin/settings/backup/files/..%2Fc.db", nil, nil); code != 404 {
+		t.Fatalf("traversal: %d", code)
+	}
+	// Blank secret keeps the stored one; switching to WebDAV uploads there.
+	if code, _, _ := ac.do("PUT", "/api/admin/settings/backup", map[string]any{"remote": "webdav", "webdav": map[string]any{"url": remote.URL + "/dav/", "username": "u", "password": "p"}}, nil); code != 200 {
+		t.Fatal("put webdav")
+	}
+	ac.do("POST", "/api/admin/settings/backup/run", nil, nil)
+	fake.mu.Lock()
+	var dav int
+	for k := range fake.objs {
+		if strings.HasPrefix(k, "dav/captain-") {
+			dav++
+		}
+	}
+	basic := strings.HasPrefix(fake.auth[len(fake.auth)-1], "Basic ")
+	fake.mu.Unlock()
+	if dav != 1 || !basic {
+		t.Fatalf("webdav upload: %d basic=%v", dav, basic)
+	}
+	var s backup.Settings
+	_ = st.GetSetting(context.Background(), backup.SettingKey, &s)
+	if s.S3.SecretKey != "SK" {
+		t.Fatal("stored S3 secret lost on resave")
+	}
+	// Operators cannot reach backups (settings prefix).
+	ac.do("POST", "/api/admin/admins", map[string]string{"Email": "op@test", "Password": "password123", "Role": "operator"}, nil)
+	oc := &client{t: t, srv: srv}
+	oc.do("POST", "/api/admin/login", map[string]string{"Email": "op@test", "Password": "password123"}, nil)
+	if code, _, _ := oc.do("GET", "/api/admin/settings/backup/files/"+name, nil, nil); code != 403 {
+		t.Fatalf("operator download: %d", code)
 	}
 }

@@ -4,6 +4,7 @@ package jobs
 import (
 	"context"
 	"fmt"
+	"github.com/zeptop-dev/captain/internal/backup"
 	"github.com/zeptop-dev/captain/internal/mail"
 	"github.com/zeptop-dev/captain/internal/service"
 	"github.com/zeptop-dev/captain/internal/telegram"
@@ -26,8 +27,11 @@ type Runner struct {
 	OnlineRetain time.Duration // online_devices rows older than this are purged; default 10m
 	// BackupDir receives a daily database snapshot (captain-YYYY-MM-DD.db);
 	// the newest BackupKeep files are kept. Empty disables backups.
+	// Backups, when set, replaces both with the manager (remote upload,
+	// configurable hour and retention).
 	BackupDir  string
 	BackupKeep int // default 7
+	Backups    *backup.Manager
 	// Mail enables expiry/traffic reminders when the settings allow them.
 	Mail *mail.Loader
 	// Bot delivers reminders to users who linked Telegram (nil = off).
@@ -108,7 +112,9 @@ func (r *Runner) Tick(ctx context.Context) {
 		r.lastReminders = now
 		r.reminders(ctx, now, log)
 	}
-	if r.BackupDir != "" {
+	if r.Backups != nil {
+		r.Backups.Tick(ctx)
+	} else if r.BackupDir != "" {
 		if made, err := r.backup(ctx, now); err != nil {
 			log.Error("backup failed", "err", err)
 		} else if made != "" {

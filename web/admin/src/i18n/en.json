@@ -765,5 +765,28 @@
     "down": "down",
     "makeEntry": "Create an entry through this relay",
     "entryMade": "Entry created; rename it on the Entries page"
+  },
+  "backup": {
+    "title": "Database backups",
+    "hint": "A SQLite snapshot lands in {{dir}} once a day at the chosen hour; the newest N stay locally and each one can be pushed to WebDAV or an S3-compatible bucket (Cloudflare R2, Backblaze B2, MinIO). Restore: stop Captain, replace captain.db with a snapshot, start it again.",
+    "hour": "Hour of day (server time)",
+    "keep": "Local copies to keep",
+    "remote": "Remote",
+    "remoteNone": "None",
+    "remoteKeep": "Remote copies to keep",
+    "remoteKeepHint": "0 = keep all",
+    "username": "Username",
+    "password": "Password",
+    "keepSecret": "saved; leave blank to keep",
+    "prefix": "Prefix (folder)",
+    "pathStyle": "Path-style addressing",
+    "pathStyleHint": "For MinIO or hosts without bucket subdomains",
+    "runNow": "Back up now",
+    "test": "Test remote",
+    "testOk": "Remote is writable",
+    "ran": "Backup done",
+    "last": "Last {{at}}: {{file}}",
+    "uploaded": "uploaded {{name}}",
+    "uploadFailed": "upload failed"
   }
 }
