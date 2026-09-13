@@ -23,7 +23,8 @@
     "articles": "知识库",
     "withdrawals": "提现",
     "admins": "管理员",
-    "subTemplates": "订阅模板"
+    "subTemplates": "订阅模板",
+    "external": "外部节点"
   },
   "login": {
     "title": "登录 Captain",
@@ -624,5 +625,52 @@
     "note": "备注",
     "hidden": "不在状态页显示",
     "reset": "重置本周期"
+  },
+  "external": {
+    "title": "外部节点",
+    "subtitle": "把别家的分享链接或机场订阅导入，作为你订阅里的节点分发给用户。这些节点没有 bosun，流量不计入用户额度。",
+    "addSource": "添加订阅源",
+    "import": "导入链接",
+    "source": "订阅源",
+    "nodes": "节点数",
+    "lastSync": "最近同步",
+    "manual": "手动导入",
+    "name": "名称",
+    "link": "链接",
+    "from": "来源",
+    "empty": "还没有外部节点",
+    "subUrl": "订阅地址",
+    "subUrlHint": "必须是 base64 / URI 列表格式的订阅（v2rayN 那种），Clash YAML 暂不支持。每小时自动同步。",
+    "saveAndSync": "保存并同步",
+    "synced": "已同步 {{count}} 个节点",
+    "imported": "导入 {{added}} 个，跳过 {{skipped}} 个",
+    "links": "分享链接",
+    "linksHint": "每行一条 vless:// vmess:// trojan:// ss:// hysteria2:// tuic:// anytls:// 链接，也可以粘贴整段 base64 订阅内容。",
+    "deleteSourceHint": "该订阅源同步来的节点会一并删除。"
+  },
+  "routing": {
+    "title": "出站与落地",
+    "hint": "给这台节点添加出站（落地服务器），然后让全部流量或指定入站从它出去，实现中转。出站可以再经过另一个出站形成链。改动保存后节点几秒内生效。",
+    "direct": "直连",
+    "block": "拦截",
+    "raw": "原始配置",
+    "via": "经由 {{tag}}",
+    "isDefault": "默认出口",
+    "chain": "链式",
+    "noChain": "不链式",
+    "addFromLink": "从分享链接添加出站",
+    "tag": "标签",
+    "add": "添加",
+    "badLink": "无法识别的链接",
+    "rawJSON": "原始出站 JSON（高级）",
+    "rawHint": "不经翻译直接交给内核，格式按内核自己的方言；一般不需要填。",
+    "default": "默认出口",
+    "defaultHint": "没有命中规则的流量走这里，选一个出站等于整机中转。",
+    "rules": "分流规则",
+    "match": "匹配",
+    "matchHint": "逗号分隔：inbound:入站标签、domain:example.com、full:域名、ip:1.2.3.0/24、protocol:bittorrent、port:443",
+    "to": "去向",
+    "addRule": "添加规则",
+    "routeInbound": "入站 {{tag}} 走出站"
   }
 }

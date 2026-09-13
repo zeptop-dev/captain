@@ -37,6 +37,9 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 		return nil, err
 	}
 	node := spec.Node{ID: strconv.FormatInt(n.ID, 10)}
+	if nr, err := a.Store.NodeRouting(ctx, n.ID); err == nil {
+		node.Outbounds, node.Routes, node.DefaultOutbound = nr.Outbounds, nr.Routes, nr.DefaultOutbound
+	}
 	var acme store.ACMESettings
 	if err := a.Store.GetSetting(ctx, store.SettingACME, &acme); err != nil {
 		return nil, err

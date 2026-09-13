@@ -43,6 +43,7 @@ import (
 
 // Server is the HTTP front.
 type Server struct {
+	external *service.External
 	probe    *probe.Router
 	probeSvc *service.Probe
 	hooks    *webhook.Hub
@@ -109,8 +110,9 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 		u, _ := sessions.Resolve(r.Context(), c.Value)
 		return u
 	}
+	s.external = &service.External{Store: st}
 	s.probe = probe.Register(s.mux, probe.Deps{Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe()})
-	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc,
+	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 	})
@@ -296,3 +298,6 @@ func (s *Server) Bot() *telegram.Bot { return s.bot }
 
 // Hooks exposes the webhook hub.
 func (s *Server) Hooks() *webhook.Hub { return s.hooks }
+
+// External exposes the subscription importer (jobs).
+func (s *Server) External() *service.External { return s.external }

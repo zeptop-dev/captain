@@ -42,6 +42,19 @@ func (s *Subscription) Lines(ctx context.Context, u *domain.User, at time.Time) 
 			Inbound: r.Inbound.Spec(), UUID: u.UUID, Password: u.UUID,
 		})
 	}
+	// External nodes (imported share links) follow the panel's own entries.
+	ext, err := s.Store.ExternalNodesForGroup(ctx, u.GroupID)
+	if err != nil {
+		return nil, subscription.Account{}, err
+	}
+	for _, n := range ext {
+		l, err := subscription.ParseURI(n.URI)
+		if err != nil {
+			continue
+		}
+		l.Name = n.Name
+		lines = append(lines, l)
+	}
 	return lines, account(sub), nil
 }
 
