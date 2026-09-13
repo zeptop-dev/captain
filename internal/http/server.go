@@ -134,7 +134,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 		s.backups = &backup.Manager{Store: st, Dir: filepath.Join(cfg.DataDir, "backups"), Log: log}
 	}
 	s.probe = probe.Register(s.mux, probe.Deps{Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe()})
-	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Backups: s.backups, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external,
+	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Backups: s.backups, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 	})

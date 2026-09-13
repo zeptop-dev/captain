@@ -788,5 +788,19 @@
     "last": "Last {{at}}: {{file}}",
     "uploaded": "uploaded {{name}}",
     "uploadFailed": "upload failed"
+  },
+  "certs": {
+    "title": "Your own certificates",
+    "hint": "Paste a certificate and key in PEM instead of using ACME, or let a certificate manager (Certimate, acme.sh, …) push renewals through the webhook below. Any inbound whose TLS name the certificate covers (exact or wildcard) uses it ahead of automatic certificates.",
+    "domain": "Domain (optional)",
+    "domainHint": "Blank = the first name in the certificate; wildcards as *.example.com",
+    "cert": "Certificate (fullchain PEM)",
+    "key": "Private key (PEM)",
+    "upload": "Upload",
+    "expires": "expires {{date}}",
+    "webhook": "Certificate webhook",
+    "webhookHint": "POST JSON here to update: domain / domains, certificate, privateKey (private_key, key … also accepted). Below is a body template for Certimate.",
+    "enableWebhook": "Create webhook URL",
+    "rotate": "Rotate URL"
   }
 }

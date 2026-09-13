@@ -46,6 +46,8 @@ type Deps struct {
 	// Mail reads the mail settings; nil disables mail features.
 	Mail     *mail.Loader
 	SiteName string
+	// BaseURL is the panel's public origin (webhook URLs shown to admins).
+	BaseURL string
 	// SubLinks builds user subscription URLs; nil falls back to nothing.
 	SubLinks *service.SubLinks
 	// Logins throttles failed sign-ins per client address; nil disables.
@@ -90,6 +92,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	h.registerExternal(mux)
 	h.registerSpeedtest(mux)
 	h.registerBackup(mux)
+	h.registerCertificates(mux)
 	h.registerSubTemplates(mux)
 	mux.HandleFunc("GET /api/admin/coupons", h.requireAdmin(h.listCoupons))
 	mux.HandleFunc("POST /api/admin/coupons", h.requireAdmin(h.createCoupon))
