@@ -1,4 +1,4 @@
-import { ActionIcon, Badge, Button, Card, Code, Group, Modal, Progress, SimpleGrid, Stack, Table, Text, TextInput, Title, Autocomplete } from '@mantine/core'
+import { Accordion, ActionIcon, Badge, Button, Card, Code, Group, Modal, Progress, SimpleGrid, Stack, Table, Text, TextInput, Title, Autocomplete } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -61,9 +61,6 @@ export default function NodePage() {
 
       {!n.paired && n.pair_code && <Card mb="lg"><Title order={5} mb="sm">{t('nodes.pairTitle')}</Title><PairCodeBox code={n.pair_code} /></Card>}
       {n.paired && <NodeProbeCard nodeID={n.id} />}
-      <RoutingCard nodeID={n.id} inboundTags={d.inbounds.map((ib) => ib.Tag)} />
-      <IngressesCard nodeID={n.id} ingresses={d.ingresses ?? []} inbounds={d.inbounds} />
-      <ForwardsCard node={n} />
       {d.status?.certs && d.status.certs.length > 0 && (
         <Card mb="lg">
           <Text size="xs" tt="uppercase" c="dimmed" fw={600} mb="xs">{t('nodes.certs')}</Text>
@@ -132,6 +129,13 @@ export default function NodePage() {
         </Table>
       </Card>
 
+      <Card mt="lg" p={0}>
+        <Accordion multiple chevronPosition="right" variant="default">
+          <Accordion.Item value="ingress"><Accordion.Control><Text size="sm" fw={600}>{t('ingress.title')}</Text><Text size="xs" c="dimmed">{(d.ingresses ?? []).length > 0 ? t('nodes.advIngressCount', { count: (d.ingresses ?? []).length }) : t('nodes.advIngressHint')}</Text></Accordion.Control><Accordion.Panel><IngressesCard embedded nodeID={n.id} ingresses={d.ingresses ?? []} inbounds={d.inbounds} /></Accordion.Panel></Accordion.Item>
+          <Accordion.Item value="routing"><Accordion.Control><Text size="sm" fw={600}>{t('routing.title')}</Text><Text size="xs" c="dimmed">{t('nodes.advRoutingHint')}</Text></Accordion.Control><Accordion.Panel><RoutingCard embedded nodeID={n.id} inboundTags={d.inbounds.map((ib) => ib.Tag)} /></Accordion.Panel></Accordion.Item>
+          <Accordion.Item value="forwards"><Accordion.Control><Text size="sm" fw={600}>{t('forwards.title')}</Text><Text size="xs" c="dimmed">{t('nodes.advForwardsHint')}</Text></Accordion.Control><Accordion.Panel><ForwardsCard embedded node={n} /></Accordion.Panel></Accordion.Item>
+        </Accordion>
+      </Card>
       <Modal opened={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? t('inbounds.create') : t('common.edit')} size="xl">
         {editing !== null && <InboundForm domain={n.domain} ingresses={d.ingresses ?? []} usedPorts={d.inbounds.filter((ib) => editing === 'new' || ib.ID !== (editing as Inbound).ID).map((ib) => ib.Port)} initial={toValues(editing === 'new' ? undefined : editing)} groups={groups.data ?? []} busy={save.isPending} onSubmit={(v) => save.mutate(v)} onCancel={() => setEditing(null)} />}
       </Modal>

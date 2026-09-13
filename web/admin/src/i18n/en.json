@@ -128,7 +128,11 @@
     "manualHint": "bosun already installed? Adopt with the code, or copy the config snippet:",
     "monitorUrlHint": "If you run another probe (Komari, Nezha), paste this node's page there; the node page shows a link.",
     "domain": "Domain (optional)",
-    "domainHint": "This node's host name, e.g. jp1.example.com. New inbounds and entries default to it; certificates are matched and pushed by name."
+    "domainHint": "This node's host name, e.g. jp1.example.com. New inbounds and entries default to it; certificates are matched and pushed by name.",
+    "advIngressCount": "{{count}} lines",
+    "advIngressHint": "Only for an IPLC / dedicated line in front of the node",
+    "advRoutingHint": "Exit through a landing server (relay)",
+    "advForwardsHint": "Forward ports to another node (front relay)"
   },
   "inbounds": {
     "title": "Inbounds",

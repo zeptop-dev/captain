@@ -1,4 +1,4 @@
-import { ActionIcon, Badge, Button, Card, Code, Group, Select, Stack, Text, TextInput, Textarea, Title } from '@mantine/core'
+import { ActionIcon, Badge, Button, Card, Code, Group, Select, Stack, Text, TextInput, Textarea, Title, Box } from '@mantine/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { IconPlus, IconTrash } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
@@ -13,7 +13,9 @@ interface Routing { outbounds: Outbound[]; routes: Rule[]; default_outbound: str
 
 // Landing outbounds and route rules for one node: paste a share link to add
 // an exit, then send everything (default) or specific inbounds to it.
-export function RoutingCard({ nodeID, inboundTags }: { nodeID: number; inboundTags: string[] }) {
+export function RoutingCard({ nodeID, inboundTags, embedded }: { nodeID: number; inboundTags: string[]; embedded?: boolean }) {
+  // Embedded inside the node page's advanced section: no card frame, no title.
+  const Root = embedded ? Box : Card
   const { t } = useTranslation()
   const qc = useQueryClient()
   const q = useQuery({ queryKey: ['routing', nodeID], queryFn: () => api.get<Routing>(`/api/admin/nodes/${nodeID}/routing`) })
@@ -33,8 +35,8 @@ export function RoutingCard({ nodeID, inboundTags }: { nodeID: number; inboundTa
   const outboundOptions = [{ value: 'direct', label: t('routing.direct') }, { value: 'block', label: t('routing.block') }, ...tags.map((x) => ({ value: x, label: x }))]
   const describe = (o: Outbound) => o.remote ? `${o.remote.settings.protocol} ${o.remote.host}:${o.remote.port}` : `${o.protocol} (${t('routing.raw')})`
   return (
-    <Card mb="lg">
-      <Title order={5} mb={4}>{t('routing.title')}</Title>
+    <Root mb={embedded ? 0 : "lg"}>
+      {!embedded && <Title order={5} mb={4}>{t('routing.title')}</Title>}
       <Text size="xs" c="dimmed" mb="sm">{t('routing.hint')}</Text>
       <Stack gap="xs">
         {nr.outbounds.map((o, i) => (
@@ -71,6 +73,6 @@ export function RoutingCard({ nodeID, inboundTags }: { nodeID: number; inboundTa
           <Button size="xs" loading={save.isPending} onClick={() => save.mutate(nr)}>{t('common.save')}</Button>
         </Group>
       </Stack>
-    </Card>
+    </Root>
   )
 }
