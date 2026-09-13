@@ -23,22 +23,6 @@ func (Clash) RenderWith(lines []Line, _ Account, tpl string) ([]byte, error) {
 	return applyYAML(tpl, "clash", proxies, names)
 }
 
-// Stash is Clash-compatible YAML with its own template; the proxy entries
-// are the ones mihomo understands.
-type Stash struct{}
-
-func (Stash) Name() string        { return "stash" }
-func (Stash) ContentType() string { return "text/yaml; charset=utf-8" }
-
-func (s Stash) Render(lines []Line, acct Account) ([]byte, error) {
-	return s.RenderWith(lines, acct, "")
-}
-
-func (Stash) RenderWith(lines []Line, _ Account, tpl string) ([]byte, error) {
-	proxies, names := clashProxies(lines)
-	return applyYAML(tpl, "stash", proxies, names)
-}
-
 func clashProxies(lines []Line) ([]any, []string) {
 	proxies := []any{}
 	names := []string{}
