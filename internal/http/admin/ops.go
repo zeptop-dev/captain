@@ -440,3 +440,61 @@ func (h *handlers) putTrial(w http.ResponseWriter, r *http.Request) {
 	}
 	ok(w, v)
 }
+
+// ---- surplus + withdrawals ----------------------------------------------------------
+
+func (h *handlers) getSurplus(w http.ResponseWriter, r *http.Request) {
+	var v store.SurplusSettings
+	_ = h.Store.GetSetting(r.Context(), store.SettingSurplus, &v)
+	ok(w, v)
+}
+
+func (h *handlers) putSurplus(w http.ResponseWriter, r *http.Request) {
+	var v store.SurplusSettings
+	if !decode(r, &v) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	if err := h.Store.SetSetting(r.Context(), store.SettingSurplus, v); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, v)
+}
+
+func (h *handlers) listWithdrawals(w http.ResponseWriter, r *http.Request) {
+	list, err := h.Store.ListWithdrawals(r.Context(), 0, r.URL.Query().Get("status"), queryInt(r, "limit", 200))
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if list == nil {
+		list = []store.Withdrawal{}
+	}
+	ok(w, list)
+}
+
+func (h *handlers) withdrawalStatus(w http.ResponseWriter, r *http.Request) {
+	var in struct{ Status, Note string }
+	if !decode(r, &in) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	if err := h.Store.SetWithdrawalStatus(r.Context(), idOf(r), in.Status, in.Note); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			fail(w, http.StatusNotFound, "no pending withdrawal with that id")
+			return
+		}
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	list, _ := h.Store.ListWithdrawals(r.Context(), 0, "", 1)
+	for _, wd := range list {
+		if wd.ID == idOf(r) {
+			if u, err := h.Store.UserByID(r.Context(), wd.UserID); err == nil {
+				h.Notify.User(r.Context(), u.ID, u.Email, "Withdrawal #"+strconv.FormatInt(wd.ID, 10)+" "+in.Status, in.Note)
+			}
+		}
+	}
+	ok(w, map[string]string{"status": in.Status})
+}

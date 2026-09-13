@@ -140,6 +140,15 @@ external login):
   one-time `/bind CODE`; the bot answers `/sub`, `/status`, `/unbind` and
   delivers expiry, traffic and ticket notices. Plain Bot API long polling, no
   webhook or public URL needed.
+- **Plan change credit** — Settings → Plan change credit: switching to a
+  different plan credits the unused remainder of the current one (by remaining
+  time, or remaining traffic for plans without expiry) against the new order.
+  Renewing the same plan still stacks time and refills quota.
+- **Referral levels and payouts** — Settings → Invites: level-1 percentage,
+  optional multi-level (levels 2 and 3), and where rewards go: straight to the
+  balance, or a commission account the user can move to balance or withdraw
+  (minimum amount, allowed methods). Admin → Withdrawals marks requests paid or
+  rejected; rejecting refunds the commission.
 - **Trial plan** — Settings → Trial plan hands every new account (password or
   external login) a plan once, for the configured number of days.
 

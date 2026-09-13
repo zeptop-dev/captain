@@ -68,7 +68,7 @@ export interface Coupon {
   StartsAt: string | null; ExpiresAt: string | null; Enabled: boolean; CreatedAt: string
 }
 export interface RegistrationSettings { email_suffixes: string[]; invite_only: boolean; ip_limit: number; ip_window_hours: number; captcha: { provider: string; site_key: string; secret_key: string } }
-export interface InviteSettings { enabled: boolean; percent: number; first_order_only: boolean }
+export interface InviteSettings { enabled: boolean; percent: number; first_order_only: boolean; multi_level: boolean; level2: number; level3: number; payout: string; min_withdraw_cents: number; withdraw_methods: string[] }
 export interface NoticeSettings { enabled: boolean; title: string; body: string }
 export interface UserRow {
   id: number; email: string; uuid: string; sub_token: string; sub_url: string; group_id: number | null; balance_cents: number; status: string

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/zeptop-dev/captain/internal/domain"
 )
@@ -133,8 +134,35 @@ func randomCode(n int) string {
 // InviteSettings controls referral rewards.
 type InviteSettings struct {
 	Enabled        bool `json:"enabled"`
-	Percent        int  `json:"percent"`          // share of each paid order credited to the inviter's balance
+	Percent        int  `json:"percent"`          // level-1 share of each paid order
 	FirstOrderOnly bool `json:"first_order_only"` // reward only the invitee's first paid order
+	// MultiLevel also rewards the inviter's inviter (Level2) and theirs (Level3).
+	MultiLevel bool `json:"multi_level"`
+	Level2     int  `json:"level2"`
+	Level3     int  `json:"level3"`
+	// Payout is "balance" (spendable at once) or "commission" (a separate
+	// balance the user can move to balance or withdraw).
+	Payout           string   `json:"payout"`
+	MinWithdrawCents int64    `json:"min_withdraw_cents"`
+	WithdrawMethods  []string `json:"withdraw_methods"` // e.g. USDT-TRC20, Alipay
+}
+
+// Payout modes.
+const (
+	PayoutBalance    = "balance"
+	PayoutCommission = "commission"
+)
+
+// LevelPercents lists the reward per referral level, level 1 first.
+func (i InviteSettings) LevelPercents() []int {
+	out := []int{i.Percent}
+	if i.MultiLevel {
+		out = append(out, i.Level2, i.Level3)
+		for len(out) > 1 && out[len(out)-1] <= 0 {
+			out = out[:len(out)-1]
+		}
+	}
+	return out
 }
 
 // SettingInvite is the settings key.
@@ -184,4 +212,175 @@ func (s *Store) InviteStatsFor(ctx context.Context, userID int64) (InviteStats, 
 	}
 	err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(amount_cents), 0) FROM commissions WHERE inviter_id = ?`, userID).Scan(&st.EarnedCents)
 	return st, err
+}
+
+// SurplusSettings enables crediting the unused part of the current plan when
+// a user switches to a different one.
+type SurplusSettings struct {
+	Enabled bool `json:"enabled"`
+}
+
+// SettingSurplus is the settings key.
+const SettingSurplus = "surplus"
+
+// SurplusFor values the unused remainder of the user's active subscription
+// when it is for a plan other than newPlanID: by remaining time, or by
+// remaining traffic when the plan never expires. 0 when nothing applies.
+func (s *Store) SurplusFor(ctx context.Context, userID, newPlanID int64, at time.Time) (int64, error) {
+	var ss SurplusSettings
+	if err := s.GetSetting(ctx, SettingSurplus, &ss); err != nil || !ss.Enabled {
+		return 0, err
+	}
+	sub, err := s.ActiveSubscription(ctx, userID)
+	if err != nil || sub == nil || sub.PlanID == newPlanID || !sub.Usable(at) {
+		return 0, nil
+	}
+	plan, err := s.PlanByID(ctx, sub.PlanID)
+	if err != nil {
+		return 0, nil
+	}
+	var fraction float64
+	var value int64
+	if sub.ExpiresAt != nil {
+		total := sub.ExpiresAt.Sub(sub.StartsAt)
+		if total <= 0 {
+			return 0, nil
+		}
+		fraction = float64(sub.ExpiresAt.Sub(at)) / float64(total)
+		days := int(total.Hours()/24 + 0.5)
+		if p, ok := plan.PriceFor(days); ok {
+			value = p
+		} else if plan.PeriodDays > 0 {
+			value = plan.PriceCents * int64(days) / int64(plan.PeriodDays)
+		}
+	} else if sub.QuotaBytes > 0 {
+		fraction = float64(sub.QuotaBytes-sub.UsedUpBytes-sub.UsedDownBytes) / float64(sub.QuotaBytes)
+		value = plan.PriceCents
+	}
+	if fraction <= 0 || fraction > 1 || value <= 0 {
+		return 0, nil
+	}
+	return int64(float64(value) * fraction), nil
+}
+
+// ---- commission balance and withdrawals ------------------------------------------
+
+// CommissionCents returns the user's withdrawable referral balance.
+func (s *Store) CommissionCents(ctx context.Context, userID int64) (int64, error) {
+	var n int64
+	err := s.db.QueryRowContext(ctx, `SELECT commission_cents FROM users WHERE id = ?`, userID).Scan(&n)
+	return n, err
+}
+
+// ErrInsufficientCommission is returned when the commission balance is too low.
+var ErrInsufficientCommission = errors.New("commission balance too low")
+
+// TransferCommission moves amount from the commission balance to the balance.
+func (s *Store) TransferCommission(ctx context.Context, userID, amount int64) error {
+	if amount <= 0 {
+		return errors.New("amount must be positive")
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE users SET commission_cents = commission_cents - ?, balance_cents = balance_cents + ?, updated_at = ? WHERE id = ? AND commission_cents >= ?`, amount, amount, now(), userID, amount)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrInsufficientCommission
+	}
+	return nil
+}
+
+// Withdrawal is a payout request against the commission balance.
+type Withdrawal struct {
+	ID          int64     `json:"id"`
+	UserID      int64     `json:"user_id"`
+	Email       string    `json:"email,omitempty"`
+	AmountCents int64     `json:"amount_cents"`
+	Method      string    `json:"method"`
+	Account     string    `json:"account"`
+	Status      string    `json:"status"`
+	Note        string    `json:"note"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// CreateWithdrawal reserves amount from the commission balance and files a
+// pending request.
+func (s *Store) CreateWithdrawal(ctx context.Context, userID, amount int64, method, account string) (*Withdrawal, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	res, err := tx.ExecContext(ctx, `UPDATE users SET commission_cents = commission_cents - ?, updated_at = ? WHERE id = ? AND commission_cents >= ?`, amount, now(), userID, amount)
+	if err != nil {
+		return nil, err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return nil, ErrInsufficientCommission
+	}
+	ts := now()
+	res, err = tx.ExecContext(ctx, `INSERT INTO withdrawals (user_id, amount_cents, method, account, status, created_at, updated_at) VALUES (?, ?, ?, ?, 'pending', ?, ?)`, userID, amount, method, account, ts, ts)
+	if err != nil {
+		return nil, err
+	}
+	id, _ := res.LastInsertId()
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return &Withdrawal{ID: id, UserID: userID, AmountCents: amount, Method: method, Account: account, Status: "pending", CreatedAt: unix(ts), UpdatedAt: unix(ts)}, nil
+}
+
+// ListWithdrawals returns requests newest first; userID 0 = all, status "" = any.
+func (s *Store) ListWithdrawals(ctx context.Context, userID int64, status string, limit int) ([]Withdrawal, error) {
+	where, args := "WHERE 1=1", []any{}
+	if userID > 0 {
+		where, args = where+" AND w.user_id = ?", append(args, userID)
+	}
+	if status != "" {
+		where, args = where+" AND w.status = ?", append(args, status)
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT w.id, w.user_id, u.email, w.amount_cents, w.method, w.account, w.status, w.note, w.created_at, w.updated_at
+		FROM withdrawals w JOIN users u ON u.id = w.user_id `+where+` ORDER BY w.id DESC LIMIT ?`, append(args, limit)...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Withdrawal
+	for rows.Next() {
+		var w Withdrawal
+		var created, updated int64
+		if err := rows.Scan(&w.ID, &w.UserID, &w.Email, &w.AmountCents, &w.Method, &w.Account, &w.Status, &w.Note, &created, &updated); err != nil {
+			return nil, err
+		}
+		w.CreatedAt, w.UpdatedAt = unix(created), unix(updated)
+		out = append(out, w)
+	}
+	return out, rows.Err()
+}
+
+// SetWithdrawalStatus marks a pending request paid or rejected; rejecting
+// returns the amount to the commission balance.
+func (s *Store) SetWithdrawalStatus(ctx context.Context, id int64, status, note string) error {
+	if status != "paid" && status != "rejected" {
+		return errors.New("status must be paid or rejected")
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var userID, amount int64
+	if err := tx.QueryRowContext(ctx, `SELECT user_id, amount_cents FROM withdrawals WHERE id = ? AND status = 'pending'`, id).Scan(&userID, &amount); err != nil {
+		return wrapNotFound(err)
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE withdrawals SET status = ?, note = ?, updated_at = ? WHERE id = ?`, status, note, now(), id); err != nil {
+		return err
+	}
+	if status == "rejected" {
+		if _, err := tx.ExecContext(ctx, `UPDATE users SET commission_cents = commission_cents + ?, updated_at = ? WHERE id = ?`, amount, now(), userID); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }

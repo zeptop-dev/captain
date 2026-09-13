@@ -1,6 +1,6 @@
 import { AppShell, Badge, Box, Burger, Group, NavLink, Stack, Text, UnstyledButton, Menu, ActionIcon } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
-import { IconLayoutDashboard, IconServer, IconRoute, IconUsers, IconPackage, IconReceipt, IconSettings, IconLogout, IconLanguage, IconWorld, IconTicket, IconMessages, IconGift, IconBook } from '@tabler/icons-react'
+import { IconLayoutDashboard, IconServer, IconRoute, IconUsers, IconPackage, IconReceipt, IconSettings, IconLogout, IconLanguage, IconWorld, IconTicket, IconMessages, IconGift, IconBook, IconCashBanknote } from '@tabler/icons-react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../lib/auth'
@@ -20,6 +20,7 @@ const sections = [
     { to: '/orders', key: 'orders', icon: IconReceipt },
     { to: '/coupons', key: 'coupons', icon: IconTicket },
     { to: '/gifts', key: 'gifts', icon: IconGift },
+    { to: '/withdrawals', key: 'withdrawals', icon: IconCashBanknote },
     { to: '/tickets', key: 'tickets', icon: IconMessages },
     { to: '/articles', key: 'articles', icon: IconBook },
   ] },

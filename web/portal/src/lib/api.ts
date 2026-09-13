@@ -22,7 +22,8 @@ export interface Me {
   subscription: { plan_id: number; starts_at: string; expires_at: string | null; reset_at: string | null; quota_bytes: number; used_bytes: number; usable: boolean; online_devices: number } | null
 }
 export interface Plan { ID: number; Name: string; PriceCents: number; PeriodDays: number; QuotaBytes: number; DeviceLimit: number; SpeedLimitMbps: number; Prices: { period_days: number; price_cents: number }[] | null }
-export interface Quote { plan_id: number; period_days: number; list_cents: number; discount_cents: number; amount_cents: number; coupon?: string }
-export interface Invite { code: string; url: string; enabled: boolean; percent: number; first_order_only: boolean; invited: number; earned_cents: number; invited_by: boolean }
+export interface Quote { plan_id: number; period_days: number; list_cents: number; discount_cents: number; surplus_cents: number; amount_cents: number; coupon?: string }
+export interface Invite { code: string; url: string; enabled: boolean; percent: number; first_order_only: boolean; levels: number[]; payout: string; commission_cents: number; min_withdraw_cents: number; withdraw_methods: string[]; invited: number; earned_cents: number; invited_by: boolean }
+export interface Withdrawal { id: number; amount_cents: number; method: string; account: string; status: string; note: string; created_at: string }
 export interface Order { ID: number; No: string; PlanID: number; AmountCents: number; Gateway: string; Status: string; CreatedAt: string; PaidAt: string | null }
 export interface Server { name: string; host: string; port: number; protocol: string; uri: string }

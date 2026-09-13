@@ -82,7 +82,8 @@
     "choosePeriod": "Period",
     "coupon": "Coupon",
     "couponHint": "Have a code? Enter it here",
-    "discount": "{{amount}} off"
+    "discount": "{{amount}} off",
+    "surplus": "{{amount}} credited from your current plan"
   },
   "orders": {
     "title": "Orders",
@@ -107,7 +108,23 @@
     "bindTitle": "Record your inviter",
     "bindHint": "Missed it at sign-up? You can add it once here.",
     "bind": "Bind",
-    "bound": "Inviter recorded"
+    "bound": "Inviter recorded",
+    "levelsHint": "Deeper levels also earn: {{levels}}.",
+    "commission": "Commission balance",
+    "commissionHint": "Move it to your balance to spend, or request a payout (minimum {{min}}).",
+    "amount": "Amount",
+    "method": "Method",
+    "account": "Payout account",
+    "accountHint": "Wallet address or account",
+    "transfer": "Move to balance",
+    "withdraw": "Request payout",
+    "transferred": "Moved to balance",
+    "requested": "Payout requested",
+    "wd": {
+      "pending": "Pending",
+      "paid": "Paid",
+      "rejected": "Rejected"
+    }
   },
   "redeem": {
     "title": "Redeem code",

@@ -10,14 +10,14 @@ import (
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-const orderCols = "id, no, user_id, plan_id, amount_cents, gateway, gateway_ref, status, created_at, paid_at, period_days, coupon_id, discount_cents"
+const orderCols = "id, no, user_id, plan_id, amount_cents, gateway, gateway_ref, status, created_at, paid_at, period_days, coupon_id, discount_cents, surplus_cents"
 
 func scanOrder(row interface{ Scan(...any) error }) (*domain.Order, error) {
 	var o domain.Order
 	var ref sql.NullString
 	var created int64
 	var paid, coupon sql.NullInt64
-	if err := row.Scan(&o.ID, &o.No, &o.UserID, &o.PlanID, &o.AmountCents, &o.Gateway, &ref, &o.Status, &created, &paid, &o.PeriodDays, &coupon, &o.DiscountCents); err != nil {
+	if err := row.Scan(&o.ID, &o.No, &o.UserID, &o.PlanID, &o.AmountCents, &o.Gateway, &ref, &o.Status, &created, &paid, &o.PeriodDays, &coupon, &o.DiscountCents, &o.SurplusCents); err != nil {
 		return nil, wrapNotFound(err)
 	}
 	o.GatewayRef = ref.String
@@ -29,8 +29,8 @@ func scanOrder(row interface{ Scan(...any) error }) (*domain.Order, error) {
 
 func (s *Store) CreateOrder(ctx context.Context, o *domain.Order) error {
 	ts := now()
-	res, err := s.db.ExecContext(ctx, `INSERT INTO orders (no, user_id, plan_id, amount_cents, gateway, status, created_at, period_days, coupon_id, discount_cents) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
-		o.No, o.UserID, o.PlanID, o.AmountCents, o.Gateway, ts, o.PeriodDays, nullInt64(o.CouponID), o.DiscountCents)
+	res, err := s.db.ExecContext(ctx, `INSERT INTO orders (no, user_id, plan_id, amount_cents, gateway, status, created_at, period_days, coupon_id, discount_cents, surplus_cents) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`,
+		o.No, o.UserID, o.PlanID, o.AmountCents, o.Gateway, ts, o.PeriodDays, nullInt64(o.CouponID), o.DiscountCents, o.SurplusCents)
 	if err != nil {
 		return err
 	}
@@ -203,7 +203,7 @@ func (s *Store) ListOrders(ctx context.Context, status string, limit, offset int
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM orders o`+where, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT o.id, o.no, o.user_id, o.plan_id, o.amount_cents, o.gateway, o.gateway_ref, o.status, o.created_at, o.paid_at, o.period_days, o.discount_cents, u.email, p.name
+	rows, err := s.db.QueryContext(ctx, `SELECT o.id, o.no, o.user_id, o.plan_id, o.amount_cents, o.gateway, o.gateway_ref, o.status, o.created_at, o.paid_at, o.period_days, o.discount_cents, o.surplus_cents, u.email, p.name
 		FROM orders o JOIN users u ON u.id = o.user_id JOIN plans p ON p.id = o.plan_id`+where+` ORDER BY o.id DESC LIMIT ? OFFSET ?`, append(args, limit, offset)...)
 	if err != nil {
 		return nil, 0, err
@@ -215,7 +215,7 @@ func (s *Store) ListOrders(ctx context.Context, status string, limit, offset int
 		var ref sql.NullString
 		var created int64
 		var paid sql.NullInt64
-		if err := rows.Scan(&r.Order.ID, &r.Order.No, &r.Order.UserID, &r.Order.PlanID, &r.Order.AmountCents, &r.Order.Gateway, &ref, &r.Order.Status, &created, &paid, &r.Order.PeriodDays, &r.Order.DiscountCents, &r.Email, &r.PlanName); err != nil {
+		if err := rows.Scan(&r.Order.ID, &r.Order.No, &r.Order.UserID, &r.Order.PlanID, &r.Order.AmountCents, &r.Order.Gateway, &ref, &r.Order.Status, &created, &paid, &r.Order.PeriodDays, &r.Order.DiscountCents, &r.Order.SurplusCents, &r.Email, &r.PlanName); err != nil {
 			return nil, 0, err
 		}
 		r.Order.GatewayRef = ref.String
@@ -325,11 +325,7 @@ func (s *Store) paidHooksTx(ctx context.Context, tx *sql.Tx, o *domain.Order) er
 	if err := tx.QueryRowContext(ctx, `SELECT value_json FROM settings WHERE key = ?`, SettingInvite).Scan(&raw); err == nil {
 		_ = json.Unmarshal([]byte(raw), &inv)
 	}
-	if !inv.Enabled || inv.Percent <= 0 || o.AmountCents <= 0 {
-		return nil
-	}
-	var inviter sql.NullInt64
-	if err := tx.QueryRowContext(ctx, `SELECT invited_by FROM users WHERE id = ?`, o.UserID).Scan(&inviter); err != nil || !inviter.Valid {
+	if !inv.Enabled || o.AmountCents <= 0 {
 		return nil
 	}
 	if inv.FirstOrderOnly {
@@ -339,16 +335,31 @@ func (s *Store) paidHooksTx(ctx context.Context, tx *sql.Tx, o *domain.Order) er
 			return nil
 		}
 	}
-	amount := o.AmountCents * int64(inv.Percent) / 100
-	if amount <= 0 {
-		return nil
+	column := "balance_cents"
+	if inv.Payout == PayoutCommission {
+		column = "commission_cents"
 	}
-	res, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO commissions (order_id, inviter_id, invitee_id, amount_cents, created_at) VALUES (?, ?, ?, ?, ?)`, o.ID, inviter.Int64, o.UserID, amount, now())
-	if err != nil {
-		return err
+	// Walk up the referral chain, one level per configured percentage.
+	current := o.UserID
+	for level, pct := range inv.LevelPercents() {
+		var inviter sql.NullInt64
+		if err := tx.QueryRowContext(ctx, `SELECT invited_by FROM users WHERE id = ?`, current).Scan(&inviter); err != nil || !inviter.Valid {
+			return nil
+		}
+		current = inviter.Int64
+		amount := o.AmountCents * int64(pct) / 100
+		if amount <= 0 {
+			continue
+		}
+		res, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO commissions (order_id, inviter_id, invitee_id, level, amount_cents, created_at) VALUES (?, ?, ?, ?, ?, ?)`, o.ID, inviter.Int64, o.UserID, level+1, amount, now())
+		if err != nil {
+			return err
+		}
+		if n, _ := res.RowsAffected(); n == 1 {
+			if _, err := tx.ExecContext(ctx, `UPDATE users SET `+column+` = `+column+` + ?, updated_at = ? WHERE id = ?`, amount, now(), inviter.Int64); err != nil {
+				return err
+			}
+		}
 	}
-	if n, _ := res.RowsAffected(); n == 1 {
-		_, err = tx.ExecContext(ctx, `UPDATE users SET balance_cents = balance_cents + ?, updated_at = ? WHERE id = ?`, amount, now(), inviter.Int64)
-	}
-	return err
+	return nil
 }

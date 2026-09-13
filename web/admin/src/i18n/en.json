@@ -20,7 +20,8 @@
     "coupons": "Coupons",
     "tickets": "Tickets",
     "gifts": "Gift codes",
-    "articles": "Knowledge base"
+    "articles": "Knowledge base",
+    "withdrawals": "Withdrawals"
   },
   "login": {
     "title": "Sign in to Captain",
@@ -257,7 +258,17 @@
     "invite": "Referral rewards",
     "inviteHint": "Users share /?ref=CODE; when an invitee pays, a share of the amount is credited to the inviter's balance.",
     "invitePercent": "Reward (%)",
-    "inviteFirstOnly": "First order only"
+    "inviteFirstOnly": "First order only",
+    "inviteMulti": "Multi-level",
+    "inviteLevel2": "Level 2 (%)",
+    "inviteLevel3": "Level 3 (%)",
+    "invitePayout": "Payout",
+    "payoutBalance": "Straight to balance",
+    "payoutCommission": "Commission account (withdrawable)",
+    "minWithdraw": "Minimum withdrawal",
+    "withdrawMethods": "Withdrawal methods (comma separated)",
+    "surplus": "Plan change credit",
+    "surplusHint": "When a user switches to another plan, the unused part of the current one (by remaining time, or remaining traffic for plans without expiry) is credited against the new order."
   },
   "update": {
     "title": "Version and updates",
@@ -463,5 +474,24 @@
     "plan": "Plan",
     "off": "Off",
     "days": "Trial days"
+  },
+  "withdrawals": {
+    "title": "Withdrawals",
+    "subtitle": "Commission payout requests. Pay outside Captain and mark paid; rejecting returns the amount to the user's commission balance.",
+    "user": "User",
+    "amount": "Amount",
+    "payTo": "Pay to",
+    "statusCol": "Status",
+    "when": "Requested",
+    "markPaid": "Mark paid",
+    "reject": "Reject",
+    "note": "Note (visible to the user)",
+    "noteHintPaid": "e.g. transaction id",
+    "noteHintReject": "reason",
+    "status": {
+      "pending": "Pending",
+      "paid": "Paid",
+      "rejected": "Rejected"
+    }
   }
 }

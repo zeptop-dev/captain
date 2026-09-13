@@ -83,6 +83,10 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("DELETE /api/admin/coupons/{id}", h.requireAdmin(h.deleteCoupon))
 	mux.HandleFunc("GET /api/admin/settings/invite", h.requireAdmin(h.getInvite))
 	mux.HandleFunc("PUT /api/admin/settings/invite", h.requireAdmin(h.putInvite))
+	mux.HandleFunc("GET /api/admin/settings/surplus", h.requireAdmin(h.getSurplus))
+	mux.HandleFunc("PUT /api/admin/settings/surplus", h.requireAdmin(h.putSurplus))
+	mux.HandleFunc("GET /api/admin/withdrawals", h.requireAdmin(h.listWithdrawals))
+	mux.HandleFunc("POST /api/admin/withdrawals/{id}/status", h.requireAdmin(h.withdrawalStatus))
 	mux.HandleFunc("GET /api/admin/settings/notice", h.requireAdmin(h.getNotice))
 	mux.HandleFunc("PUT /api/admin/settings/notice", h.requireAdmin(h.putNotice))
 	mux.HandleFunc("GET /api/admin/settings/registration", h.requireAdmin(h.getRegistration))
@@ -1245,10 +1249,20 @@ func (h *handlers) getInvite(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) putInvite(w http.ResponseWriter, r *http.Request) {
 	var v store.InviteSettings
-	if !decode(r, &v) || v.Percent < 0 || v.Percent > 100 {
+	if !decode(r, &v) || v.Percent < 0 || v.Percent > 100 || v.Level2 < 0 || v.Level2 > 100 || v.Level3 < 0 || v.Level3 > 100 {
 		fail(w, http.StatusBadRequest, "percent must be 0-100")
 		return
 	}
+	if v.Payout != store.PayoutCommission {
+		v.Payout = store.PayoutBalance
+	}
+	methods := []string{}
+	for _, m := range v.WithdrawMethods {
+		if m = strings.TrimSpace(m); m != "" {
+			methods = append(methods, m)
+		}
+	}
+	v.WithdrawMethods = methods
 	if err := h.Store.SetSetting(r.Context(), store.SettingInvite, v); err != nil {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return

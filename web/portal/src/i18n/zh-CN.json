@@ -82,7 +82,8 @@
     "choosePeriod": "选择周期",
     "coupon": "优惠码",
     "couponHint": "有优惠码填这里",
-    "discount": "已优惠 {{amount}}"
+    "discount": "已优惠 {{amount}}",
+    "surplus": "原套餐剩余折算 {{amount}}"
   },
   "orders": {
     "title": "订单",
@@ -107,7 +108,23 @@
     "bindTitle": "填写邀请人",
     "bindHint": "注册时没填？可以在这里补填一次。",
     "bind": "绑定",
-    "bound": "已绑定邀请人"
+    "bound": "已绑定邀请人",
+    "levelsHint": "下级的下级也有返利：{{levels}}。",
+    "commission": "佣金余额",
+    "commissionHint": "可以转入账户余额直接消费，或申请提现（最低 {{min}}）。",
+    "amount": "金额",
+    "method": "提现方式",
+    "account": "收款账号",
+    "accountHint": "钱包地址或账号",
+    "transfer": "转入余额",
+    "withdraw": "申请提现",
+    "transferred": "已转入余额",
+    "requested": "提现申请已提交",
+    "wd": {
+      "pending": "处理中",
+      "paid": "已打款",
+      "rejected": "已拒绝"
+    }
   },
   "redeem": {
     "title": "兑换码",
