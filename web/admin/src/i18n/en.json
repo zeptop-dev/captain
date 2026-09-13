@@ -22,7 +22,8 @@
     "gifts": "Gift codes",
     "articles": "Knowledge base",
     "withdrawals": "Withdrawals",
-    "admins": "Staff"
+    "admins": "Staff",
+    "subTemplates": "Sub templates"
   },
   "login": {
     "title": "Sign in to Captain",
@@ -538,5 +539,16 @@
     "test": "Send test",
     "testOk": "Test event delivered",
     "format": "Body: {\"event\":\"order.paid\",\"at\":\"2026-01-01T00:00:00Z\",\"data\":{...}}; failures are retried 3 times."
+  },
+  "subTemplates": {
+    "title": "Subscription templates",
+    "subtitle": "The document skeleton for each client format. Captain fills in the servers; rules, groups and General settings are yours to edit.",
+    "format": "Format",
+    "customized": "Customized",
+    "default": "Built-in default",
+    "hintYaml": "YAML template: the proxies key is replaced with the servers; the placeholder inside any proxy-group list expands to every server name. Placeholders:",
+    "hintIni": "Text template: the placeholders become the server lines and the comma-joined names. Placeholders:",
+    "hintNodeList": "Loon and Quantumult X remote subscriptions are node lists, so the default is just the lines; a full config here must be imported as a configuration in the client.",
+    "reset": "Reset to default"
   }
 }

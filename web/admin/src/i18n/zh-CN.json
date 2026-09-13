@@ -22,7 +22,8 @@
     "gifts": "兑换码",
     "articles": "知识库",
     "withdrawals": "提现",
-    "admins": "管理员"
+    "admins": "管理员",
+    "subTemplates": "订阅模板"
   },
   "login": {
     "title": "登录 Captain",
@@ -538,5 +539,16 @@
     "test": "发送测试",
     "testOk": "测试事件已送达",
     "format": "请求体：{\"event\":\"order.paid\",\"at\":\"2026-01-01T00:00:00Z\",\"data\":{...}}，失败会重试 3 次。"
+  },
+  "subTemplates": {
+    "title": "订阅模板",
+    "subtitle": "每种客户端格式的订阅文档骨架。节点列表由 Captain 生成，其余部分（规则、策略组、General）可以在这里改。",
+    "format": "格式",
+    "customized": "已自定义",
+    "default": "内置默认",
+    "hintYaml": "YAML 模板：proxies 会被替换成节点；策略组 proxies 列表里的占位符会展开成全部节点名。占位符：",
+    "hintIni": "文本模板：占位符分别替换为节点行和逗号分隔的节点名。占位符：",
+    "hintNodeList": "Loon 和 Quantumult X 的远程订阅是节点列表，默认模板只有节点行；写成完整配置时需在客户端以配置方式导入。",
+    "reset": "恢复默认"
   }
 }

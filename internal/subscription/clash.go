@@ -3,8 +3,6 @@ package subscription
 import (
 	"fmt"
 
-	"gopkg.in/yaml.v3"
-
 	"github.com/zeptop-dev/bosun/pkg/spec"
 )
 
@@ -16,9 +14,34 @@ func (Clash) ContentType() string { return "text/yaml; charset=utf-8" }
 
 type m = map[string]any
 
-func (Clash) Render(lines []Line, _ Account) ([]byte, error) {
-	var proxies []any
-	var names []string
+func (c Clash) Render(lines []Line, acct Account) ([]byte, error) {
+	return c.RenderWith(lines, acct, "")
+}
+
+func (Clash) RenderWith(lines []Line, _ Account, tpl string) ([]byte, error) {
+	proxies, names := clashProxies(lines)
+	return applyYAML(tpl, "clash", proxies, names)
+}
+
+// Stash is Clash-compatible YAML with its own template; the proxy entries
+// are the ones mihomo understands.
+type Stash struct{}
+
+func (Stash) Name() string        { return "stash" }
+func (Stash) ContentType() string { return "text/yaml; charset=utf-8" }
+
+func (s Stash) Render(lines []Line, acct Account) ([]byte, error) {
+	return s.RenderWith(lines, acct, "")
+}
+
+func (Stash) RenderWith(lines []Line, _ Account, tpl string) ([]byte, error) {
+	proxies, names := clashProxies(lines)
+	return applyYAML(tpl, "stash", proxies, names)
+}
+
+func clashProxies(lines []Line) ([]any, []string) {
+	proxies := []any{}
+	names := []string{}
 	for _, l := range lines {
 		p := clashProxy(l)
 		if p == nil {
@@ -27,30 +50,7 @@ func (Clash) Render(lines []Line, _ Account) ([]byte, error) {
 		proxies = append(proxies, p)
 		names = append(names, l.Name)
 	}
-	if proxies == nil {
-		proxies = []any{}
-	}
-	if names == nil {
-		names = []string{}
-	}
-	doc := m{
-		"mixed-port": 7890,
-		"allow-lan":  false,
-		"mode":       "rule",
-		"log-level":  "info",
-		"proxies":    proxies,
-		"proxy-groups": []any{
-			m{"name": "PROXY", "type": "select", "proxies": append([]string{"AUTO"}, names...)},
-			m{"name": "AUTO", "type": "url-test", "url": "https://www.gstatic.com/generate_204", "interval": 300, "proxies": names},
-		},
-		"rules": []string{
-			"GEOIP,private,DIRECT,no-resolve",
-			"GEOSITE,cn,DIRECT",
-			"GEOIP,cn,DIRECT",
-			"MATCH,PROXY",
-		},
-	}
-	return yaml.Marshal(doc)
+	return proxies, names
 }
 
 func clashProxy(l Line) m {

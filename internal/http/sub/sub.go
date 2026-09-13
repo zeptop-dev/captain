@@ -2,10 +2,12 @@
 package sub
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/zeptop-dev/captain/internal/service"
@@ -21,8 +23,29 @@ type Deps struct {
 	Name    string // site name used in the download file name
 }
 
+// templateCache reads the operator's subscription templates with a short
+// cache so every subscription fetch does not hit the settings table.
+type templateCache struct {
+	store   *store.Store
+	mu      sync.Mutex
+	cached  store.SubTemplates
+	fetched time.Time
+}
+
+func (c *templateCache) get(ctx context.Context, format string) string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if time.Since(c.fetched) >= 15*time.Second {
+		var v store.SubTemplates
+		_ = c.store.GetSetting(ctx, store.SettingSubTemplates, &v)
+		c.cached, c.fetched = v, time.Now()
+	}
+	return c.cached[format]
+}
+
 // Register mounts the subscription route.
 func Register(mux *http.ServeMux, d Deps) {
+	tpls := &templateCache{store: d.Store}
 	mux.HandleFunc("GET /sub/{token}", func(w http.ResponseWriter, r *http.Request) {
 		u, err := d.Store.UserBySubToken(r.Context(), r.PathValue("token"))
 		if errors.Is(err, store.ErrNotFound) {
@@ -42,7 +65,7 @@ func Register(mux *http.ServeMux, d Deps) {
 		// No access renders an empty document rather than an error so clients
 		// keep the subscription and see the usage header.
 		rd := subscription.Pick(r.URL.Query().Get("client"), r.UserAgent())
-		body, err := rd.Render(lines, acct)
+		body, err := rd.RenderWith(lines, acct, tpls.get(r.Context(), rd.Name()))
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return

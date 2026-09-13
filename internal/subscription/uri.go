@@ -16,6 +16,10 @@ type URIList struct{}
 func (URIList) Name() string        { return "uri" }
 func (URIList) ContentType() string { return "text/plain; charset=utf-8" }
 
+func (r URIList) RenderWith(lines []Line, acct Account, _ string) ([]byte, error) {
+	return r.Render(lines, acct)
+}
+
 func (URIList) Render(lines []Line, _ Account) ([]byte, error) {
 	var out []string
 	for _, l := range lines {
