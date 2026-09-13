@@ -59,7 +59,11 @@ export function AppLayout() {
               <Menu.Target><ActionIcon variant="subtle" color="gray" aria-label="language"><IconLanguage size={18} /></ActionIcon></Menu.Target>
               <Menu.Dropdown>
                 <Menu.Item onClick={() => i18n.changeLanguage('zh-CN')}>中文</Menu.Item>
+                <Menu.Item onClick={() => i18n.changeLanguage('zh-TW')}>繁體中文</Menu.Item>
                 <Menu.Item onClick={() => i18n.changeLanguage('en')}>English</Menu.Item>
+                <Menu.Item onClick={() => i18n.changeLanguage('ja')}>日本語</Menu.Item>
+                <Menu.Item onClick={() => i18n.changeLanguage('ko')}>한국어</Menu.Item>
+                <Menu.Item onClick={() => i18n.changeLanguage('ru')}>Русский</Menu.Item>
               </Menu.Dropdown>
             </Menu>
             <Text size="sm" c="dimmed">{me?.email}</Text>

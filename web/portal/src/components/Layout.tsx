@@ -31,7 +31,7 @@ export function Layout() {
             </Group>
             <Group gap={4}>
               <Menu shadow="md"><Menu.Target><ActionIcon variant="subtle" color="gray"><IconLanguage size={18} /></ActionIcon></Menu.Target>
-                <Menu.Dropdown><Menu.Item onClick={() => i18n.changeLanguage('zh-CN')}>中文</Menu.Item><Menu.Item onClick={() => i18n.changeLanguage('en')}>English</Menu.Item></Menu.Dropdown></Menu>
+                <Menu.Dropdown><Menu.Item onClick={() => i18n.changeLanguage('zh-CN')}>中文</Menu.Item><Menu.Item onClick={() => i18n.changeLanguage('zh-TW')}>繁體中文</Menu.Item><Menu.Item onClick={() => i18n.changeLanguage('en')}>English</Menu.Item><Menu.Item onClick={() => i18n.changeLanguage('ja')}>日本語</Menu.Item><Menu.Item onClick={() => i18n.changeLanguage('ko')}>한국어</Menu.Item><Menu.Item onClick={() => i18n.changeLanguage('ru')}>Русский</Menu.Item></Menu.Dropdown></Menu>
               <ActionIcon variant="subtle" color="gray" onClick={async () => { await logout(); nav('/login') }} aria-label={t('nav.logout')}><IconLogout size={18} /></ActionIcon>
             </Group>
           </Group>
