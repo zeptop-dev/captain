@@ -57,9 +57,12 @@ Every answer can be given as a flag, see `install.sh --help`. Piped through `sh`
 the script never lands on disk; `... | sh -s -- uninstall` takes the whole
 installation away again (`--keep-data` keeps the database).
 
-Already running Caddy or nginx on that host? Add `--behind-proxy`: Captain then
-serves plain HTTP on 127.0.0.1:8080 and `deploy/Caddyfile` shows the proxy
-block.
+Already running nginx, OpenResty (1Panel), Caddy or anything else on 80/443?
+The script notices, asks, and installs Captain behind it (`--behind-proxy` to
+skip the question): Captain serves plain HTTP on 127.0.0.1:8080 (joining the
+proxy container's Docker network when the proxy is containerised) and the
+script prints the exact proxy snippet to paste; the proxy holds the
+certificate. `--reconfigure` rewrites config.yaml when switching modes.
 
 Day-to-day (Docker):
 
