@@ -90,6 +90,7 @@ export interface Dashboard {
     revenue_month_cents: number; orders_pending: number; traffic_today_bytes: number; online_devices: number
   }
   traffic: { day: number; up: number; down: number }[]
+  open_tickets?: number
 }
 export interface UpdateInfo {
   current: string; latest: string; has_update: boolean; release_build: boolean; in_container: boolean

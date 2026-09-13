@@ -5,11 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
 	"github.com/zeptop-dev/captain/internal/http/oauth"
 	"github.com/zeptop-dev/captain/internal/http/ratelimit"
 	"github.com/zeptop-dev/captain/internal/http/site"
 	"github.com/zeptop-dev/captain/internal/mail"
+	"github.com/zeptop-dev/captain/internal/notify"
+	"github.com/zeptop-dev/captain/internal/telegram"
 	"log/slog"
 	"net/http"
 	"path/filepath"
@@ -33,6 +36,7 @@ import (
 
 // Server is the HTTP front.
 type Server struct {
+	bot      *telegram.Bot
 	subLinks *service.SubLinks
 	cfg      *config.Config
 	store    *store.Store
@@ -70,7 +74,21 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	secure := strings.HasPrefix(strings.ToLower(cfg.BaseURL), "https://")
 	s.subLinks = &service.SubLinks{Store: st, BaseURL: base}
 	mailer := &mail.Loader{Store: st}
-	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName,
+	s.bot = &telegram.Bot{Store: st, Log: log, SiteName: cfg.SiteName, PortalURL: base + "/portal/", SubURL: s.subLinks.URL}
+	notifier := &notify.Notifier{Store: st, Mail: mailer, Bot: s.bot, SiteName: cfg.SiteName, Log: log}
+	orders.OnPaid = func(ctx context.Context, o *domain.Order) {
+		var ts store.TelegramSettings
+		_ = st.GetSetting(ctx, store.SettingTelegram, &ts)
+		if !ts.NotifyOrders {
+			return
+		}
+		email := ""
+		if u, err := st.UserByID(ctx, o.UserID); err == nil {
+			email = u.Email
+		}
+		notifier.Admin(ctx, fmt.Sprintf("💰 Order %s paid: %.2f via %s\n%s", o.No, float64(o.AmountCents)/100, o.Gateway, email))
+	}
+	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 	})
@@ -100,7 +118,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 			}
 			return u
 		}})
-	portal.Register(s.mux, portal.Deps{Store: st, Log: log, Sessions: sessions, Orders: orders, Subscription: subSvc, BaseURL: base, Gateways: names, Registration: cfg.Portal.Registration, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName})
+	portal.Register(s.mux, portal.Deps{Store: st, Log: log, Sessions: sessions, Orders: orders, Subscription: subSvc, BaseURL: base, Gateways: names, Registration: cfg.Portal.Registration, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot})
 	paymenthttp.Register(s.mux, paymenthttp.Deps{Log: log, Orders: orders, ReturnTo: base + "/portal/orders", Gateways: gateways, Store: st})
 	sub.Register(s.mux, sub.Deps{Store: st, Log: log, Service: subSvc, Name: cfg.SiteName})
 	agent.Register(s.mux, agent.Deps{
@@ -199,3 +217,6 @@ func (a *sessionAuth) Resolve(ctx context.Context, id string) (*domain.User, err
 func (a *sessionAuth) Delete(ctx context.Context, id string) error {
 	return a.store.DeleteSession(ctx, id)
 }
+
+// Bot is the Telegram poller to run alongside the server.
+func (s *Server) Bot() *telegram.Bot { return s.bot }

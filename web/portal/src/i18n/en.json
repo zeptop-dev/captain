@@ -5,7 +5,9 @@
     "orders": "Orders",
     "servers": "Servers",
     "logout": "Log out",
-    "invite": "Invite"
+    "invite": "Invite",
+    "tickets": "Tickets",
+    "help": "Help"
   },
   "auth": {
     "login": "Sign in",
@@ -106,5 +108,64 @@
     "bindHint": "Missed it at sign-up? You can add it once here.",
     "bind": "Bind",
     "bound": "Inviter recorded"
+  },
+  "redeem": {
+    "title": "Redeem code",
+    "hint": "Enter a gift card or redeem code to top up balance, activate a plan or add traffic.",
+    "submit": "Redeem",
+    "gotBalance": "{{amount}} added to your balance",
+    "gotPlan": "Plan activated",
+    "gotTraffic": "{{amount}} of traffic added",
+    "gotDays": "{{count}} days added"
+  },
+  "telegram": {
+    "hint": "Link Telegram to check your subscription and traffic in @{{bot}} and get expiry and ticket notices. Send this command to the bot:",
+    "bound": "Linked to @{{bot}}; expiry, traffic and ticket notices go there.",
+    "unbind": "Unlink",
+    "unbound": "Unlinked",
+    "open": "Open bot"
+  },
+  "tickets": {
+    "title": "Tickets",
+    "create": "New ticket",
+    "empty": "No tickets yet",
+    "count": "{{count}} messages",
+    "subject": "Subject",
+    "priority": "Priority",
+    "message": "Describe the problem",
+    "submit": "Submit",
+    "created": "Ticket submitted",
+    "reply": "Reply",
+    "replyHint": "Add details…",
+    "close": "Close ticket",
+    "closedHint": "This ticket is closed; open a new one for a new problem.",
+    "support": "Support",
+    "you": "You",
+    "status": {
+      "open": "Awaiting reply",
+      "replied": "Replied",
+      "closed": "Closed"
+    },
+    "prio": {
+      "low": "Low",
+      "normal": "Normal",
+      "high": "Urgent"
+    }
+  },
+  "help": {
+    "title": "Help",
+    "articles": "Guides",
+    "downloads": "Downloads",
+    "empty": "No guides yet",
+    "noClients": "No downloads yet",
+    "back": "Back to list",
+    "platform": {
+      "windows": "Windows",
+      "macos": "macOS",
+      "ios": "iOS",
+      "android": "Android",
+      "linux": "Linux",
+      "other": "Other"
+    }
   }
 }

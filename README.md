@@ -123,6 +123,26 @@ external login):
   site key and secret; the widget appears on the sign-up form automatically and
   the token is verified server-side.
 
+## Support, gift codes, knowledge base, Telegram
+
+- **Tickets** — users open tickets in the portal (priority low/normal/high) and
+  reply in a thread; Admin → Tickets answers them. A reply reaches the user on
+  Telegram when linked, otherwise by email; new tickets can ping the admin chat.
+- **Gift / redeem codes** — Admin → Gift codes generates single-use codes in
+  batches: balance top-up, a plan for N days, extra traffic or extra days on the
+  active plan, with optional expiry. Users redeem them on the portal home page.
+- **Knowledge base and downloads** — Admin → Knowledge base holds Markdown
+  guides grouped by category (`{{sub_url}}`, `{{email}}`, `{{site_name}}` are
+  substituted per reader); Settings → Client downloads lists the apps. Both
+  appear under Help in the portal.
+- **Telegram bot** — Settings → Telegram: paste a BotFather token (and your chat
+  id for order/ticket notices). Users link their chat from the portal with a
+  one-time `/bind CODE`; the bot answers `/sub`, `/status`, `/unbind` and
+  delivers expiry, traffic and ticket notices. Plain Bot API long polling, no
+  webhook or public URL needed.
+- **Trial plan** — Settings → Trial plan hands every new account (password or
+  external login) a plan once, for the configured number of days.
+
 ## Mail
 
 Admin → Settings → Mail: SMTP (any provider; port 587 STARTTLS, 465 TLS or 25

@@ -10,7 +10,9 @@ import (
 	"github.com/zeptop-dev/captain/internal/http/ratelimit"
 	"github.com/zeptop-dev/captain/internal/http/site"
 	"github.com/zeptop-dev/captain/internal/mail"
+	"github.com/zeptop-dev/captain/internal/notify"
 	"github.com/zeptop-dev/captain/internal/service"
+	"github.com/zeptop-dev/captain/internal/telegram"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -48,6 +50,10 @@ type Deps struct {
 	Logins *ratelimit.Limiter
 	// Secure marks session cookies HTTPS-only (base_url is https).
 	Secure bool
+	// Notify reaches users (Telegram/mail); nil disables.
+	Notify *notify.Notifier
+	// Bot exposes the Telegram settings cache; nil disables.
+	Bot *telegram.Bot
 }
 
 const cookieName = "captain_session"
@@ -70,6 +76,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/admin/nodes/{id}/repair", h.requireAdmin(h.repairNode))
 	mux.HandleFunc("POST /api/admin/nodes/{id}/upgrade", h.requireAdmin(h.upgradeNode))
 	mux.HandleFunc("POST /api/admin/nodes/upgrade-all", h.requireAdmin(h.upgradeAllNodes))
+	h.registerOps(mux)
 	mux.HandleFunc("GET /api/admin/coupons", h.requireAdmin(h.listCoupons))
 	mux.HandleFunc("POST /api/admin/coupons", h.requireAdmin(h.createCoupon))
 	mux.HandleFunc("PATCH /api/admin/coupons/{id}", h.requireAdmin(h.updateCoupon))
@@ -227,7 +234,8 @@ func (h *handlers) dashboard(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	ok(w, map[string]any{"stats": stats, "traffic": series})
+	open, _ := h.Store.OpenTickets(r.Context())
+	ok(w, map[string]any{"stats": stats, "traffic": series, "open_tickets": open})
 }
 
 // --- nodes ---

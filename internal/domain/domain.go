@@ -246,3 +246,51 @@ type Group struct {
 	ID   int64
 	Name string
 }
+
+// Ticket is a support conversation between a user and the operator.
+type Ticket struct {
+	ID        int64
+	UserID    int64
+	Subject   string
+	Status    string // open | replied | closed
+	Priority  string // low | normal | high
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+// TicketMessage is one message in a ticket.
+type TicketMessage struct {
+	ID        int64
+	TicketID  int64
+	FromAdmin bool
+	Body      string
+	CreatedAt time.Time
+}
+
+// GiftCode is a single-use redeem code.
+type GiftCode struct {
+	ID         int64
+	Code       string
+	Batch      string
+	Kind       string // balance | plan | traffic | days
+	Value      int64  // cents, bytes or days depending on Kind
+	PlanID     *int64
+	PeriodDays int
+	ExpiresAt  *time.Time
+	RedeemedBy *int64
+	RedeemedAt *time.Time
+	CreatedAt  time.Time
+}
+
+// Article is a knowledge-base page written in Markdown.
+type Article struct {
+	ID        int64
+	Title     string
+	Category  string
+	Body      string
+	Lang      string // "" any, "zh-CN", "en"
+	Sort      int
+	Published bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}

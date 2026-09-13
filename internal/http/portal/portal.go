@@ -8,6 +8,8 @@ import (
 	"github.com/zeptop-dev/captain/internal/captcha"
 	"github.com/zeptop-dev/captain/internal/http/ratelimit"
 	"github.com/zeptop-dev/captain/internal/mail"
+	"github.com/zeptop-dev/captain/internal/notify"
+	"github.com/zeptop-dev/captain/internal/telegram"
 	"log/slog"
 	"net"
 	"net/http"
@@ -36,7 +38,9 @@ type Deps struct {
 	SubLinks     *service.SubLinks  // subscription URL builder
 	Mail         *mail.Loader       // nil = mail off
 	SiteName     string
-	Secure       bool // HTTPS-only session cookies
+	Secure       bool             // HTTPS-only session cookies
+	Notify       *notify.Notifier // nil = no notifications
+	Bot          *telegram.Bot    // nil = no Telegram
 }
 
 const cookieName = "captain_session"
@@ -62,6 +66,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/portal/ref", h.ref)
 	mux.HandleFunc("GET /api/portal/invite", h.requireUser(h.invite))
 	mux.HandleFunc("POST /api/portal/invite/bind", h.requireUser(h.bindInvite))
+	h.registerOps(mux)
 }
 
 type ctxKey struct{}
@@ -124,6 +129,9 @@ func (h *handlers) register(w http.ResponseWriter, r *http.Request) {
 	if err := h.Store.CreateUser(r.Context(), u); err != nil {
 		fail(w, http.StatusConflict, "email already registered")
 		return
+	}
+	if err := h.Store.ApplyTrial(r.Context(), u.ID, time.Now()); err != nil {
+		h.Log.Warn("trial grant", "user", u.ID, "err", err)
 	}
 	h.startSession(w, r, u)
 }

@@ -22,7 +22,7 @@ export default function DashboardPage() {
           <Stat label={t('dashboard.onlineDevices')} value={s.online_devices} icon={<IconDevices size={18} opacity={0.6} />} />
           <Stat label={t('dashboard.activeSubs')} value={s.active_subs} hint={t('dashboard.ofUsers', { count: s.users })} icon={<IconArrowsExchange size={18} opacity={0.6} />} />
           <Stat label={t('dashboard.trafficToday')} value={bytes(s.traffic_today_bytes)} icon={<IconArrowsExchange size={18} opacity={0.6} />} />
-          <Stat label={t('dashboard.revenueToday')} value={money(s.revenue_today_cents)} hint={<>{t('dashboard.revenueMonth', { amount: money(s.revenue_month_cents) })} · {t('dashboard.pendingOrders', { count: s.orders_pending })}</>} icon={<IconCoin size={18} opacity={0.6} />} />
+          <Stat label={t('dashboard.revenueToday')} value={money(s.revenue_today_cents)} hint={<>{t('dashboard.revenueMonth', { amount: money(s.revenue_month_cents) })} · {t('dashboard.pendingOrders', { count: s.orders_pending })}{(q.data?.open_tickets ?? 0) > 0 && <> · <Text span c="orange" inherit>{t('dashboard.openTickets', { count: q.data!.open_tickets })}</Text></>}</>} icon={<IconCoin size={18} opacity={0.6} />} />
           <Stat label={t('dashboard.nodesOnline')} value={<>{s.nodes_online}<Text span c="dimmed" fz="lg"> / {s.nodes}</Text></>}
             hint={down === 0 ? t('dashboard.allUp') : t('dashboard.someDown', { count: down })} color={down > 0 ? 'orange' : undefined} icon={<IconServer size={18} opacity={0.6} />} />
         </SimpleGrid>
