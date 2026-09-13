@@ -136,3 +136,11 @@ type TrialSettings struct {
 
 // SettingTrial is the settings key.
 const SettingTrial = "trial"
+
+// SubTemplates holds operator overrides of the subscription document
+// templates, keyed by format name (clash, stash, surge, surfboard, loon,
+// qx). A missing or empty entry means the built-in default.
+type SubTemplates map[string]string
+
+// SettingSubTemplates is the settings key.
+const SettingSubTemplates = "sub_templates"

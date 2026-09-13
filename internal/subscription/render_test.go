@@ -128,3 +128,124 @@ func TestSurgeAndPick(t *testing.T) {
 		t.Fatal("pick")
 	}
 }
+
+func TestLoon(t *testing.T) {
+	out, _ := Loon{}.Render(sample(), Account{})
+	s := string(out)
+	for _, want := range []string{
+		"reality=VLESS,entry.test,443,11111111-1111-1111-1111-111111111111,alterId=0,udp=true,flow=xtls-rprx-vision,over-tls=true,skip-cert-verify=false,sni=www.apple.com,public-key=PUB,short-id=0123,transport=tcp",
+		"vmess-ws=vmess,entry.test,443,auto,11111111-1111-1111-1111-111111111111,fast-open=false,udp=true,alterId=0,over-tls=true,skip-cert-verify=false,tls-name=node1.test,transport=ws,path=/ws,host=cdn.test",
+		"trojan-grpc=trojan,entry.test,443,11111111-1111-1111-1111-111111111111,tls-name=node1.test,skip-cert-verify=false,transport=grpc,grpc-service-name=svc",
+		"ss2022=Shadowsocks,entry.test,443,2022-blake3-aes-128-gcm,c2VydmVya2V5c2VydmVya2V5:",
+		"hy2=Hysteria2,entry.test,443,11111111-1111-1111-1111-111111111111,sni=node1.test,download-bandwidth=500,udp=true",
+		"anytls=anytls,entry.test,443,",
+	} {
+		if !strings.Contains(s, want) {
+			t.Fatalf("loon missing %q:\n%s", want, s)
+		}
+	}
+	for _, skip := range []string{"tuic", "mieru", "xhttp"} {
+		if strings.Contains(s, skip+"=") {
+			t.Fatalf("loon must skip %s:\n%s", skip, s)
+		}
+	}
+}
+
+func TestQuantumultX(t *testing.T) {
+	out, _ := QuantumultX{}.Render(sample(), Account{})
+	raw, err := base64.StdEncoding.DecodeString(string(out))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(raw)
+	for _, want := range []string{
+		"vless=entry.test:443, method=none, password=11111111-1111-1111-1111-111111111111, obfs=over-tls, reality-base64-pubkey=PUB, reality-hex-shortid=0123, obfs-host=www.apple.com, vless-flow=xtls-rprx-vision, fast-open=true, udp-relay=true, tag=reality",
+		"vmess=entry.test:443, method=auto, password=11111111-1111-1111-1111-111111111111, obfs=wss, obfs-uri=/ws, tls-verification=true, obfs-host=cdn.test, fast-open=true, udp-relay=true, tag=vmess-ws",
+		"shadowsocks=entry.test:443, method=2022-blake3-aes-128-gcm, password=c2VydmVya2V5c2VydmVya2V5:",
+	} {
+		if !strings.Contains(s, want) {
+			t.Fatalf("qx missing %q:\n%s", want, s)
+		}
+	}
+	// grpc trojan, hysteria2, tuic, anytls, mieru and xhttp have no QX form.
+	if strings.Count(s, "\n") != 3 || strings.Contains(s, "trojan-grpc") || strings.Contains(s, "hy2") {
+		t.Fatalf("qx lines:\n%s", s)
+	}
+}
+
+func TestSurfboard(t *testing.T) {
+	out, _ := Surfboard{}.Render(sample(), Account{})
+	s := string(out)
+	for _, want := range []string{
+		"[General]",
+		"vmess-ws = vmess, entry.test, 443, username=11111111-1111-1111-1111-111111111111, vmess-aead=true, tfo=true, udp-relay=true, tls=true, sni=node1.test, ws=true, ws-path=/ws, ws-headers=Host:cdn.test",
+		"ss2022 = ss, entry.test, 443, encrypt-method=2022-blake3-aes-128-gcm, password=c2VydmVya2V5c2VydmVya2V5:",
+		"anytls = anytls, entry.test, 443, password=",
+		"PROXY = select, AUTO, vmess-ws, ss2022, anytls",
+	} {
+		if !strings.Contains(s, want) {
+			t.Fatalf("surfboard missing %q:\n%s", want, s)
+		}
+	}
+	if strings.Contains(s, "hy2 =") || strings.Contains(s, "reality =") || strings.Contains(s, "trojan-grpc =") {
+		t.Fatalf("surfboard must skip unsupported lines:\n%s", s)
+	}
+}
+
+func TestStashAndTemplates(t *testing.T) {
+	out, err := Stash{}.Render(sample(), Account{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := yaml.Unmarshal(out, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if len(doc["proxies"].([]any)) != 9 || doc["mixed-port"] != nil {
+		t.Fatalf("stash doc: %v", doc)
+	}
+	// Custom YAML template: an extra group with the placeholder expands in place; DIRECT survives.
+	tpl := "mode: rule\nproxy-groups:\n  - name: MAIN\n    type: select\n    proxies: [\"{{proxy_names}}\", DIRECT]\n  - name: FAST\n    type: url-test\n    proxies: [\"{{proxy_names}}\"]\nrules:\n  - MATCH,MAIN\n"
+	out, err = Clash{}.RenderWith(sample(), Account{}, tpl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc = nil
+	_ = yaml.Unmarshal(out, &doc)
+	groups := doc["proxy-groups"].([]any)
+	main := groups[0].(map[string]any)["proxies"].([]any)
+	if len(main) != 10 || main[0] != "reality" || main[9] != "DIRECT" || len(groups[1].(map[string]any)["proxies"].([]any)) != 9 {
+		t.Fatalf("template groups: %v", groups)
+	}
+	if len(doc["proxies"].([]any)) != 9 || doc["mode"] != "rule" {
+		t.Fatalf("template doc: %v", doc)
+	}
+	// Custom INI template for Surge.
+	out, _ = Surge{}.RenderWith(sample(), Account{}, "[Proxy]\n{{proxies}}\n[Proxy Group]\nALL = select, {{proxy_names}}\n")
+	s := string(out)
+	if !strings.HasPrefix(s, "[Proxy]\nvmess-ws = vmess") || !strings.Contains(s, "ALL = select, vmess-ws, hy2, tuic") || strings.Contains(s, "[General]") {
+		t.Fatalf("surge template:\n%s", s)
+	}
+	// Defaults exist for every templated format and nothing else.
+	if names := TemplateNames(); strings.Join(names, ",") != "clash,loon,qx,stash,surfboard,surge" {
+		t.Fatalf("template names: %v", names)
+	}
+	if DefaultTemplate("singbox") != "" || DefaultTemplate("loon") != "{{proxies}}\n" {
+		t.Fatal("default templates")
+	}
+}
+
+func TestPickNewClients(t *testing.T) {
+	cases := map[string]string{
+		"Stash/2.5.0 Clash/1.9.0": "stash", "Loon/3.2.1 (iPhone)": "loon", "Quantumult%20X/1.4.1": "qx",
+		"Surfboard/2.24 (Android)": "surfboard", "Surge/5.8": "surge", "ClashMetaForAndroid/2.9": "clash",
+	}
+	for ua, want := range cases {
+		if got := Pick("", ua).Name(); got != want {
+			t.Fatalf("ua %q: got %s want %s", ua, got, want)
+		}
+	}
+	if Pick("stash", "").Name() != "stash" || Pick("quantumult-x", "").Name() != "qx" || Pick("surfboard", "Mozilla").Name() != "surfboard" {
+		t.Fatal("aliases")
+	}
+}
