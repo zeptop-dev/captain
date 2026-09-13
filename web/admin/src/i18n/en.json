@@ -205,7 +205,9 @@
     "createdAt": "Registered",
     "filterPlaceholder": "Search by email",
     "devices": "Online devices (last 5 min)",
-    "noDevices": "No device online recently"
+    "noDevices": "No device online recently",
+    "viewList": "List",
+    "viewRenewals": "Renewals"
   },
   "plans": {
     "title": "Plans",
@@ -672,5 +674,21 @@
     "to": "To",
     "addRule": "Add rule",
     "routeInbound": "Inbound {{tag}} → outbound"
+  },
+  "renewals": {
+    "lapsed": "lapsed",
+    "days": "{{count}} d",
+    "resetUsage": "Reset usage"
+  },
+  "subAdjust": {
+    "title": "Subscription adjustments",
+    "days": "Days",
+    "extend": "Extend",
+    "quota": "Quota (GB)",
+    "quotaHint": "Blank = plan default, 0 = unlimited",
+    "planDefault": "plan default",
+    "resetDay": "Monthly reset day",
+    "resetDayHint": "1-28, blank = plan rule",
+    "hint": "Applies to the current subscription; the quota override and reset day survive renewals of the same plan and clear on a plan change."
   }
 }

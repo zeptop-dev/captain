@@ -205,7 +205,9 @@
     "createdAt": "注册时间",
     "filterPlaceholder": "按邮箱搜索",
     "devices": "在线设备（最近 5 分钟）",
-    "noDevices": "最近没有设备在线"
+    "noDevices": "最近没有设备在线",
+    "viewList": "列表",
+    "viewRenewals": "续费视图"
   },
   "plans": {
     "title": "套餐",
@@ -672,5 +674,21 @@
     "to": "去向",
     "addRule": "添加规则",
     "routeInbound": "入站 {{tag}} 走出站"
+  },
+  "renewals": {
+    "lapsed": "已到期",
+    "days": "{{count}} 天",
+    "resetUsage": "重置用量"
+  },
+  "subAdjust": {
+    "title": "订阅调整",
+    "days": "天数",
+    "extend": "延长",
+    "quota": "流量上限 (GB)",
+    "quotaHint": "留空回到套餐默认，0 表示不限",
+    "planDefault": "套餐默认",
+    "resetDay": "每月重置日",
+    "resetDayHint": "1 到 28，留空按套餐规则",
+    "hint": "这里改的是当前这一期订阅；续费同一套餐时上限覆写和重置日会保留，换套餐则清除。"
   }
 }

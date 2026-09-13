@@ -20,20 +20,21 @@ func (s *Store) ExpireSubscriptions(ctx context.Context, at time.Time) (int64, e
 // ResetQuotas zeroes usage on subscriptions whose reset time has passed and
 // schedules the next reset from the plan's reset_days. Returns rows reset.
 func (s *Store) ResetQuotas(ctx context.Context, at time.Time) (int64, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT sub.id, sub.reset_at, p.reset_days, p.reset_mode FROM subscriptions sub JOIN plans p ON p.id = sub.plan_id
+	rows, err := s.db.QueryContext(ctx, `SELECT sub.id, sub.reset_at, sub.reset_day, p.reset_days, p.reset_mode FROM subscriptions sub JOIN plans p ON p.id = sub.plan_id
 		WHERE sub.status = 'active' AND sub.reset_at IS NOT NULL AND sub.reset_at <= ?`, at.Unix())
 	if err != nil {
 		return 0, err
 	}
 	type due struct {
-		id      int64
-		resetAt int64
-		plan    domain.Plan
+		id       int64
+		resetAt  int64
+		resetDay int
+		plan     domain.Plan
 	}
 	var list []due
 	for rows.Next() {
 		var d due
-		if err := rows.Scan(&d.id, &d.resetAt, &d.plan.ResetDays, &d.plan.ResetMode); err != nil {
+		if err := rows.Scan(&d.id, &d.resetAt, &d.resetDay, &d.plan.ResetDays, &d.plan.ResetMode); err != nil {
 			rows.Close()
 			return 0, err
 		}
@@ -43,7 +44,11 @@ func (s *Store) ResetQuotas(ctx context.Context, at time.Time) (int64, error) {
 	var n int64
 	for _, d := range list {
 		var nextVal sql.NullInt64
-		if d.plan.EffectiveResetMode() == "days" && d.plan.ResetDays > 0 {
+		if d.resetDay > 0 {
+			if next := nextResetFor(&d.plan, d.resetDay, at); next != nil {
+				nextVal = sql.NullInt64{Int64: next.Unix(), Valid: true}
+			}
+		} else if d.plan.EffectiveResetMode() == "days" && d.plan.ResetDays > 0 {
 			// Keep the cadence anchored to the original schedule.
 			next := time.Unix(d.resetAt, 0)
 			for !next.After(at) {
