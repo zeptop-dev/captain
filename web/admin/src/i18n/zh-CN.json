@@ -88,7 +88,7 @@
     "trafficToday": "今日流量",
     "inbounds": "入站",
     "pairTitle": "配对码",
-    "pairHint": "在节点上写入 bosun 配置后启动，24 小时内有效，只能用一次。",
+    "pairHint": "在节点上以 root 执行下面任意一条命令，它会安装 bosun 并自动配对。配对码 24 小时内有效，只能用一次。",
     "repair": "重新配对",
     "repairHint": "会吊销当前令牌并生成新配对码，节点需要重新配对。",
     "deleteHint": "节点下的入站会一并删除。",
@@ -110,7 +110,10 @@
     "certs": "自动证书",
     "certExpires": "{{date}} 到期",
     "certOk": "正常",
-    "certProblem": "有证书申请失败或即将到期"
+    "certProblem": "有证书申请失败或即将到期",
+    "installCmd": "一键安装（systemd）",
+    "dockerCmd": "Docker（host 网络）",
+    "manualHint": "已经装好 bosun？用配对码手动接管，或复制配置片段："
   },
   "inbounds": {
     "title": "入站",

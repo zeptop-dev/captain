@@ -301,3 +301,10 @@ func (s *Store) CertProblems(ctx context.Context, at time.Time) (map[int64]bool,
 	}
 	return out, rows.Err()
 }
+
+// PairCodeValid reports whether code can still be redeemed.
+func (s *Store) PairCodeValid(ctx context.Context, code string) (bool, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM nodes WHERE pair_code = ? AND pair_code_expires_at > ? AND token_hash IS NULL`, code, now()).Scan(&n)
+	return n > 0, err
+}

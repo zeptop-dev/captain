@@ -104,7 +104,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	paymenthttp.Register(s.mux, paymenthttp.Deps{Log: log, Orders: orders, ReturnTo: base + "/portal/orders", Gateways: gateways, Store: st})
 	sub.Register(s.mux, sub.Deps{Store: st, Log: log, Service: subSvc, Name: cfg.SiteName})
 	agent.Register(s.mux, agent.Deps{
-		Store: st, Log: log,
+		Store: st, Log: log, BaseURL: base,
 		State: &service.AgentState{Store: st, PullSeconds: cfg.Agent.PullSeconds, PushSeconds: cfg.Agent.PushSeconds, EnforceDevices: cfg.EnforceDevices()},
 	})
 	return s

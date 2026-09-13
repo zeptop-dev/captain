@@ -952,3 +952,40 @@ func TestRegistrationLimits(t *testing.T) {
 		t.Fatalf("verify calls: %v", seen)
 	}
 }
+
+func TestNodeInstallScript(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "https://panel.test"
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	ac := &client{t: t, srv: srv}
+	ac.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+	_, b, _ := ac.do("POST", "/api/admin/nodes", map[string]string{"Name": "jp1", "PublicAddr": "jp1.test"}, nil)
+	code := mustJSON[map[string]any](t, b)["pair_code"].(string)
+
+	anon := &client{t: t, srv: srv}
+	status, body, hdr := anon.do("GET", "/api/agent/install.sh?pair="+code, nil, nil)
+	if status != 200 || !strings.Contains(hdr.Get("Content-Type"), "shellscript") {
+		t.Fatalf("install.sh: %d %s", status, body)
+	}
+	want := `sh -s -- --captain "https://panel.test" --pair "` + code + `"`
+	if !strings.Contains(string(body), want) || !strings.Contains(string(body), "zeptop-dev/bosun/master/scripts/install.sh") {
+		t.Fatalf("script body:\n%s", body)
+	}
+	if status, _, _ = anon.do("GET", "/api/agent/install.sh?pair=NOPE-0000", nil, nil); status != 404 {
+		t.Fatalf("bad code: %d", status)
+	}
+	if status, _, _ = anon.do("GET", "/api/agent/install.sh", nil, nil); status != 400 {
+		t.Fatalf("no code: %d", status)
+	}
+	// Once redeemed the script disappears.
+	anon.do("POST", "/api/agent/pair", map[string]string{"Code": code, "Hostname": "jp1", "Version": "v0", "Platform": "linux/amd64"}, nil)
+	if status, _, _ = anon.do("GET", "/api/agent/install.sh?pair="+code, nil, nil); status != 404 {
+		t.Fatalf("redeemed code still served: %d", status)
+	}
+}
