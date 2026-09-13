@@ -1707,6 +1707,35 @@ func TestExternalNodesAndRouting(t *testing.T) {
 			t.Fatalf("state missing %s:\n%s", want, b)
 		}
 	}
+
+	// Port forwards: validated (inbound port collision, bad target), stripped
+	// of panel-only fields in the state, statuses reported back by the node.
+	ac.do("POST", "/api/admin/nodes/"+nodeID+"/inbounds", map[string]any{"Tag": "land", "Protocol": "mieru", "Port": 443, "Settings": map[string]any{"mieru_transport": "TCP"}}, nil)
+	if code, b, _ := ac.do("PUT", "/api/admin/nodes/"+nodeID+"/forwards", map[string]any{"Forwards": []map[string]any{{"port": 443, "target": "1.2.3.4:443"}}}, nil); code != 400 || !strings.Contains(string(b), "already used") {
+		t.Fatalf("forward on inbound port: %d %s", code, b)
+	}
+	if code, _, _ := ac.do("PUT", "/api/admin/nodes/"+nodeID+"/forwards", map[string]any{"Forwards": []map[string]any{{"port": 10443, "target": "nohost"}}}, nil); code != 400 {
+		t.Fatal("bad target accepted")
+	}
+	code, b, _ = ac.do("PUT", "/api/admin/nodes/"+nodeID+"/forwards", map[string]any{"Forwards": []map[string]any{{"port": 10443, "protocol": "udp", "target": "land.test:443", "inbound_id": 7}, {"tag": "t2", "port": 10444, "target": "[2001:db8::1]:8443"}}}, nil)
+	if code != 200 {
+		t.Fatalf("forwards: %d %s", code, b)
+	}
+	_, b, _ = nc.do("GET", "/api/agent/state", nil, nil)
+	if !strings.Contains(string(b), `"forwards":[{"tag":"fwd-10443","port":10443,"protocol":"udp","target":"land.test:443"},{"tag":"t2","port":10444,"protocol":"both","target":"[2001:db8::1]:8443"}]`) {
+		t.Fatalf("state forwards:\n%s", b)
+	}
+	nc.do("POST", "/api/agent/report", agentproto.Report{Forwards: []agentproto.ForwardStatus{{Tag: "t2", Up: true, RTTMillis: 12, ActiveConn: 1, TotalConn: 5, BytesIn: 100, BytesOut: 200}}}, nil)
+	_, b, _ = ac.do("GET", "/api/admin/nodes/"+nodeID+"/forwards", nil, nil)
+	if !strings.Contains(string(b), `"inbound_id":7`) || !strings.Contains(string(b), `"t2":{"tag":"t2","up":true,"rtt_ms":12`) {
+		t.Fatalf("forwards with status: %s", b)
+	}
+	// Dropping a rule drops its status.
+	ac.do("PUT", "/api/admin/nodes/"+nodeID+"/forwards", map[string]any{"Forwards": []map[string]any{}}, nil)
+	_, b, _ = ac.do("GET", "/api/admin/nodes/"+nodeID+"/forwards", nil, nil)
+	if strings.Contains(string(b), `"t2"`) {
+		t.Fatalf("stale status kept: %s", b)
+	}
 }
 
 func TestSubscriptionAdjustments(t *testing.T) {

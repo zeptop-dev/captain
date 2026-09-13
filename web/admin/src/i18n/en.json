@@ -752,5 +752,18 @@
     "uses": "Max uses",
     "hours": "Valid hours",
     "create": "Create"
+  },
+  "forwards": {
+    "title": "Port forwards (relay tunnels)",
+    "hint": "Listen on this node and relay raw TCP/UDP to a landing server: clients connect here while auth and accounting stay on the landing inbound. Pick another node's inbound as the target and create an entry through this relay with one click. Ports must not collide with this node's inbounds.",
+    "port": "Listen port",
+    "protocol": "Protocol",
+    "target": "Target",
+    "pickInbound": "Pick a node inbound, or type one",
+    "manual": "Manual target host:port",
+    "add": "Add",
+    "down": "down",
+    "makeEntry": "Create an entry through this relay",
+    "entryMade": "Entry created; rename it on the Entries page"
   }
 }

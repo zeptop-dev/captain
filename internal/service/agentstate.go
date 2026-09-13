@@ -83,6 +83,11 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 		node.Inbounds = append(node.Inbounds, si)
 	}
 	st := &agentproto.State{Node: node, Users: users, Forwards: []spec.Forward{}, PullSeconds: a.PullSeconds, PushSeconds: a.PushSeconds}
+	if fwds, err := a.Store.NodeForwards(ctx, n.ID); err == nil {
+		for _, f := range fwds {
+			st.Forwards = append(st.Forwards, f.Forward)
+		}
+	}
 	if a.Probe != nil {
 		st.Probe = a.Probe.AgentConfig(ctx, n.ID)
 	}
