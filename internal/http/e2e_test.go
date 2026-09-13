@@ -1585,6 +1585,15 @@ func TestProbePageAndBeats(t *testing.T) {
 	if !strings.Contains(string(b), `"carriers":[{"name":"HK","addr":"www.hkix.net:443"}]`) {
 		t.Fatalf("carriers missing from state: %s", b)
 	}
+	// A line ingress adds a source-bound RTT task to the far end on the
+	// first inbound's port.
+	_, b, _ = ac.do("POST", "/api/admin/nodes/"+nodeID+"/ingresses", map[string]any{"Name": "IPLC", "BindIP": "10.10.0.2", "LineIP": "198.51.100.20", "PortFrom": 17701, "PortTo": 17799}, nil)
+	gid := int64(mustJSON[map[string]any](t, b)["id"].(float64))
+	ac.do("POST", "/api/admin/nodes/"+nodeID+"/inbounds", map[string]any{"Tag": "m", "Protocol": "mieru", "Port": 17710, "IngressID": gid, "Settings": map[string]any{"mieru_transport": "TCP"}}, nil)
+	_, b, _ = nc.do("GET", "/api/agent/state", nil, nil)
+	if !strings.Contains(string(b), `{"id":-`+itoa(gid)+`,"name":"IPLC","type":"tcp","target":"198.51.100.20:17710","interval_seconds":30,"source_ip":"10.10.0.2"}`) {
+		t.Fatalf("line task missing from state: %s", b)
+	}
 
 	// Beats from the node.
 	beat := func(up, down uint64, cpu float64) {
