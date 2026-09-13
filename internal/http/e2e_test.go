@@ -3,8 +3,14 @@ package http
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"github.com/zeptop-dev/captain/internal/auth"
@@ -13,6 +19,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/webhook"
 	"io"
 	"log/slog"
+	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -528,6 +535,70 @@ func TestACMESettingsReachNodes(t *testing.T) {
 	after := mustJSON[agentproto.State](t, b)
 	if after.Node.ACME == nil || after.Node.ACME.Email != "ops@test" || after.Node.ACME.CloudflareToken != "cf-secret" || after.Revision == before.Revision {
 		t.Fatalf("acme settings should reach the node with a new revision: %+v", after.Node.ACME)
+	}
+
+	// Pushed certificates: only nodes with a covered TLS server name get
+	// them; the webhook needs the token; deletion withdraws them.
+	nid := itoa(int64(node["id"].(float64)))
+	c.do("POST", "/api/admin/nodes/"+nid+"/inbounds", map[string]any{"Tag": "t", "Protocol": "trojan", "Port": 443, "Settings": map[string]any{"tls": map[string]any{"mode": 1, "server_name": "jp1.example.com", "auto_cert": true}}}, nil)
+	certPEM, keyPEM := selfSignedPEM(t, "*.example.com", "example.com")
+	if code, b, _ := c.do("POST", "/api/admin/certificates", map[string]string{"CertPEM": certPEM, "KeyPEM": "nope"}, nil); code != 400 {
+		t.Fatalf("bad pair: %d %s", code, b)
+	}
+	code, b, _ := c.do("POST", "/api/admin/certificates", map[string]string{"CertPEM": certPEM, "KeyPEM": keyPEM}, nil)
+	if code != 200 || !strings.Contains(string(b), `"domain":"*.example.com"`) || !strings.Contains(string(b), `"names":["*.example.com","example.com"]`) || strings.Contains(string(b), "PRIVATE") {
+		t.Fatalf("upload: %d %s", code, b)
+	}
+	_, b, _ = agent.do("GET", "/api/agent/state", nil, nil)
+	withCert := mustJSON[agentproto.State](t, b)
+	if len(withCert.Node.Certificates) != 1 || withCert.Node.Certificates[0].Domain != "*.example.com" || withCert.Node.Certificates[0].KeyPEM != keyPEM+"\n" && withCert.Node.Certificates[0].KeyPEM != keyPEM {
+		t.Fatalf("certificate should reach the node: %+v", withCert.Node.Certificates)
+	}
+	// A node without a covered name gets nothing.
+	_, b, _ = c.do("POST", "/api/admin/nodes", map[string]string{"Name": "other"}, nil)
+	other := mustJSON[map[string]any](t, b)
+	oc := &client{t: t, srv: srv}
+	_, b, _ = oc.do("POST", "/api/agent/pair", agentproto.PairRequest{Code: other["pair_code"].(string)}, nil)
+	oc.token = mustJSON[agentproto.PairResponse](t, b).Token
+	c.do("POST", "/api/admin/nodes/"+itoa(int64(other["id"].(float64)))+"/inbounds", map[string]any{"Tag": "t", "Protocol": "trojan", "Port": 443, "Settings": map[string]any{"tls": map[string]any{"mode": 1, "server_name": "a.b.example.com"}}}, nil)
+	_, b, _ = oc.do("GET", "/api/agent/state", nil, nil)
+	if st := mustJSON[agentproto.State](t, b); len(st.Node.Certificates) != 0 {
+		t.Fatalf("wildcard must not cover two labels: %+v", st.Node.Certificates)
+	}
+	// Webhook: no token configured -> 403; rotate; wrong token 403; Certimate-style body upserts.
+	anon := &client{t: t, srv: srv}
+	if code, _, _ := anon.do("POST", "/api/hooks/certificate?token=x", map[string]string{}, nil); code != 403 {
+		t.Fatalf("hook without configured token: %d", code)
+	}
+	_, b, _ = c.do("POST", "/api/admin/certificates/webhook-token", nil, nil)
+	hookURL := mustJSON[map[string]string](t, b)["webhook_url"]
+	if !strings.HasPrefix(hookURL, "http://test/api/hooks/certificate?token=") {
+		t.Fatalf("hook url: %s", hookURL)
+	}
+	path := strings.TrimPrefix(hookURL, "http://test")
+	if code, _, _ := anon.do("POST", path+"bad", map[string]string{"domain": "x"}, nil); code != 403 {
+		t.Fatal("wrong token accepted")
+	}
+	cert2, key2 := selfSignedPEM(t, "jp1.example.com")
+	code, b, _ = anon.do("POST", path, map[string]any{"domains": "jp1.example.com,www.example.com", "certificate": cert2, "privateKey": key2}, nil)
+	if code != 200 || !strings.Contains(string(b), `"domain":"jp1.example.com"`) {
+		t.Fatalf("hook: %d %s", code, b)
+	}
+	_, b, _ = c.do("GET", "/api/admin/certificates", nil, nil)
+	if !strings.Contains(string(b), `"source":"webhook"`) || strings.Contains(string(b), "BEGIN") || !strings.Contains(string(b), hookURL) {
+		t.Fatalf("list: %s", b)
+	}
+	_, b, _ = agent.do("GET", "/api/agent/state", nil, nil)
+	if st := mustJSON[agentproto.State](t, b); len(st.Node.Certificates) != 2 {
+		t.Fatalf("both the wildcard and the exact certificate cover jp1: %d", len(st.Node.Certificates))
+	}
+	list := mustJSON[map[string]any](t, func() []byte { _, b, _ := c.do("GET", "/api/admin/certificates", nil, nil); return b }())["certificates"].([]any)
+	for _, it := range list {
+		c.do("DELETE", "/api/admin/certificates/"+itoa(int64(it.(map[string]any)["id"].(float64))), nil, nil)
+	}
+	_, b, _ = agent.do("GET", "/api/agent/state", nil, nil)
+	if st := mustJSON[agentproto.State](t, b); len(st.Node.Certificates) != 0 {
+		t.Fatal("deleted certificates still pushed")
 	}
 	// Blank token keeps it, "-" clears it.
 	c.do("PUT", "/api/admin/settings/acme", map[string]string{"Email": "ops@test", "CloudflareToken": ""}, nil)
@@ -2214,4 +2285,13 @@ func TestBackups(t *testing.T) {
 	if code, _, _ := oc.do("GET", "/api/admin/settings/backup/files/"+name, nil, nil); code != 403 {
 		t.Fatalf("operator download: %d", code)
 	}
+}
+
+func selfSignedPEM(t *testing.T, names ...string) (string, string) {
+	t.Helper()
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	tpl := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: names[0]}, DNSNames: names, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(24 * time.Hour)}
+	der, _ := x509.CreateCertificate(rand.Reader, tpl, tpl, &key.PublicKey, key)
+	kb, _ := x509.MarshalECPrivateKey(key)
+	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})), string(pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: kb}))
 }

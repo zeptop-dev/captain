@@ -82,6 +82,17 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 		}
 		node.Inbounds = append(node.Inbounds, si)
 	}
+	var tlsNames []string
+	for _, ib := range node.Inbounds {
+		if ib.TLS != nil && ib.TLS.Mode == spec.TLSStandard && ib.TLS.ServerName != "" {
+			tlsNames = append(tlsNames, ib.TLS.ServerName)
+		}
+	}
+	if certs, err := a.Store.CertificatesFor(ctx, tlsNames); err == nil {
+		for _, c := range certs {
+			node.Certificates = append(node.Certificates, spec.Certificate{Domain: c.Domain, CertPEM: c.CertPEM, KeyPEM: c.KeyPEM})
+		}
+	}
 	st := &agentproto.State{Node: node, Users: users, Forwards: []spec.Forward{}, PullSeconds: a.PullSeconds, PushSeconds: a.PushSeconds}
 	if fwds, err := a.Store.NodeForwards(ctx, n.ID); err == nil {
 		for _, f := range fwds {

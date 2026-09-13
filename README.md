@@ -227,6 +227,16 @@ external login):
   `domain:`, `ip:`, `protocol:`, `port:` → outbound / direct / block. Needs
   bosun >= 0.12.
 
+## Your own certificates
+
+Settings → Your own certificates takes a PEM pair (pasted, or delivered by
+a certificate manager such as Certimate or an acme.sh deploy hook through
+the per-panel webhook URL shown there, with lenient JSON keys: `domain` /
+`domains`, `certificate`, `privateKey` / `private_key`). Every node whose
+standard-TLS inbounds use a covered name (exact or `*.wildcard`) receives
+the pair in its state and bosun (>= 0.13) uses it ahead of ACME; the node
+page lists it with method `custom`. Delete it to fall back to ACME.
+
 ## Backups
 
 Captain snapshots its SQLite database once a day (`VACUUM INTO`, so the

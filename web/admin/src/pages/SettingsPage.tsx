@@ -19,6 +19,7 @@ import { ProbeCard } from '../components/ProbeCard'
 import { TokensCard } from '../components/TokensCard'
 import { TwoFactorCard } from '../components/TwoFactorCard'
 import { BackupCard } from '../components/BackupCard'
+import { CertificatesCard } from '../components/CertificatesCard'
 
 export default function SettingsPage() {
   const { t } = useTranslation()
@@ -76,6 +77,7 @@ export default function SettingsPage() {
             <Group justify="flex-end"><Button type="submit" size="xs" loading={saveAcme.isPending}>{t('common.save')}</Button></Group>
           </Stack></form>
         </Card>
+        <CertificatesCard />
         <Card>
           <Title order={5} mb="xs">{t('settings.notice')}</Title>
           <Text size="xs" c="dimmed" mb="sm">{t('settings.noticeHint')}</Text>

@@ -788,5 +788,19 @@
     "last": "上次 {{at}}：{{file}}",
     "uploaded": "已上传 {{name}}",
     "uploadFailed": "上传失败"
+  },
+  "certs": {
+    "title": "自有证书",
+    "hint": "不想用 ACME 时，把证书和私钥 PEM 贴进来；也可以让 Certimate、acme.sh 等证书管理工具在续期后通过下面的 Webhook 推送。节点上凡是入站的 TLS 域名被证书覆盖（精确或通配符）的，会优先用它，不再走自动证书。",
+    "domain": "域名（可选）",
+    "domainHint": "留空则取证书里的第一个域名；通配符写 *.example.com",
+    "cert": "证书（fullchain PEM）",
+    "key": "私钥（PEM）",
+    "upload": "上传",
+    "expires": "{{date}} 到期",
+    "webhook": "证书推送 Webhook",
+    "webhookHint": "POST JSON 到此地址即可更新：domain / domains、certificate、privateKey（也接受 private_key、key 等写法）。下面是 Certimate 的请求体模板。",
+    "enableWebhook": "生成 Webhook 地址",
+    "rotate": "换一个地址"
   }
 }
