@@ -16,6 +16,33 @@ const recipes: { key: string; protocol: string; port: number; settings: Record<s
   { key: 'trojanWs', protocol: 'trojan', port: 443, settings: { tls: { mode: 1, server_name: 'node.example.com', auto_cert: true, acme: 'http' }, transport: { type: 'ws', path: '/trojan', host: 'node.example.com' } } },
 ]
 
+// mieru strategies, mirroring nobrand-oneclick's presets: all TCP, the
+// difference is mita's trafficPattern (off / conservative / aggressive).
+const mieruPatterns: Record<string, unknown> = {
+  iplc: undefined,
+  balanced: { seed: 0, unlockAll: false, nonce: { type: 'NONCE_TYPE_PRINTABLE', applyToAllUDPPacket: true, minLen: 4, maxLen: 8 }, padding: { maxMiddlePaddingLen: 0, maxEndPaddingLen: 128 } },
+  stealth: { seed: 0, unlockAll: false, tcpFragment: { enable: true, maxSleepMs: 8 }, nonce: { type: 'NONCE_TYPE_PRINTABLE', applyToAllUDPPacket: true, minLen: 6, maxLen: 12 }, padding: { maxMiddlePaddingLen: 64, maxEndPaddingLen: 255 } },
+}
+function mieruStrategyOf(settings: string): string {
+  try {
+    const s = JSON.parse(settings || '{}')
+    const tp = typeof s.traffic_pattern === 'string' ? JSON.parse(s.traffic_pattern) : s.traffic_pattern
+    if (!tp) return 'iplc'
+    for (const k of ['balanced', 'stealth']) if (JSON.stringify(tp) === JSON.stringify(mieruPatterns[k])) return k
+    return 'custom'
+  } catch { return 'custom' }
+}
+function withMieru(settings: string, patch: { strategy?: string; transport?: string }): string {
+  let s: Record<string, unknown> = {}
+  try { s = JSON.parse(settings || '{}') } catch { s = {} }
+  if (patch.transport) s.mieru_transport = patch.transport
+  if (patch.strategy && patch.strategy !== 'custom') {
+    const tp = mieruPatterns[patch.strategy]
+    if (tp) s.traffic_pattern = JSON.stringify(tp); else delete s.traffic_pattern
+  }
+  return JSON.stringify(s, null, 2)
+}
+
 export type InboundValues = { Tag: string; Protocol: string; Listen: string; Port: number; Core: string; GroupID: string; Enabled: boolean; Settings: string }
 
 export function toValues(ib?: Inbound): InboundValues {
@@ -69,6 +96,15 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel }: { ini
         </Group>
         <Group grow align="flex-end">
           <Select label={t('inbounds.group')} data={[{ value: '', label: t('inbounds.groupAll') }, ...groups.map((g) => ({ value: String(g.ID), label: g.Name }))]} allowDeselect={false} {...form.getInputProps('GroupID')} />
+          {form.values.Protocol === 'mieru' && (
+            <Group grow>
+              <Select label={t('inbounds.mieruStrategy')} description={t('inbounds.mieruStrategyHint')} allowDeselect={false}
+                data={[{ value: 'iplc', label: t('inbounds.mieru.iplc') }, { value: 'balanced', label: t('inbounds.mieru.balanced') }, { value: 'stealth', label: t('inbounds.mieru.stealth') }, { value: 'custom', label: t('inbounds.mieru.custom') }]}
+                value={mieruStrategyOf(form.values.Settings)} onChange={(v) => v && form.setFieldValue('Settings', withMieru(form.values.Settings, { strategy: v }))} />
+              <Select label={t('inbounds.mieruTransport')} data={['TCP', 'UDP']} allowDeselect={false}
+                value={(() => { try { return String(JSON.parse(form.values.Settings || '{}').mieru_transport || 'TCP').toUpperCase() } catch { return 'TCP' } })()} onChange={(v) => v && form.setFieldValue('Settings', withMieru(form.values.Settings, { transport: v }))} />
+            </Group>
+          )}
           <Switch label={t('inbounds.enabled')} {...form.getInputProps('Enabled', { type: 'checkbox' })} />
         </Group>
         <JsonInput label={t('inbounds.settings')} description={t('inbounds.settingsHint')} autosize minRows={4} maxRows={16} formatOnBlur {...form.getInputProps('Settings')} />
