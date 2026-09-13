@@ -295,6 +295,13 @@ keeps a short in-memory ring for sparklines, and serves a status page:
 - alerts through Telegram / mail / webhooks: node offline (grace period),
   sustained CPU/memory/disk over a threshold, monthly traffic at 80% and 100%.
 
+The carrier latency targets default to the CT/CU/CM probe points
+(cloudcpp); Settings → Probe → *Latency targets* replaces the set with
+your own `name host:port` lines, and every node managed by Captain follows
+the panel. A node running without Captain keeps its own `probe:` section
+in bosun's config.yaml instead.
+
+
 ## Mail
 
 Admin → Settings → Mail: SMTP (any provider; port 587 STARTTLS, 465 TLS or 25

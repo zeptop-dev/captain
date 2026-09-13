@@ -84,7 +84,7 @@ func (p *Probe) AgentConfig(ctx context.Context, nodeID int64) *spec.Probe {
 	if !s.Enabled {
 		return nil
 	}
-	cfg := &spec.Probe{Enabled: true, BeatSeconds: s.BeatSeconds, CarrierPing: s.CarrierPing}
+	cfg := &spec.Probe{Enabled: true, BeatSeconds: s.BeatSeconds, CarrierPing: s.CarrierPing, Carriers: s.Carriers}
 	tasks, _ := p.Store.ListPingTasks(ctx)
 	for _, t := range tasks {
 		if !t.Enabled {

@@ -3,8 +3,11 @@ package admin
 import (
 	"context"
 	"errors"
+	"fmt"
+	"github.com/zeptop-dev/bosun/pkg/spec"
 	"github.com/zeptop-dev/captain/internal/auth"
 	"github.com/zeptop-dev/captain/internal/webhook"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -735,6 +738,25 @@ func (h *handlers) putProbe(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	v.Hosts = hosts
+	carriers := []spec.Carrier{}
+	seen := map[string]bool{}
+	for i, c := range v.Carriers {
+		c.Name, c.Addr = strings.TrimSpace(c.Name), strings.TrimSpace(c.Addr)
+		if c.Name == "" && c.Addr == "" {
+			continue
+		}
+		if host, port, err := net.SplitHostPort(c.Addr); err != nil || host == "" || port == "" {
+			fail(w, http.StatusBadRequest, fmt.Sprintf("carrier %d: address must be host:port", i+1))
+			return
+		}
+		if c.Name == "" || seen[c.Name] {
+			fail(w, http.StatusBadRequest, fmt.Sprintf("carrier %d: a unique name is required", i+1))
+			return
+		}
+		seen[c.Name] = true
+		carriers = append(carriers, c)
+	}
+	v.Carriers = carriers
 	v.Normalize()
 	if err := h.Store.SetSetting(r.Context(), store.SettingProbe, v); err != nil {
 		fail(w, http.StatusInternalServerError, err.Error())
