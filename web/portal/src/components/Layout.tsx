@@ -1,5 +1,5 @@
 import { AppShell, Container, Group, Text, UnstyledButton, Menu, ActionIcon } from '@mantine/core'
-import { IconLanguage, IconLogout } from '@tabler/icons-react'
+import { IconActivity, IconLanguage, IconLogout } from '@tabler/icons-react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../lib/auth'
@@ -30,6 +30,7 @@ export function Layout() {
               </Group>
             </Group>
             <Group gap={4}>
+              {site.data?.probe_url && <ActionIcon variant="subtle" color="gray" component="a" href={site.data.probe_url} target="_blank" aria-label={t('nav.status')}><IconActivity size={18} /></ActionIcon>}
               <Menu shadow="md"><Menu.Target><ActionIcon variant="subtle" color="gray"><IconLanguage size={18} /></ActionIcon></Menu.Target>
                 <Menu.Dropdown><Menu.Item onClick={() => i18n.changeLanguage('zh-CN')}>中文</Menu.Item><Menu.Item onClick={() => i18n.changeLanguage('zh-TW')}>繁體中文</Menu.Item><Menu.Item onClick={() => i18n.changeLanguage('en')}>English</Menu.Item><Menu.Item onClick={() => i18n.changeLanguage('ja')}>日本語</Menu.Item><Menu.Item onClick={() => i18n.changeLanguage('ko')}>한국어</Menu.Item><Menu.Item onClick={() => i18n.changeLanguage('ru')}>Русский</Menu.Item></Menu.Dropdown></Menu>
               <ActionIcon variant="subtle" color="gray" onClick={async () => { await logout(); nav('/login') }} aria-label={t('nav.logout')}><IconLogout size={18} /></ActionIcon>

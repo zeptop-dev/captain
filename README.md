@@ -194,6 +194,27 @@ external login):
 - **Languages** — the console and portal ship in 简体中文, 繁體中文, English,
   日本語, Русский and 한국어.
 
+## Probe / status page
+
+Settings → Probe. Off by default; nothing extra runs on nodes until it is on.
+When enabled, bosun (>= 0.11) sends a light host beat every few seconds
+(CPU, memory, swap, disk, load, network rate and totals, TCP/UDP/process
+counts, uptime, IPv4/IPv6 reachability, host facts) plus latency: TCP-connect
+checks against the CT/CU/CM carrier probe points and your own icmp/tcp/http
+tasks. Captain folds beats into minute/hour/day buckets (48 h / 60 d / 2 y),
+keeps a short in-memory ring for sparklines, and serves a status page:
+
+- address: a path on the main domain (default `/status`) and/or dedicated
+  hostnames (`status.example.com`) that serve only the page; both covered by
+  the built-in certificates;
+- visibility: public, signed-in users, or staff only; per-node "hide";
+  node IPs hidden unless allowed; title/logo so the page can be de-branded;
+- per node: region flag, provider, price, expiry, and a monthly NIC traffic
+  allowance (limit, reset day, counting mode) with reset-aware counters,
+  shown as a bar on the page;
+- alerts through Telegram / mail / webhooks: node offline (grace period),
+  sustained CPU/memory/disk over a threshold, monthly traffic at 80% and 100%.
+
 ## Mail
 
 Admin → Settings → Mail: SMTP (any provider; port 587 STARTTLS, 465 TLS or 25

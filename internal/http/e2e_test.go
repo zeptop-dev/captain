@@ -1411,3 +1411,169 @@ func TestStaffRolesAndWebhooks(t *testing.T) {
 		t.Fatalf("payloads: %+v", hits)
 	}
 }
+
+func TestProbePageAndBeats(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "https://panel.test"
+	cfg.Portal.Registration = true
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	web := New(cfg, st, slog.Default())
+	srv := httptest.NewServer(web.Handler())
+	defer srv.Close()
+	ac := &client{t: t, srv: srv}
+	ac.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+
+	// Off by default: page and API 404, and the node state carries no probe.
+	if code, _, _ := ac.do("GET", "/api/probe", nil, nil); code != 404 {
+		t.Fatalf("probe API while off: %d", code)
+	}
+	_, b, _ := ac.do("POST", "/api/admin/nodes", map[string]string{"Name": "jp1", "PublicAddr": "jp1.test"}, nil)
+	node := mustJSON[map[string]any](t, b)
+	nodeID := itoa(int64(node["id"].(float64)))
+	nc := &client{t: t, srv: srv}
+	_, b, _ = nc.do("POST", "/api/agent/pair", map[string]string{"Code": node["pair_code"].(string), "Hostname": "jp1", "Version": "v0.11.0", "Platform": "linux/amd64"}, nil)
+	nc.token = mustJSON[map[string]any](t, b)["token"].(string)
+	_, b, _ = nc.do("GET", "/api/agent/state", nil, nil)
+	if strings.Contains(string(b), `"probe"`) {
+		t.Fatalf("state has probe while off: %s", b)
+	}
+
+	// Turn it on: path /status, dedicated host, carrier pings, a tcp task, thresholds.
+	if code, b, _ := ac.do("PUT", "/api/admin/settings/probe", map[string]any{"enabled": true, "path": "/admin", "visibility": "public"}, nil); code != 400 {
+		t.Fatalf("reserved path accepted: %d %s", code, b)
+	}
+	code, b, _ := ac.do("PUT", "/api/admin/settings/probe", map[string]any{"enabled": true, "beat_seconds": 5, "carrier_ping": true, "path": "status", "hosts": []string{"Status.Example.com"}, "visibility": "public", "title": "Our Status",
+		"alerts": map[string]any{"offline_seconds": 60, "cpu_pct": 80, "window_minutes": 1, "traffic": true}}, nil)
+	if code != 200 || !strings.Contains(string(b), `"path":"/status"`) || !strings.Contains(string(b), `"hosts":["status.example.com"]`) {
+		t.Fatalf("probe settings: %d %s", code, b)
+	}
+	if code, b, _ := ac.do("POST", "/api/admin/ping-tasks", map[string]any{"name": "cf", "type": "tcp", "target": "1.1.1.1:443", "interval_seconds": 30, "enabled": true}, nil); code != 200 {
+		t.Fatalf("ping task: %d %s", code, b)
+	}
+	ac.do("PUT", "/api/admin/nodes/"+nodeID+"/probe", map[string]any{"Info": map[string]string{"region": "jp", "provider": "Vultr"}, "LimitBytes": 1000, "ResetDay": 1, "Mode": "sum"}, nil)
+	_, b, _ = nc.do("GET", "/api/agent/state", nil, nil)
+	if !strings.Contains(string(b), `"probe":{"enabled":true,"beat_seconds":5,"carrier_ping":true,"tasks":[{"id":1,"name":"cf","type":"tcp","target":"1.1.1.1:443","interval_seconds":30}]}`) {
+		t.Fatalf("state probe config: %s", b)
+	}
+
+	// Beats from the node.
+	beat := func(up, down uint64, cpu float64) {
+		if code, b, _ := nc.do("POST", "/api/agent/beat", map[string]any{"version": "v0.11.0", "host": map[string]any{"cpu_percent": cpu, "mem_total": 1000, "mem_used": 400, "disk_total": 100, "disk_used": 10, "net_total_up": up, "net_total_down": down, "net_up": 50, "net_down": 90, "uptime": 3600,
+			"pings": []map[string]any{{"task_id": 0, "name": "CT", "latency_ms": 35, "loss": 0}, {"task_id": 1, "name": "cf", "latency_ms": 12}}}}, nil); code != 204 {
+			t.Fatalf("beat: %d %s", code, b)
+		}
+	}
+	beat(1000, 2000, 85)
+	beat(1300, 2600, 90)
+	beat(1600, 3200, 95)
+
+	anon := &client{t: t, srv: srv}
+	code, b, _ = anon.do("GET", "/api/probe", nil, nil)
+	if code != 200 {
+		t.Fatalf("public snapshot: %d %s", code, b)
+	}
+	var snap struct {
+		Title string `json:"title"`
+		Nodes []struct {
+			Name    string         `json:"name"`
+			Online  bool           `json:"online"`
+			Addr    string         `json:"addr"`
+			Info    map[string]any `json:"info"`
+			Host    map[string]any `json:"host"`
+			Traffic struct {
+				Used  int64 `json:"used"`
+				Limit int64 `json:"limit"`
+			} `json:"traffic"`
+			Recent []map[string]any `json:"recent"`
+		} `json:"nodes"`
+		Staff bool `json:"staff"`
+	}
+	_ = json.Unmarshal(b, &snap)
+	if snap.Title != "Our Status" || len(snap.Nodes) != 1 || !snap.Nodes[0].Online || snap.Nodes[0].Addr != "" || snap.Nodes[0].Info["region"] != "JP" || snap.Nodes[0].Traffic.Used != 1800 || snap.Nodes[0].Traffic.Limit != 1000 || len(snap.Nodes[0].Recent) != 3 || snap.Staff {
+		t.Fatalf("snapshot: %s", b)
+	}
+	if snap.Nodes[0].Host["cpu_percent"] != 95.0 {
+		t.Fatalf("live host: %v", snap.Nodes[0].Host)
+	}
+	// Staff see the address.
+	_, b, _ = ac.do("GET", "/api/probe", nil, nil)
+	if !strings.Contains(string(b), `"addr":"jp1.test"`) || !strings.Contains(string(b), `"staff":true`) {
+		t.Fatalf("staff snapshot: %s", b)
+	}
+	// History and pings.
+	_, b, _ = anon.do("GET", "/api/probe/nodes/"+nodeID+"/history?range=24h", nil, nil)
+	if !strings.Contains(string(b), `"res":"m"`) || !strings.Contains(string(b), `"n":3`) {
+		t.Fatalf("history: %s", b)
+	}
+	_, b, _ = anon.do("GET", "/api/probe/nodes/"+nodeID+"/history?range=1h", nil, nil)
+	if !strings.Contains(string(b), `"res":"raw"`) || strings.Count(string(b), `"cpu"`) != 3 {
+		t.Fatalf("raw history: %s", b)
+	}
+	_, b, _ = anon.do("GET", "/api/probe/nodes/"+nodeID+"/pings?range=24h", nil, nil)
+	if !strings.Contains(string(b), `"name":"CT"`) || !strings.Contains(string(b), `"name":"cf"`) {
+		t.Fatalf("pings: %s", b)
+	}
+	// Page routing: /status redirects to /status/, which serves the SPA; dedicated host serves it at /.
+	noRedirect := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	resp, _ := noRedirect.Get(srv.URL + "/status")
+	if resp.StatusCode != 301 || resp.Header.Get("Location") != "/status/" {
+		t.Fatalf("path redirect: %d %s", resp.StatusCode, resp.Header.Get("Location"))
+	}
+	resp.Body.Close()
+	resp, _ = http.Get(srv.URL + "/status/")
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != 200 || !strings.Contains(strings.ToLower(string(body)), "<html") {
+		t.Fatalf("status page: %d %s", resp.StatusCode, body)
+	}
+	req, _ := http.NewRequest("GET", srv.URL+"/admin/", nil)
+	req.Host = "status.example.com"
+	resp, _ = http.DefaultClient.Do(req)
+	resp.Body.Close()
+	if resp.StatusCode != 404 {
+		t.Fatalf("admin on probe host: %d", resp.StatusCode)
+	}
+	req, _ = http.NewRequest("GET", srv.URL+"/", nil)
+	req.Host = "status.example.com"
+	resp, _ = http.DefaultClient.Do(req)
+	body, _ = io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != 200 || !strings.Contains(strings.ToLower(string(body)), "<html") {
+		t.Fatalf("probe host root: %d", resp.StatusCode)
+	}
+	// Hidden node disappears for visitors, stays for staff; visibility=users gates anonymous access.
+	ac.do("PUT", "/api/admin/nodes/"+nodeID+"/probe", map[string]any{"Hidden": true, "LimitBytes": 1000, "ResetDay": 1, "Mode": "sum"}, nil)
+	_, b, _ = anon.do("GET", "/api/probe", nil, nil)
+	if strings.Contains(string(b), `"jp1"`) {
+		t.Fatalf("hidden node visible: %s", b)
+	}
+	if code, _, _ := anon.do("GET", "/api/probe/nodes/"+nodeID+"/history?range=24h", nil, nil); code != 404 {
+		t.Fatal("hidden node history should 404")
+	}
+	_, b, _ = ac.do("GET", "/api/probe", nil, nil)
+	if !strings.Contains(string(b), `"jp1"`) {
+		t.Fatalf("staff must still see hidden node: %s", b)
+	}
+	ac.do("PUT", "/api/admin/settings/probe", map[string]any{"enabled": true, "path": "/status", "visibility": "users"}, nil)
+	if code, _, _ := anon.do("GET", "/api/probe", nil, nil); code != 401 {
+		t.Fatalf("users-only should 401 anonymous: %d", code)
+	}
+	uc := &client{t: t, srv: srv}
+	uc.do("POST", "/api/portal/register", map[string]string{"Email": "u@test", "Password": "password123"}, nil)
+	if code, _, _ := uc.do("GET", "/api/probe", nil, nil); code != 200 {
+		t.Fatalf("signed-in user should see it: %d", code)
+	}
+	// Landing page advertises the URL only when public.
+	_, b, _ = anon.do("GET", "/api/site", nil, nil)
+	if !strings.Contains(string(b), `"probe_url":"/status/"`) {
+		t.Fatalf("site probe_url: %s", b)
+	}
+	// Threshold alert fired once (cpu 80% over 1 minute) into the admin channel via the store record.
+	if fire, _ := st.AlertOnce(context.Background(), int64(node["id"].(float64)), "cpu", time.Hour, time.Now()); fire {
+		t.Fatal("cpu alert should already have fired during the beats")
+	}
+}

@@ -40,6 +40,15 @@ func (h *handlers) registerOps(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/admin/settings/webhooks", h.requireAdmin(h.getWebhooks))
 	mux.HandleFunc("PUT /api/admin/settings/webhooks", h.requireAdmin(h.putWebhooks))
 	mux.HandleFunc("POST /api/admin/settings/webhooks/test", h.requireAdmin(h.testWebhook))
+	mux.HandleFunc("GET /api/admin/settings/probe", h.requireAdmin(h.getProbe))
+	mux.HandleFunc("PUT /api/admin/settings/probe", h.requireAdmin(h.putProbe))
+	mux.HandleFunc("GET /api/admin/ping-tasks", h.requireAdmin(h.listPingTasks))
+	mux.HandleFunc("POST /api/admin/ping-tasks", h.requireAdmin(h.savePingTask))
+	mux.HandleFunc("PATCH /api/admin/ping-tasks/{id}", h.requireAdmin(h.savePingTask))
+	mux.HandleFunc("DELETE /api/admin/ping-tasks/{id}", h.requireAdmin(h.deletePingTask))
+	mux.HandleFunc("GET /api/admin/nodes/{id}/probe", h.requireAdmin(h.getNodeProbe))
+	mux.HandleFunc("PUT /api/admin/nodes/{id}/probe", h.requireAdmin(h.putNodeProbe))
+	mux.HandleFunc("POST /api/admin/nodes/{id}/probe/reset-traffic", h.requireAdmin(h.resetNodeTraffic))
 	mux.HandleFunc("GET /api/admin/settings/trial", h.requireAdmin(h.getTrial))
 	mux.HandleFunc("PUT /api/admin/settings/trial", h.requireAdmin(h.putTrial))
 }
@@ -678,4 +687,140 @@ func (h *handlers) testWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, map[string]bool{"ok": true})
+}
+
+// ---- probe / monitoring ---------------------------------------------------------------
+
+func (h *handlers) getProbe(w http.ResponseWriter, r *http.Request) {
+	var v store.ProbeSettings
+	_ = h.Store.GetSetting(r.Context(), store.SettingProbe, &v)
+	v.Normalize()
+	if v.Hosts == nil {
+		v.Hosts = []string{}
+	}
+	ok(w, v)
+}
+
+func (h *handlers) putProbe(w http.ResponseWriter, r *http.Request) {
+	var v store.ProbeSettings
+	if !decode(r, &v) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	v.Path = strings.TrimSpace(v.Path)
+	if v.Path != "" {
+		v.Path = "/" + strings.Trim(v.Path, "/")
+		for _, reserved := range []string{"/admin", "/portal", "/sub", "/api", "/assets"} {
+			if v.Path == reserved || strings.HasPrefix(v.Path, reserved+"/") {
+				fail(w, http.StatusBadRequest, "that path is reserved")
+				return
+			}
+		}
+	}
+	hosts := []string{}
+	for _, hh := range v.Hosts {
+		if hh = strings.ToLower(strings.TrimSpace(hh)); hh != "" {
+			hosts = append(hosts, hh)
+		}
+	}
+	v.Hosts = hosts
+	v.Normalize()
+	if err := h.Store.SetSetting(r.Context(), store.SettingProbe, v); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if h.Probe != nil {
+		h.Probe.Invalidate()
+	}
+	if h.SubLinks != nil {
+		h.SubLinks.Invalidate()
+	}
+	ok(w, v)
+}
+
+func (h *handlers) listPingTasks(w http.ResponseWriter, r *http.Request) {
+	list, err := h.Store.ListPingTasks(r.Context())
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, list)
+}
+
+func (h *handlers) savePingTask(w http.ResponseWriter, r *http.Request) {
+	var t store.PingTask
+	if !decode(r, &t) || strings.TrimSpace(t.Name) == "" || strings.TrimSpace(t.Target) == "" {
+		fail(w, http.StatusBadRequest, "name and target are required")
+		return
+	}
+	switch t.Type {
+	case "icmp", "tcp", "http":
+	default:
+		fail(w, http.StatusBadRequest, "type must be icmp, tcp or http")
+		return
+	}
+	if t.IntervalSeconds < 5 {
+		t.IntervalSeconds = 30
+	}
+	t.ID = idOf(r)
+	if err := h.Store.SavePingTask(r.Context(), &t); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, t)
+}
+
+func (h *handlers) deletePingTask(w http.ResponseWriter, r *http.Request) {
+	if err := h.Store.DeletePingTask(r.Context(), idOf(r)); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, map[string]bool{"ok": true})
+}
+
+func (h *handlers) getNodeProbe(w http.ResponseWriter, r *http.Request) {
+	np, err := h.Store.NodeProbe(r.Context(), idOf(r))
+	if err != nil {
+		fail(w, http.StatusNotFound, "node not found")
+		return
+	}
+	out := map[string]any{"probe": np, "billed": np.Billed()}
+	if h.Probe != nil {
+		if l, ok := h.Probe.Live(np.NodeID); ok {
+			out["live"] = l
+		}
+	}
+	ok(w, out)
+}
+
+func (h *handlers) putNodeProbe(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Hidden     bool
+		Info       store.NodeProbeInfo
+		LimitBytes int64
+		ResetDay   int
+		Mode       string
+	}
+	if !decode(r, &in) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	if err := h.Store.UpdateNodeProbe(r.Context(), idOf(r), in.Hidden, in.Info, in.LimitBytes, in.ResetDay, in.Mode); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if h.Probe != nil {
+		h.Probe.Invalidate()
+	}
+	h.getNodeProbe(w, r)
+}
+
+func (h *handlers) resetNodeTraffic(w http.ResponseWriter, r *http.Request) {
+	if err := h.Store.ResetNodeTraffic(r.Context(), idOf(r), time.Now()); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	_ = h.Store.ClearAlert(r.Context(), idOf(r), "traffic80")
+	_ = h.Store.ClearAlert(r.Context(), idOf(r), "traffic100")
+	h.getNodeProbe(w, r)
 }

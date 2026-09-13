@@ -78,6 +78,8 @@ type Deps struct {
 	Store        *store.Store
 	SiteName     string // config site_name, the default for Settings.Name
 	Registration bool
+	// ProbeURL returns the public status page link ("" when off/private).
+	ProbeURL func(r *http.Request) string
 }
 
 // Defaults returns the page shown before an admin edits anything.
@@ -118,7 +120,7 @@ func Register(mux *http.ServeMux, d Deps) {
 		}
 		out := map[string]any{
 			"name": s.Name, "tagline": s.Tagline, "description": s.Description, "features": s.Features, "locations": s.Locations,
-			"hub": s.Hub, "faq": s.FAQ, "links": s.Links, "show_plans": s.ShowPlans, "registration": d.Registration,
+			"hub": s.Hub, "faq": s.FAQ, "links": s.Links, "show_plans": s.ShowPlans, "registration": d.Registration, "probe_url": probeURL(d, r),
 			"stats": stats(r.Context(), d.Store, len(s.Locations)),
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -137,4 +139,11 @@ func stats(ctx context.Context, st *store.Store, locations int) map[string]int {
 		}
 	}
 	return map[string]int{"nodes": len(nodes), "online": online, "locations": locations}
+}
+
+func probeURL(d Deps, r *http.Request) string {
+	if d.ProbeURL == nil {
+		return ""
+	}
+	return d.ProbeURL(r)
 }
