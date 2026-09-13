@@ -27,11 +27,14 @@ type Account struct {
 	Expire   int64 // unix seconds, 0 = never
 }
 
-// Renderer turns lines into a client document.
+// Renderer turns lines into a client document. RenderWith takes an
+// operator template (see templates.go); "" means the built-in default and
+// formats without templates ignore it.
 type Renderer interface {
 	Name() string
 	ContentType() string
 	Render(lines []Line, acct Account) ([]byte, error)
+	RenderWith(lines []Line, acct Account, tpl string) ([]byte, error)
 }
 
 // Supported reports whether a renderer can express the line's protocol and
