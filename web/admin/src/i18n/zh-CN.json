@@ -151,6 +151,15 @@
       "ss2022Desc": "轻量，需要 base64 服务端密钥。",
       "trojanWs": "Trojan + WS + TLS",
       "trojanWsDesc": "可套 CDN，需要证书。"
+    },
+    "mieruStrategy": "mieru 策略",
+    "mieruStrategyHint": "同 nobrand-oneclick 的预设：专线不伪装，公网保守伪装，强化伪装加分片和填充；自定义则直接改下面的 traffic_pattern。",
+    "mieruTransport": "传输",
+    "mieru": {
+      "iplc": "IPLC / 专线性能（不伪装）",
+      "balanced": "普通公网（保守伪装）",
+      "stealth": "强化伪装",
+      "custom": "自定义"
     }
   },
   "entries": {

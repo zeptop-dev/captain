@@ -151,6 +151,15 @@
       "ss2022Desc": "Lightweight; needs a base64 server key.",
       "trojanWs": "Trojan + WS + TLS",
       "trojanWsDesc": "CDN friendly; needs a certificate."
+    },
+    "mieruStrategy": "mieru strategy",
+    "mieruStrategyHint": "Same presets as nobrand-oneclick: dedicated line = no obfuscation, public = conservative, stealth adds fragmentation and padding; custom edits traffic_pattern below directly.",
+    "mieruTransport": "Transport",
+    "mieru": {
+      "iplc": "IPLC / dedicated line (no obfuscation)",
+      "balanced": "Public network (conservative)",
+      "stealth": "Enhanced camouflage",
+      "custom": "Custom"
     }
   },
   "entries": {
