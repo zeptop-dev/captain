@@ -58,6 +58,8 @@ type Deps struct {
 	Notify *notify.Notifier
 	// Backups runs database snapshots; nil hides the backup card.
 	Backups *backup.Manager
+	// Certs issues panel-managed certificates; nil = uploads/webhooks only.
+	Certs *service.Certs
 	// Bot exposes the Telegram settings cache; nil disables.
 	Bot *telegram.Bot
 	// Hooks is the webhook hub (settings cache invalidation, test delivery).
@@ -93,6 +95,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	h.registerSpeedtest(mux)
 	h.registerBackup(mux)
 	h.registerCertificates(mux)
+	h.registerDomains(mux)
 	h.registerSubTemplates(mux)
 	mux.HandleFunc("GET /api/admin/coupons", h.requireAdmin(h.listCoupons))
 	mux.HandleFunc("POST /api/admin/coupons", h.requireAdmin(h.createCoupon))
@@ -296,6 +299,7 @@ type nodeView struct {
 	PublicAddr   string     `json:"public_addr"`
 	InternalAddr string     `json:"internal_addr"`
 	V6Addr       string     `json:"v6_addr"`
+	Domain       string     `json:"domain"`
 	MonitorURL   string     `json:"monitor_url"`
 	Version      string     `json:"version"`
 	Platform     string     `json:"platform"`
@@ -313,7 +317,7 @@ type nodeView struct {
 
 func toNodeView(n *domain.Node, at time.Time) nodeView {
 	return nodeView{
-		ID: n.ID, Name: n.Name, PublicAddr: n.PublicAddr, InternalAddr: n.InternalAddr, V6Addr: n.V6Addr, MonitorURL: n.MonitorURL,
+		ID: n.ID, Name: n.Name, PublicAddr: n.PublicAddr, InternalAddr: n.InternalAddr, V6Addr: n.V6Addr, Domain: n.Domain, MonitorURL: n.MonitorURL,
 		Version: n.Version, Platform: n.Platform, Hostname: n.Hostname, LastSeenAt: n.LastSeenAt,
 		Online: n.LastSeenAt != nil && at.Sub(*n.LastSeenAt) < 3*time.Minute, Paired: n.Paired, PairCode: n.PairCode,
 		UpgradeTo: n.UpgradeTo,
@@ -358,7 +362,7 @@ func (h *handlers) listNodes(w http.ResponseWriter, r *http.Request) {
 }
 
 type nodeInput struct {
-	Name, PublicAddr, InternalAddr, V6Addr, MonitorURL string
+	Name, PublicAddr, InternalAddr, V6Addr, Domain, MonitorURL string
 }
 
 func (h *handlers) createNode(w http.ResponseWriter, r *http.Request) {
@@ -367,7 +371,7 @@ func (h *handlers) createNode(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "name is required")
 		return
 	}
-	n := &domain.Node{Name: in.Name, PublicAddr: in.PublicAddr, InternalAddr: in.InternalAddr, V6Addr: in.V6Addr, MonitorURL: in.MonitorURL}
+	n := &domain.Node{Name: in.Name, PublicAddr: in.PublicAddr, InternalAddr: in.InternalAddr, V6Addr: in.V6Addr, Domain: strings.ToLower(strings.TrimSpace(in.Domain)), MonitorURL: in.MonitorURL}
 	if err := h.Store.CreateNode(r.Context(), n, auth.PairCode(), 24*time.Hour); err != nil {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
@@ -405,7 +409,7 @@ func (h *handlers) updateNode(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "name is required")
 		return
 	}
-	n := &domain.Node{ID: id, Name: in.Name, PublicAddr: in.PublicAddr, InternalAddr: in.InternalAddr, V6Addr: in.V6Addr, MonitorURL: in.MonitorURL}
+	n := &domain.Node{ID: id, Name: in.Name, PublicAddr: in.PublicAddr, InternalAddr: in.InternalAddr, V6Addr: in.V6Addr, Domain: strings.ToLower(strings.TrimSpace(in.Domain)), MonitorURL: in.MonitorURL}
 	if err := h.Store.UpdateNode(r.Context(), n); err != nil {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
@@ -815,8 +819,12 @@ func (h *handlers) fillEntryDefaults(ctx context.Context, e *domain.Entry) error
 	if e.DisplayHost == "" {
 		if sp := ib.Spec(); sp.TLS != nil && sp.TLS.Mode == spec.TLSStandard && sp.TLS.ServerName != "" {
 			e.DisplayHost = sp.TLS.ServerName
-		} else if n, err := h.Store.NodeByID(ctx, ib.NodeID); err == nil && n.PublicAddr != "" {
-			e.DisplayHost = n.PublicAddr
+		} else if n, err := h.Store.NodeByID(ctx, ib.NodeID); err == nil {
+			if n.Domain != "" {
+				e.DisplayHost = n.Domain
+			} else {
+				e.DisplayHost = n.PublicAddr
+			}
 		}
 	}
 	if e.DisplayHost == "" {

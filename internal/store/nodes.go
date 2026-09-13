@@ -12,14 +12,14 @@ import (
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-const nodeCols = "id, name, token_hash, pair_code, public_addr, internal_addr, v6_addr, monitor_url, version, platform, hostname, last_seen_at, applied_revision, upgrade_to, created_at"
+const nodeCols = "id, name, token_hash, pair_code, public_addr, internal_addr, v6_addr, domain, monitor_url, version, platform, hostname, last_seen_at, applied_revision, upgrade_to, created_at"
 
 func scanNode(row interface{ Scan(...any) error }) (*domain.Node, error) {
 	var n domain.Node
 	var tokenHash, pairCode sql.NullString
 	var lastSeen sql.NullInt64
 	var created int64
-	if err := row.Scan(&n.ID, &n.Name, &tokenHash, &pairCode, &n.PublicAddr, &n.InternalAddr, &n.V6Addr, &n.MonitorURL,
+	if err := row.Scan(&n.ID, &n.Name, &tokenHash, &pairCode, &n.PublicAddr, &n.InternalAddr, &n.V6Addr, &n.Domain, &n.MonitorURL,
 		&n.Version, &n.Platform, &n.Hostname, &lastSeen, &n.AppliedRevision, &n.UpgradeTo, &created); err != nil {
 		return nil, wrapNotFound(err)
 	}
@@ -33,9 +33,9 @@ func scanNode(row interface{ Scan(...any) error }) (*domain.Node, error) {
 // CreateNode inserts a node with a fresh pairing code valid for ttl.
 func (s *Store) CreateNode(ctx context.Context, n *domain.Node, pairCode string, ttl time.Duration) error {
 	ts := now()
-	res, err := s.db.ExecContext(ctx, `INSERT INTO nodes (name, pair_code, pair_code_expires_at, public_addr, internal_addr, v6_addr, monitor_url, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		n.Name, pairCode, time.Now().Add(ttl).Unix(), n.PublicAddr, n.InternalAddr, n.V6Addr, n.MonitorURL, ts, ts)
+	res, err := s.db.ExecContext(ctx, `INSERT INTO nodes (name, pair_code, pair_code_expires_at, public_addr, internal_addr, v6_addr, domain, monitor_url, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		n.Name, pairCode, time.Now().Add(ttl).Unix(), n.PublicAddr, n.InternalAddr, n.V6Addr, n.Domain, n.MonitorURL, ts, ts)
 	if err != nil {
 		return err
 	}
@@ -170,8 +170,8 @@ func boolInt(b bool) int {
 
 // UpdateNode changes editable node fields.
 func (s *Store) UpdateNode(ctx context.Context, n *domain.Node) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET name = ?, public_addr = ?, internal_addr = ?, v6_addr = ?, monitor_url = ?, updated_at = ? WHERE id = ?`,
-		n.Name, n.PublicAddr, n.InternalAddr, n.V6Addr, n.MonitorURL, now(), n.ID)
+	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET name = ?, public_addr = ?, internal_addr = ?, v6_addr = ?, domain = ?, monitor_url = ?, updated_at = ? WHERE id = ?`,
+		n.Name, n.PublicAddr, n.InternalAddr, n.V6Addr, n.Domain, n.MonitorURL, now(), n.ID)
 	return err
 }
 

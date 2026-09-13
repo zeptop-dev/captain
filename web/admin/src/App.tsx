@@ -12,6 +12,7 @@ import OrdersPage from './pages/OrdersPage'
 import SettingsPage from './pages/SettingsPage'
 import SitePage from './pages/SitePage'
 import SubTemplatesPage from './pages/SubTemplatesPage'
+import DomainsPage from './pages/DomainsPage'
 import CouponsPage from './pages/CouponsPage'
 import TicketsPage from './pages/TicketsPage'
 import GiftsPage from './pages/GiftsPage'
@@ -53,6 +54,7 @@ export default function App() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/site" element={<SitePage />} />
           <Route path="/sub-templates" element={<SubTemplatesPage />} />
+          <Route path="/domains" element={<DomainsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

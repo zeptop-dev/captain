@@ -32,6 +32,8 @@ type Runner struct {
 	BackupDir  string
 	BackupKeep int // default 7
 	Backups    *backup.Manager
+	// Certs renews panel-issued certificates (nil = off).
+	Certs *service.Certs
 	// Mail enables expiry/traffic reminders when the settings allow them.
 	Mail *mail.Loader
 	// Bot delivers reminders to users who linked Telegram (nil = off).
@@ -111,6 +113,9 @@ func (r *Runner) Tick(ctx context.Context) {
 	if r.Mail != nil && now.Sub(r.lastReminders) >= time.Hour {
 		r.lastReminders = now
 		r.reminders(ctx, now, log)
+	}
+	if r.Certs != nil {
+		r.Certs.RenewDue(ctx)
 	}
 	if r.Backups != nil {
 		r.Backups.Tick(ctx)

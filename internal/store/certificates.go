@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -14,12 +15,18 @@ import (
 // inbounds use one of its names.
 type Certificate struct {
 	ID        int64     `json:"id"`
+	Name      string    `json:"name"` // display name; defaults to Domain
 	Domain    string    `json:"domain"`
 	Names     []string  `json:"names"`
 	CertPEM   string    `json:"cert_pem,omitempty"`
 	KeyPEM    string    `json:"-"`
 	NotAfter  time.Time `json:"not_after"`
-	Source    string    `json:"source"`
+	Source    string    `json:"source"` // upload | webhook | acme
+	Issuer    string    `json:"issuer"` // CA common name for acme / parsed from the leaf
+	Renewals  int       `json:"renewals"`
+	LastError string    `json:"last_error"`
+	AutoRenew bool      `json:"auto_renew"`
+	DomainID  *int64    `json:"domain_id"` // DNS authorisation used for acme issuance
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -53,7 +60,7 @@ func ParseCertificate(domain, certPEM, keyPEM string) (*Certificate, error) {
 	if !containsName(names, domain) {
 		names = append([]string{domain}, names...)
 	}
-	return &Certificate{Domain: domain, Names: names, CertPEM: certPEM, KeyPEM: keyPEM, NotAfter: leaf.NotAfter}, nil
+	return &Certificate{Domain: domain, Names: names, CertPEM: certPEM, KeyPEM: keyPEM, NotAfter: leaf.NotAfter, Issuer: leaf.Issuer.CommonName, AutoRenew: true}, nil
 }
 
 func containsName(names []string, n string) bool {
@@ -98,30 +105,87 @@ func (s *Store) UpsertCertificate(ctx context.Context, c *Certificate) error {
 	if c.Source == "" {
 		c.Source = "upload"
 	}
+	if c.Name == "" {
+		c.Name = c.Domain
+	}
 	ts := now()
-	_, err := s.db.ExecContext(ctx, `INSERT INTO certificates (domain, names_json, cert_pem, key_pem, not_after, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		ON CONFLICT(domain) DO UPDATE SET names_json = excluded.names_json, cert_pem = excluded.cert_pem, key_pem = excluded.key_pem, not_after = excluded.not_after, source = excluded.source, updated_at = excluded.updated_at`,
-		c.Domain, string(names), c.CertPEM, c.KeyPEM, c.NotAfter.Unix(), c.Source, ts, ts)
+	// A re-issue for the same primary name replaces the record; renewals
+	// count up and the display name survives unless a new one is given.
+	_, err := s.db.ExecContext(ctx, `INSERT INTO certificates (domain, name, names_json, cert_pem, key_pem, not_after, source, issuer, auto_renew, domain_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(domain) DO UPDATE SET name = CASE WHEN excluded.name = excluded.domain THEN certificates.name ELSE excluded.name END, names_json = excluded.names_json, cert_pem = excluded.cert_pem, key_pem = excluded.key_pem, not_after = excluded.not_after, source = excluded.source, issuer = excluded.issuer, auto_renew = excluded.auto_renew, domain_id = COALESCE(excluded.domain_id, certificates.domain_id), last_error = '', renewals = certificates.renewals + 1, updated_at = excluded.updated_at`,
+		c.Domain, c.Name, string(names), c.CertPEM, c.KeyPEM, c.NotAfter.Unix(), c.Source, c.Issuer, boolInt(c.AutoRenew), nullInt64(c.DomainID), ts, ts)
+	if err != nil {
+		return err
+	}
+	return s.db.QueryRowContext(ctx, `SELECT id FROM certificates WHERE domain = ?`, c.Domain).Scan(&c.ID)
+}
+
+const certCols = "id, name, domain, names_json, cert_pem, key_pem, not_after, source, issuer, renewals, last_error, auto_renew, domain_id, created_at, updated_at"
+
+func scanCert(row interface{ Scan(...any) error }) (*Certificate, error) {
+	var c Certificate
+	var names string
+	var na, cr, up int64
+	var ar int
+	var did sql.NullInt64
+	if err := row.Scan(&c.ID, &c.Name, &c.Domain, &names, &c.CertPEM, &c.KeyPEM, &na, &c.Source, &c.Issuer, &c.Renewals, &c.LastError, &ar, &did, &cr, &up); err != nil {
+		return nil, wrapNotFound(err)
+	}
+	_ = json.Unmarshal([]byte(names), &c.Names)
+	c.NotAfter, c.CreatedAt, c.UpdatedAt, c.AutoRenew, c.DomainID = unix(na), unix(cr), unix(up), ar == 1, int64Ptr(did)
+	if c.Name == "" {
+		c.Name = c.Domain
+	}
+	return &c, nil
+}
+
+func (s *Store) CertificateByID(ctx context.Context, id int64) (*Certificate, error) {
+	return scanCert(s.db.QueryRowContext(ctx, `SELECT `+certCols+` FROM certificates WHERE id = ?`, id))
+}
+
+// UpdateCertificateMeta changes the display name and renewal flag.
+func (s *Store) UpdateCertificateMeta(ctx context.Context, id int64, name string, autoRenew bool) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE certificates SET name = ?, auto_renew = ?, updated_at = ? WHERE id = ?`, name, boolInt(autoRenew), now(), id)
 	return err
 }
 
-func (s *Store) ListCertificates(ctx context.Context) ([]Certificate, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, domain, names_json, cert_pem, key_pem, not_after, source, created_at, updated_at FROM certificates ORDER BY domain`)
+// SetCertificateError records a failed renewal attempt.
+func (s *Store) SetCertificateError(ctx context.Context, id int64, msg string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE certificates SET last_error = ?, updated_at = ? WHERE id = ?`, msg, now(), id)
+	return err
+}
+
+// CertificatesDue lists ACME certificates that auto-renew and expire before t.
+func (s *Store) CertificatesDue(ctx context.Context, t time.Time) ([]Certificate, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+certCols+` FROM certificates WHERE source = 'acme' AND auto_renew = 1 AND not_after < ? ORDER BY not_after`, t.Unix())
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	out := []Certificate{}
 	for rows.Next() {
-		var c Certificate
-		var names string
-		var na, cr, up int64
-		if err := rows.Scan(&c.ID, &c.Domain, &names, &c.CertPEM, &c.KeyPEM, &na, &c.Source, &cr, &up); err != nil {
+		c, err := scanCert(rows)
+		if err != nil {
 			return nil, err
 		}
-		_ = json.Unmarshal([]byte(names), &c.Names)
-		c.NotAfter, c.CreatedAt, c.UpdatedAt = unix(na), unix(cr), unix(up)
-		out = append(out, c)
+		out = append(out, *c)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) ListCertificates(ctx context.Context) ([]Certificate, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+certCols+` FROM certificates ORDER BY name, domain`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Certificate{}
+	for rows.Next() {
+		c, err := scanCert(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *c)
 	}
 	return out, rows.Err()
 }
