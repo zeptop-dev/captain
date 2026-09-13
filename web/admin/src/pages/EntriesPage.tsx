@@ -55,7 +55,7 @@ export default function EntriesPage() {
           <TextInput label={t('entries.name')} required placeholder="🇯🇵 Tokyo IPLC" {...form.getInputProps('Name')} />
           <Select label={t('entries.inbound')} required searchable data={inbounds.map((i) => ({ value: String(i.ib.ID), label: label(i.ib.ID) }))} value={form.values.InboundID} onChange={onInbound} />
           <Group grow><TextInput label={t('entries.displayHost')} placeholder={t('entries.displayHostHint')} {...form.getInputProps('DisplayHost')} /><NumberInput label={t('entries.displayPort')} required min={1} max={65535} {...form.getInputProps('DisplayPort')} /></Group>
-          <Group grow><NumberInput label={t('entries.rate')} min={0} step={0.1} decimalScale={2} {...form.getInputProps('Rate')} /><NumberInput label="Sort" {...form.getInputProps('Sort')} /></Group>
+          <Group grow><NumberInput label={t('entries.rate')} min={0} step={0.1} decimalScale={2} {...form.getInputProps('Rate')} /><NumberInput label={t('entries.sort')} description={t('entries.sortHint')} {...form.getInputProps('Sort')} /></Group>
           <Switch label={t('entries.enabled')} {...form.getInputProps('Enabled', { type: 'checkbox' })} />
           <Group justify="flex-end"><Button variant="default" onClick={() => setEditing(null)}>{t('common.cancel')}</Button><Button type="submit" loading={save.isPending}>{t('common.save')}</Button></Group>
         </Stack></form>

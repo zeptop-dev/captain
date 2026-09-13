@@ -172,7 +172,9 @@
     "displayPort": "Display port",
     "rate": "Rate",
     "enabled": "Enabled",
-    "displayHostHint": "Blank uses the inbound's TLS domain, else the node's public address"
+    "displayHostHint": "Blank uses the inbound's TLS domain, else the node's public address",
+    "sort": "Sort",
+    "sortHint": "Order in the subscription, ascending"
   },
   "users": {
     "title": "Users",

@@ -163,7 +163,9 @@
     "displayPort": "顯示連接埠",
     "rate": "倍率",
     "enabled": "啟用",
-    "displayHostHint": "留空用入站的 TLS 網域，否則用節點公網位址"
+    "displayHostHint": "留空用入站的 TLS 網域，否則用節點公網位址",
+    "sort": "排序",
+    "sortHint": "訂閱中依此由小到大排列"
   },
   "users": {
     "title": "使用者",

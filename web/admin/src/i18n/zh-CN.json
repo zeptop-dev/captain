@@ -172,7 +172,9 @@
     "displayPort": "展示端口",
     "rate": "倍率",
     "enabled": "启用",
-    "displayHostHint": "留空用入站的 TLS 域名，否则用节点公网地址"
+    "displayHostHint": "留空用入站的 TLS 域名，否则用节点公网地址",
+    "sort": "排序",
+    "sortHint": "订阅里按此从小到大排列"
   },
   "users": {
     "title": "用户",
