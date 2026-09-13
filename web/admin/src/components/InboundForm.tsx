@@ -1,6 +1,6 @@
 import { Button, Card, Group, JsonInput, NumberInput, Select, SimpleGrid, Stack, Switch, Text, TextInput, UnstyledButton } from '@mantine/core'
 import { useForm } from '@mantine/form'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Group as UGroup, Inbound, Ingress } from '../lib/api'
 import { IngressFields, emptyIngress, type IngressValues } from './IngressesCard'
@@ -70,6 +70,7 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
     initialValues: initial,
     validate: { Tag: (v) => (v ? null : 'required'), Port: (v) => (v > 0 && v < 65536 ? null : 'port'), Settings: (v) => { try { JSON.parse(v || '{}'); return null } catch { return 'invalid JSON' } } },
   })
+  const [recipe, setRecipe] = useState<string | null>(null) // highlighted quick-setup card
   // Recipes name node.example.com; a node with a registered host name gets it instead.
   // The IPLC recipe also needs a line ingress: reuse the node's first one or
   // describe a new one inline (created together with the inbound).
@@ -99,9 +100,9 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
           <Text size="xs" c="dimmed" mb="xs">{t('inbounds.recipeHint')}</Text>
           <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="xs">
             {recipes.map((r) => (
-              <UnstyledButton key={r.key} onClick={() => apply(r)}>
-                <Card p="sm" style={{ height: '100%' }}>
-                  <Text size="sm" fw={600}>{t(`inbounds.recipes.${r.key}`)}</Text>
+              <UnstyledButton key={r.key} onClick={() => { setRecipe(r.key); apply(r) }} aria-pressed={recipe === r.key}>
+                <Card p="sm" withBorder style={{ height: '100%', borderColor: recipe === r.key ? 'var(--mantine-primary-color-filled)' : undefined, background: recipe === r.key ? 'var(--mantine-primary-color-light)' : undefined }}>
+                  <Text size="sm" fw={600} c={recipe === r.key ? 'var(--mantine-primary-color-light-color)' : undefined}>{t(`inbounds.recipes.${r.key}`)}</Text>
                   <Text size="xs" c="dimmed">{t(`inbounds.recipes.${r.key}Desc`)}</Text>
                 </Card>
               </UnstyledButton>
