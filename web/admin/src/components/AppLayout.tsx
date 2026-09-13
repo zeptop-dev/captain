@@ -1,4 +1,4 @@
-import { AppShell, Badge, Box, Burger, Group, NavLink, Stack, Text, UnstyledButton, Menu, ActionIcon } from '@mantine/core'
+import { AppShell, Badge, Box, Burger, Group, NavLink, ScrollArea, Stack, Text, UnstyledButton, Menu, ActionIcon } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { IconLayoutDashboard, IconServer, IconRoute, IconUsers, IconPackage, IconReceipt, IconSettings, IconLogout, IconLanguage, IconWorld, IconTicket, IconMessages, IconGift, IconBook, IconCashBanknote, IconUserShield, IconFileCode, IconCloudDownload, IconGauge } from '@tabler/icons-react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
@@ -74,7 +74,8 @@ export function AppLayout() {
         </Group>
       </AppShell.Header>
       <AppShell.Navbar p="sm">
-        <Stack gap="lg">
+        <AppShell.Section grow component={ScrollArea} type="auto" scrollbarSize={6}>
+        <Stack gap="lg" pb="sm">
           {shown.map((s) => (
             <Box key={s.key}>
               <Text size="xs" tt="uppercase" c="dimmed" fw={600} px="sm" mb={4} style={{ letterSpacing: '0.08em' }}>{t(`nav.${s.key}`)}</Text>
@@ -85,6 +86,7 @@ export function AppLayout() {
             </Box>
           ))}
         </Stack>
+        </AppShell.Section>
       </AppShell.Navbar>
       <AppShell.Main><Outlet /></AppShell.Main>
     </AppShell>
