@@ -28,7 +28,7 @@ export const api = {
   del: <T>(url: string) => request<T>('DELETE', url),
 }
 
-export interface Me { id: number; email: string; role: string; version?: string }
+export interface Me { id: number; email: string; role: string; version?: string; totp?: boolean }
 export interface Node {
   id: number; name: string; public_addr: string; internal_addr: string; v6_addr: string; monitor_url: string
   version: string; platform: string; hostname: string; last_seen_at: string | null; online: boolean; paired: boolean
@@ -54,7 +54,7 @@ export interface MailSettings {
   resend: { api_key: string }
   verify_registration: boolean; reminders: boolean
 }
-export interface SubscriptionSettings { urls: string[] }
+export interface SubscriptionSettings { urls: string[]; short_links?: boolean }
 export interface ACMESettings { email: string; has_cloudflare_token: boolean }
 export interface Inbound {
   ID: number; NodeID: number; Tag: string; Protocol: string; Listen: string; Port: number; Core: string

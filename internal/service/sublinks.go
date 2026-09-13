@@ -20,6 +20,8 @@ import (
 // per link so a wildcard DNS name can spread users over many hostnames.
 type SubscriptionSettings struct {
 	URLs []string `json:"urls"`
+	// ShortLinks hands out /s/<code> instead of /sub/<token>.
+	ShortLinks bool `json:"short_links"`
 }
 
 // SettingSubscription is the settings key.
@@ -77,10 +79,15 @@ func expand(prefix string) string {
 
 // URL returns a subscription link for token.
 func (s *SubLinks) URL(ctx context.Context, token string) string {
-	urls := s.settings(ctx).URLs
+	st := s.settings(ctx)
 	base := strings.TrimRight(s.BaseURL, "/")
-	if len(urls) > 0 {
-		base = strings.TrimRight(expand(urls[rand.IntN(len(urls))]), "/")
+	if len(st.URLs) > 0 {
+		base = strings.TrimRight(expand(st.URLs[rand.IntN(len(st.URLs))]), "/")
+	}
+	if st.ShortLinks {
+		if code, err := s.Store.ShortCodeForToken(ctx, token); err == nil {
+			return base + "/s/" + code
+		}
 	}
 	return base + "/sub/" + token
 }
@@ -146,7 +153,7 @@ func (s *SubLinks) AllowedTLSHost(ctx context.Context, host string) bool {
 // which keeps the login pages off the address users hand around.
 func (s *SubLinks) SubscriptionOnly(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if s.IsSubscriptionHost(r.Context(), r.Host) && !strings.HasPrefix(r.URL.Path, "/sub/") && r.URL.Path != "/api/health" {
+		if s.IsSubscriptionHost(r.Context(), r.Host) && !strings.HasPrefix(r.URL.Path, "/sub/") && !strings.HasPrefix(r.URL.Path, "/s/") && r.URL.Path != "/api/health" {
 			http.NotFound(w, r)
 			return
 		}

@@ -197,6 +197,15 @@ external login):
   Captain locks out users over their limit. mieru inbounds cannot report IPs.
 - **Languages** — the console and portal ship in 简体中文, 繁體中文, English,
   日本語, Русский and 한국어.
+- **Two-factor sign-in** — Settings → Two-factor authentication: each staff
+  account can add a TOTP authenticator; the console then asks for the code
+  after the password. API tokens are unaffected.
+- **Short and temporary subscription links** — Settings → Subscription: turn
+  on *Use short links* and users get `https://sub.example.com/s/<8 chars>`
+  instead of the long token URL (old links keep working; rotating a user's
+  token also rotates the code). A user's drawer can also issue temporary
+  links limited by uses and/or hours, for trials or support, revocable at
+  any time.
 
 ## External nodes, outbounds and relays
 

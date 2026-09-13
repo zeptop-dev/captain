@@ -13,6 +13,7 @@ import { PageHeader } from '../components/PageHeader'
 import { Copy } from '../components/Copy'
 import { RenewalsPanel } from '../components/RenewalsPanel'
 import { SubAdjust } from '../components/SubAdjust'
+import { TempLinks } from '../components/TempLinks'
 import { SegmentedControl } from '@mantine/core'
 
 export default function UsersPage() {
@@ -113,6 +114,7 @@ export default function UsersPage() {
               <Group align="flex-end"><Select flex={1} data={(plans.data ?? []).map((p) => ({ value: String(p.ID), label: `${p.Name} · ${money(p.PriceCents)}` }))} value={grantPlan} onChange={setGrantPlan} placeholder={t('users.plan')} /><Button size="xs" disabled={!grantPlan} loading={grant.isPending} onClick={() => grant.mutate()}>{t('users.grant')}</Button></Group>
             </Stack>
             <SubAdjust userID={sel.id} hasPlan={!!sel.plan_name} onDone={() => setSel(null)} />
+            <TempLinks userID={sel.id} />
             <Stack gap="sm">
               <Title order={6}>{t('users.topUp')}</Title>
               <Text size="xs" c="dimmed">{t('users.topUpHint')} {t('users.balance')}: {money(sel.balance_cents)}</Text>

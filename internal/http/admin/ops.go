@@ -54,6 +54,12 @@ func (h *handlers) registerOps(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/admin/tokens", h.requireAdmin(h.listTokens))
 	mux.HandleFunc("POST /api/admin/tokens", h.requireAdmin(h.createToken))
 	mux.HandleFunc("DELETE /api/admin/tokens/{id}", h.requireAdmin(h.deleteToken))
+	mux.HandleFunc("POST /api/admin/2fa/setup", h.requireAdmin(h.totpSetup))
+	mux.HandleFunc("POST /api/admin/2fa/enable", h.requireAdmin(h.totpEnable))
+	mux.HandleFunc("POST /api/admin/2fa/disable", h.requireAdmin(h.totpDisable))
+	mux.HandleFunc("GET /api/admin/users/{id}/links", h.requireAdmin(h.listSubLinks))
+	mux.HandleFunc("POST /api/admin/users/{id}/links", h.requireAdmin(h.createTempLink))
+	mux.HandleFunc("DELETE /api/admin/users/{id}/links/{lid}", h.requireAdmin(h.deleteSubLink))
 	mux.HandleFunc("GET /api/admin/settings/trial", h.requireAdmin(h.getTrial))
 	mux.HandleFunc("PUT /api/admin/settings/trial", h.requireAdmin(h.putTrial))
 }
@@ -894,6 +900,127 @@ func (h *handlers) createToken(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) deleteToken(w http.ResponseWriter, r *http.Request) {
 	if err := h.Store.DeleteAPIToken(r.Context(), userFrom(r).ID, idOf(r)); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, map[string]bool{"ok": true})
+}
+
+// ---- two-factor for staff -------------------------------------------------------------
+
+// totpSetup stores a new (not yet enforced) secret and returns the otpauth URI.
+func (h *handlers) totpSetup(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r)
+	secret := auth.NewTOTPSecret()
+	if err := h.Store.SetTOTP(r.Context(), u.ID, secret, false); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, map[string]any{"secret": secret, "uri": auth.TOTPURI(firstNonEmpty(h.SiteName, "Captain"), u.Email, secret)})
+}
+
+func (h *handlers) totpEnable(w http.ResponseWriter, r *http.Request) {
+	var in struct{ Code string }
+	if !decode(r, &in) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	u := userFrom(r)
+	secret, _, err := h.Store.TOTP(r.Context(), u.ID)
+	if err != nil || secret == "" {
+		fail(w, http.StatusBadRequest, "run setup first")
+		return
+	}
+	if !auth.VerifyTOTP(secret, in.Code, time.Now()) {
+		fail(w, http.StatusBadRequest, "code does not match; check the app's clock")
+		return
+	}
+	if err := h.Store.SetTOTP(r.Context(), u.ID, secret, true); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, map[string]bool{"totp": true})
+}
+
+func (h *handlers) totpDisable(w http.ResponseWriter, r *http.Request) {
+	var in struct{ Code string }
+	if !decode(r, &in) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	u := userFrom(r)
+	secret, enabled, _ := h.Store.TOTP(r.Context(), u.ID)
+	if enabled && !auth.VerifyTOTP(secret, in.Code, time.Now()) {
+		fail(w, http.StatusBadRequest, "current authenticator code required")
+		return
+	}
+	if err := h.Store.SetTOTP(r.Context(), u.ID, "", false); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, map[string]bool{"totp": false})
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// ---- temporary subscription links ----------------------------------------------------
+
+func (h *handlers) listSubLinks(w http.ResponseWriter, r *http.Request) {
+	list, err := h.Store.ListSubLinks(r.Context(), idOf(r))
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	base := ""
+	if h.SubLinks != nil {
+		base = strings.TrimSuffix(h.SubLinks.URL(r.Context(), "x"), "/sub/x")
+		base = strings.TrimSuffix(base, "/s/x")
+		if i := strings.Index(base, "/s/"); i > 0 {
+			base = base[:i]
+		}
+	}
+	out := make([]map[string]any, 0, len(list))
+	for _, l := range list {
+		out = append(out, map[string]any{"id": l.ID, "code": l.Code, "kind": l.Kind, "max_uses": l.MaxUses, "uses": l.Uses, "expires_at": l.ExpiresAt, "enabled": l.Enabled, "created_at": l.CreatedAt, "url": base + "/s/" + l.Code})
+	}
+	ok(w, out)
+}
+
+func (h *handlers) createTempLink(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		MaxUses int
+		Hours   int
+	}
+	if !decode(r, &in) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	if in.MaxUses <= 0 && in.Hours <= 0 {
+		fail(w, http.StatusBadRequest, "set a use limit and/or an expiry")
+		return
+	}
+	if _, err := h.Store.UserByID(r.Context(), idOf(r)); err != nil {
+		fail(w, http.StatusNotFound, "user not found")
+		return
+	}
+	l, err := h.Store.CreateTempLink(r.Context(), idOf(r), in.MaxUses, time.Duration(in.Hours)*time.Hour)
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, l)
+}
+
+func (h *handlers) deleteSubLink(w http.ResponseWriter, r *http.Request) {
+	lid, _ := strconv.ParseInt(r.PathValue("lid"), 10, 64)
+	if err := h.Store.DeleteSubLink(r.Context(), idOf(r), lid); err != nil {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
