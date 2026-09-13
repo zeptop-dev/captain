@@ -101,10 +101,10 @@ func (s *Store) TouchNode(ctx context.Context, id int64, version, revision strin
 	return err
 }
 
-const inboundCols = "id, node_id, tag, protocol, listen, port, core, settings_json, group_id, enabled, sort"
+const inboundCols = "id, node_id, tag, protocol, listen, port, core, settings_json, group_id, enabled, sort, ingress_id"
 
 func inboundColsPrefixed(p string) string {
-	return p + ".id, " + p + ".node_id, " + p + ".tag, " + p + ".protocol, " + p + ".listen, " + p + ".port, " + p + ".core, " + p + ".settings_json, " + p + ".group_id, " + p + ".enabled, " + p + ".sort"
+	return p + ".id, " + p + ".node_id, " + p + ".tag, " + p + ".protocol, " + p + ".listen, " + p + ".port, " + p + ".core, " + p + ".settings_json, " + p + ".group_id, " + p + ".enabled, " + p + ".sort, " + p + ".ingress_id"
 }
 
 func unmarshalSettings(raw string, ib *domain.Inbound) error {
@@ -114,15 +114,15 @@ func unmarshalSettings(raw string, ib *domain.Inbound) error {
 func scanInbound(row interface{ Scan(...any) error }) (*domain.Inbound, error) {
 	var ib domain.Inbound
 	var settings string
-	var group sql.NullInt64
+	var group, ingress sql.NullInt64
 	var enabled int
-	if err := row.Scan(&ib.ID, &ib.NodeID, &ib.Tag, &ib.Protocol, &ib.Listen, &ib.Port, &ib.Core, &settings, &group, &enabled, &ib.Sort); err != nil {
+	if err := row.Scan(&ib.ID, &ib.NodeID, &ib.Tag, &ib.Protocol, &ib.Listen, &ib.Port, &ib.Core, &settings, &group, &enabled, &ib.Sort, &ingress); err != nil {
 		return nil, wrapNotFound(err)
 	}
 	if err := json.Unmarshal([]byte(settings), &ib.Settings); err != nil {
 		return nil, err
 	}
-	ib.GroupID = int64Ptr(group)
+	ib.GroupID, ib.IngressID = int64Ptr(group), int64Ptr(ingress)
 	ib.Enabled = enabled == 1
 	return &ib, nil
 }
@@ -133,9 +133,9 @@ func (s *Store) CreateInbound(ctx context.Context, ib *domain.Inbound) error {
 		return err
 	}
 	ts := now()
-	res, err := s.db.ExecContext(ctx, `INSERT INTO inbounds (node_id, tag, protocol, listen, port, core, settings_json, group_id, enabled, sort, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		ib.NodeID, ib.Tag, ib.Protocol, ib.Listen, ib.Port, ib.Core, string(settings), nullInt64(ib.GroupID), boolInt(ib.Enabled), ib.Sort, ts, ts)
+	res, err := s.db.ExecContext(ctx, `INSERT INTO inbounds (node_id, tag, protocol, listen, port, core, settings_json, group_id, enabled, sort, ingress_id, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		ib.NodeID, ib.Tag, ib.Protocol, ib.Listen, ib.Port, ib.Core, string(settings), nullInt64(ib.GroupID), boolInt(ib.Enabled), ib.Sort, nullInt64(ib.IngressID), ts, ts)
 	if err != nil {
 		return err
 	}
@@ -232,8 +232,8 @@ func (s *Store) UpdateInbound(ctx context.Context, ib *domain.Inbound) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, `UPDATE inbounds SET tag = ?, protocol = ?, listen = ?, port = ?, core = ?, settings_json = ?, group_id = ?, enabled = ?, sort = ?, updated_at = ? WHERE id = ?`,
-		ib.Tag, ib.Protocol, ib.Listen, ib.Port, ib.Core, string(settings), nullInt64(ib.GroupID), boolInt(ib.Enabled), ib.Sort, now(), ib.ID)
+	_, err = s.db.ExecContext(ctx, `UPDATE inbounds SET tag = ?, protocol = ?, listen = ?, port = ?, core = ?, settings_json = ?, group_id = ?, enabled = ?, sort = ?, ingress_id = ?, updated_at = ? WHERE id = ?`,
+		ib.Tag, ib.Protocol, ib.Listen, ib.Port, ib.Core, string(settings), nullInt64(ib.GroupID), boolInt(ib.Enabled), ib.Sort, nullInt64(ib.IngressID), now(), ib.ID)
 	return err
 }
 

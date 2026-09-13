@@ -157,7 +157,9 @@
       "ss2022": "Shadowsocks 2022",
       "ss2022Desc": "Lightweight; needs a base64 server key.",
       "trojanWs": "Trojan + WS + TLS",
-      "trojanWsDesc": "CDN friendly; needs a certificate."
+      "trojanWsDesc": "CDN friendly; needs a certificate.",
+      "mieruLine": "mieru · IPLC line",
+      "mieruLineDesc": "Bound to the line NIC, advertised through the carrier entry; copy addresses and the port range from the provider."
     },
     "mieruStrategy": "mieru strategy",
     "mieruStrategyHint": "Same presets as nobrand-oneclick: dedicated line = no obfuscation, public = conservative, stealth adds fragmentation and padding; custom edits traffic_pattern below directly.",
@@ -167,7 +169,15 @@
       "balanced": "Public network (conservative)",
       "stealth": "Enhanced camouflage",
       "custom": "Custom"
-    }
+    },
+    "ingress": "Ingress",
+    "ingressDirect": "Direct (node public address / domain)",
+    "ingressNew": "New line ingress…",
+    "ingressDirectHint": "Clients dial the node's public address or domain.",
+    "ingressHint": "Clients dial {{host}}; local port range {{ports}}.",
+    "ingressNewHint": "The line ingress is created first, then the inbound.",
+    "ingressNewFields": "Copy these from the provider's network information page:",
+    "listenIngressHint": "blank = bind to the ingress address {{ip}}"
   },
   "entries": {
     "title": "Entries",
@@ -864,5 +874,28 @@
     "usePanel": "panel",
     "deleteHint": "Removes the registration only; nodes and certificates stay.",
     "empty": "No domains registered yet."
+  },
+  "ingress": {
+    "title": "Line ingresses",
+    "add": "Add ingress",
+    "hint": "Register an IPLC / dedicated line in front of the node: inbounds bind to the line NIC, entries advertise the provider's public entry, and lines without one are reached through a relay node forwarding to the far-end address. Direct access needs nothing here.",
+    "name": "Name",
+    "bindIP": "Local bind IP",
+    "bindIPHint": "The line NIC address on the VPS; inbounds bind to it (blank = all addresses)",
+    "lineIP": "Far-end address",
+    "lineIPHint": "The line's address at the other end; relays forward here. Not reachable from the public internet",
+    "entryHost": "Public entry",
+    "entryHostHint": "Provider-supplied entry (e.g. a China Mobile entry IP) that clients dial; blank if none",
+    "portFrom": "Ports from",
+    "portTo": "to",
+    "portOffset": "Port offset",
+    "portOffsetHint": "entry port = local port + offset, usually 0",
+    "ports": "Ports",
+    "inbounds": "Inbounds",
+    "anyAddr": "all addresses",
+    "anyPort": "any port",
+    "noEntry": "no public entry",
+    "noEntryHint": "This line has no public entry: add a port forward on a relay node that can reach it (target = the far-end address) and use the relay's address in entries.",
+    "deleteHint": "Inbounds using it fall back to direct; entry addresses are not rewritten."
   }
 }

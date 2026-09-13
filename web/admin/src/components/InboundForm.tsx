@@ -1,7 +1,9 @@
 import { Button, Card, Group, JsonInput, NumberInput, Select, SimpleGrid, Stack, Switch, Text, TextInput, UnstyledButton } from '@mantine/core'
 import { useForm } from '@mantine/form'
+import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Group as UGroup, Inbound } from '../lib/api'
+import type { Group as UGroup, Inbound, Ingress } from '../lib/api'
+import { IngressFields, emptyIngress, type IngressValues } from './IngressesCard'
 
 const protocols = ['vless', 'vmess', 'trojan', 'shadowsocks', 'hysteria2', 'tuic', 'anytls', 'mieru', 'socks', 'http', 'naive']
 const cores = ['', 'singbox', 'xray', 'mita', 'hysteria']
@@ -12,6 +14,7 @@ const recipes: { key: string; protocol: string; port: number; settings: Record<s
   { key: 'vlessReality', protocol: 'vless', port: 443, settings: { flow: 'xtls-rprx-vision', tls: { mode: 2, server_name: 'www.apple.com', reality: { private_key: '', public_key: '', short_ids: ['0123abcd'], handshake_server: 'www.apple.com', handshake_port: 443 } } } },
   { key: 'hysteria2', protocol: 'hysteria2', port: 8443, settings: { tls: { mode: 1, server_name: 'node.example.com', auto_cert: true, acme: 'http' }, obfs: 'salamander', obfs_password: 'change-me', up_mbps: 100, down_mbps: 500 } },
   { key: 'mieru', protocol: 'mieru', port: 24450, settings: { mieru_transport: 'TCP' } },
+  { key: 'mieruLine', protocol: 'mieru', port: 0, settings: { mieru_transport: 'TCP' } },
   { key: 'ss2022', protocol: 'shadowsocks', port: 8388, settings: { cipher: '2022-blake3-aes-128-gcm', server_key: '' } },
   { key: 'trojanWs', protocol: 'trojan', port: 443, settings: { tls: { mode: 1, server_name: 'node.example.com', auto_cert: true, acme: 'http' }, transport: { type: 'ws', path: '/trojan', host: 'node.example.com' } } },
 ]
@@ -43,12 +46,12 @@ function withMieru(settings: string, patch: { strategy?: string; transport?: str
   return JSON.stringify(s, null, 2)
 }
 
-export type InboundValues = { Tag: string; Protocol: string; Listen: string; Port: number; Core: string; GroupID: string; Enabled: boolean; Settings: string }
+export type InboundValues = { Tag: string; Protocol: string; Listen: string; Port: number; Core: string; GroupID: string; Enabled: boolean; Settings: string; IngressID: string; NewIngress?: IngressValues }
 
 export function toValues(ib?: Inbound): InboundValues {
   return ib
-    ? { Tag: ib.Tag, Protocol: ib.Protocol, Listen: ib.Listen, Port: ib.Port, Core: ib.Core, GroupID: ib.GroupID ? String(ib.GroupID) : '', Enabled: ib.Enabled, Settings: JSON.stringify(stripIdentity(ib.Settings), null, 2) }
-    : { Tag: '', Protocol: 'vless', Listen: '', Port: 443, Core: '', GroupID: '', Enabled: true, Settings: '{}' }
+    ? { Tag: ib.Tag, Protocol: ib.Protocol, Listen: ib.Listen, Port: ib.Port, Core: ib.Core, GroupID: ib.GroupID ? String(ib.GroupID) : '', Enabled: ib.Enabled, Settings: JSON.stringify(stripIdentity(ib.Settings), null, 2), IngressID: ib.IngressID ? String(ib.IngressID) : '' }
+    : { Tag: '', Protocol: 'vless', Listen: '', Port: 443, Core: '', GroupID: '', Enabled: true, Settings: '{}', IngressID: '' }
 }
 
 function stripIdentity(s: Record<string, unknown>) {
@@ -58,19 +61,38 @@ function stripIdentity(s: Record<string, unknown>) {
 
 export function toPayload(v: InboundValues) {
   const settings = JSON.parse(v.Settings || '{}')
-  return { Tag: v.Tag, Protocol: v.Protocol, Listen: v.Listen, Port: v.Port, Core: v.Core, GroupID: v.GroupID ? Number(v.GroupID) : null, Enabled: v.Enabled, Settings: settings }
+  return { Tag: v.Tag, Protocol: v.Protocol, Listen: v.Listen, Port: v.Port, Core: v.Core, GroupID: v.GroupID ? Number(v.GroupID) : null, Enabled: v.Enabled, Settings: settings, IngressID: v.IngressID ? Number(v.IngressID) : null }
 }
 
-export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain }: { initial: InboundValues; groups: UGroup[]; onSubmit: (v: InboundValues) => void; busy: boolean; onCancel: () => void; domain?: string }) {
+export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain, ingresses = [], usedPorts = [] }: { initial: InboundValues; groups: UGroup[]; onSubmit: (v: InboundValues) => void; busy: boolean; onCancel: () => void; domain?: string; ingresses?: Ingress[]; usedPorts?: number[] }) {
   const { t } = useTranslation()
   const form = useForm<InboundValues>({
     initialValues: initial,
     validate: { Tag: (v) => (v ? null : 'required'), Port: (v) => (v > 0 && v < 65536 ? null : 'port'), Settings: (v) => { try { JSON.parse(v || '{}'); return null } catch { return 'invalid JSON' } } },
   })
   // Recipes name node.example.com; a node with a registered host name gets it instead.
-  const apply = (r: (typeof recipes)[number]) => form.setValues({ Protocol: r.protocol, Port: r.port, Settings: JSON.stringify(r.settings, null, 2).replaceAll('node.example.com', domain || 'node.example.com'), Tag: form.values.Tag || r.protocol })
+  // The IPLC recipe also needs a line ingress: reuse the node's first one or
+  // describe a new one inline (created together with the inbound).
+  const firstFree = (g?: { port_from: number; port_to: number }) => { if (!g || !g.port_from) return 0; for (let p = g.port_from; p <= g.port_to; p++) if (!usedPorts.includes(p)) return p; return 0 }
+  const apply = (r: (typeof recipes)[number]) => {
+    if (r.key === 'mieruLine') {
+      const g = ingresses[0]
+      form.setValues({ Protocol: 'mieru', Settings: JSON.stringify(r.settings, null, 2), Tag: form.values.Tag || 'mieru-iplc', IngressID: g ? String(g.id) : '', NewIngress: g ? undefined : { ...emptyIngress }, Port: firstFree(g) || 17701 })
+      return
+    }
+    form.setValues({ Protocol: r.protocol, Port: r.port, Settings: JSON.stringify(r.settings, null, 2).replaceAll('node.example.com', domain || 'node.example.com'), Tag: form.values.Tag || r.protocol, NewIngress: undefined })
+  }
+  const ingressForm = useForm<IngressValues>({ initialValues: form.values.NewIngress ?? emptyIngress })
+  useEffect(() => { if (form.values.NewIngress) ingressForm.setValues(form.values.NewIngress) }, [form.values.NewIngress]) // eslint-disable-line react-hooks/exhaustive-deps
+  const selectedIngress = ingresses.find((g) => String(g.id) === form.values.IngressID)
+  const onIngress = (v: string | null) => {
+    if (v === 'new') { form.setValues({ IngressID: '', NewIngress: { ...emptyIngress } }); return }
+    const g = ingresses.find((x) => String(x.id) === v)
+    form.setValues({ IngressID: v ?? '', NewIngress: undefined, Port: g && !g.port_from ? form.values.Port : (g ? (firstFree(g) || form.values.Port) : form.values.Port) })
+  }
+  const submit = (v: InboundValues) => onSubmit(v.NewIngress ? { ...v, NewIngress: ingressForm.values } : v)
   return (
-    <form onSubmit={form.onSubmit(onSubmit)}>
+    <form onSubmit={form.onSubmit(submit)}>
       <Stack>
         <div>
           <Text size="sm" fw={600}>{t('inbounds.recipe')}</Text>
@@ -90,8 +112,12 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain 
           <TextInput label={t('inbounds.tag')} required {...form.getInputProps('Tag')} />
           <Select label={t('inbounds.protocol')} data={protocols} required allowDeselect={false} {...form.getInputProps('Protocol')} />
         </Group>
+        <Select label={t('inbounds.ingress')} description={form.values.NewIngress ? t('inbounds.ingressNewHint') : selectedIngress ? t('inbounds.ingressHint', { host: selectedIngress.entry_host || t('ingress.noEntry'), ports: selectedIngress.port_from ? `${selectedIngress.port_from}–${selectedIngress.port_to}` : t('ingress.anyPort') }) : t('inbounds.ingressDirectHint')} allowDeselect={false}
+          data={[{ value: '', label: t('inbounds.ingressDirect') }, ...ingresses.map((g) => ({ value: String(g.id), label: `${g.name} → ${g.entry_host || t('ingress.noEntry')}` })), { value: 'new', label: t('inbounds.ingressNew') }]}
+          value={form.values.NewIngress ? 'new' : form.values.IngressID} onChange={onIngress} />
+        {form.values.NewIngress && <Stack gap="xs" p="sm" style={{ border: '1px dashed var(--mantine-color-default-border)', borderRadius: 8 }}><Text size="xs" c="dimmed">{t('inbounds.ingressNewFields')}</Text><IngressFields form={ingressForm} /></Stack>}
         <Group grow>
-          <TextInput label={t('inbounds.listen')} placeholder="::" {...form.getInputProps('Listen')} />
+          <TextInput label={t('inbounds.listen')} placeholder={selectedIngress?.bind_ip || '::'} description={selectedIngress?.bind_ip ? t('inbounds.listenIngressHint', { ip: selectedIngress.bind_ip }) : undefined} {...form.getInputProps('Listen')} />
           <NumberInput label={t('inbounds.port')} min={1} max={65535} required {...form.getInputProps('Port')} />
           <Select label={t('inbounds.core')} data={cores.map((c) => ({ value: c, label: c || t('inbounds.coreAuto') }))} allowDeselect={false} {...form.getInputProps('Core')} />
         </Group>

@@ -66,17 +66,17 @@ func (s *Store) EntriesForUser(ctx context.Context, u *domain.User) ([]EntryLine
 	var out []EntryLine
 	for rows.Next() {
 		var l EntryLine
-		var chain, group sql.NullInt64
+		var chain, group, ingress sql.NullInt64
 		var eEnabled, iEnabled int
 		var settings, tags string
 		if err := rows.Scan(&l.Entry.ID, &l.Entry.Name, &l.Entry.InboundID, &chain, &l.Entry.DisplayHost, &l.Entry.DisplayPort, &l.Entry.Rate, &l.Entry.Sort, &eEnabled, &tags, &l.Entry.Region,
-			&l.Inbound.ID, &l.Inbound.NodeID, &l.Inbound.Tag, &l.Inbound.Protocol, &l.Inbound.Listen, &l.Inbound.Port, &l.Inbound.Core, &settings, &group, &iEnabled, &l.Inbound.Sort); err != nil {
+			&l.Inbound.ID, &l.Inbound.NodeID, &l.Inbound.Tag, &l.Inbound.Protocol, &l.Inbound.Listen, &l.Inbound.Port, &l.Inbound.Core, &settings, &group, &iEnabled, &l.Inbound.Sort, &ingress); err != nil {
 			return nil, err
 		}
 		if err := unmarshalSettings(settings, &l.Inbound); err != nil {
 			return nil, err
 		}
-		l.Entry.ChainID, l.Inbound.GroupID = int64Ptr(chain), int64Ptr(group)
+		l.Entry.ChainID, l.Inbound.GroupID, l.Inbound.IngressID = int64Ptr(chain), int64Ptr(group), int64Ptr(ingress)
 		l.Entry.Enabled, l.Inbound.Enabled = eEnabled == 1, iEnabled == 1
 		l.Entry.Tags = splitTags(tags)
 		out = append(out, l)

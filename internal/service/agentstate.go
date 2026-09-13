@@ -65,8 +65,18 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 	}
 	users := toSpecUsers(all, over, limits)
 	byGroup := map[int64][]spec.User{}
+	ingresses, _ := a.Store.IngressesByNode(ctx, n.ID)
+	bindFor := map[int64]string{}
+	for _, g := range ingresses {
+		bindFor[g.ID] = g.BindIP
+	}
 	for _, ib := range inbounds {
 		si := ib.Spec()
+		// A line ingress with its own NIC address: bind there so replies
+		// leave through the line, unless the inbound sets a listen itself.
+		if ib.IngressID != nil && si.Listen == "" {
+			si.Listen = bindFor[*ib.IngressID]
+		}
 		if ib.GroupID != nil {
 			list, ok := byGroup[*ib.GroupID]
 			if !ok {

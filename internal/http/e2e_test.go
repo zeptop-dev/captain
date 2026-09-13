@@ -2464,3 +2464,96 @@ func TestDomainsAndIssuedCertificates(t *testing.T) {
 		t.Fatalf("certificate lost with domain: %s", b)
 	}
 }
+
+func TestLineIngresses(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "https://panel.test"
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	ac := &client{t: t, srv: srv}
+	ac.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+	_, b, _ := ac.do("POST", "/api/admin/nodes", map[string]any{"Name": "jp", "PublicAddr": "192.0.2.10", "Domain": "jp1.example.com"}, nil)
+	node := mustJSON[map[string]any](t, b)
+	nid := itoa(int64(node["id"].(float64)))
+
+	// Validation: something to reach the line by; a sane port range.
+	if code, _, _ := ac.do("POST", "/api/admin/nodes/"+nid+"/ingresses", map[string]any{"Name": "IPLC"}, nil); code != 400 {
+		t.Fatal("ingress without addresses accepted")
+	}
+	if code, _, _ := ac.do("POST", "/api/admin/nodes/"+nid+"/ingresses", map[string]any{"Name": "IPLC", "LineIP": "198.51.100.20", "PortFrom": 17799, "PortTo": 17701}, nil); code != 400 {
+		t.Fatal("inverted range accepted")
+	}
+	code, b, _ := ac.do("POST", "/api/admin/nodes/"+nid+"/ingresses", map[string]any{"Name": "IPLC", "BindIP": "10.10.0.2", "LineIP": "198.51.100.20", "EntryHost": "203.0.113.30", "PortFrom": 17701, "PortTo": 17799}, nil)
+	if code != 200 {
+		t.Fatalf("create ingress: %d %s", code, b)
+	}
+	gid := int64(mustJSON[map[string]any](t, b)["id"].(float64))
+
+	// Inbounds: port must fit the line; the node state binds to the line NIC.
+	if code, b, _ := ac.do("POST", "/api/admin/nodes/"+nid+"/inbounds", map[string]any{"Tag": "m", "Protocol": "mieru", "Port": 17800, "IngressID": gid, "Settings": map[string]any{"mieru_transport": "TCP"}}, nil); code != 400 || !strings.Contains(string(b), "range") {
+		t.Fatalf("port outside range: %d %s", code, b)
+	}
+	_, b, _ = ac.do("POST", "/api/admin/nodes/"+nid+"/inbounds", map[string]any{"Tag": "m", "Protocol": "mieru", "Port": 17710, "IngressID": gid, "Settings": map[string]any{"mieru_transport": "TCP"}}, nil)
+	mieru := mustJSON[map[string]any](t, b)
+	_, b, _ = ac.do("POST", "/api/admin/nodes/"+nid+"/inbounds", map[string]any{"Tag": "hy2", "Protocol": "hysteria2", "Port": 8443, "Settings": map[string]any{"tls": map[string]any{"mode": 1, "server_name": "jp1.example.com"}}}, nil)
+	hy2 := mustJSON[map[string]any](t, b)
+	nc := &client{t: t, srv: srv}
+	_, b, _ = nc.do("POST", "/api/agent/pair", agentproto.PairRequest{Code: node["pair_code"].(string)}, nil)
+	nc.token = mustJSON[agentproto.PairResponse](t, b).Token
+	_, b, _ = nc.do("GET", "/api/agent/state", nil, nil)
+	state := mustJSON[agentproto.State](t, b)
+	var mListen, hListen string
+	for _, ib := range state.Node.Inbounds {
+		if ib.Tag == "m" {
+			mListen = ib.Listen
+		}
+		if ib.Tag == "hy2" {
+			hListen = ib.Listen
+		}
+	}
+	if mListen != "10.10.0.2" || hListen != "" {
+		t.Fatalf("listen: mieru=%q hy2=%q", mListen, hListen)
+	}
+	// Node detail carries the ingresses.
+	_, b, _ = ac.do("GET", "/api/admin/nodes/"+nid, nil, nil)
+	if !strings.Contains(string(b), `"entry_host":"203.0.113.30"`) || !strings.Contains(string(b), `"IngressID":`+itoa(gid)) {
+		t.Fatalf("node detail: %s", b)
+	}
+
+	// Entries: the line inbound advertises the carrier entry, the direct
+	// inbound the node domain.
+	_, b, _ = ac.do("POST", "/api/admin/entries", map[string]any{"Name": "沪日", "InboundID": mieru["ID"]}, nil)
+	if !strings.Contains(string(b), `"DisplayHost":"203.0.113.30"`) || !strings.Contains(string(b), `"DisplayPort":17710`) {
+		t.Fatalf("line entry: %s", b)
+	}
+	_, b, _ = ac.do("POST", "/api/admin/entries", map[string]any{"Name": "direct", "InboundID": hy2["ID"]}, nil)
+	if !strings.Contains(string(b), `"DisplayHost":"jp1.example.com"`) {
+		t.Fatalf("direct entry: %s", b)
+	}
+	// A port offset shifts the advertised port; no public entry means a
+	// relay is needed and the entry says so.
+	ac.do("PATCH", "/api/admin/ingresses/"+itoa(gid), map[string]any{"Name": "IPLC", "BindIP": "10.10.0.2", "LineIP": "198.51.100.20", "EntryHost": "203.0.113.30", "PortFrom": 17701, "PortTo": 17799, "PortOffset": 1000}, nil)
+	_, b, _ = ac.do("POST", "/api/admin/entries", map[string]any{"Name": "沪日2", "InboundID": mieru["ID"]}, nil)
+	if !strings.Contains(string(b), `"DisplayPort":18710`) {
+		t.Fatalf("offset entry: %s", b)
+	}
+	ac.do("PATCH", "/api/admin/ingresses/"+itoa(gid), map[string]any{"Name": "IPLC", "BindIP": "10.10.0.2", "LineIP": "198.51.100.20", "PortFrom": 17701, "PortTo": 17799}, nil)
+	if code, b, _ := ac.do("POST", "/api/admin/entries", map[string]any{"Name": "沪日3", "InboundID": mieru["ID"]}, nil); code != 400 || !strings.Contains(string(b), "relay") {
+		t.Fatalf("entry without public entry: %d %s", code, b)
+	}
+	// Explicit addresses still win (a relay in front of the line).
+	if code, b, _ := ac.do("POST", "/api/admin/entries", map[string]any{"Name": "via relay", "InboundID": mieru["ID"], "DisplayHost": "relay.example.com", "DisplayPort": 17710}, nil); code != 200 {
+		t.Fatalf("explicit entry: %d %s", code, b)
+	}
+	// Deleting the ingress detaches inbounds instead of deleting them.
+	ac.do("DELETE", "/api/admin/ingresses/"+itoa(gid), nil, nil)
+	ib, err := st.InboundByID(context.Background(), int64(mieru["ID"].(float64)))
+	if err != nil || ib.IngressID != nil {
+		t.Fatalf("inbound after ingress delete: %+v %v", ib, err)
+	}
+}
