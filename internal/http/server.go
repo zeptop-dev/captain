@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
+	"github.com/zeptop-dev/captain/internal/http/mcp"
 	"github.com/zeptop-dev/captain/internal/http/oauth"
 	"github.com/zeptop-dev/captain/internal/http/probe"
 	"github.com/zeptop-dev/captain/internal/http/ratelimit"
@@ -18,6 +19,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -111,6 +113,21 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 		return u
 	}
 	s.external = &service.External{Store: st}
+	mcp.Register(s.mux, mcp.Deps{Store: st, Probe: s.probeSvc, Log: log, Version: cfg.Version,
+		Resolve: func(ctx context.Context, token string) *domain.User {
+			u, err := st.UserByAPIToken(ctx, token)
+			if err != nil || u == nil || !u.IsStaff() || u.Status != "active" {
+				return nil
+			}
+			return u
+		},
+		NewUser: func(email, password string) (*domain.User, error) { return admin.NewUser(email, password, "user") },
+		OnTicketReply: func(ctx context.Context, t *domain.Ticket, body string) {
+			if u, err := st.UserByID(ctx, t.UserID); err == nil {
+				notifier.User(ctx, u.ID, u.Email, "Ticket #"+strconv.FormatInt(t.ID, 10)+": "+t.Subject, body)
+			}
+		},
+	})
 	s.probe = probe.Register(s.mux, probe.Deps{Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe()})
 	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version},

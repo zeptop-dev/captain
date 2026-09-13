@@ -161,16 +161,22 @@ func decode(r *http.Request, v any) bool { return json.NewDecoder(r.Body).Decode
 
 func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		c, err := r.Cookie(cookieName)
-		if err != nil {
-			fail(w, http.StatusUnauthorized, "not logged in")
-			return
-		}
-		u, err := h.Sessions.Resolve(r.Context(), c.Value)
-		if err != nil {
-			h.Log.Error("session", "err", err)
-			fail(w, http.StatusInternalServerError, "internal error")
-			return
+		var u *domain.User
+		if tok := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer")); tok != "" && strings.HasPrefix(tok, "cap_") {
+			// Personal API token (scripts, MCP): same role as its owner.
+			u, _ = h.Store.UserByAPIToken(r.Context(), tok)
+		} else {
+			c, err := r.Cookie(cookieName)
+			if err != nil {
+				fail(w, http.StatusUnauthorized, "not logged in")
+				return
+			}
+			u, err = h.Sessions.Resolve(r.Context(), c.Value)
+			if err != nil {
+				h.Log.Error("session", "err", err)
+				fail(w, http.StatusInternalServerError, "internal error")
+				return
+			}
 		}
 		if u == nil || !u.IsStaff() || u.Status != "active" {
 			fail(w, http.StatusForbidden, "admin only")
@@ -1357,7 +1363,7 @@ func allowed(role, method, path string) bool {
 		return true
 	case domain.RoleSupport:
 		switch {
-		case path == "/api/admin/me", path == "/api/admin/logout", path == "/api/admin/dashboard":
+		case path == "/api/admin/me", path == "/api/admin/logout", path == "/api/admin/dashboard", strings.HasPrefix(path, "/api/admin/tokens"):
 			return true
 		case strings.HasPrefix(path, "/api/admin/tickets"):
 			return true

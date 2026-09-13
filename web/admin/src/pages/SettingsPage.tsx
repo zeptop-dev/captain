@@ -16,6 +16,7 @@ import { RegistrationCard } from '../components/RegistrationCard'
 import { ClientsCard, TelegramCard, TrialCard } from '../components/OpsCards'
 import { WebhooksCard } from '../components/WebhooksCard'
 import { ProbeCard } from '../components/ProbeCard'
+import { TokensCard } from '../components/TokensCard'
 
 export default function SettingsPage() {
   const { t } = useTranslation()
@@ -110,6 +111,7 @@ export default function SettingsPage() {
         <TelegramCard />
         <WebhooksCard />
         <ProbeCard />
+        <TokensCard />
         <ClientsCard />
         <Card>
           <Title order={5} mb="xs">{t('settings.oidc')}</Title>

@@ -1817,3 +1817,98 @@ func TestSpeedtest(t *testing.T) {
 		t.Fatalf("ping stats mbps: %s", b)
 	}
 }
+
+func TestAPITokensAndMCP(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "https://panel.test"
+	cfg.Portal.Registration = true
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	ac := &client{t: t, srv: srv}
+	ac.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+	_, b, _ := ac.do("POST", "/api/admin/tokens", map[string]string{"Name": "cli"}, nil)
+	token := mustJSON[map[string]any](t, b)["token"].(string)
+	if !strings.HasPrefix(token, "cap_") {
+		t.Fatalf("token %s", token)
+	}
+	// Bearer auth on the admin API, with the owner's role.
+	tc := &client{t: t, srv: srv}
+	if code, _, _ := tc.do("GET", "/api/admin/nodes", nil, map[string]string{"Authorization": "Bearer " + token}); code != 200 {
+		t.Fatalf("bearer admin api: %d", code)
+	}
+	if code, _, _ := tc.do("GET", "/api/admin/nodes", nil, map[string]string{"Authorization": "Bearer cap_nope"}); code != 403 && code != 401 {
+		t.Fatal("bad token accepted")
+	}
+	// MCP: unauthenticated 401; initialize; tools/list; read tool; write tool needs confirm.
+	rpc := func(c *client, method string, params any, id int) (int, map[string]any) {
+		code, body, _ := c.do("POST", "/mcp", map[string]any{"jsonrpc": "2.0", "id": id, "method": method, "params": params}, map[string]string{"Authorization": "Bearer " + token})
+		var out map[string]any
+		_ = json.Unmarshal(body, &out)
+		return code, out
+	}
+	if code, _, _ := (&client{t: t, srv: srv}).do("POST", "/mcp", map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize"}, nil); code != 401 {
+		t.Fatalf("mcp without token: %d", code)
+	}
+	code, out := rpc(tc, "initialize", map[string]any{"protocolVersion": "2025-06-18"}, 1)
+	if code != 200 || out["result"].(map[string]any)["protocolVersion"] != "2025-06-18" {
+		t.Fatalf("initialize: %d %v", code, out)
+	}
+	_, out = rpc(tc, "tools/list", nil, 2)
+	toolsList := out["result"].(map[string]any)["tools"].([]any)
+	if len(toolsList) < 15 {
+		t.Fatalf("tools: %d", len(toolsList))
+	}
+	_, out = rpc(tc, "tools/call", map[string]any{"name": "dashboard"}, 3)
+	if txt := out["result"].(map[string]any)["content"].([]any)[0].(map[string]any)["text"].(string); !strings.Contains(txt, `"users"`) {
+		t.Fatalf("dashboard tool: %s", txt)
+	}
+	_, out = rpc(tc, "tools/call", map[string]any{"name": "user_create", "arguments": map[string]any{"email": "m@test", "password": "password123"}}, 4)
+	if res := out["result"].(map[string]any); res["isError"] != true || !strings.Contains(res["content"].([]any)[0].(map[string]any)["text"].(string), "confirm") {
+		t.Fatalf("write without confirm should error: %v", out)
+	}
+	_, out = rpc(tc, "tools/call", map[string]any{"name": "user_create", "arguments": map[string]any{"email": "m@test", "password": "password123", "confirm": true}}, 5)
+	if res := out["result"].(map[string]any); res["isError"] == true {
+		t.Fatalf("user_create: %v", out)
+	}
+	if _, err := st.UserByEmail(context.Background(), "m@test"); err != nil {
+		t.Fatal("user not created via MCP")
+	}
+	_, out = rpc(tc, "tools/call", map[string]any{"name": "user_detail", "arguments": map[string]any{"email": "m@test"}}, 6)
+	if txt := out["result"].(map[string]any)["content"].([]any)[0].(map[string]any)["text"].(string); !strings.Contains(txt, `"email": "m@test"`) {
+		t.Fatalf("user_detail: %s", txt)
+	}
+	// A support token sees only its tools and cannot call write ones.
+	ac.do("POST", "/api/admin/admins", map[string]string{"Email": "sup@test", "Password": "password123", "Role": "support"}, nil)
+	sc := &client{t: t, srv: srv}
+	sc.do("POST", "/api/admin/login", map[string]string{"Email": "sup@test", "Password": "password123"}, nil)
+	_, b, _ = sc.do("POST", "/api/admin/tokens", map[string]string{"Name": "sup"}, nil)
+	supTok := mustJSON[map[string]any](t, b)["token"].(string)
+	code, body, _ := (&client{t: t, srv: srv}).do("POST", "/mcp", map[string]any{"jsonrpc": "2.0", "id": 7, "method": "tools/list"}, map[string]string{"Authorization": "Bearer " + supTok})
+	if code != 200 || strings.Contains(string(body), `"user_create"`) || !strings.Contains(string(body), `"ticket_reply"`) {
+		t.Fatalf("support tools: %s", body)
+	}
+	_, body, _ = (&client{t: t, srv: srv}).do("POST", "/mcp", map[string]any{"jsonrpc": "2.0", "id": 8, "method": "tools/call", "params": map[string]any{"name": "user_balance", "arguments": map[string]any{"user_id": 1, "delta_cents": 100, "confirm": true}}}, map[string]string{"Authorization": "Bearer " + supTok})
+	if !strings.Contains(string(body), "not permitted") {
+		t.Fatalf("support write tool: %s", body)
+	}
+	// Notifications get 202; unknown method is a JSON-RPC error.
+	if code, _, _ := tc.do("POST", "/mcp", map[string]any{"jsonrpc": "2.0", "method": "notifications/initialized"}, map[string]string{"Authorization": "Bearer " + token}); code != 202 {
+		t.Fatalf("notification: %d", code)
+	}
+	_, out = rpc(tc, "nope", nil, 9)
+	if out["error"] == nil {
+		t.Fatal("unknown method should error")
+	}
+	// Token deletion revokes access.
+	_, b, _ = ac.do("GET", "/api/admin/tokens", nil, nil)
+	id := int64(mustJSON[[]map[string]any](t, b)[0]["id"].(float64))
+	ac.do("DELETE", "/api/admin/tokens/"+itoa(id), nil, nil)
+	if code, _, _ := tc.do("GET", "/api/admin/nodes", nil, map[string]string{"Authorization": "Bearer " + token}); code == 200 {
+		t.Fatal("deleted token still works")
+	}
+}
