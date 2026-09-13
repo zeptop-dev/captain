@@ -756,10 +756,13 @@ func (h *handlers) savePingTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch t.Type {
-	case "icmp", "tcp", "http":
+	case "icmp", "tcp", "http", "download":
 	default:
-		fail(w, http.StatusBadRequest, "type must be icmp, tcp or http")
+		fail(w, http.StatusBadRequest, "type must be icmp, tcp, http or download")
 		return
+	}
+	if t.Type == "download" && t.IntervalSeconds < 600 {
+		t.IntervalSeconds = 600
 	}
 	if t.IntervalSeconds < 5 {
 		t.IntervalSeconds = 30

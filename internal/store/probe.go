@@ -262,9 +262,9 @@ func (s *Store) RecordBeat(ctx context.Context, nodeID int64, h spec.SystemStatu
 			} else {
 				sum = p.LatencyMs
 			}
-			if _, err := tx.ExecContext(ctx, `INSERT INTO node_ping_stats (node_id, task_id, name, res, ts, samples, lost, sum_ms) VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-				ON CONFLICT(node_id, task_id, name, res, ts) DO UPDATE SET samples = samples + 1, lost = lost + excluded.lost, sum_ms = sum_ms + excluded.sum_ms`,
-				nodeID, p.TaskID, p.Name, b.res, ts, lost, sum); err != nil {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO node_ping_stats (node_id, task_id, name, res, ts, samples, lost, sum_ms, sum_mbps) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)
+				ON CONFLICT(node_id, task_id, name, res, ts) DO UPDATE SET samples = samples + 1, lost = lost + excluded.lost, sum_ms = sum_ms + excluded.sum_ms, sum_mbps = sum_mbps + excluded.sum_mbps`,
+				nodeID, p.TaskID, p.Name, b.res, ts, lost, sum, p.Mbps); err != nil {
 				return err
 			}
 		}
@@ -355,11 +355,12 @@ type PingPoint struct {
 	TS      int64   `json:"ts"`
 	Samples int     `json:"n"`
 	Lost    int     `json:"lost"`
-	AvgMs   float64 `json:"avg_ms"` // -1 when every sample was lost
+	AvgMs   float64 `json:"avg_ms"`   // -1 when every sample was lost
+	AvgMbps float64 `json:"avg_mbps"` // download tasks only
 }
 
 func (s *Store) NodePingStats(ctx context.Context, nodeID int64, res string, from, to time.Time) ([]PingPoint, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT task_id, name, ts, samples, lost, sum_ms FROM node_ping_stats WHERE node_id = ? AND res = ? AND ts >= ? AND ts <= ? ORDER BY task_id, name, ts`, nodeID, res, from.Unix(), to.Unix())
+	rows, err := s.db.QueryContext(ctx, `SELECT task_id, name, ts, samples, lost, sum_ms, sum_mbps FROM node_ping_stats WHERE node_id = ? AND res = ? AND ts >= ? AND ts <= ? ORDER BY task_id, name, ts`, nodeID, res, from.Unix(), to.Unix())
 	if err != nil {
 		return nil, err
 	}
@@ -367,12 +368,13 @@ func (s *Store) NodePingStats(ctx context.Context, nodeID int64, res string, fro
 	out := []PingPoint{}
 	for rows.Next() {
 		var p PingPoint
-		var sum float64
-		if err := rows.Scan(&p.TaskID, &p.Name, &p.TS, &p.Samples, &p.Lost, &sum); err != nil {
+		var sum, sumMbps float64
+		if err := rows.Scan(&p.TaskID, &p.Name, &p.TS, &p.Samples, &p.Lost, &sum, &sumMbps); err != nil {
 			return nil, err
 		}
 		if okN := p.Samples - p.Lost; okN > 0 {
 			p.AvgMs = sum / float64(okN)
+			p.AvgMbps = sumMbps / float64(okN)
 		} else {
 			p.AvgMs = -1
 		}

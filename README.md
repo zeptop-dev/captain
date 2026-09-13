@@ -212,6 +212,14 @@ external login):
   `domain:`, `ip:`, `protocol:`, `port:` → outbound / direct / block. Needs
   bosun >= 0.12.
 
+## Speed test
+
+Admin → Speed test: TCP-connect latency from the panel to every entry's
+public address (what clients dial), one click or all at once, plus the
+nodes' own probe results. Add a probe task of type `download` (a large file
+URL) and each node reports its download throughput every 10 minutes, which
+also lands in the status page history.
+
 ## Probe / status page
 
 Settings → Probe. Off by default; nothing extra runs on nodes until it is on.

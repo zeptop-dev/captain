@@ -10,6 +10,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/webhook"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -1741,5 +1742,78 @@ func TestSubscriptionAdjustments(t *testing.T) {
 	_, b, _ = ac.do("GET", "/api/admin/renewals", nil, nil)
 	if !strings.Contains(string(b), `"email":"u@test"`) || !strings.Contains(string(b), `"plan_name":"p"`) {
 		t.Fatalf("renewals: %s", b)
+	}
+}
+
+func TestSpeedtest(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "https://panel.test"
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	ac := &client{t: t, srv: srv}
+	ac.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+
+	// A local listener stands in for an entry's public address.
+	ln, _ := net.Listen("tcp", "127.0.0.1:0")
+	defer ln.Close()
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			c.Close()
+		}
+	}()
+	port := ln.Addr().(*net.TCPAddr).Port
+	code, b, _ := ac.do("POST", "/api/admin/speedtest/tcping", map[string]any{"Host": "127.0.0.1", "Port": port}, nil)
+	var res struct {
+		MinMs float64 `json:"min_ms"`
+		AvgMs float64 `json:"avg_ms"`
+	}
+	_ = json.Unmarshal(b, &res)
+	if code != 200 || res.MinMs < 0 || res.AvgMs < res.MinMs {
+		t.Fatalf("tcping: %d %s", code, b)
+	}
+	// A refused port still counts as reachable (host up); a blackholed one does not — use a closed port for refusal.
+	closed, _ := net.Listen("tcp", "127.0.0.1:0")
+	cport := closed.Addr().(*net.TCPAddr).Port
+	closed.Close()
+	_, b, _ = ac.do("POST", "/api/admin/speedtest/tcping", map[string]any{"Host": "127.0.0.1", "Port": cport}, nil)
+	_ = json.Unmarshal(b, &res)
+	if res.MinMs < 0 {
+		t.Fatalf("refused port should measure: %s", b)
+	}
+	if code, _, _ := ac.do("POST", "/api/admin/speedtest/tcping", map[string]any{"Host": "", "Port": 1}, nil); code != 400 {
+		t.Fatal("empty host accepted")
+	}
+	// The workbench lists entries with the cached result and nodes' probe pings incl. download Mbps.
+	_, b, _ = ac.do("POST", "/api/admin/nodes", map[string]string{"Name": "n1", "PublicAddr": "127.0.0.1"}, nil)
+	node := mustJSON[map[string]any](t, b)
+	nodeID := int64(node["id"].(float64))
+	_, b, _ = ac.do("POST", "/api/admin/nodes/"+itoa(nodeID)+"/inbounds", map[string]any{"Tag": "in", "Protocol": "shadowsocks", "Port": 1, "Settings": map[string]any{"cipher": "aes-128-gcm"}}, nil)
+	ibID := int64(mustJSON[map[string]any](t, b)["ID"].(float64))
+	ac.do("POST", "/api/admin/entries", map[string]any{"Name": "local", "InboundID": ibID, "DisplayHost": "127.0.0.1", "DisplayPort": port}, nil)
+	ac.do("PUT", "/api/admin/settings/probe", map[string]any{"enabled": true, "path": "/status"}, nil)
+	code, b, _ = ac.do("POST", "/api/admin/ping-tasks", map[string]any{"name": "dl", "type": "download", "target": "https://speed.test/file", "interval_seconds": 30, "enabled": true}, nil)
+	if code != 200 || !strings.Contains(string(b), `"interval_seconds":600`) {
+		t.Fatalf("download task floor: %d %s", code, b)
+	}
+	nc := &client{t: t, srv: srv}
+	_, b, _ = nc.do("POST", "/api/agent/pair", map[string]string{"Code": node["pair_code"].(string), "Hostname": "n1", "Version": "v0.12.1", "Platform": "linux/amd64"}, nil)
+	nc.token = mustJSON[map[string]any](t, b)["token"].(string)
+	nc.do("POST", "/api/agent/beat", map[string]any{"version": "v0.12.1", "host": map[string]any{"cpu_percent": 1, "pings": []map[string]any{{"task_id": 1, "name": "dl", "latency_ms": 55, "mbps": 123.4}}}}, nil)
+	_, b, _ = ac.do("GET", "/api/admin/speedtest", nil, nil)
+	if !strings.Contains(string(b), `"name":"local"`) || !strings.Contains(string(b), `"min_ms"`) || !strings.Contains(string(b), `"mbps":123.4`) || !strings.Contains(string(b), `"probe_enabled":true`) {
+		t.Fatalf("speedtest doc: %s", b)
+	}
+	_, b, _ = ac.do("GET", "/api/probe/nodes/"+itoa(nodeID)+"/pings?range=24h", nil, nil)
+	if !strings.Contains(string(b), `"avg_mbps":123.4`) {
+		t.Fatalf("ping stats mbps: %s", b)
 	}
 }
