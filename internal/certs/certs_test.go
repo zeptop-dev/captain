@@ -77,7 +77,7 @@ func TestWWWCoversApex(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer m.Stop()
-	if got := m.Managed(); len(got) != 3 || got[0] != "www.example.com" || got[1] != "example.com" || got[2] != "*.example.com" {
+	if got := m.Managed(); len(got) != 2 || got[0] != "example.com" || got[1] != "*.example.com" {
 		t.Fatalf("managed %v", got)
 	}
 	if err := m.Sync(context.Background()); err != nil {
@@ -88,6 +88,19 @@ func TestWWWCoversApex(t *testing.T) {
 		if _, err := tc.GetCertificate(&tls.ClientHelloInfo{ServerName: name}); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
+	}
+}
+
+func TestApexAndDeepHosts(t *testing.T) {
+	for host, want := range map[string]string{"www.example.com": "example.com", "example.com": "example.com", "a.b.example.co.uk": "example.co.uk", "localhost": "localhost"} {
+		if got := Apex(host); got != want {
+			t.Errorf("Apex(%s) = %s, want %s", host, got, want)
+		}
+	}
+	m, _ := New(Options{Dir: t.TempDir(), Domain: "my.panel.example.com", CloudflareToken: "tok", Issuers: []certmagic.Issuer{}})
+	defer m.Stop()
+	if got := m.Managed(); len(got) != 3 || got[2] != "my.panel.example.com" {
+		t.Fatalf("deep host managed %v", got)
 	}
 }
 

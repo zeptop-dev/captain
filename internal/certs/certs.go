@@ -17,6 +17,7 @@ import (
 	"github.com/caddyserver/certmagic"
 	"github.com/libdns/cloudflare"
 	"go.uber.org/zap"
+	"golang.org/x/net/publicsuffix"
 )
 
 // Options configures a Manager.
@@ -104,23 +105,32 @@ func New(opts Options) (*Manager, error) {
 // DNS reports whether DNS-01 (and therefore the wildcard) is in use.
 func (m *Manager) DNS() bool { return m.opts.CloudflareToken != "" }
 
-// Managed lists the names obtained up front. With DNS-01 the wildcard is for
-// the registrable part: a "www.example.com" panel gets www, the apex and
-// "*.example.com", so the bare domain can redirect to www.
+// Managed lists the names obtained up front. With DNS-01 that is the
+// registrable domain and its wildcard ("example.com", "*.example.com"),
+// which already covers a "www." or "panel." host; a deeper panel host is
+// added on its own.
 func (m *Manager) Managed() []string {
 	d := strings.ToLower(m.opts.Domain)
 	if !m.DNS() {
 		return []string{d}
 	}
-	if apex := Apex(d); apex != d {
-		return []string{d, apex, "*." + apex}
+	apex := Apex(d)
+	names := []string{apex, "*." + apex}
+	if strings.Count(d, ".") > strings.Count(apex, ".")+1 { // deeper than *.apex reaches
+		names = append(names, d)
 	}
-	return []string{d, "*." + d}
+	return names
 }
 
-// Apex strips a leading "www." from a host.
+// Apex returns the registrable domain of host (eTLD+1, e.g. "example.com"
+// for "www.example.com" or "example.co.uk" for "a.b.example.co.uk"). Hosts
+// without a public suffix are returned unchanged.
 func Apex(host string) string {
-	return strings.TrimPrefix(strings.ToLower(host), "www.")
+	host = strings.ToLower(strings.TrimSuffix(host, "."))
+	if e, err := publicsuffix.EffectiveTLDPlusOne(host); err == nil {
+		return e
+	}
+	return host
 }
 
 // Start obtains the managed certificates in the background and keeps them

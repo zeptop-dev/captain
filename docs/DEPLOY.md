@@ -84,11 +84,12 @@ Encrypt certificate for the `base_url` host (renewed automatically, cached in
 `<data_dir>/certs`); :80 answers the ACME challenge and redirects. The systemd
 unit carries `CAP_NET_BIND_SERVICE` for that. Set `tls.cloudflare_token` (a
 token with Zone:DNS:Edit on the zone) to switch to DNS-01: Captain then obtains
-`example.com` **and** `*.example.com` up front, so www and every subscription
-host under the domain are covered, port 80 is no longer required and the
-Cloudflare proxy can stay on (SSL mode Full (strict)). Hosts outside that
-zone still get their own certificate on first request. A `www.example.com`
-panel also obtains `example.com` and redirects the bare domain to www. To terminate TLS elsewhere set
+`example.com` **and** `*.example.com` up front (the registrable domain of the
+panel host), so www, the bare domain and every subscription host under it are
+covered by one certificate, port 80 is no longer required and the Cloudflare
+proxy can stay on (SSL mode Full (strict)). Hosts outside that zone still get
+their own certificate on first request. With a `www.example.com` panel the
+bare domain redirects to www. To terminate TLS elsewhere set
 `tls.auto: false`, keep `listen: 127.0.0.1:8080` and use `deploy/Caddyfile` (or
 an nginx equivalent). `base_url` must be the public URL either way: subscription
 links, EPay and Stripe callbacks use it.
