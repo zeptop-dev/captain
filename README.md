@@ -171,6 +171,29 @@ external login):
 - **Trial plan** — Settings → Trial plan hands every new account (password or
   external login) a plan once, for the configured number of days.
 
+## Staff roles, theme, webhooks
+
+- **Staff roles** — Admin → Staff creates console accounts with a role: admin
+  (everything), operator (everything except settings, system, staff and the
+  landing page) or support (tickets, plus read-only users, orders, plans and
+  the dashboard). The last admin cannot be demoted, disabled or deleted.
+- **Theme and page injection** — Admin → Landing page: primary colour, radius,
+  light/dark/system scheme for the portal and the landing page, portal title,
+  font, and raw HTML injected before `</head>` / `</body>` on every portal and
+  landing page (analytics, chat widgets). The console keeps its own look.
+- **Event webhooks** — Settings → Event webhooks: Captain POSTs JSON for
+  `user.registered`, `order.paid`, `ticket.created`, `ticket.replied`,
+  `withdrawal.requested` and `subscription.expiring` to your URLs with
+  `X-Captain-Event` and an HMAC-SHA256 `X-Captain-Signature` over the body;
+  failed deliveries retry three times. This is the integration point for
+  n8n, scripts or a CRM in place of an in-process plugin system, which a
+  single static binary cannot load.
+- **Device limits on nodes** — plans' device limits reach the nodes; bosun
+  counts client IPs per user on Xray, Hysteria and sing-box (log-based) and
+  Captain locks out users over their limit. mieru inbounds cannot report IPs.
+- **Languages** — the console and portal ship in 简体中文, 繁體中文, English,
+  日本語, Русский and 한국어.
+
 ## Mail
 
 Admin → Settings → Mail: SMTP (any provider; port 587 STARTTLS, 465 TLS or 25
