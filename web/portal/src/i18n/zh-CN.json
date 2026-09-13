@@ -83,7 +83,12 @@
     "coupon": "优惠码",
     "couponHint": "有优惠码填这里",
     "discount": "已优惠 {{amount}}",
-    "surplus": "原套餐剩余折算 {{amount}}"
+    "surplus": "原套餐剩余折算 {{amount}}",
+    "alipay": "支付宝扫码",
+    "coinbase": "Coinbase 加密货币",
+    "coinpayments": "CoinPayments 加密货币",
+    "btcpay": "BTCPay 比特币",
+    "mgate": "MGate 加密货币"
   },
   "orders": {
     "title": "订单",

@@ -32,10 +32,13 @@ func Register(mux *http.ServeMux, d Deps) {
 				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
-			if gw.Name() == "epay" && n.Paid {
+			// A signed callback still must match the order amount: a
+			// gateway that lets the payer pick the amount would otherwise
+			// settle a full plan for a token payment.
+			if n.Paid && (gw.Name() == "epay" || n.AmountCents > 0) {
 				order, err := d.Store.OrderByNo(r.Context(), n.OrderNo)
-				if err != nil || !epay.VerifyAmount(r, order.AmountCents) {
-					d.Log.Warn("epay amount mismatch", "order", n.OrderNo)
+				if err != nil || (gw.Name() == "epay" && !epay.VerifyAmount(r, order.AmountCents)) || (n.AmountCents > 0 && n.AmountCents != order.AmountCents) {
+					d.Log.Warn("payment amount mismatch", "gateway", gw.Name(), "order", n.OrderNo, "amount", n.AmountCents)
 					http.Error(w, "bad request", http.StatusBadRequest)
 					return
 				}
@@ -50,6 +53,10 @@ func Register(mux *http.ServeMux, d Deps) {
 		}
 		mux.HandleFunc("GET /api/payment/"+name+"/notify", handle)
 		mux.HandleFunc("POST /api/payment/"+name+"/notify", handle)
+		// Gateways that render their own checkout page (Alipay QR).
+		if p, ok := gw.(payment.Pager); ok {
+			mux.HandleFunc("GET /api/payment/"+name+"/page", p.ServePage)
+		}
 	}
 	// EPay's return_url lands the browser here (same params as notify);
 	// settle if possible, then send the user to the portal.

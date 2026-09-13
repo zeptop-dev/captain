@@ -83,7 +83,12 @@
     "coupon": "Coupon",
     "couponHint": "Have a code? Enter it here",
     "discount": "{{amount}} off",
-    "surplus": "{{amount}} credited from your current plan"
+    "surplus": "{{amount}} credited from your current plan",
+    "alipay": "Alipay QR",
+    "coinbase": "Coinbase (crypto)",
+    "coinpayments": "CoinPayments (crypto)",
+    "btcpay": "BTCPay (Bitcoin)",
+    "mgate": "MGate (crypto)"
   },
   "orders": {
     "title": "Orders",
