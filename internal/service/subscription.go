@@ -35,11 +35,13 @@ func (s *Subscription) Lines(ctx context.Context, u *domain.User, at time.Time) 
 	if err != nil {
 		return nil, subscription.Account{}, err
 	}
+	var ss SubscriptionSettings
+	_ = s.Store.GetSetting(ctx, SettingSubscription, &ss)
 	lines := make([]subscription.Line, 0, len(rows))
 	for _, r := range rows {
 		lines = append(lines, subscription.Line{
-			Name: r.Entry.Name, Host: r.Entry.DisplayHost, Port: r.Entry.DisplayPort,
-			Inbound: r.Inbound.Spec(), UUID: u.UUID, Password: u.UUID,
+			Name: subscription.WithFlag(r.Entry.Name, r.Entry.DisplayHost, r.Entry.Region, ss.AutoFlags), Host: r.Entry.DisplayHost, Port: r.Entry.DisplayPort,
+			Inbound: r.Inbound.Spec(), UUID: u.UUID, Password: u.UUID, Tags: r.Entry.Tags,
 		})
 	}
 	// External nodes (imported share links) follow the panel's own entries.
@@ -52,7 +54,7 @@ func (s *Subscription) Lines(ctx context.Context, u *domain.User, at time.Time) 
 		if err != nil {
 			continue
 		}
-		l.Name = n.Name
+		l.Name = subscription.WithFlag(n.Name, l.Host, "", ss.AutoFlags)
 		lines = append(lines, l)
 	}
 	return lines, account(sub), nil

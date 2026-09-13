@@ -231,6 +231,35 @@ func TestEndToEnd(t *testing.T) {
 	if code, _, _ := anon.do("GET", "/sub/nope", nil, nil); code != http.StatusNotFound {
 		t.Fatalf("unknown token: %d", code)
 	}
+	// Tags, region flags and drag order. The vip user sees both entries: order
+	// follows sort, auto flags prefix 🇯🇵 from the name, an explicit region wins.
+	_, b, _ = c.do("GET", "/api/admin/entries", nil, nil)
+	ents := mustJSON[[]map[string]any](t, b)
+	if len(ents) != 2 || ents[0]["Name"] != "JP mieru" {
+		t.Fatalf("entries: %v", ents)
+	}
+	c.do("PUT", "/api/admin/entries/order", map[string]any{"IDs": []any{ents[1]["ID"], ents[0]["ID"]}}, nil)
+	c.do("PATCH", "/api/admin/entries/"+itoa(int64(ents[1]["ID"].(float64))), map[string]any{"Name": "JP vip", "InboundID": 2, "DisplayHost": "entry.test", "DisplayPort": 443, "Tags": []string{"IPLC", "x2"}, "Region": "hk", "Enabled": true, "Rate": 1}, nil)
+	_, b, _ = c.do("GET", "/api/admin/entries", nil, nil)
+	ents = mustJSON[[]map[string]any](t, b)
+	if ents[0]["Name"] != "JP vip" || ents[0]["Region"] != "HK" || fmt.Sprint(ents[0]["Tags"]) != "[IPLC x2]" {
+		t.Fatalf("after reorder/patch: %v", ents)
+	}
+	_, b, _ = c.do("GET", "/api/admin/entries/tags", nil, nil)
+	if strings.TrimSpace(string(b)) != `["IPLC","x2"]` {
+		t.Fatalf("tags: %s", b)
+	}
+	c.do("PUT", "/api/admin/settings/subscription", map[string]any{"URLs": []string{}, "auto_flags": true}, nil)
+	_, b, _ = anon.do("GET", "/sub/"+u2["sub_token"].(string)+"?client=clash", nil, nil)
+	if i, j := strings.Index(string(b), "🇭🇰 JP vip"), strings.Index(string(b), "🇯🇵 JP mieru"); i < 0 || j < 0 || i > j {
+		t.Fatalf("flags/order in clash doc:\n%s", b)
+	}
+	c.do("PUT", "/api/admin/settings/subscription", map[string]any{"URLs": []string{}}, nil)
+	_, b, _ = anon.do("GET", "/sub/"+u2["sub_token"].(string)+"?client=clash", nil, nil)
+	if !strings.Contains(string(b), "🇭🇰 JP vip") || strings.Contains(string(b), "🇯🇵") {
+		t.Fatalf("explicit region must still flag, auto off:\n%s", b)
+	}
+	c.do("PUT", "/api/admin/entries/order", map[string]any{"IDs": []any{ents[1]["ID"], ents[0]["ID"]}}, nil)
 
 	// Report traffic: charged to the subscription; quota exhaustion drops the user.
 	uid := int64(u1["id"].(float64))

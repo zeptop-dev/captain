@@ -54,7 +54,7 @@ export interface MailSettings {
   resend: { api_key: string }
   verify_registration: boolean; reminders: boolean
 }
-export interface SubscriptionSettings { urls: string[]; short_links?: boolean }
+export interface SubscriptionSettings { urls: string[]; short_links?: boolean; auto_flags?: boolean }
 export interface ACMESettings { email: string; has_cloudflare_token: boolean }
 export interface Inbound {
   ID: number; NodeID: number; Tag: string; Protocol: string; Listen: string; Port: number; Core: string
@@ -80,7 +80,7 @@ export interface OnlineDevice { ip: string; node_id: number; last_seen_at: strin
 
 export interface Entry {
   ID: number; Name: string; InboundID: number; ChainID: number | null; DisplayHost: string; DisplayPort: number
-  Rate: number; Sort: number; Enabled: boolean
+  Rate: number; Sort: number; Enabled: boolean; Tags?: string[]; Region?: string
 }
 export interface Order {
   ID: number; No: string; UserID: number; PlanID: number; AmountCents: number; Gateway: string; GatewayRef: string

@@ -178,7 +178,13 @@
     "enabled": "Enabled",
     "displayHostHint": "Blank uses the inbound's TLS domain, else the node's public address",
     "sort": "Sort",
-    "sortHint": "Order in the subscription, ascending"
+    "sortHint": "Order in the subscription, ascending",
+    "region": "Region",
+    "regionHint": "Leave blank to detect from the name (needs auto flags)",
+    "tags": "Tags",
+    "tagsHint": "Enter to add; shown to users and used for filtering",
+    "filterTag": "Filter by tag",
+    "dragHint": "Drag the handle to reorder entries in subscriptions"
   },
   "users": {
     "title": "Users",
@@ -290,7 +296,9 @@
     "surplus": "Plan change credit",
     "surplusHint": "When a user switches to another plan, the unused part of the current one (by remaining time, or remaining traffic for plans without expiry) is credited against the new order.",
     "shortLinks": "Use short links",
-    "shortLinksHint": "Subscription URLs become /s/<code> instead of /sub/<long token>; old links keep working."
+    "shortLinksHint": "Subscription URLs become /s/<code> instead of /sub/<long token>; old links keep working.",
+    "autoFlags": "Auto flags",
+    "autoFlagsHint": "Prefix node names that have no flag emoji with their region flag (set or detected from the name), e.g. 🇯🇵 Tokyo."
   },
   "update": {
     "title": "Version and updates",

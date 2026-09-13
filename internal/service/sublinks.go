@@ -22,6 +22,8 @@ type SubscriptionSettings struct {
 	URLs []string `json:"urls"`
 	// ShortLinks hands out /s/<code> instead of /sub/<token>.
 	ShortLinks bool `json:"short_links"`
+	// AutoFlags prefixes node names with a region flag emoji when they have none.
+	AutoFlags bool `json:"auto_flags"`
 }
 
 // SettingSubscription is the settings key.

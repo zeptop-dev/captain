@@ -141,6 +141,8 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/admin/entries", h.requireAdmin(h.createEntry))
 	mux.HandleFunc("PATCH /api/admin/entries/{id}", h.requireAdmin(h.updateEntry))
 	mux.HandleFunc("DELETE /api/admin/entries/{id}", h.requireAdmin(h.deleteEntry))
+	mux.HandleFunc("PUT /api/admin/entries/order", h.requireAdmin(h.reorderEntries))
+	mux.HandleFunc("GET /api/admin/entries/tags", h.requireAdmin(h.entryTags))
 
 	mux.HandleFunc("GET /api/admin/orders", h.requireAdmin(h.listOrders))
 }
@@ -765,6 +767,28 @@ func (h *handlers) listEntries(w http.ResponseWriter, r *http.Request) {
 		list = []*domain.Entry{}
 	}
 	ok(w, list)
+}
+
+func (h *handlers) reorderEntries(w http.ResponseWriter, r *http.Request) {
+	var in struct{ IDs []int64 }
+	if !decode(r, &in) || len(in.IDs) == 0 {
+		fail(w, http.StatusBadRequest, "ids required")
+		return
+	}
+	if err := h.Store.ReorderEntries(r.Context(), in.IDs); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, map[string]bool{"ok": true})
+}
+
+func (h *handlers) entryTags(w http.ResponseWriter, r *http.Request) {
+	tags, err := h.Store.EntryTags(r.Context())
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, tags)
 }
 
 // fillEntryDefaults resolves a blank display address: the inbound's TLS

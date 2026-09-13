@@ -176,6 +176,8 @@ type Entry struct {
 	Rate        float64
 	Sort        int
 	Enabled     bool
+	Tags        []string // free-form labels shown to users and used for filtering
+	Region      string   // ISO 3166-1 alpha-2; "" = detect from the name when auto flags are on
 }
 
 // Order is a purchase of a plan. Status moves pending -> paid or cancelled;
