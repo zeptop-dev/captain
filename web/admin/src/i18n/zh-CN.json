@@ -21,7 +21,8 @@
     "tickets": "工单",
     "gifts": "兑换码",
     "articles": "知识库",
-    "withdrawals": "提现"
+    "withdrawals": "提现",
+    "admins": "管理员"
   },
   "login": {
     "title": "登录 Captain",
@@ -307,7 +308,22 @@
     "features": "卖点（JSON 数组：title, text, icon）",
     "featuresHint": "icon 可选：bolt, shield, world, devices, refresh, headset",
     "faq": "常见问题（JSON 数组：q, a）",
-    "overrideHint": "想完全自定义页面：把自己的 index.html 放到数据目录的 site/ 文件夹里，Captain 会直接服务它。"
+    "overrideHint": "想完全自定义页面：把自己的 index.html 放到数据目录的 site/ 文件夹里，Captain 会直接服务它。",
+    "theme": "主题",
+    "themeHint": "用户中心和展示页共用：主色、圆角、明暗模式。后台不受影响。",
+    "primary": "主色",
+    "radius": "圆角",
+    "portalScheme": "用户中心配色",
+    "siteScheme": "展示页配色",
+    "light": "浅色",
+    "dark": "深色",
+    "auto": "跟随系统",
+    "portalTitle": "用户中心标题",
+    "font": "字体（CSS font-family，可选）",
+    "inject": "页面注入",
+    "injectHint": "原样插入到用户中心和展示页的每个页面，用于统计代码、客服挂件等。只有管理员能改，注意来源可信。",
+    "injectHead": "插入 </head> 前",
+    "injectBody": "插入 </body> 前"
   },
   "mail": {
     "title": "邮件",
@@ -493,5 +509,34 @@
       "paid": "已打款",
       "rejected": "已拒绝"
     }
+  },
+  "admins": {
+    "title": "管理员",
+    "subtitle": "后台账号和角色。最后一个管理员不能被降级、停用或删除。",
+    "create": "新建账号",
+    "email": "邮箱",
+    "password": "密码",
+    "role": "角色",
+    "status": "状态",
+    "created": "创建时间",
+    "you": "当前登录",
+    "matrix": "角色权限",
+    "matrixText": "管理员：全部权限。\n运营：除设置、系统、管理员账号、展示页之外的全部功能。\n客服：工单，以及只读的用户、订单、套餐和概览。",
+    "roles": {
+      "admin": "管理员",
+      "operator": "运营",
+      "support": "客服"
+    }
+  },
+  "webhooks": {
+    "title": "事件 Webhook",
+    "hint": "注册、付款、工单、提现、到期等事件以 JSON 推送到你的地址，可接 n8n、自建脚本或 CRM。请求头 X-Captain-Event 是事件名，X-Captain-Signature 是用密钥对请求体做的 HMAC-SHA256。",
+    "secret": "签名密钥",
+    "events": "订阅事件",
+    "eventsHint": "留空表示全部事件",
+    "add": "添加地址",
+    "test": "发送测试",
+    "testOk": "测试事件已送达",
+    "format": "请求体：{\"event\":\"order.paid\",\"at\":\"2026-01-01T00:00:00Z\",\"data\":{...}}，失败会重试 3 次。"
   }
 }

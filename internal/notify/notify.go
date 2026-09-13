@@ -5,6 +5,7 @@ package notify
 
 import (
 	"context"
+	"github.com/zeptop-dev/captain/internal/webhook"
 	"log/slog"
 
 	"github.com/zeptop-dev/captain/internal/mail"
@@ -17,8 +18,17 @@ type Notifier struct {
 	Store    *store.Store
 	Mail     *mail.Loader
 	Bot      *telegram.Bot
+	Hooks    *webhook.Hub // nil = no webhooks
 	SiteName string
 	Log      *slog.Logger
+}
+
+// Event forwards an integration event to the webhook hub.
+func (n *Notifier) Event(ctx context.Context, event string, data map[string]any) {
+	if n == nil || n.Hooks == nil {
+		return
+	}
+	n.Hooks.Emit(ctx, event, data)
 }
 
 // User sends subject/body to a user by every available channel.

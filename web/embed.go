@@ -23,6 +23,12 @@ var portalFS embed.FS
 //go:embed all:site/dist
 var siteFS embed.FS
 
+// Injector returns operator HTML to add before </head> and </body>.
+type Injector func(r *http.Request) (head, body string)
+
+// Inject is consulted by every SPA index; nil injects nothing.
+var Inject Injector
+
 // Site serves the landing page at "/". When overrideDir contains an
 // index.html it is served instead of the built-in page, so operators can
 // drop in their own design without rebuilding.
@@ -68,6 +74,12 @@ func spa(root embed.FS, dir, prefix, name string) http.Handler {
 		if err != nil {
 			http.Error(w, name+" not built: run `make web`", http.StatusNotFound)
 			return
+		}
+		if Inject != nil {
+			if head, body := Inject(r); head != "" || body != "" {
+				index = bytes.Replace(index, []byte("</head>"), []byte(head+"</head>"), 1)
+				index = bytes.Replace(index, []byte("</body>"), []byte(body+"</body>"), 1)
+			}
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")

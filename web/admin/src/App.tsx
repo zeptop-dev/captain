@@ -16,6 +16,7 @@ import TicketsPage from './pages/TicketsPage'
 import GiftsPage from './pages/GiftsPage'
 import ArticlesPage from './pages/ArticlesPage'
 import WithdrawalsPage from './pages/WithdrawalsPage'
+import AdminsPage from './pages/AdminsPage'
 import { Center, Loader } from '@mantine/core'
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="/gifts" element={<GiftsPage />} />
           <Route path="/articles" element={<ArticlesPage />} />
           <Route path="/withdrawals" element={<WithdrawalsPage />} />
+          <Route path="/admins" element={<AdminsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/site" element={<SitePage />} />
         </Route>

@@ -21,7 +21,8 @@
     "tickets": "Tickets",
     "gifts": "Gift codes",
     "articles": "Knowledge base",
-    "withdrawals": "Withdrawals"
+    "withdrawals": "Withdrawals",
+    "admins": "Staff"
   },
   "login": {
     "title": "Sign in to Captain",
@@ -307,7 +308,22 @@
     "features": "Features (JSON array: title, text, icon)",
     "featuresHint": "icon: bolt, shield, world, devices, refresh, headset",
     "faq": "FAQ (JSON array: q, a)",
-    "overrideHint": "For a fully custom page drop your own index.html into the site/ folder of the data directory; Captain serves it as is."
+    "overrideHint": "For a fully custom page drop your own index.html into the site/ folder of the data directory; Captain serves it as is.",
+    "theme": "Theme",
+    "themeHint": "Shared by the portal and the landing page: primary colour, radius, colour scheme. The admin console is unaffected.",
+    "primary": "Primary colour",
+    "radius": "Radius",
+    "portalScheme": "Portal scheme",
+    "siteScheme": "Landing scheme",
+    "light": "Light",
+    "dark": "Dark",
+    "auto": "System",
+    "portalTitle": "Portal title",
+    "font": "Font (CSS font-family, optional)",
+    "inject": "Page injection",
+    "injectHint": "Inserted verbatim into every portal and landing page: analytics, chat widgets. Admin-only; only paste code you trust.",
+    "injectHead": "Before </head>",
+    "injectBody": "Before </body>"
   },
   "mail": {
     "title": "Mail",
@@ -493,5 +509,34 @@
       "paid": "Paid",
       "rejected": "Rejected"
     }
+  },
+  "admins": {
+    "title": "Staff",
+    "subtitle": "Console accounts and roles. The last admin cannot be demoted, disabled or deleted.",
+    "create": "New account",
+    "email": "Email",
+    "password": "Password",
+    "role": "Role",
+    "status": "Status",
+    "created": "Created",
+    "you": "signed in",
+    "matrix": "Role matrix",
+    "matrixText": "Admin: everything.\nOperator: everything except settings, system, staff accounts and the landing page.\nSupport: tickets, plus read-only users, orders, plans and the dashboard.",
+    "roles": {
+      "admin": "Admin",
+      "operator": "Operator",
+      "support": "Support"
+    }
+  },
+  "webhooks": {
+    "title": "Event webhooks",
+    "hint": "Registration, payments, tickets, withdrawals and expiries are POSTed as JSON to your URLs, for n8n, scripts or a CRM. X-Captain-Event names the event; X-Captain-Signature is an HMAC-SHA256 of the body under the secret.",
+    "secret": "Signing secret",
+    "events": "Events",
+    "eventsHint": "Empty = every event",
+    "add": "Add endpoint",
+    "test": "Send test",
+    "testOk": "Test event delivered",
+    "format": "Body: {\"event\":\"order.paid\",\"at\":\"2026-01-01T00:00:00Z\",\"data\":{...}}; failures are retried 3 times."
   }
 }

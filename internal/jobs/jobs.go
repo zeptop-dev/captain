@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/zeptop-dev/captain/internal/mail"
 	"github.com/zeptop-dev/captain/internal/telegram"
+	"github.com/zeptop-dev/captain/internal/webhook"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -29,7 +30,9 @@ type Runner struct {
 	// Mail enables expiry/traffic reminders when the settings allow them.
 	Mail *mail.Loader
 	// Bot delivers reminders to users who linked Telegram (nil = off).
-	Bot       *telegram.Bot
+	Bot *telegram.Bot
+	// Hooks receives subscription.expiring events (nil = off).
+	Hooks     *webhook.Hub
 	SiteName  string
 	PortalURL string
 
@@ -125,7 +128,7 @@ func (r *Runner) reminders(ctx context.Context, now time.Time, log *slog.Logger)
 	ms := r.Mail.Settings(ctx)
 	viaMail := ms.Enabled() && ms.Reminders
 	viaBot := r.Bot != nil && r.Bot.Enabled(ctx)
-	if !viaMail && !viaBot {
+	if !viaMail && !viaBot && r.Hooks == nil {
 		return
 	}
 	// deliver tries Telegram first, then mail; false when neither could.
@@ -149,6 +152,7 @@ func (r *Runner) reminders(ctx context.Context, now time.Time, log *slog.Logger)
 		log.Error("expiry reminders", "err", err)
 	}
 	for _, e := range exp {
+		r.Hooks.Emit(ctx, webhook.SubscriptionExpiring, map[string]any{"user_id": e.UserID, "email": e.Email, "expires_at": e.ExpiresAt})
 		if !deliver(e.UserID, mail.ExpiryMessage(r.SiteName, e.Email, r.PortalURL, e.ExpiresAt), fmt.Sprintf("⏰ %s: your plan expires on %s. Renew: %s", r.SiteName, e.ExpiresAt.Format("2006-01-02"), r.PortalURL)) {
 			continue
 		}

@@ -1,6 +1,6 @@
 import { AppShell, Badge, Box, Burger, Group, NavLink, Stack, Text, UnstyledButton, Menu, ActionIcon } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
-import { IconLayoutDashboard, IconServer, IconRoute, IconUsers, IconPackage, IconReceipt, IconSettings, IconLogout, IconLanguage, IconWorld, IconTicket, IconMessages, IconGift, IconBook, IconCashBanknote } from '@tabler/icons-react'
+import { IconLayoutDashboard, IconServer, IconRoute, IconUsers, IconPackage, IconReceipt, IconSettings, IconLogout, IconLanguage, IconWorld, IconTicket, IconMessages, IconGift, IconBook, IconCashBanknote, IconUserShield } from '@tabler/icons-react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../lib/auth'
@@ -25,6 +25,7 @@ const sections = [
     { to: '/articles', key: 'articles', icon: IconBook },
   ] },
   { key: 'system', items: [
+    { to: '/admins', key: 'admins', icon: IconUserShield },
     { to: '/site', key: 'site', icon: IconWorld },
     { to: '/settings', key: 'settings', icon: IconSettings },
   ] },
@@ -37,6 +38,10 @@ export function AppLayout() {
   const nav = useNavigate()
   const loc = useLocation()
   const active = (to: string) => (to === '/' ? loc.pathname === '/' : loc.pathname.startsWith(to))
+  // Support sees tickets, users and orders; operators everything but the system section.
+  const role = me?.role ?? 'admin'
+  const visible = (to: string) => role === 'admin' ? true : role === 'operator' ? !['/site', '/settings', '/admins', '/sub-templates'].includes(to) : ['/', '/tickets', '/users', '/orders'].includes(to)
+  const shown = sections.map((s) => ({ ...s, items: s.items.filter((it) => visible(it.to)) })).filter((s) => s.items.length > 0)
   const upd = useQuery({ queryKey: ['update'], queryFn: () => api.get<SystemUpdate>('/api/admin/system/update'), staleTime: 10 * 60_000, refetchInterval: 30 * 60_000, retry: false })
 
   return (
@@ -63,7 +68,7 @@ export function AppLayout() {
       </AppShell.Header>
       <AppShell.Navbar p="sm">
         <Stack gap="lg">
-          {sections.map((s) => (
+          {shown.map((s) => (
             <Box key={s.key}>
               <Text size="xs" tt="uppercase" c="dimmed" fw={600} px="sm" mb={4} style={{ letterSpacing: '0.08em' }}>{t(`nav.${s.key}`)}</Text>
               {s.items.map((it) => (

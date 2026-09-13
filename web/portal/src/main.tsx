@@ -3,11 +3,10 @@ import '@mantine/notifications/styles.css'
 import './i18n'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { MantineProvider } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
 import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
-import { theme } from './theme'
+import { ThemedProvider } from './lib/theme'
 import { toast } from './lib/notify'
 import App from './App'
 
@@ -19,10 +18,10 @@ if (ref) fetch('/api/portal/ref', { method: 'POST', headers: { 'Content-Type': '
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <MantineProvider theme={theme} defaultColorScheme="light">
+      <ThemedProvider defaultScheme="light">
         <Notifications position="top-center" />
         <BrowserRouter basename="/portal"><App /></BrowserRouter>
-      </MantineProvider>
+      </ThemedProvider>
     </QueryClientProvider>
   </React.StrictMode>,
 )

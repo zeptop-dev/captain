@@ -13,6 +13,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/mail"
 	"github.com/zeptop-dev/captain/internal/notify"
 	"github.com/zeptop-dev/captain/internal/telegram"
+	"github.com/zeptop-dev/captain/internal/webhook"
 	"log/slog"
 	"net/http"
 	"path/filepath"
@@ -36,6 +37,7 @@ import (
 
 // Server is the HTTP front.
 type Server struct {
+	hooks    *webhook.Hub
 	bot      *telegram.Bot
 	subLinks *service.SubLinks
 	cfg      *config.Config
@@ -75,8 +77,10 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	s.subLinks = &service.SubLinks{Store: st, BaseURL: base}
 	mailer := &mail.Loader{Store: st}
 	s.bot = &telegram.Bot{Store: st, Log: log, SiteName: cfg.SiteName, PortalURL: base + "/portal/", SubURL: s.subLinks.URL}
-	notifier := &notify.Notifier{Store: st, Mail: mailer, Bot: s.bot, SiteName: cfg.SiteName, Log: log}
+	s.hooks = &webhook.Hub{Store: st, Log: log}
+	notifier := &notify.Notifier{Store: st, Mail: mailer, Bot: s.bot, Hooks: s.hooks, SiteName: cfg.SiteName, Log: log}
 	orders.OnPaid = func(ctx context.Context, o *domain.Order) {
+		notifier.Event(ctx, webhook.OrderPaid, map[string]any{"order_no": o.No, "user_id": o.UserID, "plan_id": o.PlanID, "amount_cents": o.AmountCents, "gateway": o.Gateway, "period_days": o.PeriodDays})
 		var ts store.TelegramSettings
 		_ = st.GetSetting(ctx, store.SettingTelegram, &ts)
 		if !ts.NotifyOrders {
@@ -88,7 +92,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 		}
 		notifier.Admin(ctx, fmt.Sprintf("💰 Order %s paid: %.2f via %s\n%s", o.No, float64(o.AmountCents)/100, o.Gateway, email))
 	}
-	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot,
+	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 	})
@@ -102,11 +106,16 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	})
 	// Landing page at the root (custom design under <data_dir>/site wins);
 	// unknown paths outside the SPAs fall through to it as well.
+	web.Inject = func(r *http.Request) (string, string) {
+		var ss site.Settings
+		_ = st.GetSetting(r.Context(), site.SettingSite, &ss)
+		return ss.InjectHead, ss.InjectBody
+	}
 	siteHandler := web.Site(filepath.Join(cfg.DataDir, "site"))
 	s.mux.Handle("GET /{$}", siteHandler)
 	s.mux.Handle("GET /assets/", siteHandler)
 	site.Register(s.mux, site.Deps{Store: st, SiteName: cfg.SiteName, Registration: cfg.Portal.Registration})
-	oauth.Register(s.mux, oauth.Deps{Store: st, Sessions: sessions, Log: log, BaseURL: base, Secure: secure, Registration: cfg.Portal.Registration,
+	oauth.Register(s.mux, oauth.Deps{Store: st, Sessions: sessions, Log: log, Hooks: s.hooks, BaseURL: base, Secure: secure, Registration: cfg.Portal.Registration,
 		Resolve: func(r *http.Request) *domain.User {
 			c, err := r.Cookie("captain_session")
 			if err != nil {
@@ -220,3 +229,6 @@ func (a *sessionAuth) Delete(ctx context.Context, id string) error {
 
 // Bot is the Telegram poller to run alongside the server.
 func (s *Server) Bot() *telegram.Bot { return s.bot }
+
+// Hooks exposes the webhook hub.
+func (s *Server) Hooks() *webhook.Hub { return s.hooks }

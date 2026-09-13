@@ -22,6 +22,23 @@ type Settings struct {
 	FAQ         []FAQ      `json:"faq"`
 	Links       Links      `json:"links"`
 	ShowPlans   bool       `json:"show_plans"`
+	// Theme is shared by the landing page and the portal.
+	Theme Theme `json:"theme"`
+	// InjectHead / InjectBody are raw HTML the operator adds to every page
+	// (analytics, chat widgets). Admin-only input; served verbatim.
+	InjectHead string `json:"inject_head"`
+	InjectBody string `json:"inject_body"`
+}
+
+// Theme is the operator-chosen look: a Mantine palette name for the
+// primary colour, a radius token and a colour scheme.
+type Theme struct {
+	Primary     string `json:"primary"`      // cyan (default), blue, indigo, violet, grape, pink, red, orange, yellow, lime, green, teal
+	Radius      string `json:"radius"`       // xs, sm, md, lg (default), xl
+	Scheme      string `json:"scheme"`       // portal: "light" (default), "dark", "auto"
+	SiteScheme  string `json:"site_scheme"`  // landing: "dark" (default), "light", "auto"
+	FontFamily  string `json:"font_family"`  // optional CSS font stack
+	PortalTitle string `json:"portal_title"` // brand text in the portal header; default = site name
 }
 
 // Feature is one selling point.

@@ -26,7 +26,26 @@ type User struct {
 	UpdatedAt    time.Time
 }
 
-func (u *User) IsAdmin() bool { return u.Role == "admin" }
+// Staff roles. "admin" can do everything; "operator" runs the business but
+// cannot change settings, system or staff; "support" only handles tickets
+// and looks at users and orders.
+const (
+	RoleUser     = "user"
+	RoleAdmin    = "admin"
+	RoleOperator = "operator"
+	RoleSupport  = "support"
+)
+
+// IsAdmin reports the full-access role.
+func (u *User) IsAdmin() bool { return u.Role == RoleAdmin }
+
+// IsStaff reports any console role.
+func (u *User) IsStaff() bool {
+	return u.Role == RoleAdmin || u.Role == RoleOperator || u.Role == RoleSupport
+}
+
+// ValidStaffRole reports whether r names a console role.
+func ValidStaffRole(r string) bool { return r == RoleAdmin || r == RoleOperator || r == RoleSupport }
 
 type Session struct {
 	ID        string

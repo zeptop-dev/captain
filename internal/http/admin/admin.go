@@ -13,6 +13,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/notify"
 	"github.com/zeptop-dev/captain/internal/service"
 	"github.com/zeptop-dev/captain/internal/telegram"
+	"github.com/zeptop-dev/captain/internal/webhook"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -54,6 +55,8 @@ type Deps struct {
 	Notify *notify.Notifier
 	// Bot exposes the Telegram settings cache; nil disables.
 	Bot *telegram.Bot
+	// Hooks is the webhook hub (settings cache invalidation, test delivery).
+	Hooks *webhook.Hub
 }
 
 const cookieName = "captain_session"
@@ -162,8 +165,12 @@ func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 			fail(w, http.StatusInternalServerError, "internal error")
 			return
 		}
-		if u == nil || !u.IsAdmin() || u.Status != "active" {
+		if u == nil || !u.IsStaff() || u.Status != "active" {
 			fail(w, http.StatusForbidden, "admin only")
+			return
+		}
+		if !allowed(u.Role, r.Method, r.URL.Path) {
+			fail(w, http.StatusForbidden, "your role cannot do that")
 			return
 		}
 		next(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, u)))
@@ -200,7 +207,7 @@ func (h *handlers) login(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	if !u.IsAdmin() {
+	if !u.IsStaff() {
 		fail(w, http.StatusForbidden, "admin only")
 		return
 	}
@@ -1325,4 +1332,32 @@ func (h *handlers) putRegistration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.getRegistration(w, r)
+}
+
+// allowed applies the role matrix to an admin API call. Admin: everything.
+// Operator: everything except settings, system, staff management and the
+// landing page. Support: tickets, plus read-only users, orders, dashboard.
+func allowed(role, method, path string) bool {
+	switch role {
+	case domain.RoleAdmin:
+		return true
+	case domain.RoleOperator:
+		for _, p := range []string{"/api/admin/settings/", "/api/admin/system/", "/api/admin/admins", "/api/admin/site"} {
+			if strings.HasPrefix(path, p) {
+				return false
+			}
+		}
+		return true
+	case domain.RoleSupport:
+		switch {
+		case path == "/api/admin/me", path == "/api/admin/logout", path == "/api/admin/dashboard":
+			return true
+		case strings.HasPrefix(path, "/api/admin/tickets"):
+			return true
+		case method == http.MethodGet && (strings.HasPrefix(path, "/api/admin/users") || strings.HasPrefix(path, "/api/admin/orders") || strings.HasPrefix(path, "/api/admin/plans")):
+			return true
+		}
+		return false
+	}
+	return false
 }
