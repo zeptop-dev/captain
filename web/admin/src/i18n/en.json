@@ -33,7 +33,9 @@
     "email": "Email",
     "password": "Password",
     "submit": "Sign in",
-    "failed": "Invalid email or password"
+    "failed": "Invalid email or password",
+    "code": "Authenticator code",
+    "badCode": "Wrong code"
   },
   "common": {
     "save": "Save",
@@ -286,7 +288,9 @@
     "minWithdraw": "Minimum withdrawal",
     "withdrawMethods": "Withdrawal methods (comma separated)",
     "surplus": "Plan change credit",
-    "surplusHint": "When a user switches to another plan, the unused part of the current one (by remaining time, or remaining traffic for plans without expiry) is credited against the new order."
+    "surplusHint": "When a user switches to another plan, the unused part of the current one (by remaining time, or remaining traffic for plans without expiry) is credited against the new order.",
+    "shortLinks": "Use short links",
+    "shortLinksHint": "Subscription URLs become /s/<code> instead of /sub/<long token>; old links keep working."
   },
   "update": {
     "title": "Version and updates",
@@ -720,5 +724,25 @@
     "mcp": "AI agents (MCP)",
     "mcpHint": "Built-in MCP server at {{url}}. Point Claude Code, Cursor or any MCP client at it to query nodes, users, orders, tickets and the probe in natural language; write tools require confirm=true.",
     "mcpCli": "Claude Code one-liner:"
+  },
+  "twofa": {
+    "title": "Two-factor authentication",
+    "hint": "Add TOTP (Google Authenticator, 1Password, …) to this console account. Sign-in then needs a 6-digit code; API tokens are unaffected.",
+    "start": "Set up",
+    "scan": "Scan with your authenticator",
+    "manual": "or enter the key by hand:",
+    "code": "Code",
+    "confirm": "Confirm and enable",
+    "enabled": "Two-factor enabled",
+    "disable": "Disable",
+    "disabled": "Two-factor disabled",
+    "on": "enabled"
+  },
+  "tempLinks": {
+    "title": "Temporary subscription links",
+    "hint": "Use- and/or time-limited subscription URLs to hand out for trials without exposing the permanent link; they expire on their own and can be revoked.",
+    "uses": "Max uses",
+    "hours": "Valid hours",
+    "create": "Create"
   }
 }

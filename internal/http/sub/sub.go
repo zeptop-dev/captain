@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/http/site"
 	"log/slog"
 	"net/http"
@@ -50,16 +51,7 @@ func (c *templateCache) get(ctx context.Context, format string) string {
 // Register mounts the subscription route.
 func Register(mux *http.ServeMux, d Deps) {
 	tpls := &templateCache{store: d.Store}
-	mux.HandleFunc("GET /sub/{token}", func(w http.ResponseWriter, r *http.Request) {
-		u, err := d.Store.UserBySubToken(r.Context(), r.PathValue("token"))
-		if errors.Is(err, store.ErrNotFound) {
-			http.NotFound(w, r)
-			return
-		}
-		if err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
+	serve := func(w http.ResponseWriter, r *http.Request, u *domain.User) {
 		lines, acct, err := d.Service.Lines(r.Context(), u, time.Now())
 		if err != nil && !errors.Is(err, service.ErrNoAccess) {
 			d.Log.Error("subscription", "user", u.ID, "err", err)
@@ -94,6 +86,31 @@ func Register(mux *http.ServeMux, d Deps) {
 		w.Header().Set("Profile-Update-Interval", "12")
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write(body)
+	}
+	mux.HandleFunc("GET /sub/{token}", func(w http.ResponseWriter, r *http.Request) {
+		u, err := d.Store.UserBySubToken(r.Context(), r.PathValue("token"))
+		if errors.Is(err, store.ErrNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		serve(w, r, u)
+	})
+	// Short and temporary links: /s/<code>, use-counted for temp links.
+	mux.HandleFunc("GET /s/{code}", func(w http.ResponseWriter, r *http.Request) {
+		u, err := d.Store.UseSubLink(r.Context(), r.PathValue("code"), time.Now())
+		if errors.Is(err, store.ErrNotFound) || errors.Is(err, store.ErrLinkExhausted) {
+			http.Error(w, "subscription link not available", http.StatusGone)
+			return
+		}
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		serve(w, r, u)
 	})
 }
 

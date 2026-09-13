@@ -6,6 +6,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/zeptop-dev/captain/internal/auth"
 	"github.com/zeptop-dev/captain/internal/captcha"
 	"github.com/zeptop-dev/captain/internal/webhook"
 	"io"
@@ -14,6 +16,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -1910,5 +1913,112 @@ func TestAPITokensAndMCP(t *testing.T) {
 	ac.do("DELETE", "/api/admin/tokens/"+itoa(id), nil, nil)
 	if code, _, _ := tc.do("GET", "/api/admin/nodes", nil, map[string]string{"Authorization": "Bearer " + token}); code == 200 {
 		t.Fatal("deleted token still works")
+	}
+}
+
+func TestSubLinksAndTOTP(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "https://panel.test"
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	user, _ := admin.NewUser("u@test", "password123", "user")
+	_ = st.CreateUser(context.Background(), user)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	ac := &client{t: t, srv: srv}
+	ac.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+	u, _ := st.UserByEmail(context.Background(), "u@test")
+
+	// Long links by default; short links once the switch is on, and both keep working.
+	_, b, _ := ac.do("GET", fmt.Sprintf("/api/admin/users/%d", u.ID), nil, nil)
+	if !strings.Contains(string(b), "/sub/"+u.SubToken) {
+		t.Fatalf("expected long link: %s", b)
+	}
+	ac.do("PUT", "/api/admin/settings/subscription", map[string]any{"URLs": []string{}, "short_links": true}, nil)
+	_, b, _ = ac.do("GET", fmt.Sprintf("/api/admin/users/%d", u.ID), nil, nil)
+	short := regexp.MustCompile(`https://panel\.test/s/[a-z0-9]{8}`).FindString(string(b))
+	if short == "" {
+		t.Fatalf("expected short link: %s", b)
+	}
+	anon := &client{t: t, srv: srv}
+	if code, _, _ := anon.do("GET", strings.TrimPrefix(short, "https://panel.test"), nil, nil); code != 200 {
+		t.Fatalf("short link: %d", code)
+	}
+	if code, _, _ := anon.do("GET", "/sub/"+u.SubToken, nil, nil); code != 200 {
+		t.Fatal("long link must keep working")
+	}
+	if code, _, _ := anon.do("GET", "/s/nope1234", nil, nil); code != 410 {
+		t.Fatalf("unknown code: %d", code)
+	}
+
+	// Temporary link: two uses, then gone; revocation removes it immediately.
+	code, b, _ := ac.do("POST", fmt.Sprintf("/api/admin/users/%d/links", u.ID), map[string]any{"MaxUses": 2, "Hours": 1}, nil)
+	if code != 200 {
+		t.Fatalf("create temp: %d %s", code, b)
+	}
+	tmp := mustJSON[map[string]any](t, b)
+	path := "/s/" + tmp["code"].(string)
+	for i := 0; i < 2; i++ {
+		if code, _, _ := anon.do("GET", path, nil, nil); code != 200 {
+			t.Fatalf("temp use %d: %d", i, code)
+		}
+	}
+	if code, _, _ := anon.do("GET", path, nil, nil); code != 410 {
+		t.Fatalf("temp link should be used up: %d", code)
+	}
+	_, b, _ = ac.do("GET", fmt.Sprintf("/api/admin/users/%d/links", u.ID), nil, nil)
+	if !strings.Contains(string(b), `"uses":2`) || !strings.Contains(string(b), `"kind":"temp"`) {
+		t.Fatalf("links list: %s", b)
+	}
+	if code, _, _ := ac.do("POST", fmt.Sprintf("/api/admin/users/%d/links", u.ID), map[string]any{"MaxUses": 0, "Hours": 0}, nil); code != 400 {
+		t.Fatal("unlimited temp link must be rejected")
+	}
+	_, b, _ = ac.do("POST", fmt.Sprintf("/api/admin/users/%d/links", u.ID), map[string]any{"MaxUses": 0, "Hours": 1}, nil)
+	tmp = mustJSON[map[string]any](t, b)
+	ac.do("DELETE", fmt.Sprintf("/api/admin/users/%d/links/%v", u.ID, tmp["id"]), nil, nil)
+	if code, _, _ := anon.do("GET", "/s/"+tmp["code"].(string), nil, nil); code != 410 {
+		t.Fatal("revoked link still served")
+	}
+	// Rotating the token also rotates the short code.
+	ac.do("POST", fmt.Sprintf("/api/admin/users/%d/rotate-token", u.ID), nil, nil)
+	if code, _, _ := anon.do("GET", strings.TrimPrefix(short, "https://panel.test"), nil, nil); code != 410 {
+		t.Fatalf("old short code after rotation: %d", code)
+	}
+
+	// TOTP: setup, enable with a valid code, login needs the code (428), wrong code 401, then disable.
+	_, b, _ = ac.do("POST", "/api/admin/2fa/setup", nil, nil)
+	secret := mustJSON[map[string]any](t, b)["secret"].(string)
+	if code, _, _ := ac.do("POST", "/api/admin/2fa/enable", map[string]string{"Code": "000000"}, nil); code != 400 {
+		t.Fatal("wrong code enabled 2fa")
+	}
+	valid := auth.TOTPCode(secret, time.Now())
+	if code, _, _ := ac.do("POST", "/api/admin/2fa/enable", map[string]string{"Code": valid}, nil); code != 200 {
+		t.Fatal("enable failed")
+	}
+	_, b, _ = ac.do("GET", "/api/admin/me", nil, nil)
+	if !strings.Contains(string(b), `"totp":true`) {
+		t.Fatalf("me: %s", b)
+	}
+	lc := &client{t: t, srv: srv}
+	if code, _, _ := lc.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil); code != 428 {
+		t.Fatalf("login without code: %d", code)
+	}
+	if code, _, _ := lc.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123", "Code": "111111"}, nil); code != 401 {
+		t.Fatalf("login with bad code: %d", code)
+	}
+	if code, _, _ := lc.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123", "Code": auth.TOTPCode(secret, time.Now())}, nil); code != 200 {
+		t.Fatalf("login with code: %d", code)
+	}
+	if code, _, _ := lc.do("POST", "/api/admin/2fa/disable", map[string]string{"Code": "222222"}, nil); code != 400 {
+		t.Fatal("disable without valid code")
+	}
+	if code, _, _ := lc.do("POST", "/api/admin/2fa/disable", map[string]string{"Code": auth.TOTPCode(secret, time.Now())}, nil); code != 200 {
+		t.Fatal("disable failed")
+	}
+	if code, _, _ := (&client{t: t, srv: srv}).do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil); code != 200 {
+		t.Fatal("login after disable")
 	}
 }

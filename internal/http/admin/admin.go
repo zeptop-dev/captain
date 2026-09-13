@@ -193,7 +193,7 @@ func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 // --- auth ---
 
 func (h *handlers) login(w http.ResponseWriter, r *http.Request) {
-	var in struct{ Email, Password string }
+	var in struct{ Email, Password, Code string }
 	if !decode(r, &in) {
 		fail(w, http.StatusBadRequest, "bad json")
 		return
@@ -224,6 +224,22 @@ func (h *handlers) login(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusForbidden, "admin only")
 		return
 	}
+	// Second factor: the password alone is not enough once TOTP is on.
+	if secret, enabled, _ := h.Store.TOTP(r.Context(), u.ID); enabled {
+		if strings.TrimSpace(in.Code) == "" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusPreconditionRequired)
+			_ = json.NewEncoder(w).Encode(map[string]any{"totp": true, "error": "authenticator code required"})
+			return
+		}
+		if !auth.VerifyTOTP(secret, in.Code, time.Now()) {
+			if h.Logins != nil {
+				h.Logins.Fail(ip)
+			}
+			fail(w, http.StatusUnauthorized, "invalid authenticator code")
+			return
+		}
+	}
 	sess, err := h.Sessions.Create(r.Context(), u.ID)
 	if err != nil {
 		fail(w, http.StatusInternalServerError, "internal error")
@@ -243,7 +259,8 @@ func (h *handlers) logout(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) me(w http.ResponseWriter, r *http.Request) {
 	u := userFrom(r)
-	ok(w, map[string]any{"id": u.ID, "email": u.Email, "role": u.Role, "version": h.Version})
+	_, totp, _ := h.Store.TOTP(r.Context(), u.ID)
+	ok(w, map[string]any{"id": u.ID, "email": u.Email, "role": u.Role, "version": h.Version, "totp": totp})
 }
 
 func (h *handlers) dashboard(w http.ResponseWriter, r *http.Request) {
@@ -605,6 +622,7 @@ func (h *handlers) rotateToken(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	_ = h.Store.RotateShortCode(r.Context(), id)
 	ok(w, map[string]string{"sub_token": tok, "sub_url": h.subURL(r.Context(), tok)})
 }
 
@@ -1061,14 +1079,15 @@ func (h *handlers) putSubscription(w http.ResponseWriter, r *http.Request) {
 		}
 		clean = append(clean, strings.TrimRight(u, "/"))
 	}
-	if err := h.Store.SetSetting(r.Context(), service.SettingSubscription, service.SubscriptionSettings{URLs: clean}); err != nil {
+	in.URLs = clean
+	if err := h.Store.SetSetting(r.Context(), service.SettingSubscription, in); err != nil {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	if h.SubLinks != nil {
 		h.SubLinks.Invalidate()
 	}
-	ok(w, service.SubscriptionSettings{URLs: clean})
+	ok(w, in)
 }
 
 // ---- landing page and external logins -------------------------------------------
@@ -1363,7 +1382,7 @@ func allowed(role, method, path string) bool {
 		return true
 	case domain.RoleSupport:
 		switch {
-		case path == "/api/admin/me", path == "/api/admin/logout", path == "/api/admin/dashboard", strings.HasPrefix(path, "/api/admin/tokens"):
+		case path == "/api/admin/me", path == "/api/admin/logout", path == "/api/admin/dashboard", strings.HasPrefix(path, "/api/admin/tokens"), strings.HasPrefix(path, "/api/admin/2fa"):
 			return true
 		case strings.HasPrefix(path, "/api/admin/tickets"):
 			return true
