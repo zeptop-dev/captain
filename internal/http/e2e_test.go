@@ -1574,6 +1574,16 @@ func TestProbePageAndBeats(t *testing.T) {
 	if !strings.Contains(string(b), `"probe":{"enabled":true,"beat_seconds":5,"carrier_ping":true,"tasks":[{"id":1,"name":"cf","type":"tcp","target":"1.1.1.1:443","interval_seconds":30}]}`) {
 		t.Fatalf("state probe config: %s", b)
 	}
+	// Custom carrier targets replace the defaults on the node; bad ones are rejected.
+	if code, _, _ := ac.do("PUT", "/api/admin/settings/probe", map[string]any{"enabled": true, "carrier_ping": true, "path": "status", "carriers": []map[string]string{{"name": "HK", "addr": "hkix"}}}, nil); code != 400 {
+		t.Fatal("carrier without port accepted")
+	}
+	ac.do("PUT", "/api/admin/settings/probe", map[string]any{"enabled": true, "beat_seconds": 5, "carrier_ping": true, "path": "status", "hosts": []string{"status.example.com"}, "visibility": "public", "title": "Our Status",
+		"carriers": []map[string]string{{"name": "HK", "addr": "www.hkix.net:443"}, {"name": "", "addr": ""}}, "alerts": map[string]any{"offline_seconds": 60, "cpu_pct": 80, "window_minutes": 1, "traffic": true}}, nil)
+	_, b, _ = nc.do("GET", "/api/agent/state", nil, nil)
+	if !strings.Contains(string(b), `"carriers":[{"name":"HK","addr":"www.hkix.net:443"}]`) {
+		t.Fatalf("carriers missing from state: %s", b)
+	}
 
 	// Beats from the node.
 	beat := func(up, down uint64, cpu float64) {

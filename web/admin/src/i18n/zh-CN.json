@@ -615,7 +615,9 @@
     "taskTarget": "目标",
     "taskInterval": "间隔（秒）",
     "taskNodes": "限定节点",
-    "taskNodeCount": "{{count}} 个节点"
+    "taskNodeCount": "{{count}} 个节点",
+    "carriers": "延迟探测目标",
+    "carriersHint": "每行一个：名称 地址:端口。留空用默认的电信/联通/移动探测点（cloudcpp）；填了就整体替换。节点做 TCP 连接测延迟，连接被拒绝也算一次有效往返。"
   },
   "nodeProbe": {
     "title": "探针与月流量",

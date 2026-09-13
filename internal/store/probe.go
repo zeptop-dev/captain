@@ -13,17 +13,19 @@ import (
 
 // ProbeSettings is the admin-edited monitoring configuration.
 type ProbeSettings struct {
-	Enabled     bool     `json:"enabled"`
-	BeatSeconds int      `json:"beat_seconds"` // 5..60, default 10
-	CarrierPing bool     `json:"carrier_ping"` // CT/CU/CM TCP-connect latency
-	Path        string   `json:"path"`         // "/status"; "" disables the path mode
-	Hosts       []string `json:"hosts"`        // dedicated hostnames serving only the probe page
-	Visibility  string   `json:"visibility"`   // public | users | admins
-	Title       string   `json:"title"`
-	Logo        string   `json:"logo"`
-	ShowGlobe   bool     `json:"show_globe"`
-	ShowIP      bool     `json:"show_ip"`
-	Alerts      struct {
+	Enabled     bool `json:"enabled"`
+	BeatSeconds int  `json:"beat_seconds"` // 5..60, default 10
+	CarrierPing bool `json:"carrier_ping"` // TCP-connect latency to the carrier points
+	// Carriers replaces the default CT/CU/CM probe points when set.
+	Carriers   []spec.Carrier `json:"carriers"`
+	Path       string         `json:"path"`       // "/status"; "" disables the path mode
+	Hosts      []string       `json:"hosts"`      // dedicated hostnames serving only the probe page
+	Visibility string         `json:"visibility"` // public | users | admins
+	Title      string         `json:"title"`
+	Logo       string         `json:"logo"`
+	ShowGlobe  bool           `json:"show_globe"`
+	ShowIP     bool           `json:"show_ip"`
+	Alerts     struct {
 		OfflineSeconds int  `json:"offline_seconds"` // grace before an offline notice, default 180
 		CPUPct         int  `json:"cpu_pct"`         // 0 = off
 		MemPct         int  `json:"mem_pct"`

@@ -615,7 +615,9 @@
     "taskTarget": "Target",
     "taskInterval": "Interval (s)",
     "taskNodes": "Only on nodes",
-    "taskNodeCount": "{{count}} nodes"
+    "taskNodeCount": "{{count}} nodes",
+    "carriers": "Latency targets",
+    "carriersHint": "One per line: name host:port. Blank = the default CT/CU/CM points (cloudcpp); anything here replaces the whole set. Nodes measure TCP connect time; a refused connection still counts as a round trip."
   },
   "nodeProbe": {
     "title": "Probe & monthly traffic",
