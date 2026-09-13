@@ -17,7 +17,10 @@
     "system": "System",
     "settings": "Settings",
     "site": "Landing page",
-    "coupons": "Coupons"
+    "coupons": "Coupons",
+    "tickets": "Tickets",
+    "gifts": "Gift codes",
+    "articles": "Knowledge base"
   },
   "login": {
     "title": "Sign in to Captain",
@@ -68,7 +71,8 @@
     "someDown": "{{count}} down",
     "pendingOrders": "{{count}} pending orders",
     "trafficChart": "Traffic, last 14 days",
-    "trafficChartSub": "Daily sum across all nodes"
+    "trafficChartSub": "Daily sum across all nodes",
+    "openTickets": "{{count}} open tickets"
   },
   "nodes": {
     "title": "Nodes",
@@ -348,5 +352,116 @@
     "ipWindow": "Window (hours)",
     "inviteOnly": "Invite only",
     "captcha": "Captcha"
+  },
+  "tickets": {
+    "title": "Tickets",
+    "subtitle": "Questions from users. Replies reach them by Telegram or email.",
+    "subject": "Subject",
+    "user": "User",
+    "priority": "Priority",
+    "statusCol": "Status",
+    "updated": "Updated",
+    "count": "{{count}} messages",
+    "you": "Support",
+    "replyHint": "Write a reply…",
+    "reply": "Reply",
+    "sent": "Reply sent",
+    "close": "Close ticket",
+    "reopen": "Reopen",
+    "status": {
+      "open": "Awaiting reply",
+      "replied": "Replied",
+      "closed": "Closed"
+    },
+    "prio": {
+      "low": "Low",
+      "normal": "Normal",
+      "high": "Urgent"
+    }
+  },
+  "gifts": {
+    "title": "Gift codes",
+    "subtitle": "Generate single-use codes in batches: balance top-up, plan, extra traffic or extra days.",
+    "create": "Generate codes",
+    "batch": "Batch",
+    "batchHint": "Blank = timestamp",
+    "prefix": "Prefix",
+    "kind": "Kind",
+    "count": "Count",
+    "amount": "Amount",
+    "trafficGB": "Traffic (GB)",
+    "daysLabel": "Days",
+    "plan": "Plan",
+    "periodDays": "Period days (0 = plan default)",
+    "expires": "Expires",
+    "generate": "Generate",
+    "generated": "{{count}} codes generated (shown once, copy them now)",
+    "redeemed": "Used / total",
+    "createdAt": "Created",
+    "deleteBatch": "Delete batch",
+    "deleteHint": "Only unused codes are removed; redeemed ones stay for the record.",
+    "copyUnused": "Copy unused codes",
+    "code": "Code",
+    "value": "Grants",
+    "status": "Status",
+    "unused": "Unused",
+    "expired": "Expired",
+    "days": "+{{count}} days",
+    "kinds": {
+      "balance": "Balance",
+      "plan": "Plan",
+      "traffic": "Traffic",
+      "days": "Days"
+    }
+  },
+  "articles": {
+    "title": "Knowledge base",
+    "subtitle": "Guides shown under Help in the portal, written in Markdown and grouped by category.",
+    "create": "New article",
+    "titleCol": "Title",
+    "category": "Category",
+    "lang": "Language",
+    "anyLang": "Any",
+    "sort": "Sort",
+    "updated": "Updated",
+    "draft": "Draft",
+    "published": "Published",
+    "body": "Body (Markdown)",
+    "bodyHint": "Placeholders: {{sub_url}} the reader's subscription link, {{email}}, {{site_name}}."
+  },
+  "clients": {
+    "title": "Client downloads",
+    "hint": "The list under Help → Downloads in the portal.",
+    "name": "Name",
+    "platform": "Platform",
+    "note": "Note",
+    "add": "Add",
+    "platforms": {
+      "windows": "Windows",
+      "macos": "macOS",
+      "ios": "iOS",
+      "android": "Android",
+      "linux": "Linux",
+      "other": "Other"
+    }
+  },
+  "telegram": {
+    "title": "Telegram bot",
+    "hint": "Create a bot with @BotFather and paste its token. Linked users can query their subscription and traffic and get expiry, traffic and ticket notices; new orders and tickets go to the admin chat.",
+    "token": "Bot token",
+    "username": "Bot",
+    "adminChat": "Admin chat ID",
+    "adminChatHint": "Message the bot once, then read your numeric ID from @userinfobot or getUpdates",
+    "notifyOrders": "Notify on paid orders",
+    "notifyTickets": "Notify on new tickets",
+    "test": "Send test",
+    "testSent": "Test message sent"
+  },
+  "trial": {
+    "title": "Trial plan",
+    "hint": "Every new account gets this plan once, whether it signed up with a password or an external login.",
+    "plan": "Plan",
+    "off": "Off",
+    "days": "Trial days"
   }
 }

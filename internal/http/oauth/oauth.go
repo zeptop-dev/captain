@@ -324,6 +324,9 @@ func (h *handlers) resolveUser(ctx context.Context, r *http.Request, p *store.OI
 	if err := h.Store.CreateUser(ctx, u); err != nil {
 		return nil, err
 	}
+	if err := h.Store.ApplyTrial(ctx, u.ID, time.Now()); err != nil {
+		h.Log.Warn("trial grant", "user", u.ID, "err", err)
+	}
 	return u, h.Store.LinkIdentity(ctx, u.ID, p.ID, subject, email)
 }
 

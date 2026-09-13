@@ -185,3 +185,29 @@ func (s *Store) DeletePlan(ctx context.Context, id int64) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM plans WHERE id = ?`, id)
 	return err
 }
+
+// ApplyTrial grants the configured trial plan to a brand-new account. It is
+// a no-op when no trial is set or the user already has a subscription.
+func (s *Store) ApplyTrial(ctx context.Context, userID int64, at time.Time) error {
+	var tr TrialSettings
+	if err := s.GetSetting(ctx, SettingTrial, &tr); err != nil || tr.PlanID == 0 {
+		return err
+	}
+	var n int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM subscriptions WHERE user_id = ?`, userID).Scan(&n); err != nil || n > 0 {
+		return err
+	}
+	plan, err := s.PlanByID(ctx, tr.PlanID)
+	if err != nil {
+		return err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := grantTx(ctx, tx, userID, plan, tr.PeriodDays, at); err != nil {
+		return err
+	}
+	return tx.Commit()
+}

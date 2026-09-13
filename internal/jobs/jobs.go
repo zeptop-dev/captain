@@ -3,7 +3,9 @@ package jobs
 
 import (
 	"context"
+	"fmt"
 	"github.com/zeptop-dev/captain/internal/mail"
+	"github.com/zeptop-dev/captain/internal/telegram"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -25,7 +27,9 @@ type Runner struct {
 	BackupDir  string
 	BackupKeep int // default 7
 	// Mail enables expiry/traffic reminders when the settings allow them.
-	Mail      *mail.Loader
+	Mail *mail.Loader
+	// Bot delivers reminders to users who linked Telegram (nil = off).
+	Bot       *telegram.Bot
 	SiteName  string
 	PortalURL string
 
@@ -119,16 +123,33 @@ func (r *Runner) backup(ctx context.Context, now time.Time) (string, error) {
 // whose quota is 90% used, once per expiry / quota period.
 func (r *Runner) reminders(ctx context.Context, now time.Time, log *slog.Logger) {
 	ms := r.Mail.Settings(ctx)
-	if !ms.Enabled() || !ms.Reminders {
+	viaMail := ms.Enabled() && ms.Reminders
+	viaBot := r.Bot != nil && r.Bot.Enabled(ctx)
+	if !viaMail && !viaBot {
 		return
+	}
+	// deliver tries Telegram first, then mail; false when neither could.
+	deliver := func(userID int64, m mail.Message, short string) bool {
+		if viaBot {
+			if sent, err := r.Bot.NotifyUser(ctx, userID, short); err == nil && sent {
+				return true
+			}
+		}
+		if viaMail {
+			if err := mail.Send(ctx, ms, m); err != nil {
+				log.Warn("reminder mail", "to", m.To, "err", err)
+				return false
+			}
+			return true
+		}
+		return false
 	}
 	exp, err := r.Store.ExpiringSubscriptions(ctx, now, 3*24*time.Hour)
 	if err != nil {
 		log.Error("expiry reminders", "err", err)
 	}
 	for _, e := range exp {
-		if err := mail.Send(ctx, ms, mail.ExpiryMessage(r.SiteName, e.Email, r.PortalURL, e.ExpiresAt)); err != nil {
-			log.Warn("expiry reminder", "to", e.Email, "err", err)
+		if !deliver(e.UserID, mail.ExpiryMessage(r.SiteName, e.Email, r.PortalURL, e.ExpiresAt), fmt.Sprintf("⏰ %s: your plan expires on %s. Renew: %s", r.SiteName, e.ExpiresAt.Format("2006-01-02"), r.PortalURL)) {
 			continue
 		}
 		_ = r.Store.MarkNotified(ctx, e.UserID, "expiry", e.Ref)
@@ -138,8 +159,7 @@ func (r *Runner) reminders(ctx context.Context, now time.Time, log *slog.Logger)
 		log.Error("traffic reminders", "err", err)
 	}
 	for _, e := range high {
-		if err := mail.Send(ctx, ms, mail.TrafficMessage(r.SiteName, e.Email, r.PortalURL, e.UsedPct)); err != nil {
-			log.Warn("traffic reminder", "to", e.Email, "err", err)
+		if !deliver(e.UserID, mail.TrafficMessage(r.SiteName, e.Email, r.PortalURL, e.UsedPct), fmt.Sprintf("📊 %s: you have used %d%% of your traffic. %s", r.SiteName, e.UsedPct, r.PortalURL)) {
 			continue
 		}
 		_ = r.Store.MarkNotified(ctx, e.UserID, "traffic", e.Ref)

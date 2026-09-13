@@ -989,3 +989,160 @@ func TestNodeInstallScript(t *testing.T) {
 		t.Fatalf("redeemed code still served: %d", status)
 	}
 }
+
+func TestOpsBatch(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "https://panel.test"
+	cfg.Portal.Registration = true
+	cfg.SiteName = "Captain"
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	ac := &client{t: t, srv: srv}
+	ac.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+
+	// Captured mail for ticket replies.
+	var mails []mail.Message
+	mail.SendFunc = func(_ context.Context, _ mail.Settings, m mail.Message) error { mails = append(mails, m); return nil }
+	defer func() { mail.SendFunc = nil }()
+	ms := mail.Settings{Provider: "resend", FromAddress: "no@test"}
+	ms.Resend.APIKey = "k"
+	_ = st.SetSetting(context.Background(), mail.SettingKey, ms)
+
+	// Trial: a 3-day plan handed to every new account.
+	_, b, _ := ac.do("POST", "/api/admin/plans", map[string]any{"Name": "trial", "PriceCents": 0, "PeriodDays": 30, "QuotaBytes": 1 << 30}, nil)
+	trialID := int64(mustJSON[map[string]any](t, b)["ID"].(float64))
+	_, b, _ = ac.do("POST", "/api/admin/plans", map[string]any{"Name": "pro", "PriceCents": 1000, "PeriodDays": 30, "QuotaBytes": 10 << 30}, nil)
+	proID := int64(mustJSON[map[string]any](t, b)["ID"].(float64))
+	if code, b, _ := ac.do("PUT", "/api/admin/settings/trial", map[string]any{"plan_id": trialID, "period_days": 3}, nil); code != 200 {
+		t.Fatalf("trial settings: %d %s", code, b)
+	}
+	uc := &client{t: t, srv: srv}
+	uc.do("POST", "/api/portal/register", map[string]string{"Email": "u@test", "Password": "password123"}, nil)
+	_, b, _ = uc.do("GET", "/api/portal/me", nil, nil)
+	me := mustJSON[map[string]any](t, b)
+	sub, _ := me["subscription"].(map[string]any)
+	if sub == nil || int64(sub["plan_id"].(float64)) != trialID {
+		t.Fatalf("trial not granted: %s", b)
+	}
+	exp, _ := time.Parse(time.RFC3339, sub["expires_at"].(string))
+	if d := time.Until(exp); d < 2*24*time.Hour || d > 4*24*time.Hour {
+		t.Fatalf("trial expiry %v", exp)
+	}
+
+	// Tickets: user opens, admin replies (mail goes out), user replies, admin closes.
+	code, b, _ := uc.do("POST", "/api/portal/tickets", map[string]string{"Subject": "Cannot connect", "Body": "help", "Priority": "high"}, nil)
+	if code != 200 {
+		t.Fatalf("create ticket: %d %s", code, b)
+	}
+	tk := mustJSON[map[string]any](t, b)
+	tid := itoa(int64(tk["id"].(float64)))
+	_, b, _ = ac.do("GET", "/api/admin/dashboard", nil, nil)
+	if !strings.Contains(string(b), `"open_tickets":1`) {
+		t.Fatalf("dashboard: %s", b)
+	}
+	code, b, _ = ac.do("POST", "/api/admin/tickets/"+tid+"/reply", map[string]string{"Body": "Try again"}, nil)
+	if code != 200 || !strings.Contains(string(b), `"status":"replied"`) {
+		t.Fatalf("admin reply: %d %s", code, b)
+	}
+	if len(mails) != 1 || mails[0].To != "u@test" || !strings.Contains(mails[0].Subject, "Cannot connect") {
+		t.Fatalf("ticket mail: %+v", mails)
+	}
+	code, b, _ = uc.do("POST", "/api/portal/tickets/"+tid+"/reply", map[string]string{"Body": "still broken"}, nil)
+	if code != 200 || !strings.Contains(string(b), `"status":"open"`) || strings.Count(string(b), `"body"`) != 3 {
+		t.Fatalf("user reply: %d %s", code, b)
+	}
+	other := &client{t: t, srv: srv}
+	other.do("POST", "/api/portal/register", map[string]string{"Email": "o@test", "Password": "password123"}, nil)
+	if code, _, _ := other.do("GET", "/api/portal/tickets/"+tid, nil, nil); code != 404 {
+		t.Fatalf("other user sees ticket: %d", code)
+	}
+	ac.do("POST", "/api/admin/tickets/"+tid+"/status", map[string]string{"Status": "closed"}, nil)
+	if code, _, _ := uc.do("POST", "/api/portal/tickets/"+tid+"/reply", map[string]string{"Body": "x"}, nil); code != 409 {
+		t.Fatalf("reply to closed: %d", code)
+	}
+	_, b, _ = ac.do("GET", "/api/admin/tickets?status=closed", nil, nil)
+	if !strings.Contains(string(b), `"total":1`) || !strings.Contains(string(b), `"email":"u@test"`) {
+		t.Fatalf("list tickets: %s", b)
+	}
+
+	// Gift codes: balance, plan, traffic; single use; unknown code rejected.
+	code, b, _ = ac.do("POST", "/api/admin/gifts", map[string]any{"Kind": "balance", "Value": 500, "Count": 2, "Prefix": "GIFT-", "Batch": "promo"}, nil)
+	if code != 200 {
+		t.Fatalf("create gifts: %d %s", code, b)
+	}
+	var gen struct {
+		Codes []string `json:"codes"`
+	}
+	_ = json.Unmarshal(b, &gen)
+	if len(gen.Codes) != 2 || !strings.HasPrefix(gen.Codes[0], "GIFT-") {
+		t.Fatalf("codes %v", gen.Codes)
+	}
+	if code, b, _ := uc.do("POST", "/api/portal/redeem", map[string]string{"Code": strings.ToLower(gen.Codes[0])}, nil); code != 200 || !strings.Contains(string(b), `"kind":"balance"`) {
+		t.Fatalf("redeem: %d %s", code, b)
+	}
+	if code, _, _ := uc.do("POST", "/api/portal/redeem", map[string]string{"Code": gen.Codes[0]}, nil); code != 400 {
+		t.Fatalf("reuse should fail: %d", code)
+	}
+	if code, _, _ := uc.do("POST", "/api/portal/redeem", map[string]string{"Code": "NOPE"}, nil); code != 400 {
+		t.Fatalf("unknown should fail: %d", code)
+	}
+	_, b, _ = uc.do("GET", "/api/portal/me", nil, nil)
+	if !strings.Contains(string(b), `"balance_cents":500`) {
+		t.Fatalf("balance: %s", b)
+	}
+	_, b, _ = ac.do("POST", "/api/admin/gifts", map[string]any{"Kind": "plan", "PlanID": proID, "PeriodDays": 90, "Count": 1}, nil)
+	_ = json.Unmarshal(b, &gen)
+	uc.do("POST", "/api/portal/redeem", map[string]string{"Code": gen.Codes[0]}, nil)
+	_, b, _ = uc.do("GET", "/api/portal/me", nil, nil)
+	me = mustJSON[map[string]any](t, b)
+	sub = me["subscription"].(map[string]any)
+	if int64(sub["plan_id"].(float64)) != proID || int64(sub["quota_bytes"].(float64)) != 10<<30 {
+		t.Fatalf("plan gift: %s", b)
+	}
+	_, b, _ = ac.do("POST", "/api/admin/gifts", map[string]any{"Kind": "traffic", "Value": 1 << 30, "Count": 1}, nil)
+	_ = json.Unmarshal(b, &gen)
+	uc.do("POST", "/api/portal/redeem", map[string]string{"Code": gen.Codes[0]}, nil)
+	_, b, _ = uc.do("GET", "/api/portal/me", nil, nil)
+	if !strings.Contains(string(b), `"quota_bytes":11811160064`) {
+		t.Fatalf("traffic gift: %s", b)
+	}
+	_, b, _ = ac.do("GET", "/api/admin/gifts/batches", nil, nil)
+	if !strings.Contains(string(b), `"batch":"promo"`) || !strings.Contains(string(b), `"redeemed":1`) {
+		t.Fatalf("batches: %s", b)
+	}
+	_, b, _ = ac.do("DELETE", "/api/admin/gifts/batches/promo", nil, nil)
+	if !strings.Contains(string(b), `"deleted":1`) {
+		t.Fatalf("delete batch: %s", b)
+	}
+
+	// Knowledge base: placeholders substituted per user; drafts hidden.
+	_, b, _ = ac.do("POST", "/api/admin/articles", map[string]any{"Title": "Clash setup", "Category": "Windows", "Body": "Import {{sub_url}} as {{email}}"}, nil)
+	aid := itoa(int64(mustJSON[map[string]any](t, b)["id"].(float64)))
+	ac.do("POST", "/api/admin/articles", map[string]any{"Title": "Draft", "Body": "x", "Published": false}, nil)
+	_, b, _ = uc.do("GET", "/api/portal/articles", nil, nil)
+	if strings.Contains(string(b), "Draft") || !strings.Contains(string(b), "Clash setup") {
+		t.Fatalf("articles: %s", b)
+	}
+	_, b, _ = uc.do("GET", "/api/portal/articles/"+aid, nil, nil)
+	if !strings.Contains(string(b), "https://panel.test/sub/") || !strings.Contains(string(b), "as u@test") {
+		t.Fatalf("article body: %s", b)
+	}
+
+	// Client downloads list.
+	ac.do("PUT", "/api/admin/settings/clients", map[string]any{"items": []map[string]string{{"name": "Clash Verge", "platform": "windows", "url": "https://x/y.exe"}, {"name": "", "url": ""}}}, nil)
+	_, b, _ = uc.do("GET", "/api/portal/clients", nil, nil)
+	if !strings.Contains(string(b), "Clash Verge") || strings.Count(string(b), `"name"`) != 1 {
+		t.Fatalf("clients: %s", b)
+	}
+
+	// Telegram off: portal reports disabled.
+	_, b, _ = uc.do("GET", "/api/portal/telegram", nil, nil)
+	if !strings.Contains(string(b), `"enabled":false`) {
+		t.Fatalf("telegram: %s", b)
+	}
+}

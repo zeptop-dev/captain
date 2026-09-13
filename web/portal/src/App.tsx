@@ -9,6 +9,8 @@ import PlansPage from './pages/PlansPage'
 import OrdersPage from './pages/OrdersPage'
 import ServersPage from './pages/ServersPage'
 import InvitePage from './pages/InvitePage'
+import TicketsPage from './pages/TicketsPage'
+import HelpPage from './pages/HelpPage'
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { me, loading } = useAuth()
@@ -30,6 +32,8 @@ export default function App() {
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/servers" element={<ServersPage />} />
           <Route path="/invite" element={<InvitePage />} />
+          <Route path="/tickets" element={<TicketsPage />} />
+          <Route path="/help" element={<HelpPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

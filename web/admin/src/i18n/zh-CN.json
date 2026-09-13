@@ -17,7 +17,10 @@
     "system": "系统",
     "settings": "设置",
     "site": "展示页",
-    "coupons": "优惠券"
+    "coupons": "优惠券",
+    "tickets": "工单",
+    "gifts": "兑换码",
+    "articles": "知识库"
   },
   "login": {
     "title": "登录 Captain",
@@ -68,7 +71,8 @@
     "someDown": "{{count}} 个离线",
     "pendingOrders": "{{count}} 个待支付订单",
     "trafficChart": "最近 14 天流量",
-    "trafficChartSub": "所有节点每日合计"
+    "trafficChartSub": "所有节点每日合计",
+    "openTickets": "{{count}} 个待处理工单"
   },
   "nodes": {
     "title": "节点",
@@ -348,5 +352,116 @@
     "ipWindow": "时间窗口（小时）",
     "inviteOnly": "邀请制（必须有邀请码）",
     "captcha": "验证码"
+  },
+  "tickets": {
+    "title": "工单",
+    "subtitle": "用户提交的问题。回复后用户会收到 Telegram 或邮件通知。",
+    "subject": "主题",
+    "user": "用户",
+    "priority": "优先级",
+    "statusCol": "状态",
+    "updated": "更新",
+    "count": "{{count}} 条消息",
+    "you": "客服",
+    "replyHint": "回复内容…",
+    "reply": "回复",
+    "sent": "已回复",
+    "close": "关闭工单",
+    "reopen": "重新打开",
+    "status": {
+      "open": "待回复",
+      "replied": "已回复",
+      "closed": "已关闭"
+    },
+    "prio": {
+      "low": "低",
+      "normal": "普通",
+      "high": "紧急"
+    }
+  },
+  "gifts": {
+    "title": "兑换码",
+    "subtitle": "批量生成礼品卡或兑换码，一码一用：充余额、开套餐、加流量或加天数。",
+    "create": "生成兑换码",
+    "batch": "批次",
+    "batchHint": "留空按时间命名",
+    "prefix": "前缀",
+    "kind": "类型",
+    "count": "数量",
+    "amount": "金额",
+    "trafficGB": "流量 (GB)",
+    "daysLabel": "天数",
+    "plan": "套餐",
+    "periodDays": "周期天数（0 = 套餐默认）",
+    "expires": "过期时间",
+    "generate": "生成",
+    "generated": "已生成 {{count}} 个兑换码（只显示这一次，请复制保存）",
+    "redeemed": "已用 / 总数",
+    "createdAt": "生成时间",
+    "deleteBatch": "删除批次",
+    "deleteHint": "只删除未使用的码，已兑换的记录保留。",
+    "copyUnused": "复制未使用的码",
+    "code": "兑换码",
+    "value": "内容",
+    "status": "状态",
+    "unused": "未使用",
+    "expired": "已过期",
+    "days": "+{{count}} 天",
+    "kinds": {
+      "balance": "充余额",
+      "plan": "开套餐",
+      "traffic": "加流量",
+      "days": "加天数"
+    }
+  },
+  "articles": {
+    "title": "知识库",
+    "subtitle": "用户中心「帮助」里的教程，Markdown 格式，按分类展示。",
+    "create": "新建文章",
+    "titleCol": "标题",
+    "category": "分类",
+    "lang": "语言",
+    "anyLang": "不限",
+    "sort": "排序",
+    "updated": "更新",
+    "draft": "草稿",
+    "published": "发布",
+    "body": "正文（Markdown）",
+    "bodyHint": "可用占位符：{{sub_url}} 用户订阅链接、{{email}} 用户邮箱、{{site_name}} 站点名。"
+  },
+  "clients": {
+    "title": "客户端下载",
+    "hint": "用户中心「帮助 → 客户端下载」里的列表。",
+    "name": "名称",
+    "platform": "平台",
+    "note": "备注",
+    "add": "添加",
+    "platforms": {
+      "windows": "Windows",
+      "macos": "macOS",
+      "ios": "iOS",
+      "android": "Android",
+      "linux": "Linux",
+      "other": "其他"
+    }
+  },
+  "telegram": {
+    "title": "Telegram 机器人",
+    "hint": "在 @BotFather 创建机器人拿到 Token。用户绑定后可查订阅和流量，并接收到期、流量和工单提醒；新订单和新工单会发到管理员会话。",
+    "token": "Bot Token",
+    "username": "机器人",
+    "adminChat": "管理员 Chat ID",
+    "adminChatHint": "给机器人发一条消息后，从 @userinfobot 或 getUpdates 里拿到你的数字 ID",
+    "notifyOrders": "新订单通知",
+    "notifyTickets": "新工单通知",
+    "test": "发送测试",
+    "testSent": "测试消息已发送"
+  },
+  "trial": {
+    "title": "试用套餐",
+    "hint": "新注册账号自动获得一次该套餐，密码注册和外部登录都算。",
+    "plan": "套餐",
+    "off": "不启用",
+    "days": "试用天数"
   }
 }

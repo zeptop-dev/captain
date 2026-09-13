@@ -99,3 +99,40 @@ func (s *Store) RegistrationsFromIP(ctx context.Context, ip string, since time.T
 	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE register_ip = ? AND created_at >= ?`, ip, since.Unix()).Scan(&n)
 	return n, err
 }
+
+// ClientsSettings is the download list shown in the portal.
+type ClientsSettings struct {
+	Items []ClientItem `json:"items"`
+}
+
+// ClientItem is one download entry.
+type ClientItem struct {
+	Name     string `json:"name"`
+	Platform string `json:"platform"` // windows | macos | ios | android | linux | other
+	URL      string `json:"url"`
+	Note     string `json:"note"`
+}
+
+// SettingClients is the settings key.
+const SettingClients = "clients"
+
+// TelegramSettings configures the bot.
+type TelegramSettings struct {
+	BotToken     string `json:"bot_token"`
+	BotUsername  string `json:"bot_username"`   // filled in by getMe
+	AdminChatID  int64  `json:"admin_chat_id"`  // receives new-order / new-ticket notices
+	NotifyOrders bool   `json:"notify_orders"`  //
+	NotifyTicket bool   `json:"notify_tickets"` //
+}
+
+// SettingTelegram is the settings key.
+const SettingTelegram = "telegram"
+
+// TrialSettings gives new accounts a plan once.
+type TrialSettings struct {
+	PlanID     int64 `json:"plan_id"` // 0 = off
+	PeriodDays int   `json:"period_days"`
+}
+
+// SettingTrial is the settings key.
+const SettingTrial = "trial"

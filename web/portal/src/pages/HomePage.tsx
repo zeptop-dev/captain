@@ -7,6 +7,8 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../lib/auth'
 import { bytes, money, when } from '../lib/format'
+import { RedeemCard } from '../components/RedeemCard'
+import { TelegramCard } from '../components/TelegramCard'
 
 // Deep links understood by the common clients.
 function importLinks(url: string) {
@@ -88,6 +90,8 @@ export default function HomePage() {
           </Stack>
         </Group>
       </Card>
+      <RedeemCard />
+      <TelegramCard />
       {(providers.data?.providers ?? []).length > 0 && (
         <Card mt="lg">
           <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.logins')}</Text>

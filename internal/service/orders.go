@@ -18,6 +18,8 @@ import (
 type Orders struct {
 	Store    *store.Store
 	Gateways map[string]payment.Gateway // by name
+	// OnPaid runs after an order is settled (notifications).
+	OnPaid func(ctx context.Context, o *domain.Order)
 }
 
 // ErrGateway means the requested gateway is not configured.
@@ -85,6 +87,9 @@ func (o *Orders) Create(ctx context.Context, user *domain.User, planID int64, pe
 			return nil, nil, err
 		}
 		paid, err := o.Store.PayWithBalance(ctx, order.No, time.Now())
+		if err == nil && o.OnPaid != nil {
+			o.OnPaid(ctx, paid)
+		}
 		if err != nil {
 			return nil, nil, err
 		}
@@ -116,6 +121,9 @@ func (o *Orders) Settle(ctx context.Context, n *payment.Notification) (*domain.O
 	order, err := o.Store.MarkPaid(ctx, n.OrderNo, n.GatewayRef, time.Now())
 	if errors.Is(err, store.ErrAlreadyPaid) {
 		return order, nil
+	}
+	if err == nil && o.OnPaid != nil {
+		o.OnPaid(ctx, order)
 	}
 	return order, err
 }

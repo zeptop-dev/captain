@@ -5,7 +5,9 @@
     "orders": "订单",
     "servers": "节点",
     "logout": "退出",
-    "invite": "邀请"
+    "invite": "邀请",
+    "tickets": "工单",
+    "help": "帮助"
   },
   "auth": {
     "login": "登录",
@@ -106,5 +108,64 @@
     "bindHint": "注册时没填？可以在这里补填一次。",
     "bind": "绑定",
     "bound": "已绑定邀请人"
+  },
+  "redeem": {
+    "title": "兑换码",
+    "hint": "输入礼品卡或兑换码，充值余额、开通套餐或加流量。",
+    "submit": "兑换",
+    "gotBalance": "已充值 {{amount}}",
+    "gotPlan": "套餐已开通",
+    "gotTraffic": "已增加 {{amount}} 流量",
+    "gotDays": "已延长 {{count}} 天"
+  },
+  "telegram": {
+    "hint": "绑定 Telegram 后可以在 @{{bot}} 里查订阅、流量，并接收到期和工单提醒。把下面的命令发给机器人：",
+    "bound": "已绑定 @{{bot}}，到期、流量和工单提醒会发到 Telegram。",
+    "unbind": "解绑",
+    "unbound": "已解绑",
+    "open": "打开机器人"
+  },
+  "tickets": {
+    "title": "工单",
+    "create": "新建工单",
+    "empty": "还没有工单",
+    "count": "{{count}} 条消息",
+    "subject": "主题",
+    "priority": "优先级",
+    "message": "问题描述",
+    "submit": "提交",
+    "created": "工单已提交",
+    "reply": "回复",
+    "replyHint": "补充说明…",
+    "close": "关闭工单",
+    "closedHint": "工单已关闭，如有新问题请新建工单。",
+    "support": "客服",
+    "you": "我",
+    "status": {
+      "open": "等待回复",
+      "replied": "已回复",
+      "closed": "已关闭"
+    },
+    "prio": {
+      "low": "低",
+      "normal": "普通",
+      "high": "紧急"
+    }
+  },
+  "help": {
+    "title": "帮助",
+    "articles": "使用教程",
+    "downloads": "客户端下载",
+    "empty": "暂无教程",
+    "noClients": "暂无下载",
+    "back": "返回列表",
+    "platform": {
+      "windows": "Windows",
+      "macos": "macOS",
+      "ios": "iOS",
+      "android": "Android",
+      "linux": "Linux",
+      "other": "其他"
+    }
   }
 }

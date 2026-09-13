@@ -13,6 +13,7 @@ import { PageHeader } from '../components/PageHeader'
 import { UpdateCard } from '../components/UpdateCard'
 import { MailCard } from '../components/MailCard'
 import { RegistrationCard } from '../components/RegistrationCard'
+import { ClientsCard, TelegramCard, TrialCard } from '../components/OpsCards'
 
 export default function SettingsPage() {
   const { t } = useTranslation()
@@ -85,7 +86,10 @@ export default function SettingsPage() {
           </Stack></form>
         </Card>
         <RegistrationCard />
+        <TrialCard />
         <MailCard />
+        <TelegramCard />
+        <ClientsCard />
         <Card>
           <Title order={5} mb="xs">{t('settings.oidc')}</Title>
           <Text size="xs" c="dimmed" mb="sm">{t('settings.oidcHint')}</Text>
