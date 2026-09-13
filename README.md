@@ -26,7 +26,7 @@ traffic landing in the user's subscription:
 
 - Subscriptions at `GET /sub/<token>` with client detection (`?client=` override): mihomo/Clash YAML, sing-box JSON, base64 share links (v2rayN, Shadowrocket), Surge. `Subscription-Userinfo` header with usage and expiry. Entries decide what users see: display host and port on top of the landing inbound's settings; group-restricted inbounds only appear for that group. Rendered mihomo and sing-box documents validated with the real clients.
 
-- Orders and payments: EPay 易支付 **v1 (MD5) and v2 (RSA)** behind one gateway (`payments.epay.version`), Stripe Checkout with webhook verification, and balance. Settlement is idempotent under repeated callbacks; EPay callbacks are also checked against the order amount.
+- Orders and payments: EPay 易支付 **v1 (MD5) and v2 (RSA)** behind one gateway (`payments.epay.version`), Stripe Checkout, 支付宝当面付 (Alipay F2F, scan-to-pay QR page), Coinbase Commerce, CoinPayments, BTCPay Server, MGate, and balance. Every callback is signature-verified before any field is read; settlement is idempotent under repeated callbacks and refused when the callback amount differs from the order.
 - Portal API under `/api/portal`: register (optional), login, me (subscription, usage, subscription URL), plans, servers with per-server share links, orders, create order (returns the payment URL).
 
 - Admin console (`web/admin`, React 19 + Mantine 8 + TanStack Query, zh-CN and en) embedded at `/admin/`: overview with traffic chart, nodes with a one-line install command (`curl .../api/agent/install.sh?pair=CODE | sh`, or a `docker run` with `BOSUN_CAPTAIN`/`BOSUN_PAIR`) that installs and pairs bosun, node detail with host metrics and inbounds (quick-setup recipes for VLESS+REALITY, Hysteria2, mieru, SS2022, Trojan+WS), entries, users with an edit drawer (grant plan, balance, rotate subscription URL), plans, orders, settings.
@@ -109,6 +109,25 @@ rewards). Settings → Announcement puts a notice on the portal home page.
 
 Nodes learn about changes within seconds: bosun keeps a long-poll request open
 on the state endpoint, no persistent connection needed.
+
+## Payment gateways
+
+Enable any subset under `payments:` in config.yaml (see `config.example.yaml`);
+each appears in the portal's "pay with" chooser. Callback URLs to register at
+the provider are `<base_url>/api/payment/<name>/notify`.
+
+| name | provider | notes |
+|---|---|---|
+| `epay` | 易支付 v1/v2 | page jump; callback signed MD5 or RSA |
+| `stripe` | Stripe Checkout | webhook signed with the endpoint secret |
+| `alipay` | 支付宝当面付 | `alipay.trade.precreate`; Captain serves a QR page at `/api/payment/alipay/page` (RSA2 both ways) |
+| `coinbase` | Coinbase Commerce | hosted charge; webhook HMAC-SHA256 (`X-CC-Webhook-Signature`) |
+| `coinpayments` | CoinPayments | `create_transaction` (API key pair); IPN HMAC-SHA512 with the IPN secret, merchant id checked |
+| `btcpay` | BTCPay Server | Greenfield invoice; webhook HMAC-SHA256 (`BTCPay-Sig`), store id checked |
+| `mgate` | MGate | Xboard-compatible: md5(sorted query + app_secret) both ways |
+
+Crypto gateways take a `currency` for the fiat price (default CNY, USD for
+CoinPayments); the buyer picks the coin on the provider's page.
 
 ## Registration limits
 

@@ -59,6 +59,37 @@ type Config struct {
 			WebhookSecret string `yaml:"webhook_secret"`
 			Currency      string `yaml:"currency"`
 		} `yaml:"stripe"`
+		Alipay *struct { // 支付宝当面付 (scan-to-pay QR)
+			AppID      string `yaml:"app_id"`
+			PrivateKey string `yaml:"private_key"` // 应用私钥, PEM or bare base64
+			PublicKey  string `yaml:"public_key"`  // 支付宝公钥, PEM or bare base64
+			Subject    string `yaml:"subject"`     // bill line; default: plan name
+		} `yaml:"alipay"`
+		Coinbase *struct { // Coinbase Commerce
+			APIKey        string `yaml:"api_key"`
+			WebhookSecret string `yaml:"webhook_secret"`
+			Currency      string `yaml:"currency"` // local price currency; default CNY
+		} `yaml:"coinbase"`
+		CoinPayments *struct {
+			MerchantID string `yaml:"merchant_id"`
+			PublicKey  string `yaml:"public_key"`
+			PrivateKey string `yaml:"private_key"`
+			IPNSecret  string `yaml:"ipn_secret"`
+			Currency   string `yaml:"currency"` // price currency; default USD
+		} `yaml:"coinpayments"`
+		BTCPay *struct { // BTCPay Server (Greenfield API)
+			URL           string `yaml:"url"`
+			StoreID       string `yaml:"store_id"`
+			APIKey        string `yaml:"api_key"`
+			WebhookSecret string `yaml:"webhook_secret"`
+			Currency      string `yaml:"currency"` // invoice currency; default CNY
+		} `yaml:"btcpay"`
+		MGate *struct {
+			URL            string `yaml:"url"`
+			AppID          string `yaml:"app_id"`
+			AppSecret      string `yaml:"app_secret"`
+			SourceCurrency string `yaml:"source_currency"` // e.g. CNY
+		} `yaml:"mgate"`
 	} `yaml:"payments"`
 
 	Portal struct {

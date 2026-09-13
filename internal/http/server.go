@@ -28,7 +28,12 @@ import (
 	"github.com/zeptop-dev/captain/internal/http/portal"
 	"github.com/zeptop-dev/captain/internal/http/sub"
 	"github.com/zeptop-dev/captain/internal/payment"
+	"github.com/zeptop-dev/captain/internal/payment/alipay"
+	"github.com/zeptop-dev/captain/internal/payment/btcpay"
+	"github.com/zeptop-dev/captain/internal/payment/coinbase"
+	"github.com/zeptop-dev/captain/internal/payment/coinpayments"
 	"github.com/zeptop-dev/captain/internal/payment/epay"
+	"github.com/zeptop-dev/captain/internal/payment/mgate"
 	"github.com/zeptop-dev/captain/internal/payment/stripe"
 	"github.com/zeptop-dev/captain/internal/service"
 	"github.com/zeptop-dev/captain/internal/store"
@@ -159,6 +164,37 @@ func buildGateways(cfg *config.Config, log *slog.Logger) map[string]payment.Gate
 		} else {
 			out["stripe"] = gw
 		}
+	}
+	paidURL, cancelURL := base+"/portal/orders?paid=1", base+"/portal/orders?cancelled=1"
+	add := func(name string, gw payment.Gateway, err error) {
+		if err != nil {
+			log.Error(name+" disabled", "err", err)
+			return
+		}
+		out[name] = gw
+	}
+	if a := cfg.Payments.Alipay; a != nil {
+		gw, err := alipay.New(alipay.Config{AppID: a.AppID, PrivateKey: a.PrivateKey, PublicKey: a.PublicKey, Subject: a.Subject,
+			NotifyURL: base + "/api/payment/alipay/notify", PageURL: base + "/api/payment/alipay/page", ReturnURL: paidURL})
+		add("alipay", gw, err)
+	}
+	if c := cfg.Payments.Coinbase; c != nil {
+		gw, err := coinbase.New(coinbase.Config{APIKey: c.APIKey, WebhookSecret: c.WebhookSecret, Currency: c.Currency, RedirectURL: paidURL, CancelURL: cancelURL})
+		add("coinbase", gw, err)
+	}
+	if c := cfg.Payments.CoinPayments; c != nil {
+		gw, err := coinpayments.New(coinpayments.Config{MerchantID: c.MerchantID, PublicKey: c.PublicKey, PrivateKey: c.PrivateKey, IPNSecret: c.IPNSecret, Currency: c.Currency,
+			NotifyURL: base + "/api/payment/coinpayments/notify", ReturnURL: paidURL, CancelURL: cancelURL})
+		add("coinpayments", gw, err)
+	}
+	if b := cfg.Payments.BTCPay; b != nil {
+		gw, err := btcpay.New(btcpay.Config{URL: b.URL, StoreID: b.StoreID, APIKey: b.APIKey, WebhookSecret: b.WebhookSecret, Currency: b.Currency, RedirectURL: paidURL})
+		add("btcpay", gw, err)
+	}
+	if m := cfg.Payments.MGate; m != nil {
+		gw, err := mgate.New(mgate.Config{URL: m.URL, AppID: m.AppID, AppSecret: m.AppSecret, SourceCurrency: m.SourceCurrency,
+			NotifyURL: base + "/api/payment/mgate/notify", ReturnURL: paidURL})
+		add("mgate", gw, err)
 	}
 	return out
 }
