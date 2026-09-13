@@ -34,3 +34,8 @@ payments: {}
   #   secret_key: sk_live_...
   #   webhook_secret: whsec_...
   #   currency: usd
+  # alipay: { app_id: "...", private_key: "...", public_key: "..." }          # 支付宝当面付 (QR)
+  # coinbase: { api_key: "...", webhook_secret: "...", currency: CNY }        # Coinbase Commerce
+  # coinpayments: { merchant_id: "...", public_key: "...", private_key: "...", ipn_secret: "...", currency: USD }
+  # btcpay: { url: https://btcpay.example.com, store_id: "...", api_key: "...", webhook_secret: "...", currency: CNY }
+  # mgate: { url: https://gateway.example.com, app_id: "...", app_secret: "...", source_currency: CNY }
