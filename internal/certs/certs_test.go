@@ -70,6 +70,27 @@ func TestWildcardAndOnDemand(t *testing.T) {
 	}
 }
 
+func TestWWWCoversApex(t *testing.T) {
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	m, err := New(Options{Dir: t.TempDir(), Domain: "www.example.com", CloudflareToken: "tok", Issuers: []certmagic.Issuer{selfIssuer{key}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+	if got := m.Managed(); len(got) != 3 || got[0] != "www.example.com" || got[1] != "example.com" || got[2] != "*.example.com" {
+		t.Fatalf("managed %v", got)
+	}
+	if err := m.Sync(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	tc := m.TLSConfig()
+	for _, name := range []string{"www.example.com", "example.com", "sub.example.com"} {
+		if _, err := tc.GetCertificate(&tls.ClientHelloInfo{ServerName: name}); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+	}
+}
+
 func TestHTTPOnlyManagesPanelHost(t *testing.T) {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	m, err := New(Options{Dir: t.TempDir(), Domain: "panel.example.com", Issuers: []certmagic.Issuer{selfIssuer{key}}})

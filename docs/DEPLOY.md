@@ -87,7 +87,8 @@ token with Zone:DNS:Edit on the zone) to switch to DNS-01: Captain then obtains
 `example.com` **and** `*.example.com` up front, so www and every subscription
 host under the domain are covered, port 80 is no longer required and the
 Cloudflare proxy can stay on (SSL mode Full (strict)). Hosts outside that
-zone still get their own certificate on first request. To terminate TLS elsewhere set
+zone still get their own certificate on first request. A `www.example.com`
+panel also obtains `example.com` and redirects the bare domain to www. To terminate TLS elsewhere set
 `tls.auto: false`, keep `listen: 127.0.0.1:8080` and use `deploy/Caddyfile` (or
 an nginx equivalent). `base_url` must be the public URL either way: subscription
 links, EPay and Stripe callbacks use it.

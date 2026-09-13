@@ -106,6 +106,17 @@ func cmdServe(args []string) error {
 		redirect := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "https://"+domain+r.URL.RequestURI(), http.StatusMovedPermanently)
 		})
+		// A "www." panel also answers on the apex and sends it to www.
+		if apex := certs.Apex(domain); apex != strings.ToLower(domain) {
+			next := srv.Handler
+			srv.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.EqualFold(r.Host, apex) {
+					redirect(w, r)
+					return
+				}
+				next.ServeHTTP(w, r)
+			})
+		}
 		if cfg.TLS.Auto {
 			m, err := certs.New(certs.Options{
 				Dir: filepath.Join(cfg.DataDir, "certs"), Email: cfg.TLS.Email, Domain: domain,

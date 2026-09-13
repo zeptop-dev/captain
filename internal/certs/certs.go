@@ -104,13 +104,23 @@ func New(opts Options) (*Manager, error) {
 // DNS reports whether DNS-01 (and therefore the wildcard) is in use.
 func (m *Manager) DNS() bool { return m.opts.CloudflareToken != "" }
 
-// Managed lists the names obtained up front.
+// Managed lists the names obtained up front. With DNS-01 the wildcard is for
+// the registrable part: a "www.example.com" panel gets www, the apex and
+// "*.example.com", so the bare domain can redirect to www.
 func (m *Manager) Managed() []string {
 	d := strings.ToLower(m.opts.Domain)
-	if m.DNS() {
-		return []string{d, "*." + d}
+	if !m.DNS() {
+		return []string{d}
 	}
-	return []string{d}
+	if apex := Apex(d); apex != d {
+		return []string{d, apex, "*." + apex}
+	}
+	return []string{d, "*." + d}
+}
+
+// Apex strips a leading "www." from a host.
+func Apex(host string) string {
+	return strings.TrimPrefix(strings.ToLower(host), "www.")
 }
 
 // Start obtains the managed certificates in the background and keeps them
