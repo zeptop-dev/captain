@@ -210,6 +210,15 @@ func TestEndToEnd(t *testing.T) {
 	if !strings.HasPrefix(h.Get("Subscription-Userinfo"), "upload=0; download=0; total=1073741824; expire=") {
 		t.Fatalf("userinfo: %s", h.Get("Subscription-Userinfo"))
 	}
+	// Profile name: unquoted ASCII filename, UTF-8 filename*, and Clash profile-title.
+	_ = st.SetSetting(context.Background(), "site", map[string]any{"name": "深度 Proxy"})
+	_, _, h = anon.do("GET", "/sub/"+u1["sub_token"].(string), nil, map[string]string{"User-Agent": "clash-verge/1.0"})
+	if cd := h.Get("Content-Disposition"); cd != "attachment; filename=Proxy; filename*=UTF-8''%E6%B7%B1%E5%BA%A6%20Proxy" {
+		t.Fatalf("content-disposition: %s", cd)
+	}
+	if pt := h.Get("Profile-Title"); pt != "base64:5rex5bqmIFByb3h5" {
+		t.Fatalf("profile-title: %s", pt)
+	}
 	_, b, _ = anon.do("GET", "/sub/"+u2["sub_token"].(string)+"?client=uri", nil, nil)
 	raw, _ := base64.StdEncoding.DecodeString(string(b))
 	if !strings.Contains(string(raw), "mierus://") || !strings.Contains(string(raw), "vless://"+u2["uuid"].(string)+"@entry.test:443") {
