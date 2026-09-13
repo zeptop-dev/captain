@@ -163,7 +163,9 @@
     "displayPort": "表示ポート",
     "rate": "倍率",
     "enabled": "有効",
-    "displayHostHint": "空欄ならインバウンドの TLS ドメイン、なければノードのパブリックアドレスを使います"
+    "displayHostHint": "空欄ならインバウンドの TLS ドメイン、なければノードのパブリックアドレスを使います",
+    "sort": "並び順",
+    "sortHint": "購読内でこの値の昇順に並びます"
   },
   "users": {
     "title": "ユーザー",

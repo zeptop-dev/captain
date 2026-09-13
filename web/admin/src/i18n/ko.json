@@ -163,7 +163,9 @@
     "displayPort": "표시 포트",
     "rate": "배율",
     "enabled": "사용",
-    "displayHostHint": "비워 두면 인바운드의 TLS 도메인, 없으면 노드 공인 주소를 사용합니다"
+    "displayHostHint": "비워 두면 인바운드의 TLS 도메인, 없으면 노드 공인 주소를 사용합니다",
+    "sort": "정렬",
+    "sortHint": "구독 내 오름차순 정렬"
   },
   "users": {
     "title": "사용자",
