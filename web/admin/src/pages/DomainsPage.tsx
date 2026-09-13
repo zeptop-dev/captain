@@ -33,6 +33,8 @@ export default function DomainsPage() {
   const dform = useForm({ initialValues: { Name: '', Provider: 'cloudflare', CFToken: '' } })
   const saveDomain = useMutation({ mutationFn: (v: typeof dform.values) => editingDomain === 'new' ? api.post('/api/admin/domains', v) : api.patch(`/api/admin/domains/${(editingDomain as Domain).id}`, { Provider: v.Provider, CFToken: v.CFToken }), onSuccess: () => { toast.ok(t('common.saved')); setEditingDomain(null); refresh() }, onError: toast.err })
   const delDomain = useMutation({ mutationFn: (id: number) => api.del(`/api/admin/domains/${id}`), onSuccess: () => { toast.ok(t('common.deleted')); refresh() }, onError: toast.err })
+  // The modal's children render even while closed, so never dereference a null selection.
+  const hasToken = editingDomain !== null && editingDomain !== 'new' && editingDomain.has_token
   const openDomain = (d: Domain | 'new') => { dform.setValues(d === 'new' ? { Name: '', Provider: 'cloudflare', CFToken: '' } : { Name: d.name, Provider: d.provider, CFToken: '' }); setEditingDomain(d) }
   const useSummary = (u: Usage) => [u.nodes.length && t('domains.useNodes', { n: u.nodes.length }), u.tls.length && t('domains.useTLS', { n: u.tls.length }), u.sub_hosts.length && t('domains.useSub', { n: u.sub_hosts.length }), u.panel && t('domains.usePanel')].filter(Boolean).join(' · ')
   const useDetail = (u: Usage) => [...u.nodes, ...u.tls, ...u.sub_hosts].filter((v, i, a) => a.indexOf(v) === i).join('\n')
@@ -122,7 +124,7 @@ export default function DomainsPage() {
         <form onSubmit={dform.onSubmit((v) => saveDomain.mutate(v))}><Stack>
           <TextInput label={t('domains.domain')} description={t('domains.domainHint')} placeholder="example.com" required disabled={editingDomain !== 'new'} {...dform.getInputProps('Name')} />
           <Select label="DNS" data={[{ value: 'cloudflare', label: 'Cloudflare' }, { value: 'manual', label: t('domains.manual') }]} allowDeselect={false} {...dform.getInputProps('Provider')} />
-          {dform.values.Provider === 'cloudflare' && <PasswordInput label={t('domains.token')} description={editingDomain !== 'new' && (editingDomain as Domain).has_token ? t('domains.tokenSet') : domains.data?.global_token ? t('domains.tokenGlobalHint') : t('domains.tokenHint')} placeholder={editingDomain !== 'new' && (editingDomain as Domain).has_token ? '••••••••' : ''} {...dform.getInputProps('CFToken')} />}
+          {dform.values.Provider === 'cloudflare' && <PasswordInput label={t('domains.token')} description={hasToken ? t('domains.tokenSet') : domains.data?.global_token ? t('domains.tokenGlobalHint') : t('domains.tokenHint')} placeholder={hasToken ? '••••••••' : ''} {...dform.getInputProps('CFToken')} />}
           <Group justify="flex-end"><Button variant="default" onClick={() => setEditingDomain(null)}>{t('common.cancel')}</Button><Button type="submit" loading={saveDomain.isPending}>{t('common.save')}</Button></Group>
         </Stack></form>
       </Modal>
