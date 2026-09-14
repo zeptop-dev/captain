@@ -60,7 +60,7 @@ export interface Inbound {
   ID: number; NodeID: number; Tag: string; Protocol: string; Listen: string; Port: number; Core: string
   Settings: Record<string, unknown>; GroupID: number | null; Enabled: boolean; Sort: number; IngressID: number | null
 }
-export interface Ingress { id: number; node_id: number; name: string; kind: string; bind_ip: string; line_ip: string; entry_host: string; entry_domain?: string; port_from: number; port_to: number; port_offset: number }
+export interface Ingress { id: number; node_id: number; name: string; kind: string; bind_ip: string; line_ip: string; entry_host: string; entry_domain?: string; port_from: number; port_to: number; port_offset: number; reserved_ports?: number[] }
 export interface Group { ID: number; Name: string }
 export interface Plan {
   ID: number; Name: string; PriceCents: number; PeriodDays: number; ResetDays: number; ResetMode: string; Prices: { period_days: number; price_cents: number }[] | null; QuotaBytes: number; DeviceLimit: number

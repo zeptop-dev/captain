@@ -861,7 +861,7 @@ func (h *handlers) fillEntryDefaults(ctx context.Context, e *domain.Entry) error
 		}
 	}
 	if e.DisplayHost == "" {
-		return errors.New("display_host is required: the inbound has no TLS domain and the node no public address")
+		return errors.New("display_host is required: the inbound has no TLS domain and the node no public address or domain; on a line-only node pick a line ingress for the inbound")
 	}
 	return nil
 }

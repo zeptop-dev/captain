@@ -31,6 +31,7 @@ func (h *handlers) listIngresses(w http.ResponseWriter, r *http.Request) {
 type ingressInput struct {
 	Name, Kind, BindIP, LineIP, EntryHost, EntryDomain string
 	PortFrom, PortTo, PortOffset                       int
+	ReservedPorts                                      []int
 }
 
 func (in *ingressInput) apply(g *store.Ingress) string {
@@ -65,6 +66,13 @@ func (in *ingressInput) apply(g *store.Ingress) string {
 		return "port range must be from-to within 1-65535, or empty"
 	}
 	g.PortFrom, g.PortTo, g.PortOffset = in.PortFrom, in.PortTo, in.PortOffset
+	g.ReservedPorts = []int{}
+	for _, p := range in.ReservedPorts {
+		if p < 1 || p > 65535 {
+			return "reserved ports must be within 1-65535"
+		}
+		g.ReservedPorts = append(g.ReservedPorts, p)
+	}
 	return ""
 }
 
@@ -131,6 +139,11 @@ func (h *handlers) checkIngress(r *http.Request, ib *domain.Inbound) string {
 		return "ingress not found on this node"
 	}
 	if !g.AllowsPort(ib.Port) {
+		for _, r := range g.ReservedPorts {
+			if r == ib.Port {
+				return fmt.Sprintf("port %d is reserved on the %s line (SSH or provider use)", ib.Port, g.Name)
+			}
+		}
 		return fmt.Sprintf("port %d is outside the %s line's range %d-%d", ib.Port, g.Name, g.PortFrom, g.PortTo)
 	}
 	return ""

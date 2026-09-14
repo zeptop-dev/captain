@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -18,12 +20,15 @@ type Ingress struct {
 	LineIP    string `json:"line_ip"`
 	EntryHost string `json:"entry_host"`
 	// EntryDomain names the public entry; a DNS record points it at EntryHost.
-	EntryDomain string    `json:"entry_domain"`
-	PortFrom    int       `json:"port_from"`
-	PortTo      int       `json:"port_to"`
-	PortOffset  int       `json:"port_offset"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	EntryDomain string `json:"entry_domain"`
+	PortFrom    int    `json:"port_from"`
+	PortTo      int    `json:"port_to"`
+	PortOffset  int    `json:"port_offset"`
+	// ReservedPorts are mapped ports the provider uses for something else
+	// (typically SSH); inbounds may not take them.
+	ReservedPorts []int     `json:"reserved_ports"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 // ClientHost is what entries advertise: the entry domain when set, else
@@ -38,19 +43,58 @@ func (g *Ingress) ClientHost() string {
 // EntryPort maps a local inbound port to the port clients dial.
 func (g *Ingress) EntryPort(local int) int { return local + g.PortOffset }
 
-// AllowsPort reports whether a local port fits the line's range.
+// AllowsPort reports whether a local port fits the line's range and is
+// not reserved.
 func (g *Ingress) AllowsPort(p int) bool {
+	for _, r := range g.ReservedPorts {
+		if r == p {
+			return false
+		}
+	}
 	return g.PortFrom == 0 || (p >= g.PortFrom && p <= g.PortTo)
 }
 
-const ingressCols = "id, node_id, name, kind, bind_ip, line_ip, entry_host, entry_domain, port_from, port_to, port_offset, created_at, updated_at"
+// ProbePort is the far-end port the line RTT task connects to when no
+// inbound uses the ingress: a reserved (provider-owned, e.g. SSH) port
+// answers, else the range start, else 80.
+func (g *Ingress) ProbePort() int {
+	if len(g.ReservedPorts) > 0 {
+		return g.ReservedPorts[0]
+	}
+	if g.PortFrom > 0 {
+		return g.PortFrom
+	}
+	return 80
+}
+
+func parsePorts(s string) []int {
+	out := []int{}
+	for _, f := range strings.Split(s, ",") {
+		if n, err := strconv.Atoi(strings.TrimSpace(f)); err == nil && n > 0 && n < 65536 {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+func joinPorts(ps []int) string {
+	parts := make([]string, 0, len(ps))
+	for _, p := range ps {
+		parts = append(parts, strconv.Itoa(p))
+	}
+	return strings.Join(parts, ",")
+}
+
+const ingressCols = "id, node_id, name, kind, bind_ip, line_ip, entry_host, entry_domain, port_from, port_to, port_offset, reserved_ports, created_at, updated_at"
 
 func scanIngress(row interface{ Scan(...any) error }) (*Ingress, error) {
 	var g Ingress
 	var cr, up int64
-	if err := row.Scan(&g.ID, &g.NodeID, &g.Name, &g.Kind, &g.BindIP, &g.LineIP, &g.EntryHost, &g.EntryDomain, &g.PortFrom, &g.PortTo, &g.PortOffset, &cr, &up); err != nil {
+	var reserved string
+	if err := row.Scan(&g.ID, &g.NodeID, &g.Name, &g.Kind, &g.BindIP, &g.LineIP, &g.EntryHost, &g.EntryDomain, &g.PortFrom, &g.PortTo, &g.PortOffset, &reserved, &cr, &up); err != nil {
 		return nil, wrapNotFound(err)
 	}
+	g.ReservedPorts = parsePorts(reserved)
 	g.CreatedAt, g.UpdatedAt = unix(cr), unix(up)
 	return &g, nil
 }
@@ -60,8 +104,8 @@ func (s *Store) CreateIngress(ctx context.Context, g *Ingress) error {
 		g.Kind = "mapped"
 	}
 	ts := now()
-	res, err := s.db.ExecContext(ctx, `INSERT INTO ingresses (node_id, name, kind, bind_ip, line_ip, entry_host, entry_domain, port_from, port_to, port_offset, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		g.NodeID, g.Name, g.Kind, g.BindIP, g.LineIP, g.EntryHost, g.EntryDomain, g.PortFrom, g.PortTo, g.PortOffset, ts, ts)
+	res, err := s.db.ExecContext(ctx, `INSERT INTO ingresses (node_id, name, kind, bind_ip, line_ip, entry_host, entry_domain, port_from, port_to, port_offset, reserved_ports, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		g.NodeID, g.Name, g.Kind, g.BindIP, g.LineIP, g.EntryHost, g.EntryDomain, g.PortFrom, g.PortTo, g.PortOffset, joinPorts(g.ReservedPorts), ts, ts)
 	if err != nil {
 		return err
 	}
@@ -71,8 +115,8 @@ func (s *Store) CreateIngress(ctx context.Context, g *Ingress) error {
 }
 
 func (s *Store) UpdateIngress(ctx context.Context, g *Ingress) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE ingresses SET name = ?, kind = ?, bind_ip = ?, line_ip = ?, entry_host = ?, entry_domain = ?, port_from = ?, port_to = ?, port_offset = ?, updated_at = ? WHERE id = ?`,
-		g.Name, g.Kind, g.BindIP, g.LineIP, g.EntryHost, g.EntryDomain, g.PortFrom, g.PortTo, g.PortOffset, now(), g.ID)
+	_, err := s.db.ExecContext(ctx, `UPDATE ingresses SET name = ?, kind = ?, bind_ip = ?, line_ip = ?, entry_host = ?, entry_domain = ?, port_from = ?, port_to = ?, port_offset = ?, reserved_ports = ?, updated_at = ? WHERE id = ?`,
+		g.Name, g.Kind, g.BindIP, g.LineIP, g.EntryHost, g.EntryDomain, g.PortFrom, g.PortTo, g.PortOffset, joinPorts(g.ReservedPorts), now(), g.ID)
 	return err
 }
 

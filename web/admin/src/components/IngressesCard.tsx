@@ -8,9 +8,10 @@ import { useTranslation } from 'react-i18next'
 import { api, type Ingress } from '../lib/api'
 import { dnsToast, toast, type DNSResult } from '../lib/notify'
 
-export type IngressValues = { Name: string; BindIP: string; LineIP: string; EntryHost: string; EntryDomain: string; PortFrom: number | string; PortTo: number | string; PortOffset: number | string }
-export const emptyIngress: IngressValues = { Name: 'IPLC', BindIP: '', LineIP: '', EntryHost: '', EntryDomain: '', PortFrom: '', PortTo: '', PortOffset: 0 }
-export const ingressPayload = (v: IngressValues) => ({ Name: v.Name, BindIP: v.BindIP, LineIP: v.LineIP, EntryHost: v.EntryHost, EntryDomain: v.EntryDomain, PortFrom: Number(v.PortFrom) || 0, PortTo: Number(v.PortTo) || 0, PortOffset: Number(v.PortOffset) || 0 })
+export type IngressValues = { Name: string; BindIP: string; LineIP: string; EntryHost: string; EntryDomain: string; PortFrom: number | string; PortTo: number | string; PortOffset: number | string; ReservedPorts: string }
+export const emptyIngress: IngressValues = { Name: 'IPLC', BindIP: '', LineIP: '', EntryHost: '', EntryDomain: '', PortFrom: '', PortTo: '', PortOffset: 0, ReservedPorts: '' }
+export const parsePorts = (s: string) => s.split(/[\s,]+/).map((x) => Number(x)).filter((n) => n > 0 && n < 65536)
+export const ingressPayload = (v: IngressValues) => ({ Name: v.Name, BindIP: v.BindIP, LineIP: v.LineIP, EntryHost: v.EntryHost, EntryDomain: v.EntryDomain, PortFrom: Number(v.PortFrom) || 0, PortTo: Number(v.PortTo) || 0, PortOffset: Number(v.PortOffset) || 0, ReservedPorts: parsePorts(v.ReservedPorts) })
 
 // The fields of one line ingress, shared by the card and the inbound recipe.
 export function IngressFields({ form }: { form: ReturnType<typeof useForm<IngressValues>> }) {
@@ -31,6 +32,7 @@ export function IngressFields({ form }: { form: ReturnType<typeof useForm<Ingres
         <NumberInput label={t('ingress.portTo')} min={1} max={65535} placeholder="17799" {...form.getInputProps('PortTo')} />
         <NumberInput label={t('ingress.portOffset')} description={t('ingress.portOffsetHint')} {...form.getInputProps('PortOffset')} />
       </Group>
+      <TextInput label={t('ingress.reserved')} description={t('ingress.reservedHint')} placeholder="17700" {...form.getInputProps('ReservedPorts')} />
     </>
   )
 }
@@ -47,7 +49,7 @@ export function IngressesCard({ nodeID, ingresses, inbounds, embedded }: { nodeI
   const invalidate = () => { qc.invalidateQueries({ queryKey: ['node', String(nodeID)] }); qc.invalidateQueries({ queryKey: ['node', nodeID] }) }
   const save = useMutation({ mutationFn: (v: IngressValues) => editing === 'new' ? api.post<{ dns?: DNSResult[] }>(`/api/admin/nodes/${nodeID}/ingresses`, ingressPayload(v)) : api.patch<{ dns?: DNSResult[] }>(`/api/admin/ingresses/${(editing as Ingress).id}`, ingressPayload(v)), onSuccess: (r) => { toast.ok(t('common.saved')); setEditing(null); invalidate(); dnsToast(r.dns) }, onError: toast.err })
   const del = useMutation({ mutationFn: (id: number) => api.del(`/api/admin/ingresses/${id}`), onSuccess: () => { toast.ok(t('common.deleted')); invalidate() }, onError: toast.err })
-  const open = (g: Ingress | 'new') => { form.setValues(g === 'new' ? emptyIngress : { Name: g.name, BindIP: g.bind_ip, LineIP: g.line_ip, EntryHost: g.entry_host, EntryDomain: g.entry_domain ?? '', PortFrom: g.port_from || '', PortTo: g.port_to || '', PortOffset: g.port_offset }); setEditing(g) }
+  const open = (g: Ingress | 'new') => { form.setValues(g === 'new' ? emptyIngress : { Name: g.name, BindIP: g.bind_ip, LineIP: g.line_ip, EntryHost: g.entry_host, EntryDomain: g.entry_domain ?? '', PortFrom: g.port_from || '', PortTo: g.port_to || '', PortOffset: g.port_offset, ReservedPorts: (g.reserved_ports ?? []).join(', ') }); setEditing(g) }
   const uses = (id: number) => inbounds.filter((ib) => ib.IngressID === id).length
   return (
     <Root mb={embedded ? 0 : "lg"}>

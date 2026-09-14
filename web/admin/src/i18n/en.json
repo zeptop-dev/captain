@@ -181,7 +181,8 @@
     "ingressHint": "Clients dial {{host}}; local port range {{ports}}.",
     "ingressNewHint": "The line ingress is created first, then the inbound.",
     "ingressNewFields": "Copy these from the provider's network information page:",
-    "listenIngressHint": "blank = bind to the ingress address {{ip}}"
+    "listenIngressHint": "blank = bind to the ingress address {{ip}}",
+    "lineOnlyHint": "This node has no public address or domain and is reached only through a line ingress: pick one, or the subscription has no usable address."
   },
   "entries": {
     "title": "Entries",
@@ -904,7 +905,9 @@
     "noEntryHint": "This line has no public entry: add a port forward on a relay node that can reach it (target = the far-end address) and use the relay's address in entries.",
     "deleteHint": "Inbounds using it fall back to direct; entry addresses are not rewritten.",
     "entryDomain": "Entry domain (optional)",
-    "entryDomainHint": "A name for the public entry: entries advertise it instead of the IP; with auto DNS on the registered domain, an A record pointing at the entry IP is created automatically."
+    "entryDomainHint": "A name for the public entry: entries advertise it instead of the IP; with auto DNS on the registered domain, an A record pointing at the entry IP is created automatically.",
+    "reserved": "Reserved ports",
+    "reservedHint": "Ports in the range the provider uses itself (usually the mapped SSH port), comma separated; recipes skip them and inbounds may not take them"
   },
   "komari": {
     "title": "Komari reporting",
