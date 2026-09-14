@@ -1596,10 +1596,14 @@ func TestProbePageAndBeats(t *testing.T) {
 	if !strings.Contains(string(b), `"komari":{"enabled":true,"server":"https://komari.example.com","key":"adkey-1234567890","name":"jp1","interval":5}`) {
 		t.Fatalf("komari missing from state: %s", b)
 	}
-	// A line ingress adds a source-bound RTT task to the far end on the
-	// first inbound's port.
-	_, b, _ = ac.do("POST", "/api/admin/nodes/"+nodeID+"/ingresses", map[string]any{"Name": "IPLC", "BindIP": "10.10.0.2", "LineIP": "198.51.100.20", "PortFrom": 17701, "PortTo": 17799}, nil)
+	// A line ingress adds a source-bound RTT task to the far end: the
+	// reserved (SSH) port until an inbound uses the line, then that port.
+	_, b, _ = ac.do("POST", "/api/admin/nodes/"+nodeID+"/ingresses", map[string]any{"Name": "IPLC", "BindIP": "10.10.0.2", "LineIP": "198.51.100.20", "PortFrom": 17700, "PortTo": 17799, "ReservedPorts": []int{17700}}, nil)
 	gid := int64(mustJSON[map[string]any](t, b)["ingress"].(map[string]any)["id"].(float64))
+	_, b, _ = nc.do("GET", "/api/agent/state", nil, nil)
+	if !strings.Contains(string(b), `"target":"198.51.100.20:17700"`) {
+		t.Fatalf("line task should use the reserved port before any inbound: %s", b)
+	}
 	ac.do("POST", "/api/admin/nodes/"+nodeID+"/inbounds", map[string]any{"Tag": "m", "Protocol": "mieru", "Port": 17710, "IngressID": gid, "Settings": map[string]any{"mieru_transport": "TCP"}}, nil)
 	_, b, _ = nc.do("GET", "/api/agent/state", nil, nil)
 	if !strings.Contains(string(b), `{"id":-`+itoa(gid)+`,"name":"IPLC","type":"tcp","target":"198.51.100.20:17710","interval_seconds":30,"source_ip":"10.10.0.2"}`) {
@@ -2508,11 +2512,14 @@ func TestLineIngresses(t *testing.T) {
 	if code, _, _ := ac.do("POST", "/api/admin/nodes/"+nid+"/ingresses", map[string]any{"Name": "IPLC", "LineIP": "198.51.100.20", "PortFrom": 17799, "PortTo": 17701}, nil); code != 400 {
 		t.Fatal("inverted range accepted")
 	}
-	code, b, _ := ac.do("POST", "/api/admin/nodes/"+nid+"/ingresses", map[string]any{"Name": "IPLC", "BindIP": "10.10.0.2", "LineIP": "198.51.100.20", "EntryHost": "203.0.113.30", "PortFrom": 17701, "PortTo": 17799}, nil)
-	if code != 200 {
+	code, b, _ := ac.do("POST", "/api/admin/nodes/"+nid+"/ingresses", map[string]any{"Name": "IPLC", "BindIP": "10.10.0.2", "LineIP": "198.51.100.20", "EntryHost": "203.0.113.30", "PortFrom": 17700, "PortTo": 17799, "ReservedPorts": []int{17700}}, nil)
+	if code != 200 || !strings.Contains(string(b), `"reserved_ports":[17700]`) {
 		t.Fatalf("create ingress: %d %s", code, b)
 	}
 	gid := int64(mustJSON[map[string]any](t, b)["ingress"].(map[string]any)["id"].(float64))
+	if code, b, _ := ac.do("POST", "/api/admin/nodes/"+nid+"/inbounds", map[string]any{"Tag": "m", "Protocol": "mieru", "Port": 17700, "IngressID": gid, "Settings": map[string]any{"mieru_transport": "TCP"}}, nil); code != 400 || !strings.Contains(string(b), "reserved") {
+		t.Fatalf("reserved port: %d %s", code, b)
+	}
 
 	// Inbounds: port must fit the line; the node state binds to the line NIC.
 	if code, b, _ := ac.do("POST", "/api/admin/nodes/"+nid+"/inbounds", map[string]any{"Tag": "m", "Protocol": "mieru", "Port": 17800, "IngressID": gid, "Settings": map[string]any{"mieru_transport": "TCP"}}, nil); code != 400 || !strings.Contains(string(b), "range") {

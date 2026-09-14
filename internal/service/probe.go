@@ -115,7 +115,7 @@ func (p *Probe) AgentConfig(ctx context.Context, nodeID int64) *spec.Probe {
 			if g.BindIP == "" || g.LineIP == "" {
 				continue
 			}
-			port := g.PortFrom
+			port := 0
 			for _, ib := range inbounds {
 				if ib.IngressID != nil && *ib.IngressID == g.ID {
 					port = ib.Port
@@ -123,7 +123,7 @@ func (p *Probe) AgentConfig(ctx context.Context, nodeID int64) *spec.Probe {
 				}
 			}
 			if port == 0 {
-				port = 80
+				port = g.ProbePort()
 			}
 			cfg.Tasks = append(cfg.Tasks, spec.PingTask{ID: -g.ID, Name: g.Name, Type: "tcp", Target: net.JoinHostPort(g.LineIP, strconv.Itoa(port)), IntervalSeconds: 30, SourceIP: g.BindIP})
 		}

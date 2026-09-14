@@ -64,7 +64,7 @@ export function toPayload(v: InboundValues) {
   return { Tag: v.Tag, Protocol: v.Protocol, Listen: v.Listen, Port: v.Port, Core: v.Core, GroupID: v.GroupID ? Number(v.GroupID) : null, Enabled: v.Enabled, Settings: settings, IngressID: v.IngressID ? Number(v.IngressID) : null }
 }
 
-export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain, ingresses = [], usedPorts = [] }: { initial: InboundValues; groups: UGroup[]; onSubmit: (v: InboundValues) => void; busy: boolean; onCancel: () => void; domain?: string; ingresses?: Ingress[]; usedPorts?: number[] }) {
+export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain, ingresses = [], usedPorts = [], lineOnly }: { initial: InboundValues; groups: UGroup[]; onSubmit: (v: InboundValues) => void; busy: boolean; onCancel: () => void; domain?: string; ingresses?: Ingress[]; usedPorts?: number[]; lineOnly?: boolean }) {
   const { t } = useTranslation()
   const form = useForm<InboundValues>({
     initialValues: initial,
@@ -74,7 +74,7 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
   // Recipes name node.example.com; a node with a registered host name gets it instead.
   // The IPLC recipe also needs a line ingress: reuse the node's first one or
   // describe a new one inline (created together with the inbound).
-  const firstFree = (g?: { port_from: number; port_to: number }) => { if (!g || !g.port_from) return 0; for (let p = g.port_from; p <= g.port_to; p++) if (!usedPorts.includes(p)) return p; return 0 }
+  const firstFree = (g?: { port_from: number; port_to: number; reserved_ports?: number[] }) => { if (!g || !g.port_from) return 0; for (let p = g.port_from; p <= g.port_to; p++) if (!usedPorts.includes(p) && !(g.reserved_ports ?? []).includes(p)) return p; return 0 }
   const apply = (r: (typeof recipes)[number]) => {
     if (r.key === 'mieruLine') {
       const g = ingresses[0]
@@ -83,6 +83,8 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
     }
     form.setValues({ Protocol: r.protocol, Port: r.port, Settings: JSON.stringify(r.settings, null, 2).replaceAll('node.example.com', domain || 'node.example.com'), Tag: form.values.Tag || r.protocol, NewIngress: undefined })
   }
+  // A node reachable only through a line (no public address, no domain) defaults new inbounds to its first ingress.
+  useEffect(() => { if (lineOnly && !initial.IngressID && !initial.Tag && ingresses[0]) form.setValues({ IngressID: String(ingresses[0].id), Port: firstFree(ingresses[0]) || form.values.Port }) }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const ingressForm = useForm<IngressValues>({ initialValues: form.values.NewIngress ?? emptyIngress })
   useEffect(() => { if (form.values.NewIngress) ingressForm.setValues(form.values.NewIngress) }, [form.values.NewIngress]) // eslint-disable-line react-hooks/exhaustive-deps
   const selectedIngress = ingresses.find((g) => String(g.id) === form.values.IngressID)
@@ -116,6 +118,7 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
         <Select label={t('inbounds.ingress')} description={form.values.NewIngress ? t('inbounds.ingressNewHint') : selectedIngress ? t('inbounds.ingressHint', { host: selectedIngress.entry_host || t('ingress.noEntry'), ports: selectedIngress.port_from ? `${selectedIngress.port_from}–${selectedIngress.port_to}` : t('ingress.anyPort') }) : t('inbounds.ingressDirectHint')} allowDeselect={false}
           data={[{ value: '', label: t('inbounds.ingressDirect') }, ...ingresses.map((g) => ({ value: String(g.id), label: `${g.name} → ${g.entry_domain || g.entry_host || t('ingress.noEntry')}` })), { value: 'new', label: t('inbounds.ingressNew') }]}
           value={form.values.NewIngress ? 'new' : form.values.IngressID} onChange={onIngress} />
+        {lineOnly && !form.values.IngressID && !form.values.NewIngress && <Text size="xs" c="orange">{t('inbounds.lineOnlyHint')}</Text>}
         {form.values.NewIngress && <Stack gap="xs" p="sm" style={{ border: '1px dashed var(--mantine-color-default-border)', borderRadius: 8 }}><Text size="xs" c="dimmed">{t('inbounds.ingressNewFields')}</Text><IngressFields form={ingressForm} /></Stack>}
         <Group grow>
           <TextInput label={t('inbounds.listen')} placeholder={selectedIngress?.bind_ip || '::'} description={selectedIngress?.bind_ip ? t('inbounds.listenIngressHint', { ip: selectedIngress.bind_ip }) : undefined} {...form.getInputProps('Listen')} />

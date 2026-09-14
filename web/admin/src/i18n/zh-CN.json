@@ -181,7 +181,8 @@
     "ingressHint": "客户端连 {{host}}，本地端口范围 {{ports}}。",
     "ingressNewHint": "保存时会先创建这个专线入口，再创建入站。",
     "ingressNewFields": "从服务商的网络信息页抄这几项：",
-    "listenIngressHint": "留空 = 绑定到入口的本地 IP {{ip}}"
+    "listenIngressHint": "留空 = 绑定到入口的本地 IP {{ip}}",
+    "lineOnlyHint": "这台节点没有公网地址和域名，只能通过专线入口访问：请选一个入口，否则订阅里没有可用地址。"
   },
   "entries": {
     "title": "入口",
@@ -904,7 +905,9 @@
     "noEntryHint": "这条线没有公网入口：在能连通它的前置节点上加一条端口转发到外部连接 IP，订阅行写前置的地址。",
     "deleteHint": "删除后用它的入站会变回直连，订阅行地址不会自动改。",
     "entryDomain": "入口域名（可选）",
-    "entryDomainHint": "给公网入口起个域名，订阅里写它而不是 IP；域名登记且开了自动 DNS 时会自动建 A 记录指向公网入口。"
+    "entryDomainHint": "给公网入口起个域名，订阅里写它而不是 IP；域名登记且开了自动 DNS 时会自动建 A 记录指向公网入口。",
+    "reserved": "保留端口",
+    "reservedHint": "端口段里被服务商占用的端口（一般是 SSH 映射的那个），逗号分隔；配方选端口时跳过，入站也不能用"
   },
   "komari": {
     "title": "Komari 上报",
