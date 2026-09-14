@@ -97,14 +97,33 @@ func shareURI(l Line) string {
 		}
 		return "anytls://" + url.PathEscape(l.Password) + "@" + hostPort + "?" + q.Encode() + frag
 	case spec.Mieru:
+		// mierus:// takes repeated port/protocol pairs (BOTH = TCP at port,
+		// UDP at port+1) plus the client knobs when set.
 		q := url.Values{}
-		q.Set("port", strconv.Itoa(l.Port))
-		proto := ib.MieruTransport
-		if proto == "" {
-			proto = "TCP"
+		proto := strings.ToUpper(ib.MieruTransport)
+		switch proto {
+		case "BOTH":
+			q.Add("port", strconv.Itoa(l.Port))
+			q.Add("protocol", "TCP")
+			q.Add("port", strconv.Itoa(l.Port+1))
+			q.Add("protocol", "UDP")
+		case "UDP":
+			q.Add("port", strconv.Itoa(l.Port))
+			q.Add("protocol", "UDP")
+		default:
+			q.Add("port", strconv.Itoa(l.Port))
+			q.Add("protocol", "TCP")
 		}
-		q.Set("protocol", proto)
 		q.Set("profile", l.Name)
+		if ib.MieruMTU > 0 {
+			q.Set("mtu", strconv.Itoa(ib.MieruMTU))
+		}
+		if ib.MieruMultiplexing != "" {
+			q.Set("multiplexing", ib.MieruMultiplexing)
+		}
+		if ib.MieruHandshake != "" {
+			q.Set("handshake-mode", ib.MieruHandshake)
+		}
 		return "mierus://" + url.PathEscape(l.UUID) + ":" + url.PathEscape(l.Password) + "@" + l.Host + "?" + q.Encode()
 	}
 	return ""

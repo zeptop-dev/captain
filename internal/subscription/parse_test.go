@@ -10,8 +10,8 @@ import (
 
 func TestParseRoundTrip(t *testing.T) {
 	for _, l := range sample() {
-		if l.Inbound.Protocol == spec.Mieru {
-			continue
+		if l.Inbound.Protocol == spec.Mieru || l.Inbound.Protocol == spec.Snell {
+			continue // mieru links are one-way; snell has no share-link form
 		}
 		uri := shareURI(l)
 		got, err := ParseURI(uri)

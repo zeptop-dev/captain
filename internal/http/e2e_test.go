@@ -1838,6 +1838,28 @@ func TestExternalNodesAndRouting(t *testing.T) {
 	if !strings.Contains(string(b), `"inbound_id":7`) || !strings.Contains(string(b), `"t2":{"tag":"t2","up":true,"rtt_ms":12`) {
 		t.Fatalf("forwards with status: %s", b)
 	}
+	// nft backend round-trips; preserve_source needs nft; unknown backends are refused.
+	if code, _, _ := ac.do("PUT", "/api/admin/nodes/"+nodeID+"/forwards", map[string]any{"Forwards": []map[string]any{{"port": 10445, "target": "198.51.100.20:443", "backend": "realm"}}}, nil); code != 400 {
+		t.Fatal("unknown backend accepted")
+	}
+	if code, _, _ := ac.do("PUT", "/api/admin/nodes/"+nodeID+"/forwards", map[string]any{"Forwards": []map[string]any{{"port": 10445, "target": "198.51.100.20:443", "preserve_source": true}}}, nil); code != 400 {
+		t.Fatal("preserve_source without nft accepted")
+	}
+	ac.do("PUT", "/api/admin/nodes/"+nodeID+"/forwards", map[string]any{"Forwards": []map[string]any{{"port": 10445, "protocol": "tcp", "target": "198.51.100.20:443", "backend": "nft", "preserve_source": true}}}, nil)
+	_, b, _ = nc.do("GET", "/api/agent/state", nil, nil)
+	if !strings.Contains(string(b), `"target":"198.51.100.20:443","backend":"nft","preserve_source":true`) {
+		t.Fatalf("nft forward in state:\n%s", b)
+	}
+	// A doctor report rides on the node report and shows on the node.
+	nc.do("POST", "/api/agent/report", agentproto.Report{Doctor: &agentproto.DoctorReport{Checks: []agentproto.DoctorCheck{{ID: "inbound:t", Name: "inbound t", Status: "fail", Detail: "refused"}}, Summary: agentproto.DoctorSummary{Fail: 1}}}, nil)
+	_, b, _ = ac.do("GET", "/api/admin/nodes/"+nodeID, nil, nil)
+	if !strings.Contains(string(b), `"doctor":{`) || !strings.Contains(string(b), `"detail":"refused"`) {
+		t.Fatalf("doctor in node detail: %s", b)
+	}
+	_, b, _ = ac.do("GET", "/api/admin/nodes", nil, nil)
+	if !strings.Contains(string(b), `"doctor_fail":true`) {
+		t.Fatalf("doctor_fail in node list: %s", b)
+	}
 	// Dropping a rule drops its status.
 	ac.do("PUT", "/api/admin/nodes/"+nodeID+"/forwards", map[string]any{"Forwards": []map[string]any{}}, nil)
 	_, b, _ = ac.do("GET", "/api/admin/nodes/"+nodeID+"/forwards", nil, nil)

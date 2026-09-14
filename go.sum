@@ -64,6 +64,8 @@ github.com/zeptop-dev/bosun v0.16.0 h1:NhOZuy/T7FV9LsvCzMFT87dbvLTaX4c3oVDyl0oiw
 github.com/zeptop-dev/bosun v0.16.0/go.mod h1:bb9qK48zJCzq9gLVdLf7tsNbXHBUO4vDeLZOcxAmpZI=
 github.com/zeptop-dev/bosun v0.17.0 h1:XUCj7mjlrvnW0p4JYkVZo6wzB1BFjTEPnj4pZ2AZ8hk=
 github.com/zeptop-dev/bosun v0.17.0/go.mod h1:bb9qK48zJCzq9gLVdLf7tsNbXHBUO4vDeLZOcxAmpZI=
+github.com/zeptop-dev/bosun v0.18.0 h1:tWfgg0bewHAP3sfOhiAs47bnoRXVnrgtZzTg5i2YT9M=
+github.com/zeptop-dev/bosun v0.18.0/go.mod h1:bb9qK48zJCzq9gLVdLf7tsNbXHBUO4vDeLZOcxAmpZI=
 go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
 go.uber.org/goleak v1.3.0/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
 go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=

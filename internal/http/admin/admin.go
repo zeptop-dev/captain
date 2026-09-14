@@ -316,6 +316,7 @@ type nodeView struct {
 	UpgradeTo    string     `json:"upgrade_to,omitempty"` // pending upgrade request
 	Outdated     bool       `json:"outdated"`             // reported version older than the latest bosun release
 	CertProblem  bool       `json:"cert_problem"`         // an automatic certificate failed or expires soon
+	DoctorFail   bool       `json:"doctor_fail"`          // the node's last self-check had failures
 }
 
 func toNodeView(n *domain.Node, at time.Time) nodeView {
@@ -349,6 +350,7 @@ func (h *handlers) listNodes(w http.ResponseWriter, r *http.Request) {
 	traffic, _ := h.Store.NodeTrafficToday(r.Context(), now)
 	latest := h.bosunLatest(r.Context())
 	certProblems, _ := h.Store.CertProblems(r.Context(), now)
+	doctorFails, _ := h.Store.DoctorFails(r.Context())
 	out := make([]nodeView, 0, len(nodes))
 	for _, n := range nodes {
 		v := toNodeView(n, now)
@@ -356,6 +358,7 @@ func (h *handlers) listNodes(w http.ResponseWriter, r *http.Request) {
 		v.TrafficToday = traffic[n.ID]
 		v.Outdated = latest != "" && n.Version != "" && selfupdate.Newer(latest, n.Version)
 		v.CertProblem = certProblems[n.ID]
+		v.DoctorFail = doctorFails[n.ID]
 		if ibs, err := h.Store.AllInboundsByNode(r.Context(), n.ID); err == nil {
 			v.Inbounds = len(ibs)
 		}

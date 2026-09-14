@@ -32,9 +32,11 @@ export interface Me { id: number; email: string; role: string; version?: string;
 export interface Node {
   id: number; name: string; public_addr: string; internal_addr: string; v6_addr: string; domain: string; monitor_url: string
   version: string; platform: string; hostname: string; last_seen_at: string | null; online: boolean; paired: boolean
-  pair_code?: string; traffic_today_bytes: number; inbounds: number; upgrade_to?: string; outdated: boolean; cert_problem: boolean
+  pair_code?: string; traffic_today_bytes: number; inbounds: number; upgrade_to?: string; outdated: boolean; cert_problem: boolean; doctor_fail?: boolean
 }
 export interface CertStatus { domain: string; method: string; not_after: string; error?: string }
+export interface DoctorCheck { id: string; name: string; status: 'ok' | 'warn' | 'fail' | 'skip'; detail?: string }
+export interface DoctorReport { at: string; checks: DoctorCheck[]; summary: { ok: number; warn: number; fail: number; skip: number } }
 export interface SiteSettings {
   name: string; tagline: string; description: string
   features: { title: string; text: string; icon?: string }[]

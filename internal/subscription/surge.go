@@ -79,6 +79,15 @@ func surgeLine(l Line) string {
 	case spec.TUIC:
 		parts = append(parts, "uuid="+l.UUID, "password="+l.Password, "sni="+serverName(l), "alpn=h3", "version=5")
 		return fmt.Sprintf(base, "tuic") + ", " + strings.Join(parts, ", ")
+	case spec.Snell:
+		parts = append(parts, "psk="+ib.SnellPSK, fmt.Sprintf("version=%d", snellVersion(ib)))
+		if ib.SnellObfs != "" && ib.SnellObfs != "off" {
+			parts = append(parts, "obfs="+ib.SnellObfs)
+			if ib.SnellObfsHost != "" {
+				parts = append(parts, "obfs-host="+ib.SnellObfsHost)
+			}
+		}
+		return fmt.Sprintf(base, "snell") + ", " + strings.Join(parts, ", ")
 	}
 	return ""
 }

@@ -28,6 +28,8 @@ func sample() []Line {
 		mk("anytls", spec.Inbound{Protocol: spec.AnyTLS, TLS: tls}),
 		mk("mieru", spec.Inbound{Protocol: spec.Mieru, MieruTransport: "TCP"}),
 		mk("xhttp", spec.Inbound{Protocol: spec.VLESS, TLS: tls, Transport: &spec.Transport{Type: "xhttp", Path: "/x", Mode: "auto"}}),
+		mk("mieru-both", spec.Inbound{Protocol: spec.Mieru, MieruTransport: "BOTH", MieruMTU: 1400, MieruMultiplexing: "MULTIPLEXING_HIGH", MieruHandshake: "HANDSHAKE_NO_WAIT"}),
+		mk("snell", spec.Inbound{Protocol: spec.Snell, SnellPSK: "psk-shared", SnellVersion: 5, SnellObfs: "http", SnellObfsHost: "www.bing.com"}),
 	}
 }
 
@@ -41,8 +43,14 @@ func TestClash(t *testing.T) {
 		t.Fatalf("yaml: %v\n%s", err, out)
 	}
 	proxies := doc["proxies"].([]any)
-	if len(proxies) != 9 {
-		t.Fatalf("expected 9 proxies, got %d", len(proxies))
+	if len(proxies) != 11 {
+		t.Fatalf("expected 11 proxies, got %d", len(proxies))
+	}
+	if mb := proxies[9].(map[string]any); mb["transport"] != "TCP" || mb["multiplexing"] != "MULTIPLEXING_HIGH" || mb["handshake-mode"] != "HANDSHAKE_NO_WAIT" {
+		t.Fatalf("mieru knobs: %v", mb)
+	}
+	if sn := proxies[10].(map[string]any); sn["type"] != "snell" || sn["psk"] != "psk-shared" || sn["version"] != 5 || sn["obfs-opts"].(map[string]any)["mode"] != "http" {
+		t.Fatalf("snell: %v", sn)
 	}
 	p0 := proxies[0].(map[string]any)
 	if p0["type"] != "vless" || p0["flow"] != "xtls-rprx-vision" || p0["reality-opts"].(map[string]any)["public-key"] != "PUB" || p0["servername"] != "www.apple.com" {
@@ -59,8 +67,8 @@ func TestClash(t *testing.T) {
 		t.Fatalf("xhttp: %v", x)
 	}
 	groups := doc["proxy-groups"].([]any)
-	if len(groups[0].(map[string]any)["proxies"].([]any)) != 10 {
-		t.Fatalf("select group should list AUTO + 9")
+	if len(groups[0].(map[string]any)["proxies"].([]any)) != 12 {
+		t.Fatalf("select group should list AUTO + 11")
 	}
 }
 
@@ -98,8 +106,11 @@ func TestURIList(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines := strings.Split(string(raw), "\n")
-	if len(lines) != 9 {
-		t.Fatalf("expected 9 links, got %d:\n%s", len(lines), raw)
+	if len(lines) != 10 {
+		t.Fatalf("expected 10 links (snell has none), got %d:\n%s", len(lines), raw)
+	}
+	if both := lines[9]; !strings.HasPrefix(both, "mierus://") || !strings.Contains(both, "port=443&port=444") || !strings.Contains(both, "protocol=TCP&protocol=UDP") || !strings.Contains(both, "mtu=1400") || !strings.Contains(both, "multiplexing=MULTIPLEXING_HIGH") || !strings.Contains(both, "handshake-mode=HANDSHAKE_NO_WAIT") {
+		t.Fatalf("mieru BOTH link: %s", both)
 	}
 	if !strings.HasPrefix(lines[0], "vless://11111111-1111-1111-1111-111111111111@entry.test:443?") || !strings.Contains(lines[0], "security=reality") || !strings.Contains(lines[0], "pbk=PUB") || !strings.Contains(lines[0], "flow=xtls-rprx-vision") {
 		t.Fatalf("vless: %s", lines[0])
@@ -115,7 +126,7 @@ func TestURIList(t *testing.T) {
 func TestSurgeAndPick(t *testing.T) {
 	out, _ := Surge{}.Render(sample(), Account{})
 	s := string(out)
-	for _, want := range []string{"vmess-ws = vmess, entry.test, 443", "hy2 = hysteria2, entry.test, 443, password=", "tuic = tuic, entry.test, 443, uuid="} {
+	for _, want := range []string{"vmess-ws = vmess, entry.test, 443", "hy2 = hysteria2, entry.test, 443, password=", "tuic = tuic, entry.test, 443, uuid=", "snell = snell, entry.test, 443, psk=psk-shared, version=5, obfs=http, obfs-host=www.bing.com"} {
 		if !strings.Contains(s, want) {
 			t.Fatalf("surge missing %q:\n%s", want, s)
 		}
@@ -201,7 +212,7 @@ func TestStashAndTemplates(t *testing.T) {
 	if err := yaml.Unmarshal(out, &doc); err != nil {
 		t.Fatal(err)
 	}
-	if len(doc["proxies"].([]any)) != 9 || doc["mixed-port"] != nil {
+	if len(doc["proxies"].([]any)) != 11 || doc["mixed-port"] != nil {
 		t.Fatalf("stash doc: %v", doc)
 	}
 	// Stash dialect: sni not servername, hysteria2 auth + up-speed/down-speed, tuic version/alpn, no smux.
@@ -226,10 +237,10 @@ func TestStashAndTemplates(t *testing.T) {
 	_ = yaml.Unmarshal(out, &doc)
 	groups := doc["proxy-groups"].([]any)
 	main := groups[0].(map[string]any)["proxies"].([]any)
-	if len(main) != 10 || main[0] != "reality" || main[9] != "DIRECT" || len(groups[1].(map[string]any)["proxies"].([]any)) != 9 {
+	if len(main) != 12 || main[0] != "reality" || main[11] != "DIRECT" || len(groups[1].(map[string]any)["proxies"].([]any)) != 11 {
 		t.Fatalf("template groups: %v", groups)
 	}
-	if len(doc["proxies"].([]any)) != 9 || doc["mode"] != "rule" {
+	if len(doc["proxies"].([]any)) != 11 || doc["mode"] != "rule" {
 		t.Fatalf("template doc: %v", doc)
 	}
 	// Custom INI template for Surge.

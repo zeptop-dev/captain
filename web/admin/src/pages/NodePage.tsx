@@ -6,7 +6,7 @@ import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
-import { api, type Ingress, type CertStatus, type Group as UGroup, type Inbound, type Node } from '../lib/api'
+import { api, type DoctorReport, type Ingress, type CertStatus, type Group as UGroup, type Inbound, type Node } from '../lib/api'
 import { ago, bytes, when } from '../lib/format'
 import { dnsToast, toast, type DNSResult } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
@@ -17,7 +17,7 @@ import { RoutingCard } from '../components/RoutingCard'
 import { ForwardsCard } from '../components/ForwardsCard'
 import { IngressesCard, ingressPayload } from '../components/IngressesCard'
 
-interface Detail { node: Node; inbounds: Inbound[]; ingresses?: Ingress[]; status: { host: Record<string, number> | null; cores: Record<string, { running: boolean }> | null; certs: CertStatus[] | null } | null }
+interface Detail { node: Node; inbounds: Inbound[]; ingresses?: Ingress[]; status: { host: Record<string, number> | null; cores: Record<string, { running: boolean }> | null; certs: CertStatus[] | null; doctor?: DoctorReport | null } | null }
 
 export default function NodePage() {
   const { id } = useParams()
@@ -61,6 +61,7 @@ export default function NodePage() {
 
       {!n.paired && n.pair_code && <Card mb="lg"><Title order={5} mb="sm">{t('nodes.pairTitle')}</Title><PairCodeBox code={n.pair_code} /></Card>}
       {n.paired && <NodeProbeCard nodeID={n.id} />}
+      {d.status?.doctor && <DoctorCard report={d.status.doctor} />}
       {d.status?.certs && d.status.certs.length > 0 && (
         <Card mb="lg">
           <Text size="xs" tt="uppercase" c="dimmed" fw={600} mb="xs">{t('nodes.certs')}</Text>
@@ -151,5 +152,31 @@ export default function NodePage() {
       </Modal>
       <Modal opened={pair !== null} onClose={() => setPair(null)} title={t('nodes.pairTitle')} size="lg">{pair && <PairCodeBox code={pair} />}</Modal>
     </>
+  )
+}
+
+// The node's last self-check (bosun >= 0.18 sends one on change or every 30 min).
+function DoctorCard({ report }: { report: DoctorReport }) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(report.summary.fail > 0 || report.summary.warn > 0)
+  const color = (s: string) => (s === 'ok' ? 'teal' : s === 'warn' ? 'orange' : s === 'fail' ? 'red' : 'gray')
+  return (
+    <Card mb="lg">
+      <Group justify="space-between" mb={open ? 'xs' : 0} style={{ cursor: 'pointer' }} onClick={() => setOpen((o) => !o)}>
+        <Group gap="sm"><Title order={5}>{t('nodes.doctor')}</Title>
+          <Badge color="teal" variant="light" size="xs">{t('nodes.doctorOk')} {report.summary.ok}</Badge>
+          {report.summary.warn > 0 && <Badge color="orange" variant="light" size="xs">{t('nodes.doctorWarn')} {report.summary.warn}</Badge>}
+          {report.summary.fail > 0 && <Badge color="red" variant="light" size="xs">{t('nodes.doctorFail')} {report.summary.fail}</Badge>}
+        </Group>
+        <Text size="xs" c="dimmed">{when(report.at)}</Text>
+      </Group>
+      {open && (
+        <Table fz="sm"><Table.Tbody>
+          {report.checks.filter((c) => c.status !== 'skip').map((c) => (
+            <Table.Tr key={c.id}><Table.Td w={70}><Badge size="xs" color={color(c.status)} variant="light">{c.status}</Badge></Table.Td><Table.Td><Text size="sm">{c.name}</Text></Table.Td><Table.Td><Text size="xs" c="dimmed">{c.detail}</Text></Table.Td></Table.Tr>
+          ))}
+        </Table.Tbody></Table>
+      )}
+    </Card>
   )
 }

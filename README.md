@@ -305,6 +305,20 @@ the NIC; a refused port still measures the line) shown under the ingress
 name on the status and speed-test pages. Lines are usually private, so
 carrier latency is not measured through them.
 
+## Snell, mieru knobs, doctor
+
+- **Snell** (bosun >= 0.18): inbound protocol `snell` on the `snell` core
+  (Surge's snell-server v5, or v4). One shared PSK for everyone, so there is
+  no per-user accounting or limit on such inbounds; Surge, Stash and mihomo
+  subscriptions carry it, sing-box and URI lists leave it out.
+- **mieru knobs**: MTU, multiplexing level and handshake mode per inbound
+  reach the mierus:// links and mihomo/Stash lines; transport `BOTH` serves
+  TCP on the port and UDP on port + 1 (links list both, mihomo takes TCP).
+- **Doctor**: bosun runs a self-check every 10 minutes (cores, listeners,
+  line bindings, forwards, certificates, port clashes, firewall, disk,
+  memory, panel link, clock) and sends it with its report when the verdicts
+  change; the node page shows it and the node list flags failures.
+
 ## Port forwards (relay tunnels)
 
 Node page → Port forwards: listen on a port of this node and relay raw
@@ -312,7 +326,10 @@ TCP, UDP or both to a landing server. Clients connect to the relay while
 the landing inbound keeps doing auth and per-user accounting. Pick another
 managed node's inbound as the target and one click creates an entry that
 advertises this relay's address; the node reports each rule's reachability,
-RTT, connections and bytes. Ports are checked against the node's own
+RTT, connections and bytes. A rule's backend is the built-in userspace
+relay or, with bosun >= 0.18, nftables kernel DNAT (`nft` on the node,
+IPv4 target, optional source preservation when the target routes replies
+back through the node). Ports are checked against the node's own
 inbounds. (Xray-style domain/IP splitting inside a tunnel is not offered:
 use the routing rules on the landing node instead.)
 
