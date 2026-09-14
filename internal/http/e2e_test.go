@@ -1585,6 +1585,17 @@ func TestProbePageAndBeats(t *testing.T) {
 	if !strings.Contains(string(b), `"carriers":[{"name":"HK","addr":"www.hkix.net:443"}]`) {
 		t.Fatalf("carriers missing from state: %s", b)
 	}
+	// Komari: a panel-wide setting reaches every node with the node's name.
+	if code, _, _ := ac.do("PUT", "/api/admin/settings/komari", map[string]any{"enabled": true, "server": "https://komari.example.com/"}, nil); code != 400 {
+		t.Fatal("komari without key accepted")
+	}
+	if code, b, _ := ac.do("PUT", "/api/admin/settings/komari", map[string]any{"enabled": true, "server": "https://komari.example.com/", "key": "adkey-1234567890", "interval": 5}, nil); code != 200 || !strings.Contains(string(b), `"has_key":true`) || strings.Contains(string(b), "adkey") {
+		t.Fatalf("put komari: %d %s", code, b)
+	}
+	_, b, _ = nc.do("GET", "/api/agent/state", nil, nil)
+	if !strings.Contains(string(b), `"komari":{"enabled":true,"server":"https://komari.example.com","key":"adkey-1234567890","name":"jp1","interval":5}`) {
+		t.Fatalf("komari missing from state: %s", b)
+	}
 	// A line ingress adds a source-bound RTT task to the far end on the
 	// first inbound's port.
 	_, b, _ = ac.do("POST", "/api/admin/nodes/"+nodeID+"/ingresses", map[string]any{"Name": "IPLC", "BindIP": "10.10.0.2", "LineIP": "198.51.100.20", "PortFrom": 17701, "PortTo": 17799}, nil)

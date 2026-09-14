@@ -43,6 +43,8 @@ func (h *handlers) registerOps(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/admin/settings/webhooks", h.requireAdmin(h.getWebhooks))
 	mux.HandleFunc("PUT /api/admin/settings/webhooks", h.requireAdmin(h.putWebhooks))
 	mux.HandleFunc("POST /api/admin/settings/webhooks/test", h.requireAdmin(h.testWebhook))
+	mux.HandleFunc("GET /api/admin/settings/komari", h.requireAdmin(h.getKomari))
+	mux.HandleFunc("PUT /api/admin/settings/komari", h.requireAdmin(h.putKomari))
 	mux.HandleFunc("GET /api/admin/settings/probe", h.requireAdmin(h.getProbe))
 	mux.HandleFunc("PUT /api/admin/settings/probe", h.requireAdmin(h.putProbe))
 	mux.HandleFunc("GET /api/admin/ping-tasks", h.requireAdmin(h.listPingTasks))
@@ -1047,4 +1049,49 @@ func (h *handlers) deleteSubLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, map[string]bool{"ok": true})
+}
+
+// ---- komari -------------------------------------------------------------------------
+
+func (h *handlers) getKomari(w http.ResponseWriter, r *http.Request) {
+	var v store.KomariSettings
+	_ = h.Store.GetSetting(r.Context(), store.SettingKomari, &v)
+	ok(w, map[string]any{"enabled": v.Enabled, "server": v.Server, "interval": v.Interval, "has_key": v.Key != ""})
+}
+
+// putKomari stores the setting; a blank key keeps the stored one, "-" clears it.
+func (h *handlers) putKomari(w http.ResponseWriter, r *http.Request) {
+	var in store.KomariSettings
+	if !decode(r, &in) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	var cur store.KomariSettings
+	_ = h.Store.GetSetting(r.Context(), store.SettingKomari, &cur)
+	in.Server = strings.TrimRight(strings.TrimSpace(in.Server), "/")
+	if in.Enabled && !strings.HasPrefix(in.Server, "http://") && !strings.HasPrefix(in.Server, "https://") {
+		fail(w, http.StatusBadRequest, "Komari URL must start with http:// or https://")
+		return
+	}
+	if in.Interval < 0 || in.Interval > 300 {
+		fail(w, http.StatusBadRequest, "interval must be 0-300 seconds")
+		return
+	}
+	switch strings.TrimSpace(in.Key) {
+	case "":
+		in.Key = cur.Key
+	case "-":
+		in.Key = ""
+	default:
+		in.Key = strings.TrimSpace(in.Key)
+	}
+	if in.Enabled && in.Key == "" {
+		fail(w, http.StatusBadRequest, "the auto-discovery key is required to register nodes")
+		return
+	}
+	if err := h.Store.SetSetting(r.Context(), store.SettingKomari, in); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, map[string]any{"enabled": in.Enabled, "server": in.Server, "interval": in.Interval, "has_key": in.Key != ""})
 }

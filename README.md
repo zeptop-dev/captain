@@ -251,6 +251,15 @@ the panel itself) and manages certificates:
 Nodes take an optional host name (Node → Domain, e.g. `jp1.example.com`):
 new inbound recipes use it as the TLS name and entries advertise it instead
 of the IP, so a certificate for it reaches the node without further setup.
+## Komari reporting
+
+Settings → Komari reporting attaches every managed node to a Komari
+monitor as an agent: give the Komari URL and its auto-discovery key, and
+each node (bosun >= 0.17) registers under its node name, reports metrics
+every few seconds and answers Komari's ping tasks. Only the ping capability
+is offered. This runs alongside Captain's own probe; turn the probe page off
+if you prefer Komari's.
+
 ## Backups
 
 **Automatic DNS records.** A registered Cloudflare domain with *Auto DNS

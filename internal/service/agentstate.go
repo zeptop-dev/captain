@@ -112,6 +112,11 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 	if a.Probe != nil {
 		st.Probe = a.Probe.AgentConfig(ctx, n.ID)
 	}
+	// Komari: one panel-wide setting, each node registers under its name.
+	var km store.KomariSettings
+	if err := a.Store.GetSetting(ctx, store.SettingKomari, &km); err == nil && km.Enabled && km.Server != "" {
+		st.Komari = &spec.Komari{Enabled: true, Server: km.Server, Key: km.Key, Name: n.Name, Interval: km.Interval}
+	}
 	st.Revision = revision(st)
 	return st, nil
 }
@@ -135,7 +140,8 @@ func revision(st *agentproto.State) string {
 		U []spec.User
 		F []spec.Forward
 		P *spec.Probe
-	}{st.Node, st.Users, st.Forwards, st.Probe})
+		K *spec.Komari
+	}{st.Node, st.Users, st.Forwards, st.Probe, st.Komari})
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:8])
 }
