@@ -905,5 +905,15 @@
     "deleteHint": "删除后用它的入站会变回直连，订阅行地址不会自动改。",
     "entryDomain": "入口域名（可选）",
     "entryDomainHint": "给公网入口起个域名，订阅里写它而不是 IP；域名登记且开了自动 DNS 时会自动建 A 记录指向公网入口。"
+  },
+  "komari": {
+    "title": "Komari 上报",
+    "hint": "把所有节点作为 agent 接入你自己的 Komari 监控：填 Komari 地址和自动发现密钥（Komari → 设置 → 通用），每台节点用自己的节点名注册，之后持续上报指标并响应 Komari 的延迟任务。只声明 ping 能力，不提供终端、文件和远程执行。与本面板的探针互不影响，节点需 bosun ≥ 0.17。",
+    "server": "Komari 地址",
+    "key": "自动发现密钥",
+    "keyHint": "只在节点首次注册时用；节点自己保存注册后的 token",
+    "keySet": "已保存；留空不改，填 - 清除",
+    "interval": "上报间隔（秒）",
+    "enabled": "启用"
   }
 }

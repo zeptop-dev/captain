@@ -905,5 +905,15 @@
     "deleteHint": "Inbounds using it fall back to direct; entry addresses are not rewritten.",
     "entryDomain": "Entry domain (optional)",
     "entryDomainHint": "A name for the public entry: entries advertise it instead of the IP; with auto DNS on the registered domain, an A record pointing at the entry IP is created automatically."
+  },
+  "komari": {
+    "title": "Komari reporting",
+    "hint": "Attach every node to your own Komari monitor as an agent: give the Komari URL and its auto-discovery key (Komari → Settings → General); each node registers under its node name, then keeps reporting metrics and answers Komari's ping tasks. Only the ping capability is offered: no terminal, files or remote exec. Independent of this panel's probe; needs bosun ≥ 0.17.",
+    "server": "Komari URL",
+    "key": "Auto-discovery key",
+    "keyHint": "Used only for a node's first registration; nodes keep their own token afterwards",
+    "keySet": "saved; blank keeps it, \"-\" clears it",
+    "interval": "Report interval (s)",
+    "enabled": "Enabled"
   }
 }

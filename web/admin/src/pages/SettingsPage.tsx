@@ -19,6 +19,7 @@ import { ProbeCard } from '../components/ProbeCard'
 import { TokensCard } from '../components/TokensCard'
 import { TwoFactorCard } from '../components/TwoFactorCard'
 import { BackupCard } from '../components/BackupCard'
+import { KomariCard } from '../components/KomariCard'
 
 export default function SettingsPage() {
   const { t } = useTranslation()
@@ -117,6 +118,7 @@ export default function SettingsPage() {
         <TelegramCard />
         <WebhooksCard />
         <ProbeCard />
+        <KomariCard />
         <TokensCard />
         <TwoFactorCard />
         <BackupCard />
