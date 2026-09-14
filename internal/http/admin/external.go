@@ -7,8 +7,8 @@ import (
 
 	"github.com/zeptop-dev/bosun/pkg/spec"
 
+	"github.com/zeptop-dev/bosun/pkg/subscription"
 	"github.com/zeptop-dev/captain/internal/store"
-	"github.com/zeptop-dev/captain/internal/subscription"
 )
 
 func (h *handlers) registerExternal(mux *http.ServeMux) {

@@ -19,12 +19,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zeptop-dev/bosun/pkg/subscription"
 	"github.com/zeptop-dev/captain/internal/auth"
 	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/http/admin"
 	"github.com/zeptop-dev/captain/internal/service"
 	"github.com/zeptop-dev/captain/internal/store"
-	"github.com/zeptop-dev/captain/internal/subscription"
 )
 
 // Deps are the handlers' dependencies.

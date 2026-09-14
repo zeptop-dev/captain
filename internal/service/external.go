@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/zeptop-dev/bosun/pkg/subscription"
 	"github.com/zeptop-dev/captain/internal/store"
-	"github.com/zeptop-dev/captain/internal/subscription"
 )
 
 // External syncs airport subscriptions into external nodes.
