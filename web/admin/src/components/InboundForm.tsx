@@ -5,8 +5,11 @@ import { useTranslation } from 'react-i18next'
 import type { Group as UGroup, Inbound, Ingress } from '../lib/api'
 import { IngressFields, emptyIngress, type IngressValues } from './IngressesCard'
 
-const protocols = ['vless', 'vmess', 'trojan', 'shadowsocks', 'hysteria2', 'tuic', 'anytls', 'mieru', 'socks', 'http', 'naive']
-const cores = ['', 'singbox', 'xray', 'mita', 'hysteria']
+const protocols = ['vless', 'vmess', 'trojan', 'shadowsocks', 'hysteria2', 'tuic', 'anytls', 'mieru', 'snell', 'socks', 'http', 'naive']
+const cores = ['', 'singbox', 'xray', 'mita', 'hysteria', 'snell']
+
+// Snell's PSK: 32 random bytes, base64 (any string works, this is the convention).
+function randomPSK(): string { const b = new Uint8Array(32); crypto.getRandomValues(b); return btoa(String.fromCharCode(...b)) }
 
 // Recipes fill the protocol-specific settings; values follow bosun's
 // spec.Inbound JSON so bosun renders them without translation.
@@ -14,6 +17,7 @@ const recipes: { key: string; protocol: string; port: number; settings: Record<s
   { key: 'vlessReality', protocol: 'vless', port: 443, settings: { flow: 'xtls-rprx-vision', tls: { mode: 2, server_name: 'www.apple.com', reality: { private_key: '', public_key: '', short_ids: ['0123abcd'], handshake_server: 'www.apple.com', handshake_port: 443 } } } },
   { key: 'hysteria2', protocol: 'hysteria2', port: 8443, settings: { tls: { mode: 1, server_name: 'node.example.com', auto_cert: true, acme: 'http' }, obfs: 'salamander', obfs_password: 'change-me', up_mbps: 100, down_mbps: 500 } },
   { key: 'mieru', protocol: 'mieru', port: 24450, settings: { mieru_transport: 'TCP' } },
+  { key: 'snell', protocol: 'snell', port: 6160, settings: { snell_psk: '', snell_version: 5 } },
   { key: 'ss2022', protocol: 'shadowsocks', port: 8388, settings: { cipher: '2022-blake3-aes-128-gcm', server_key: '' } },
   { key: 'trojanWs', protocol: 'trojan', port: 443, settings: { tls: { mode: 1, server_name: 'node.example.com', auto_cert: true, acme: 'http' }, transport: { type: 'ws', path: '/trojan', host: 'node.example.com' } } },
 ]
@@ -34,6 +38,14 @@ function mieruStrategyOf(settings: string): string {
     return 'custom'
   } catch { return 'custom' }
 }
+// patchSettings sets or deletes top-level keys of the settings JSON (blank/0 = delete).
+function patchSettings(settings: string, patch: Record<string, unknown>): string {
+  let s: Record<string, unknown> = {}
+  try { s = JSON.parse(settings || '{}') } catch { s = {} }
+  for (const [k, v] of Object.entries(patch)) { if (v === '' || v === 0 || v === undefined || v === null) delete s[k]; else s[k] = v }
+  return JSON.stringify(s, null, 2)
+}
+function settingOf(settings: string, key: string): unknown { try { return JSON.parse(settings || '{}')[key] } catch { return undefined } }
 function withMieru(settings: string, patch: { strategy?: string; transport?: string }): string {
   let s: Record<string, unknown> = {}
   try { s = JSON.parse(settings || '{}') } catch { s = {} }
@@ -76,7 +88,8 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
   const apply = (r: (typeof recipes)[number]) => {
     // A recipe keeps the chosen line ingress and takes a port from its range; any protocol may ride a line.
     const port = selectedIngress && selectedIngress.port_from ? (firstFree(selectedIngress) || r.port) : r.port
-    form.setValues({ Protocol: r.protocol, Port: port, Settings: JSON.stringify(r.settings, null, 2).replaceAll('node.example.com', domain || 'node.example.com'), Tag: form.values.Tag || r.protocol })
+    const settings = r.key === 'snell' ? { ...r.settings, snell_psk: randomPSK() } : r.settings
+    form.setValues({ Protocol: r.protocol, Port: port, Settings: JSON.stringify(settings, null, 2).replaceAll('node.example.com', domain || 'node.example.com'), Tag: form.values.Tag || r.protocol })
   }
   // A node reachable only through a line (no public address, no domain) defaults new inbounds to its first ingress.
   useEffect(() => { if (lineOnly && !initial.IngressID && !initial.Tag && ingresses[0]) form.setValues({ IngressID: String(ingresses[0].id), Port: firstFree(ingresses[0]) || form.values.Port }) }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -126,12 +139,30 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
               <Select label={t('inbounds.mieruStrategy')} description={t('inbounds.mieruStrategyHint')} allowDeselect={false}
                 data={[{ value: 'iplc', label: t('inbounds.mieru.iplc') }, { value: 'balanced', label: t('inbounds.mieru.balanced') }, { value: 'stealth', label: t('inbounds.mieru.stealth') }, { value: 'custom', label: t('inbounds.mieru.custom') }]}
                 value={mieruStrategyOf(form.values.Settings)} onChange={(v) => v && form.setFieldValue('Settings', withMieru(form.values.Settings, { strategy: v }))} />
-              <Select label={t('inbounds.mieruTransport')} data={['TCP', 'UDP']} allowDeselect={false}
+              <Select label={t('inbounds.mieruTransport')} description={t('inbounds.mieruBothHint')} data={['TCP', 'UDP', 'BOTH']} allowDeselect={false}
                 value={(() => { try { return String(JSON.parse(form.values.Settings || '{}').mieru_transport || 'TCP').toUpperCase() } catch { return 'TCP' } })()} onChange={(v) => v && form.setFieldValue('Settings', withMieru(form.values.Settings, { transport: v }))} />
             </Group>
           )}
           <Switch label={t('inbounds.enabled')} {...form.getInputProps('Enabled', { type: 'checkbox' })} />
         </Group>
+        {form.values.Protocol === 'mieru' && (
+          <Group grow align="flex-end">
+            <NumberInput label={t('inbounds.mieruMTU')} description={t('inbounds.mieruMTUHint')} min={1280} max={1500} placeholder="1400" value={(settingOf(form.values.Settings, 'mieru_mtu') as number | undefined) || ''} onChange={(v) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { mieru_mtu: Number(v) || 0 }))} />
+            <Select label={t('inbounds.mieruMux')} data={[{ value: '', label: t('inbounds.clientDefault') }, { value: 'MULTIPLEXING_OFF', label: 'off' }, { value: 'MULTIPLEXING_LOW', label: 'low' }, { value: 'MULTIPLEXING_MIDDLE', label: 'middle' }, { value: 'MULTIPLEXING_HIGH', label: 'high' }]} allowDeselect={false} value={String(settingOf(form.values.Settings, 'mieru_multiplexing') ?? '')} onChange={(v) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { mieru_multiplexing: v ?? '' }))} />
+            <Select label={t('inbounds.mieruHandshake')} data={[{ value: '', label: t('inbounds.clientDefault') }, { value: 'HANDSHAKE_NO_WAIT', label: 'no-wait (0-RTT)' }, { value: 'HANDSHAKE_STANDARD', label: 'standard' }]} allowDeselect={false} value={String(settingOf(form.values.Settings, 'mieru_handshake') ?? '')} onChange={(v) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { mieru_handshake: v ?? '' }))} />
+          </Group>
+        )}
+        {form.values.Protocol === 'snell' && (
+          <Stack gap="xs">
+            <Group grow align="flex-end">
+              <TextInput label={t('inbounds.snellPSK')} required value={String(settingOf(form.values.Settings, 'snell_psk') ?? '')} onChange={(e) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { snell_psk: e.currentTarget.value }))} rightSection={<Button size="compact-xs" variant="subtle" onClick={() => form.setFieldValue('Settings', patchSettings(form.values.Settings, { snell_psk: randomPSK() }))}>{t('inbounds.generate')}</Button>} rightSectionWidth={70} />
+              <Select label={t('inbounds.snellVersion')} data={[{ value: '5', label: 'v5' }, { value: '4', label: 'v4' }]} allowDeselect={false} value={String(settingOf(form.values.Settings, 'snell_version') || 5)} onChange={(v) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { snell_version: Number(v) || 5 }))} />
+              <Select label={t('inbounds.snellObfs')} data={[{ value: '', label: 'off' }, { value: 'http', label: 'http' }, { value: 'tls', label: 'tls' }]} allowDeselect={false} value={String(settingOf(form.values.Settings, 'snell_obfs') ?? '')} onChange={(v) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { snell_obfs: v ?? '', ...(v ? {} : { snell_obfs_host: '' }) }))} />
+              {!!settingOf(form.values.Settings, 'snell_obfs') && <TextInput label={t('inbounds.snellObfsHost')} placeholder="www.bing.com" value={String(settingOf(form.values.Settings, 'snell_obfs_host') ?? '')} onChange={(e) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { snell_obfs_host: e.currentTarget.value }))} />}
+            </Group>
+            <Text size="xs" c="orange">{t('inbounds.snellHint')}</Text>
+          </Stack>
+        )}
         <JsonInput label={t('inbounds.settings')} description={t('inbounds.settingsHint')} autosize minRows={4} maxRows={16} formatOnBlur {...form.getInputProps('Settings')} />
         <Group justify="flex-end"><Button variant="default" onClick={onCancel}>{t('common.cancel')}</Button><Button type="submit" loading={busy}>{t('common.save')}</Button></Group>
       </Stack>

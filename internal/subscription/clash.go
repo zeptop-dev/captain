@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/zeptop-dev/bosun/pkg/spec"
 )
@@ -103,11 +104,30 @@ func clashProxy(l Line) m {
 		p["type"] = "mieru"
 		p["username"] = l.UUID
 		p["password"] = l.Password
-		p["transport"] = ib.MieruTransport
-		if p["transport"] == "" {
+		// mihomo takes one transport; BOTH (TCP at port, UDP at port+1) exports the TCP side.
+		p["transport"] = strings.ToUpper(ib.MieruTransport)
+		if p["transport"] == "" || p["transport"] == "BOTH" {
 			p["transport"] = "TCP"
 		}
+		if ib.MieruMultiplexing != "" {
+			p["multiplexing"] = ib.MieruMultiplexing
+		}
+		if ib.MieruHandshake != "" {
+			p["handshake-mode"] = ib.MieruHandshake
+		}
 		delete(p, "udp")
+	case spec.Snell:
+		// One shared PSK: every user gets the same line.
+		p["type"] = "snell"
+		p["psk"] = ib.SnellPSK
+		p["version"] = snellVersion(ib)
+		if ib.SnellObfs != "" && ib.SnellObfs != "off" {
+			o := m{"mode": ib.SnellObfs}
+			if ib.SnellObfsHost != "" {
+				o["host"] = ib.SnellObfsHost
+			}
+			p["obfs-opts"] = o
+		}
 	case spec.SOCKS:
 		p["type"] = "socks5"
 		p["username"] = l.UUID

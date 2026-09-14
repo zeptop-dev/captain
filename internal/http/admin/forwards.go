@@ -67,6 +67,16 @@ func (h *handlers) putNodeForwards(w http.ResponseWriter, r *http.Request) {
 			fail(w, http.StatusBadRequest, "protocol must be tcp, udp or both")
 			return
 		}
+		switch f.Backend {
+		case "", "nft":
+		default:
+			fail(w, http.StatusBadRequest, "backend must be empty (built-in relay) or nft")
+			return
+		}
+		if f.PreserveSource && f.Backend != "nft" {
+			fail(w, http.StatusBadRequest, "preserve_source needs the nft backend")
+			return
+		}
 		host, port, err := net.SplitHostPort(strings.TrimSpace(f.Target))
 		if err != nil || host == "" {
 			fail(w, http.StatusBadRequest, fmt.Sprintf("rule %d: target must be host:port", i+1))

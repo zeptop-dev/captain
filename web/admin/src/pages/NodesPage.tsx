@@ -72,7 +72,7 @@ export default function NodesPage() {
               {(q.data ?? []).map((n) => (
                 <Table.Tr key={n.id}>
                   <Table.Td><Anchor component={Link} to={`/nodes/${n.id}`} fw={600}>{n.name}</Anchor><Text size="xs" c="dimmed">{n.hostname}</Text></Table.Td>
-                  <Table.Td><Group gap={4}><NodeStatus n={n} />{n.cert_problem && <Badge color="red" size="xs" title={t('nodes.certProblem')}>TLS</Badge>}</Group></Table.Td>
+                  <Table.Td><Group gap={4}><NodeStatus n={n} />{n.cert_problem && <Badge color="red" size="xs" title={t('nodes.certProblem')}>TLS</Badge>}{n.doctor_fail && <Badge color="red" size="xs" variant="light" title={t('nodes.doctorFailHint')}>{t('nodes.doctor')}</Badge>}</Group></Table.Td>
                   <Table.Td><Code>{n.public_addr || '—'}</Code></Table.Td>
                   <Table.Td>{n.inbounds}</Table.Td>
                   <Table.Td>{bytes(n.traffic_today_bytes)}</Table.Td>

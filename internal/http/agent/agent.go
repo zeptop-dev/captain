@@ -143,6 +143,9 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 	if err := h.Store.TouchNode(ctx, n.ID, rep.Version, rep.Revision, rep.Host, rep.Cores, rep.Certs); err != nil {
 		h.Log.Error("touch node", "err", err)
 	}
+	if rep.Doctor != nil {
+		_ = h.Store.SetNodeDoctor(ctx, n.ID, rep.Doctor)
+	}
 	// Traffic is attributed to the node's first inbound for daily stats; the
 	// subscription charge is per user regardless of inbound.
 	inbounds, _ := h.Store.InboundsByNode(ctx, n.ID)

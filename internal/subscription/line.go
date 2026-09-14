@@ -83,6 +83,14 @@ func b64(s string) string { return base64.StdEncoding.EncodeToString([]byte(s)) 
 
 func transportType(l Line) string { return l.Inbound.TransportType() }
 
+// snellVersion defaults to 5, the version bosun installs.
+func snellVersion(ib spec.Inbound) int {
+	if ib.SnellVersion == 4 {
+		return 4
+	}
+	return 5
+}
+
 func joinNonEmpty(parts []string, sep string) string {
 	var out []string
 	for _, p := range parts {

@@ -132,7 +132,12 @@
     "advIngressCount": "{{count}} lines",
     "advIngressHint": "Only for an IPLC / dedicated line in front of the node",
     "advRoutingHint": "Exit through a landing server (relay)",
-    "advForwardsHint": "Forward ports to another node (front relay)"
+    "advForwardsHint": "Forward ports to another node (front relay)",
+    "doctor": "Doctor",
+    "doctorOk": "ok",
+    "doctorWarn": "warn",
+    "doctorFail": "fail",
+    "doctorFailHint": "The node's last self-check had failures; open the node page"
   },
   "inbounds": {
     "title": "Inbounds",
@@ -161,7 +166,9 @@
       "ss2022": "Shadowsocks 2022",
       "ss2022Desc": "Lightweight; needs a base64 server key.",
       "trojanWs": "Trojan + WS + TLS",
-      "trojanWsDesc": "CDN friendly; needs a certificate."
+      "trojanWsDesc": "CDN friendly; needs a certificate.",
+      "snell": "Snell v5",
+      "snellDesc": "Surge's protocol with a shared PSK; only Surge / mihomo / Stash can use it."
     },
     "mieruStrategy": "mieru strategy",
     "mieruStrategyHint": "Same presets as nobrand-oneclick: dedicated line = no obfuscation, public = conservative, stealth adds fragmentation and padding; custom edits traffic_pattern below directly.",
@@ -180,7 +187,19 @@
     "ingressNewHint": "The line ingress is created first, then the inbound.",
     "ingressNewFields": "Copy these from the provider's network information page:",
     "listenIngressHint": "blank = bind to the ingress address {{ip}}",
-    "lineOnlyHint": "This node has no public address or domain and is reached only through a line ingress: pick one, or the subscription has no usable address."
+    "lineOnlyHint": "This node has no public address or domain and is reached only through a line ingress: pick one, or the subscription has no usable address.",
+    "mieruBothHint": "BOTH = TCP on this port, UDP on port +1",
+    "mieruMTU": "MTU",
+    "mieruMTUHint": "blank = 1400; tune for UDP transport",
+    "mieruMux": "Multiplexing",
+    "mieruHandshake": "Handshake",
+    "clientDefault": "client default",
+    "snellPSK": "PSK (shared secret)",
+    "snellVersion": "Version",
+    "snellObfs": "Obfuscation",
+    "snellObfsHost": "Obfs host",
+    "snellHint": "Snell has one shared PSK for everyone: no per-user accounting or limits; fine for self-use or a small circle. Surge, Stash and mihomo support it; sing-box and URI subscriptions leave it out.",
+    "generate": "Generate"
   },
   "entries": {
     "title": "Entries",
@@ -782,7 +801,12 @@
     "add": "Add",
     "down": "down",
     "makeEntry": "Create an entry through this relay",
-    "entryMade": "Entry created; rename it on the Entries page"
+    "entryMade": "Entry created; rename it on the Entries page",
+    "backend": "Backend",
+    "backendRelay": "built-in relay",
+    "backendNft": "nftables (kernel DNAT)",
+    "preserve": "Preserve source IP",
+    "nftHint": "The nftables backend does kernel DNAT: the node needs the nft binary and an IPv4 target; with source preserved the target must route replies back through this node."
   },
   "backup": {
     "title": "Database backups",

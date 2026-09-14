@@ -132,7 +132,12 @@
     "advIngressCount": "{{count}} 条专线",
     "advIngressHint": "IPLC / 专线在节点前面时才需要",
     "advRoutingHint": "让流量从落地服务器出去，做中转",
-    "advForwardsHint": "把端口原样转发到别的节点，做前置"
+    "advForwardsHint": "把端口原样转发到别的节点，做前置",
+    "doctor": "体检",
+    "doctorOk": "正常",
+    "doctorWarn": "警告",
+    "doctorFail": "失败",
+    "doctorFailHint": "节点上次自检有失败项，进节点页看详情"
   },
   "inbounds": {
     "title": "入站",
@@ -161,7 +166,9 @@
       "ss2022": "Shadowsocks 2022",
       "ss2022Desc": "轻量，需要 base64 服务端密钥。",
       "trojanWs": "Trojan + WS + TLS",
-      "trojanWsDesc": "可套 CDN，需要证书。"
+      "trojanWsDesc": "可套 CDN，需要证书。",
+      "snell": "Snell v5",
+      "snellDesc": "Surge 官方协议，共享 PSK；只有 Surge / mihomo / Stash 能用。"
     },
     "mieruStrategy": "mieru 策略",
     "mieruStrategyHint": "同 nobrand-oneclick 的预设：专线不伪装，公网保守伪装，强化伪装加分片和填充；自定义则直接改下面的 traffic_pattern。",
@@ -180,7 +187,19 @@
     "ingressNewHint": "保存时会先创建这个专线入口，再创建入站。",
     "ingressNewFields": "从服务商的网络信息页抄这几项：",
     "listenIngressHint": "留空 = 绑定到入口的本地 IP {{ip}}",
-    "lineOnlyHint": "这台节点没有公网地址和域名，只能通过专线入口访问：请选一个入口，否则订阅里没有可用地址。"
+    "lineOnlyHint": "这台节点没有公网地址和域名，只能通过专线入口访问：请选一个入口，否则订阅里没有可用地址。",
+    "mieruBothHint": "BOTH = TCP 在本端口，UDP 在端口 +1",
+    "mieruMTU": "MTU",
+    "mieruMTUHint": "留空 1400；UDP 传输时按链路调",
+    "mieruMux": "多路复用",
+    "mieruHandshake": "握手模式",
+    "clientDefault": "客户端默认",
+    "snellPSK": "PSK（共享密钥）",
+    "snellVersion": "版本",
+    "snellObfs": "混淆",
+    "snellObfsHost": "混淆 Host",
+    "snellHint": "Snell 只有一个共享 PSK，所有用户用同一个，没有按用户的流量统计和限制；适合自用或小圈子。Surge、Stash、mihomo 支持，sing-box 和 URI 订阅不含它。",
+    "generate": "生成"
   },
   "entries": {
     "title": "入口",
@@ -782,7 +801,12 @@
     "add": "添加",
     "down": "不通",
     "makeEntry": "生成经由本机的入口",
-    "entryMade": "入口已生成，去「入口」页调整名称"
+    "entryMade": "入口已生成，去「入口」页调整名称",
+    "backend": "后端",
+    "backendRelay": "内置转发",
+    "backendNft": "nftables 内核转发",
+    "preserve": "保留源 IP",
+    "nftHint": "nftables 后端走内核 DNAT，节点需要 nft 命令，目标必须是 IPv4；保留源 IP 时目标服务器的回包路由必须经过本机。"
   },
   "backup": {
     "title": "数据库备份",

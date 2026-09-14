@@ -189,20 +189,57 @@ func (s *Store) DeleteNode(ctx context.Context, id int64) error {
 
 // NodeStatus is the last reported host/core state.
 type NodeStatus struct {
-	Host  json.RawMessage `json:"host"`
-	Cores json.RawMessage `json:"cores"`
-	Certs json.RawMessage `json:"certs"`
+	Host   json.RawMessage `json:"host"`
+	Cores  json.RawMessage `json:"cores"`
+	Certs  json.RawMessage `json:"certs"`
+	Doctor json.RawMessage `json:"doctor"` // last agentproto.DoctorReport, or null
+}
+
+// SetNodeDoctor stores the node's latest self-check report.
+func (s *Store) SetNodeDoctor(ctx context.Context, id int64, report any) error {
+	b, _ := json.Marshal(report)
+	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET doctor_json = ? WHERE id = ?`, string(b), id)
+	return err
+}
+
+// DoctorFails returns, per node, whether the last self-check had failures.
+func (s *Store) DoctorFails(ctx context.Context) (map[int64]bool, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, doctor_json FROM nodes WHERE doctor_json <> ''`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int64]bool{}
+	for rows.Next() {
+		var id int64
+		var raw string
+		if err := rows.Scan(&id, &raw); err != nil {
+			return nil, err
+		}
+		var rep struct {
+			Summary struct {
+				Fail int `json:"fail"`
+			} `json:"summary"`
+		}
+		if json.Unmarshal([]byte(raw), &rep) == nil && rep.Summary.Fail > 0 {
+			out[id] = true
+		}
+	}
+	return out, rows.Err()
 }
 
 func (s *Store) NodeStatus(ctx context.Context, id int64) (*NodeStatus, error) {
-	var host, cores, certs string
-	if err := s.db.QueryRowContext(ctx, `SELECT host_status_json, cores_json, certs_json FROM nodes WHERE id = ?`, id).Scan(&host, &cores, &certs); err != nil {
+	var host, cores, certs, doctor string
+	if err := s.db.QueryRowContext(ctx, `SELECT host_status_json, cores_json, certs_json, doctor_json FROM nodes WHERE id = ?`, id).Scan(&host, &cores, &certs, &doctor); err != nil {
 		return nil, wrapNotFound(err)
 	}
 	if certs == "" {
 		certs = "[]"
 	}
-	return &NodeStatus{Host: json.RawMessage(host), Cores: json.RawMessage(cores), Certs: json.RawMessage(certs)}, nil
+	if doctor == "" {
+		doctor = "null"
+	}
+	return &NodeStatus{Host: json.RawMessage(host), Cores: json.RawMessage(cores), Certs: json.RawMessage(certs), Doctor: json.RawMessage(doctor)}, nil
 }
 
 // AllInboundsByNode lists inbounds of a node including disabled ones.
