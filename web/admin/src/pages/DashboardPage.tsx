@@ -34,7 +34,7 @@ export default function DashboardPage() {
             <Text size="xs" c="dimmed">{t('dashboard.trafficChartSub')}</Text>
           </div>
         </Group>
-        <AreaChart h={240} data={series} dataKey="day" series={[{ name: 'GiB', color: 'cyan.5' }]} curveType="monotone" withDots={false} gridAxis="x" />
+        <AreaChart h={240} data={series} dataKey="day" series={[{ name: 'GiB', color: 'brand.5' }]} curveType="monotone" withDots={false} gridAxis="x" />
       </Card>
     </>
   )
