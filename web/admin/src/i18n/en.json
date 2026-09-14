@@ -351,7 +351,12 @@
     "rollbackConfirm": "Switch back to {{version}} and restart. Continue?",
     "restart": "Restart",
     "restartConfirm": "The process exits and systemd or Docker starts it again. Continue?",
-    "restarting": "Restarting, waiting for the service to come back…"
+    "restartingTitle": "Restarting",
+    "upgradingTo": "Upgrading to {{version}}",
+    "restartingHint": "Waiting for the service to come back. The page reloads by itself and you stay signed in.",
+    "restartTimeout": "No answer after 90 seconds. Startup may be slow or the upgrade failed; reload later and check the server logs if it persists.",
+    "elapsed": "{{seconds}} s elapsed",
+    "reload": "Reload page"
   },
   "site": {
     "title": "Landing page",

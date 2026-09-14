@@ -1,34 +1,68 @@
-import { Alert, Badge, Button, Card, Code, Group, Stack, Text, Title } from '@mantine/core'
+import { Alert, Badge, Button, Card, Code, Group, Loader, Modal, Stack, Text, Title } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { IconRefresh } from '@tabler/icons-react'
-import { useState } from 'react'
+import { IconAlertTriangle, IconRefresh } from '@tabler/icons-react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, type SystemUpdate, type UpdateInfo } from '../lib/api'
 import { when } from '../lib/format'
-import { toast } from '../lib/notify'
+import { setToastMuted, toast } from '../lib/notify'
 
-// After apply/rollback/restart the process exits; poll until it answers again.
-function waitForRestart(onBack: () => void) {
-  let tries = 0
-  const tick = async () => {
-    tries++
-    try { await api.get('/api/admin/me'); onBack(); return } catch { /* still restarting */ }
-    if (tries < 60) setTimeout(tick, 1000)
-  }
-  setTimeout(tick, 2000)
+const ME_URL = '/api/admin/me'
+
+// After apply/rollback/restart the process exits. A blocking modal keeps the
+// operator informed, error toasts are muted while requests fail, and once the
+// panel answers again the page reloads so the new bundle is served (sessions
+// survive restarts, so the operator stays signed in).
+function RestartOverlay({ version, onGiveUp }: { version?: string; onGiveUp: () => void }) {
+  const { t } = useTranslation()
+  const [seconds, setSeconds] = useState(0)
+  const [timedOut, setTimedOut] = useState(false)
+  useEffect(() => {
+    setToastMuted(true)
+    const started = Date.now()
+    let stop = false
+    const tick = async () => {
+      if (stop) return
+      const elapsed = Math.round((Date.now() - started) / 1000)
+      setSeconds(elapsed)
+      if (elapsed >= 2) {
+        try { await api.get(ME_URL); window.location.reload(); return } catch { /* still restarting */ }
+      }
+      if (elapsed >= 90) { setTimedOut(true); return }
+      setTimeout(tick, 1000)
+    }
+    const h = setTimeout(tick, 1000)
+    return () => { stop = true; clearTimeout(h); setToastMuted(false) }
+  }, [])
+  return (
+    <Modal opened onClose={() => {}} withCloseButton={false} closeOnClickOutside={false} closeOnEscape={false} centered>
+      <Stack align="center" gap="sm" py="md">
+        {timedOut ? <IconAlertTriangle size={36} color="var(--mantine-color-orange-6)" /> : <Loader />}
+        <Title order={4}>{version ? t('update.upgradingTo', { version }) : t('update.restartingTitle')}</Title>
+        <Text size="sm" c="dimmed" ta="center">{timedOut ? t('update.restartTimeout') : t('update.restartingHint')}</Text>
+        <Text size="xs" c="dimmed">{t('update.elapsed', { seconds })}</Text>
+        {timedOut && (
+          <Group gap="xs">
+            <Button size="xs" onClick={() => window.location.reload()}>{t('update.reload')}</Button>
+            <Button size="xs" variant="default" onClick={onGiveUp}>{t('common.cancel')}</Button>
+          </Group>
+        )}
+      </Stack>
+    </Modal>
+  )
 }
 
 export function UpdateCard({ mb }: { mb?: string }) {
   const { t } = useTranslation()
   const qc = useQueryClient()
-  const [restarting, setRestarting] = useState(false)
+  const [restarting, setRestarting] = useState<{ version?: string } | null>(null)
   const q = useQuery({ queryKey: ['update'], queryFn: () => api.get<SystemUpdate>('/api/admin/system/update'), retry: false })
   const check = useMutation({ mutationFn: () => api.get<SystemUpdate>('/api/admin/system/update?force=1'), onSuccess: (d) => qc.setQueryData(['update'], d), onError: toast.err })
-  const afterExit = () => { setRestarting(true); waitForRestart(() => { setRestarting(false); qc.invalidateQueries() }) }
-  const apply = useMutation({ mutationFn: () => api.post('/api/admin/system/update/apply'), onSuccess: afterExit, onError: toast.err })
-  const rollback = useMutation({ mutationFn: () => api.post('/api/admin/system/update/rollback'), onSuccess: afterExit, onError: toast.err })
-  const restart = useMutation({ mutationFn: () => api.post('/api/admin/system/restart'), onSuccess: afterExit, onError: toast.err })
+  const afterExit = (r: { installed?: string }) => setRestarting({ version: r?.installed })
+  const apply = useMutation({ mutationFn: () => api.post<{ installed?: string }>('/api/admin/system/update/apply'), onSuccess: afterExit, onError: toast.err })
+  const rollback = useMutation({ mutationFn: () => api.post<{ installed?: string }>('/api/admin/system/update/rollback'), onSuccess: afterExit, onError: toast.err })
+  const restart = useMutation({ mutationFn: () => api.post<{ installed?: string }>('/api/admin/system/restart'), onSuccess: () => afterExit({}), onError: toast.err })
   const d: UpdateInfo | undefined = q.data?.captain
   return (
     <Card mb={mb}>
@@ -39,7 +73,7 @@ export function UpdateCard({ mb }: { mb?: string }) {
           <Button size="xs" variant="default" leftSection={<IconRefresh size={14} />} loading={check.isPending} onClick={() => check.mutate()}>{t('update.check')}</Button>
         </Group>
       </Group>
-      {restarting && <Alert color="blue" mb="sm">{t('update.restarting')}</Alert>}
+      {restarting && <RestartOverlay version={restarting.version} onGiveUp={() => { setRestarting(null); qc.invalidateQueries() }} />}
       {d?.warning && <Text size="xs" c="orange" mb="xs">{d.warning}</Text>}
       {d && (
         <Stack gap="sm">

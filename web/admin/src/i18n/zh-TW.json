@@ -291,7 +291,12 @@
     "rollbackConfirm": "換回 {{version}} 並重新啟動。繼續？",
     "restart": "重新啟動",
     "restartConfirm": "程序結束後由 systemd 或 Docker 拉起。繼續？",
-    "restarting": "正在重新啟動，等待服務恢復…"
+    "restartingTitle": "正在重新啟動",
+    "upgradingTo": "正在升級到 {{version}}",
+    "restartingHint": "等待服務恢復，恢復後頁面會自動重新整理，登入狀態會保留。",
+    "restartTimeout": "等了 90 秒服務仍未恢復。可能是啟動較慢或升級失敗，請稍後重新整理頁面，必要時到伺服器上查看日誌。",
+    "elapsed": "已等待 {{seconds}} 秒",
+    "reload": "重新整理頁面"
   },
   "site": {
     "title": "展示頁",
