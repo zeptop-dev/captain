@@ -291,7 +291,12 @@
     "rollbackConfirm": "{{version}} に戻して再起動します。続行しますか？",
     "restart": "再起動",
     "restartConfirm": "プロセス終了後、systemd または Docker が再起動します。続行しますか？",
-    "restarting": "再起動中です。サービスの復旧を待っています…"
+    "restartingTitle": "再起動中",
+    "upgradingTo": "{{version}} へ更新中",
+    "restartingHint": "サービスの復帰を待っています。復帰するとページは自動で再読み込みされ、ログインは維持されます。",
+    "restartTimeout": "90 秒待っても応答がありません。起動が遅いか更新に失敗した可能性があります。後で再読み込みし、続く場合はサーバーのログを確認してください。",
+    "elapsed": "{{seconds}} 秒経過",
+    "reload": "ページを再読み込み"
   },
   "site": {
     "title": "ランディングページ",

@@ -291,7 +291,12 @@
     "rollbackConfirm": "{{version}}(으)로 되돌리고 재시작합니다. 계속할까요?",
     "restart": "재시작",
     "restartConfirm": "프로세스 종료 후 systemd 또는 Docker가 다시 시작합니다. 계속할까요?",
-    "restarting": "재시작 중입니다. 서비스 복구를 기다리는 중…"
+    "restartingTitle": "재시작 중",
+    "upgradingTo": "{{version}}(으)로 업그레이드 중",
+    "restartingHint": "서비스 복구를 기다리는 중입니다. 복구되면 페이지가 자동으로 새로고침되며 로그인은 유지됩니다.",
+    "restartTimeout": "90초가 지나도 응답이 없습니다. 시작이 느리거나 업그레이드가 실패했을 수 있습니다. 잠시 후 새로고침하고, 계속되면 서버 로그를 확인하세요.",
+    "elapsed": "{{seconds}}초 경과",
+    "reload": "페이지 새로고침"
   },
   "site": {
     "title": "랜딩 페이지",
