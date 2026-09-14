@@ -14,7 +14,6 @@ const recipes: { key: string; protocol: string; port: number; settings: Record<s
   { key: 'vlessReality', protocol: 'vless', port: 443, settings: { flow: 'xtls-rprx-vision', tls: { mode: 2, server_name: 'www.apple.com', reality: { private_key: '', public_key: '', short_ids: ['0123abcd'], handshake_server: 'www.apple.com', handshake_port: 443 } } } },
   { key: 'hysteria2', protocol: 'hysteria2', port: 8443, settings: { tls: { mode: 1, server_name: 'node.example.com', auto_cert: true, acme: 'http' }, obfs: 'salamander', obfs_password: 'change-me', up_mbps: 100, down_mbps: 500 } },
   { key: 'mieru', protocol: 'mieru', port: 24450, settings: { mieru_transport: 'TCP' } },
-  { key: 'mieruLine', protocol: 'mieru', port: 0, settings: { mieru_transport: 'TCP' } },
   { key: 'ss2022', protocol: 'shadowsocks', port: 8388, settings: { cipher: '2022-blake3-aes-128-gcm', server_key: '' } },
   { key: 'trojanWs', protocol: 'trojan', port: 443, settings: { tls: { mode: 1, server_name: 'node.example.com', auto_cert: true, acme: 'http' }, transport: { type: 'ws', path: '/trojan', host: 'node.example.com' } } },
 ]
@@ -72,22 +71,17 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
   })
   const [recipe, setRecipe] = useState<string | null>(null) // highlighted quick-setup card
   // Recipes name node.example.com; a node with a registered host name gets it instead.
-  // The IPLC recipe also needs a line ingress: reuse the node's first one or
-  // describe a new one inline (created together with the inbound).
   const firstFree = (g?: { port_from: number; port_to: number; reserved_ports?: number[] }) => { if (!g || !g.port_from) return 0; for (let p = g.port_from; p <= g.port_to; p++) if (!usedPorts.includes(p) && !(g.reserved_ports ?? []).includes(p)) return p; return 0 }
+  const selectedIngress = ingresses.find((g) => String(g.id) === form.values.IngressID)
   const apply = (r: (typeof recipes)[number]) => {
-    if (r.key === 'mieruLine') {
-      const g = ingresses[0]
-      form.setValues({ Protocol: 'mieru', Settings: JSON.stringify(r.settings, null, 2), Tag: form.values.Tag || 'mieru-iplc', IngressID: g ? String(g.id) : '', NewIngress: g ? undefined : { ...emptyIngress }, Port: firstFree(g) || 17701 })
-      return
-    }
-    form.setValues({ Protocol: r.protocol, Port: r.port, Settings: JSON.stringify(r.settings, null, 2).replaceAll('node.example.com', domain || 'node.example.com'), Tag: form.values.Tag || r.protocol, NewIngress: undefined })
+    // A recipe keeps the chosen line ingress and takes a port from its range; any protocol may ride a line.
+    const port = selectedIngress && selectedIngress.port_from ? (firstFree(selectedIngress) || r.port) : r.port
+    form.setValues({ Protocol: r.protocol, Port: port, Settings: JSON.stringify(r.settings, null, 2).replaceAll('node.example.com', domain || 'node.example.com'), Tag: form.values.Tag || r.protocol })
   }
   // A node reachable only through a line (no public address, no domain) defaults new inbounds to its first ingress.
   useEffect(() => { if (lineOnly && !initial.IngressID && !initial.Tag && ingresses[0]) form.setValues({ IngressID: String(ingresses[0].id), Port: firstFree(ingresses[0]) || form.values.Port }) }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const ingressForm = useForm<IngressValues>({ initialValues: form.values.NewIngress ?? emptyIngress })
   useEffect(() => { if (form.values.NewIngress) ingressForm.setValues(form.values.NewIngress) }, [form.values.NewIngress]) // eslint-disable-line react-hooks/exhaustive-deps
-  const selectedIngress = ingresses.find((g) => String(g.id) === form.values.IngressID)
   const onIngress = (v: string | null) => {
     if (v === 'new') { form.setValues({ IngressID: '', NewIngress: { ...emptyIngress } }); return }
     const g = ingresses.find((x) => String(x.id) === v)

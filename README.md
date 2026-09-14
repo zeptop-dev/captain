@@ -288,9 +288,12 @@ back through the line), the line's far-end address (what a relay must
 forward to; not reachable from the public internet), the provider's public
 entry if the service includes one (e.g. a China Mobile entry IP), the
 usable port range and an optional port offset. Inbounds pick an ingress
-(direct is the default); entries then advertise the public entry on the
-mapped port, and the "mieru · IPLC line" recipe creates the ingress and the
-inbound in one step, picking the first free port in the range. A line
+(direct is the default, or the line on nodes without a public address);
+any protocol may ride a line, and a recipe applied while an ingress is
+selected takes the first free, non-reserved port of the range. Whether a
+protocol passes is up to the provider's entry (nobrand's carrier entry, for
+one, only passes non-TLS protocols such as mieru). Entries then advertise
+the public entry on the mapped port. A line
 without a public entry is served through a relay node: add a port forward
 there whose target is the far-end address (the picker fills it in) and use
 the relay's address in the entry. Direct inbounds on the same node (hy2,

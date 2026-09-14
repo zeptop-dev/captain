@@ -161,9 +161,7 @@
       "ss2022": "Shadowsocks 2022",
       "ss2022Desc": "轻量，需要 base64 服务端密钥。",
       "trojanWs": "Trojan + WS + TLS",
-      "trojanWsDesc": "可套 CDN，需要证书。",
-      "mieruLine": "mieru · IPLC 专线",
-      "mieruLineDesc": "走专线网卡，订阅写移动入口；从服务商网络信息页抄地址和端口段。"
+      "trojanWsDesc": "可套 CDN，需要证书。"
     },
     "mieruStrategy": "mieru 策略",
     "mieruStrategyHint": "同 nobrand-oneclick 的预设：专线不伪装，公网保守伪装，强化伪装加分片和填充；自定义则直接改下面的 traffic_pattern。",
@@ -885,7 +883,7 @@
   "ingress": {
     "title": "专线入口",
     "add": "添加入口",
-    "hint": "IPLC / 专线在节点前面时在这里登记：入站绑定到专线网卡，订阅行写服务商给的公网入口，没有公网入口的线路由前置节点转发到「外部连接 IP」。直连不用登记。",
+    "hint": "IPLC / 专线在节点前面时在这里登记：入站绑定到专线网卡，订阅行写服务商给的公网入口，没有公网入口的线路由前置节点转发到「外部连接 IP」。任何协议都可以挂在专线入口上，能不能通取决于服务商的入口放不放行（例如 nobrand 的移动入口只放行 mieru 这类非 TLS 协议）。直连不用登记。",
     "name": "名称",
     "bindIP": "本地监听 IP",
     "bindIPHint": "专线网卡在 VPS 上的地址，入站绑定到它；留空则监听全部",
