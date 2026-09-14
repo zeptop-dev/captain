@@ -1,10 +1,12 @@
-import { Alert, Badge, Button, Card, CopyButton, Group, Progress, SimpleGrid, Stack, Text, Title, Menu } from '@mantine/core'
+import { Alert, Badge, Button, Card, Group, Progress, SimpleGrid, Stack, Text, Title, Menu } from '@mantine/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { IconCheck, IconCopy, IconDownload } from '@tabler/icons-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useState } from 'react'
+import { copyText } from '../lib/clipboard'
 import { useAuth } from '../lib/auth'
 import { bytes, money, when } from '../lib/format'
 import { RedeemCard } from '../components/RedeemCard'
@@ -23,6 +25,7 @@ function importLinks(url: string) {
 
 export default function HomePage() {
   const { t } = useTranslation()
+  const [copied, setCopied] = useState(false)
   const qc = useQueryClient()
   const notice = useQuery({ queryKey: ['notice'], queryFn: () => api.get<{ enabled: boolean; title?: string; body?: string }>('/api/portal/notice') })
   const providers = useQuery({ queryKey: ['oauth-providers'], queryFn: () => api.get<{ providers: { id: string; name: string }[] }>('/api/oauth/providers') })
@@ -77,7 +80,7 @@ export default function HomePage() {
           <Stack flex={1} gap="sm">
             <Text size="sm" style={{ wordBreak: 'break-all' }} ff="monospace" p="sm" bg="var(--mantine-color-gray-1)">{me.subscription_url}</Text>
             <Group>
-              <CopyButton value={me.subscription_url} timeout={1500}>{({ copied, copy }) => <Button leftSection={copied ? <IconCheck size={16} /> : <IconCopy size={16} />} color={copied ? 'teal' : undefined} onClick={copy}>{copied ? t('home.copied') : t('home.copy')}</Button>}</CopyButton>
+              <Button leftSection={copied ? <IconCheck size={16} /> : <IconCopy size={16} />} color={copied ? 'teal' : undefined} onClick={async () => { if (await copyText(me.subscription_url)) { setCopied(true); window.setTimeout(() => setCopied(false), 1500) } }}>{copied ? t('home.copied') : t('home.copy')}</Button>
               <Menu shadow="md" width={200}>
                 <Menu.Target><Button variant="light" leftSection={<IconDownload size={16} />}>{t('home.import')}</Button></Menu.Target>
                 <Menu.Dropdown>{importLinks(me.subscription_url).map((l) => <Menu.Item key={l.name} component="a" href={l.href}>{l.name}</Menu.Item>)}</Menu.Dropdown>
