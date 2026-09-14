@@ -51,7 +51,7 @@ export default function TicketsPage() {
             <Group gap="xs"><Text size="sm">{d.email}</Text><Badge color={colors[d.status]}>{t(`tickets.status.${d.status}`)}</Badge><Badge variant="light" color={prio[d.priority]}>{t(`tickets.prio.${d.priority}`)}</Badge></Group>
             <Stack gap="xs" mah={360} style={{ overflowY: 'auto' }}>
               {(d.thread ?? []).map((m) => (
-                <Paper key={m.id} p="sm" radius="md" bg={m.from_admin ? 'var(--mantine-color-cyan-0)' : 'var(--mantine-color-gray-0)'} style={{ alignSelf: m.from_admin ? 'flex-end' : 'flex-start', maxWidth: '90%' }}>
+                <Paper key={m.id} p="sm" radius="md" bg={m.from_admin ? 'var(--mantine-color-brand-0)' : 'var(--mantine-color-gray-0)'} style={{ alignSelf: m.from_admin ? 'flex-end' : 'flex-start', maxWidth: '90%' }}>
                   <Text size="xs" c="dimmed" mb={4}>{m.from_admin ? t('tickets.you') : d.email} · {when(m.created_at)}</Text>
                   <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{m.body}</Text>
                 </Paper>
