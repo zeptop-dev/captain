@@ -191,7 +191,9 @@
     "wgPublic": "伺服端公鑰",
     "wgAddress": "隧道網段（伺服端位址）",
     "wgAddressHint": "使用者位址從這個網段按編號分配",
-    "traffic": "流量（今日 / 累計）"
+    "traffic": "流量（今日 / 累計）",
+    "noSniff": "關閉目標嗅探",
+    "noSniffHint": "預設開啟：從 TLS/HTTP 標頭裡識別真實網域，網域分流才能生效。只有嗅探導致某些客戶端異常時才關。"
   },
   "entries": {
     "title": "入口",
@@ -617,5 +619,19 @@
     "outboundAdded": "WARP 出站已新增",
     "addTemplate": "新增常用分流範本",
     "templateHint": "把 AI 和串流站點分流到 WARP："
+  },
+  "routing": {
+    "category": "常用分類",
+    "balancer": "負載均衡",
+    "balancerTag": "均衡器標籤",
+    "balancerMembers": "成員出站",
+    "balancerHint": "按 URL 測速選最快的成員；分流規則和預設出站都可以指向它",
+    "balancerStrategy": "策略",
+    "strategyUrltest": "最低延遲",
+    "strategyRandom": "隨機",
+    "addBalancer": "新增均衡器",
+    "dns": "DNS 伺服器",
+    "dnsHint": "核心解析出站網域用的伺服器，支援 1.1.1.1、tls://、https://；留空用系統 DNS",
+    "matchHint": "逗號分隔：inbound:入站標籤、domain:example.com、full:網域、ip:1.2.3.0/24、geosite:netflix、geoip:cn、protocol:bittorrent、port:443"
   }
 }

@@ -238,7 +238,9 @@
     "wgPublic": "服务端公钥",
     "wgAddress": "隧道网段（服务端地址）",
     "wgAddressHint": "用户地址从这个网段按编号分配",
-    "traffic": "流量（今日 / 累计）"
+    "traffic": "流量（今日 / 累计）",
+    "noSniff": "关闭目标嗅探",
+    "noSniffHint": "默认开启：从 TLS/HTTP 头里识别真实域名，域名分流才能生效。只有嗅探导致某些客户端异常时才关。"
   },
   "entries": {
     "title": "入口",
@@ -764,10 +766,21 @@
     "defaultHint": "没有命中规则的流量走这里，选一个出站等于整机中转。",
     "rules": "分流规则",
     "match": "匹配",
-    "matchHint": "逗号分隔：inbound:入站标签、domain:example.com、full:域名、ip:1.2.3.0/24、protocol:bittorrent、port:443",
+    "matchHint": "逗号分隔：inbound:入站标签、domain:example.com、full:域名、ip:1.2.3.0/24、geosite:netflix、geoip:cn、protocol:bittorrent、port:443",
     "to": "去向",
     "addRule": "添加规则",
-    "routeInbound": "入站 {{tag}} 走出站"
+    "routeInbound": "入站 {{tag}} 走出站",
+    "category": "常用分类",
+    "balancer": "负载均衡",
+    "balancerTag": "均衡器标签",
+    "balancerMembers": "成员出站",
+    "balancerHint": "按 URL 测速选最快的成员；分流规则和默认出站都可以指向它",
+    "balancerStrategy": "策略",
+    "strategyUrltest": "最低延迟",
+    "strategyRandom": "随机",
+    "addBalancer": "添加均衡器",
+    "dns": "DNS 服务器",
+    "dnsHint": "内核解析出站域名用的服务器，支持 1.1.1.1、tls://、https://；留空用系统 DNS"
   },
   "renewals": {
     "lapsed": "已到期",

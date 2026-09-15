@@ -238,7 +238,9 @@
     "wgPublic": "Server public key",
     "wgAddress": "Tunnel network (server address)",
     "wgAddressHint": "Client addresses are assigned from this network by user id",
-    "traffic": "Traffic (today / total)"
+    "traffic": "Traffic (today / total)",
+    "noSniff": "Disable destination sniffing",
+    "noSniffHint": "On by default: reads the real host from TLS/HTTP so domain rules apply. Turn off only if sniffing breaks a client."
   },
   "entries": {
     "title": "Entries",
@@ -764,10 +766,21 @@
     "defaultHint": "Traffic matching no rule goes here; picking an outbound relays the whole node.",
     "rules": "Rules",
     "match": "Match",
-    "matchHint": "Comma separated: inbound:tag, domain:example.com, full:host, ip:1.2.3.0/24, protocol:bittorrent, port:443",
+    "matchHint": "Comma separated: inbound:tag, domain:example.com, full:host, ip:1.2.3.0/24, geosite:netflix, geoip:cn, protocol:bittorrent, port:443",
     "to": "To",
     "addRule": "Add rule",
-    "routeInbound": "Inbound {{tag}} → outbound"
+    "routeInbound": "Inbound {{tag}} → outbound",
+    "category": "Category",
+    "balancer": "Balancer",
+    "balancerTag": "Balancer tag",
+    "balancerMembers": "Members",
+    "balancerHint": "Picks the member with the best URL test; rules and the default may point at it",
+    "balancerStrategy": "Strategy",
+    "strategyUrltest": "Lowest latency",
+    "strategyRandom": "Random",
+    "addBalancer": "Add balancer",
+    "dns": "DNS servers",
+    "dnsHint": "Resolvers the cores use for outbound names: 1.1.1.1, tls://…, https://…; blank = system DNS"
   },
   "renewals": {
     "lapsed": "lapsed",

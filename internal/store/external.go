@@ -202,16 +202,18 @@ type NodeRouting struct {
 	Outbounds       []spec.Outbound  `json:"outbounds"`
 	Routes          []spec.RouteRule `json:"routes"`
 	DefaultOutbound string           `json:"default_outbound"`
+	DNS             []string         `json:"dns"`
 }
 
 func (s *Store) NodeRouting(ctx context.Context, nodeID int64) (*NodeRouting, error) {
-	var outs, routes, def string
-	if err := s.db.QueryRowContext(ctx, `SELECT outbounds_json, routes_json, default_outbound FROM nodes WHERE id = ?`, nodeID).Scan(&outs, &routes, &def); err != nil {
+	var outs, routes, def, dns string
+	if err := s.db.QueryRowContext(ctx, `SELECT outbounds_json, routes_json, default_outbound, dns_json FROM nodes WHERE id = ?`, nodeID).Scan(&outs, &routes, &def, &dns); err != nil {
 		return nil, wrapNotFound(err)
 	}
-	nr := &NodeRouting{Outbounds: []spec.Outbound{}, Routes: []spec.RouteRule{}, DefaultOutbound: def}
+	nr := &NodeRouting{Outbounds: []spec.Outbound{}, Routes: []spec.RouteRule{}, DefaultOutbound: def, DNS: []string{}}
 	_ = json.Unmarshal([]byte(outs), &nr.Outbounds)
 	_ = json.Unmarshal([]byte(routes), &nr.Routes)
+	_ = json.Unmarshal([]byte(dns), &nr.DNS)
 	return nr, nil
 }
 
@@ -224,6 +226,10 @@ func (s *Store) SetNodeRouting(ctx context.Context, nodeID int64, nr *NodeRoutin
 	if nr.Routes == nil {
 		routes = []byte("[]")
 	}
-	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET outbounds_json = ?, routes_json = ?, default_outbound = ?, updated_at = ? WHERE id = ?`, string(outs), string(routes), nr.DefaultOutbound, now(), nodeID)
+	dns, _ := json.Marshal(nr.DNS)
+	if nr.DNS == nil {
+		dns = []byte("[]")
+	}
+	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET outbounds_json = ?, routes_json = ?, default_outbound = ?, dns_json = ?, updated_at = ? WHERE id = ?`, string(outs), string(routes), nr.DefaultOutbound, string(dns), now(), nodeID)
 	return err
 }
