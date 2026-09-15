@@ -149,7 +149,8 @@
     "decoyUpstream": "上游站点（可选）",
     "decoyUpstreamHint": "留空用内置占位页；填 http(s) 地址则反向代理到你的网站",
     "speedLimit": "每用户限速（Mbps）",
-    "speedLimitHint": "0 不限。对这台节点上没有套餐限速的用户生效；套餐里的限速值优先。需要节点是 Linux 且有 nft 和 tc，只对 Xray / sing-box 承载的协议生效。"
+    "speedLimitHint": "0 不限。对这台节点上没有套餐限速的用户生效；套餐里的限速值优先。需要节点是 Linux 且有 nft 和 tc，只对 Xray / sing-box 承载的协议生效。",
+    "advOverridesHint": "给内核补面板没有的选项"
   },
   "inbounds": {
     "title": "入站",
@@ -1026,5 +1027,17 @@
     "hint": "限制管理后台的登录和 API 调用来源。API 令牌同样受限。",
     "allowCidrs": "IP 白名单",
     "allowCidrsHint": "IP 或 CIDR，留空不限制；保存时会拒绝把你自己排除在外的名单"
+  },
+  "overrides": {
+    "title": "配置覆盖",
+    "hint": "按内核填一段 JSON，会深合并进最终生成的配置：对象逐字段合并，数组和标量整体替换，值为 null 表示删除该字段。用来设置面板没有暴露的内核选项。改错了内核会起不来，体检里能看到。",
+    "invalid": "不是合法的 JSON"
+  },
+  "userEntries": {
+    "title": "入口",
+    "hint": "这个用户能收到的服务器。每行的链接带的是这个用户自己的凭据，可以单独发给他；关掉开关就只对这个用户隐藏这个入口，订阅里不再出现。",
+    "none": "没有可用的入口",
+    "noLink": "该协议没有分享链接",
+    "allowed": "可见"
   }
 }

@@ -37,6 +37,16 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 		return nil, err
 	}
 	node := spec.Node{ID: strconv.FormatInt(n.ID, 10)}
+	if ov, err := a.Store.NodeOverrides(ctx, n.ID); err == nil {
+		for c, raw := range ov {
+			if raw != "" {
+				if node.Overrides == nil {
+					node.Overrides = map[string]json.RawMessage{}
+				}
+				node.Overrides[c] = json.RawMessage(raw)
+			}
+		}
+	}
 	if nr, err := a.Store.NodeRouting(ctx, n.ID); err == nil {
 		node.Outbounds, node.Routes, node.DefaultOutbound, node.DNS = nr.Outbounds, nr.Routes, nr.DefaultOutbound, nr.DNS
 	}

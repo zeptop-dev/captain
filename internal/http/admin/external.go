@@ -24,6 +24,8 @@ func (h *handlers) registerExternal(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/admin/external/parse", h.requireAdmin(h.parseLinks))
 	mux.HandleFunc("GET /api/admin/nodes/{id}/routing", h.requireAdmin(h.getNodeRouting))
 	mux.HandleFunc("PUT /api/admin/nodes/{id}/routing", h.requireAdmin(h.putNodeRouting))
+	mux.HandleFunc("GET /api/admin/nodes/{id}/overrides", h.requireAdmin(h.getNodeOverrides))
+	mux.HandleFunc("PUT /api/admin/nodes/{id}/overrides", h.requireAdmin(h.putNodeOverrides))
 	mux.HandleFunc("GET /api/admin/nodes/{id}/forwards", h.requireAdmin(h.getNodeForwards))
 	mux.HandleFunc("PUT /api/admin/nodes/{id}/forwards", h.requireAdmin(h.putNodeForwards))
 }
@@ -256,3 +258,31 @@ func (h *handlers) putNodeRouting(w http.ResponseWriter, r *http.Request) {
 }
 
 var _ = spec.Outbound{}
+
+func (h *handlers) getNodeOverrides(w http.ResponseWriter, r *http.Request) {
+	id, okID := pathID(r)
+	if !okID {
+		fail(w, http.StatusBadRequest, "bad id")
+		return
+	}
+	ov, err := h.Store.NodeOverrides(r.Context(), id)
+	if err != nil {
+		fail(w, http.StatusNotFound, "node not found")
+		return
+	}
+	ok(w, ov)
+}
+
+func (h *handlers) putNodeOverrides(w http.ResponseWriter, r *http.Request) {
+	id, okID := pathID(r)
+	var in map[string]string
+	if !okID || !decode(r, &in) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	if err := h.Store.SetNodeOverrides(r.Context(), id, in); err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	ok(w, map[string]bool{"ok": true})
+}
