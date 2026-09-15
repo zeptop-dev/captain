@@ -134,17 +134,19 @@ type Node struct {
 	MonitorURL   string
 	// DecoyEnabled makes the node serve Domain itself on loopback for
 	// REALITY inbounds to steal; DecoyUpstream optionally proxies a site.
-	DecoyEnabled    bool
-	DecoyUpstream   string
-	Version         string
-	Platform        string
-	Hostname        string
-	LastSeenAt      *time.Time
-	AppliedRevision string
-	UpgradeTo       string // bosun release the operator asked the node to move to
-	Paired          bool
-	PairCode        string // only set right after creation
-	CreatedAt       time.Time
+	DecoyEnabled  bool
+	DecoyUpstream string
+	// UserSpeedLimitMbps caps every user on this node without a plan limit.
+	UserSpeedLimitMbps int
+	Version            string
+	Platform           string
+	Hostname           string
+	LastSeenAt         *time.Time
+	AppliedRevision    string
+	UpgradeTo          string // bosun release the operator asked the node to move to
+	Paired             bool
+	PairCode           string // only set right after creation
+	CreatedAt          time.Time
 }
 
 // Inbound is a protocol server on a node. Settings carries the protocol

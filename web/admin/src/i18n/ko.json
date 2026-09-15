@@ -131,7 +131,9 @@
     "decoy": "위장 사이트(자기 도메인)",
     "decoyHint": "노드가 자기 도메인의 실제 HTTPS 사이트를 루프백에서 제공하고 REALITY 인바운드가 이를 핸드셰이크 대상으로 씁니다. 탐지자는 내 도메인의 정식 인증서만 보고 폴백 트래픽은 외부로 나가지 않습니다. 위의 도메인이 필요합니다.",
     "decoyUpstream": "업스트림(선택)",
-    "decoyUpstreamHint": "비우면 내장 페이지, http(s) URL 이면 리버스 프록시"
+    "decoyUpstreamHint": "비우면 내장 페이지, http(s) URL 이면 리버스 프록시",
+    "speedLimit": "사용자별 속도 제한(Mbps)",
+    "speedLimitHint": "0 = 무제한. 플랜 제한이 없는 사용자에게 적용, 플랜 값이 우선. Linux + nft + tc 필요, xray / sing-box 프로토콜만 적용."
   },
   "inbounds": {
     "title": "인바운드",

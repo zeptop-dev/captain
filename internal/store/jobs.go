@@ -144,6 +144,26 @@ func (s *Store) Backup(ctx context.Context, path string) error {
 	return err
 }
 
+// SpeedLimits returns each user's plan speed limit in Mbps (only users
+// whose active plan has one).
+func (s *Store) SpeedLimits(ctx context.Context) (map[int64]int, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT sub.user_id, p.speed_limit_mbps FROM subscriptions sub JOIN plans p ON p.id = sub.plan_id WHERE sub.status = 'active' AND p.speed_limit_mbps > 0`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int64]int{}
+	for rows.Next() {
+		var id int64
+		var n int
+		if err := rows.Scan(&id, &n); err != nil {
+			return nil, err
+		}
+		out[id] = n
+	}
+	return out, rows.Err()
+}
+
 // DeviceLimits returns each user's plan device limit (only users whose
 // active plan has one).
 func (s *Store) DeviceLimits(ctx context.Context) (map[int64]int, error) {
