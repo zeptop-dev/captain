@@ -633,5 +633,11 @@
     "dns": "DNS 伺服器",
     "dnsHint": "核心解析出站網域用的伺服器，支援 1.1.1.1、tls://、https://；留空用系統 DNS",
     "matchHint": "逗號分隔：inbound:入站標籤、domain:example.com、full:網域、ip:1.2.3.0/24、geosite:netflix、geoip:cn、protocol:bittorrent、port:443"
+  },
+  "security": {
+    "title": "後台存取控制",
+    "hint": "限制管理後台的登入和 API 呼叫來源。API 權杖同樣受限。",
+    "allowCidrs": "IP 白名單",
+    "allowCidrsHint": "IP 或 CIDR，留空不限制；儲存時會拒絕把你自己排除在外的名單"
   }
 }

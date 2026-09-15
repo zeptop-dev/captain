@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/zeptop-dev/bosun/pkg/spec"
 	"github.com/zeptop-dev/captain/internal/auth"
+	"github.com/zeptop-dev/captain/internal/http/ratelimit"
 	"github.com/zeptop-dev/captain/internal/webhook"
 	"net"
 	"net/http"
@@ -31,6 +32,8 @@ func (h *handlers) registerOps(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/admin/articles", h.requireAdmin(h.createArticle))
 	mux.HandleFunc("PATCH /api/admin/articles/{id}", h.requireAdmin(h.updateArticle))
 	mux.HandleFunc("DELETE /api/admin/articles/{id}", h.requireAdmin(h.deleteArticle))
+	mux.HandleFunc("GET /api/admin/settings/security", h.requireAdmin(h.getSecurity))
+	mux.HandleFunc("PUT /api/admin/settings/security", h.requireAdmin(h.putSecurity))
 	mux.HandleFunc("GET /api/admin/settings/clients", h.requireAdmin(h.getClients))
 	mux.HandleFunc("PUT /api/admin/settings/clients", h.requireAdmin(h.putClients))
 	mux.HandleFunc("GET /api/admin/settings/telegram", h.requireAdmin(h.getTelegram))
@@ -361,6 +364,91 @@ func (h *handlers) deleteArticle(w http.ResponseWriter, r *http.Request) {
 }
 
 // ---- settings: clients, telegram, trial -----------------------------------------------
+
+func (h *handlers) getSecurity(w http.ResponseWriter, r *http.Request) {
+	var v store.SecuritySettings
+	_ = h.Store.GetSetting(r.Context(), store.SettingSecurity, &v)
+	if v.AdminAllowCIDRs == nil {
+		v.AdminAllowCIDRs = []string{}
+	}
+	ok(w, v)
+}
+
+// putSecurity saves the allow-list, refusing one that would lock the
+// caller out.
+func (h *handlers) putSecurity(w http.ResponseWriter, r *http.Request) {
+	var v store.SecuritySettings
+	if !decode(r, &v) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return
+	}
+	var clean []string
+	for _, c := range v.AdminAllowCIDRs {
+		c = strings.TrimSpace(c)
+		if c == "" {
+			continue
+		}
+		if strings.Contains(c, "/") {
+			if _, _, err := net.ParseCIDR(c); err != nil {
+				fail(w, http.StatusBadRequest, "bad CIDR "+c)
+				return
+			}
+		} else if net.ParseIP(c) == nil {
+			fail(w, http.StatusBadRequest, "bad address "+c)
+			return
+		}
+		clean = append(clean, c)
+	}
+	v.AdminAllowCIDRs = clean
+	if len(clean) > 0 && !cidrsAllow(clean, ratelimit.ClientIP(r)) {
+		fail(w, http.StatusBadRequest, "the allow-list would lock you out: your address "+ratelimit.ClientIP(r)+" is not in it")
+		return
+	}
+	if err := h.Store.SetSetting(r.Context(), store.SettingSecurity, v); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	h.securityMu.Lock()
+	h.securityAt = time.Time{}
+	h.securityMu.Unlock()
+	ok(w, v)
+}
+
+// cidrsAllow reports whether ip is inside any entry (bare IPs allowed).
+func cidrsAllow(list []string, ipStr string) bool {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false
+	}
+	for _, c := range list {
+		if !strings.Contains(c, "/") {
+			if ip.Equal(net.ParseIP(c)) {
+				return true
+			}
+			continue
+		}
+		if _, n, err := net.ParseCIDR(c); err == nil && n.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// adminAllowed applies the console allow-list (cached for 30 s).
+func (h *handlers) adminAllowed(ctx context.Context, ip string) bool {
+	h.securityMu.Lock()
+	if time.Since(h.securityAt) > 30*time.Second {
+		var v store.SecuritySettings
+		_ = h.Store.GetSetting(ctx, store.SettingSecurity, &v)
+		h.securityList, h.securityAt = v.AdminAllowCIDRs, time.Now()
+	}
+	list := h.securityList
+	h.securityMu.Unlock()
+	if len(list) == 0 {
+		return true
+	}
+	return cidrsAllow(list, ip)
+}
 
 func (h *handlers) getClients(w http.ResponseWriter, r *http.Request) {
 	var v store.ClientsSettings

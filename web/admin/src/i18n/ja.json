@@ -633,5 +633,11 @@
     "dns": "DNS サーバー",
     "dnsHint": "コアが出口の名前解決に使うサーバー：1.1.1.1、tls://…、https://…。空ならシステム DNS",
     "matchHint": "カンマ区切り：inbound:タグ、domain:example.com、full:ホスト、ip:1.2.3.0/24、geosite:netflix、geoip:cn、protocol:bittorrent、port:443"
+  },
+  "security": {
+    "title": "コンソールのアクセス制御",
+    "hint": "管理コンソールと API を使える発信元を制限します。API トークンも対象。",
+    "allowCidrs": "IP 許可リスト",
+    "allowCidrsHint": "IP または CIDR。空なら制限なし。自分を締め出すリストは拒否"
   }
 }

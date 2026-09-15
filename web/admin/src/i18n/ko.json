@@ -633,5 +633,11 @@
     "dns": "DNS 서버",
     "dnsHint": "코어가 출구 도메인 해석에 쓰는 서버: 1.1.1.1, tls://…, https://…; 비우면 시스템 DNS",
     "matchHint": "쉼표 구분: inbound:태그, domain:example.com, full:호스트, ip:1.2.3.0/24, geosite:netflix, geoip:cn, protocol:bittorrent, port:443"
+  },
+  "security": {
+    "title": "콘솔 접근 제어",
+    "hint": "관리 콘솔과 API 를 사용할 수 있는 출처를 제한합니다. API 토큰도 제한됩니다.",
+    "allowCidrs": "IP 허용 목록",
+    "allowCidrsHint": "IP 또는 CIDR. 비우면 제한 없음. 자신을 배제하는 목록은 거부"
   }
 }

@@ -18,6 +18,7 @@ import { WebhooksCard } from '../components/WebhooksCard'
 import { ProbeCard } from '../components/ProbeCard'
 import { TokensCard } from '../components/TokensCard'
 import { TwoFactorCard } from '../components/TwoFactorCard'
+import { SecurityCard } from '../components/SecurityCard'
 import { BackupCard } from '../components/BackupCard'
 import { KomariCard } from '../components/KomariCard'
 
@@ -121,6 +122,7 @@ export default function SettingsPage() {
         <KomariCard />
         <TokensCard />
         <TwoFactorCard />
+        <SecurityCard />
         <BackupCard />
         <ClientsCard />
         <Card>

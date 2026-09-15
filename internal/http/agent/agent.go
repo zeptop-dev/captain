@@ -166,6 +166,9 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 			h.Log.Error("add traffic", "user", t.UserID, "err", err)
 		}
 	}
+	for tag, t := range rep.Outbounds {
+		_ = h.Store.AddOutboundTraffic(ctx, n.ID, tag, t.Up, t.Down, now)
+	}
 	if len(rep.Inbounds) > 0 {
 		byTag := map[string]int64{}
 		for _, ib := range inbounds {

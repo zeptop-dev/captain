@@ -1016,5 +1016,11 @@
     "outboundAdded": "WARP outbound added",
     "addTemplate": "Add common rules",
     "templateHint": "Route AI and streaming sites through WARP:"
+  },
+  "security": {
+    "title": "Console access control",
+    "hint": "Restrict where the admin console and its API may be used from. API tokens are limited too.",
+    "allowCidrs": "IP allow-list",
+    "allowCidrsHint": "IPs or CIDRs; blank = anyone. A list that would lock you out is refused"
   }
 }

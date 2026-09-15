@@ -5,12 +5,13 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, runNodeJob } from '../lib/api'
 import { toast } from '../lib/notify'
+import { bytes } from '../lib/format'
 import { WarpCard, warpTemplate, type WarpAccount } from './WarpCard'
 
 interface Remote { host: string; port: number; uuid?: string; password?: string; username?: string; settings: { protocol: string } }
 interface Outbound { tag: string; protocol?: string; settings?: Record<string, unknown>; proxy_tag?: string; remote?: Remote; warp?: { from_node?: boolean }; balancer?: { members: string[]; strategy?: string } }
 interface Rule { match: string[]; action: string; value?: string }
-interface Routing { outbounds: Outbound[]; routes: Rule[]; default_outbound: string; dns?: string[] }
+interface Routing { outbounds: Outbound[]; routes: Rule[]; default_outbound: string; dns?: string[]; traffic?: Record<string, { today: number; total: number }> }
 
 // Landing outbounds and route rules for one node: paste a share link to add
 // an exit, then send everything (default) or specific inbounds to it.
@@ -48,7 +49,7 @@ export function RoutingCard({ nodeID, inboundTags, embedded }: { nodeID: number;
       <Stack gap="xs">
         {nr.outbounds.map((o, i) => (
           <Group key={i} justify="space-between" wrap="nowrap">
-            <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}><Code>{o.tag}</Code><Text size="sm" truncate>{describe(o)}</Text>{o.proxy_tag && <Badge size="xs" variant="light">{t('routing.via', { tag: o.proxy_tag })}</Badge>}{nr.default_outbound === o.tag && <Badge size="xs" color="teal">{t('routing.isDefault')}</Badge>}</Group>
+            <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}><Code>{o.tag}</Code><Text size="sm" truncate>{describe(o)}</Text>{q.data?.traffic?.[o.tag] && <Text size="xs" c="dimmed">{bytes(q.data.traffic[o.tag].today)} / {bytes(q.data.traffic[o.tag].total)}</Text>}{o.proxy_tag && <Badge size="xs" variant="light">{t('routing.via', { tag: o.proxy_tag })}</Badge>}{nr.default_outbound === o.tag && <Badge size="xs" color="teal">{t('routing.isDefault')}</Badge>}</Group>
             <Group gap={4} wrap="nowrap">
               <Select size="xs" w={150} placeholder={t('routing.chain')} data={[{ value: '', label: t('routing.noChain') }, ...tags.filter((x) => x !== o.tag).map((x) => ({ value: x, label: t('routing.via', { tag: x }) }))]} value={o.proxy_tag ?? ''} allowDeselect={false} onChange={(v) => setNr((cur) => ({ ...cur, outbounds: cur.outbounds.map((x, j) => (j === i ? { ...x, proxy_tag: v || undefined } : x)) }))} />
               <ActionIcon variant="subtle" color="red" onClick={() => setNr((cur) => ({ ...cur, outbounds: cur.outbounds.filter((_, j) => j !== i), routes: cur.routes.filter((r) => r.value !== o.tag), default_outbound: cur.default_outbound === o.tag ? '' : cur.default_outbound }))}><IconTrash size={14} /></ActionIcon>

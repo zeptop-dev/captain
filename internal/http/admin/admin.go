@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/zeptop-dev/captain/internal/auth"
@@ -74,11 +75,16 @@ type Deps struct {
 
 const cookieName = "captain_session"
 
-type handlers struct{ Deps }
+type handlers struct {
+	Deps
+	securityMu   sync.Mutex
+	securityList []string
+	securityAt   time.Time
+}
 
 // Register mounts the admin routes.
 func Register(mux *http.ServeMux, d Deps) {
-	h := &handlers{d}
+	h := &handlers{Deps: d}
 	mux.HandleFunc("POST /api/admin/login", h.login)
 	mux.HandleFunc("POST /api/admin/logout", h.logout)
 	mux.HandleFunc("GET /api/admin/me", h.requireAdmin(h.me))
@@ -178,6 +184,10 @@ func decode(r *http.Request, v any) bool { return json.NewDecoder(r.Body).Decode
 
 func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !h.adminAllowed(r.Context(), ratelimit.ClientIP(r)) {
+			fail(w, http.StatusForbidden, "your address is not on the admin allow-list")
+			return
+		}
 		var u *domain.User
 		if tok := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer")); tok != "" && strings.HasPrefix(tok, "cap_") {
 			// Personal API token (scripts, MCP): same role as its owner.
@@ -216,6 +226,10 @@ func (h *handlers) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ip := ratelimit.ClientIP(r)
+	if !h.adminAllowed(r.Context(), ip) {
+		fail(w, http.StatusForbidden, "your address is not on the admin allow-list")
+		return
+	}
 	if h.Logins != nil {
 		if allowed, wait := h.Logins.Allow(ip); !allowed {
 			fail(w, http.StatusTooManyRequests, "too many failed attempts; try again in "+wait.String())

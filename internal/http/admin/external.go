@@ -162,6 +162,13 @@ func (h *handlers) deleteExternalNode(w http.ResponseWriter, r *http.Request) {
 // ---- node routing --------------------------------------------------------------------
 
 func (h *handlers) getNodeRouting(w http.ResponseWriter, r *http.Request) {
+	if id, okID := pathID(r); okID {
+		if nr, err := h.Store.NodeRouting(r.Context(), id); err == nil {
+			traffic, _ := h.Store.OutboundTrafficByNode(r.Context(), id, time.Now())
+			ok(w, map[string]any{"outbounds": nr.Outbounds, "routes": nr.Routes, "default_outbound": nr.DefaultOutbound, "dns": nr.DNS, "traffic": traffic})
+			return
+		}
+	}
 	nr, err := h.Store.NodeRouting(r.Context(), idOf(r))
 	if err != nil {
 		fail(w, http.StatusNotFound, "node not found")
