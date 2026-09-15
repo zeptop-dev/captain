@@ -108,6 +108,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	h.registerDomains(mux)
 	h.registerIngresses(mux)
 	h.registerSubTemplates(mux)
+	h.registerSubDesign(mux)
 	mux.HandleFunc("GET /api/admin/coupons", h.requireAdmin(h.listCoupons))
 	mux.HandleFunc("POST /api/admin/coupons", h.requireAdmin(h.createCoupon))
 	mux.HandleFunc("PATCH /api/admin/coupons/{id}", h.requireAdmin(h.updateCoupon))

@@ -153,3 +153,6 @@ type SubTemplates map[string]string
 
 // SettingSubTemplates is the settings key.
 const SettingSubTemplates = "sub_templates"
+
+// SettingSubDesign holds the visual designer's groups and rules (subdesign.Design).
+const SettingSubDesign = "sub_design"

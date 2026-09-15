@@ -609,7 +609,9 @@
     "hintYaml": "YAML テンプレート：proxies はノードに置き換えられ、ポリシーグループの proxies 一覧内のプレースホルダーは全ノード名に展開されます。プレースホルダー：",
     "hintIni": "テキストテンプレート：プレースホルダーはそれぞれノード行とカンマ区切りのノード名に置き換えられます。プレースホルダー：",
     "hintNodeList": "Loon と Quantumult X のリモートサブスクリプションはノード一覧なので、既定テンプレートはノード行のみです。完全な設定として書く場合はクライアント側で設定として取り込んでください。",
-    "reset": "既定値に戻す"
+    "reset": "既定値に戻す",
+    "modeDesign": "ビジュアル",
+    "modeText": "テキスト"
   },
   "warp": {
     "title": "Cloudflare WARP 出口",
@@ -670,5 +672,33 @@
     "queuedDays": "開始待ち · {{days}} 日",
     "queuedForever": "開始待ち · 無期限",
     "adjustTarget": "調整対象"
+  },
+  "subDesign": {
+    "title": "ビジュアル設計",
+    "hint": "ポリシーグループを定義し、ルールを順に並べます。「生成して適用」で全クライアント形式のテンプレートを生成し現在のものを上書きします。ルールセットは ACL4SSR、クライアントが GitHub から取得します。",
+    "loadPreset": "プリセットを読み込む…",
+    "presetConfirm": "プリセットを読み込むと編集中のグループとルールが置き換わります（未適用の変更は失われます）。",
+    "groups": "ポリシーグループ",
+    "addGroup": "グループ追加",
+    "groupsHint": "メンバー：全サーバー、タグ付きサーバー、名前が地域に一致するサーバー、他のグループ。url-test は最低遅延、fallback は最初の利用可能、load-balance は順番に使用。",
+    "groupName": "グループ名",
+    "members": "メンバー",
+    "noGroups": "グループがありません。プリセットから始められます。",
+    "memberServers": "サーバー",
+    "memberGroups": "グループと組み込み",
+    "allServers": "全サーバー",
+    "tag": "タグ：{{tag}}",
+    "rules": "ルール",
+    "addRule": "ルール追加",
+    "rulesHint": "上から順に照合、最初の一致が有効。GEOIP CN は中国ドメイン/IP の後に。最終ポリシーが残りすべてを処理します。",
+    "final": "最終ポリシー",
+    "finalHint": "どのルールにも一致しない通信の行き先",
+    "preview": "プレビュー",
+    "save": "設計のみ保存",
+    "saveHint": "テンプレートを変えずに設計を保存",
+    "apply": "生成して適用",
+    "applyConfirm": "mihomo、Stash、Surge、Surfboard、Loon、Quantumult X、Egern のテンプレートを生成し、現在のものを上書きします。",
+    "applied": "テンプレートを生成して適用しました",
+    "applyHint": "生成後も「テキスト」で手直しできますが、次の「生成して適用」で上書きされます。プレースホルダー："
   }
 }
