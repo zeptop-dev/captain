@@ -66,6 +66,53 @@ func (s *Store) ResetQuotas(ctx context.Context, at time.Time) (int64, error) {
 	return n, nil
 }
 
+// Gauges are the panel-wide numbers the metrics endpoint exports.
+type Gauges struct {
+	Nodes, NodesOnline, Users, UsableSubscriptions, PendingOrders, ExpiringWeek int64
+	// NodeLastSeen is seconds since each node's last report (by node name).
+	NodeLastSeen map[string]float64
+}
+
+// Gauges reads the current numbers; online = reported within window.
+func (s *Store) Gauges(ctx context.Context, at time.Time, window time.Duration) (*Gauges, error) {
+	g := &Gauges{NodeLastSeen: map[string]float64{}}
+	q := func(dst *int64, query string, args ...any) error {
+		return s.db.QueryRowContext(ctx, query, args...).Scan(dst)
+	}
+	if err := q(&g.Nodes, `SELECT COUNT(*) FROM nodes WHERE token_hash IS NOT NULL AND token_hash != ''`); err != nil {
+		return nil, err
+	}
+	if err := q(&g.NodesOnline, `SELECT COUNT(*) FROM nodes WHERE last_seen_at >= ?`, at.Add(-window).Unix()); err != nil {
+		return nil, err
+	}
+	if err := q(&g.Users, `SELECT COUNT(*) FROM users WHERE role = 'user' AND status = 'active'`); err != nil {
+		return nil, err
+	}
+	if err := q(&g.UsableSubscriptions, `SELECT COUNT(*) FROM subscriptions sub WHERE sub.status = 'active' AND `+usableSQL, at.Unix()); err != nil {
+		return nil, err
+	}
+	if err := q(&g.PendingOrders, `SELECT COUNT(*) FROM orders WHERE status = 'pending'`); err != nil {
+		return nil, err
+	}
+	if err := q(&g.ExpiringWeek, `SELECT COUNT(*) FROM subscriptions WHERE status = 'active' AND expires_at IS NOT NULL AND expires_at BETWEEN ? AND ?`, at.Unix(), at.AddDate(0, 0, 7).Unix()); err != nil {
+		return nil, err
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT name, last_seen_at FROM nodes WHERE last_seen_at IS NOT NULL`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		var seen int64
+		if err := rows.Scan(&name, &seen); err != nil {
+			return nil, err
+		}
+		g.NodeLastSeen[name] = at.Sub(time.Unix(seen, 0)).Seconds()
+	}
+	return g, rows.Err()
+}
+
 // PruneHistory drops daily traffic buckets older than keepDays and
 // notification receipts older than 180 days; the tables otherwise grow
 // by users × inbounds rows a day forever.

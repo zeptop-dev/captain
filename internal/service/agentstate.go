@@ -14,6 +14,7 @@ import (
 	"github.com/zeptop-dev/bosun/pkg/spec"
 
 	"github.com/zeptop-dev/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/metrics"
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
@@ -64,6 +65,7 @@ func (a *AgentState) Cached(ctx context.Context, n *domain.Node, at time.Time) (
 	if err != nil {
 		return nil, err
 	}
+	metrics.NodeStateBuilds.Inc(nil)
 	a.mu.Lock()
 	if a.cache == nil {
 		a.cache = map[int64]cachedState{}
@@ -128,7 +130,17 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 	if err := a.Store.GetSetting(ctx, store.SettingACME, &acme); err != nil {
 		return nil, err
 	}
-	if acme.Email != "" || acme.CloudflareToken != "" {
+	// The ACME account (and with it the Cloudflare token) goes only to
+	// nodes that obtain certificates themselves: an inbound with auto_cert
+	// or the decoy site. Nodes served by pushed certificates never see it.
+	needsACME := n.DecoyEnabled && n.Domain != ""
+	for _, ib := range inbounds {
+		if sp := ib.Spec(); sp.TLS != nil && sp.TLS.AutoCert {
+			needsACME = true
+			break
+		}
+	}
+	if needsACME && (acme.Email != "" || acme.CloudflareToken != "") {
 		node.ACME = &spec.ACME{Email: acme.Email, CloudflareToken: acme.CloudflareToken}
 	}
 	if n.DecoyEnabled && n.Domain != "" {

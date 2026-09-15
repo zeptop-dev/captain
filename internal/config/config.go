@@ -16,6 +16,10 @@ type Config struct {
 	BaseURL  string `yaml:"base_url"` // public URL, used in subscription links and payment callbacks
 	DataDir  string `yaml:"data_dir"`
 	LogLevel string `yaml:"log_level"`
+	// TrustedProxies are the reverse proxies (IPs or CIDRs) whose
+	// X-Forwarded-For / X-Real-IP is believed for rate limits, the admin
+	// allow-list and order IPs. Empty = any loopback or private peer.
+	TrustedProxies []string `yaml:"trusted_proxies"`
 
 	// TLS lets Captain terminate HTTPS itself. With Auto it obtains and renews
 	// a Let's Encrypt certificate for the base_url host (ports 80 and 443

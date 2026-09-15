@@ -146,7 +146,7 @@ func (h *handlers) start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	next := r.URL.Query().Get("next")
-	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
+	if u, err := url.Parse(next); err != nil || u.Scheme != "" || u.Host != "" || !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") || strings.ContainsAny(next, "\\\r\n") {
 		next = "/portal/"
 	}
 	f := flow{Provider: p.ID, State: auth.Token(16), Nonce: auth.Token(16), Verifier: oauth2.GenerateVerifier(), Next: next,

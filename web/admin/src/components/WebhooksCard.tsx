@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
 import { toast } from '../lib/notify'
 
-interface Endpoint { url: string; secret: string; events: string[]; enabled: boolean }
+interface Endpoint { url: string; secret: string; events: string[]; enabled: boolean; has_secret?: boolean }
 
 // Event webhooks: Captain POSTs signed JSON to each URL. This is the
 // integration surface for external automation.
@@ -29,7 +29,7 @@ export function WebhooksCard() {
           <Card key={i} withBorder padding="sm" radius="md">
             <Group gap="xs" align="flex-end" wrap="nowrap">
               <TextInput label="URL" placeholder="https://hooks.example.com/captain" style={{ flex: 3 }} {...form.getInputProps(`endpoints.${i}.url`)} />
-              <PasswordInput label={t('webhooks.secret')} style={{ flex: 2 }} {...form.getInputProps(`endpoints.${i}.secret`)} />
+              <PasswordInput label={t('webhooks.secret')} placeholder={form.values.endpoints[i]?.has_secret ? t('webhooks.secretKept') : ''} style={{ flex: 2 }} {...form.getInputProps(`endpoints.${i}.secret`)} />
               <Switch label={t('common.enabled')} mb={6} {...form.getInputProps(`endpoints.${i}.enabled`, { type: 'checkbox' })} />
               <ActionIcon variant="subtle" color="gray" mb={4} title={t('webhooks.test')} onClick={() => test.mutate(e)}><IconSend size={16} /></ActionIcon>
               <ActionIcon variant="subtle" color="red" mb={4} onClick={() => form.removeListItem('endpoints', i)}><IconTrash size={16} /></ActionIcon>

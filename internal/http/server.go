@@ -3,6 +3,8 @@ package http
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,6 +23,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -32,6 +35,7 @@ import (
 	paymenthttp "github.com/zeptop-dev/captain/internal/http/payment"
 	"github.com/zeptop-dev/captain/internal/http/portal"
 	"github.com/zeptop-dev/captain/internal/http/sub"
+	"github.com/zeptop-dev/captain/internal/metrics"
 	"github.com/zeptop-dev/captain/internal/payment"
 	"github.com/zeptop-dev/captain/internal/payment/alipay"
 	"github.com/zeptop-dev/captain/internal/payment/btcpay"
@@ -155,7 +159,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	}
 	s.certs = &service.Certs{Store: st, Issuer: certIssuer, Log: log, Notify: notifier}
 	s.probe = probe.Register(s.mux, probe.Deps{Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe()})
-	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, State: s.state, Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external,
+	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 	})
@@ -205,7 +209,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	portal.Register(s.mux, portal.Deps{Store: st, Log: log, Sessions: sessions, Orders: orders, Subscription: subSvc, BaseURL: base, Gateways: names, Registration: cfg.Portal.Registration, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot})
 	paymenthttp.Register(s.mux, paymenthttp.Deps{Log: log, Orders: orders, ReturnTo: base + "/portal/orders", Gateways: gateways, Store: st})
 	sub.Register(s.mux, sub.Deps{Store: st, Log: log, Service: subSvc, Name: cfg.SiteName})
-	agent.Register(s.mux, agent.Deps{
+	agent.Register(s.mux, agent.Deps{Pairs: ratelimit.New(),
 		Store: st, Log: log, BaseURL: base,
 		State: s.state, Probe: s.probeSvc,
 	})
@@ -273,7 +277,7 @@ func buildGateways(cfg *config.Config, log *slog.Logger) map[string]payment.Gate
 // Handler returns the root handler. Requests on a subscription-only host
 // reach nothing but /sub/.
 func (s *Server) Handler() http.Handler {
-	h := s.probe.Wrap(s.subLinks.SubscriptionOnly(s.mux))
+	h := s.recover(s.logRequests(s.probe.Wrap(s.subLinks.SubscriptionOnly(s.mux))))
 	// Any write under /api/admin (whichever package registered it) may
 	// change what nodes should run: drop the cached node state after it.
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -290,20 +294,38 @@ func (s *Server) Probe() *service.Probe { return s.probeSvc }
 // SubLinks exposes the subscription link service (autocert host policy).
 func (s *Server) SubLinks() *service.SubLinks { return s.subLinks }
 
+// logRequests logs every request at debug and the ones worth a look
+// (errors, slow) at info, with a short request id echoed in X-Request-ID.
 func (s *Server) logRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
+		id := newRequestID()
+		w.Header().Set("X-Request-ID", id)
 		rw := &statusWriter{ResponseWriter: w, status: 200}
 		next.ServeHTTP(rw, r)
-		s.log.Debug("http", "method", r.Method, "path", r.URL.Path, "status", rw.status, "ms", time.Since(start).Milliseconds())
+		ms := time.Since(start).Milliseconds()
+		if rw.status >= 400 || ms > 1000 {
+			s.log.Info("http", "id", id, "method", r.Method, "path", r.URL.Path, "status", rw.status, "ms", ms, "ip", ratelimit.ClientIP(r))
+			return
+		}
+		s.log.Debug("http", "id", id, "method", r.Method, "path", r.URL.Path, "status", rw.status, "ms", ms)
 	})
+}
+
+func newRequestID() string {
+	var b [6]byte
+	_, _ = rand.Read(b[:])
+	return hex.EncodeToString(b[:])
 }
 
 func (s *Server) recover(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
-				s.log.Error("panic", "err", rec, "path", r.URL.Path)
+				if rec == http.ErrAbortHandler {
+					panic(rec)
+				}
+				s.log.Error("panic", "err", rec, "path", r.URL.Path, "stack", string(debug.Stack()))
 				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
 			}
 		}()
@@ -363,3 +385,64 @@ func (s *Server) Backups() *backup.Manager { return s.backups }
 
 // Certs exposes the certificate service (jobs renew through it).
 func (s *Server) Certs() *service.Certs { return s.certs }
+
+// metricsHandler serves the Prometheus text exposition for the panel:
+// process counters plus gauges read from the database on each scrape.
+// Mounted at GET /api/admin/metrics behind the admin auth (an API token
+// works for scrapers).
+func (s *Server) metricsHandler(st *store.Store) http.Handler {
+	reg := metrics.NewRegistry()
+	reg.Describe("captain_nodes", "gauge", "paired nodes")
+	reg.Describe("captain_nodes_online", "gauge", "nodes that reported within three push intervals")
+	reg.Describe("captain_node_last_seen_seconds", "gauge", "seconds since the node last reported")
+	reg.Describe("captain_users_active", "gauge", "active user accounts")
+	reg.Describe("captain_subscriptions_usable", "gauge", "subscriptions that currently grant access")
+	reg.Describe("captain_subscriptions_expiring_7d", "gauge", "active subscriptions expiring within 7 days")
+	reg.Describe("captain_orders_pending", "gauge", "orders awaiting payment")
+	reg.Describe("captain_backup_last_success_timestamp_seconds", "gauge", "unix time of the last successful database snapshot (0 = never)")
+	reg.Describe("captain_backup_last_error", "gauge", "1 when the last backup attempt failed")
+	reg.Describe("captain_payment_callback_errors_total", "counter", "gateway notifications rejected (bad signature, amount mismatch)")
+	reg.Describe("captain_payment_settle_errors_total", "counter", "verified notifications that failed to settle")
+	reg.Describe("captain_job_errors_total", "counter", "housekeeping job failures by job")
+	reg.Describe("captain_node_reports_total", "counter", "node reports received")
+	reg.Describe("captain_node_state_builds_total", "counter", "full node state builds (cache misses)")
+	for _, c := range []*metrics.Counter{metrics.PaymentCallbackErrors, metrics.PaymentSettleErrors, metrics.JobErrors, metrics.NodeReports, metrics.NodeStateBuilds} {
+		reg.Add(c.Samples)
+	}
+	push := time.Duration(s.state.PushSeconds) * time.Second
+	if push <= 0 {
+		push = time.Minute
+	}
+	reg.Add(func() []metrics.Sample {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		g, err := st.Gauges(ctx, time.Now(), 3*push)
+		if err != nil {
+			return nil
+		}
+		out := []metrics.Sample{
+			{Name: "captain_nodes", Value: float64(g.Nodes)},
+			{Name: "captain_nodes_online", Value: float64(g.NodesOnline)},
+			{Name: "captain_users_active", Value: float64(g.Users)},
+			{Name: "captain_subscriptions_usable", Value: float64(g.UsableSubscriptions)},
+			{Name: "captain_subscriptions_expiring_7d", Value: float64(g.ExpiringWeek)},
+			{Name: "captain_orders_pending", Value: float64(g.PendingOrders)},
+		}
+		for name, secs := range g.NodeLastSeen {
+			out = append(out, metrics.Sample{Name: "captain_node_last_seen_seconds", Labels: map[string]string{"node": name}, Value: secs})
+		}
+		var bs backup.Status
+		_ = st.GetSetting(ctx, backup.StatusKey, &bs)
+		last := 0.0
+		if !bs.LastAt.IsZero() && bs.LastError == "" {
+			last = float64(bs.LastAt.Unix())
+		}
+		failed := 0.0
+		if bs.LastError != "" {
+			failed = 1
+		}
+		out = append(out, metrics.Sample{Name: "captain_backup_last_success_timestamp_seconds", Value: last}, metrics.Sample{Name: "captain_backup_last_error", Value: failed})
+		return out
+	})
+	return reg.Handler()
+}

@@ -140,3 +140,28 @@ func TestNodeJobChangesRevision(t *testing.T) {
 		t.Fatalf("job did not change the revision: %d %s", code, b)
 	}
 }
+
+func TestMetricsEndpoint(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "http://test"
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	anon := &client{t: t, srv: srv}
+	if code, _, _ := anon.do("GET", "/api/admin/metrics", nil, nil); code != 401 {
+		t.Fatalf("metrics without login: %d", code)
+	}
+	c := &client{t: t, srv: srv}
+	c.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+	code, b, hdr := c.do("GET", "/api/admin/metrics", nil, nil)
+	if code != 200 || !strings.Contains(string(b), "captain_nodes 0") || !strings.Contains(string(b), "# TYPE captain_job_errors_total counter") {
+		t.Fatalf("metrics: %d %s", code, b)
+	}
+	if hdr.Get("X-Request-ID") == "" {
+		t.Fatal("request id header missing")
+	}
+}

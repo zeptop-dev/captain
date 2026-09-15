@@ -13,7 +13,6 @@ import (
 	"github.com/zeptop-dev/captain/internal/telegram"
 	"github.com/zeptop-dev/captain/internal/webhook"
 	"log/slog"
-	"net"
 	"net/http"
 	"slices"
 	"strconv"
@@ -159,6 +158,9 @@ func (h *handlers) login(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	u, err := h.Store.UserByEmail(r.Context(), strings.ToLower(strings.TrimSpace(in.Email)))
+	if errors.Is(err, store.ErrNotFound) {
+		auth.VerifyPasswordOrDummy("", in.Password)
+	}
 	if errors.Is(err, store.ErrNotFound) || (err == nil && !auth.VerifyPassword(u.PasswordHash, in.Password)) {
 		if h.Logins != nil {
 			h.Logins.Fail(ip)
@@ -331,16 +333,7 @@ func (h *handlers) cancelQueued(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]bool{"ok": true})
 }
 
-func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return strings.TrimSpace(strings.Split(xff, ",")[0])
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
-}
+func clientIP(r *http.Request) string { return ratelimit.ClientIP(r) }
 
 func ok(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")

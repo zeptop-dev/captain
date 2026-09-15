@@ -529,6 +529,9 @@ func TestACMESettingsReachNodes(t *testing.T) {
 	_, b, _ = agent.do("POST", "/api/agent/pair", agentproto.PairRequest{Code: node["pair_code"].(string)}, nil)
 	agent.token = mustJSON[agentproto.PairResponse](t, b).Token
 
+	// The ACME account only travels to nodes that obtain certificates
+	// themselves: give this one an auto_cert inbound first.
+	c.do("POST", "/api/admin/nodes/"+itoa(int64(node["id"].(float64)))+"/inbounds", map[string]any{"Tag": "tls", "Protocol": "vless", "Port": 443, "Settings": map[string]any{"tls": map[string]any{"mode": 1, "server_name": "jp1.example.com", "auto_cert": true}}}, nil)
 	_, b, _ = agent.do("GET", "/api/agent/state", nil, nil)
 	before := mustJSON[agentproto.State](t, b)
 	if before.Node.ACME != nil {
