@@ -159,7 +159,7 @@ export default function NodePage() {
           <NumberInput label={t('nodes.speedLimit')} description={t('nodes.speedLimitHint')} min={0} {...nodeForm.getInputProps('UserSpeedLimitMbps')} />
           <Switch label={t('nodes.mitaQuotas')} description={t('nodes.mitaQuotasHint')} {...nodeForm.getInputProps('MitaQuotas', { type: 'checkbox' })} />
           <Switch label={t('nodes.decoy')} description={t('nodes.decoyHint')} disabled={!nodeForm.values.Domain} {...nodeForm.getInputProps('DecoyEnabled', { type: 'checkbox' })} />
-          {nodeForm.values.DecoyEnabled && <TextInput label={t('nodes.decoyUpstream')} description={t('nodes.decoyUpstreamHint')} placeholder="http://127.0.0.1:8080" {...nodeForm.getInputProps('DecoyUpstream')} />}
+          {nodeForm.values.DecoyEnabled && <TextInput label={t('nodes.decoyUpstream')} description={t('nodes.decoyUpstreamHint')} placeholder="https://www.example.com" {...nodeForm.getInputProps('DecoyUpstream')} />}
           <Group justify="flex-end"><Button variant="default" onClick={() => setEditNode(false)}>{t('common.cancel')}</Button><Button type="submit" loading={saveNode.isPending}>{t('common.save')}</Button></Group>
         </Stack></form>
       </Modal>

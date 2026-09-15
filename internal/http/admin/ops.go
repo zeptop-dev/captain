@@ -751,7 +751,17 @@ func (h *handlers) getWebhooks(w http.ResponseWriter, r *http.Request) {
 	if v.Endpoints == nil {
 		v.Endpoints = []webhook.Endpoint{}
 	}
-	ok(w, map[string]any{"settings": v, "events": webhook.Events})
+	type view struct {
+		webhook.Endpoint
+		HasSecret bool `json:"has_secret"`
+	}
+	eps := make([]view, 0, len(v.Endpoints))
+	for _, ep := range v.Endpoints {
+		has := ep.Secret != ""
+		ep.Secret = ""
+		eps = append(eps, view{Endpoint: ep, HasSecret: has})
+	}
+	ok(w, map[string]any{"settings": map[string]any{"endpoints": eps}, "events": webhook.Events})
 }
 
 func (h *handlers) putWebhooks(w http.ResponseWriter, r *http.Request) {
@@ -760,11 +770,20 @@ func (h *handlers) putWebhooks(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "bad json")
 		return
 	}
+	var cur webhook.Settings
+	_ = h.Store.GetSetting(r.Context(), webhook.SettingKey, &cur)
+	kept := map[string]string{}
+	for _, ep := range cur.Endpoints {
+		kept[ep.URL] = ep.Secret
+	}
 	eps := make([]webhook.Endpoint, 0, len(v.Endpoints))
 	for _, ep := range v.Endpoints {
 		ep.URL = strings.TrimSpace(ep.URL)
 		if ep.URL == "" {
 			continue
+		}
+		if ep.Secret == "" {
+			ep.Secret = kept[ep.URL] // blank keeps the stored secret
 		}
 		if !strings.HasPrefix(ep.URL, "http://") && !strings.HasPrefix(ep.URL, "https://") {
 			fail(w, http.StatusBadRequest, "endpoint URLs must start with http:// or https://")
@@ -1041,6 +1060,16 @@ func (h *handlers) deleteToken(w http.ResponseWriter, r *http.Request) {
 // totpSetup stores a new (not yet enforced) secret and returns the otpauth URI.
 func (h *handlers) totpSetup(w http.ResponseWriter, r *http.Request) {
 	u := userFrom(r)
+	// Re-enrolling while an authenticator is active would silently switch
+	// 2FA off for a session holder: prove the current one first.
+	if cur, enabled, _ := h.Store.TOTP(r.Context(), u.ID); enabled {
+		var in struct{ Code string }
+		_ = decode(r, &in)
+		if !auth.VerifyTOTP(cur, in.Code, time.Now()) {
+			fail(w, http.StatusForbidden, "current authenticator code required to re-enrol")
+			return
+		}
+	}
 	secret := auth.NewTOTPSecret()
 	if err := h.Store.SetTOTP(r.Context(), u.ID, secret, false); err != nil {
 		fail(w, http.StatusInternalServerError, err.Error())

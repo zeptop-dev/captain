@@ -1,0 +1,76 @@
+# Changelog
+
+One entry per release tag, newest first, condensed from the commit subjects
+between that tag and the previous one (`git log --format=%s <prev>..<tag>`).
+Merge commits and formatting-only commits are left out. Binaries and
+`SHA256SUMS` for every tag are on the GitHub Release; the in-app updater
+installs them (Settings → Version and updates).
+
+- **v0.44.0** (2026-09-15) — Protocol fixes: node jobs in the state revision, device-limit hold window, cached node state invalidated on admin writes/reports/job ticks, one transaction per node report charged by node groups, manual group no longer cleared by stacked grants, queued-plan cancel refunds to balance, cancelled orders not payable by balance, traffic history pruning, external node probing (service/jobs/admin that v0.42.0 missed); bosun v0.29.0
+- **v0.43.0** (2026-09-15) — Security fixes: admin-only session kind (portal/OIDC/reset cannot reach the console), staff reset refused, sessions dropped on password change, node reports scoped to the users a node serves, BTCPay full settlement only, surplus credit held by one pending order, EPay return amount check, coupon reservations, late payments revive cancelled orders, inbound/forward tag+listen validation, override denylist, hot-path indexes; bosun v0.28.0
+- **v0.42.0** (2026-09-15) — Entry client extra fields, mita native quota windows per node, external node probing with hide-dead sources, Realm backend option, derived-tail port pool; bosun v0.27.0 (designer moved to pkg/subdesign)
+- **v0.41.0** (2026-09-15) — Subscription designer: proxy groups (all / tag / region-match / groups) + ACL4SSR rule catalogue with presets, generates templates for every format; bosun v0.26.0 name filters
+- **v0.40.0** (2026-09-15) — Several plans per user: stacked/queued/replace grants, union of plan groups, per-plan traffic attribution, widest limits, merged userinfo; portal purchase dialog (renew / alongside / after current) and plan cards; admin subscriptions list, grant activation, single-plan switch
+- **v0.39.0** (2026-09-15) — Egern template label, per-node config overrides, per-user entry links and blacklist, Cloudflare Tunnel guide; bosun v0.25.1
+- **v0.38.1** (2026-09-15) — admin: SOCKS5 quick recipe
+- **v0.38.0** (2026-09-15) — per-user speed limits: plan limits pushed to nodes, node-level default (user_speed_limit_mbps); bosun v0.24.0
+- **v0.37.0** (2026-09-15) — admin allow-list, per-outbound traffic, node DNS and balancer/WARP routing acceptance; bosun v0.23.0; routing: DNS servers per node, balancer and WARP outbounds accepted, category picker and balancer editor in the routing card, sniff toggle
+- **v0.36.0** (2026-09-15) — per-inbound traffic (inbound_traffic_daily) with today/total on the node page; bosun v0.22.0; WireGuard inbound recipe and fields, key endpoint, user ids on subscription lines; nodes: WARP registration via node job, status stored per node, routing card with WARP outbound and rule template; nodes: decoy site (steal-yourself) toggle and upstream, pushed to bosun as node.decoy; REALITY panel button to target it
+- **v0.35.2** (2026-09-14) — admin: listen row stays flat behind a line ingress; the bind-IP hint moves under the ingress selector
+- **v0.35.1** (2026-09-14) — admin: form hints render under inputs so rows line up, equal-height recipe cards, tidier fallback-limit row
+- **v0.35.0** (2026-09-14) — nodes: job channel (node_jobs, POST/GET /api/admin/nodes/{id}/jobs) driving the REALITY target scanner in the inbound form; fallback rate limit controls; bosun v0.21.0
+- **v0.34.2** (2026-09-14) — admin: node page uses info tiles for identity/addresses/cores, host gauges in one row, no uppercase micro-labels left
+- **v0.34.1** (2026-09-14) — admin: brand in the header instead of a page title, nav links drop focus after click, header badge styling
+- **v0.34.0** (2026-09-14) — admin: light console look shared with bosun (grey page, white bordered cards, indigo accent), grouped sidebar with language/theme switch and account card, page title in header
+- **v0.33.1** (2026-09-14) — admin: upgrade/restart shows a blocking overlay, mutes error toasts and reloads when the service is back
+- **v0.33.0** (2026-09-13) — subscription: use bosun's pkg/subscription (renderers moved upstream); bosun v0.19.0
+- **v0.32.1** (2026-09-13) — admin/portal: copy works over plain HTTP (execCommand fallback)
+- **v0.32.0** (2026-09-13) — feat: snell + mieru knobs in subscriptions and the inbound form, nftables forward backend, node doctor reports; bosun v0.18.0
+- **v0.31.2** (2026-09-13) — inbounds: drop the mieru-only IPLC recipe; any recipe rides the selected line ingress
+- **v0.31.1** (2026-09-13) — ingress: reserved ports (SSH-mapped) skipped by recipes and refused for inbounds; line-only nodes default new inbounds to their ingress; line RTT uses the reserved port before any inbound
+- **v0.31.0** (2026-09-13) — feat: Komari reporting pushed to every node (settings key komari, state.komari); bosun v0.17.0
+- **v0.30.2** (2026-09-13) — admin: highlight the selected quick-setup recipe
+- **v0.30.1** (2026-09-13) — admin/portal: wait for the session refetch before leaving the login page (login needed two attempts)
+- **v0.30.0** (2026-09-13) — release: v0.30.0 (address scrub, upgrade dialog fix, node page layout, auto DNS records; bosun v0.16.0); feat: automatic Cloudflare DNS records for node domains and line entry domains; entry domain on ingresses; admin: node page shows inbounds first; ingresses, routing and forwards collapsed into one advanced section; admin: upgrade-all dialog showed a raw {{count}} placeholder; admin: documentation addresses in ingress placeholders and tests
+- **v0.29.0** (2026-09-13) — probe: automatic line RTT task per ingress, bound to the line NIC; bosun v0.15.0
+- **v0.28.0** (2026-09-13) — feat: line ingresses (IPLC) per node — bind, far-end and public entry addresses, port range; inbound picker, mieru IPLC recipe, entry/forward prefill
+- **v0.27.1** (2026-09-13) — admin: domains page crashed with the edit dialog closed (null domain dereference)
+- **v0.27.0** (2026-09-13) — feat: domains page with panel-issued certificates (DNS-01 via Cloudflare), auto-renewal, node host names
+- **v0.26.0** (2026-09-13) — probe: configurable carrier latency targets pushed to nodes; bosun v0.14.0
+- **v0.25.1** (2026-09-13) — admin: sidebar scrolls when the menu is taller than the viewport
+- **v0.25.0** (2026-09-13) — feat: operator certificates (upload + Certimate-style webhook) pushed to nodes; bosun v0.13.0
+- **v0.24.0** (2026-09-13) — feat: scheduled database backups with WebDAV / S3 upload, run-now, download
+- **v0.23.0** (2026-09-13) — feat: per-node port forwards (relay tunnels) with status and one-click relay entries
+- **v0.22.0** (2026-09-13) — feat: entry tags, regions with auto flags, drag ordering; literal emoji in YAML
+- **v0.21.0** (2026-09-13) — feat: short and temporary subscription links, TOTP two-factor for staff
+- **v0.20.0** (2026-09-13) — feat: personal API tokens (bearer auth) and an MCP server for AI agents with role-gated, confirm-guarded tools
+- **v0.19.0** (2026-09-13) — feat: speed test workbench (panel TCPing to entries, node download throughput tasks)
+- **v0.18.0** (2026-09-13) — feat: per-user subscription adjustments (days, quota override, reset day, usage reset) and renewal view
+- **v0.17.0** (2026-09-13) — feat: external nodes (share links + airport subscriptions with hourly sync) and per-node outbounds, chains, default exit and route rules
+- **v0.16.3** (2026-09-13) — sub: profile name from the site name, sent as plain ASCII filename, UTF-8 filename* and Profile-Title; admin: translate the entry sort field
+- **v0.16.2** (2026-09-13) — admin: mieru strategy presets (IPLC / public / stealth) and transport select on the inbound form; admin: external monitor link only on node edit, labelled as optional
+- **v0.16.1** (2026-09-13) — deps: bosun v0.11.1 (load average json tags)
+- **v0.16.0** (2026-09-13) — feat(probe): status page with node beats, minute/hour/day aggregation, carrier and task latency, per-node monthly traffic, alerts, path or dedicated-host serving
+- **v0.15.1** (2026-09-13) — subscription: align Loon, Quantumult X, Surfboard and Stash output with the official client references
+- **v0.15.0** (2026-09-13) — i18n: Traditional Chinese, Japanese, Russian, Korean for the console and portal; docs: staff roles, theme, webhooks, device limits, languages; feat: staff roles (admin/operator/support), themes + page injection, event webhooks, device limits passed to nodes; feat(payments): Alipay F2F (QR page), Coinbase Commerce, CoinPayments, BTCPay Server, MGate gateways with signed-callback tests; callback amounts checked against the order; feat(subscription): Loon, Quantumult X, Surfboard and Stash renderers; per-format editable templates with admin editor
+- **v0.14.0** (2026-09-13) — feat: plan-change surplus credit, multi-level referral rewards with commission account and withdrawals
+- **v0.13.0** (2026-09-12) — feat: tickets, gift/redeem codes, knowledge base + client downloads, Telegram bot, trial plan
+- **v0.12.0** (2026-09-12) — feat(nodes): one-line bosun install command served at /api/agent/install.sh?pair=CODE, docker variant with BOSUN_CAPTAIN/BOSUN_PAIR; install: config.yaml must be readable by the container's uid 1000; install: detect an existing proxy on 80/443, run behind it (joining a containerised proxy's network), print the proxy snippet, --reconfigure
+- **v0.11.2** (2026-09-12) — tls: manage only the registrable domain and its wildcard (publicsuffix); deeper panel hosts added on their own
+- **v0.11.1** (2026-09-12) — tls: www panels also cover the apex with the wildcard and redirect it to www; install: echo * while typing secrets (admin password, Cloudflare token)
+- **v0.11.0** (2026-09-12) — feat(tls): certmagic with Cloudflare DNS-01 and wildcard certificate for the panel domain
+- **v0.10.0** (2026-09-12) — feat: registration limits (email whitelist, per-IP cap, invite-only) and captcha (Turnstile/reCAPTCHA/hCaptcha)
+- **v0.9.0** (2026-09-12) — feat: multi-period plans with renewal stacking, monthly/yearly quota reset, long-poll state, announcements, coupons, invite rewards; oauth: follow verified email changes at the provider
+- **v0.8.0** (2026-09-12) — feat: mail (SMTP/Resend) with registration codes, password reset and expiry/traffic reminders
+- **v0.7.0** (2026-09-12) — feat: built-in landing page with node globe; OIDC login (Casdoor and any OpenID Connect provider) with account linking
+- **v0.6.0** (2026-09-12) — feat: subscription URLs with placeholders, subscription-only hosts, entry address defaults from the inbound TLS domain; docs: uninstall; install.sh: uninstall command
+- **v0.5.0** (2026-09-11) — feat: ACME settings pushed to nodes, certificate status per node, cert warnings; bosun v0.7.0
+- **v0.4.0** (2026-09-11) — feat: built-in HTTPS (Let's Encrypt via autocert), installer script, compose without Caddy
+- **v0.3.2** (2026-09-11) — hardening: login rate limiting, HTTPS-only session cookies, daily database backups
+- **v0.3.1** (2026-09-11) — docker: compose install guide, docker config template, data volume owned by the service user
+- **v0.3.0** (2026-09-11) — feat: self-update for Captain and one-click bosun node upgrades; docs: MIT license
+- **v0.2.0** (2026-09-11) — Move to GitHub: module path github.com/zeptop-dev/captain, bosun v0.5.0, GitHub Actions, public image docs
+- **v0.1.3** (2026-09-11) — ci: push images without attestation manifests
+- **v0.1.2** (2026-09-11) — ci: docker buildx needs its own context under dind
+- **v0.1.1** (2026-09-11) — deploy: Dockerfile, compose with Caddy, multi-arch image publish to GitLab registry and Docker Hub
+- **v0.1.0** (2026-09-11) — ci: run Go tests after the web build (embed needs dist); deploy: systemd unit, Caddyfile, deploy guide, publish binaries on tags; ci gofmt fix; feat: background jobs (stale orders, expiry, quota reset), online devices and device limits; feat(portal): user portal embedded at /portal/; feat(admin): React + Mantine admin console embedded in the binary; feat: orders, payments and portal API; feat: subscription output; feat(admin): user detail endpoint with active subscription; README; test: vip user with unlimited quota stays provisioned after basic user exhausts quota; feat: per-inbound scoped users by group; user groups API; bosun v0.2.0; feat: backend skeleton with agent protocol and admin API

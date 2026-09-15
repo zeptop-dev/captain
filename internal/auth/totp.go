@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -65,6 +66,30 @@ func VerifyTOTP(secret, code string, now time.Time) bool {
 		}
 	}
 	return false
+}
+
+var (
+	totpMu   sync.Mutex
+	totpUsed = map[string]int64{} // key -> last accepted step
+)
+
+// VerifyTOTPOnce is VerifyTOTP that refuses a code already accepted for
+// key (a user id) within the same or an earlier step, so a sniffed code
+// cannot be replayed inside its window.
+func VerifyTOTPOnce(key, secret, code string, now time.Time) bool {
+	if !VerifyTOTP(secret, code, now) {
+		return false
+	}
+	step := now.Unix() / 30
+	totpMu.Lock()
+	defer totpMu.Unlock()
+	if last, ok := totpUsed[key]; ok && step <= last+1 {
+		// The window is ±1 step; anything at or before the accepted step
+		// (plus its drift neighbour) is a replay.
+		return false
+	}
+	totpUsed[key] = step
+	return true
 }
 
 // TOTPCode is the code valid at the given instant (for tests and setup checks).

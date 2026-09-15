@@ -661,7 +661,8 @@
     "add": "Add endpoint",
     "test": "Send test",
     "testOk": "Test event delivered",
-    "format": "Body: {\"event\":\"order.paid\",\"at\":\"2026-01-01T00:00:00Z\",\"data\":{...}}; failures are retried 3 times."
+    "format": "Body: {\"event\":\"order.paid\",\"at\":\"2026-01-01T00:00:00Z\",\"data\":{...}}; failures are retried 3 times.",
+    "secretKept": "stored; leave empty to keep"
   },
   "subTemplates": {
     "title": "Subscription templates",

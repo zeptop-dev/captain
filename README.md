@@ -3,17 +3,23 @@
 Unified management panel for [bosun](https://github.com/zeptop-dev/bosun)
 nodes: users, plans, orders and payments, subscription output, node fleet,
 forwarding policy and configuration push. One Go binary with the admin console
-and user portal embedded. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Publishing the panel through Cloudflare Tunnel (no public IP, no open ports): [docs/CLOUDFLARE_TUNNEL.md](docs/CLOUDFLARE_TUNNEL.md).
+and user portal embedded. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md);
+running it in production (backup, restore, upgrade, monitoring):
+[docs/OPERATIONS.md](docs/OPERATIONS.md); changes per release: [CHANGELOG.md](CHANGELOG.md).
+Publishing the panel through Cloudflare Tunnel (no public IP, no open ports): [docs/CLOUDFLARE_TUNNEL.md](docs/CLOUDFLARE_TUNNEL.md).
 
 ## Status
 
-Backend skeleton, verified by an end-to-end API test and a live run with a
-real bosun (Captain driver) serving mieru to the official client, with the
-traffic landing in the user's subscription:
+One binary, verified by end-to-end API tests (`internal/http/e2e_test.go`)
+and live runs with real bosun nodes (Captain driver) serving the official
+clients, with the traffic landing in the user's subscription:
 
-- SQLite database with embedded migrations (users, sessions, plans,
-  subscriptions, orders, nodes, inbounds, entries, chains, traffic, online
-  devices, forward status, settings).
+- SQLite database with embedded goose migrations (`migrations/`): users,
+  sessions, plans, subscriptions, orders, nodes, inbounds, entries, traffic,
+  online devices, forward status, settings, and what later releases added
+  (coupons, commissions, tickets, gift codes, articles, external nodes, probe
+  stats, sub links, API tokens, domains, ingresses, certificates, node jobs).
+  One Captain process per database file (see `docs/OPERATIONS.md`).
 - Admin API: login with argon2id + session cookie, create nodes (one-time
   pairing code), inbounds, user groups, users, plans, grant a plan, user detail.
 - Per-inbound access: an inbound bound to a user group only provisions that
@@ -24,17 +30,22 @@ traffic landing in the user's subscription:
   forward status, node liveness). A user whose subscription expires or runs
   out of quota disappears from the node's desired state.
 
-- Subscriptions at `GET /sub/<token>` with client detection (`?client=` override): mihomo/Clash YAML, Stash YAML, sing-box JSON, Surge, Surfboard, Loon and Quantumult X node lists, base64 share links (v2rayN, Shadowrocket). Admin → Sub templates edits the document around the servers per format: YAML templates (clash, stash) get their `proxies` replaced and a `{{proxy_names}}` entry inside any proxy-group expands to every server name; text templates (surge, surfboard, loon, qx) replace `{{proxies}}` with the server lines and `{{proxy_names}}` with the comma-joined names. Loon and QX default to bare node lists because their remote subscriptions are node lists. Per-format protocol coverage follows each client's official reference: Loon (nsloon.app/docs/Node) gets ss, vmess, vless (+REALITY), trojan, hysteria2 and anytls over tcp/ws/http; Quantumult X (sample.conf) gets ss, vmess, vless (+REALITY) and trojan over tcp/ws; Surfboard (manual.getsurfboard.com) gets ss, vmess and trojan only; Stash (stash.wiki) uses its own keys (`sni`, hysteria2 `auth`/`up-speed`/`down-speed`, tuic `version`/`alpn`). Servers a client cannot express are left out of that client's document. `Subscription-Userinfo` header with usage and expiry. Entries decide what users see: display host and port on top of the landing inbound's settings; group-restricted inbounds only appear for that group. Rendered mihomo and sing-box documents validated with the real clients. The same page has a visual designer (`internal/subdesign`): proxy groups whose members are all servers, servers with an entry tag (`{{proxy_names:tag=hk}}`), servers whose name matches a region pattern (`{{proxy_names:match=HK|香港}}`) or other groups, plus an ordered rule list drawn from the ACL4SSR catalogue with presets (basic, ACL4SSR standard, standard + region groups); "Generate & apply" writes every format's template at once. Each entry can carry client extra fields (a JSON object merged into its mihomo/Stash/sing-box proxy: tfo, smux, dialer-proxy, ip-version…). External nodes are TCP-probed from the panel every 10 minutes; a source with "hide unreachable nodes" drops the ones whose last probe failed from subscriptions. A node option "mita native quotas" also writes each user's allowance into mita's own quotas (window = the plan's reset cycle) so the core keeps enforcing it when the panel is unreachable.
+- Subscriptions at `GET /sub/<token>` with client detection (`?client=` override): mihomo/Clash YAML, Stash YAML, sing-box JSON, Egern YAML, Surge, Surfboard, Loon and Quantumult X node lists, base64 share links (v2rayN, Shadowrocket), WireGuard `.conf`. The renderers are bosun's `pkg/subscription`, shared with the standalone panel. Admin → Sub templates edits the document around the servers per format: YAML templates (clash, stash) get their `proxies` replaced and a `{{proxy_names}}` entry inside any proxy-group expands to every server name; text templates (surge, surfboard, loon, qx; egern is YAML with `{{proxy_names}}` in its policy groups) replace `{{proxies}}` with the server lines and `{{proxy_names}}` with the comma-joined names. Loon and QX default to bare node lists because their remote subscriptions are node lists. Per-format protocol coverage follows each client's official reference: Loon (nsloon.app/docs/Node) gets ss, vmess, vless (+REALITY), trojan, hysteria2 and anytls over tcp/ws/http; Quantumult X (sample.conf) gets ss, vmess, vless (+REALITY) and trojan over tcp/ws; Surfboard (manual.getsurfboard.com) gets ss, vmess and trojan only; Stash (stash.wiki) uses its own keys (`sni`, hysteria2 `auth`/`up-speed`/`down-speed`, tuic `version`/`alpn`). Servers a client cannot express are left out of that client's document. `Subscription-Userinfo` header with usage and expiry. Entries decide what users see: display host and port on top of the landing inbound's settings; group-restricted inbounds only appear for that group. Rendered mihomo and sing-box documents validated with the real clients. The same page has a visual designer (bosun's `pkg/subdesign`): proxy groups whose members are all servers, servers with an entry tag (`{{proxy_names:tag=hk}}`), servers whose name matches a region pattern (`{{proxy_names:match=HK|香港}}`) or other groups, plus an ordered rule list drawn from the ACL4SSR catalogue with presets (basic, ACL4SSR standard, standard + region groups); "Generate & apply" writes every format's template at once. Each entry can carry client extra fields (a JSON object merged into its mihomo/Stash/sing-box proxy: tfo, smux, dialer-proxy, ip-version…). External nodes are TCP-probed from the panel every 10 minutes; a source with "hide unreachable nodes" drops the ones whose last probe failed from subscriptions. A node option "mita native quotas" also writes each user's allowance into mita's own quotas (window = the plan's reset cycle) so the core keeps enforcing it when the panel is unreachable.
 
 - Orders and payments: EPay 易支付 **v1 (MD5) and v2 (RSA)** behind one gateway (`payments.epay.version`), Stripe Checkout, 支付宝当面付 (Alipay F2F, scan-to-pay QR page), Coinbase Commerce, CoinPayments, BTCPay Server, MGate, and balance. Every callback is signature-verified before any field is read; settlement is idempotent under repeated callbacks and refused when the callback amount differs from the order.
 - Portal API under `/api/portal`: register (optional), login, me (subscription, usage, subscription URL), plans, servers with per-server share links, orders, create order (returns the payment URL).
 
 - Admin console (`web/admin`, React 19 + Mantine 8 + TanStack Query, zh-CN and en) embedded at `/admin/`: overview with traffic chart, nodes with a one-line install command (`curl .../api/agent/install.sh?pair=CODE | sh`, or a `docker run` with `BOSUN_CAPTAIN`/`BOSUN_PAIR`) that installs and pairs bosun, node detail with host metrics and inbounds (quick-setup recipes for VLESS+REALITY, Hysteria2, mieru, SS2022, Trojan+WS), entries, users with an edit drawer (grant plan, balance, rotate subscription URL), plans, orders, settings.
 
-- User portal (`web/portal`, light theme, phone friendly) embedded at `/portal/` (the site root redirects there): sign up / sign in, home with usage, expiry, balance, subscription link with copy, QR code and one-tap import links (Clash, sing-box, Shadowrocket, Surge), plans with balance / EPay / Stripe checkout, orders, servers with per-server share links.
+- User portal (`web/portal`, light theme, phone friendly) embedded at `/portal/` (the site root redirects there): sign up / sign in, home with usage, expiry, balance, subscription link with copy, QR code and one-tap import links (Clash, sing-box, Shadowrocket, Surge), plans paid with balance or any enabled gateway (see Payment gateways), orders, servers with per-server share links.
 
-Not yet: jobs (stale order cancellation, quota resets), online device
-collection, email (password reset, notifications).
+Housekeeping runs in-process (`internal/jobs`, one tick a minute: stale
+order cancellation, subscription expiry, quota resets, queued-plan starts,
+session and online-device purges, hourly reminders and external node sync,
+daily backups, certificate renewal); nodes report online client IPs
+(`Report.Online`) for device limits; mail (`internal/mail`) covers
+registration codes, password reset and reminders. The sections below
+describe each.
 
 ## Install
 
@@ -75,7 +86,9 @@ docker run --rm -v captain_captain-data:/d -v $PWD:/out alpine sh -c 'cp /d/back
 
 Captain snapshots its database every day into `backups/` inside the data
 directory and keeps the last seven, so a restore is a copy of one file. Logins
-lock an address for 15 minutes after five failures; session cookies are
+lock an address for 15 minutes after five failures; `trusted_proxies` in
+config.yaml names the reverse proxies whose forwarding headers decide that
+address (empty: any loopback or private peer); session cookies are
 HTTPS-only whenever `base_url` is https. Certificates live in `certs/` in the
 same directory and renew themselves.
 
@@ -251,6 +264,15 @@ the panel itself) and manages certificates:
 Nodes take an optional host name (Node → Domain, e.g. `jp1.example.com`):
 new inbound recipes use it as the TLS name and entries advertise it instead
 of the IP, so a certificate for it reaches the node without further setup.
+
+**Automatic DNS records.** A registered Cloudflare domain with *Auto DNS
+records* on (the default) gets A/AAAA records created or updated whenever a
+node with a host name under it is saved (node domain → public / IPv6
+address) or a line ingress with an *entry domain* is saved (entry domain →
+the provider's entry IP). Records are never deleted, never proxied, and the
+outcome is shown in a toast; the token needs DNS edit permission on the
+zone, which the DNS-01 token already has.
+
 ## Komari reporting
 
 Settings → Komari reporting attaches every managed node to a Komari
@@ -262,14 +284,6 @@ if you prefer Komari's.
 
 ## Backups
 
-**Automatic DNS records.** A registered Cloudflare domain with *Auto DNS
-records* on (the default) gets A/AAAA records created or updated whenever a
-node with a host name under it is saved (node domain → public / IPv6
-address) or a line ingress with an *entry domain* is saved (entry domain →
-the provider's entry IP). Records are never deleted, never proxied, and the
-outcome is shown in a toast; the token needs DNS edit permission on the
-zone, which the DNS-01 token already has.
-
 Captain snapshots its SQLite database once a day (`VACUUM INTO`, so the
 copy is consistent while the panel keeps running) into `<data_dir>/backups`
 and keeps the newest seven. Settings → Database backups sets the hour and
@@ -277,7 +291,9 @@ retention, adds a remote (WebDAV with basic auth, or any S3-compatible
 bucket: AWS, Cloudflare R2, Backblaze B2, MinIO with path-style) that
 receives each gzipped snapshot with its own retention, tests the remote,
 runs a backup on demand and downloads local copies. Restore by stopping
-Captain, replacing `captain.db` with a snapshot and starting it again.
+Captain, replacing `captain.db` with a snapshot and starting it again
+(step by step, including the `-wal`/`-shm` caveat, in
+[docs/OPERATIONS.md](docs/OPERATIONS.md)).
 
 ## Line ingresses (IPLC)
 
@@ -402,7 +418,7 @@ Casdoor example: issuer `https://door.example.com`, scopes default
 ## Run
 
 ```sh
-make build            # builds web/admin with pnpm, then the Go binary with it embedded
+make build            # builds web/admin, web/portal, web/site and web/probe with pnpm, then the Go binary with them embedded
 cp config.example.yaml /etc/captain/config.yaml       # set base_url
 bin/captain admin create -c /etc/captain/config.yaml -email you@example.com -password '...'
 bin/captain serve -c /etc/captain/config.yaml

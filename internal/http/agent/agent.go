@@ -18,6 +18,8 @@ import (
 
 	"github.com/zeptop-dev/captain/internal/auth"
 	"github.com/zeptop-dev/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/http/ratelimit"
+	"github.com/zeptop-dev/captain/internal/metrics"
 	"github.com/zeptop-dev/captain/internal/service"
 	"github.com/zeptop-dev/captain/internal/store"
 )
@@ -33,6 +35,8 @@ type Deps struct {
 	Probe *service.Probe
 	// BosunInstaller overrides the upstream bosun install script URL (tests).
 	BosunInstaller string
+	// Pairs throttles pairing attempts per address (nil = unlimited).
+	Pairs *ratelimit.Limiter
 }
 
 type handlers struct{ Deps }
@@ -80,9 +84,19 @@ func (h *handlers) pair(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "code is required")
 		return
 	}
+	ip := ratelimit.ClientIP(r)
+	if h.Pairs != nil {
+		if allowed, wait := h.Pairs.Allow(ip); !allowed {
+			fail(w, http.StatusTooManyRequests, "too many pairing attempts; try again in "+wait.String())
+			return
+		}
+	}
 	token := auth.Token(32)
 	n, err := h.Store.RedeemPairCode(r.Context(), strings.ToUpper(strings.TrimSpace(in.Code)), auth.SHA256Hex(token), in.Hostname, in.Version, in.Platform)
 	if errors.Is(err, store.ErrNotFound) {
+		if h.Pairs != nil {
+			h.Pairs.Fail(ip)
+		}
 		fail(w, http.StatusNotFound, "invalid or expired pairing code")
 		return
 	}
@@ -139,6 +153,7 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "bad json")
 		return
 	}
+	metrics.NodeReports.Inc(nil)
 	ctx := r.Context()
 	now := time.Now()
 	if err := h.Store.TouchNode(ctx, n.ID, rep.Version, rep.Revision, rep.Host, rep.Cores, rep.Certs); err != nil {

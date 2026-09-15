@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/zeptop-dev/captain/internal/metrics"
 	"github.com/zeptop-dev/captain/internal/payment"
 	"github.com/zeptop-dev/captain/internal/payment/epay"
 	"github.com/zeptop-dev/captain/internal/service"
@@ -29,6 +30,7 @@ func Register(mux *http.ServeMux, d Deps) {
 			n, err := gw.Notify(r)
 			if err != nil {
 				d.Log.Warn("payment callback rejected", "gateway", gw.Name(), "err", err)
+				metrics.PaymentCallbackErrors.Inc(map[string]string{"gateway": gw.Name()})
 				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
@@ -45,6 +47,7 @@ func Register(mux *http.ServeMux, d Deps) {
 			}
 			if _, err := d.Orders.Settle(r.Context(), n); err != nil && !errors.Is(err, store.ErrNotFound) {
 				d.Log.Error("settle failed", "order", n.OrderNo, "err", err)
+				metrics.PaymentSettleErrors.Inc(map[string]string{"gateway": gw.Name()})
 				http.Error(w, "internal error", http.StatusInternalServerError)
 				return
 			}

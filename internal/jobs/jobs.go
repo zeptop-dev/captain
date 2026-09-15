@@ -15,6 +15,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/zeptop-dev/captain/internal/metrics"
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
@@ -88,6 +89,7 @@ func (r *Runner) Tick(ctx context.Context) {
 	report := func(name string, n int64, err error) {
 		if err != nil {
 			log.Error(name+" failed", "err", err)
+			metrics.JobErrors.Inc(map[string]string{"job": name})
 		} else if n > 0 {
 			log.Info(name, "rows", n)
 		}

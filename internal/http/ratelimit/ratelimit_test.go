@@ -1,6 +1,7 @@
 package ratelimit
 
 import (
+	"net"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -38,5 +39,24 @@ func TestClientIP(t *testing.T) {
 	r.RemoteAddr = "198.51.100.7:1"
 	if got := ClientIP(r); got != "198.51.100.7" {
 		t.Fatalf("header must be ignored from a public address: %s", got)
+	}
+}
+
+func TestClientIPIgnoresClientSuppliedHops(t *testing.T) {
+	r := httptest.NewRequest("GET", "/", nil)
+	r.RemoteAddr = "172.18.0.3:4444"
+	// The client sent "1.2.3.4"; nginx appended the real address.
+	r.Header.Set("X-Forwarded-For", "1.2.3.4, 203.0.113.9")
+	if got := ClientIP(r); got != "203.0.113.9" {
+		t.Fatalf("attacker-chosen first hop must not win: %s", got)
+	}
+	// With configured trusted proxies, a private peer outside the list is
+	// not believed at all.
+	TrustedProxies = nil
+	defer func() { TrustedProxies = nil }()
+	_, n, _ := net.ParseCIDR("10.9.0.0/16")
+	TrustedProxies = append(TrustedProxies, n)
+	if got := ClientIP(r); got != "172.18.0.3" {
+		t.Fatalf("untrusted private peer must not forward: %s", got)
 	}
 }

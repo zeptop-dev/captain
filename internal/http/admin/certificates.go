@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 
 	"github.com/zeptop-dev/bosun/pkg/spec"
@@ -218,7 +219,7 @@ func (h *handlers) certificateWebhook(w http.ResponseWriter, r *http.Request) {
 	if got == "" {
 		got = strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 	}
-	if hook.Token == "" || got == "" || got != hook.Token {
+	if hook.Token == "" || got == "" || subtle.ConstantTimeCompare([]byte(got), []byte(hook.Token)) != 1 {
 		fail(w, http.StatusForbidden, "bad token")
 		return
 	}

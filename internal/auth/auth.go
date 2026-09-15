@@ -77,14 +77,35 @@ func UUID() string {
 // PairCode returns a short human-typable pairing code.
 func PairCode() string {
 	const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-	b := make([]byte, 8)
+	b := make([]byte, 12)
 	if _, err := rand.Read(b); err != nil {
 		panic(err)
 	}
 	for i := range b {
 		b[i] = alphabet[int(b[i])%len(alphabet)]
 	}
-	return string(b[:4]) + "-" + string(b[4:])
+	return string(b[:4]) + "-" + string(b[4:8]) + "-" + string(b[8:])
+}
+
+// dummyHash is verified against when an account does not exist, so a
+// failed login costs the same time either way (no user enumeration).
+var dummyHash = func() string {
+	h, err := HashPassword("captain-dummy-password-for-timing")
+	if err != nil {
+		return ""
+	}
+	return h
+}()
+
+// VerifyPasswordOrDummy is VerifyPassword that always runs the hash: with
+// an empty stored hash it checks the password against a fixed dummy and
+// returns false.
+func VerifyPasswordOrDummy(hash, password string) bool {
+	if hash == "" {
+		VerifyPassword(dummyHash, password)
+		return false
+	}
+	return VerifyPassword(hash, password)
 }
 
 // SHA256Hex hashes a secret for storage/lookup.

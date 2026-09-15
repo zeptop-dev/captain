@@ -41,7 +41,9 @@ type Deps struct {
 	Store *store.Store
 	// State is the node desired-state builder; every non-GET admin request
 	// drops its cache so nodes see edits at once.
-	State    *service.AgentState
+	State *service.AgentState
+	// Metrics serves the Prometheus exposition at GET /api/admin/metrics.
+	Metrics  http.Handler
 	Log      *slog.Logger
 	Sessions SessionStore
 	Version  string
@@ -149,6 +151,9 @@ func Register(mux *http.ServeMux, d Deps) {
 
 	mux.HandleFunc("GET /api/admin/users", h.requireAdmin(h.listUsers))
 	mux.HandleFunc("POST /api/admin/users", h.requireAdmin(h.createUser))
+	if d.Metrics != nil {
+		mux.HandleFunc("GET /api/admin/metrics", h.requireAdmin(func(w http.ResponseWriter, r *http.Request) { d.Metrics.ServeHTTP(w, r) }))
+	}
 	mux.HandleFunc("GET /api/admin/users/{id}", h.requireAdmin(h.getUser))
 	mux.HandleFunc("PATCH /api/admin/users/{id}", h.requireAdmin(h.updateUser))
 	mux.HandleFunc("DELETE /api/admin/users/{id}", h.requireAdmin(h.deleteUser))
@@ -253,7 +258,14 @@ func (h *handlers) login(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	u, err := h.Store.UserByEmail(r.Context(), in.Email)
-	if errors.Is(err, store.ErrNotFound) || (err == nil && !auth.VerifyPassword(u.PasswordHash, in.Password)) {
+	hash := ""
+	if err == nil {
+		hash = u.PasswordHash
+	}
+	if errors.Is(err, store.ErrNotFound) || (err == nil && !auth.VerifyPasswordOrDummy(hash, in.Password)) {
+		if hash == "" {
+			auth.VerifyPasswordOrDummy("", in.Password)
+		}
 		if h.Logins != nil {
 			h.Logins.Fail(ip)
 		}
@@ -279,11 +291,11 @@ func (h *handlers) login(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode(map[string]any{"totp": true, "error": "authenticator code required"})
 			return
 		}
-		if !auth.VerifyTOTP(secret, in.Code, time.Now()) {
+		if !auth.VerifyTOTPOnce(strconv.FormatInt(u.ID, 10), secret, in.Code, time.Now()) {
 			if h.Logins != nil {
 				h.Logins.Fail(ip)
 			}
-			fail(w, http.StatusUnauthorized, "invalid authenticator code")
+			fail(w, http.StatusUnauthorized, "invalid or already used authenticator code")
 			return
 		}
 	}

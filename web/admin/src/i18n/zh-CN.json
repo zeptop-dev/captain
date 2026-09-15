@@ -661,7 +661,8 @@
     "add": "添加地址",
     "test": "发送测试",
     "testOk": "测试事件已送达",
-    "format": "请求体：{\"event\":\"order.paid\",\"at\":\"2026-01-01T00:00:00Z\",\"data\":{...}}，失败会重试 3 次。"
+    "format": "请求体：{\"event\":\"order.paid\",\"at\":\"2026-01-01T00:00:00Z\",\"data\":{...}}，失败会重试 3 次。",
+    "secretKept": "已保存，留空不改"
   },
   "subTemplates": {
     "title": "订阅模板",

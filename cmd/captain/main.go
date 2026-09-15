@@ -6,8 +6,10 @@ import (
 	"flag"
 	"fmt"
 	"github.com/zeptop-dev/captain/internal/certs"
+	"github.com/zeptop-dev/captain/internal/http/ratelimit"
 	"github.com/zeptop-dev/captain/internal/mail"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -95,6 +97,17 @@ func cmdServe(args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	go web.Bot().Run(ctx)
+	for _, c := range cfg.TrustedProxies {
+		if _, n, err := net.ParseCIDR(strings.TrimSpace(c)); err == nil {
+			ratelimit.TrustedProxies = append(ratelimit.TrustedProxies, n)
+		} else if ip := net.ParseIP(strings.TrimSpace(c)); ip != nil {
+			bits := 32
+			if ip.To4() == nil {
+				bits = 128
+			}
+			ratelimit.TrustedProxies = append(ratelimit.TrustedProxies, &net.IPNet{IP: ip, Mask: net.CIDRMask(bits, bits)})
+		}
+	}
 	go (&jobs.Runner{Store: st, Log: log, BackupDir: filepath.Join(cfg.DataDir, "backups"), Backups: web.Backups(), Certs: web.Certs(),
 		Mail: &mail.Loader{Store: st}, Bot: web.Bot(), Hooks: web.Hooks(), Probe: web.Probe(), External: web.External(), Invalidate: web.State().Invalidate, SiteName: cfg.SiteName, PortalURL: strings.TrimRight(cfg.BaseURL, "/") + "/portal/"}).Run(ctx)
 

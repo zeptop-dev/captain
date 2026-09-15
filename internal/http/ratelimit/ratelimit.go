@@ -85,21 +85,54 @@ func (l *Limiter) sweep() {
 	}
 }
 
-// ClientIP returns the caller's address. When the connection comes from a
-// loopback or private address (a reverse proxy such as Caddy in the same
-// compose network), the X-Forwarded-For / X-Real-IP header is trusted.
+// TrustedProxies lists the reverse proxies whose forwarding headers are
+// believed (config trusted_proxies). Empty keeps the historical rule:
+// any loopback or private peer (Caddy/nginx in the same compose network).
+var TrustedProxies []*net.IPNet
+
+func trusted(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+	if len(TrustedProxies) == 0 {
+		return ip.IsLoopback() || ip.IsPrivate()
+	}
+	for _, n := range TrustedProxies {
+		if n.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// ClientIP returns the caller's address. Behind a trusted proxy the
+// X-Real-IP header wins (proxies overwrite it), else X-Forwarded-For is
+// read from the right, skipping trusted proxy hops; the first entry is
+// whatever the client sent and is never trusted on its own.
 func ClientIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		host = r.RemoteAddr
 	}
-	ip := net.ParseIP(host)
-	if ip != nil && (ip.IsLoopback() || ip.IsPrivate()) {
-		if v := r.Header.Get("X-Real-IP"); v != "" {
-			return strings.TrimSpace(v)
+	if trusted(net.ParseIP(host)) {
+		if v := strings.TrimSpace(r.Header.Get("X-Real-IP")); v != "" && net.ParseIP(v) != nil {
+			return v
 		}
 		if v := r.Header.Get("X-Forwarded-For"); v != "" {
-			return strings.TrimSpace(strings.Split(v, ",")[0])
+			// Walk from the proxy's own entry backwards over trusted hops;
+			// the first address that is not a proxy is the client. Entries
+			// before that are whatever the client sent.
+			parts := strings.Split(v, ",")
+			for i := len(parts) - 1; i >= 0; i-- {
+				hop := strings.TrimSpace(parts[i])
+				ip := net.ParseIP(hop)
+				if ip == nil {
+					break
+				}
+				if !trusted(ip) {
+					return hop
+				}
+			}
 		}
 	}
 	return host
