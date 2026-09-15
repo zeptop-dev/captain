@@ -47,6 +47,13 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 	if acme.Email != "" || acme.CloudflareToken != "" {
 		node.ACME = &spec.ACME{Email: acme.Email, CloudflareToken: acme.CloudflareToken}
 	}
+	if n.DecoyEnabled && n.Domain != "" {
+		method := "http"
+		if acme.CloudflareToken != "" {
+			method = "dns"
+		}
+		node.Decoy = &spec.Decoy{Domain: n.Domain, Port: spec.DefaultDecoyPort, Upstream: n.DecoyUpstream, ACME: method}
+	}
 	over := map[int64]bool{}
 	limits := map[int64]int{}
 	if a.EnforceDevices {

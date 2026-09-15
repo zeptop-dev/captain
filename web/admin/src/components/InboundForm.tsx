@@ -104,7 +104,7 @@ export function toPayload(v: InboundValues) {
   return { Tag: v.Tag, Protocol: v.Protocol, Listen: v.Listen, Port: v.Port, Core: v.Core, GroupID: v.GroupID ? Number(v.GroupID) : null, Enabled: v.Enabled, Settings: settings, IngressID: v.IngressID ? Number(v.IngressID) : null }
 }
 
-export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain, ingresses = [], usedPorts = [], lineOnly, nodeID }: { initial: InboundValues; groups: UGroup[]; onSubmit: (v: InboundValues) => void; busy: boolean; onCancel: () => void; domain?: string; ingresses?: Ingress[]; usedPorts?: number[]; lineOnly?: boolean; nodeID?: number }) {
+export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain, ingresses = [], usedPorts = [], lineOnly, nodeID, decoyDomain }: { initial: InboundValues; groups: UGroup[]; onSubmit: (v: InboundValues) => void; busy: boolean; onCancel: () => void; domain?: string; ingresses?: Ingress[]; usedPorts?: number[]; lineOnly?: boolean; nodeID?: number; decoyDomain?: string }) {
   const { t } = useTranslation()
   const form = useForm<InboundValues>({
     initialValues: initial,
@@ -202,6 +202,7 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
               <Text size="sm" fw={600} mb={4}>{t('inbounds.realityTarget')}</Text>
               <Text size="xs" c="dimmed" mb="xs">{t('inbounds.realityTargetHint', { host: current || '—' })}</Text>
               {nodeID ? <RealityScan current={current} scan={(hosts) => scanViaNode(nodeID, hosts)} onPick={(host) => form.setFieldValue('Settings', patchReality(form.values.Settings, { server_name: host, handshake_server: host, handshake_port: 443 }))} /> : <Text size="xs" c="dimmed">{t('inbounds.realityNeedsNode')}</Text>}
+              {decoyDomain && <Group gap="xs" mt="xs"><Button size="xs" variant="light" color="teal" onClick={() => form.setFieldValue('Settings', patchReality(form.values.Settings, { server_name: decoyDomain, handshake_server: '127.0.0.1', handshake_port: 4443 }))}>{t('inbounds.useDecoy', { domain: decoyDomain })}</Button><Text size="xs" c="dimmed">{t('inbounds.useDecoyHint')}</Text></Group>}
               <Group grow align="flex-end" mt="sm">
                 <Switch label={t('inbounds.fallbackLimit')} mb={7} checked={!fl?.off} onChange={(e) => form.setFieldValue('Settings', patchReality(form.values.Settings, { fallback_limit: e.currentTarget.checked ? null : { off: true } }))} />
                 <NumberInput label={t('inbounds.fallbackAfter')} min={0} disabled={!!fl?.off} value={Math.round((fl?.after_bytes || 1048576) / 1048576)} onChange={(v) => form.setFieldValue('Settings', patchReality(form.values.Settings, { fallback_limit: { after_bytes: Math.max(0, Number(v) || 0) * 1048576 || undefined, bytes_per_sec: fl?.bytes_per_sec } }))} />

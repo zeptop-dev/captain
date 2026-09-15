@@ -143,7 +143,11 @@
     "platform": "Platform",
     "nodeDomain": "Domain",
     "monitor": "External monitor",
-    "open": "Open"
+    "open": "Open",
+    "decoy": "Decoy site (steal yourself)",
+    "decoyHint": "The node serves a real HTTPS site for its domain on loopback and REALITY inbounds use it as the handshake target: probes see a genuine certificate for your name and fallback traffic never leaves the box. Needs the domain above.",
+    "decoyUpstream": "Upstream (optional)",
+    "decoyUpstreamHint": "Blank serves the built-in placeholder; an http(s) URL is reverse-proxied"
   },
   "inbounds": {
     "title": "Inbounds",
@@ -224,7 +228,9 @@
     "realityTarget": "REALITY target",
     "realityTargetHint": "Current target: {{host}}. It must speak TLS 1.3 + h2 and not sit on Cloudflare or another CDN.",
     "realityNeedsNode": "Save the node first to probe from it.",
-    "ingressBindHint": "Leave the listen address blank to bind the line IP {{ip}}."
+    "ingressBindHint": "Leave the listen address blank to bind the line IP {{ip}}.",
+    "useDecoy": "Use the node decoy site {{domain}}",
+    "useDecoyHint": "SNI becomes the decoy domain, handshake target 127.0.0.1:4443"
   },
   "entries": {
     "title": "Entries",

@@ -125,13 +125,17 @@ func (s *Subscription) Usable(t time.Time) bool {
 }
 
 type Node struct {
-	ID              int64
-	Name            string
-	PublicAddr      string
-	InternalAddr    string
-	V6Addr          string
-	Domain          string // host name under a registered domain, e.g. jp1.example.com
-	MonitorURL      string
+	ID           int64
+	Name         string
+	PublicAddr   string
+	InternalAddr string
+	V6Addr       string
+	Domain       string // host name under a registered domain, e.g. jp1.example.com
+	MonitorURL   string
+	// DecoyEnabled makes the node serve Domain itself on loopback for
+	// REALITY inbounds to steal; DecoyUpstream optionally proxies a site.
+	DecoyEnabled    bool
+	DecoyUpstream   string
 	Version         string
 	Platform        string
 	Hostname        string
