@@ -50,6 +50,7 @@ type Server struct {
 	backups  *backup.Manager
 	certs    *service.Certs
 	external *service.External
+	state    *service.AgentState
 	probe    *probe.Router
 	probeSvc *service.Probe
 	hooks    *webhook.Hub
@@ -110,6 +111,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	s.hooks = &webhook.Hub{Store: st, Log: log}
 	notifier := &notify.Notifier{Store: st, Mail: mailer, Bot: s.bot, Hooks: s.hooks, SiteName: cfg.SiteName, Log: log}
 	orders.OnPaid = func(ctx context.Context, o *domain.Order) {
+		s.state.Invalidate()
 		notifier.Event(ctx, webhook.OrderPaid, map[string]any{"order_no": o.No, "user_id": o.UserID, "plan_id": o.PlanID, "amount_cents": o.AmountCents, "gateway": o.Gateway, "period_days": o.PeriodDays})
 		var ts store.TelegramSettings
 		_ = st.GetSetting(ctx, store.SettingTelegram, &ts)
@@ -123,6 +125,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 		notifier.Admin(ctx, fmt.Sprintf("💰 Order %s paid: %.2f via %s\n%s", o.No, float64(o.AmountCents)/100, o.Gateway, email))
 	}
 	s.probeSvc = &service.Probe{Store: st, Notify: notifier, Log: log}
+	s.state = &service.AgentState{Store: st, PullSeconds: cfg.Agent.PullSeconds, PushSeconds: cfg.Agent.PushSeconds, EnforceDevices: cfg.EnforceDevices(), Probe: s.probeSvc}
 	resolve := func(r *http.Request) *domain.User {
 		c, err := r.Cookie("captain_session")
 		if err != nil {
@@ -152,7 +155,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	}
 	s.certs = &service.Certs{Store: st, Issuer: certIssuer, Log: log, Notify: notifier}
 	s.probe = probe.Register(s.mux, probe.Deps{Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe()})
-	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external,
+	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, State: s.state, Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 	})
@@ -204,7 +207,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	sub.Register(s.mux, sub.Deps{Store: st, Log: log, Service: subSvc, Name: cfg.SiteName})
 	agent.Register(s.mux, agent.Deps{
 		Store: st, Log: log, BaseURL: base,
-		State: &service.AgentState{Store: st, PullSeconds: cfg.Agent.PullSeconds, PushSeconds: cfg.Agent.PushSeconds, EnforceDevices: cfg.EnforceDevices(), Probe: s.probeSvc}, Probe: s.probeSvc,
+		State: s.state, Probe: s.probeSvc,
 	})
 	return s
 }
@@ -269,7 +272,17 @@ func buildGateways(cfg *config.Config, log *slog.Logger) map[string]payment.Gate
 // Handler returns the root handler with common middleware.
 // Handler returns the root handler. Requests on a subscription-only host
 // reach nothing but /sub/.
-func (s *Server) Handler() http.Handler { return s.probe.Wrap(s.subLinks.SubscriptionOnly(s.mux)) }
+func (s *Server) Handler() http.Handler {
+	h := s.probe.Wrap(s.subLinks.SubscriptionOnly(s.mux))
+	// Any write under /api/admin (whichever package registered it) may
+	// change what nodes should run: drop the cached node state after it.
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/admin/") && s.state != nil {
+			defer s.state.Invalidate()
+		}
+		h.ServeHTTP(w, r)
+	})
+}
 
 // Probe exposes the probe service (jobs).
 func (s *Server) Probe() *service.Probe { return s.probeSvc }
@@ -341,6 +354,9 @@ func (s *Server) Hooks() *webhook.Hub { return s.hooks }
 
 // External exposes the subscription importer (jobs).
 func (s *Server) External() *service.External { return s.external }
+
+// State exposes the node desired-state builder (jobs invalidate its cache).
+func (s *Server) State() *service.AgentState { return s.state }
 
 // Backups exposes the snapshot manager (jobs); nil without a data dir.
 func (s *Server) Backups() *backup.Manager { return s.backups }

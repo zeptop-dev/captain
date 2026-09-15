@@ -346,6 +346,10 @@ func TestAdminLists(t *testing.T) {
 }
 
 func TestDeviceLimit(t *testing.T) {
+	// The hold window and state cache are what keep real nodes from
+	// flapping; here the test ages devices out by hand, so drop both.
+	service.DeviceHold, service.CacheTTL = 0, 0
+	defer func() { service.DeviceHold, service.CacheTTL = 5*time.Minute, 10*time.Second }()
 	cfg := config.Default()
 	cfg.BaseURL = "http://test"
 	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))

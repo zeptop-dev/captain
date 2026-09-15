@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
+	"github.com/zeptop-dev/bosun/pkg/spec"
 
 	"github.com/zeptop-dev/captain/internal/auth"
 	"github.com/zeptop-dev/captain/internal/domain"
@@ -170,14 +171,17 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 		allowed = map[int64]bool{}
 	}
 	dropped := 0
+	samples := make([]spec.UserTraffic, 0, len(rep.Traffic))
 	for _, t := range rep.Traffic {
 		if !allowed[t.UserID] || t.Up < 0 || t.Down < 0 {
 			dropped++
 			continue
 		}
-		if err := h.Store.AddTraffic(ctx, t.UserID, inboundID, t.Up, t.Down, now); err != nil {
-			h.Log.Error("add traffic", "user", t.UserID, "err", err)
-		}
+		samples = append(samples, t)
+	}
+	groups, _ := h.Store.NodeGroups(ctx, n.ID)
+	if err := h.Store.AddTrafficBatch(ctx, inboundID, groups, samples, now); err != nil {
+		h.Log.Error("add traffic", "node", n.ID, "samples", len(samples), "err", err)
 	}
 	if dropped > 0 {
 		h.Log.Warn("traffic samples for users this node does not serve were dropped", "node", n.ID, "dropped", dropped)

@@ -22,6 +22,7 @@ func (h *handlers) registerExternal(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/admin/external/nodes/{id}", h.requireAdmin(h.updateExternalNode))
 	mux.HandleFunc("DELETE /api/admin/external/nodes/{id}", h.requireAdmin(h.deleteExternalNode))
 	mux.HandleFunc("POST /api/admin/external/parse", h.requireAdmin(h.parseLinks))
+	mux.HandleFunc("POST /api/admin/external/probe", h.requireAdmin(h.probeExternal))
 	mux.HandleFunc("GET /api/admin/nodes/{id}/routing", h.requireAdmin(h.getNodeRouting))
 	mux.HandleFunc("PUT /api/admin/nodes/{id}/routing", h.requireAdmin(h.putNodeRouting))
 	mux.HandleFunc("GET /api/admin/nodes/{id}/overrides", h.requireAdmin(h.getNodeOverrides))
@@ -92,6 +93,12 @@ func (h *handlers) listExternalNodes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, list)
+}
+
+// probeExternal runs the availability probe now.
+func (h *handlers) probeExternal(w http.ResponseWriter, r *http.Request) {
+	up, total := h.External.ProbeAll(r.Context(), time.Now())
+	ok(w, map[string]int{"up": up, "total": total})
 }
 
 // parseLinks previews share links pasted by the admin.

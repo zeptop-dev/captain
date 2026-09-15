@@ -96,7 +96,7 @@ func cmdServe(args []string) error {
 	defer stop()
 	go web.Bot().Run(ctx)
 	go (&jobs.Runner{Store: st, Log: log, BackupDir: filepath.Join(cfg.DataDir, "backups"), Backups: web.Backups(), Certs: web.Certs(),
-		Mail: &mail.Loader{Store: st}, Bot: web.Bot(), Hooks: web.Hooks(), Probe: web.Probe(), External: web.External(), SiteName: cfg.SiteName, PortalURL: strings.TrimRight(cfg.BaseURL, "/") + "/portal/"}).Run(ctx)
+		Mail: &mail.Loader{Store: st}, Bot: web.Bot(), Hooks: web.Hooks(), Probe: web.Probe(), External: web.External(), Invalidate: web.State().Invalidate, SiteName: cfg.SiteName, PortalURL: strings.TrimRight(cfg.BaseURL, "/") + "/portal/"}).Run(ctx)
 
 	var httpSrv *http.Server // port 80 helper when serving HTTPS ourselves
 	if cfg.TLSEnabled() {
