@@ -590,5 +590,24 @@
     "hintIni": "文字範本：佔位符分別取代為節點行和逗號分隔的節點名。佔位符：",
     "hintNodeList": "Loon 和 Quantumult X 的遠端訂閱是節點列表，預設範本只有節點行；寫成完整設定時需在用戶端以設定方式匯入。",
     "reset": "恢復預設"
+  },
+  "warp": {
+    "title": "Cloudflare WARP 出站",
+    "hint": "在節點上註冊一個 WARP 帳號，流量經 WireGuard 隧道從 Cloudflare 的位址出去。VPS 的 IP 被 ChatGPT、Netflix 之類拒絕時用它，配合下面的分流只讓這些站點走 WARP。金鑰只保存在節點上。",
+    "free": "免費版",
+    "notRegistered": "未註冊",
+    "addresses": "隧道位址",
+    "endpoint": "對端",
+    "license": "WARP+ 授權碼（可選）",
+    "licenseHint": "1.1.1.1 App 裡的 26 位授權碼，可換到 WARP+ 線路",
+    "register": "註冊 WARP",
+    "reregister": "重新註冊",
+    "applyLicense": "套用授權碼",
+    "registered": "WARP 已註冊",
+    "licenseApplied": "授權碼已套用",
+    "addOutbound": "新增 WARP 出站",
+    "outboundAdded": "WARP 出站已新增",
+    "addTemplate": "新增常用分流範本",
+    "templateHint": "把 AI 和串流站點分流到 WARP："
   }
 }

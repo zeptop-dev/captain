@@ -590,5 +590,24 @@
     "hintIni": "텍스트 템플릿: 자리표시자는 각각 노드 줄과 쉼표로 구분된 노드 이름으로 대체됩니다. 자리표시자:",
     "hintNodeList": "Loon과 Quantumult X의 원격 구독은 노드 목록이므로 기본 템플릿에는 노드 줄만 있습니다. 완전한 설정으로 작성하면 클라이언트에서 설정으로 가져와야 합니다.",
     "reset": "기본값으로 복원"
+  },
+  "warp": {
+    "title": "Cloudflare WARP 출구",
+    "hint": "노드에서 WARP 계정을 등록하고 WireGuard 터널로 Cloudflare 주소에서 나갑니다. VPS IP 가 ChatGPT, Netflix 등에 거부될 때 쓰고, 아래 규칙으로 해당 사이트만 보냅니다. 키는 노드에만 저장됩니다.",
+    "free": "무료",
+    "notRegistered": "미등록",
+    "addresses": "터널 주소",
+    "endpoint": "피어",
+    "license": "WARP+ 라이선스(선택)",
+    "licenseHint": "1.1.1.1 앱의 26자 키로 WARP+ 전환",
+    "register": "WARP 등록",
+    "reregister": "재등록",
+    "applyLicense": "라이선스 적용",
+    "registered": "WARP 등록됨",
+    "licenseApplied": "라이선스 적용됨",
+    "addOutbound": "WARP 아웃바운드 추가",
+    "outboundAdded": "WARP 아웃바운드 추가됨",
+    "addTemplate": "자주 쓰는 규칙 추가",
+    "templateHint": "AI 와 스트리밍 사이트를 WARP 로:"
   }
 }

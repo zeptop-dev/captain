@@ -590,5 +590,24 @@
     "hintIni": "テキストテンプレート：プレースホルダーはそれぞれノード行とカンマ区切りのノード名に置き換えられます。プレースホルダー：",
     "hintNodeList": "Loon と Quantumult X のリモートサブスクリプションはノード一覧なので、既定テンプレートはノード行のみです。完全な設定として書く場合はクライアント側で設定として取り込んでください。",
     "reset": "既定値に戻す"
+  },
+  "warp": {
+    "title": "Cloudflare WARP 出口",
+    "hint": "ノードで WARP アカウントを登録し、WireGuard トンネル経由で Cloudflare のアドレスから出ます。VPS の IP が ChatGPT や Netflix に拒否されるときに使い、下のルールで該当サイトだけを通します。鍵はノードにのみ保存。",
+    "free": "無料",
+    "notRegistered": "未登録",
+    "addresses": "トンネルアドレス",
+    "endpoint": "ピア",
+    "license": "WARP+ ライセンス（任意）",
+    "licenseHint": "1.1.1.1 アプリの 26 桁キーで WARP+ に切り替え",
+    "register": "WARP を登録",
+    "reregister": "再登録",
+    "applyLicense": "ライセンス適用",
+    "registered": "WARP を登録しました",
+    "licenseApplied": "ライセンスを適用しました",
+    "addOutbound": "WARP 出口を追加",
+    "outboundAdded": "WARP 出口は追加済み",
+    "addTemplate": "定番ルールを追加",
+    "templateHint": "AI と動画配信サイトを WARP へ："
   }
 }

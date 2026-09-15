@@ -976,5 +976,24 @@
     "keySet": "已保存；留空不改，填 - 清除",
     "interval": "上报间隔（秒）",
     "enabled": "启用"
+  },
+  "warp": {
+    "title": "Cloudflare WARP 出站",
+    "hint": "在节点上注册一个 WARP 账号，流量经 WireGuard 隧道从 Cloudflare 的地址出去。VPS 的 IP 被 ChatGPT、Netflix 之类拒绝时用它，配合下面的分流只让这些站点走 WARP。密钥只保存在节点上。",
+    "free": "免费版",
+    "notRegistered": "未注册",
+    "addresses": "隧道地址",
+    "endpoint": "对端",
+    "license": "WARP+ 授权码（可选）",
+    "licenseHint": "1.1.1.1 App 里的 26 位授权码，可换到 WARP+ 线路",
+    "register": "注册 WARP",
+    "reregister": "重新注册",
+    "applyLicense": "应用授权码",
+    "registered": "WARP 已注册",
+    "licenseApplied": "授权码已应用",
+    "addOutbound": "添加 WARP 出站",
+    "outboundAdded": "WARP 出站已添加",
+    "addTemplate": "添加常用分流模板",
+    "templateHint": "把 AI 和流媒体站点分流到 WARP："
   }
 }

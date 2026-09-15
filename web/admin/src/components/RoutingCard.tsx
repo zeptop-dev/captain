@@ -3,11 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { IconPlus, IconTrash } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { api } from '../lib/api'
+import { api, runNodeJob } from '../lib/api'
 import { toast } from '../lib/notify'
+import { WarpCard, warpTemplate, type WarpAccount } from './WarpCard'
 
 interface Remote { host: string; port: number; uuid?: string; password?: string; username?: string; settings: { protocol: string } }
-interface Outbound { tag: string; protocol?: string; settings?: Record<string, unknown>; proxy_tag?: string; remote?: Remote }
+interface Outbound { tag: string; protocol?: string; settings?: Record<string, unknown>; proxy_tag?: string; remote?: Remote; warp?: { from_node?: boolean } }
 interface Rule { match: string[]; action: string; value?: string }
 interface Routing { outbounds: Outbound[]; routes: Rule[]; default_outbound: string }
 
@@ -33,7 +34,9 @@ export function RoutingCard({ nodeID, inboundTags, embedded }: { nodeID: number;
   }, onError: toast.err })
   const tags = nr.outbounds.map((o) => o.tag)
   const outboundOptions = [{ value: 'direct', label: t('routing.direct') }, { value: 'block', label: t('routing.block') }, ...tags.map((x) => ({ value: x, label: x }))]
-  const describe = (o: Outbound) => o.remote ? `${o.remote.settings.protocol} ${o.remote.host}:${o.remote.port}` : `${o.protocol} (${t('routing.raw')})`
+  const describe = (o: Outbound) => o.warp ? 'Cloudflare WARP' : o.remote ? `${o.remote.settings.protocol} ${o.remote.host}:${o.remote.port}` : `${o.protocol} (${t('routing.raw')})`
+  const addWarpOutbound = () => setNr((cur) => cur.outbounds.some((o) => o.warp) ? cur : { ...cur, outbounds: [...cur.outbounds, { tag: 'warp', warp: { from_node: true } }] })
+  const addWarpTemplate = (keys: string[]) => setNr((cur) => { const tag = cur.outbounds.find((o) => o.warp)?.tag ?? 'warp'; const have = new Set(cur.routes.flatMap((r) => r.match)); const rules = warpTemplate.filter((g) => keys.includes(g.key)).map((g) => ({ match: g.domains.map((d) => `domain:${d}`).filter((m) => !have.has(m)), action: 'outbound', value: tag })).filter((r) => r.match.length); return { ...cur, routes: [...cur.routes, ...rules] } })
   return (
     <Root mb={embedded ? 0 : "lg"}>
       {!embedded && <Title order={5} mb={4}>{t('routing.title')}</Title>}
@@ -53,7 +56,8 @@ export function RoutingCard({ nodeID, inboundTags, embedded }: { nodeID: number;
           <TextInput label={t('routing.tag')} placeholder="exit-us" style={{ flex: 1 }} value={tag} onChange={(e) => setTag(e.currentTarget.value)} />
           <Button size="xs" mb={2} variant="light" leftSection={<IconPlus size={14} />} disabled={!link.trim()} loading={parse.isPending} onClick={() => parse.mutate()}>{t('routing.add')}</Button>
         </Group>
-        <Textarea label={t('routing.rawJSON')} description={t('routing.rawHint')} autosize minRows={2} ff="monospace" value={JSON.stringify(nr.outbounds.filter((o) => !o.remote), null, 0)} onBlur={(e) => { try { const raw = JSON.parse(e.currentTarget.value || '[]') as Outbound[]; setNr((cur) => ({ ...cur, outbounds: [...cur.outbounds.filter((o) => o.remote), ...raw] })) } catch { toast.err(new Error('invalid JSON')) } }} />
+        <Textarea label={t('routing.rawJSON')} description={t('routing.rawHint')} autosize minRows={2} ff="monospace" value={JSON.stringify(nr.outbounds.filter((o) => !o.remote && !o.warp), null, 0)} onBlur={(e) => { try { const raw = JSON.parse(e.currentTarget.value || '[]') as Outbound[]; setNr((cur) => ({ ...cur, outbounds: [...cur.outbounds.filter((o) => o.remote), ...raw] })) } catch { toast.err(new Error('invalid JSON')) } }} />
+        <WarpCard queryKey={['node-warp', nodeID]} load={async () => (await api.get<{ status?: { warp?: WarpAccount | null } }>(`/api/admin/nodes/${nodeID}`)).status?.warp ?? null} register={(license) => runNodeJob<WarpAccount>(nodeID, 'warp_register', { license })} hasOutbound={nr.outbounds.some((o) => o.warp)} onAddOutbound={addWarpOutbound} onAddTemplate={addWarpTemplate} />
         <Group grow align="flex-end">
           <Select label={t('routing.default')} description={t('routing.defaultHint')} data={[{ value: '', label: t('routing.direct') }, ...tags.map((x) => ({ value: x, label: x }))]} value={nr.default_outbound} allowDeselect={false} onChange={(v) => setNr((cur) => ({ ...cur, default_outbound: v ?? '' }))} />
         </Group>

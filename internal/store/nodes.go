@@ -195,6 +195,13 @@ type NodeStatus struct {
 	Cores  json.RawMessage `json:"cores"`
 	Certs  json.RawMessage `json:"certs"`
 	Doctor json.RawMessage `json:"doctor"` // last agentproto.DoctorReport, or null
+	WARP   json.RawMessage `json:"warp"`   // public part of the node's WARP account, or null
+}
+
+// SetNodeWARP stores the public part of the node's registered WARP account.
+func (s *Store) SetNodeWARP(ctx context.Context, id int64, account json.RawMessage) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET warp_json = ? WHERE id = ?`, string(account), id)
+	return err
 }
 
 // SetNodeDoctor stores the node's latest self-check report.
@@ -231,9 +238,12 @@ func (s *Store) DoctorFails(ctx context.Context) (map[int64]bool, error) {
 }
 
 func (s *Store) NodeStatus(ctx context.Context, id int64) (*NodeStatus, error) {
-	var host, cores, certs, doctor string
-	if err := s.db.QueryRowContext(ctx, `SELECT host_status_json, cores_json, certs_json, doctor_json FROM nodes WHERE id = ?`, id).Scan(&host, &cores, &certs, &doctor); err != nil {
+	var host, cores, certs, doctor, warp string
+	if err := s.db.QueryRowContext(ctx, `SELECT host_status_json, cores_json, certs_json, doctor_json, warp_json FROM nodes WHERE id = ?`, id).Scan(&host, &cores, &certs, &doctor, &warp); err != nil {
 		return nil, wrapNotFound(err)
+	}
+	if warp == "" {
+		warp = "null"
 	}
 	if certs == "" {
 		certs = "[]"
@@ -241,7 +251,7 @@ func (s *Store) NodeStatus(ctx context.Context, id int64) (*NodeStatus, error) {
 	if doctor == "" {
 		doctor = "null"
 	}
-	return &NodeStatus{Host: json.RawMessage(host), Cores: json.RawMessage(cores), Certs: json.RawMessage(certs), Doctor: json.RawMessage(doctor)}, nil
+	return &NodeStatus{Host: json.RawMessage(host), Cores: json.RawMessage(cores), Certs: json.RawMessage(certs), Doctor: json.RawMessage(doctor), WARP: json.RawMessage(warp)}, nil
 }
 
 // AllInboundsByNode lists inbounds of a node including disabled ones.
