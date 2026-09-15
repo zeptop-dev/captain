@@ -1,4 +1,4 @@
-import { ActionIcon, AppShell, Avatar, Badge, Box, Burger, Divider, Group, Indicator, Menu, NavLink, ScrollArea, Stack, Text, ThemeIcon, Title, UnstyledButton, useMantineColorScheme } from '@mantine/core'
+import { ActionIcon, AppShell, Avatar, Badge, Box, Burger, Divider, Group, Indicator, Menu, NavLink, ScrollArea, Stack, Text, ThemeIcon, UnstyledButton, useMantineColorScheme } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { IconLayoutDashboard, IconServer, IconRoute, IconUsers, IconPackage, IconReceipt, IconSettings, IconLogout, IconLanguage, IconWorld, IconTicket, IconMessages, IconGift, IconBook, IconCashBanknote, IconUserShield, IconFileCode, IconCloudDownload, IconGauge, IconCertificate, IconShip, IconSun, IconMoon, IconDotsVertical, IconChevronDown } from '@tabler/icons-react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
@@ -66,7 +66,6 @@ export function AppLayout() {
   const role = me?.role ?? 'admin'
   const visible = (to: string) => role === 'admin' ? true : role === 'operator' ? !['/site', '/settings', '/admins', '/sub-templates'].includes(to) : ['/', '/tickets', '/users', '/orders'].includes(to)
   const shown = sections.map((s) => ({ ...s, items: s.items.filter((it) => visible(it.to)) })).filter((s) => s.items.length > 0)
-  const current = sections.flatMap((s) => s.items).find((it) => active(it.to))
   const upd = useQuery({ queryKey: ['update'], queryFn: () => api.get<SystemUpdate>('/api/admin/system/update'), staleTime: 10 * 60_000, refetchInterval: 30 * 60_000, retry: false })
   const lang = languages.find((l) => l.code === i18n.language) ?? languages[0]
   const dark = colorScheme === 'dark'
@@ -77,13 +76,12 @@ export function AppLayout() {
         <Group h="100%" px="md" justify="space-between" wrap="nowrap">
           <Group gap="sm" wrap="nowrap">
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
-            <Box hiddenFrom="sm"><Brand name="Captain" /></Box>
-            <Title order={4} visibleFrom="sm">{current ? t(`nav.${current.key}`) : 'Captain'}</Title>
+            <UnstyledButton onClick={() => { nav('/'); close() }}><Brand name="Captain" /></UnstyledButton>
           </Group>
           <Group gap="xs" wrap="nowrap">
             {me?.version && (
-              <Indicator disabled={!upd.data?.captain?.has_update} color="red" size={8} offset={2} processing>
-                <Badge size="sm" variant="default" style={{ cursor: 'pointer' }} onClick={() => nav('/settings')} title={upd.data?.captain?.has_update ? t('update.available', { version: upd.data.captain.latest }) : undefined}>{me.version}</Badge>
+              <Indicator disabled={!upd.data?.captain?.has_update} color="red" size={8} offset={2} processing styles={{ root: { display: 'flex' } }}>
+                <Badge variant="light" color="gray" style={{ cursor: 'pointer' }} onClick={() => nav('/settings')} title={upd.data?.captain?.has_update ? t('update.available', { version: upd.data.captain.latest }) : undefined}>{me.version}</Badge>
               </Indicator>
             )}
           </Group>
@@ -91,9 +89,6 @@ export function AppLayout() {
       </AppShell.Header>
 
       <AppShell.Navbar>
-        <AppShell.Section h={56} px="md" style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--mantine-color-default-border)' }}>
-          <UnstyledButton onClick={() => { nav('/'); close() }}><Brand name="Captain" /></UnstyledButton>
-        </AppShell.Section>
         <AppShell.Section grow component={ScrollArea} type="auto" scrollbarSize={6} px="sm" py="sm">
           <Stack gap={0}>
             {shown.map((s, i) => (
@@ -101,7 +96,7 @@ export function AppLayout() {
                 {i > 0 && <Divider my="xs" />}
                 {s.items.map((it) => (
                   <NavLink key={it.to} component={UnstyledButton} label={t(`nav.${it.key}`)} leftSection={<it.icon size={18} stroke={1.7} />}
-                    variant="light" active={active(it.to)} onClick={() => { nav(it.to); close() }}
+                    variant="light" active={active(it.to)} onClick={(e) => { e.currentTarget.blur(); nav(it.to); close() }}
                     styles={{ root: { borderRadius: 8, marginBottom: 2 }, label: { fontWeight: 500 } }} />
                 ))}
               </Box>
