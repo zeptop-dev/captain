@@ -36,8 +36,8 @@ export default function DomainsPage() {
   // The modal's children render even while closed, so never dereference a null selection.
   const hasToken = editingDomain !== null && editingDomain !== 'new' && editingDomain.has_token
   const openDomain = (d: Domain | 'new') => { dform.setValues(d === 'new' ? { Name: '', Provider: 'cloudflare', CFToken: '', AutoDNS: true } : { Name: d.name, Provider: d.provider, CFToken: '', AutoDNS: d.auto_dns }); setEditingDomain(d) }
-  const useSummary = (u: Usage) => [u.nodes.length && t('domains.useNodes', { n: u.nodes.length }), u.tls.length && t('domains.useTLS', { n: u.tls.length }), u.sub_hosts.length && t('domains.useSub', { n: u.sub_hosts.length }), u.panel && t('domains.usePanel')].filter(Boolean).join(' · ')
-  const useDetail = (u: Usage) => [...u.nodes, ...u.tls, ...u.sub_hosts].filter((v, i, a) => a.indexOf(v) === i).join('\n')
+  const usageSummary = (u: Usage) => [u.nodes.length && t('domains.useNodes', { n: u.nodes.length }), u.tls.length && t('domains.useTLS', { n: u.tls.length }), u.sub_hosts.length && t('domains.useSub', { n: u.sub_hosts.length }), u.panel && t('domains.usePanel')].filter(Boolean).join(' · ')
+  const usageDetail = (u: Usage) => [...u.nodes, ...u.tls, ...u.sub_hosts].filter((v, i, a) => a.indexOf(v) === i).join('\n')
 
   // ---- certificates ----
   const [issuing, setIssuing] = useState(false)
@@ -74,7 +74,7 @@ export default function DomainsPage() {
               <Table.Tr key={d.id}>
                 <Table.Td><Code>{d.name}</Code></Table.Td>
                 <Table.Td>{d.provider === 'cloudflare' ? <Group gap={4}><Badge size="xs" variant="light" color="orange">Cloudflare</Badge><Text size="xs" c="dimmed">{d.has_token ? t('domains.ownToken') : domains.data?.global_token ? t('domains.globalToken') : t('domains.noToken')}</Text>{d.auto_dns && <Badge size="xs" variant="light" color="teal">{t('domains.autoDNS')}</Badge>}</Group> : <Badge size="xs" variant="outline" color="gray">{t('domains.manual')}</Badge>}</Table.Td>
-                <Table.Td>{useSummary(d.usage) ? <Tooltip label={<Text size="xs" style={{ whiteSpace: 'pre-line' }}>{useDetail(d.usage)}</Text>} multiline><Text size="sm">{useSummary(d.usage)}</Text></Tooltip> : <Text size="xs" c="dimmed">—</Text>}</Table.Td>
+                <Table.Td>{usageSummary(d.usage) ? <Tooltip label={<Text size="xs" style={{ whiteSpace: 'pre-line' }}>{usageDetail(d.usage)}</Text>} multiline><Text size="sm">{usageSummary(d.usage)}</Text></Tooltip> : <Text size="xs" c="dimmed">—</Text>}</Table.Td>
                 <Table.Td><Text size="sm">{d.certificates}</Text></Table.Td>
                 <Table.Td><Group gap={4} justify="flex-end"><ActionIcon variant="subtle" onClick={() => openDomain(d)}><IconPencil size={16} /></ActionIcon><ActionIcon variant="subtle" color="red" onClick={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text size="sm">{t('domains.deleteHint')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => delDomain.mutate(d.id) })}><IconTrash size={16} /></ActionIcon></Group></Table.Td>
               </Table.Tr>
