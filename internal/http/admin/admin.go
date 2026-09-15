@@ -299,31 +299,33 @@ func (h *handlers) dashboard(w http.ResponseWriter, r *http.Request) {
 // --- nodes ---
 
 type nodeView struct {
-	ID           int64      `json:"id"`
-	Name         string     `json:"name"`
-	PublicAddr   string     `json:"public_addr"`
-	InternalAddr string     `json:"internal_addr"`
-	V6Addr       string     `json:"v6_addr"`
-	Domain       string     `json:"domain"`
-	MonitorURL   string     `json:"monitor_url"`
-	Version      string     `json:"version"`
-	Platform     string     `json:"platform"`
-	Hostname     string     `json:"hostname"`
-	LastSeenAt   *time.Time `json:"last_seen_at"`
-	Online       bool       `json:"online"`
-	Paired       bool       `json:"paired"`
-	PairCode     string     `json:"pair_code,omitempty"`
-	TrafficToday int64      `json:"traffic_today_bytes"`
-	Inbounds     int        `json:"inbounds"`
-	UpgradeTo    string     `json:"upgrade_to,omitempty"` // pending upgrade request
-	Outdated     bool       `json:"outdated"`             // reported version older than the latest bosun release
-	CertProblem  bool       `json:"cert_problem"`         // an automatic certificate failed or expires soon
-	DoctorFail   bool       `json:"doctor_fail"`          // the node's last self-check had failures
+	ID            int64      `json:"id"`
+	Name          string     `json:"name"`
+	PublicAddr    string     `json:"public_addr"`
+	InternalAddr  string     `json:"internal_addr"`
+	V6Addr        string     `json:"v6_addr"`
+	Domain        string     `json:"domain"`
+	MonitorURL    string     `json:"monitor_url"`
+	DecoyEnabled  bool       `json:"decoy_enabled"`
+	DecoyUpstream string     `json:"decoy_upstream"`
+	Version       string     `json:"version"`
+	Platform      string     `json:"platform"`
+	Hostname      string     `json:"hostname"`
+	LastSeenAt    *time.Time `json:"last_seen_at"`
+	Online        bool       `json:"online"`
+	Paired        bool       `json:"paired"`
+	PairCode      string     `json:"pair_code,omitempty"`
+	TrafficToday  int64      `json:"traffic_today_bytes"`
+	Inbounds      int        `json:"inbounds"`
+	UpgradeTo     string     `json:"upgrade_to,omitempty"` // pending upgrade request
+	Outdated      bool       `json:"outdated"`             // reported version older than the latest bosun release
+	CertProblem   bool       `json:"cert_problem"`         // an automatic certificate failed or expires soon
+	DoctorFail    bool       `json:"doctor_fail"`          // the node's last self-check had failures
 }
 
 func toNodeView(n *domain.Node, at time.Time) nodeView {
 	return nodeView{
-		ID: n.ID, Name: n.Name, PublicAddr: n.PublicAddr, InternalAddr: n.InternalAddr, V6Addr: n.V6Addr, Domain: n.Domain, MonitorURL: n.MonitorURL,
+		ID: n.ID, Name: n.Name, PublicAddr: n.PublicAddr, InternalAddr: n.InternalAddr, V6Addr: n.V6Addr, Domain: n.Domain, MonitorURL: n.MonitorURL, DecoyEnabled: n.DecoyEnabled, DecoyUpstream: n.DecoyUpstream,
 		Version: n.Version, Platform: n.Platform, Hostname: n.Hostname, LastSeenAt: n.LastSeenAt,
 		Online: n.LastSeenAt != nil && at.Sub(*n.LastSeenAt) < 3*time.Minute, Paired: n.Paired, PairCode: n.PairCode,
 		UpgradeTo: n.UpgradeTo,
@@ -371,6 +373,8 @@ func (h *handlers) listNodes(w http.ResponseWriter, r *http.Request) {
 
 type nodeInput struct {
 	Name, PublicAddr, InternalAddr, V6Addr, Domain, MonitorURL string
+	DecoyEnabled                                               bool
+	DecoyUpstream                                              string
 }
 
 func (h *handlers) createNode(w http.ResponseWriter, r *http.Request) {
@@ -422,7 +426,7 @@ func (h *handlers) updateNode(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "name is required")
 		return
 	}
-	n := &domain.Node{ID: id, Name: in.Name, PublicAddr: in.PublicAddr, InternalAddr: in.InternalAddr, V6Addr: in.V6Addr, Domain: strings.ToLower(strings.TrimSpace(in.Domain)), MonitorURL: in.MonitorURL}
+	n := &domain.Node{ID: id, Name: in.Name, PublicAddr: in.PublicAddr, InternalAddr: in.InternalAddr, V6Addr: in.V6Addr, Domain: strings.ToLower(strings.TrimSpace(in.Domain)), MonitorURL: in.MonitorURL, DecoyEnabled: in.DecoyEnabled, DecoyUpstream: strings.TrimSpace(in.DecoyUpstream)}
 	if err := h.Store.UpdateNode(r.Context(), n); err != nil {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return

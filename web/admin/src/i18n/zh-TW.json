@@ -127,7 +127,11 @@
     "platform": "平台",
     "nodeDomain": "網域",
     "monitor": "外部監控",
-    "open": "開啟"
+    "open": "開啟",
+    "decoy": "偽裝站點（偷自己）",
+    "decoyHint": "節點用自動憑證在本機回環上跑一個真實的 HTTPS 站點，REALITY 入站以它為握手目標：探測者只看到你自己網域的真憑證，回落流量不出本機。需要先填網域。",
+    "decoyUpstream": "上游站點（可選）",
+    "decoyUpstreamHint": "留空用內建占位頁；填 http(s) 位址則反向代理到你的網站"
   },
   "inbounds": {
     "title": "入站",
@@ -177,7 +181,9 @@
     "realityTarget": "REALITY 偽裝目標",
     "realityTargetHint": "目前目標：{{host}}。目標站必須支援 TLS 1.3 + h2，且不能在 Cloudflare 等 CDN 上。",
     "realityNeedsNode": "儲存節點後才能從節點發起探測。",
-    "ingressBindHint": "監聽位址留空則綁定到入口本地 IP {{ip}}。"
+    "ingressBindHint": "監聽位址留空則綁定到入口本地 IP {{ip}}。",
+    "useDecoy": "使用節點偽裝站 {{domain}}",
+    "useDecoyHint": "SNI 設為偽裝站網域，握手目標指向 127.0.0.1:4443"
   },
   "entries": {
     "title": "入口",

@@ -127,7 +127,11 @@
     "platform": "플랫폼",
     "nodeDomain": "도메인",
     "monitor": "외부 모니터",
-    "open": "열기"
+    "open": "열기",
+    "decoy": "위장 사이트(자기 도메인)",
+    "decoyHint": "노드가 자기 도메인의 실제 HTTPS 사이트를 루프백에서 제공하고 REALITY 인바운드가 이를 핸드셰이크 대상으로 씁니다. 탐지자는 내 도메인의 정식 인증서만 보고 폴백 트래픽은 외부로 나가지 않습니다. 위의 도메인이 필요합니다.",
+    "decoyUpstream": "업스트림(선택)",
+    "decoyUpstreamHint": "비우면 내장 페이지, http(s) URL 이면 리버스 프록시"
   },
   "inbounds": {
     "title": "인바운드",
@@ -177,7 +181,9 @@
     "realityTarget": "REALITY 위장 대상",
     "realityTargetHint": "현재 대상: {{host}}. TLS 1.3 + h2 를 지원하고 Cloudflare 등 CDN 위에 있으면 안 됩니다.",
     "realityNeedsNode": "노드를 저장한 뒤 검사할 수 있습니다.",
-    "ingressBindHint": "수신 주소를 비우면 회선 IP {{ip}}에 바인딩합니다."
+    "ingressBindHint": "수신 주소를 비우면 회선 IP {{ip}}에 바인딩합니다.",
+    "useDecoy": "노드 위장 사이트 {{domain}} 사용",
+    "useDecoyHint": "SNI 를 위장 도메인으로, 핸드셰이크 대상을 127.0.0.1:4443 으로 설정"
   },
   "entries": {
     "title": "진입점",
