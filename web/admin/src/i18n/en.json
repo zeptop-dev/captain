@@ -182,7 +182,9 @@
       "snell": "Snell v5",
       "snellDesc": "Surge's protocol with a shared PSK; only Surge / mihomo / Stash can use it.",
       "wireguard": "WireGuard",
-      "wireguardDesc": "Whole-device VPN over UDP; for lines and internal networks."
+      "wireguardDesc": "Whole-device VPN over UDP; for lines and internal networks.",
+      "socks5": "SOCKS5",
+      "socks5Desc": "Plain text with username/password; for lines, LANs or local programs."
     },
     "mieruStrategy": "mieru strategy",
     "mieruStrategyHint": "Same presets as nobrand-oneclick: dedicated line = no obfuscation, public = conservative, stealth adds fragmentation and padding; custom edits traffic_pattern below directly.",

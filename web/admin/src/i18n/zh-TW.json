@@ -164,7 +164,9 @@
       "trojanWs": "Trojan + WS + TLS",
       "trojanWsDesc": "可搭配 CDN，需要憑證。",
       "wireguard": "WireGuard",
-      "wireguardDesc": "整機 VPN，走 UDP；適合專線和內網。"
+      "wireguardDesc": "整機 VPN，走 UDP；適合專線和內網。",
+      "socks5": "SOCKS5",
+      "socks5Desc": "明文，使用者名稱密碼認證；專線、內網或本機程式用。"
     },
     "realityAuto": "自動選擇",
     "realityProbe": "探測目前目標",
