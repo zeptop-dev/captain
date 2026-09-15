@@ -60,7 +60,15 @@
     "qr": "QRコードで取り込み",
     "logins": "ログイン方法",
     "link": "連携",
-    "unlink": "連携解除"
+    "unlink": "連携解除",
+    "statusActive": "有効",
+    "statusLapsed": "失効",
+    "statusQueued": "開始待ち",
+    "queuedHint": "現在のプランが期限切れか通信量を使い切ると自動で開始します。有効期間 {{days}} 日。",
+    "queuedHintForever": "現在のプランが期限切れか通信量を使い切ると自動で開始します。無期限。",
+    "queuedQuota": "通信量 {{quota}}",
+    "cancelQueued": "このプランを取り消す",
+    "online": "オンライン端末"
   },
   "plans": {
     "title": "プラン",
@@ -89,7 +97,29 @@
     "coinbase": "Coinbase 暗号資産",
     "coinpayments": "CoinPayments 暗号資産",
     "btcpay": "BTCPay ビットコイン",
-    "mgate": "MGate 暗号資産"
+    "mgate": "MGate 暗号資産",
+    "renew": "更新",
+    "mine": "マイプラン",
+    "mineQueued": "現在のプラン失効後に開始",
+    "mineExpires": "{{date}} まで",
+    "mineHint": "複数プランを同時に持てます。サーバーは合算、通信量はプランごと。同じプランの購入は更新です。",
+    "mineHintSingle": "同時に有効にできるプランは 1 つです。切り替えると現在のプランは終了します。",
+    "noteRenew": "支払い後、現在の期限から延長され、通信量は新しい期間で再計算されます。",
+    "noteStack": "支払い後すぐ有効になり、現在のプランと併用できます。",
+    "noteQueue": "支払い後は待機し、現在のプランが失効した時点で自動開始します。",
+    "noteReplace": "支払い後、現在のプランは終了しこのプランに切り替わります。",
+    "ask": {
+      "renewTitle": "「{{plan}}」を更新",
+      "renewBody": "このプランはすでにお持ちです。今回の購入で現在の期限が延長され、通信量は新しい期間で再計算されます。",
+      "renewGo": "更新する",
+      "stackTitle": "有効なプランがあります",
+      "stackBody": "「{{plan}}」は現在のプランと併用できます（サーバーは合算、通信量はプランごと）。先に支払い、現在のプランが失効してから自動開始させることもできます。",
+      "stackNow": "今すぐ併用開始",
+      "stackLater": "現在のプラン失効後に開始",
+      "replaceTitle": "現在のプランを置き換えます",
+      "replaceBody": "同時に有効にできるプランは 1 つです。「{{plan}}」を購入すると現在のプランはすぐ終了します。",
+      "replaceGo": "続ける"
+    }
   },
   "orders": {
     "title": "注文",
@@ -190,5 +220,8 @@
       "linux": "Linux",
       "other": "その他"
     }
+  },
+  "common": {
+    "cancel": "キャンセル"
   }
 }

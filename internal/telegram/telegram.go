@@ -294,24 +294,35 @@ func (b *Bot) handle(ctx context.Context, chatID int64, text string) string {
 }
 
 func (b *Bot) status(ctx context.Context, u *domain.User) string {
-	sub, err := b.Store.ActiveSubscription(ctx, u.ID)
-	if err != nil || sub == nil {
+	subs, err := b.Store.Subscriptions(ctx, u.ID)
+	if err != nil || len(subs) == 0 {
 		return fmt.Sprintf("<b>%s</b>\nNo active plan. Balance: %s", esc(u.Email), money(u.BalanceCents))
 	}
-	used := sub.UsedUpBytes + sub.UsedDownBytes
-	quota := "unlimited"
-	if sub.QuotaBytes > 0 {
-		quota = fmt.Sprintf("%s (%d%%)", gb(sub.QuotaBytes), used*100/sub.QuotaBytes)
+	out := "<b>" + esc(u.Email) + "</b>"
+	for _, sub := range subs {
+		name := fmt.Sprintf("plan #%d", sub.PlanID)
+		if p, err := b.Store.PlanByID(ctx, sub.PlanID); err == nil {
+			name = p.Name
+		}
+		used := sub.UsedUpBytes + sub.UsedDownBytes
+		quota := "unlimited"
+		if sub.QuotaBytes > 0 {
+			quota = fmt.Sprintf("%s (%d%%)", gb(sub.QuotaBytes), used*100/sub.QuotaBytes)
+		}
+		exp := "never"
+		if sub.ExpiresAt != nil {
+			exp = sub.ExpiresAt.Format("2006-01-02")
+		}
+		state := "active"
+		switch {
+		case sub.Status == "queued":
+			state = "queued (starts when the current plan lapses)"
+		case !sub.Usable(time.Now()):
+			state = "expired / exhausted"
+		}
+		out += fmt.Sprintf("\n\n<b>%s</b>\nStatus: %s\nUsed: %s of %s\nExpires: %s", esc(name), state, gb(used), quota, exp)
 	}
-	exp := "never"
-	if sub.ExpiresAt != nil {
-		exp = sub.ExpiresAt.Format("2006-01-02")
-	}
-	state := "active"
-	if !sub.Usable(time.Now()) {
-		state = "expired / exhausted"
-	}
-	return fmt.Sprintf("<b>%s</b>\nStatus: %s\nUsed: %s of %s\nExpires: %s\nBalance: %s", esc(u.Email), state, gb(used), quota, exp, money(u.BalanceCents))
+	return out + "\nBalance: " + money(u.BalanceCents)
 }
 
 func gb(b int64) string {

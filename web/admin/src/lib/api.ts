@@ -68,7 +68,7 @@ export interface MailSettings {
   resend: { api_key: string }
   verify_registration: boolean; reminders: boolean
 }
-export interface SubscriptionSettings { urls: string[]; short_links?: boolean; auto_flags?: boolean }
+export interface SubscriptionSettings { urls: string[]; short_links?: boolean; auto_flags?: boolean; single_plan?: boolean }
 export interface ACMESettings { email: string; has_cloudflare_token: boolean }
 export interface Inbound {
   ID: number; NodeID: number; Tag: string; Protocol: string; Listen: string; Port: number; Core: string
@@ -89,7 +89,7 @@ export interface InviteSettings { enabled: boolean; percent: number; first_order
 export interface NoticeSettings { enabled: boolean; title: string; body: string }
 export interface UserRow {
   id: number; email: string; uuid: string; sub_token: string; sub_url: string; group_id: number | null; balance_cents: number; status: string
-  created_at: string; plan_name: string; expires_at: string | null; quota_bytes: number; used_bytes: number; sub_usable: boolean
+  created_at: string; plan_name: string; expires_at: string | null; quota_bytes: number; used_bytes: number; sub_usable: boolean; sub_count: number
 }
 export interface OnlineDevice { ip: string; node_id: number; last_seen_at: string }
 

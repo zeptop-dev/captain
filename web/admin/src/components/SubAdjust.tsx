@@ -7,13 +7,13 @@ import { toast } from '../lib/notify'
 
 // Per-user subscription edits: extend days, override the quota, set the
 // monthly reset day, zero the counters.
-export function SubAdjust({ userID, hasPlan, onDone }: { userID: number; hasPlan: boolean; onDone: () => void }) {
+export function SubAdjust({ userID, hasPlan, subID = 0, onDone }: { userID: number; hasPlan: boolean; subID?: number; onDone: () => void }) {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const [days, setDays] = useState<number | string>(30)
   const [quotaGB, setQuotaGB] = useState<number | string>('')
   const [resetDay, setResetDay] = useState<number | string>('')
-  const call = useMutation({ mutationFn: (body: Record<string, unknown>) => api.post(`/api/admin/users/${userID}/subscription`, body), onSuccess: () => { toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['users'] }); qc.invalidateQueries({ queryKey: ['user', userID] }); onDone() }, onError: toast.err })
+  const call = useMutation({ mutationFn: (body: Record<string, unknown>) => api.post(`/api/admin/users/${userID}/subscription`, { SubID: subID, ...body }), onSuccess: () => { toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['users'] }); qc.invalidateQueries({ queryKey: ['user', userID] }); onDone() }, onError: toast.err })
   if (!hasPlan) return null
   return (
     <Stack gap="sm">

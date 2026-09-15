@@ -107,7 +107,8 @@ type Subscription struct {
 	UsedUpBytes   int64
 	UsedDownBytes int64
 	ResetAt       *time.Time
-	Status        string
+	Status        string // "active" | "queued" | "expired" | "cancelled"
+	PeriodDays    int    // what a queued row starts with (0 = plan base)
 }
 
 // Usable reports whether the subscription still grants access at t.
@@ -205,6 +206,7 @@ type Order struct {
 	CouponID      *int64 //
 	DiscountCents int64  //
 	SurplusCents  int64  // credit from the replaced plan's unused remainder
+	Activation    string // "" starts on payment (stack / renew), "queue" waits for the current plans to lapse
 }
 
 // Coupon is a discount code applied at checkout.

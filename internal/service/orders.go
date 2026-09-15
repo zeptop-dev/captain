@@ -73,7 +73,9 @@ func (o *Orders) Price(ctx context.Context, user *domain.User, planID int64, per
 			q.CouponName = c.Code
 		}
 	}
-	if credit, _ := o.Store.SurplusFor(ctx, user.ID, plan.ID, time.Now()); credit > 0 {
+	var ss SubscriptionSettings
+	_ = o.Store.GetSetting(ctx, SettingSubscription, &ss)
+	if credit, _ := o.Store.SurplusFor(ctx, user.ID, plan.ID, time.Now()); ss.SinglePlan && credit > 0 {
 		if credit > q.AmountCents {
 			credit = q.AmountCents
 		}
@@ -84,11 +86,21 @@ func (o *Orders) Price(ctx context.Context, user *domain.User, planID int64, per
 }
 
 func (o *Orders) Create(ctx context.Context, user *domain.User, planID int64, periodDays int, couponCode, gateway, clientIP string) (*domain.Order, *payment.Checkout, error) {
+	return o.CreateWith(ctx, user, planID, periodDays, couponCode, gateway, clientIP, "")
+}
+
+// CreateWith is Create with the buyer's activation choice: "" starts the
+// plan on payment (stacking next to, or renewing, what they have), "queue"
+// holds it until their current plans lapse.
+func (o *Orders) CreateWith(ctx context.Context, user *domain.User, planID int64, periodDays int, couponCode, gateway, clientIP, activation string) (*domain.Order, *payment.Checkout, error) {
+	if activation != "" && activation != "queue" {
+		return nil, nil, fmt.Errorf("orders: activation must be empty or \"queue\"")
+	}
 	q, plan, err := o.Price(ctx, user, planID, periodDays, couponCode)
 	if err != nil {
 		return nil, nil, err
 	}
-	order := &domain.Order{No: newOrderNo(), UserID: user.ID, PlanID: plan.ID, AmountCents: q.AmountCents, Gateway: gateway, PeriodDays: q.PeriodDays, CouponID: q.CouponID, DiscountCents: q.DiscountCents, SurplusCents: q.SurplusCents}
+	order := &domain.Order{No: newOrderNo(), UserID: user.ID, PlanID: plan.ID, AmountCents: q.AmountCents, Gateway: gateway, PeriodDays: q.PeriodDays, CouponID: q.CouponID, DiscountCents: q.DiscountCents, Activation: activation, SurplusCents: q.SurplusCents}
 	switch gateway {
 	case "balance":
 		if err := o.Store.CreateOrder(ctx, order); err != nil {

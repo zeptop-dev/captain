@@ -10,14 +10,14 @@ import (
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-const orderCols = "id, no, user_id, plan_id, amount_cents, gateway, gateway_ref, status, created_at, paid_at, period_days, coupon_id, discount_cents, surplus_cents"
+const orderCols = "id, no, user_id, plan_id, amount_cents, gateway, gateway_ref, status, created_at, paid_at, period_days, coupon_id, discount_cents, surplus_cents, activation"
 
 func scanOrder(row interface{ Scan(...any) error }) (*domain.Order, error) {
 	var o domain.Order
 	var ref sql.NullString
 	var created int64
 	var paid, coupon sql.NullInt64
-	if err := row.Scan(&o.ID, &o.No, &o.UserID, &o.PlanID, &o.AmountCents, &o.Gateway, &ref, &o.Status, &created, &paid, &o.PeriodDays, &coupon, &o.DiscountCents, &o.SurplusCents); err != nil {
+	if err := row.Scan(&o.ID, &o.No, &o.UserID, &o.PlanID, &o.AmountCents, &o.Gateway, &ref, &o.Status, &created, &paid, &o.PeriodDays, &coupon, &o.DiscountCents, &o.SurplusCents, &o.Activation); err != nil {
 		return nil, wrapNotFound(err)
 	}
 	o.GatewayRef = ref.String
@@ -29,8 +29,8 @@ func scanOrder(row interface{ Scan(...any) error }) (*domain.Order, error) {
 
 func (s *Store) CreateOrder(ctx context.Context, o *domain.Order) error {
 	ts := now()
-	res, err := s.db.ExecContext(ctx, `INSERT INTO orders (no, user_id, plan_id, amount_cents, gateway, status, created_at, period_days, coupon_id, discount_cents, surplus_cents) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`,
-		o.No, o.UserID, o.PlanID, o.AmountCents, o.Gateway, ts, o.PeriodDays, nullInt64(o.CouponID), o.DiscountCents, o.SurplusCents)
+	res, err := s.db.ExecContext(ctx, `INSERT INTO orders (no, user_id, plan_id, amount_cents, gateway, status, created_at, period_days, coupon_id, discount_cents, surplus_cents, activation) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`,
+		o.No, o.UserID, o.PlanID, o.AmountCents, o.Gateway, ts, o.PeriodDays, nullInt64(o.CouponID), o.DiscountCents, o.SurplusCents, o.Activation)
 	if err != nil {
 		return err
 	}
@@ -90,7 +90,7 @@ func (s *Store) MarkPaid(ctx context.Context, no, gatewayRef string, at time.Tim
 	if err != nil {
 		return nil, err
 	}
-	if err := grantTx(ctx, tx, o.UserID, plan, o.PeriodDays, at); err != nil {
+	if err := grantTx(ctx, tx, o.UserID, plan, o.PeriodDays, at, orderGrantMode(ctx, tx, o)); err != nil {
 		return nil, err
 	}
 	if err := s.paidHooksTx(ctx, tx, o); err != nil {
@@ -132,7 +132,7 @@ func (s *Store) PayWithBalance(ctx context.Context, no string, at time.Time) (*d
 	if err != nil {
 		return nil, err
 	}
-	if err := grantTx(ctx, tx, o.UserID, plan, o.PeriodDays, at); err != nil {
+	if err := grantTx(ctx, tx, o.UserID, plan, o.PeriodDays, at, orderGrantMode(ctx, tx, o)); err != nil {
 		return nil, err
 	}
 	if err := s.paidHooksTx(ctx, tx, o); err != nil {
@@ -143,6 +143,18 @@ func (s *Store) PayWithBalance(ctx context.Context, no string, at time.Time) (*d
 	}
 	o.Status, o.GatewayRef, o.PaidAt = "paid", "balance", &at
 	return o, nil
+}
+
+// orderGrantMode honours the buyer's activation choice unless the panel
+// runs single-plan, where a different plan always replaces.
+func orderGrantMode(ctx context.Context, tx *sql.Tx, o *domain.Order) GrantMode {
+	if mode := defaultGrantMode(ctx, tx); mode == GrantReplace {
+		return mode
+	}
+	if o.Activation == "queue" {
+		return GrantQueue
+	}
+	return GrantStack
 }
 
 // ErrInsufficientBalance means the user cannot cover the order.

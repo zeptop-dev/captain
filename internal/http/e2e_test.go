@@ -40,6 +40,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/http/admin"
 	"github.com/zeptop-dev/captain/internal/jobs"
 	"github.com/zeptop-dev/captain/internal/mail"
+	"github.com/zeptop-dev/captain/internal/service"
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
@@ -1322,6 +1323,8 @@ func TestSurplusAndMultiLevelCommission(t *testing.T) {
 	}
 
 	// Surplus: c switches to pro right away; ~100% of basic's 3000 is credited.
+	// Only the single-plan mode replaces (and credits); stacking would keep basic.
+	_ = st.SetSetting(context.Background(), service.SettingSubscription, service.SubscriptionSettings{SinglePlan: true})
 	_, body, _ = c.do("POST", "/api/portal/orders/quote", map[string]any{"plan_id": pro}, nil)
 	q := mustJSON[map[string]any](t, body)
 	surplus := int64(q["surplus_cents"].(float64))

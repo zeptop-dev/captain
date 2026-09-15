@@ -230,7 +230,7 @@
     "noPlan": "無訂閱",
     "group": "使用者群組",
     "grant": "發放方案",
-    "grantHint": "立即生效，取代目前訂閱。",
+    "grantHint": "預設與現有方案同時生效（同一方案則續期）；也可以排隊等現有方案失效後再開始，或取代目前全部方案。",
     "topUp": "調整餘額",
     "topUpHint": "正數儲值，負數扣除，單位為分。",
     "subUrl": "訂閱連結",
@@ -242,7 +242,10 @@
     "createdAt": "註冊時間",
     "filterPlaceholder": "依電子郵件搜尋",
     "devices": "線上裝置（最近 5 分鐘）",
-    "noDevices": "最近沒有裝置在線"
+    "noDevices": "最近沒有裝置在線",
+    "grantDefault": "立即生效",
+    "grantQueue": "現有方案失效後",
+    "grantReplace": "取代目前方案"
   },
   "plans": {
     "title": "方案",
@@ -320,7 +323,9 @@
     "minWithdraw": "最低提領金額",
     "withdrawMethods": "提領方式（逗號分隔）",
     "surplus": "換方案折抵",
-    "surplusHint": "使用者換購其他方案時，把目前方案未用完的部分按剩餘時間（無到期時間則按剩餘流量）折成抵扣，直接從新訂單裡減掉。"
+    "surplusHint": "使用者換購其他方案時，把目前方案未用完的部分按剩餘時間（無到期時間則按剩餘流量）折成抵扣，直接從新訂單裡減掉。",
+    "singlePlan": "同一時間只允許一個方案",
+    "singlePlanHint": "開啟後買不同方案會取代目前方案（可折算剩餘價值）；關閉時多個方案同時生效，節點合併、流量各算各的。"
   },
   "update": {
     "title": "版本與升級",
@@ -656,5 +661,14 @@
     "none": "沒有可用的入口",
     "noLink": "該協定沒有分享連結",
     "allowed": "可見"
+  },
+  "userSubs": {
+    "title": "訂閱",
+    "active": "生效中",
+    "lapsed": "已失效",
+    "queued": "排隊中",
+    "queuedDays": "等待開始 · {{days}} 天",
+    "queuedForever": "等待開始 · 長期",
+    "adjustTarget": "調整哪一張"
   }
 }

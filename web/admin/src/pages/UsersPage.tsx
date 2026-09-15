@@ -12,7 +12,7 @@ import { toast } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
 import { Copy } from '../components/Copy'
 import { RenewalsPanel } from '../components/RenewalsPanel'
-import { SubAdjust } from '../components/SubAdjust'
+import { UserSubs, type UserSub } from '../components/UserSubs'
 import { TempLinks } from '../components/TempLinks'
 import { UserEntries } from '../components/UserEntries'
 import { SegmentedControl } from '@mantine/core'
@@ -36,9 +36,10 @@ export default function UsersPage() {
 
   const editForm = useForm({ initialValues: { Status: 'active', GroupID: '', Password: '' } })
   const update = useMutation({ mutationFn: (v: typeof editForm.values) => api.patch(`/api/admin/users/${sel!.id}`, { Status: v.Status, GroupID: v.GroupID ? Number(v.GroupID) : null, Password: v.Password }), onSuccess: () => { toast.ok(t('common.saved')); invalidate() }, onError: toast.err })
-  const detail = useQuery({ queryKey: ['user', sel?.id], queryFn: () => api.get<{ devices: OnlineDevice[] }>(`/api/admin/users/${sel!.id}`), enabled: sel !== null, refetchInterval: 15000 })
+  const detail = useQuery({ queryKey: ['user', sel?.id], queryFn: () => api.get<{ devices: OnlineDevice[]; subscriptions: UserSub[] }>(`/api/admin/users/${sel!.id}`), enabled: sel !== null, refetchInterval: 15000 })
   const [grantPlan, setGrantPlan] = useState<string | null>(null)
-  const grant = useMutation({ mutationFn: () => api.post(`/api/admin/users/${sel!.id}/grant`, { PlanID: Number(grantPlan) }), onSuccess: () => { toast.ok(t('common.saved')); invalidate(); setSel(null) }, onError: toast.err })
+  const [grantHow, setGrantHow] = useState<string>('')
+  const grant = useMutation({ mutationFn: () => api.post(`/api/admin/users/${sel!.id}/grant`, { PlanID: Number(grantPlan), Activation: grantHow }), onSuccess: () => { toast.ok(t('common.saved')); invalidate(); setSel(null) }, onError: toast.err })
   const [delta, setDelta] = useState<number | string>(0)
   const topUp = useMutation({ mutationFn: () => api.post(`/api/admin/users/${sel!.id}/balance`, { DeltaCents: Number(delta) }), onSuccess: () => { toast.ok(t('common.saved')); invalidate(); setSel(null) }, onError: toast.err })
   const rotate = useMutation({ mutationFn: () => api.post<{ sub_token: string; sub_url: string }>(`/api/admin/users/${sel!.id}/rotate-token`), onSuccess: (r) => { toast.ok(t('common.saved')); setSel({ ...sel!, sub_token: r.sub_token, sub_url: r.sub_url }); invalidate() }, onError: toast.err })
@@ -60,7 +61,7 @@ export default function UsersPage() {
               {(q.data?.items ?? []).map((u) => (
                 <Table.Tr key={u.id} onClick={() => open(u)} style={{ cursor: 'pointer' }}>
                   <Table.Td><Text fw={600}>{u.email}</Text><Text size="xs" c="dimmed">#{u.id}</Text></Table.Td>
-                  <Table.Td>{u.plan_name ? <Badge color={u.sub_usable ? 'teal' : 'orange'}>{u.plan_name}</Badge> : <Text size="sm" c="dimmed">{t('users.noPlan')}</Text>}</Table.Td>
+                  <Table.Td>{u.plan_name ? <Group gap={4}><Badge color={u.sub_usable ? 'teal' : 'orange'}>{u.plan_name}</Badge>{u.sub_count > 1 && <Badge variant="light" color="gray">+{u.sub_count - 1}</Badge>}</Group> : <Text size="sm" c="dimmed">{t('users.noPlan')}</Text>}</Table.Td>
                   <Table.Td w={180}>{u.plan_name ? <><Text size="xs">{bytes(u.used_bytes)}{u.quota_bytes ? ` / ${bytes(u.quota_bytes)}` : ''}</Text>{u.quota_bytes ? <Progress value={Math.min(100, (u.used_bytes / u.quota_bytes) * 100)} size="xs" mt={4} /> : null}</> : '—'}</Table.Td>
                   <Table.Td>{u.plan_name ? (u.expires_at ? when(u.expires_at) : '∞') : '—'}</Table.Td>
                   <Table.Td>{money(u.balance_cents)}</Table.Td>
@@ -112,9 +113,9 @@ export default function UsersPage() {
             <Stack gap="sm">
               <Title order={6}>{t('users.grant')}</Title>
               <Text size="xs" c="dimmed">{t('users.grantHint')}</Text>
-              <Group align="flex-end"><Select flex={1} data={(plans.data ?? []).map((p) => ({ value: String(p.ID), label: `${p.Name} · ${money(p.PriceCents)}` }))} value={grantPlan} onChange={setGrantPlan} placeholder={t('users.plan')} /><Button size="xs" disabled={!grantPlan} loading={grant.isPending} onClick={() => grant.mutate()}>{t('users.grant')}</Button></Group>
+              <Group align="flex-end"><Select flex={1} data={(plans.data ?? []).map((p) => ({ value: String(p.ID), label: `${p.Name} · ${money(p.PriceCents)}` }))} value={grantPlan} onChange={setGrantPlan} placeholder={t('users.plan')} /><Select w={190} data={[{ value: '', label: t('users.grantDefault') }, { value: 'queue', label: t('users.grantQueue') }, { value: 'replace', label: t('users.grantReplace') }]} value={grantHow} onChange={(v) => setGrantHow(v ?? '')} allowDeselect={false} /><Button size="xs" disabled={!grantPlan} loading={grant.isPending} onClick={() => grant.mutate()}>{t('users.grant')}</Button></Group>
             </Stack>
-            <SubAdjust userID={sel.id} hasPlan={!!sel.plan_name} onDone={() => setSel(null)} />
+            <UserSubs userID={sel.id} subs={detail.data?.subscriptions ?? []} onDone={() => setSel(null)} />
             <UserEntries userID={sel.id} />
             <TempLinks userID={sel.id} />
             <Stack gap="sm">

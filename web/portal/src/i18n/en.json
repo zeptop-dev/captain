@@ -60,7 +60,15 @@
     "qr": "Scan to import",
     "logins": "Sign-in methods",
     "link": "Link",
-    "unlink": "Unlink"
+    "unlink": "Unlink",
+    "statusActive": "Active",
+    "statusLapsed": "Lapsed",
+    "statusQueued": "Waiting",
+    "queuedHint": "Starts automatically when your current plan expires or runs out of traffic; valid for {{days}} days.",
+    "queuedHintForever": "Starts automatically when your current plan expires or runs out of traffic; no expiry.",
+    "queuedQuota": "{{quota}} of traffic",
+    "cancelQueued": "Cancel this plan",
+    "online": "Online devices"
   },
   "plans": {
     "title": "Plans",
@@ -89,7 +97,29 @@
     "coinbase": "Coinbase (crypto)",
     "coinpayments": "CoinPayments (crypto)",
     "btcpay": "BTCPay (Bitcoin)",
-    "mgate": "MGate (crypto)"
+    "mgate": "MGate (crypto)",
+    "renew": "Renew",
+    "mine": "My plans",
+    "mineQueued": "starts after the current plan lapses",
+    "mineExpires": "expires {{date}}",
+    "mineHint": "You can hold several plans at once: servers are combined, traffic is counted per plan. Buying a plan you already have renews it.",
+    "mineHintSingle": "Only one plan can be active at a time here; switching plans ends the current one.",
+    "noteRenew": "Extends the current expiry; the traffic quota restarts for the new period.",
+    "noteStack": "Starts right after payment and runs alongside your current plan.",
+    "noteQueue": "Paid now, starts automatically when your current plan expires or runs out of traffic.",
+    "noteReplace": "Your current plan ends on payment and this one takes over.",
+    "ask": {
+      "renewTitle": "Renew \"{{plan}}\"",
+      "renewBody": "You already have this plan. This purchase extends the current expiry, and the traffic quota restarts for the new period.",
+      "renewGo": "Renew",
+      "stackTitle": "You already have an active plan",
+      "stackBody": "\"{{plan}}\" can run alongside your current plan: servers are combined, traffic is counted per plan. Or pay now and let it start automatically once the current plan expires or runs out of traffic.",
+      "stackNow": "Start now, alongside",
+      "stackLater": "Start after the current plan",
+      "replaceTitle": "This replaces your current plan",
+      "replaceBody": "Only one plan can be active at a time here. Buying \"{{plan}}\" ends your current plan right away.",
+      "replaceGo": "Continue"
+    }
   },
   "orders": {
     "title": "Orders",
@@ -190,5 +220,8 @@
       "linux": "Linux",
       "other": "Other"
     }
+  },
+  "common": {
+    "cancel": "Cancel"
   }
 }

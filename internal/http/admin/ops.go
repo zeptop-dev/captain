@@ -59,6 +59,7 @@ func (h *handlers) registerOps(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/admin/nodes/{id}/probe", h.requireAdmin(h.putNodeProbe))
 	mux.HandleFunc("POST /api/admin/nodes/{id}/probe/reset-traffic", h.requireAdmin(h.resetNodeTraffic))
 	mux.HandleFunc("POST /api/admin/users/{id}/subscription", h.requireAdmin(h.adjustSubscription))
+	mux.HandleFunc("DELETE /api/admin/users/{id}/subscriptions/{sid}", h.requireAdmin(h.cancelQueuedSub))
 	mux.HandleFunc("GET /api/admin/renewals", h.requireAdmin(h.renewals))
 	mux.HandleFunc("GET /api/admin/tokens", h.requireAdmin(h.listTokens))
 	mux.HandleFunc("POST /api/admin/tokens", h.requireAdmin(h.createToken))
@@ -962,12 +963,13 @@ func (h *handlers) adjustSubscription(w http.ResponseWriter, r *http.Request) {
 		QuotaOverride *int64
 		ResetDay      *int
 		ResetUsage    bool
+		SubID         int64
 	}
 	if !decode(r, &in) {
 		fail(w, http.StatusBadRequest, "bad json")
 		return
 	}
-	sub, err := h.Store.AdjustSubscription(r.Context(), idOf(r), store.SubAdjust{AddDays: in.AddDays, QuotaOverride: in.QuotaOverride, ResetDay: in.ResetDay, ResetUsage: in.ResetUsage}, time.Now())
+	sub, err := h.Store.AdjustSubscription(r.Context(), idOf(r), store.SubAdjust{SubID: in.SubID, AddDays: in.AddDays, QuotaOverride: in.QuotaOverride, ResetDay: in.ResetDay, ResetUsage: in.ResetUsage}, time.Now())
 	if err != nil {
 		if errors.Is(err, store.ErrNoActiveSubscription) {
 			fail(w, http.StatusConflict, err.Error())
@@ -977,6 +979,16 @@ func (h *handlers) adjustSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, sub)
+}
+
+// cancelQueuedSub removes a queued (not yet started) plan from a user.
+func (h *handlers) cancelQueuedSub(w http.ResponseWriter, r *http.Request) {
+	sid, _ := strconv.ParseInt(r.PathValue("sid"), 10, 64)
+	if err := h.Store.CancelQueued(r.Context(), idOf(r), sid); err != nil {
+		fail(w, http.StatusNotFound, "no such queued subscription")
+		return
+	}
+	ok(w, map[string]bool{"ok": true})
 }
 
 func (h *handlers) renewals(w http.ResponseWriter, r *http.Request) {

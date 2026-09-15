@@ -16,6 +16,7 @@ type SubAdjust struct {
 	QuotaOverride *int64 // bytes; 0 = back to the plan's quota; -1 = unlimited
 	ResetDay      *int   // 1..28 monthly reset day; 0 = plan mode
 	ResetUsage    bool   // zero the counters now
+	SubID         int64  // which subscription; 0 = the primary one
 }
 
 // ErrNoActiveSubscription is returned when the user has nothing to adjust.
@@ -23,7 +24,13 @@ var ErrNoActiveSubscription = errors.New("user has no active subscription")
 
 // AdjustSubscription applies the edit and returns the updated subscription.
 func (s *Store) AdjustSubscription(ctx context.Context, userID int64, adj SubAdjust, at time.Time) (*domain.Subscription, error) {
-	sub, err := s.ActiveSubscription(ctx, userID)
+	var sub *domain.Subscription
+	var err error
+	if adj.SubID > 0 {
+		sub, err = s.SubscriptionByID(ctx, userID, adj.SubID)
+	} else {
+		sub, err = s.ActiveSubscription(ctx, userID)
+	}
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return nil, ErrNoActiveSubscription
@@ -75,7 +82,7 @@ func (s *Store) AdjustSubscription(ctx context.Context, userID int64, adj SubAdj
 			return nil, err
 		}
 	}
-	return s.ActiveSubscription(ctx, userID)
+	return s.SubscriptionByID(ctx, userID, sub.ID)
 }
 
 // nextResetFor is NextReset with an optional per-user monthly day: when

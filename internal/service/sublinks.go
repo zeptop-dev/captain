@@ -24,6 +24,9 @@ type SubscriptionSettings struct {
 	ShortLinks bool `json:"short_links"`
 	// AutoFlags prefixes node names with a region flag emoji when they have none.
 	AutoFlags bool `json:"auto_flags"`
+	// SinglePlan turns stacking off: buying a different plan replaces the
+	// current one (with the surplus credit) instead of running alongside it.
+	SinglePlan bool `json:"single_plan"`
 }
 
 // SettingSubscription is the settings key.

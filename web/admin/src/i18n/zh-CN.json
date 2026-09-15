@@ -283,7 +283,7 @@
     "noPlan": "无订阅",
     "group": "用户组",
     "grant": "发放套餐",
-    "grantHint": "立即生效，替换当前订阅。",
+    "grantHint": "默认与现有套餐同时生效（同一套餐则续期）；也可以排队等现有套餐失效后再开始，或替换当前全部套餐。",
     "topUp": "调整余额",
     "topUpHint": "正数充值，负数扣减，单位分。",
     "subUrl": "订阅链接",
@@ -297,7 +297,10 @@
     "devices": "在线设备（最近 5 分钟）",
     "noDevices": "最近没有设备在线",
     "viewList": "列表",
-    "viewRenewals": "续费视图"
+    "viewRenewals": "续费视图",
+    "grantDefault": "立即生效",
+    "grantQueue": "现有套餐失效后",
+    "grantReplace": "替换当前套餐"
   },
   "plans": {
     "title": "套餐",
@@ -379,7 +382,9 @@
     "shortLinks": "使用短链接",
     "shortLinksHint": "订阅地址用 /s/短码 代替 /sub/长令牌，更短更好记；旧链接仍然有效。",
     "autoFlags": "自动加国旗",
-    "autoFlagsHint": "节点名没有旗帜 emoji 时，按地区（或从名称识别的地区）自动加上，例如 🇯🇵 Tokyo。"
+    "autoFlagsHint": "节点名没有旗帜 emoji 时，按地区（或从名称识别的地区）自动加上，例如 🇯🇵 Tokyo。",
+    "singlePlan": "同一时间只允许一个套餐",
+    "singlePlanHint": "开启后买不同套餐会替换当前套餐（可折算剩余价值）；关闭时多个套餐同时生效，节点合并、流量各算各的。"
   },
   "update": {
     "title": "版本与升级",
@@ -1039,5 +1044,14 @@
     "none": "没有可用的入口",
     "noLink": "该协议没有分享链接",
     "allowed": "可见"
+  },
+  "userSubs": {
+    "title": "订阅",
+    "active": "生效中",
+    "lapsed": "已失效",
+    "queued": "排队中",
+    "queuedDays": "等待开始 · {{days}} 天",
+    "queuedForever": "等待开始 · 长期",
+    "adjustTarget": "调整哪一张"
   }
 }

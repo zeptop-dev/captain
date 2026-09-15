@@ -230,7 +230,7 @@
     "noPlan": "구독 없음",
     "group": "사용자 그룹",
     "grant": "요금제 지급",
-    "grantHint": "즉시 적용되며 현재 구독을 대체합니다.",
+    "grantHint": "기본은 현재 플랜과 함께 즉시 시작(같은 플랜이면 갱신). 현재 플랜 종료 후 시작하거나 모든 플랜을 대체할 수도 있습니다.",
     "topUp": "잔액 조정",
     "topUpHint": "양수는 충전, 음수는 차감이며 단위는 센트입니다.",
     "subUrl": "구독 링크",
@@ -242,7 +242,10 @@
     "createdAt": "가입일",
     "filterPlaceholder": "이메일로 검색",
     "devices": "온라인 기기(최근 5분)",
-    "noDevices": "최근 온라인 기기가 없습니다"
+    "noDevices": "최근 온라인 기기가 없습니다",
+    "grantDefault": "즉시 시작",
+    "grantQueue": "현재 플랜 종료 후",
+    "grantReplace": "현재 플랜 대체"
   },
   "plans": {
     "title": "요금제",
@@ -320,7 +323,9 @@
     "minWithdraw": "최소 출금 금액",
     "withdrawMethods": "출금 방법(쉼표로 구분)",
     "surplus": "요금제 변경 차감",
-    "surplusHint": "사용자가 다른 요금제로 바꿀 때 현재 요금제의 미사용분을 남은 기간(만료일이 없으면 남은 데이터) 비율로 환산해 새 주문에서 바로 차감합니다."
+    "surplusHint": "사용자가 다른 요금제로 바꿀 때 현재 요금제의 미사용분을 남은 기간(만료일이 없으면 남은 데이터) 비율로 환산해 새 주문에서 바로 차감합니다.",
+    "singlePlan": "한 번에 한 플랜만",
+    "singlePlanHint": "켜면 다른 플랜 구매 시 현재 플랜을 대체(잔여 가치 크레딧). 끄면 플랜이 누적되어 서버는 합쳐지고 트래픽은 플랜별로 계산됩니다."
   },
   "update": {
     "title": "버전 및 업그레이드",
@@ -656,5 +661,14 @@
     "none": "사용 가능한 엔트리 없음",
     "noLink": "이 프로토콜은 공유 링크 없음",
     "allowed": "표시"
+  },
+  "userSubs": {
+    "title": "구독",
+    "active": "사용 중",
+    "lapsed": "만료됨",
+    "queued": "대기 중",
+    "queuedDays": "대기 · {{days}}일",
+    "queuedForever": "대기 · 무기한",
+    "adjustTarget": "조정 대상"
   }
 }

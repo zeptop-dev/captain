@@ -40,12 +40,17 @@ func (s *Store) PlanByID(ctx context.Context, id int64) (*domain.Plan, error) {
 // GrantSubscription expires the user's current subscription and starts a new
 // one from plan; the user is moved to the plan's group.
 func (s *Store) GrantSubscription(ctx context.Context, userID int64, plan *domain.Plan, at time.Time) (*domain.Subscription, error) {
+	return s.GrantSubscriptionMode(ctx, userID, plan, at, s.DefaultGrantMode(ctx))
+}
+
+// GrantSubscriptionMode is GrantSubscription with an explicit stacking choice.
+func (s *Store) GrantSubscriptionMode(ctx context.Context, userID int64, plan *domain.Plan, at time.Time, mode GrantMode) (*domain.Subscription, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
-	if err := grantTx(ctx, tx, userID, plan, 0, at); err != nil {
+	if err := grantTx(ctx, tx, userID, plan, 0, at, mode); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -56,8 +61,9 @@ func (s *Store) GrantSubscription(ctx context.Context, userID int64, plan *domai
 
 // grantTx gives userID the plan for periodDays (0 = the plan's base
 // period). Renewing the same plan before it expires extends the time and
-// refills the quota; anything else replaces the current subscription.
-func grantTx(ctx context.Context, tx *sql.Tx, userID int64, plan *domain.Plan, periodDays int, at time.Time) error {
+// refills the quota. Otherwise the mode decides: stack next to the current
+// subscriptions, queue behind them, or replace them.
+func grantTx(ctx context.Context, tx *sql.Tx, userID int64, plan *domain.Plan, periodDays int, at time.Time, mode GrantMode) error {
 	if periodDays <= 0 {
 		periodDays = plan.PeriodDays
 	}
@@ -95,16 +101,40 @@ func grantTx(ctx context.Context, tx *sql.Tx, userID int64, plan *domain.Plan, p
 			expires, quota, reset, now(), subID)
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE subscriptions SET status = 'expired', updated_at = ? WHERE user_id = ? AND status = 'active'`, now(), userID); err != nil {
+	if mode == GrantQueue {
+		// Nothing usable to wait for: start now instead.
+		var n int
+		_ = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM subscriptions sub WHERE sub.user_id = ? AND sub.status = 'active' AND `+usableSQL, userID, at.Unix()).Scan(&n)
+		if n == 0 {
+			mode = GrantStack
+		}
+	}
+	switch mode {
+	case GrantQueue:
+		_, err := tx.ExecContext(ctx, `INSERT INTO subscriptions (user_id, plan_id, starts_at, expires_at, quota_bytes, reset_at, status, period_days, created_at, updated_at)
+			VALUES (?, ?, ?, NULL, ?, NULL, 'queued', ?, ?, ?)`, userID, plan.ID, at.Unix(), plan.QuotaBytes, periodDays, now(), now())
 		return err
+	case GrantReplace:
+		if _, err := tx.ExecContext(ctx, `UPDATE subscriptions SET status = 'expired', updated_at = ? WHERE user_id = ? AND status = 'active'`, now(), userID); err != nil {
+			return err
+		}
+	default:
+		// Stacking: a group the user only had through an earlier grant is
+		// now derived from the live subscriptions (AccessGroups), so drop it.
+		if _, err := tx.ExecContext(ctx, `UPDATE users SET group_id = NULL, updated_at = ? WHERE id = ? AND group_id IN (SELECT p.group_id FROM subscriptions sub JOIN plans p ON p.id = sub.plan_id WHERE sub.user_id = ? AND p.group_id IS NOT NULL)`, now(), userID, userID); err != nil {
+			return err
+		}
 	}
 	var expires sql.NullInt64
 	if periodDays > 0 {
 		expires = sql.NullInt64{Int64: at.AddDate(0, 0, periodDays).Unix(), Valid: true}
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO subscriptions (user_id, plan_id, starts_at, expires_at, quota_bytes, reset_at, status, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`, userID, plan.ID, at.Unix(), expires, plan.QuotaBytes, reset, now(), now()); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO subscriptions (user_id, plan_id, starts_at, expires_at, quota_bytes, reset_at, status, period_days, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`, userID, plan.ID, at.Unix(), expires, plan.QuotaBytes, reset, periodDays, now(), now()); err != nil {
 		return err
+	}
+	if mode != GrantReplace {
+		return nil
 	}
 	_, err = tx.ExecContext(ctx, `UPDATE users SET group_id = ?, updated_at = ? WHERE id = ?`, nullInt64(plan.GroupID), now(), userID)
 	return err
@@ -163,20 +193,12 @@ func planByIDTx(ctx context.Context, tx *sql.Tx, id int64) (*domain.Plan, error)
 	return &p, nil
 }
 
-// ActiveSubscription returns the user's current subscription, if any.
+// ActiveSubscription returns the user's primary subscription: the usable
+// one that lasts longest, else the most recent active row. Callers that
+// care about every plan use Subscriptions.
 func (s *Store) ActiveSubscription(ctx context.Context, userID int64) (*domain.Subscription, error) {
-	var sub domain.Subscription
-	var starts int64
-	var expires, reset sql.NullInt64
-	err := s.db.QueryRowContext(ctx, `SELECT id, user_id, plan_id, starts_at, expires_at, quota_bytes, used_up_bytes, used_down_bytes, reset_at, status
-		FROM subscriptions WHERE user_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1`, userID).
-		Scan(&sub.ID, &sub.UserID, &sub.PlanID, &starts, &expires, &sub.QuotaBytes, &sub.UsedUpBytes, &sub.UsedDownBytes, &reset, &sub.Status)
-	if err != nil {
-		return nil, wrapNotFound(err)
-	}
-	sub.StartsAt = unix(starts)
-	sub.ExpiresAt, sub.ResetAt = unixPtr(expires), unixPtr(reset)
-	return &sub, nil
+	return scanSubscription(s.db.QueryRowContext(ctx, `SELECT `+subscriptionCols+` FROM subscriptions sub WHERE user_id = ? AND status = 'active'
+		ORDER BY (`+usableSQL+`) DESC, expires_at IS NULL DESC, expires_at DESC, id DESC LIMIT 1`, userID, time.Now().Unix()))
 }
 
 // CreateGroup inserts a user group.
@@ -219,7 +241,7 @@ func (s *Store) ApplyTrial(ctx context.Context, userID int64, at time.Time) erro
 		return err
 	}
 	defer tx.Rollback()
-	if err := grantTx(ctx, tx, userID, plan, tr.PeriodDays, at); err != nil {
+	if err := grantTx(ctx, tx, userID, plan, tr.PeriodDays, at, GrantStack); err != nil {
 		return err
 	}
 	return tx.Commit()

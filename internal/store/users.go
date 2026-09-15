@@ -64,8 +64,9 @@ func (s *Store) UsersWithAccess(ctx context.Context, groupID *int64, at time.Tim
 		              AND (sub.quota_bytes = 0 OR sub.used_up_bytes + sub.used_down_bytes < sub.quota_bytes))`
 	args := []any{at.Unix()}
 	if groupID != nil {
-		q += ` AND u.group_id = ?`
-		args = append(args, *groupID)
+		q += ` AND (u.group_id = ? OR EXISTS (SELECT 1 FROM subscriptions sub JOIN plans p ON p.id = sub.plan_id WHERE sub.user_id = u.id AND sub.status = 'active' AND p.group_id = ?
+		              AND (sub.expires_at IS NULL OR sub.expires_at > ?) AND (sub.quota_bytes = 0 OR sub.used_up_bytes + sub.used_down_bytes < sub.quota_bytes)))`
+		args = append(args, *groupID, *groupID, at.Unix())
 	}
 	rows, err := s.db.QueryContext(ctx, q+` ORDER BY u.id`, args...)
 	if err != nil {
@@ -118,6 +119,7 @@ type UserRow struct {
 	QuotaBytes int64
 	UsedBytes  int64
 	SubUsable  bool
+	SubCount   int // active subscriptions (the summary above is the primary one)
 }
 
 // ListUsers returns users matching q (email substring) with their active
@@ -133,11 +135,12 @@ func (s *Store) ListUsers(ctx context.Context, q string, limit, offset int, at t
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users u `+where, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT u.id, u.email, u.password_hash, u.role, u.uuid, u.sub_token, u.group_id, u.balance_cents, u.status, u.created_at, u.updated_at, p.name, sub.expires_at, sub.quota_bytes, sub.used_up_bytes + sub.used_down_bytes
+	rows, err := s.db.QueryContext(ctx, `SELECT u.id, u.email, u.password_hash, u.role, u.uuid, u.sub_token, u.group_id, u.balance_cents, u.status, u.created_at, u.updated_at, p.name, sub.expires_at, sub.quota_bytes, (SELECT COUNT(*) FROM subscriptions c WHERE c.user_id = u.id AND c.status = 'active'), sub.used_up_bytes + sub.used_down_bytes
 		FROM users u
-		LEFT JOIN subscriptions sub ON sub.user_id = u.id AND sub.status = 'active'
+		LEFT JOIN subscriptions sub ON sub.id = (SELECT id FROM subscriptions x WHERE x.user_id = u.id AND x.status = 'active'
+			ORDER BY ((x.expires_at IS NULL OR x.expires_at > ?) AND (x.quota_bytes = 0 OR x.used_up_bytes + x.used_down_bytes < x.quota_bytes)) DESC, x.expires_at IS NULL DESC, x.expires_at DESC, x.id DESC LIMIT 1)
 		LEFT JOIN plans p ON p.id = sub.plan_id
-		`+where+` ORDER BY u.id DESC LIMIT ? OFFSET ?`, append(args, limit, offset)...)
+		`+where+` ORDER BY u.id DESC LIMIT ? OFFSET ?`, append(append([]any{at.Unix()}, args...), limit, offset)...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -149,7 +152,7 @@ func (s *Store) ListUsers(ctx context.Context, q string, limit, offset int, at t
 		var plan sql.NullString
 		var created, updated int64
 		if err := rows.Scan(&r.User.ID, &r.User.Email, &r.User.PasswordHash, &r.User.Role, &r.User.UUID, &r.User.SubToken, &group, &r.User.BalanceCents, &r.User.Status, &created, &updated,
-			&plan, &expires, &quota, &used); err != nil {
+			&plan, &expires, &quota, &r.SubCount, &used); err != nil {
 			return nil, 0, err
 		}
 		r.User.GroupID = int64Ptr(group)

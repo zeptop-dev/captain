@@ -553,6 +553,7 @@ type userView struct {
 	QuotaBytes   int64      `json:"quota_bytes"`
 	UsedBytes    int64      `json:"used_bytes"`
 	SubUsable    bool       `json:"sub_usable"`
+	SubCount     int        `json:"sub_count"`
 }
 
 func (h *handlers) listUsers(w http.ResponseWriter, r *http.Request) {
@@ -614,9 +615,23 @@ func (h *handlers) getUser(w http.ResponseWriter, r *http.Request) {
 	if devices == nil {
 		devices = []store.OnlineDevice{}
 	}
+	all, _ := h.Store.Subscriptions(r.Context(), id)
+	names := map[int64]string{}
+	subs := make([]map[string]any, 0, len(all))
+	for _, s := range all {
+		name, seen := names[s.PlanID]
+		if !seen {
+			if p, err := h.Store.PlanByID(r.Context(), s.PlanID); err == nil {
+				name = p.Name
+			}
+			names[s.PlanID] = name
+		}
+		subs = append(subs, map[string]any{"id": s.ID, "plan_id": s.PlanID, "plan_name": name, "status": s.Status, "starts_at": s.StartsAt, "expires_at": s.ExpiresAt, "reset_at": s.ResetAt,
+			"quota_bytes": s.QuotaBytes, "used_bytes": s.UsedUpBytes + s.UsedDownBytes, "usable": s.Status == "active" && s.Usable(time.Now()), "period_days": s.PeriodDays})
+	}
 	ok(w, map[string]any{"id": u.ID, "email": u.Email, "uuid": u.UUID, "sub_token": u.SubToken, "sub_url": h.subURL(r.Context(), u.SubToken), "group_id": u.GroupID, "status": u.Status,
 		"invite_code": u.InviteCode, "invited_by": u.InvitedBy,
-		"balance_cents": u.BalanceCents, "created_at": u.CreatedAt, "subscription": sub, "orders": orders, "devices": devices})
+		"balance_cents": u.BalanceCents, "created_at": u.CreatedAt, "subscription": sub, "subscriptions": subs, "orders": orders, "devices": devices})
 }
 
 func (h *handlers) updateUser(w http.ResponseWriter, r *http.Request) {
@@ -703,7 +718,10 @@ func (h *handlers) adjustBalance(w http.ResponseWriter, r *http.Request) {
 // grantPlan gives a user a plan directly (manual order).
 func (h *handlers) grantPlan(w http.ResponseWriter, r *http.Request) {
 	userID, okID := pathID(r)
-	var in struct{ PlanID int64 }
+	var in struct {
+		PlanID     int64
+		Activation string // "" stack (or replace under single-plan), "queue", "replace"
+	}
 	if !okID || !decode(r, &in) {
 		fail(w, http.StatusBadRequest, "bad json")
 		return
@@ -713,7 +731,14 @@ func (h *handlers) grantPlan(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusNotFound, "plan not found")
 		return
 	}
-	sub, err := h.Store.GrantSubscription(r.Context(), userID, plan, time.Now())
+	mode := h.Store.DefaultGrantMode(r.Context())
+	switch in.Activation {
+	case "queue":
+		mode = store.GrantQueue
+	case "replace":
+		mode = store.GrantReplace
+	}
+	sub, err := h.Store.GrantSubscriptionMode(r.Context(), userID, plan, time.Now(), mode)
 	if err != nil {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return

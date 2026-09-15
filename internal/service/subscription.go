@@ -20,16 +20,13 @@ var ErrNoAccess = errors.New("subscription: no usable subscription")
 
 // Lines returns what the user may connect to, or ErrNoAccess.
 func (s *Subscription) Lines(ctx context.Context, u *domain.User, at time.Time) ([]subscription.Line, subscription.Account, error) {
-	sub, err := s.Store.ActiveSubscription(ctx, u.ID)
-	if errors.Is(err, store.ErrNotFound) || (err == nil && !sub.Usable(at)) || u.Status != "active" {
-		acct := subscription.Account{}
-		if sub != nil {
-			acct = account(sub)
-		}
-		return nil, acct, ErrNoAccess
-	}
+	subs, err := s.Store.ActiveSubscriptions(ctx, u.ID)
 	if err != nil {
 		return nil, subscription.Account{}, err
+	}
+	usable := usableSubs(subs, at)
+	if len(usable) == 0 || u.Status != "active" {
+		return nil, account(subs), ErrNoAccess
 	}
 	rows, err := s.Store.EntriesForUser(ctx, u)
 	if err != nil {
@@ -45,7 +42,11 @@ func (s *Subscription) Lines(ctx context.Context, u *domain.User, at time.Time) 
 		})
 	}
 	// External nodes (imported share links) follow the panel's own entries.
-	ext, err := s.Store.ExternalNodesForGroup(ctx, u.GroupID)
+	groups, err := s.Store.AccessGroups(ctx, u, at)
+	if err != nil {
+		return nil, subscription.Account{}, err
+	}
+	ext, err := s.Store.ExternalNodesForGroup(ctx, groups)
 	if err != nil {
 		return nil, subscription.Account{}, err
 	}
@@ -57,7 +58,17 @@ func (s *Subscription) Lines(ctx context.Context, u *domain.User, at time.Time) 
 		l.Name = subscription.WithFlag(n.Name, l.Host, "", ss.AutoFlags)
 		lines = append(lines, l)
 	}
-	return lines, account(sub), nil
+	return lines, account(usable), nil
+}
+
+func usableSubs(subs []*domain.Subscription, at time.Time) []*domain.Subscription {
+	var out []*domain.Subscription
+	for _, sub := range subs {
+		if sub.Usable(at) {
+			out = append(out, sub)
+		}
+	}
+	return out
 }
 
 // EntryLink is one entry as one user would receive it, with the share URI
@@ -101,10 +112,31 @@ func (s *Subscription) EntryLinks(ctx context.Context, u *domain.User) ([]EntryL
 	return out, nil
 }
 
-func account(sub *domain.Subscription) subscription.Account {
-	a := subscription.Account{Upload: sub.UsedUpBytes, Download: sub.UsedDownBytes, Total: sub.QuotaBytes}
-	if sub.ExpiresAt != nil {
-		a.Expire = sub.ExpiresAt.Unix()
+// account folds several subscriptions into the one summary the
+// Subscription-Userinfo header can carry: usage and quota add up (any
+// unlimited plan makes the total unlimited), expiry is the latest (never
+// when any plan never expires).
+func account(subs []*domain.Subscription) subscription.Account {
+	var a subscription.Account
+	unlimited, never := false, false
+	for _, sub := range subs {
+		a.Upload += sub.UsedUpBytes
+		a.Download += sub.UsedDownBytes
+		if sub.QuotaBytes == 0 {
+			unlimited = true
+		}
+		a.Total += sub.QuotaBytes
+		if sub.ExpiresAt == nil {
+			never = true
+		} else if e := sub.ExpiresAt.Unix(); e > a.Expire {
+			a.Expire = e
+		}
+	}
+	if unlimited {
+		a.Total = 0
+	}
+	if never {
+		a.Expire = 0
 	}
 	return a
 }

@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { copyText } from '../lib/clipboard'
 import { useAuth } from '../lib/auth'
 import { bytes, money, when } from '../lib/format'
+import { toast } from '../lib/notify'
 import { RedeemCard } from '../components/RedeemCard'
 import { TelegramCard } from '../components/TelegramCard'
 
@@ -31,10 +32,13 @@ export default function HomePage() {
   const providers = useQuery({ queryKey: ['oauth-providers'], queryFn: () => api.get<{ providers: { id: string; name: string }[] }>('/api/oauth/providers') })
   const identities = useQuery({ queryKey: ['identities'], queryFn: () => api.get<{ provider: string; email: string }[]>('/api/oauth/identities') })
   const unlink = useMutation({ mutationFn: (p: string) => api.del(`/api/oauth/identities/${p}`), onSuccess: () => qc.invalidateQueries({ queryKey: ['identities'] }) })
-  const { me } = useAuth()
+  const { me, refresh } = useAuth()
+  const cancelQueued = useMutation({ mutationFn: (id: number) => api.del(`/api/portal/subscriptions/${id}`), onSuccess: () => refresh(), onError: toast.err })
   if (!me) return null
+  const subs = me.subscriptions ?? []
   const sub = me.subscription
-  const daysLeft = sub?.expires_at ? Math.max(0, Math.ceil((new Date(sub.expires_at).getTime() - Date.now()) / 86400000)) : null
+  const anyUsable = subs.some((s) => s.usable)
+  const daysOf = (iso: string | null) => (iso ? Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000)) : null)
   return (
     <Stack gap="lg">
       {notice.data?.enabled && <Alert color="blue" title={notice.data.title}><Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{notice.data.body}</Text></Alert>}
@@ -47,31 +51,56 @@ export default function HomePage() {
           <Button component={Link} to="/plans">{t('home.browsePlans')}</Button>
         </Card>
       )}
-      {sub && !sub.usable && (
+      {sub && !anyUsable && (
         <Card style={{ borderColor: 'var(--mantine-color-orange-4)' }}>
           <Group justify="space-between"><div><Title order={4}>{t('home.expired')}</Title><Text c="dimmed">{t('home.expiredHint')}</Text></div><Button component={Link} to="/plans" color="orange">{t('home.renew')}</Button></Group>
         </Card>
       )}
-      {sub && (
-        <SimpleGrid cols={{ base: 1, xs: 3 }}>
-          <Card>
-            <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.usage')}</Text>
-            <Text fz="xl" fw={700} mt={4}>{bytes(sub.used_bytes)}{sub.quota_bytes ? <Text span c="dimmed" fz="sm"> / {bytes(sub.quota_bytes)}</Text> : null}</Text>
-            {sub.quota_bytes ? <Progress value={Math.min(100, (sub.used_bytes / sub.quota_bytes) * 100)} mt="sm" /> : <Text size="sm" c="dimmed">{t('home.unlimited')}</Text>}
-            {sub.reset_at && <Text size="xs" c="dimmed" mt={6}>{t('home.resetsOn', { date: when(sub.reset_at).split(',')[0] })}</Text>}
-          </Card>
-          <Card>
-            <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.expires')}</Text>
-            <Text fz="xl" fw={700} mt={4}>{sub.expires_at ? when(sub.expires_at).split(',')[0] : t('home.never')}</Text>
-            {daysLeft !== null && <Badge mt="sm" color={daysLeft > 7 ? 'teal' : 'orange'}>{t('home.daysLeft', { count: daysLeft })}</Badge>}
-            <Text size="xs" c="dimmed" mt={6}>{t('home.devices', { count: sub.online_devices })}</Text>
-          </Card>
-          <Card>
-            <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.balance')}</Text>
-            <Text fz="xl" fw={700} mt={4}>{money(me.balance_cents)}</Text>
-          </Card>
+      {subs.length > 0 && (
+        <SimpleGrid cols={{ base: 1, xs: 2 }}>
+          {subs.map((s) => {
+            const days = daysOf(s.expires_at)
+            const queued = s.status === 'queued'
+            return (
+              <Card key={s.id} style={queued ? { borderStyle: 'dashed' } : undefined}>
+                <Group justify="space-between" align="flex-start" mb="xs">
+                  <Text fw={700}>{s.plan_name}</Text>
+                  <Badge variant="light" color={queued ? 'gray' : s.usable ? 'teal' : 'orange'}>{queued ? t('home.statusQueued') : s.usable ? t('home.statusActive') : t('home.statusLapsed')}</Badge>
+                </Group>
+                {queued ? (
+                  <>
+                    <Text size="sm" c="dimmed">{s.period_days ? t('home.queuedHint', { days: s.period_days }) : t('home.queuedHintForever')}</Text>
+                    <Text size="sm" c="dimmed">{s.quota_bytes ? t('home.queuedQuota', { quota: bytes(s.quota_bytes) }) : t('home.unlimited')}</Text>
+                    <Group justify="flex-end" mt="sm"><Button size="xs" variant="subtle" color="gray" loading={cancelQueued.isPending} onClick={() => cancelQueued.mutate(s.id)}>{t('home.cancelQueued')}</Button></Group>
+                  </>
+                ) : (
+                  <>
+                    <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.usage')}</Text>
+                    <Text fz="lg" fw={700}>{bytes(s.used_bytes)}{s.quota_bytes ? <Text span c="dimmed" fz="sm"> / {bytes(s.quota_bytes)}</Text> : null}</Text>
+                    {s.quota_bytes ? <Progress value={Math.min(100, (s.used_bytes / s.quota_bytes) * 100)} mt={4} /> : <Text size="sm" c="dimmed">{t('home.unlimited')}</Text>}
+                    {s.reset_at && <Text size="xs" c="dimmed" mt={4}>{t('home.resetsOn', { date: when(s.reset_at).split(',')[0] })}</Text>}
+                    <Group gap="xs" mt="sm" align="center">
+                      <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.expires')}</Text>
+                      <Text size="sm" fw={600}>{s.expires_at ? when(s.expires_at).split(',')[0] : t('home.never')}</Text>
+                      {days !== null && <Badge size="sm" color={days > 7 ? 'teal' : 'orange'}>{t('home.daysLeft', { count: days })}</Badge>}
+                    </Group>
+                  </>
+                )}
+              </Card>
+            )
+          })}
         </SimpleGrid>
       )}
+      <SimpleGrid cols={{ base: 2 }}>
+        <Card>
+          <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.balance')}</Text>
+          <Text fz="xl" fw={700} mt={4}>{money(me.balance_cents)}</Text>
+        </Card>
+        <Card>
+          <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.online')}</Text>
+          <Text fz="xl" fw={700} mt={4}>{me.online_devices ?? sub?.online_devices ?? 0}</Text>
+        </Card>
+      </SimpleGrid>
 
       <Card>
         <Title order={4}>{t('home.subscribe')}</Title>
