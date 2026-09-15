@@ -38,7 +38,10 @@ type SessionStore interface {
 
 // Deps are the handlers' dependencies.
 type Deps struct {
-	Store    *store.Store
+	Store *store.Store
+	// State is the node desired-state builder; every non-GET admin request
+	// drops its cache so nodes see edits at once.
+	State    *service.AgentState
 	Log      *slog.Logger
 	Sessions SessionStore
 	Version  string
@@ -222,6 +225,9 @@ func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 		if !allowed(u.Role, r.Method, r.URL.Path) {
 			fail(w, http.StatusForbidden, "your role cannot do that")
 			return
+		}
+		if h.State != nil && r.Method != http.MethodGet {
+			defer h.State.Invalidate()
 		}
 		next(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, u)))
 	}

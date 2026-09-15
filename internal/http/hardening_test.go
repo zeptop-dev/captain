@@ -105,3 +105,38 @@ func TestNodeReportScopedToItsUsers(t *testing.T) {
 	}
 	_ = strings.TrimSpace
 }
+
+// A node job must wake the node's long-poll: the revision changes when a
+// job is queued, so a GET with the previous ETag returns the state with
+// the job instead of 304 forever.
+func TestNodeJobChangesRevision(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "http://test"
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	c := &client{t: t, srv: srv}
+	c.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+	_, b, _ := c.do("POST", "/api/admin/nodes", map[string]string{"Name": "n"}, nil)
+	node := mustJSON[map[string]any](t, b)
+	nodeID := itoa(int64(node["id"].(float64)))
+	agent := &client{t: t, srv: srv}
+	_, b, _ = agent.do("POST", "/api/agent/pair", agentproto.PairRequest{Code: node["pair_code"].(string)}, nil)
+	agent.token = mustJSON[agentproto.PairResponse](t, b).Token
+	_, b, hdr := agent.do("GET", "/api/agent/state", nil, nil)
+	etag := hdr.Get("ETag")
+	if code, _, _ := agent.do("GET", "/api/agent/state", nil, map[string]string{"If-None-Match": etag}); code != 304 {
+		t.Fatalf("unchanged state should be 304, got %d", code)
+	}
+	if code, b, _ := c.do("POST", "/api/admin/nodes/"+nodeID+"/jobs", map[string]any{"kind": "reality_scan", "params": map[string]any{}}, nil); code != 200 {
+		t.Fatalf("queue job: %d %s", code, b)
+	}
+	code, b, _ := agent.do("GET", "/api/agent/state", nil, map[string]string{"If-None-Match": etag})
+	if code != 200 || !strings.Contains(string(b), `"reality_scan"`) {
+		t.Fatalf("job did not change the revision: %d %s", code, b)
+	}
+}

@@ -185,16 +185,37 @@ func (s *Store) startSubscription(ctx context.Context, id int64, plan *domain.Pl
 	return err
 }
 
-// CancelQueued drops a queued subscription (portal or admin).
+// CancelQueued drops a queued subscription (portal or admin). When the
+// row came from a paid "start after the current plan" order, that order
+// is marked refunded and its amount goes back to the user's balance.
 func (s *Store) CancelQueued(ctx context.Context, userID, id int64) error {
-	res, err := s.db.ExecContext(ctx, `UPDATE subscriptions SET status = 'cancelled', updated_at = ? WHERE id = ? AND user_id = ? AND status = 'queued'`, now(), id, userID)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return ErrNotFound
+	defer tx.Rollback()
+	var planID int64
+	if err := tx.QueryRowContext(ctx, `SELECT plan_id FROM subscriptions WHERE id = ? AND user_id = ? AND status = 'queued'`, id, userID).Scan(&planID); err != nil {
+		return wrapNotFound(err)
 	}
-	return nil
+	if _, err := tx.ExecContext(ctx, `UPDATE subscriptions SET status = 'cancelled', updated_at = ? WHERE id = ?`, now(), id); err != nil {
+		return err
+	}
+	var orderID, amount int64
+	err = tx.QueryRowContext(ctx, `SELECT id, amount_cents FROM orders WHERE user_id = ? AND plan_id = ? AND activation = 'queue' AND status = 'paid' ORDER BY paid_at DESC, id DESC LIMIT 1`, userID, planID).Scan(&orderID, &amount)
+	if err == nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE orders SET status = 'refunded' WHERE id = ?`, orderID); err != nil {
+			return err
+		}
+		if amount > 0 {
+			if _, err := tx.ExecContext(ctx, `UPDATE users SET balance_cents = balance_cents + ?, updated_at = ? WHERE id = ?`, amount, now(), userID); err != nil {
+				return err
+			}
+		}
+	} else if err != sql.ErrNoRows {
+		return err
+	}
+	return tx.Commit()
 }
 
 type rowQuerier interface {
@@ -229,18 +250,18 @@ func defaultGrantMode(ctx context.Context, q rowQuerier) GrantMode {
 	return GrantStack
 }
 
-// chargeable picks the subscription a traffic sample lands on: among
-// usable active ones prefer those whose plan group matches the inbound's
-// group, then the one expiring soonest; with none usable, the most recent
-// active row keeps counting so overage still shows.
-func chargeableTx(ctx context.Context, tx *sql.Tx, userID, inboundID int64, at time.Time) (int64, bool) {
-	var ibGroup sql.NullInt64
-	_ = tx.QueryRowContext(ctx, `SELECT group_id FROM inbounds WHERE id = ?`, inboundID).Scan(&ibGroup)
+// chargeableTx picks the subscription a traffic sample lands on: among
+// usable active ones prefer those whose plan group is one of the node's
+// inbound groups, then the one expiring soonest; with none usable, the
+// most recent active row keeps counting so overage still shows.
+func chargeableTx(ctx context.Context, tx *sql.Tx, userID int64, groups []int64, at time.Time) (int64, bool) {
 	var id int64
-	if ibGroup.Valid {
-		err := tx.QueryRowContext(ctx, `SELECT sub.id FROM subscriptions sub JOIN plans p ON p.id = sub.plan_id
-			WHERE sub.user_id = ? AND sub.status = 'active' AND p.group_id = ? AND `+usableSQL+`
-			ORDER BY sub.expires_at IS NULL, sub.expires_at, sub.id LIMIT 1`, userID, ibGroup.Int64, at.Unix()).Scan(&id)
+	if len(groups) > 0 {
+		clause, args := groupClause("p.group_id", groups)
+		q := `SELECT sub.id FROM subscriptions sub JOIN plans p ON p.id = sub.plan_id
+			WHERE sub.user_id = ? AND sub.status = 'active' AND p.group_id IS NOT NULL AND ` + clause + ` AND ` + usableSQL + `
+			ORDER BY sub.expires_at IS NULL, sub.expires_at, sub.id LIMIT 1`
+		err := tx.QueryRowContext(ctx, q, append(append([]any{userID}, args...), at.Unix())...).Scan(&id)
 		if err == nil {
 			return id, true
 		}

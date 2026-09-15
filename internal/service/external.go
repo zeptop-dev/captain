@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/subscription"
@@ -63,6 +65,70 @@ func (e *External) fetch(ctx context.Context, src *store.ExternalSource) ([]stor
 		out = append(out, store.ExternalNode{Name: l.Name, URI: subscription.ShareURI(l), Sort: i, Enabled: true})
 	}
 	return out, nil
+}
+
+// ProbeAll TCP-connects to every enabled external node's address from the
+// panel and records the result (jobs, every 10 minutes; admin on demand).
+// Returns how many were reachable and how many were probed.
+func (e *External) ProbeAll(ctx context.Context, at time.Time) (int, int) {
+	nodes, err := e.Store.ListExternalNodes(ctx)
+	if err != nil {
+		return 0, 0
+	}
+	up, total := 0, 0
+	for _, n := range nodes {
+		if !n.Enabled {
+			continue
+		}
+		total++
+		ms, perr := probeURI(ctx, n.URI)
+		msg := ""
+		if perr != nil {
+			msg = perr.Error()
+		} else {
+			up++
+		}
+		_ = e.Store.SetExternalProbe(ctx, n.ID, ms, msg, at)
+	}
+	return up, total
+}
+
+// probeURI dials the share link's host:port three times; the best
+// latency wins. A refused connection still proves the host is up.
+func probeURI(ctx context.Context, uri string) (float64, error) {
+	l, err := subscription.ParseURI(uri)
+	if err != nil {
+		return -1, errors.New("unparseable link")
+	}
+	if l.Host == "" || l.Port <= 0 {
+		return -1, errors.New("no host:port")
+	}
+	addr := net.JoinHostPort(l.Host, strconv.Itoa(l.Port))
+	best := -1.0
+	var last error
+	for i := 0; i < 3; i++ {
+		dctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		start := time.Now()
+		c, derr := (&net.Dialer{}).DialContext(dctx, "tcp", addr)
+		ms := float64(time.Since(start).Microseconds()) / 1000
+		cancel()
+		if derr == nil {
+			c.Close()
+		} else if ne, ok := derr.(net.Error); !ok || ne.Timeout() {
+			last = derr
+			continue
+		}
+		if best < 0 || ms < best {
+			best = ms
+		}
+	}
+	if best < 0 {
+		if last == nil {
+			last = errors.New("unreachable")
+		}
+		return -1, last
+	}
+	return best, nil
 }
 
 // SyncAll refreshes every enabled source (jobs).

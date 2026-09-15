@@ -121,7 +121,12 @@ func grantTx(ctx context.Context, tx *sql.Tx, userID int64, plan *domain.Plan, p
 	default:
 		// Stacking: a group the user only had through an earlier grant is
 		// now derived from the live subscriptions (AccessGroups), so drop it.
-		if _, err := tx.ExecContext(ctx, `UPDATE users SET group_id = NULL, updated_at = ? WHERE id = ? AND group_id IN (SELECT p.group_id FROM subscriptions sub JOIN plans p ON p.id = sub.plan_id WHERE sub.user_id = ? AND p.group_id IS NOT NULL)`, now(), userID, userID); err != nil {
+		// Only a group the user still gets from a live subscription (or
+		// from the plan being granted) is dropped; a hand-set group that
+		// merely matches an old, expired plan stays.
+		if _, err := tx.ExecContext(ctx, `UPDATE users SET group_id = NULL, updated_at = ? WHERE id = ? AND (group_id = ? OR group_id IN (
+			SELECT p.group_id FROM subscriptions sub JOIN plans p ON p.id = sub.plan_id WHERE sub.user_id = ? AND sub.status = 'active' AND p.group_id IS NOT NULL AND `+usableSQL+`))`,
+			now(), userID, nullInt64(plan.GroupID), userID, at.Unix()); err != nil {
 			return err
 		}
 	}

@@ -2,12 +2,12 @@
 package service
 
 import (
-	"sync"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
@@ -43,11 +43,12 @@ type cachedState struct {
 // deviceWindow is how far back online IPs count toward the device limit.
 const deviceWindow = 3 * time.Minute
 
-// deviceHold is how long an over-limit user stays withheld.
-const deviceHold = 5 * time.Minute
+// DeviceHold is how long an over-limit user stays withheld (tests shorten it).
+var DeviceHold = 5 * time.Minute
 
-// cacheTTL bounds how stale a long-poll answer may be.
-const cacheTTL = 3 * time.Second
+// CacheTTL bounds how stale a long-poll answer may be when nothing
+// invalidated the cache (admin writes, node reports and job ticks do).
+var CacheTTL = 10 * time.Second
 
 // Cached returns the node's state, rebuilding it when the cached copy is
 // older than cacheTTL or was invalidated. Handlers that just changed the
@@ -56,7 +57,7 @@ func (a *AgentState) Cached(ctx context.Context, n *domain.Node, at time.Time) (
 	a.mu.Lock()
 	c, ok := a.cache[n.ID]
 	a.mu.Unlock()
-	if ok && at.Sub(c.at) < cacheTTL {
+	if ok && at.Sub(c.at) < CacheTTL {
 		return c.st, nil
 	}
 	st, err := a.Build(ctx, n, at)
@@ -86,14 +87,15 @@ func (a *AgentState) withhold(over map[int64]bool, at time.Time) map[int64]bool 
 	if a.held == nil {
 		a.held = map[int64]time.Time{}
 	}
-	for id := range over {
-		a.held[id] = at.Add(deviceHold)
-	}
 	out := map[int64]bool{}
+	for id := range over {
+		a.held[id] = at.Add(DeviceHold)
+		out[id] = true // over right now, whatever the hold says
+	}
 	for id, until := range a.held {
 		if at.Before(until) {
 			out[id] = true
-		} else {
+		} else if !over[id] {
 			delete(a.held, id)
 		}
 	}

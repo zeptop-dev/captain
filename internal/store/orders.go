@@ -126,8 +126,12 @@ func (s *Store) PayWithBalance(ctx context.Context, no string, at time.Time) (*d
 	if err != nil {
 		return nil, err
 	}
-	if o.Status != "pending" {
+	switch o.Status {
+	case "paid":
 		return nil, ErrAlreadyPaid
+	case "pending":
+	default:
+		return nil, ErrNotFound
 	}
 	res, err := tx.ExecContext(ctx, `UPDATE users SET balance_cents = balance_cents - ?, updated_at = ? WHERE id = ? AND balance_cents >= ?`, o.AmountCents, now(), o.UserID, o.AmountCents)
 	if err != nil {

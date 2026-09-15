@@ -2,26 +2,70 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"time"
+
+	"github.com/zeptop-dev/bosun/pkg/spec"
 )
 
-// AddTraffic records a delta for a user on an inbound (daily bucket) and
-// charges it to the user's active subscription.
+// AddTraffic records one delta for a user on an inbound (daily bucket) and
+// charges it to the subscription that fits the inbound's group best.
 func (s *Store) AddTraffic(ctx context.Context, userID, inboundID int64, up, down int64, at time.Time) error {
+	var group sql.NullInt64
+	_ = s.db.QueryRowContext(ctx, `SELECT group_id FROM inbounds WHERE id = ?`, inboundID).Scan(&group)
+	var groups []int64
+	if group.Valid {
+		groups = []int64{group.Int64}
+	}
+	return s.AddTrafficBatch(ctx, inboundID, groups, []spec.UserTraffic{{UserID: userID, Up: up, Down: down}}, at)
+}
+
+// NodeGroups lists the distinct user groups of a node's enabled inbounds.
+func (s *Store) NodeGroups(ctx context.Context, nodeID int64) ([]int64, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT DISTINCT group_id FROM inbounds WHERE node_id = ? AND enabled = 1 AND group_id IS NOT NULL`, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []int64
+	for rows.Next() {
+		var g int64
+		if err := rows.Scan(&g); err != nil {
+			return nil, err
+		}
+		out = append(out, g)
+	}
+	return out, rows.Err()
+}
+
+// AddTrafficBatch records a node report's deltas in one transaction:
+// each sample lands in the daily bucket of inboundID (the node's first
+// inbound, for stats) and on the user's subscription that matches one of
+// the node's groups, else the soonest-expiring usable one (chargeableTx).
+func (s *Store) AddTrafficBatch(ctx context.Context, inboundID int64, groups []int64, samples []spec.UserTraffic, at time.Time) error {
+	if len(samples) == 0 {
+		return nil
+	}
 	day := at.UTC().Truncate(24 * time.Hour).Unix()
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, `INSERT INTO traffic_daily (user_id, inbound_id, day, up_bytes, down_bytes) VALUES (?, ?, ?, ?, ?)
-		ON CONFLICT(user_id, inbound_id, day) DO UPDATE SET up_bytes = up_bytes + excluded.up_bytes, down_bytes = down_bytes + excluded.down_bytes`,
-		userID, inboundID, day, up, down); err != nil {
-		return err
-	}
-	if id, found := chargeableTx(ctx, tx, userID, inboundID, at); found {
-		if _, err := tx.ExecContext(ctx, `UPDATE subscriptions SET used_up_bytes = used_up_bytes + ?, used_down_bytes = used_down_bytes + ?, updated_at = ? WHERE id = ?`, up, down, now(), id); err != nil {
+	ts := now()
+	for _, t := range samples {
+		if t.Up < 0 || t.Down < 0 || (t.Up == 0 && t.Down == 0) {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO traffic_daily (user_id, inbound_id, day, up_bytes, down_bytes) VALUES (?, ?, ?, ?, ?)
+			ON CONFLICT(user_id, inbound_id, day) DO UPDATE SET up_bytes = up_bytes + excluded.up_bytes, down_bytes = down_bytes + excluded.down_bytes`,
+			t.UserID, inboundID, day, t.Up, t.Down); err != nil {
 			return err
+		}
+		if id, found := chargeableTx(ctx, tx, t.UserID, groups, at); found {
+			if _, err := tx.ExecContext(ctx, `UPDATE subscriptions SET used_up_bytes = used_up_bytes + ?, used_down_bytes = used_down_bytes + ?, updated_at = ? WHERE id = ?`, t.Up, t.Down, ts, id); err != nil {
+				return err
+			}
 		}
 	}
 	return tx.Commit()

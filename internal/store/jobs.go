@@ -66,6 +66,35 @@ func (s *Store) ResetQuotas(ctx context.Context, at time.Time) (int64, error) {
 	return n, nil
 }
 
+// PruneHistory drops daily traffic buckets older than keepDays and
+// notification receipts older than 180 days; the tables otherwise grow
+// by users × inbounds rows a day forever.
+func (s *Store) PruneHistory(ctx context.Context, at time.Time, keepDays int) (int64, error) {
+	if keepDays <= 0 {
+		keepDays = 400
+	}
+	day := at.UTC().AddDate(0, 0, -keepDays).Truncate(24 * time.Hour).Unix()
+	var total int64
+	for _, q := range []string{
+		`DELETE FROM traffic_daily WHERE day < ?`,
+		`DELETE FROM inbound_traffic_daily WHERE day < ?`,
+		`DELETE FROM outbound_traffic_daily WHERE day < ?`,
+	} {
+		res, err := s.db.ExecContext(ctx, q, day)
+		if err != nil {
+			return total, err
+		}
+		n, _ := res.RowsAffected()
+		total += n
+	}
+	res, err := s.db.ExecContext(ctx, `DELETE FROM notifications WHERE sent_at < ?`, at.AddDate(0, 0, -180).Unix())
+	if err != nil {
+		return total, err
+	}
+	n, _ := res.RowsAffected()
+	return total + n, nil
+}
+
 // PurgeSessions removes expired sessions.
 func (s *Store) PurgeSessions(ctx context.Context, at time.Time) (int64, error) {
 	res, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE expires_at <= ?`, at.Unix())

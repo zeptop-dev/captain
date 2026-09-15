@@ -46,8 +46,13 @@ type Runner struct {
 	External  *service.External
 	lastSync  time.Time
 	lastPrune time.Time
-	SiteName  string
-	PortalURL string
+	lastProbe time.Time
+	lastHist  time.Time
+	// Invalidate drops cached node state after the tick changed
+	// subscriptions (expiry, resets, queued starts); nil = none.
+	Invalidate func()
+	SiteName   string
+	PortalURL  string
 
 	lastReminders time.Time
 }
@@ -102,6 +107,20 @@ func (r *Runner) Tick(ctx context.Context) {
 	if r.External != nil && now.Sub(r.lastSync) >= time.Hour {
 		r.lastSync = now
 		r.External.SyncAll(ctx, now)
+	}
+	if r.External != nil && now.Sub(r.lastProbe) >= 10*time.Minute {
+		r.lastProbe = now
+		if up, total := r.External.ProbeAll(ctx, now); total > 0 {
+			log.Info("external nodes probed", "up", up, "total", total)
+		}
+	}
+	if now.Sub(r.lastHist) >= 24*time.Hour {
+		r.lastHist = now
+		n, err = r.Store.PruneHistory(ctx, now, 400)
+		report("pruned traffic history", n, err)
+	}
+	if r.Invalidate != nil {
+		r.Invalidate()
 	}
 	if r.Probe != nil {
 		r.Probe.CheckOffline(ctx, now)
