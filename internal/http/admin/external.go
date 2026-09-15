@@ -186,8 +186,12 @@ func (h *handlers) putNodeRouting(w http.ResponseWriter, r *http.Request) {
 			fail(w, http.StatusBadRequest, "every outbound needs a unique tag (not direct/block)")
 			return
 		}
-		if o.Remote == nil && o.Protocol == "" {
+		if o.Remote == nil && o.Protocol == "" && o.WARP == nil && o.Balancer == nil {
 			fail(w, http.StatusBadRequest, "outbound "+o.Tag+": a share link or a protocol with settings is required")
+			return
+		}
+		if o.Balancer != nil && len(o.Balancer.Members) == 0 {
+			fail(w, http.StatusBadRequest, "balancer "+o.Tag+" needs at least one member")
 			return
 		}
 		if o.Remote != nil && (o.Remote.Host == "" || o.Remote.Port <= 0 || o.Remote.Settings.Protocol == "") {
@@ -204,6 +208,14 @@ func (h *handlers) putNodeRouting(w http.ResponseWriter, r *http.Request) {
 		if o.ProxyTag != "" && !tags[o.ProxyTag] {
 			fail(w, http.StatusBadRequest, "outbound "+o.Tag+" chains through unknown "+o.ProxyTag)
 			return
+		}
+		if o.Balancer != nil {
+			for _, mbr := range o.Balancer.Members {
+				if !tags[mbr] || mbr == o.Tag {
+					fail(w, http.StatusBadRequest, "balancer "+o.Tag+" has unknown member "+mbr)
+					return
+				}
+			}
 		}
 	}
 	for i := range nr.Routes {

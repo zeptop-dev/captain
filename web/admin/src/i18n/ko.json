@@ -191,7 +191,9 @@
     "wgPublic": "서버 공개키",
     "wgAddress": "터널 네트워크(서버 주소)",
     "wgAddressHint": "클라이언트 주소는 이 네트워크에서 사용자 ID 로 배정",
-    "traffic": "트래픽(오늘 / 누적)"
+    "traffic": "트래픽(오늘 / 누적)",
+    "noSniff": "대상 스니핑 끄기",
+    "noSniffHint": "기본 켜짐: TLS/HTTP 에서 실제 호스트를 읽어 도메인 규칙이 적용되게 합니다. 클라이언트에 문제가 있을 때만 끄세요."
   },
   "entries": {
     "title": "진입점",
@@ -617,5 +619,19 @@
     "outboundAdded": "WARP 아웃바운드 추가됨",
     "addTemplate": "자주 쓰는 규칙 추가",
     "templateHint": "AI 와 스트리밍 사이트를 WARP 로:"
+  },
+  "routing": {
+    "category": "분류",
+    "balancer": "로드 밸런서",
+    "balancerTag": "밸런서 태그",
+    "balancerMembers": "멤버",
+    "balancerHint": "URL 테스트로 가장 좋은 멤버 선택. 규칙과 기본 출구가 가리킬 수 있음",
+    "balancerStrategy": "전략",
+    "strategyUrltest": "최저 지연",
+    "strategyRandom": "무작위",
+    "addBalancer": "밸런서 추가",
+    "dns": "DNS 서버",
+    "dnsHint": "코어가 출구 도메인 해석에 쓰는 서버: 1.1.1.1, tls://…, https://…; 비우면 시스템 DNS",
+    "matchHint": "쉼표 구분: inbound:태그, domain:example.com, full:호스트, ip:1.2.3.0/24, geosite:netflix, geoip:cn, protocol:bittorrent, port:443"
   }
 }

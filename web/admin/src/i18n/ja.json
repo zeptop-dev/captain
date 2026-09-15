@@ -191,7 +191,9 @@
     "wgPublic": "サーバー公開鍵",
     "wgAddress": "トンネルネットワーク（サーバーアドレス）",
     "wgAddressHint": "クライアントアドレスはこのネットワークからユーザー ID で割り当て",
-    "traffic": "トラフィック（今日 / 累計）"
+    "traffic": "トラフィック（今日 / 累計）",
+    "noSniff": "宛先スニッフィングを無効化",
+    "noSniffHint": "既定で有効：TLS/HTTP から本当のホストを読み取り、ドメインルールを効かせます。クライアントに支障がある時だけ無効に。"
   },
   "entries": {
     "title": "エントリ",
@@ -617,5 +619,19 @@
     "outboundAdded": "WARP 出口は追加済み",
     "addTemplate": "定番ルールを追加",
     "templateHint": "AI と動画配信サイトを WARP へ："
+  },
+  "routing": {
+    "category": "カテゴリ",
+    "balancer": "ロードバランサー",
+    "balancerTag": "バランサータグ",
+    "balancerMembers": "メンバー",
+    "balancerHint": "URL テストで最良のメンバーを選択。ルールや既定出口から指定可",
+    "balancerStrategy": "戦略",
+    "strategyUrltest": "最小遅延",
+    "strategyRandom": "ランダム",
+    "addBalancer": "バランサー追加",
+    "dns": "DNS サーバー",
+    "dnsHint": "コアが出口の名前解決に使うサーバー：1.1.1.1、tls://…、https://…。空ならシステム DNS",
+    "matchHint": "カンマ区切り：inbound:タグ、domain:example.com、full:ホスト、ip:1.2.3.0/24、geosite:netflix、geoip:cn、protocol:bittorrent、port:443"
   }
 }
