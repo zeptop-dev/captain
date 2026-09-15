@@ -36,6 +36,14 @@ func (s *Store) CouponByCode(ctx context.Context, code string) (*domain.Coupon, 
 }
 
 // CouponUsesByUser counts paid orders of a user with the coupon.
+// CouponReservations counts orders (pending or paid) that carry the coupon,
+// so a launch coupon cannot be over-issued by many simultaneous checkouts.
+func (s *Store) CouponReservations(ctx context.Context, couponID int64) (int, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM orders WHERE coupon_id = ? AND status <> 'cancelled'`, couponID).Scan(&n)
+	return n, err
+}
+
 func (s *Store) CouponUsesByUser(ctx context.Context, couponID, userID int64) (int, error) {
 	var n int
 	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM orders WHERE coupon_id = ? AND user_id = ? AND status <> 'cancelled'`, couponID, userID).Scan(&n)
@@ -233,6 +241,13 @@ func (s *Store) SurplusFor(ctx context.Context, userID, newPlanID int64, at time
 	}
 	sub, err := s.ActiveSubscription(ctx, userID)
 	if err != nil || sub == nil || sub.PlanID == newPlanID || !sub.Usable(at) {
+		return 0, nil
+	}
+	// One pending order already carries this remainder as a discount;
+	// crediting it again would let two orders spend the same value.
+	var held int
+	_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM orders WHERE user_id = ? AND status = 'pending' AND surplus_cents > 0`, userID).Scan(&held)
+	if held > 0 {
 		return 0, nil
 	}
 	plan, err := s.PlanByID(ctx, sub.PlanID)

@@ -2,6 +2,7 @@
 package service
 
 import (
+	"sync"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -23,10 +24,81 @@ type AgentState struct {
 	PushSeconds    int
 	EnforceDevices bool
 	Probe          *Probe // nil = no probe config in state
+
+	mu sync.Mutex
+	// held keeps a user withheld until the deadline once they exceeded
+	// their device limit, so the node does not flap (and restart cores)
+	// every time the extra addresses age out of the window.
+	held map[int64]time.Time
+	// cache is the last built state per node; the long-poll loop reads it
+	// instead of rebuilding from ~20 queries every two seconds.
+	cache map[int64]cachedState
+}
+
+type cachedState struct {
+	st *agentproto.State
+	at time.Time
 }
 
 // deviceWindow is how far back online IPs count toward the device limit.
 const deviceWindow = 3 * time.Minute
+
+// deviceHold is how long an over-limit user stays withheld.
+const deviceHold = 5 * time.Minute
+
+// cacheTTL bounds how stale a long-poll answer may be.
+const cacheTTL = 3 * time.Second
+
+// Cached returns the node's state, rebuilding it when the cached copy is
+// older than cacheTTL or was invalidated. Handlers that just changed the
+// database call Invalidate first (or Build directly).
+func (a *AgentState) Cached(ctx context.Context, n *domain.Node, at time.Time) (*agentproto.State, error) {
+	a.mu.Lock()
+	c, ok := a.cache[n.ID]
+	a.mu.Unlock()
+	if ok && at.Sub(c.at) < cacheTTL {
+		return c.st, nil
+	}
+	st, err := a.Build(ctx, n, at)
+	if err != nil {
+		return nil, err
+	}
+	a.mu.Lock()
+	if a.cache == nil {
+		a.cache = map[int64]cachedState{}
+	}
+	a.cache[n.ID] = cachedState{st: st, at: at}
+	a.mu.Unlock()
+	return st, nil
+}
+
+// Invalidate drops every cached state (an edit that affects nodes).
+func (a *AgentState) Invalidate() {
+	a.mu.Lock()
+	a.cache = nil
+	a.mu.Unlock()
+}
+
+// withhold folds the hold window into the over-limit set.
+func (a *AgentState) withhold(over map[int64]bool, at time.Time) map[int64]bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.held == nil {
+		a.held = map[int64]time.Time{}
+	}
+	for id := range over {
+		a.held[id] = at.Add(deviceHold)
+	}
+	out := map[int64]bool{}
+	for id, until := range a.held {
+		if at.Before(until) {
+			out[id] = true
+		} else {
+			delete(a.held, id)
+		}
+	}
+	return out
+}
 
 // Build assembles the state bosun applies on node n. Inbounds open to
 // everyone use the node-level user list (all users with a usable
@@ -70,6 +142,7 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 		if over, err = a.Store.OverDeviceLimit(ctx, at.Add(-deviceWindow)); err != nil {
 			return nil, err
 		}
+		over = a.withhold(over, at)
 		// Nodes see the limit too: sing-box only logs client addresses at a
 		// verbose level, which bosun switches on when a limited user exists.
 		if limits, err = a.Store.DeviceLimits(ctx); err != nil {
@@ -167,13 +240,20 @@ func toSpecUsers(list []*domain.User, over map[int64]bool, limits map[int64]int,
 
 // revision is a content hash so identical state yields the same ETag.
 func revision(st *agentproto.State) string {
+	// Pending jobs are part of the revision: a new job must wake the node's
+	// long-poll and make its next report ask for a re-pull.
+	jobs := make([]string, 0, len(st.Jobs))
+	for _, j := range st.Jobs {
+		jobs = append(jobs, j.ID)
+	}
 	b, _ := json.Marshal(struct {
 		N spec.Node
 		U []spec.User
 		F []spec.Forward
 		P *spec.Probe
 		K *spec.Komari
-	}{st.Node, st.Users, st.Forwards, st.Probe, st.Komari})
+		J []string
+	}{st.Node, st.Users, st.Forwards, st.Probe, st.Komari, jobs})
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:8])
 }

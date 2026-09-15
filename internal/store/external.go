@@ -281,9 +281,8 @@ func (s *Store) SetNodeOverrides(ctx context.Context, nodeID int64, in map[strin
 		if raw == "" {
 			continue
 		}
-		var obj map[string]any
-		if err := json.Unmarshal([]byte(raw), &obj); err != nil {
-			return fmt.Errorf("%s: override must be a JSON object: %w", c, err)
+		if err := spec.CheckOverride(c, json.RawMessage(raw)); err != nil {
+			return fmt.Errorf("%s: %w", c, err)
 		}
 		m[c] = json.RawMessage(raw)
 	}

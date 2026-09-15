@@ -91,7 +91,7 @@ func (h *handlers) requireUser(next http.HandlerFunc) http.HandlerFunc {
 			fail(w, http.StatusUnauthorized, "not logged in")
 			return
 		}
-		u, err := h.Sessions.Resolve(r.Context(), c.Value)
+		u, _, err := h.Sessions.Resolve(r.Context(), c.Value)
 		if err != nil {
 			fail(w, http.StatusInternalServerError, "internal error")
 			return
@@ -181,7 +181,7 @@ func (h *handlers) login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) startSession(w http.ResponseWriter, r *http.Request, u *domain.User) {
-	sess, err := h.Sessions.Create(r.Context(), u.ID)
+	sess, err := h.Sessions.Create(r.Context(), u.ID, false)
 	if err != nil {
 		fail(w, http.StatusInternalServerError, "internal error")
 		return
@@ -452,6 +452,11 @@ func (h *handlers) resetPassword(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "wrong code")
 		return
 	}
+	if u.IsStaff() {
+		// A mailbox must not be enough to take over a staff account.
+		fail(w, http.StatusForbidden, "staff passwords are reset by an administrator")
+		return
+	}
 	if err := h.Store.CheckCode(r.Context(), email, "reset", strings.TrimSpace(in.Code)); err != nil {
 		fail(w, http.StatusBadRequest, err.Error())
 		return
@@ -465,6 +470,7 @@ func (h *handlers) resetPassword(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	_ = h.Store.DeleteUserSessions(r.Context(), u.ID)
 	ok(w, map[string]bool{"ok": true})
 }
 

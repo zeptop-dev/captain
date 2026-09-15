@@ -98,7 +98,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	for name := range gateways {
 		names = append(names, name)
 	}
-	orders := &service.Orders{Store: st, Gateways: gateways}
+	orders := &service.Orders{Store: st, Gateways: gateways, Log: log}
 	subSvc := &service.Subscription{Store: st}
 	base := strings.TrimRight(cfg.BaseURL, "/")
 
@@ -128,7 +128,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 		if err != nil {
 			return nil
 		}
-		u, _ := sessions.Resolve(r.Context(), c.Value)
+		u, _, _ := sessions.Resolve(r.Context(), c.Value)
 		return u
 	}
 	s.external = &service.External{Store: st}
@@ -193,7 +193,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 			if err != nil {
 				return nil
 			}
-			u, err := sessions.Resolve(r.Context(), c.Value)
+			u, _, err := sessions.Resolve(r.Context(), c.Value)
 			if err != nil {
 				return nil
 			}
@@ -316,17 +316,17 @@ type sessionAuth struct{ store *store.Store }
 
 const sessionTTL = 30 * 24 * time.Hour
 
-func (a *sessionAuth) Create(ctx context.Context, userID int64) (*domain.Session, error) {
-	sess := &domain.Session{ID: newSessionID(), UserID: userID, ExpiresAt: time.Now().Add(sessionTTL)}
+func (a *sessionAuth) Create(ctx context.Context, userID int64, admin bool) (*domain.Session, error) {
+	sess := &domain.Session{ID: newSessionID(), UserID: userID, ExpiresAt: time.Now().Add(sessionTTL), Admin: admin}
 	return sess, a.store.CreateSession(ctx, sess)
 }
 
-func (a *sessionAuth) Resolve(ctx context.Context, id string) (*domain.User, error) {
-	u, err := a.store.SessionUser(ctx, id, time.Now())
+func (a *sessionAuth) Resolve(ctx context.Context, id string) (*domain.User, bool, error) {
+	u, admin, err := a.store.SessionUser(ctx, id, time.Now())
 	if errors.Is(err, store.ErrNotFound) {
-		return nil, nil
+		return nil, false, nil
 	}
-	return u, err
+	return u, admin, err
 }
 
 func (a *sessionAuth) Delete(ctx context.Context, id string) error {

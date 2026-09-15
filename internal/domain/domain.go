@@ -51,6 +51,9 @@ type Session struct {
 	ID        string
 	UserID    int64
 	ExpiresAt time.Time
+	// Admin is set only by the admin login (password + authenticator);
+	// portal, OIDC and password-reset sessions never reach /api/admin.
+	Admin bool
 }
 
 type Plan struct {

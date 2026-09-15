@@ -62,8 +62,14 @@ func Register(mux *http.ServeMux, d Deps) {
 	// settle if possible, then send the user to the portal.
 	mux.HandleFunc("GET /api/payment/epay/return", func(w http.ResponseWriter, r *http.Request) {
 		if gw, ok := d.Gateways["epay"]; ok {
-			if n, err := gw.Notify(r); err == nil {
-				_, _ = d.Orders.Settle(r.Context(), n)
+			if n, err := gw.Notify(r); err == nil && n.Paid {
+				// Same amount check as /notify: a signed but under-paid
+				// callback replayed here must not settle the order.
+				if order, err := d.Store.OrderByNo(r.Context(), n.OrderNo); err == nil && epay.VerifyAmount(r, order.AmountCents) {
+					_, _ = d.Orders.Settle(r.Context(), n)
+				} else {
+					d.Log.Warn("payment amount mismatch on return", "gateway", "epay", "order", n.OrderNo)
+				}
 			}
 		}
 		http.Redirect(w, r, d.ReturnTo, http.StatusFound)

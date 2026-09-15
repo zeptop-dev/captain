@@ -106,7 +106,7 @@ func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 	}
 	deadline := time.Now().Add(wait)
 	for {
-		st, err := h.State.Build(r.Context(), n, time.Now())
+		st, err := h.State.Cached(r.Context(), n, time.Now())
 		if err != nil {
 			h.Log.Error("build state", "node", n.ID, "err", err)
 			fail(w, http.StatusInternalServerError, "internal error")
@@ -161,10 +161,26 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 	if len(inbounds) > 0 {
 		inboundID = inbounds[0].ID
 	}
+	// A node may only account for users it actually serves: a compromised
+	// box must not be able to drain other users' quotas or trip their
+	// device limits.
+	allowed, err := h.Store.NodeUserIDs(ctx, n.ID)
+	if err != nil {
+		h.Log.Error("node users", "node", n.ID, "err", err)
+		allowed = map[int64]bool{}
+	}
+	dropped := 0
 	for _, t := range rep.Traffic {
+		if !allowed[t.UserID] || t.Up < 0 || t.Down < 0 {
+			dropped++
+			continue
+		}
 		if err := h.Store.AddTraffic(ctx, t.UserID, inboundID, t.Up, t.Down, now); err != nil {
 			h.Log.Error("add traffic", "user", t.UserID, "err", err)
 		}
+	}
+	if dropped > 0 {
+		h.Log.Warn("traffic samples for users this node does not serve were dropped", "node", n.ID, "dropped", dropped)
 	}
 	for tag, t := range rep.Outbounds {
 		_ = h.Store.AddOutboundTraffic(ctx, n.ID, tag, t.Up, t.Down, now)
@@ -181,13 +197,16 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	for name, ips := range rep.Online {
-		if u, err := h.Store.UserByUUID(ctx, name); err == nil {
+		if u, err := h.Store.UserByUUID(ctx, name); err == nil && allowed[u.ID] {
 			_ = h.Store.UpsertOnline(ctx, u.ID, n.ID, ips, now)
 		}
 	}
 	for _, f := range rep.Forwards {
 		_ = h.Store.UpsertForwardStatus(ctx, n.ID, f.Tag, f.Up, f.RTTMillis, f.LastError, f.ActiveConn, f.TotalConn, f.BytesIn, f.BytesOut)
 	}
+	// The report just wrote traffic and client addresses: rebuild fresh
+	// so device-limit changes show up in this very answer.
+	h.State.Invalidate()
 	st, err := h.State.Build(ctx, n, now)
 	changed := err == nil && st.Revision != rep.Revision
 	resp := agentproto.ReportResponse{StateChanged: changed}
