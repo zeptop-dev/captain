@@ -3,8 +3,8 @@ package admin
 import (
 	"net/http"
 
+	"github.com/zeptop-dev/bosun/pkg/subdesign"
 	"github.com/zeptop-dev/captain/internal/store"
-	"github.com/zeptop-dev/captain/internal/subdesign"
 )
 
 // registerSubDesign mounts the visual subscription designer API: a design

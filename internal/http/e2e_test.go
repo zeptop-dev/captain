@@ -1842,7 +1842,7 @@ func TestExternalNodesAndRouting(t *testing.T) {
 		t.Fatalf("forwards with status: %s", b)
 	}
 	// nft backend round-trips; preserve_source needs nft; unknown backends are refused.
-	if code, _, _ := ac.do("PUT", "/api/admin/nodes/"+nodeID+"/forwards", map[string]any{"Forwards": []map[string]any{{"port": 10445, "target": "198.51.100.20:443", "backend": "realm"}}}, nil); code != 400 {
+	if code, _, _ := ac.do("PUT", "/api/admin/nodes/"+nodeID+"/forwards", map[string]any{"Forwards": []map[string]any{{"port": 10445, "target": "198.51.100.20:443", "backend": "gost"}}}, nil); code != 400 {
 		t.Fatal("unknown backend accepted")
 	}
 	if code, _, _ := ac.do("PUT", "/api/admin/nodes/"+nodeID+"/forwards", map[string]any{"Forwards": []map[string]any{{"port": 10445, "target": "198.51.100.20:443", "preserve_source": true}}}, nil); code != 400 {

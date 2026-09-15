@@ -24,6 +24,8 @@ type ExternalSource struct {
 	LastSyncAt *time.Time `json:"last_sync_at"`
 	LastError  string     `json:"last_error"`
 	Nodes      int        `json:"nodes"`
+	// HideDead drops nodes whose last panel probe failed from subscriptions.
+	HideDead bool `json:"hide_dead"`
 }
 
 // ExternalNode is one share link offered in subscriptions. Traffic through
@@ -37,10 +39,14 @@ type ExternalNode struct {
 	Rate     float64 `json:"rate"`
 	Sort     int     `json:"sort"`
 	Enabled  bool    `json:"enabled"`
+	// Probe results: the panel TCP-connects to the node's address.
+	ProbedAt   *time.Time `json:"probed_at"`
+	ProbeMs    float64    `json:"probe_ms"` // best latency; -1 = unreachable or never probed
+	ProbeError string     `json:"probe_error"`
 }
 
 func (s *Store) ListExternalSources(ctx context.Context) ([]ExternalSource, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT s.id, s.name, s.url, s.user_agent, s.group_id, s.rate, s.enabled, s.last_sync_at, s.last_error,
+	rows, err := s.db.QueryContext(ctx, `SELECT s.id, s.name, s.url, s.user_agent, s.group_id, s.rate, s.enabled, s.last_sync_at, s.last_error, s.hide_dead,
 		(SELECT COUNT(*) FROM external_nodes n WHERE n.source_id = s.id) FROM external_sources s ORDER BY s.id`)
 	if err != nil {
 		return nil, err
@@ -50,10 +56,11 @@ func (s *Store) ListExternalSources(ctx context.Context) ([]ExternalSource, erro
 	for rows.Next() {
 		var e ExternalSource
 		var group, last sql.NullInt64
-		var en int
-		if err := rows.Scan(&e.ID, &e.Name, &e.URL, &e.UserAgent, &group, &e.Rate, &en, &last, &e.LastError, &e.Nodes); err != nil {
+		var en, hide int
+		if err := rows.Scan(&e.ID, &e.Name, &e.URL, &e.UserAgent, &group, &e.Rate, &en, &last, &e.LastError, &hide, &e.Nodes); err != nil {
 			return nil, err
 		}
+		e.HideDead = hide == 1
 		e.GroupID, e.Enabled, e.LastSyncAt = int64Ptr(group), en == 1, unixPtr(last)
 		out = append(out, e)
 	}
@@ -68,16 +75,16 @@ func (s *Store) SaveExternalSource(ctx context.Context, e *ExternalSource) error
 		e.UserAgent = "v2rayN/7.0"
 	}
 	if e.ID == 0 {
-		res, err := s.db.ExecContext(ctx, `INSERT INTO external_sources (name, url, user_agent, group_id, rate, enabled, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			e.Name, e.URL, e.UserAgent, nullInt64(e.GroupID), e.Rate, boolInt(e.Enabled), now())
+		res, err := s.db.ExecContext(ctx, `INSERT INTO external_sources (name, url, user_agent, group_id, rate, enabled, hide_dead, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			e.Name, e.URL, e.UserAgent, nullInt64(e.GroupID), e.Rate, boolInt(e.Enabled), boolInt(e.HideDead), now())
 		if err != nil {
 			return err
 		}
 		e.ID, _ = res.LastInsertId()
 		return nil
 	}
-	_, err := s.db.ExecContext(ctx, `UPDATE external_sources SET name = ?, url = ?, user_agent = ?, group_id = ?, rate = ?, enabled = ? WHERE id = ?`,
-		e.Name, e.URL, e.UserAgent, nullInt64(e.GroupID), e.Rate, boolInt(e.Enabled), e.ID)
+	_, err := s.db.ExecContext(ctx, `UPDATE external_sources SET name = ?, url = ?, user_agent = ?, group_id = ?, rate = ?, enabled = ?, hide_dead = ? WHERE id = ?`,
+		e.Name, e.URL, e.UserAgent, nullInt64(e.GroupID), e.Rate, boolInt(e.Enabled), boolInt(e.HideDead), e.ID)
 	return err
 }
 
@@ -123,7 +130,7 @@ func (s *Store) ReplaceSourceNodes(ctx context.Context, src *ExternalSource, nod
 }
 
 func (s *Store) ListExternalNodes(ctx context.Context) ([]ExternalNode, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, source_id, name, uri, group_id, rate, sort, enabled FROM external_nodes ORDER BY sort, id`)
+	rows, err := s.db.QueryContext(ctx, `SELECT `+externalNodeCols+` FROM external_nodes ORDER BY sort, id`)
 	if err != nil {
 		return nil, err
 	}
@@ -139,22 +146,34 @@ func (s *Store) ListExternalNodes(ctx context.Context) ([]ExternalNode, error) {
 	return out, rows.Err()
 }
 
+const externalNodeCols = "id, source_id, name, uri, group_id, rate, sort, enabled, probed_at, probe_ms, probe_error"
+
 func scanExternal(row interface{ Scan(...any) error }) (*ExternalNode, error) {
 	var n ExternalNode
-	var src, group sql.NullInt64
+	var src, group, probed sql.NullInt64
 	var en int
-	if err := row.Scan(&n.ID, &src, &n.Name, &n.URI, &group, &n.Rate, &n.Sort, &en); err != nil {
+	if err := row.Scan(&n.ID, &src, &n.Name, &n.URI, &group, &n.Rate, &n.Sort, &en, &probed, &n.ProbeMs, &n.ProbeError); err != nil {
 		return nil, wrapNotFound(err)
 	}
 	n.SourceID, n.GroupID, n.Enabled = int64Ptr(src), int64Ptr(group), en == 1
+	n.ProbedAt = unixPtr(probed)
 	return &n, nil
+}
+
+// SetExternalProbe records one probe result (ms < 0 = unreachable).
+func (s *Store) SetExternalProbe(ctx context.Context, id int64, ms float64, errText string, at time.Time) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE external_nodes SET probed_at = ?, probe_ms = ?, probe_error = ? WHERE id = ?`, at.Unix(), ms, errText, id)
+	return err
 }
 
 // ExternalNodesForGroup returns enabled nodes visible to a user group
 // (NULL group = everyone).
 func (s *Store) ExternalNodesForGroup(ctx context.Context, groups []int64) ([]ExternalNode, error) {
 	clause, args := groupClause("group_id", groups)
-	rows, err := s.db.QueryContext(ctx, `SELECT id, source_id, name, uri, group_id, rate, sort, enabled FROM external_nodes WHERE enabled = 1 AND `+clause+` ORDER BY sort, id`, args...)
+	// A source with hide_dead drops nodes whose last probe failed.
+	rows, err := s.db.QueryContext(ctx, `SELECT n.id, n.source_id, n.name, n.uri, n.group_id, n.rate, n.sort, n.enabled, n.probed_at, n.probe_ms, n.probe_error FROM external_nodes n
+		LEFT JOIN external_sources src ON src.id = n.source_id
+		WHERE n.enabled = 1 AND NOT (COALESCE(src.hide_dead, 0) = 1 AND n.probed_at IS NOT NULL AND n.probe_error != '') AND `+strings.ReplaceAll(clause, "group_id", "n.group_id")+` ORDER BY n.sort, n.id`, args...)
 	if err != nil {
 		return nil, err
 	}

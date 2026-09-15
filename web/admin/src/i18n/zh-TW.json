@@ -134,7 +134,9 @@
     "decoyUpstreamHint": "留空用內建占位頁；填 http(s) 位址則反向代理到你的網站",
     "speedLimit": "每使用者限速（Mbps）",
     "speedLimitHint": "0 不限。對這台節點上沒有方案限速的使用者生效；方案裡的限速值優先。需要節點是 Linux 且有 nft 和 tc，只對 Xray / sing-box 承載的協定生效。",
-    "advOverridesHint": "給核心補面板沒有的選項"
+    "advOverridesHint": "給核心補面板沒有的選項",
+    "mitaQuotas": "mita 原生配額",
+    "mitaQuotasHint": "把使用者的流量額度也寫進 mita 自己的 quotas，面板離線時核心照樣攔。視窗取方案的重置週期（按月按 31 天滾動），月初剛重置時 mita 可能還攔幾天。"
   },
   "inbounds": {
     "title": "入站",
@@ -212,7 +214,9 @@
     "enabled": "啟用",
     "displayHostHint": "留空用入站的 TLS 網域，否則用節點公網位址",
     "sort": "排序",
-    "sortHint": "訂閱中依此由小到大排列"
+    "sortHint": "訂閱中依此由小到大排列",
+    "clientExtra": "用戶端附加欄位",
+    "clientExtraHint": "JSON 物件，合併進這個入口在 mihomo/Stash/sing-box 訂閱裡的節點條目，例如 tfo、smux、dialer-proxy、ip-version。"
   },
   "users": {
     "title": "使用者",
@@ -700,5 +704,21 @@
     "applyConfirm": "將為 mihomo、Stash、Surge、Surfboard、Loon、Quantumult X、Egern 產生範本並覆蓋現有範本。",
     "applied": "範本已產生並套用",
     "applyHint": "產生的範本可以在「文字」裡繼續手改；下次再「產生並套用」會覆蓋手改。佔位符："
+  },
+  "forwards": {
+    "backendRealm": "Realm（獨立行程）",
+    "backendRealmHint": "由 bosun 安裝並執行 zhboner/realm 中轉，吞吐高，支援網域目標和 UDP；沒有連線數和流量統計。"
+  },
+  "ingress": {
+    "derive": "按尾號派生",
+    "deriveHint": "nobrand 的 derived-tail 規則：本地位址末位 N，預留 N×100，自動池 N×100+1 到 N×100+99。"
+  },
+  "external": {
+    "probe": "立即探測",
+    "probed": "探測完成：{{up}} / {{total}} 可達",
+    "reach": "可達性",
+    "down": "不通",
+    "hideDead": "隱藏不可達節點",
+    "hideDeadHint": "面板每 10 分鐘 TCP 探測一次節點位址，探測失敗的節點不再出現在使用者訂閱裡。"
   }
 }

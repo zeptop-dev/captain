@@ -254,6 +254,56 @@ func chargeableTx(ctx context.Context, tx *sql.Tx, userID, inboundID int64, at t
 	return id, err == nil
 }
 
+// QuotaWindow is a user's allowance as a rolling window (what mita's own
+// quotas take): the primary subscription's quota over its reset cycle, or
+// its whole lifetime when it never resets.
+type QuotaWindow struct {
+	Bytes int64
+	Days  int
+}
+
+// UserQuotas returns the quota window of every user with a usable
+// subscription that has a quota (unlimited plans are left out).
+func (s *Store) UserQuotas(ctx context.Context, at time.Time) (map[int64]QuotaWindow, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT sub.user_id, sub.quota_bytes, sub.starts_at, sub.expires_at, sub.reset_day, p.reset_days, p.reset_mode
+		FROM subscriptions sub JOIN plans p ON p.id = sub.plan_id
+		WHERE sub.status = 'active' AND sub.quota_bytes > 0 AND `+usableSQL+`
+		ORDER BY sub.user_id, sub.expires_at IS NULL DESC, sub.expires_at DESC, sub.id DESC`, at.Unix())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int64]QuotaWindow{}
+	for rows.Next() {
+		var uid, quota, starts int64
+		var expires sql.NullInt64
+		var resetDay, resetDays int
+		var mode string
+		if err := rows.Scan(&uid, &quota, &starts, &expires, &resetDay, &resetDays, &mode); err != nil {
+			return nil, err
+		}
+		if _, seen := out[uid]; seen {
+			continue // the first row per user is the primary subscription
+		}
+		days := 36500
+		switch {
+		case resetDay > 0 || mode == "monthly":
+			days = 31
+		case mode == "yearly":
+			days = 366
+		case mode == "days" && resetDays > 0:
+			days = resetDays
+		case expires.Valid:
+			days = int((expires.Int64-starts)/86400) + 1
+			if days < 1 {
+				days = 1
+			}
+		}
+		out[uid] = QuotaWindow{Bytes: quota, Days: days}
+	}
+	return out, rows.Err()
+}
+
 // userLimits folds every usable subscription's plan value with "0 means
 // unlimited wins, otherwise the largest".
 func (s *Store) userLimits(ctx context.Context, col string, at time.Time) (map[int64]int, error) {

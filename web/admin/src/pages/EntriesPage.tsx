@@ -1,4 +1,4 @@
-import { ActionIcon, Badge, Button, Card, Code, Group, Modal, NumberInput, Select, Stack, Switch, Table, TagsInput, Text, TextInput } from '@mantine/core'
+import { ActionIcon, Badge, Button, Card, Code, Group, JsonInput, Modal, NumberInput, Select, Stack, Switch, Table, TagsInput, Text, TextInput } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -13,8 +13,9 @@ import { toast } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
 import { REGIONS, flag } from '../lib/regions'
 
-type Values = { Name: string; InboundID: string; DisplayHost: string; DisplayPort: number; Rate: number; Sort: number; Enabled: boolean; Tags: string[]; Region: string }
-const empty: Values = { Name: '', InboundID: '', DisplayHost: '', DisplayPort: 443, Rate: 1, Sort: 0, Enabled: true, Tags: [], Region: '' }
+type Values = { Name: string; InboundID: string; DisplayHost: string; DisplayPort: number; Rate: number; Sort: number; Enabled: boolean; Tags: string[]; Region: string; ClientExtra: string }
+const empty: Values = { Name: '', InboundID: '', DisplayHost: '', DisplayPort: 443, Rate: 1, Sort: 0, Enabled: true, Tags: [], Region: '', ClientExtra: '' }
+const parseExtra = (s: string) => { try { const v = JSON.parse(s || '{}'); return v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length ? v : null } catch { return null } }
 
 export default function EntriesPage() {
   const { t } = useTranslation()
@@ -28,14 +29,14 @@ export default function EntriesPage() {
   const [editing, setEditing] = useState<Entry | 'new' | null>(null)
   const [filter, setFilter] = useState<string | null>(null)
   const form = useForm<Values>({ initialValues: empty })
-  const payload = (v: Values) => ({ Name: v.Name, InboundID: Number(v.InboundID), DisplayHost: v.DisplayHost, DisplayPort: v.DisplayPort, Rate: v.Rate, Sort: v.Sort, Enabled: v.Enabled, Tags: v.Tags, Region: v.Region })
+  const payload = (v: Values) => ({ Name: v.Name, InboundID: Number(v.InboundID), DisplayHost: v.DisplayHost, DisplayPort: v.DisplayPort, Rate: v.Rate, Sort: v.Sort, Enabled: v.Enabled, Tags: v.Tags, Region: v.Region, ClientExtra: parseExtra(v.ClientExtra) })
   const invalidate = () => { qc.invalidateQueries({ queryKey: ['entries'] }); qc.invalidateQueries({ queryKey: ['entry-tags'] }) }
   const save = useMutation({ mutationFn: (v: Values) => editing === 'new' ? api.post('/api/admin/entries', payload(v)) : api.patch(`/api/admin/entries/${(editing as Entry).ID}`, payload(v)), onSuccess: () => { toast.ok(t('common.saved')); setEditing(null); invalidate() }, onError: toast.err })
   const del = useMutation({ mutationFn: (id: number) => api.del(`/api/admin/entries/${id}`), onSuccess: () => { toast.ok(t('common.deleted')); invalidate() }, onError: toast.err })
   const reorder = useMutation({ mutationFn: (ids: number[]) => api.put('/api/admin/entries/order', { IDs: ids }), onSuccess: invalidate, onError: (e: Error) => { toast.err(e); invalidate() } })
   const openEdit = (e: Entry | 'new') => {
     if (e === 'new') form.setValues(empty)
-    else form.setValues({ Name: e.Name, InboundID: String(e.InboundID), DisplayHost: e.DisplayHost, DisplayPort: e.DisplayPort, Rate: e.Rate, Sort: e.Sort, Enabled: e.Enabled, Tags: e.Tags ?? [], Region: e.Region ?? '' })
+    else form.setValues({ Name: e.Name, InboundID: String(e.InboundID), DisplayHost: e.DisplayHost, DisplayPort: e.DisplayPort, Rate: e.Rate, Sort: e.Sort, Enabled: e.Enabled, Tags: e.Tags ?? [], Region: e.Region ?? '', ClientExtra: e.ClientExtra ? JSON.stringify(e.ClientExtra, null, 2) : '' })
     setEditing(e)
   }
   // Picking an inbound pre-fills the display address from the node.
@@ -82,6 +83,7 @@ export default function EntriesPage() {
             <NumberInput label={t('entries.rate')} min={0} step={0.1} decimalScale={2} {...form.getInputProps('Rate')} />
           </Group>
           <TagsInput label={t('entries.tags')} description={t('entries.tagsHint')} data={tags.data ?? []} {...form.getInputProps('Tags')} />
+          <JsonInput label={t('entries.clientExtra')} description={t('entries.clientExtraHint')} placeholder='{ "tfo": true, "smux": { "enabled": true } }' autosize minRows={2} maxRows={8} formatOnBlur validationError={t('overrides.invalid')} {...form.getInputProps('ClientExtra')} />
           <Switch label={t('entries.enabled')} {...form.getInputProps('Enabled', { type: 'checkbox' })} />
           <Group justify="flex-end"><Button variant="default" onClick={() => setEditing(null)}>{t('common.cancel')}</Button><Button type="submit" loading={save.isPending}>{t('common.save')}</Button></Group>
         </Stack></form>

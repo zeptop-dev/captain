@@ -68,7 +68,7 @@ func (h *handlers) putNodeForwards(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		switch f.Backend {
-		case "", "nft":
+		case "", "nft", "realm":
 		default:
 			fail(w, http.StatusBadRequest, "backend must be empty (built-in relay) or nft")
 			return

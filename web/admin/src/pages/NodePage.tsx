@@ -43,7 +43,7 @@ export default function NodePage() {
   const del = useMutation({ mutationFn: (ibID: number) => api.del(`/api/admin/inbounds/${ibID}`), onSuccess: () => { toast.ok(t('common.deleted')); invalidate() }, onError: toast.err })
   const repair = useMutation({ mutationFn: () => api.post<{ pair_code: string }>(`/api/admin/nodes/${id}/repair`), onSuccess: (r) => { setPair(r.pair_code); invalidate() }, onError: toast.err })
   const delNode = useMutation({ mutationFn: () => api.del(`/api/admin/nodes/${id}`), onSuccess: () => { toast.ok(t('common.deleted')); qc.invalidateQueries({ queryKey: ['nodes'] }); nav('/nodes') }, onError: toast.err })
-  const nodeForm = useForm({ initialValues: { Name: '', PublicAddr: '', InternalAddr: '', V6Addr: '', Domain: '', MonitorURL: '', DecoyEnabled: false, DecoyUpstream: '', UserSpeedLimitMbps: 0 } })
+  const nodeForm = useForm({ initialValues: { Name: '', PublicAddr: '', InternalAddr: '', V6Addr: '', Domain: '', MonitorURL: '', DecoyEnabled: false, DecoyUpstream: '', UserSpeedLimitMbps: 0, MitaQuotas: false } })
   const domainList = useQuery({ queryKey: ['domains'], queryFn: () => api.get<{ domains: { name: string }[] }>('/api/admin/domains') })
   const saveNode = useMutation({ mutationFn: (v: typeof nodeForm.values) => api.patch<{ ok: boolean; dns?: DNSResult[] }>(`/api/admin/nodes/${id}`, v), onSuccess: (r) => { toast.ok(t('common.saved')); setEditNode(false); invalidate(); dnsToast(r.dns) }, onError: toast.err })
 
@@ -56,7 +56,7 @@ export default function NodePage() {
     <>
       <PageHeader title={n.name} subtitle={`${n.hostname || ''} ${n.platform || ''} ${n.version || ''}`.trim()} actions={<>
         <NodeStatus n={n} />
-        <Button variant="default" size="xs" leftSection={<IconPencil size={14} />} onClick={() => { nodeForm.setValues({ Name: n.name, PublicAddr: n.public_addr, InternalAddr: n.internal_addr, V6Addr: n.v6_addr, Domain: n.domain ?? '', MonitorURL: n.monitor_url, DecoyEnabled: !!n.decoy_enabled, DecoyUpstream: n.decoy_upstream ?? '', UserSpeedLimitMbps: n.user_speed_limit_mbps ?? 0 }); setEditNode(true) }}>{t('common.edit')}</Button>
+        <Button variant="default" size="xs" leftSection={<IconPencil size={14} />} onClick={() => { nodeForm.setValues({ Name: n.name, PublicAddr: n.public_addr, InternalAddr: n.internal_addr, V6Addr: n.v6_addr, Domain: n.domain ?? '', MonitorURL: n.monitor_url, DecoyEnabled: !!n.decoy_enabled, DecoyUpstream: n.decoy_upstream ?? '', UserSpeedLimitMbps: n.user_speed_limit_mbps ?? 0, MitaQuotas: !!n.mita_quotas }); setEditNode(true) }}>{t('common.edit')}</Button>
         <Button variant="default" size="xs" onClick={() => modals.openConfirmModal({ title: t('nodes.repair'), children: <Text size="sm">{t('nodes.repairHint')}</Text>, labels: { confirm: t('common.confirm'), cancel: t('common.cancel') }, onConfirm: () => repair.mutate() })}>{t('nodes.repair')}</Button>
         <Button color="red" variant="light" size="xs" leftSection={<IconTrash size={14} />} onClick={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text size="sm">{t('nodes.deleteHint')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => delNode.mutate() })}>{t('common.delete')}</Button>
       </>} />
@@ -157,6 +157,7 @@ export default function NodePage() {
           <Group grow><TextInput label={t('nodes.internalAddr')} {...nodeForm.getInputProps('InternalAddr')} /><TextInput label={t('nodes.v6Addr')} {...nodeForm.getInputProps('V6Addr')} /></Group>
           <TextInput label={t('nodes.monitorUrl')} description={t('nodes.monitorUrlHint')} placeholder="https://komari.example.com/..." {...nodeForm.getInputProps('MonitorURL')} />
           <NumberInput label={t('nodes.speedLimit')} description={t('nodes.speedLimitHint')} min={0} {...nodeForm.getInputProps('UserSpeedLimitMbps')} />
+          <Switch label={t('nodes.mitaQuotas')} description={t('nodes.mitaQuotasHint')} {...nodeForm.getInputProps('MitaQuotas', { type: 'checkbox' })} />
           <Switch label={t('nodes.decoy')} description={t('nodes.decoyHint')} disabled={!nodeForm.values.Domain} {...nodeForm.getInputProps('DecoyEnabled', { type: 'checkbox' })} />
           {nodeForm.values.DecoyEnabled && <TextInput label={t('nodes.decoyUpstream')} description={t('nodes.decoyUpstreamHint')} placeholder="http://127.0.0.1:8080" {...nodeForm.getInputProps('DecoyUpstream')} />}
           <Group justify="flex-end"><Button variant="default" onClick={() => setEditNode(false)}>{t('common.cancel')}</Button><Button type="submit" loading={saveNode.isPending}>{t('common.save')}</Button></Group>

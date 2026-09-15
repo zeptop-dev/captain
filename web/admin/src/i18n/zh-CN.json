@@ -150,7 +150,9 @@
     "decoyUpstreamHint": "留空用内置占位页；填 http(s) 地址则反向代理到你的网站",
     "speedLimit": "每用户限速（Mbps）",
     "speedLimitHint": "0 不限。对这台节点上没有套餐限速的用户生效；套餐里的限速值优先。需要节点是 Linux 且有 nft 和 tc，只对 Xray / sing-box 承载的协议生效。",
-    "advOverridesHint": "给内核补面板没有的选项"
+    "advOverridesHint": "给内核补面板没有的选项",
+    "mitaQuotas": "mita 原生配额",
+    "mitaQuotasHint": "把用户的流量额度也写进 mita 自己的 quotas，面板掉线时内核照样拦。窗口取套餐的重置周期（按月按 31 天滚动），月初刚重置时 mita 可能还拦几天。"
   },
   "inbounds": {
     "title": "入站",
@@ -265,7 +267,9 @@
     "tags": "标签",
     "tagsHint": "回车添加；显示给用户，也可用来筛选",
     "filterTag": "按标签筛选",
-    "dragHint": "拖动左侧把手调整订阅里的顺序"
+    "dragHint": "拖动左侧把手调整订阅里的顺序",
+    "clientExtra": "客户端附加字段",
+    "clientExtraHint": "JSON 对象，合并进这个入口在 mihomo/Stash/sing-box 订阅里的节点条目，例如 tfo、smux、dialer-proxy、ip-version。"
   },
   "users": {
     "title": "用户",
@@ -756,7 +760,13 @@
     "imported": "导入 {{added}} 个，跳过 {{skipped}} 个",
     "links": "分享链接",
     "linksHint": "每行一条 vless:// vmess:// trojan:// ss:// hysteria2:// tuic:// anytls:// 链接，也可以粘贴整段 base64 订阅内容。",
-    "deleteSourceHint": "该订阅源同步来的节点会一并删除。"
+    "deleteSourceHint": "该订阅源同步来的节点会一并删除。",
+    "probe": "立即探测",
+    "probed": "探测完成：{{up}} / {{total}} 可达",
+    "reach": "可达性",
+    "down": "不通",
+    "hideDead": "隐藏不可达节点",
+    "hideDeadHint": "面板每 10 分钟 TCP 探测一次节点地址，探测失败的节点不再出现在用户订阅里。"
   },
   "routing": {
     "title": "出站与落地",
@@ -875,7 +885,9 @@
     "backendRelay": "内置转发",
     "backendNft": "nftables 内核转发",
     "preserve": "保留源 IP",
-    "nftHint": "nftables 后端走内核 DNAT，节点需要 nft 命令，目标必须是 IPv4；保留源 IP 时目标服务器的回包路由必须经过本机。"
+    "nftHint": "nftables 后端走内核 DNAT，节点需要 nft 命令，目标必须是 IPv4；保留源 IP 时目标服务器的回包路由必须经过本机。",
+    "backendRealm": "Realm（独立进程）",
+    "backendRealmHint": "由 bosun 安装并运行 zhboner/realm 中转，吞吐高，支持域名目标和 UDP；没有连接数和流量统计。"
   },
   "backup": {
     "title": "数据库备份",
@@ -998,7 +1010,9 @@
     "entryDomain": "入口域名（可选）",
     "entryDomainHint": "给公网入口起个域名，订阅里写它而不是 IP；域名登记且开了自动 DNS 时会自动建 A 记录指向公网入口。",
     "reserved": "保留端口",
-    "reservedHint": "端口段里被服务商占用的端口（一般是 SSH 映射的那个），逗号分隔；配方选端口时跳过，入站也不能用"
+    "reservedHint": "端口段里被服务商占用的端口（一般是 SSH 映射的那个），逗号分隔；配方选端口时跳过，入站也不能用",
+    "derive": "按尾号派生",
+    "deriveHint": "nobrand 的 derived-tail 规则：本地地址末位 N，预留 N×100，自动池 N×100+1 到 N×100+99。"
   },
   "komari": {
     "title": "Komari 上报",

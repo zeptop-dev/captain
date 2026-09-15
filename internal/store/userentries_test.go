@@ -59,3 +59,30 @@ func TestUserEntryBlocks(t *testing.T) {
 		t.Fatalf("after clearing: %d rows", len(got))
 	}
 }
+
+func TestEntryClientExtraRoundTrip(t *testing.T) {
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	s := New(conn)
+	ctx := context.Background()
+	n := &domain.Node{Name: "jp"}
+	_ = s.CreateNode(ctx, n, "CODE", time.Hour)
+	ib := &domain.Inbound{NodeID: n.ID, Tag: "v", Protocol: spec.VLESS, Port: 443, Enabled: true}
+	_ = s.CreateInbound(ctx, ib)
+	e := &domain.Entry{Name: "a", InboundID: ib.ID, DisplayHost: "203.0.113.30", DisplayPort: 443, Enabled: true, ClientExtra: map[string]any{"tfo": true, "smux": map[string]any{"enabled": true}}}
+	if err := s.CreateEntry(ctx, e); err != nil {
+		t.Fatal(err)
+	}
+	u := &domain.User{Email: "x@y.z", UUID: "u", Status: "active"}
+	_ = s.CreateUser(ctx, u)
+	rows, err := s.EntriesForUser(ctx, u)
+	if err != nil || len(rows) != 1 || rows[0].Entry.ClientExtra["tfo"] != true {
+		t.Fatalf("extra lost: %+v %v", rows, err)
+	}
+	e.ClientExtra = nil
+	_ = s.UpdateEntry(ctx, e)
+	got, _ := s.ListEntries(ctx)
+	if got[0].ClientExtra != nil {
+		t.Fatalf("extra not cleared: %v", got[0].ClientExtra)
+	}
+}

@@ -12,20 +12,21 @@ import (
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-const nodeCols = "id, name, token_hash, pair_code, public_addr, internal_addr, v6_addr, domain, monitor_url, version, platform, hostname, last_seen_at, applied_revision, upgrade_to, created_at, decoy_enabled, decoy_upstream, user_speed_limit_mbps"
+const nodeCols = "id, name, token_hash, pair_code, public_addr, internal_addr, v6_addr, domain, monitor_url, version, platform, hostname, last_seen_at, applied_revision, upgrade_to, created_at, decoy_enabled, decoy_upstream, user_speed_limit_mbps, mita_quotas"
 
 func scanNode(row interface{ Scan(...any) error }) (*domain.Node, error) {
 	var n domain.Node
 	var tokenHash, pairCode sql.NullString
 	var lastSeen sql.NullInt64
 	var created int64
-	var decoy int
+	var decoy, mitaQ int
 	if err := row.Scan(&n.ID, &n.Name, &tokenHash, &pairCode, &n.PublicAddr, &n.InternalAddr, &n.V6Addr, &n.Domain, &n.MonitorURL,
-		&n.Version, &n.Platform, &n.Hostname, &lastSeen, &n.AppliedRevision, &n.UpgradeTo, &created, &decoy, &n.DecoyUpstream, &n.UserSpeedLimitMbps); err != nil {
+		&n.Version, &n.Platform, &n.Hostname, &lastSeen, &n.AppliedRevision, &n.UpgradeTo, &created, &decoy, &n.DecoyUpstream, &n.UserSpeedLimitMbps, &mitaQ); err != nil {
 		return nil, wrapNotFound(err)
 	}
 	n.Paired = tokenHash.Valid && tokenHash.String != ""
 	n.DecoyEnabled = decoy != 0
+	n.MitaQuotas = mitaQ != 0
 	n.PairCode = pairCode.String
 	n.LastSeenAt = unixPtr(lastSeen)
 	n.CreatedAt = unix(created)
@@ -172,8 +173,8 @@ func boolInt(b bool) int {
 
 // UpdateNode changes editable node fields.
 func (s *Store) UpdateNode(ctx context.Context, n *domain.Node) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET name = ?, public_addr = ?, internal_addr = ?, v6_addr = ?, domain = ?, monitor_url = ?, decoy_enabled = ?, decoy_upstream = ?, user_speed_limit_mbps = ?, updated_at = ? WHERE id = ?`,
-		n.Name, n.PublicAddr, n.InternalAddr, n.V6Addr, n.Domain, n.MonitorURL, boolInt(n.DecoyEnabled), n.DecoyUpstream, n.UserSpeedLimitMbps, now(), n.ID)
+	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET name = ?, public_addr = ?, internal_addr = ?, v6_addr = ?, domain = ?, monitor_url = ?, decoy_enabled = ?, decoy_upstream = ?, user_speed_limit_mbps = ?, mita_quotas = ?, updated_at = ? WHERE id = ?`,
+		n.Name, n.PublicAddr, n.InternalAddr, n.V6Addr, n.Domain, n.MonitorURL, boolInt(n.DecoyEnabled), n.DecoyUpstream, n.UserSpeedLimitMbps, boolInt(n.MitaQuotas), now(), n.ID)
 	return err
 }
 

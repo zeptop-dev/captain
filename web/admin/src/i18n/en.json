@@ -150,7 +150,9 @@
     "decoyUpstreamHint": "Blank serves the built-in placeholder; an http(s) URL is reverse-proxied",
     "speedLimit": "Per-user speed limit (Mbps)",
     "speedLimitHint": "0 = none. Applies to users on this node without a plan limit; a plan limit wins. Needs Linux with nft and tc; only xray / sing-box protocols are shaped.",
-    "advOverridesHint": "Core options the panel does not model"
+    "advOverridesHint": "Core options the panel does not model",
+    "mitaQuotas": "mita native quotas",
+    "mitaQuotasHint": "Also write users' allowances into mita's own quotas so the core blocks overuse while the panel is unreachable. The window is the plan's reset cycle (monthly = rolling 31 days), so right after a calendar reset mita may still block for a few days."
   },
   "inbounds": {
     "title": "Inbounds",
@@ -265,7 +267,9 @@
     "tags": "Tags",
     "tagsHint": "Enter to add; shown to users and used for filtering",
     "filterTag": "Filter by tag",
-    "dragHint": "Drag the handle to reorder entries in subscriptions"
+    "dragHint": "Drag the handle to reorder entries in subscriptions",
+    "clientExtra": "Client extra fields",
+    "clientExtraHint": "JSON object merged into this entry's proxy in mihomo/Stash/sing-box subscriptions, e.g. tfo, smux, dialer-proxy, ip-version."
   },
   "users": {
     "title": "Users",
@@ -756,7 +760,13 @@
     "imported": "Imported {{added}}, skipped {{skipped}}",
     "links": "Share links",
     "linksHint": "One vless:// vmess:// trojan:// ss:// hysteria2:// tuic:// anytls:// link per line, or a whole base64 subscription body.",
-    "deleteSourceHint": "Nodes synced from this subscription are removed with it."
+    "deleteSourceHint": "Nodes synced from this subscription are removed with it.",
+    "probe": "Probe now",
+    "probed": "Probed: {{up}} / {{total}} reachable",
+    "reach": "Reachable",
+    "down": "down",
+    "hideDead": "Hide unreachable nodes",
+    "hideDeadHint": "The panel TCP-probes every node address every 10 minutes; nodes whose last probe failed are left out of subscriptions."
   },
   "routing": {
     "title": "Outbounds & landing",
@@ -875,7 +885,9 @@
     "backendRelay": "built-in relay",
     "backendNft": "nftables (kernel DNAT)",
     "preserve": "Preserve source IP",
-    "nftHint": "The nftables backend does kernel DNAT: the node needs the nft binary and an IPv4 target; with source preserved the target must route replies back through this node."
+    "nftHint": "The nftables backend does kernel DNAT: the node needs the nft binary and an IPv4 target; with source preserved the target must route replies back through this node.",
+    "backendRealm": "Realm (separate process)",
+    "backendRealmHint": "bosun installs and runs a zhboner/realm relay: high throughput, hostname targets and UDP; no connection or traffic counters."
   },
   "backup": {
     "title": "Database backups",
@@ -998,7 +1010,9 @@
     "entryDomain": "Entry domain (optional)",
     "entryDomainHint": "A name for the public entry: entries advertise it instead of the IP; with auto DNS on the registered domain, an A record pointing at the entry IP is created automatically.",
     "reserved": "Reserved ports",
-    "reservedHint": "Ports in the range the provider uses itself (usually the mapped SSH port), comma separated; recipes skip them and inbounds may not take them"
+    "reservedHint": "Ports in the range the provider uses itself (usually the mapped SSH port), comma separated; recipes skip them and inbounds may not take them",
+    "derive": "Derive from last octet",
+    "deriveHint": "nobrand's derived-tail policy: for a local address ending in N, reserve N×100 and use N×100+1 to N×100+99 as the pool."
   },
   "komari": {
     "title": "Komari reporting",

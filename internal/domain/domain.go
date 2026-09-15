@@ -139,15 +139,18 @@ type Node struct {
 	DecoyUpstream string
 	// UserSpeedLimitMbps caps every user on this node without a plan limit.
 	UserSpeedLimitMbps int
-	Version            string
-	Platform           string
-	Hostname           string
-	LastSeenAt         *time.Time
-	AppliedRevision    string
-	UpgradeTo          string // bosun release the operator asked the node to move to
-	Paired             bool
-	PairCode           string // only set right after creation
-	CreatedAt          time.Time
+	// MitaQuotas also writes each user's allowance into mita's own quotas
+	// so the core enforces it when the panel is unreachable.
+	MitaQuotas      bool
+	Version         string
+	Platform        string
+	Hostname        string
+	LastSeenAt      *time.Time
+	AppliedRevision string
+	UpgradeTo       string // bosun release the operator asked the node to move to
+	Paired          bool
+	PairCode        string // only set right after creation
+	CreatedAt       time.Time
 }
 
 // Inbound is a protocol server on a node. Settings carries the protocol
@@ -187,6 +190,9 @@ type Entry struct {
 	Enabled     bool
 	Tags        []string // free-form labels shown to users and used for filtering
 	Region      string   // ISO 3166-1 alpha-2; "" = detect from the name when auto flags are on
+	// ClientExtra is merged into this entry's proxy in the map-shaped
+	// client formats (mihomo/Clash, Stash, sing-box): tfo, smux, dialer-proxy…
+	ClientExtra map[string]any
 }
 
 // Order is a purchase of a plan. Status moves pending -> paid or cancelled;
