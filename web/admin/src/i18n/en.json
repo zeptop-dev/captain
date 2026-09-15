@@ -147,7 +147,9 @@
     "decoy": "Decoy site (steal yourself)",
     "decoyHint": "The node serves a real HTTPS site for its domain on loopback and REALITY inbounds use it as the handshake target: probes see a genuine certificate for your name and fallback traffic never leaves the box. Needs the domain above.",
     "decoyUpstream": "Upstream (optional)",
-    "decoyUpstreamHint": "Blank serves the built-in placeholder; an http(s) URL is reverse-proxied"
+    "decoyUpstreamHint": "Blank serves the built-in placeholder; an http(s) URL is reverse-proxied",
+    "speedLimit": "Per-user speed limit (Mbps)",
+    "speedLimitHint": "0 = none. Applies to users on this node without a plan limit; a plan limit wins. Needs Linux with nft and tc; only xray / sing-box protocols are shaped."
   },
   "inbounds": {
     "title": "Inbounds",

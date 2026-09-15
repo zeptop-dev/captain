@@ -131,7 +131,9 @@
     "decoy": "偽裝站點（偷自己）",
     "decoyHint": "節點用自動憑證在本機回環上跑一個真實的 HTTPS 站點，REALITY 入站以它為握手目標：探測者只看到你自己網域的真憑證，回落流量不出本機。需要先填網域。",
     "decoyUpstream": "上游站點（可選）",
-    "decoyUpstreamHint": "留空用內建占位頁；填 http(s) 位址則反向代理到你的網站"
+    "decoyUpstreamHint": "留空用內建占位頁；填 http(s) 位址則反向代理到你的網站",
+    "speedLimit": "每使用者限速（Mbps）",
+    "speedLimitHint": "0 不限。對這台節點上沒有方案限速的使用者生效；方案裡的限速值優先。需要節點是 Linux 且有 nft 和 tc，只對 Xray / sing-box 承載的協定生效。"
   },
   "inbounds": {
     "title": "入站",

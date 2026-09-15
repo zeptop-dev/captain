@@ -131,7 +131,9 @@
     "decoy": "おとりサイト（自前ドメイン）",
     "decoyHint": "ノードが自ドメインの本物の HTTPS サイトをループバックで提供し、REALITY がそれをハンドシェイク先に使います。探測者は自ドメインの正規証明書だけを見て、フォールバック通信は外に出ません。上のドメインが必要です。",
     "decoyUpstream": "アップストリーム（任意）",
-    "decoyUpstreamHint": "空なら内蔵ページ、http(s) URL ならリバースプロキシ"
+    "decoyUpstreamHint": "空なら内蔵ページ、http(s) URL ならリバースプロキシ",
+    "speedLimit": "ユーザーごとの速度制限（Mbps）",
+    "speedLimitHint": "0 = 無制限。プラン制限のないユーザーに適用、プランの値が優先。Linux + nft + tc が必要で、xray / sing-box のプロトコルのみ対象。"
   },
   "inbounds": {
     "title": "インバウンド",

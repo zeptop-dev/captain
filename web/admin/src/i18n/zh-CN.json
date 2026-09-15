@@ -147,7 +147,9 @@
     "decoy": "伪装站点（偷自己）",
     "decoyHint": "节点用自动证书在本机回环上跑一个真实的 HTTPS 站点，REALITY 入站以它为握手目标：探测者只看到你自己域名的真证书，回落流量不出本机。需要先填域名。",
     "decoyUpstream": "上游站点（可选）",
-    "decoyUpstreamHint": "留空用内置占位页；填 http(s) 地址则反向代理到你的网站"
+    "decoyUpstreamHint": "留空用内置占位页；填 http(s) 地址则反向代理到你的网站",
+    "speedLimit": "每用户限速（Mbps）",
+    "speedLimitHint": "0 不限。对这台节点上没有套餐限速的用户生效；套餐里的限速值优先。需要节点是 Linux 且有 nft 和 tc，只对 Xray / sing-box 承载的协议生效。"
   },
   "inbounds": {
     "title": "入站",
