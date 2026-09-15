@@ -63,7 +63,7 @@ func TestTick(t *testing.T) {
 	// Expiry: a plan that already ended.
 	short := &domain.Plan{Name: "s", PriceCents: 1, PeriodDays: 1, Enabled: true}
 	_ = st.CreatePlan(ctx, short)
-	_, _ = st.GrantSubscription(ctx, u.ID, short, time.Now().AddDate(0, 0, -2))
+	_, _ = st.GrantSubscriptionMode(ctx, u.ID, short, time.Now().AddDate(0, 0, -2), store.GrantReplace)
 	(&Runner{Store: st, Log: slog.Default()}).Tick(ctx)
 	if _, err := st.ActiveSubscription(ctx, u.ID); err == nil {
 		t.Fatal("expired subscription still active")

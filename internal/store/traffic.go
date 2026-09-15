@@ -19,9 +19,10 @@ func (s *Store) AddTraffic(ctx context.Context, userID, inboundID int64, up, dow
 		userID, inboundID, day, up, down); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE subscriptions SET used_up_bytes = used_up_bytes + ?, used_down_bytes = used_down_bytes + ?, updated_at = ?
-		WHERE user_id = ? AND status = 'active'`, up, down, now(), userID); err != nil {
-		return err
+	if id, found := chargeableTx(ctx, tx, userID, inboundID, at); found {
+		if _, err := tx.ExecContext(ctx, `UPDATE subscriptions SET used_up_bytes = used_up_bytes + ?, used_down_bytes = used_down_bytes + ?, updated_at = ? WHERE id = ?`, up, down, now(), id); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }

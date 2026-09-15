@@ -152,13 +152,9 @@ func scanExternal(row interface{ Scan(...any) error }) (*ExternalNode, error) {
 
 // ExternalNodesForGroup returns enabled nodes visible to a user group
 // (NULL group = everyone).
-func (s *Store) ExternalNodesForGroup(ctx context.Context, groupID *int64) ([]ExternalNode, error) {
-	q := `SELECT id, source_id, name, uri, group_id, rate, sort, enabled FROM external_nodes WHERE enabled = 1 AND (group_id IS NULL`
-	args := []any{}
-	if groupID != nil {
-		q, args = q+` OR group_id = ?`, append(args, *groupID)
-	}
-	rows, err := s.db.QueryContext(ctx, q+`) ORDER BY sort, id`, args...)
+func (s *Store) ExternalNodesForGroup(ctx context.Context, groups []int64) ([]ExternalNode, error) {
+	clause, args := groupClause("group_id", groups)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, source_id, name, uri, group_id, rate, sort, enabled FROM external_nodes WHERE enabled = 1 AND `+clause+` ORDER BY sort, id`, args...)
 	if err != nil {
 		return nil, err
 	}

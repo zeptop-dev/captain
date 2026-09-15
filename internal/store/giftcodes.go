@@ -159,7 +159,7 @@ func (s *Store) RedeemGiftCode(ctx context.Context, userID int64, code string, a
 		if err != nil {
 			return nil, err
 		}
-		if err := grantTx(ctx, tx, userID, p, g.PeriodDays, at); err != nil {
+		if err := grantTx(ctx, tx, userID, p, g.PeriodDays, at, defaultGrantMode(ctx, tx)); err != nil {
 			return nil, err
 		}
 	case GiftTraffic, GiftDays:
@@ -169,7 +169,7 @@ func (s *Store) RedeemGiftCode(ctx context.Context, userID int64, code string, a
 			set = `expires_at = CASE WHEN expires_at IS NULL THEN NULL ELSE expires_at + ? END`
 			arg = g.Value * 86400
 		}
-		res, err := tx.ExecContext(ctx, `UPDATE subscriptions SET `+set+`, updated_at = ? WHERE user_id = ? AND status = 'active'`, arg, now(), userID)
+		res, err := tx.ExecContext(ctx, `UPDATE subscriptions SET `+set+`, updated_at = ? WHERE id = (SELECT id FROM subscriptions sub WHERE user_id = ? AND status = 'active' ORDER BY (`+usableSQL+`) DESC, expires_at IS NULL DESC, expires_at DESC, id DESC LIMIT 1)`, arg, now(), userID, at.Unix())
 		if err != nil {
 			return nil, err
 		}

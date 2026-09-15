@@ -299,9 +299,10 @@ func (h *handlers) call(ctx context.Context, u *domain.User, name string, a map[
 			return nil, err
 		}
 		sub, _ := st.ActiveSubscription(ctx, user.ID)
+		subs, _ := st.Subscriptions(ctx, user.ID)
 		orders, _ := st.OrdersByUser(ctx, user.ID, 10)
 		devices, _ := st.OnlineDevices(ctx, user.ID, now.Add(-5*time.Minute))
-		return map[string]any{"id": user.ID, "email": user.Email, "status": user.Status, "role": user.Role, "balance_cents": user.BalanceCents, "group_id": user.GroupID, "created_at": user.CreatedAt, "subscription": sub, "orders": orders, "online_devices": devices}, nil
+		return map[string]any{"id": user.ID, "email": user.Email, "status": user.Status, "role": user.Role, "balance_cents": user.BalanceCents, "group_id": user.GroupID, "created_at": user.CreatedAt, "subscription": sub, "subscriptions": subs, "orders": orders, "online_devices": devices}, nil
 	case "order_list":
 		limit := int(argInt(a, "limit"))
 		if limit <= 0 || limit > 200 {

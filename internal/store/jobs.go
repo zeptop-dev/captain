@@ -114,12 +114,11 @@ func (s *Store) OnlineDevices(ctx context.Context, userID int64, cutoff time.Tim
 // OverDeviceLimit returns user IDs whose distinct online IPs since cutoff
 // exceed their plan's device limit (limit 0 = unlimited).
 func (s *Store) OverDeviceLimit(ctx context.Context, cutoff time.Time) (map[int64]bool, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT o.user_id, COUNT(DISTINCT o.ip), p.device_limit
-		FROM online_devices o
-		JOIN subscriptions sub ON sub.user_id = o.user_id AND sub.status = 'active'
-		JOIN plans p ON p.id = sub.plan_id
-		WHERE o.last_seen_at >= ? AND p.device_limit > 0
-		GROUP BY o.user_id, p.device_limit HAVING COUNT(DISTINCT o.ip) > p.device_limit`, cutoff.Unix())
+	limits, err := s.DeviceLimits(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT user_id, COUNT(DISTINCT ip) FROM online_devices WHERE last_seen_at >= ? GROUP BY user_id`, cutoff.Unix())
 	if err != nil {
 		return nil, err
 	}
@@ -127,11 +126,13 @@ func (s *Store) OverDeviceLimit(ctx context.Context, cutoff time.Time) (map[int6
 	out := map[int64]bool{}
 	for rows.Next() {
 		var id int64
-		var n, limit int
-		if err := rows.Scan(&id, &n, &limit); err != nil {
+		var n int
+		if err := rows.Scan(&id, &n); err != nil {
 			return nil, err
 		}
-		out[id] = true
+		if limit := limits[id]; limit > 0 && n > limit {
+			out[id] = true
+		}
 	}
 	return out, rows.Err()
 }
@@ -147,39 +148,11 @@ func (s *Store) Backup(ctx context.Context, path string) error {
 // SpeedLimits returns each user's plan speed limit in Mbps (only users
 // whose active plan has one).
 func (s *Store) SpeedLimits(ctx context.Context) (map[int64]int, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT sub.user_id, p.speed_limit_mbps FROM subscriptions sub JOIN plans p ON p.id = sub.plan_id WHERE sub.status = 'active' AND p.speed_limit_mbps > 0`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := map[int64]int{}
-	for rows.Next() {
-		var id int64
-		var n int
-		if err := rows.Scan(&id, &n); err != nil {
-			return nil, err
-		}
-		out[id] = n
-	}
-	return out, rows.Err()
+	return s.userLimits(ctx, "speed_limit_mbps", time.Now())
 }
 
 // DeviceLimits returns each user's plan device limit (only users whose
 // active plan has one).
 func (s *Store) DeviceLimits(ctx context.Context) (map[int64]int, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT sub.user_id, p.device_limit FROM subscriptions sub JOIN plans p ON p.id = sub.plan_id WHERE sub.status = 'active' AND p.device_limit > 0`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := map[int64]int{}
-	for rows.Next() {
-		var id int64
-		var n int
-		if err := rows.Scan(&id, &n); err != nil {
-			return nil, err
-		}
-		out[id] = n
-	}
-	return out, rows.Err()
+	return s.userLimits(ctx, "device_limit", time.Now())
 }

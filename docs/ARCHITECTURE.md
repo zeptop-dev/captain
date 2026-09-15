@@ -92,6 +92,31 @@ both sides compile against one definition.
 client's format. Entries carry the landing inbound's protocol settings plus
 the entry's display host and port.
 
+### Several plans per user
+
+A user may hold several subscriptions at once (`subscriptions.status`
+`active`), plus `queued` ones bought "after the current plan". Rules:
+
+- Buying the plan the user already holds renews it in place (time extends,
+  quota refills). A different plan stacks by default; with the admin switch
+  *one plan at a time* (`subscription.single_plan`) it replaces every active
+  one and the surplus credit applies, as before multi-plan.
+- Access is the union: `Store.AccessGroups` = groups of every usable
+  subscription's plan plus `users.group_id`. `EntriesForUser`,
+  `ExternalNodesForGroup` and `UsersWithAccess` all take that set.
+- Traffic lands on one subscription (`chargeableTx`): among usable ones,
+  those whose plan group owns the inbound, then the soonest expiring; with
+  nothing usable the most recent active row keeps counting.
+- Device and speed limits take the widest value across usable plans; a
+  plan with 0 (unlimited) wins.
+- `Subscription-Userinfo` sums usage and quota (unlimited if any plan is)
+  and reports the latest expiry (never if any plan never expires).
+- A queued subscription keeps `period_days`; `Store.PromoteQueued` (every
+  job tick) starts the oldest one for a user with no usable active plan.
+  Buying "after the current plan" while nothing is usable starts it now.
+- `ActiveSubscription` still returns one row (the usable one lasting
+  longest) for callers that only show a summary.
+
 ## Background jobs and limits
 
 `internal/jobs.Runner` ticks every minute: cancels unpaid orders older than 30 min, expires subscriptions, resets quota when `plans.reset_days` elapses (advancing `reset_at`), purges expired sessions and stale `online_devices` rows (10 min).

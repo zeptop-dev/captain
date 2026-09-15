@@ -91,6 +91,8 @@ func (r *Runner) Tick(ctx context.Context) {
 	report("cancelled stale orders", n, err)
 	n, err = r.Store.ExpireSubscriptions(ctx, now)
 	report("expired subscriptions", n, err)
+	n, err = r.Store.PromoteQueued(ctx, now)
+	report("started queued subscriptions", n, err)
 	n, err = r.Store.ResetQuotas(ctx, now)
 	report("reset quotas", n, err)
 	n, err = r.Store.PurgeSessions(ctx, now)

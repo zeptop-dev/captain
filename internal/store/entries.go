@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/zeptop-dev/captain/internal/domain"
 )
@@ -59,15 +60,14 @@ func (s *Store) EntriesForUserAll(ctx context.Context, u *domain.User) ([]EntryL
 }
 
 func (s *Store) entriesForUser(ctx context.Context, u *domain.User, withBlocked bool) ([]EntryLine, error) {
+	groups, err := s.AccessGroups(ctx, u, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	clause, args := groupClause("i.group_id", groups)
 	q := `SELECT ` + entryCols + `, ` + inboundColsPrefixed("i") + `
 		FROM entries e JOIN inbounds i ON i.id = e.inbound_id
-		WHERE e.enabled = 1 AND i.enabled = 1 AND (i.group_id IS NULL`
-	args := []any{}
-	if u.GroupID != nil {
-		q += ` OR i.group_id = ?`
-		args = append(args, *u.GroupID)
-	}
-	q += `)`
+		WHERE e.enabled = 1 AND i.enabled = 1 AND ` + clause
 	if !withBlocked {
 		q += ` AND e.id NOT IN (SELECT entry_id FROM user_entry_blocks WHERE user_id = ?)`
 		args = append(args, u.ID)

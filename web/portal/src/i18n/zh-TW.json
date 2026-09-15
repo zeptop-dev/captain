@@ -60,7 +60,15 @@
     "qr": "掃碼匯入",
     "logins": "登入方式",
     "link": "綁定",
-    "unlink": "解除綁定"
+    "unlink": "解除綁定",
+    "statusActive": "生效中",
+    "statusLapsed": "已失效",
+    "statusQueued": "等待開始",
+    "queuedHint": "目前方案到期或流量用完後自動開始，有效期 {{days}} 天。",
+    "queuedHintForever": "目前方案到期或流量用完後自動開始，長期有效。",
+    "queuedQuota": "流量 {{quota}}",
+    "cancelQueued": "取消這個方案",
+    "online": "線上裝置"
   },
   "plans": {
     "title": "方案",
@@ -89,7 +97,29 @@
     "coinbase": "Coinbase 加密貨幣",
     "coinpayments": "CoinPayments 加密貨幣",
     "btcpay": "BTCPay 比特幣",
-    "mgate": "MGate 加密貨幣"
+    "mgate": "MGate 加密貨幣",
+    "renew": "續費",
+    "mine": "我的方案",
+    "mineQueued": "等目前方案失效後開始",
+    "mineExpires": "{{date}} 到期",
+    "mineHint": "可以同時購買多個方案：節點範圍合併，流量各算各的。買同一個方案就是續費。",
+    "mineHintSingle": "本站同一時間只能有一個方案生效，換方案會結束目前方案。",
+    "noteRenew": "付款後在目前到期時間上順延，流量按新一期重新計算。",
+    "noteStack": "付款後立即生效，和目前方案同時使用。",
+    "noteQueue": "付款後先不啟用，目前方案到期或流量用完時自動開始。",
+    "noteReplace": "付款後目前方案立即結束，由這個方案接替。",
+    "ask": {
+      "renewTitle": "續費「{{plan}}」",
+      "renewBody": "你已經擁有這個方案。這次購買會在目前到期時間上順延，流量額度按新一期重新計算。",
+      "renewGo": "繼續續費",
+      "stackTitle": "你已經有生效中的方案",
+      "stackBody": "「{{plan}}」可以和目前方案一起使用：節點範圍合併，流量各算各的。也可以先付款，等目前方案到期或流量用完後再自動開始。",
+      "stackNow": "立即同時啟用",
+      "stackLater": "目前方案失效後再啟用",
+      "replaceTitle": "購買後將取代目前方案",
+      "replaceBody": "本站同一時間只能有一個方案生效。購買「{{plan}}」後目前方案立即結束。",
+      "replaceGo": "繼續購買"
+    }
   },
   "orders": {
     "title": "訂單",
@@ -190,5 +220,8 @@
       "linux": "Linux",
       "other": "其他"
     }
+  },
+  "common": {
+    "cancel": "取消"
   }
 }

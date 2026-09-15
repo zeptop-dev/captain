@@ -60,7 +60,15 @@
     "qr": "扫码导入",
     "logins": "登录方式",
     "link": "绑定",
-    "unlink": "解绑"
+    "unlink": "解绑",
+    "statusActive": "生效中",
+    "statusLapsed": "已失效",
+    "statusQueued": "等待开始",
+    "queuedHint": "当前套餐到期或流量用完后自动开始，有效期 {{days}} 天。",
+    "queuedHintForever": "当前套餐到期或流量用完后自动开始，长期有效。",
+    "queuedQuota": "流量 {{quota}}",
+    "cancelQueued": "取消这个套餐",
+    "online": "在线设备"
   },
   "plans": {
     "title": "套餐",
@@ -89,7 +97,29 @@
     "coinbase": "Coinbase 加密货币",
     "coinpayments": "CoinPayments 加密货币",
     "btcpay": "BTCPay 比特币",
-    "mgate": "MGate 加密货币"
+    "mgate": "MGate 加密货币",
+    "renew": "续费",
+    "mine": "我的套餐",
+    "mineQueued": "等当前套餐失效后开始",
+    "mineExpires": "{{date}} 到期",
+    "mineHint": "可以同时购买多个套餐：节点范围合并，流量各算各的。买同一个套餐就是续费。",
+    "mineHintSingle": "本站同一时间只能有一个套餐生效，换套餐会结束当前套餐。",
+    "noteRenew": "支付后在当前到期时间上顺延，流量按新一期重新计算。",
+    "noteStack": "支付后立即生效，和当前套餐同时使用。",
+    "noteQueue": "支付后先不启用，当前套餐到期或流量用完时自动开始。",
+    "noteReplace": "支付后当前套餐立即结束，由这个套餐接替。",
+    "ask": {
+      "renewTitle": "续费「{{plan}}」",
+      "renewBody": "你已经拥有这个套餐。这次购买会在当前到期时间上顺延，流量额度按新一期重新计算。",
+      "renewGo": "继续续费",
+      "stackTitle": "你已经有生效中的套餐",
+      "stackBody": "「{{plan}}」可以和当前套餐一起使用：节点范围合并，流量各算各的。也可以先付款，等当前套餐到期或流量用完后再自动开始。",
+      "stackNow": "立即同时启用",
+      "stackLater": "当前套餐失效后再启用",
+      "replaceTitle": "购买后将替换当前套餐",
+      "replaceBody": "本站同一时间只能有一个套餐生效。购买「{{plan}}」后当前套餐立即结束。",
+      "replaceGo": "继续购买"
+    }
   },
   "orders": {
     "title": "订单",
@@ -190,5 +220,8 @@
       "linux": "Linux",
       "other": "其他"
     }
+  },
+  "common": {
+    "cancel": "取消"
   }
 }

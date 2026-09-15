@@ -16,6 +16,7 @@ import (
 	"net"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -65,6 +66,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("GET /api/portal/orders", h.requireUser(h.orders))
 	mux.HandleFunc("POST /api/portal/orders", h.requireUser(h.createOrder))
 	mux.HandleFunc("POST /api/portal/orders/quote", h.requireUser(h.quote))
+	mux.HandleFunc("DELETE /api/portal/subscriptions/{id}", h.requireUser(h.cancelQueued))
 	mux.HandleFunc("GET /api/portal/notice", h.notice)
 	mux.HandleFunc("POST /api/portal/ref", h.ref)
 	mux.HandleFunc("GET /api/portal/invite", h.requireUser(h.invite))
@@ -204,19 +206,43 @@ func (h *handlers) writeMe(w http.ResponseWriter, r *http.Request, u *domain.Use
 		fail(w, http.StatusInternalServerError, "internal error")
 		return
 	}
+	now := time.Now()
+	devices, _ := h.Store.OnlineDevices(r.Context(), u.ID, now.Add(-5*time.Minute))
 	var subView any
 	if sub != nil {
-		devices, _ := h.Store.OnlineDevices(r.Context(), u.ID, time.Now().Add(-5*time.Minute))
 		subView = map[string]any{
 			"plan_id": sub.PlanID, "starts_at": sub.StartsAt, "expires_at": sub.ExpiresAt, "reset_at": sub.ResetAt,
-			"quota_bytes": sub.QuotaBytes, "used_bytes": sub.UsedUpBytes + sub.UsedDownBytes, "usable": sub.Usable(time.Now()),
+			"quota_bytes": sub.QuotaBytes, "used_bytes": sub.UsedUpBytes + sub.UsedDownBytes, "usable": sub.Usable(now),
 			"online_devices": len(devices),
 		}
 	}
+	// Every plan the user holds: active ones (soonest expiry first) then
+	// queued ones, each with its plan name for the cards.
+	all, _ := h.Store.Subscriptions(r.Context(), u.ID)
+	names := map[int64]string{}
+	subs := make([]map[string]any, 0, len(all))
+	for _, s := range all {
+		name, seen := names[s.PlanID]
+		if !seen {
+			if p, err := h.Store.PlanByID(r.Context(), s.PlanID); err == nil {
+				name = p.Name
+			}
+			names[s.PlanID] = name
+		}
+		subs = append(subs, map[string]any{
+			"id": s.ID, "plan_id": s.PlanID, "plan_name": name, "status": s.Status, "starts_at": s.StartsAt, "expires_at": s.ExpiresAt, "reset_at": s.ResetAt,
+			"quota_bytes": s.QuotaBytes, "used_bytes": s.UsedUpBytes + s.UsedDownBytes, "usable": s.Status == "active" && s.Usable(now), "period_days": s.PeriodDays,
+		})
+	}
+	var ss service.SubscriptionSettings
+	_ = h.Store.GetSetting(r.Context(), service.SettingSubscription, &ss)
 	ok(w, map[string]any{
 		"id": u.ID, "email": u.Email, "balance_cents": u.BalanceCents,
 		"subscription_url": h.subURL(r.Context(), u.SubToken),
 		"subscription":     subView,
+		"subscriptions":    subs,
+		"online_devices":   len(devices),
+		"single_plan":      ss.SinglePlan,
 		"gateways":         h.Gateways,
 	})
 }
@@ -269,12 +295,13 @@ func (h *handlers) createOrder(w http.ResponseWriter, r *http.Request) {
 		PeriodDays int    `json:"period_days"`
 		Coupon     string `json:"coupon"`
 		Gateway    string `json:"gateway"`
+		Activation string `json:"activation"` // "" now, "queue" after the current plans lapse
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.PlanID == 0 || in.Gateway == "" {
 		fail(w, http.StatusBadRequest, "plan_id and gateway are required")
 		return
 	}
-	order, co, err := h.Orders.Create(r.Context(), userFrom(r), in.PlanID, in.PeriodDays, in.Coupon, in.Gateway, clientIP(r))
+	order, co, err := h.Orders.CreateWith(r.Context(), userFrom(r), in.PlanID, in.PeriodDays, in.Coupon, in.Gateway, clientIP(r), in.Activation)
 	switch {
 	case errors.Is(err, store.ErrInsufficientBalance):
 		fail(w, http.StatusPaymentRequired, "insufficient balance")
@@ -291,6 +318,17 @@ func (h *handlers) createOrder(w http.ResponseWriter, r *http.Request) {
 		resp["pay_url"] = co.URL
 	}
 	ok(w, resp)
+}
+
+// cancelQueued drops a plan the user bought "after the current one" and no
+// longer wants. Only queued rows can go; nothing is refunded here.
+func (h *handlers) cancelQueued(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err := h.Store.CancelQueued(r.Context(), userFrom(r).ID, id); err != nil {
+		fail(w, http.StatusNotFound, "no such queued plan")
+		return
+	}
+	ok(w, map[string]bool{"ok": true})
 }
 
 func clientIP(r *http.Request) string {

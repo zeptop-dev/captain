@@ -283,7 +283,7 @@
     "noPlan": "No plan",
     "group": "Group",
     "grant": "Grant plan",
-    "grantHint": "Takes effect now and replaces the current subscription.",
+    "grantHint": "By default the plan starts now next to what the user has (the same plan renews); it can also wait until the current plans lapse, or replace them all.",
     "topUp": "Adjust balance",
     "topUpHint": "Positive credits, negative debits, in cents.",
     "subUrl": "Subscription URL",
@@ -297,7 +297,10 @@
     "devices": "Online devices (last 5 min)",
     "noDevices": "No device online recently",
     "viewList": "List",
-    "viewRenewals": "Renewals"
+    "viewRenewals": "Renewals",
+    "grantDefault": "Start now",
+    "grantQueue": "After current plans",
+    "grantReplace": "Replace current"
   },
   "plans": {
     "title": "Plans",
@@ -379,7 +382,9 @@
     "shortLinks": "Use short links",
     "shortLinksHint": "Subscription URLs become /s/<code> instead of /sub/<long token>; old links keep working.",
     "autoFlags": "Auto flags",
-    "autoFlagsHint": "Prefix node names that have no flag emoji with their region flag (set or detected from the name), e.g. 🇯🇵 Tokyo."
+    "autoFlagsHint": "Prefix node names that have no flag emoji with their region flag (set or detected from the name), e.g. 🇯🇵 Tokyo.",
+    "singlePlan": "One plan at a time",
+    "singlePlanHint": "On: buying a different plan replaces the current one (surplus credit applies). Off: plans stack, servers are combined and traffic is counted per plan."
   },
   "update": {
     "title": "Version and updates",
@@ -1039,5 +1044,14 @@
     "none": "No entries available",
     "noLink": "No share link for this protocol",
     "allowed": "Visible"
+  },
+  "userSubs": {
+    "title": "Subscriptions",
+    "active": "Active",
+    "lapsed": "Lapsed",
+    "queued": "Queued",
+    "queuedDays": "waiting · {{days}} days",
+    "queuedForever": "waiting · no expiry",
+    "adjustTarget": "Adjust which one"
   }
 }
