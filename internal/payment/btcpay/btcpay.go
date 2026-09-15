@@ -102,9 +102,9 @@ func SignForTest(body []byte, secret string) string {
 	return "sha256=" + hex.EncodeToString(m.Sum(nil))
 }
 
-// Notify verifies the webhook. InvoiceSettled is the terminal "paid" event;
-// InvoicePaymentSettled is accepted too because BTCPay only sends it once a
-// payment is confirmed. The order number comes from the invoice metadata in
+// Notify verifies the webhook. InvoiceSettled is the terminal "paid" event
+// (the invoice total was covered); InvoicePaymentSettled is ignored because
+// it also fires for a confirmed partial payment. The order number comes from the invoice metadata in
 // the payload, or from the invoice itself when the payload omits it (older
 // servers).
 func (g *Gateway) Notify(r *http.Request) (*payment.Notification, error) {
@@ -137,8 +137,10 @@ func (g *Gateway) Notify(r *http.Request) (*payment.Notification, error) {
 	return &payment.Notification{
 		OrderNo:    orderNo,
 		GatewayRef: ev.InvoiceID,
-		Paid:       ev.Type == "InvoiceSettled" || ev.Type == "InvoicePaymentSettled",
-		Response:   "ok",
+		// Only InvoiceSettled means the invoice is paid in full;
+		// InvoicePaymentSettled fires per confirmed payment, partial ones included.
+		Paid:     ev.Type == "InvoiceSettled",
+		Response: "ok",
 	}, nil
 }
 

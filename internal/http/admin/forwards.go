@@ -2,6 +2,7 @@ package admin
 
 import (
 	"fmt"
+	"github.com/zeptop-dev/bosun/pkg/spec"
 	"net"
 	"net/http"
 	"strconv"
@@ -50,6 +51,14 @@ func (h *handlers) putNodeForwards(w http.ResponseWriter, r *http.Request) {
 		if f.Tag == "" {
 			f.Tag = fmt.Sprintf("fwd-%d", f.Port)
 		}
+		if !spec.ValidTag(f.Tag) {
+			fail(w, http.StatusBadRequest, "tag may only contain letters, digits, . _ : - (max 64)")
+			return
+		}
+		if !spec.ValidListen(strings.TrimSpace(f.Listen)) {
+			fail(w, http.StatusBadRequest, "listen must be an IP address")
+			return
+		}
 		if tags[f.Tag] {
 			fail(w, http.StatusBadRequest, "duplicate tag "+f.Tag)
 			return
@@ -70,7 +79,7 @@ func (h *handlers) putNodeForwards(w http.ResponseWriter, r *http.Request) {
 		switch f.Backend {
 		case "", "nft", "realm":
 		default:
-			fail(w, http.StatusBadRequest, "backend must be empty (built-in relay) or nft")
+			fail(w, http.StatusBadRequest, "backend must be empty (built-in relay), nft or realm")
 			return
 		}
 		if f.PreserveSource && f.Backend != "nft" {

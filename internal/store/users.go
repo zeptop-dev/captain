@@ -86,14 +86,30 @@ func (s *Store) UsersWithAccess(ctx context.Context, groupID *int64, at time.Tim
 
 // CreateSession stores a session.
 func (s *Store) CreateSession(ctx context.Context, sess *domain.Session) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)`,
-		sess.ID, sess.UserID, sess.ExpiresAt.Unix(), now())
+	_, err := s.db.ExecContext(ctx, `INSERT INTO sessions (id, user_id, expires_at, created_at, admin) VALUES (?, ?, ?, ?, ?)`,
+		sess.ID, sess.UserID, sess.ExpiresAt.Unix(), now(), boolInt(sess.Admin))
 	return err
 }
 
-// SessionUser resolves a session id to its user if not expired.
-func (s *Store) SessionUser(ctx context.Context, id string, at time.Time) (*domain.User, error) {
-	return scanUser(s.db.QueryRowContext(ctx, `SELECT `+userCols+` FROM users WHERE id = (SELECT user_id FROM sessions WHERE id = ? AND expires_at > ?)`, id, at.Unix()))
+// SessionUser resolves a session id to its user if not expired; admin
+// reports whether the session came from the admin login.
+func (s *Store) SessionUser(ctx context.Context, id string, at time.Time) (*domain.User, bool, error) {
+	var uid int64
+	var admin int
+	if err := s.db.QueryRowContext(ctx, `SELECT user_id, admin FROM sessions WHERE id = ? AND expires_at > ?`, id, at.Unix()).Scan(&uid, &admin); err != nil {
+		return nil, false, wrapNotFound(err)
+	}
+	u, err := s.UserByID(ctx, uid)
+	if err != nil {
+		return nil, false, err
+	}
+	return u, admin == 1, nil
+}
+
+// DeleteUserSessions signs the user out everywhere (password change).
+func (s *Store) DeleteUserSessions(ctx context.Context, userID int64) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ?`, userID)
+	return err
 }
 
 func (s *Store) DeleteSession(ctx context.Context, id string) error {
@@ -103,6 +119,33 @@ func (s *Store) DeleteSession(ctx context.Context, id string) error {
 
 func (s *Store) UserByUUID(ctx context.Context, uuid string) (*domain.User, error) {
 	return scanUser(s.db.QueryRowContext(ctx, `SELECT `+userCols+` FROM users WHERE uuid = ?`, uuid))
+}
+
+// NodeUserIDs is the set of users a node may report traffic or client
+// addresses for: active users with an active subscription who can reach
+// at least one of the node's enabled inbounds (ungrouped inbound = anyone,
+// grouped = the user's own group or a group of one of their plans).
+func (s *Store) NodeUserIDs(ctx context.Context, nodeID int64) (map[int64]bool, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT u.id FROM users u
+		WHERE u.status = 'active' AND u.role = 'user'
+		  AND EXISTS (SELECT 1 FROM subscriptions sub WHERE sub.user_id = u.id AND sub.status = 'active')
+		  AND (EXISTS (SELECT 1 FROM inbounds i WHERE i.node_id = ? AND i.enabled = 1 AND i.group_id IS NULL)
+		    OR u.group_id IN (SELECT group_id FROM inbounds WHERE node_id = ? AND enabled = 1 AND group_id IS NOT NULL)
+		    OR EXISTS (SELECT 1 FROM subscriptions sub JOIN plans p ON p.id = sub.plan_id WHERE sub.user_id = u.id AND sub.status = 'active'
+		               AND p.group_id IN (SELECT group_id FROM inbounds WHERE node_id = ? AND enabled = 1 AND group_id IS NOT NULL)))`, nodeID, nodeID, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int64]bool{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out[id] = true
+	}
+	return out, rows.Err()
 }
 
 // AdjustBalance adds delta (may be negative) to a user's balance.

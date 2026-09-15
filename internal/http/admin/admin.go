@@ -29,8 +29,10 @@ import (
 
 // SessionStore is the cookie session backend.
 type SessionStore interface {
-	Create(ctx context.Context, userID int64) (*domain.Session, error)
-	Resolve(ctx context.Context, id string) (*domain.User, error)
+	// Create mints a session; admin marks one issued by the admin login
+	// (password + authenticator), the only kind requireAdmin accepts.
+	Create(ctx context.Context, userID int64, admin bool) (*domain.Session, error)
+	Resolve(ctx context.Context, id string) (*domain.User, bool, error)
 	Delete(ctx context.Context, id string) error
 }
 
@@ -199,10 +201,17 @@ func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 				fail(w, http.StatusUnauthorized, "not logged in")
 				return
 			}
-			u, err = h.Sessions.Resolve(r.Context(), c.Value)
+			var admin bool
+			u, admin, err = h.Sessions.Resolve(r.Context(), c.Value)
 			if err != nil {
 				h.Log.Error("session", "err", err)
 				fail(w, http.StatusInternalServerError, "internal error")
+				return
+			}
+			if u != nil && !admin {
+				// A portal / OIDC / reset session, even for a staff account:
+				// the admin console needs the admin login (with TOTP).
+				fail(w, http.StatusUnauthorized, "admin login required")
 				return
 			}
 		}
@@ -272,7 +281,7 @@ func (h *handlers) login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	sess, err := h.Sessions.Create(r.Context(), u.ID)
+	sess, err := h.Sessions.Create(r.Context(), u.ID, true)
 	if err != nil {
 		fail(w, http.StatusInternalServerError, "internal error")
 		return
@@ -482,6 +491,21 @@ func (h *handlers) repairNode(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]string{"pair_code": code})
 }
 
+// checkInboundFields rejects values the node could not embed safely: the
+// tag becomes file names and nft comments, the listen address goes into
+// nft rules.
+func checkInboundFields(ib *domain.Inbound) string {
+	ib.Tag = strings.TrimSpace(ib.Tag)
+	if !spec.ValidTag(ib.Tag) {
+		return "tag may only contain letters, digits, . _ : - (max 64)"
+	}
+	ib.Listen = strings.TrimSpace(ib.Listen)
+	if !spec.ValidListen(ib.Listen) {
+		return "listen must be an IP address on the node"
+	}
+	return ""
+}
+
 func (h *handlers) createInbound(w http.ResponseWriter, r *http.Request) {
 	nodeID, okID := pathID(r)
 	var ib domain.Inbound
@@ -491,6 +515,10 @@ func (h *handlers) createInbound(w http.ResponseWriter, r *http.Request) {
 	}
 	ib.NodeID = nodeID
 	ib.Enabled = true
+	if msg := checkInboundFields(&ib); msg != "" {
+		fail(w, http.StatusBadRequest, msg)
+		return
+	}
 	if msg := h.checkIngress(r, &ib); msg != "" {
 		fail(w, http.StatusBadRequest, msg)
 		return
@@ -515,6 +543,10 @@ func (h *handlers) updateInbound(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ib.ID, ib.NodeID = cur.ID, cur.NodeID
+	if msg := checkInboundFields(&ib); msg != "" {
+		fail(w, http.StatusBadRequest, msg)
+		return
+	}
 	if msg := h.checkIngress(r, &ib); msg != "" {
 		fail(w, http.StatusBadRequest, msg)
 		return
@@ -667,6 +699,9 @@ func (h *handlers) updateUser(w http.ResponseWriter, r *http.Request) {
 	if err := h.Store.UpdateUser(r.Context(), id, in.Status, in.GroupID, hash); err != nil {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	if hash != "" || in.Status != "active" {
+		_ = h.Store.DeleteUserSessions(r.Context(), id)
 	}
 	ok(w, map[string]bool{"ok": true})
 }

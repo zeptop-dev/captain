@@ -248,8 +248,16 @@ func (h *handlers) callback(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, errors.New("admin only"))
 		return
 	}
+	if strings.HasPrefix(f.Next, "/admin") && user.IsStaff() {
+		// OIDC may open the console only for staff without an
+		// authenticator; with TOTP on, the admin login is the only door.
+		if _, enabled, _ := h.Store.TOTP(ctx, user.ID); enabled {
+			h.fail(w, r, errors.New("this account uses an authenticator: sign in with password and code"))
+			return
+		}
+	}
 	if !f.Link {
-		sess, err := h.Sessions.Create(ctx, user.ID)
+		sess, err := h.Sessions.Create(ctx, user.ID, strings.HasPrefix(f.Next, "/admin") && user.IsStaff())
 		if err != nil {
 			h.fail(w, r, err)
 			return

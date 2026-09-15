@@ -714,6 +714,9 @@ func (h *handlers) updateStaff(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	if hash != "" {
+		_ = h.Store.DeleteUserSessions(r.Context(), target.ID)
+	}
 	h.listStaff(w, r)
 }
 

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 type Orders struct {
 	Store    *store.Store
 	Gateways map[string]payment.Gateway // by name
+	Log      *slog.Logger
 	// OnPaid runs after an order is settled (notifications).
 	OnPaid func(ctx context.Context, o *domain.Order)
 }
@@ -64,6 +66,11 @@ func (o *Orders) Price(ctx context.Context, user *domain.User, planID int64, per
 		if c.PerUser > 0 {
 			if n, _ := o.Store.CouponUsesByUser(ctx, c.ID, user.ID); n >= c.PerUser {
 				return nil, nil, fmt.Errorf("orders: coupon already used")
+			}
+		}
+		if c.MaxUses > 0 {
+			if n, _ := o.Store.CouponReservations(ctx, c.ID); n >= c.MaxUses {
+				return nil, nil, fmt.Errorf("orders: coupon exhausted")
 			}
 		}
 		q.DiscountCents = c.Discount(list)
@@ -141,6 +148,12 @@ func (o *Orders) Settle(ctx context.Context, n *payment.Notification) (*domain.O
 	order, err := o.Store.MarkPaid(ctx, n.OrderNo, n.GatewayRef, time.Now())
 	if errors.Is(err, store.ErrAlreadyPaid) {
 		return order, nil
+	}
+	if errors.Is(err, store.ErrRevived) {
+		if o.Log != nil {
+			o.Log.Warn("late payment revived a cancelled order", "order", n.OrderNo, "gateway_ref", n.GatewayRef)
+		}
+		err = nil
 	}
 	if err == nil && o.OnPaid != nil {
 		o.OnPaid(ctx, order)

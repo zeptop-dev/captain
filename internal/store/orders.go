@@ -61,6 +61,11 @@ func (s *Store) OrdersByUser(ctx context.Context, userID int64, limit int) ([]*d
 	return out, rows.Err()
 }
 
+// ErrRevived is returned with the (now paid) order when a notification
+// arrived for an order the stale-order job had already cancelled; callers
+// log it so the operator can see late payments.
+var ErrRevived = errors.New("store: cancelled order revived by a late payment")
+
 // ErrAlreadyPaid signals an idempotent repeat of a paid notification.
 var ErrAlreadyPaid = errors.New("store: order already paid")
 
@@ -68,6 +73,7 @@ var ErrAlreadyPaid = errors.New("store: order already paid")
 // transaction. Repeats return ErrAlreadyPaid; cancelled orders return
 // ErrNotFound.
 func (s *Store) MarkPaid(ctx context.Context, no, gatewayRef string, at time.Time) (*domain.Order, error) {
+	revived := false
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -81,9 +87,11 @@ func (s *Store) MarkPaid(ctx context.Context, no, gatewayRef string, at time.Tim
 	case "paid":
 		return o, ErrAlreadyPaid
 	case "cancelled":
-		return nil, ErrNotFound
+		// The customer paid after the pending window closed (3-DS, a
+		// checkout tab left open): the money is real, so grant anyway.
+		revived = true
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE orders SET status = 'paid', gateway_ref = ?, paid_at = ? WHERE id = ? AND status = 'pending'`, gatewayRef, at.Unix(), o.ID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE orders SET status = 'paid', gateway_ref = ?, paid_at = ? WHERE id = ? AND status IN ('pending', 'cancelled')`, gatewayRef, at.Unix(), o.ID); err != nil {
 		return nil, err
 	}
 	plan, err := planByIDTx(ctx, tx, o.PlanID)
@@ -101,6 +109,9 @@ func (s *Store) MarkPaid(ctx context.Context, no, gatewayRef string, at time.Tim
 	}
 	o.Status, o.GatewayRef = "paid", gatewayRef
 	o.PaidAt = &at
+	if revived {
+		return o, ErrRevived
+	}
 	return o, nil
 }
 
@@ -326,7 +337,9 @@ type DayTraffic struct {
 // the inviter's commission.
 func (s *Store) paidHooksTx(ctx context.Context, tx *sql.Tx, o *domain.Order) error {
 	if o.CouponID != nil {
-		if _, err := tx.ExecContext(ctx, `UPDATE coupons SET used = used + 1 WHERE id = ?`, *o.CouponID); err != nil {
+		// Never count past max_uses; the discount was already granted at
+		// checkout, this just keeps the counter honest.
+		if _, err := tx.ExecContext(ctx, `UPDATE coupons SET used = used + 1 WHERE id = ? AND (max_uses = 0 OR used < max_uses)`, *o.CouponID); err != nil {
 			return err
 		}
 	}
