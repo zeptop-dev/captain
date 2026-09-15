@@ -137,7 +137,13 @@
     "doctorOk": "ok",
     "doctorWarn": "warn",
     "doctorFail": "fail",
-    "doctorFailHint": "The node's last self-check had failures; open the node page"
+    "doctorFailHint": "The node's last self-check had failures; open the node page",
+    "info": "Node",
+    "hostname": "Hostname",
+    "platform": "Platform",
+    "nodeDomain": "Domain",
+    "monitor": "External monitor",
+    "open": "Open"
   },
   "inbounds": {
     "title": "Inbounds",

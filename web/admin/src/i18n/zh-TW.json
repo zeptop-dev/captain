@@ -121,7 +121,13 @@
     "installCmd": "一鍵安裝（systemd）",
     "dockerCmd": "Docker（host 網路）",
     "manualHint": "已經裝好 bosun？用配對碼手動接管，或複製設定片段：",
-    "monitorUrlHint": "使用其他探針（Komari、哪吒）時填該節點的頁面網址，節點頁會顯示跳轉連結。"
+    "monitorUrlHint": "使用其他探針（Komari、哪吒）時填該節點的頁面網址，節點頁會顯示跳轉連結。",
+    "info": "節點資訊",
+    "hostname": "主機名",
+    "platform": "平台",
+    "nodeDomain": "網域",
+    "monitor": "外部監控",
+    "open": "開啟"
   },
   "inbounds": {
     "title": "入站",

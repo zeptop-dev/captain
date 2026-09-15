@@ -137,7 +137,13 @@
     "doctorOk": "正常",
     "doctorWarn": "警告",
     "doctorFail": "失败",
-    "doctorFailHint": "节点上次自检有失败项，进节点页看详情"
+    "doctorFailHint": "节点上次自检有失败项，进节点页看详情",
+    "info": "节点信息",
+    "hostname": "主机名",
+    "platform": "平台",
+    "nodeDomain": "域名",
+    "monitor": "外部监控",
+    "open": "打开"
   },
   "inbounds": {
     "title": "入站",
