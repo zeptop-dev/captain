@@ -1,4 +1,4 @@
-import { ActionIcon, Badge, Button, Card, Code, Group, Modal, NumberInput, Stack, Table, Text, TextInput, Title, Tooltip, Box } from '@mantine/core'
+import { ActionIcon, Badge, Box, Button, Card, Code, Group, Modal, NumberInput, Stack, Table, Text, TextInput, Title, Tooltip } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -14,6 +14,18 @@ export const parsePorts = (s: string) => s.split(/[\s,]+/).map((x) => Number(x))
 export const ingressPayload = (v: IngressValues) => ({ Name: v.Name, BindIP: v.BindIP, LineIP: v.LineIP, EntryHost: v.EntryHost, EntryDomain: v.EntryDomain, PortFrom: Number(v.PortFrom) || 0, PortTo: Number(v.PortTo) || 0, PortOffset: Number(v.PortOffset) || 0, ReservedPorts: parsePorts(v.ReservedPorts) })
 
 // The fields of one line ingress, shared by the card and the inbound recipe.
+// derivedPool is nobrand's "derived-tail" policy: for a local IPv4 ending
+// in N, port N×100 is reserved and N×100+1..N×100+99 is the automatic pool.
+export const derivedPool = (bindIP: string) => {
+  const m = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(bindIP.trim())
+  if (!m) return null
+  const n = Number(m[4])
+  if (n < 1 || n > 254) return null
+  const base = n * 100
+  if (base + 99 > 65535 || base < 1024) return null
+  return { reserved: base, from: base + 1, to: base + 99 }
+}
+
 export function IngressFields({ form }: { form: ReturnType<typeof useForm<IngressValues>> }) {
   const { t } = useTranslation()
   return (
@@ -27,12 +39,15 @@ export function IngressFields({ form }: { form: ReturnType<typeof useForm<Ingres
         <TextInput label={t('ingress.entryHost')} description={t('ingress.entryHostHint')} placeholder="203.0.113.30" {...form.getInputProps('EntryHost')} />
       </Group>
       <TextInput label={t('ingress.entryDomain')} description={t('ingress.entryDomainHint')} placeholder="iplc.jp1.example.com" {...form.getInputProps('EntryDomain')} />
-      <Group grow>
+      <Group grow align="flex-end">
         <NumberInput label={t('ingress.portFrom')} min={1} max={65535} placeholder="17701" {...form.getInputProps('PortFrom')} />
         <NumberInput label={t('ingress.portTo')} min={1} max={65535} placeholder="17799" {...form.getInputProps('PortTo')} />
         <NumberInput label={t('ingress.portOffset')} description={t('ingress.portOffsetHint')} {...form.getInputProps('PortOffset')} />
       </Group>
-      <TextInput label={t('ingress.reserved')} description={t('ingress.reservedHint')} placeholder="17700" {...form.getInputProps('ReservedPorts')} />
+      <Group align="flex-end" gap="xs">
+        <TextInput flex={1} label={t('ingress.reserved')} description={t('ingress.reservedHint')} placeholder="17700" {...form.getInputProps('ReservedPorts')} />
+        <Tooltip label={t('ingress.deriveHint')}><Button size="xs" variant="light" mb={2} disabled={!derivedPool(form.values.BindIP)} onClick={() => { const d = derivedPool(form.values.BindIP); if (d) form.setValues({ PortFrom: d.from, PortTo: d.to, ReservedPorts: String(d.reserved) }) }}>{t('ingress.derive')}</Button></Tooltip>
+      </Group>
     </>
   )
 }

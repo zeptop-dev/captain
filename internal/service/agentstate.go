@@ -78,11 +78,15 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 	}
 	speeds, _ := a.Store.SpeedLimits(ctx)
 	node.UserSpeedLimitMbps = n.UserSpeedLimitMbps
+	var quotas map[int64]store.QuotaWindow
+	if n.MitaQuotas {
+		quotas, _ = a.Store.UserQuotas(ctx, at)
+	}
 	all, err := a.Store.UsersWithAccess(ctx, nil, at)
 	if err != nil {
 		return nil, err
 	}
-	users := toSpecUsers(all, over, limits, speeds)
+	users := toSpecUsers(all, over, limits, speeds, quotas)
 	byGroup := map[int64][]spec.User{}
 	ingresses, _ := a.Store.IngressesByNode(ctx, n.ID)
 	bindFor := map[int64]string{}
@@ -103,7 +107,7 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 				if err != nil {
 					return nil, err
 				}
-				list = toSpecUsers(members, over, limits, speeds)
+				list = toSpecUsers(members, over, limits, speeds, quotas)
 				byGroup[*ib.GroupID] = list
 			}
 			si.ScopedUsers = true
@@ -146,13 +150,17 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 }
 
 // toSpecUsers converts users, skipping those currently over their device limit.
-func toSpecUsers(list []*domain.User, over map[int64]bool, limits map[int64]int, speeds map[int64]int) []spec.User {
+func toSpecUsers(list []*domain.User, over map[int64]bool, limits map[int64]int, speeds map[int64]int, quotas map[int64]store.QuotaWindow) []spec.User {
 	out := make([]spec.User, 0, len(list))
 	for _, u := range list {
 		if over[u.ID] {
 			continue
 		}
-		out = append(out, spec.User{ID: u.ID, Name: u.UUID, UUID: u.UUID, Password: u.UUID, DeviceLimit: limits[u.ID], SpeedLimitMbps: speeds[u.ID]})
+		su := spec.User{ID: u.ID, Name: u.UUID, UUID: u.UUID, Password: u.UUID, DeviceLimit: limits[u.ID], SpeedLimitMbps: speeds[u.ID]}
+		if q, ok := quotas[u.ID]; ok {
+			su.QuotaBytes, su.QuotaDays = q.Bytes, q.Days
+		}
+		out = append(out, su)
 	}
 	return out
 }

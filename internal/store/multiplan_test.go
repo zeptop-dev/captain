@@ -115,3 +115,43 @@ func TestMultiPlan(t *testing.T) {
 		t.Fatalf("replace: %+v", subs)
 	}
 }
+
+func TestUserQuotas(t *testing.T) {
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	s := New(conn)
+	ctx := context.Background()
+	at := time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC)
+	days := &domain.Plan{Name: "d", PeriodDays: 90, QuotaBytes: 10 << 30, ResetMode: "days", ResetDays: 7, Enabled: true}
+	period := &domain.Plan{Name: "p", PeriodDays: 30, QuotaBytes: 5 << 30, Enabled: true}
+	unlimited := &domain.Plan{Name: "u", PeriodDays: 30, Enabled: true}
+	for _, p := range []*domain.Plan{days, period, unlimited} {
+		if err := s.CreatePlan(ctx, p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mk := func(email string, p *domain.Plan) int64 {
+		u := &domain.User{Email: email, UUID: email, SubToken: "tok-" + email, Status: "active"}
+		if err := s.CreateUser(ctx, u); err != nil {
+			t.Fatalf("create user: %v", err)
+		}
+		if _, err := s.GrantSubscriptionMode(ctx, u.ID, p, at, GrantStack); err != nil {
+			t.Fatal(err)
+		}
+		return u.ID
+	}
+	a, b, c := mk("a@x", days), mk("b@x", period), mk("c@x", unlimited)
+	q, err := s.UserQuotas(ctx, at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if q[a] != (QuotaWindow{Bytes: 10 << 30, Days: 7}) {
+		t.Fatalf("days plan: %+v", q[a])
+	}
+	if q[b] != (QuotaWindow{Bytes: 5 << 30, Days: 31}) { // 30-day period + 1
+		t.Fatalf("period plan: %+v", q[b])
+	}
+	if _, has := q[c]; has {
+		t.Fatalf("unlimited plan got a quota: %+v", q[c])
+	}
+}

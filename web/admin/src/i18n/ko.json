@@ -134,7 +134,9 @@
     "decoyUpstreamHint": "비우면 내장 페이지, http(s) URL 이면 리버스 프록시",
     "speedLimit": "사용자별 속도 제한(Mbps)",
     "speedLimitHint": "0 = 무제한. 플랜 제한이 없는 사용자에게 적용, 플랜 값이 우선. Linux + nft + tc 필요, xray / sing-box 프로토콜만 적용.",
-    "advOverridesHint": "패널에 없는 코어 옵션 추가"
+    "advOverridesHint": "패널에 없는 코어 옵션 추가",
+    "mitaQuotas": "mita 네이티브 할당량",
+    "mitaQuotasHint": "사용자 트래픽 한도를 mita 자체 quotas 에도 기록해 패널이 끊겨도 코어가 차단합니다. 창은 플랜의 리셋 주기(월간은 31일 롤링)입니다."
   },
   "inbounds": {
     "title": "인바운드",
@@ -212,7 +214,9 @@
     "enabled": "사용",
     "displayHostHint": "비워 두면 인바운드의 TLS 도메인, 없으면 노드 공인 주소를 사용합니다",
     "sort": "정렬",
-    "sortHint": "구독 내 오름차순 정렬"
+    "sortHint": "구독 내 오름차순 정렬",
+    "clientExtra": "클라이언트 추가 필드",
+    "clientExtraHint": "mihomo/Stash/sing-box 구독에서 이 엔트리의 노드 항목에 병합되는 JSON 객체(tfo, smux, dialer-proxy, ip-version 등)."
   },
   "users": {
     "title": "사용자",
@@ -700,5 +704,21 @@
     "applyConfirm": "mihomo, Stash, Surge, Surfboard, Loon, Quantumult X, Egern 템플릿을 생성해 현재 템플릿을 덮어씁니다.",
     "applied": "템플릿이 생성되어 적용되었습니다",
     "applyHint": "생성된 템플릿은 \"텍스트\"에서 수정할 수 있지만 다음 \"생성 후 적용\"이 덮어씁니다. 자리표시자:"
+  },
+  "forwards": {
+    "backendRealm": "Realm(별도 프로세스)",
+    "backendRealmHint": "bosun 이 zhboner/realm 을 설치·실행합니다. 높은 처리량, 호스트명 대상과 UDP 지원. 연결 수/트래픽 통계 없음."
+  },
+  "ingress": {
+    "derive": "끝자리로 파생",
+    "deriveHint": "nobrand 의 derived-tail 정책: 로컬 주소 끝자리 N 에 대해 N×100 예약, N×100+1~N×100+99 를 자동 풀로 사용."
+  },
+  "external": {
+    "probe": "지금 탐지",
+    "probed": "탐지 완료: {{up}} / {{total}} 도달 가능",
+    "reach": "도달성",
+    "down": "불통",
+    "hideDead": "도달 불가 노드 숨기기",
+    "hideDeadHint": "패널이 10분마다 노드 주소로 TCP 탐지하며, 실패한 노드는 구독에서 제외됩니다."
   }
 }

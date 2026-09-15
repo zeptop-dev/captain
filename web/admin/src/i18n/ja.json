@@ -134,7 +134,9 @@
     "decoyUpstreamHint": "空なら内蔵ページ、http(s) URL ならリバースプロキシ",
     "speedLimit": "ユーザーごとの速度制限（Mbps）",
     "speedLimitHint": "0 = 無制限。プラン制限のないユーザーに適用、プランの値が優先。Linux + nft + tc が必要で、xray / sing-box のプロトコルのみ対象。",
-    "advOverridesHint": "パネルにないコアの項目を追加"
+    "advOverridesHint": "パネルにないコアの項目を追加",
+    "mitaQuotas": "mita ネイティブ配額",
+    "mitaQuotasHint": "ユーザーの通信量上限を mita 自身の quotas にも書き込み、パネル不通時もコアが遮断します。ウィンドウはプランのリセット周期（月次は 31 日ローリング）です。"
   },
   "inbounds": {
     "title": "インバウンド",
@@ -212,7 +214,9 @@
     "enabled": "有効",
     "displayHostHint": "空欄ならインバウンドの TLS ドメイン、なければノードのパブリックアドレスを使います",
     "sort": "並び順",
-    "sortHint": "購読内でこの値の昇順に並びます"
+    "sortHint": "購読内でこの値の昇順に並びます",
+    "clientExtra": "クライアント追加フィールド",
+    "clientExtraHint": "mihomo/Stash/sing-box のサブスクでこのエントリのノードに統合する JSON（tfo、smux、dialer-proxy、ip-version など）。"
   },
   "users": {
     "title": "ユーザー",
@@ -700,5 +704,21 @@
     "applyConfirm": "mihomo、Stash、Surge、Surfboard、Loon、Quantumult X、Egern のテンプレートを生成し、現在のものを上書きします。",
     "applied": "テンプレートを生成して適用しました",
     "applyHint": "生成後も「テキスト」で手直しできますが、次の「生成して適用」で上書きされます。プレースホルダー："
+  },
+  "forwards": {
+    "backendRealm": "Realm（別プロセス）",
+    "backendRealmHint": "bosun が zhboner/realm を導入して実行。高スループット、ホスト名の宛先と UDP に対応。接続数・通信量の統計なし。"
+  },
+  "ingress": {
+    "derive": "末尾から派生",
+    "deriveHint": "nobrand の derived-tail：ローカルアドレス末尾 N に対し N×100 を予約、N×100+1〜N×100+99 を自動プールにします。"
+  },
+  "external": {
+    "probe": "今すぐ探索",
+    "probed": "探索完了：{{up}} / {{total}} 到達可",
+    "reach": "到達性",
+    "down": "不通",
+    "hideDead": "到達不能ノードを隠す",
+    "hideDeadHint": "パネルが 10 分ごとにノードアドレスへ TCP 探索し、失敗したノードはサブスクから外します。"
   }
 }
