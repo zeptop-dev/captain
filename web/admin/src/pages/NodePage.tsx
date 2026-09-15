@@ -18,7 +18,7 @@ import { RoutingCard } from '../components/RoutingCard'
 import { ForwardsCard } from '../components/ForwardsCard'
 import { IngressesCard, ingressPayload } from '../components/IngressesCard'
 
-interface Detail { node: Node; inbounds: Inbound[]; ingresses?: Ingress[]; status: { host: Record<string, number> | null; cores: Record<string, { running: boolean }> | null; certs: CertStatus[] | null; doctor?: DoctorReport | null } | null }
+interface Detail { traffic?: Record<string, { today: number; total: number }>; node: Node; inbounds: Inbound[]; ingresses?: Ingress[]; status: { host: Record<string, number> | null; cores: Record<string, { running: boolean }> | null; certs: CertStatus[] | null; doctor?: DoctorReport | null } | null }
 
 export default function NodePage() {
   const { id } = useParams()
@@ -115,7 +115,7 @@ export default function NodePage() {
           <Button size="xs" leftSection={<IconPlus size={14} />} onClick={() => setEditing('new')}>{t('inbounds.create')}</Button>
         </Group>
         <Table>
-          <Table.Thead><Table.Tr><Table.Th>{t('inbounds.tag')}</Table.Th><Table.Th>{t('inbounds.protocol')}</Table.Th><Table.Th>{t('inbounds.port')}</Table.Th><Table.Th>{t('inbounds.core')}</Table.Th><Table.Th>{t('inbounds.group')}</Table.Th><Table.Th>{t('inbounds.enabled')}</Table.Th><Table.Th /></Table.Tr></Table.Thead>
+          <Table.Thead><Table.Tr><Table.Th>{t('inbounds.tag')}</Table.Th><Table.Th>{t('inbounds.protocol')}</Table.Th><Table.Th>{t('inbounds.port')}</Table.Th><Table.Th>{t('inbounds.core')}</Table.Th><Table.Th>{t('inbounds.traffic')}</Table.Th><Table.Th>{t('inbounds.group')}</Table.Th><Table.Th>{t('inbounds.enabled')}</Table.Th><Table.Th /></Table.Tr></Table.Thead>
           <Table.Tbody>
             {d.inbounds.map((ib) => (
               <Table.Tr key={ib.ID}>
@@ -123,6 +123,7 @@ export default function NodePage() {
                 <Table.Td><Badge>{ib.Protocol}</Badge></Table.Td>
                 <Table.Td><Code>{ib.Listen || '::'}:{ib.Port}</Code></Table.Td>
                 <Table.Td>{ib.Core || t('inbounds.coreAuto')}</Table.Td>
+                <Table.Td>{d.traffic?.[String(ib.ID)] ? <Text size="xs">{bytes(d.traffic[String(ib.ID)].today)} <Text span c="dimmed">/ {bytes(d.traffic[String(ib.ID)].total)}</Text></Text> : <Text size="xs" c="dimmed">—</Text>}</Table.Td>
                 <Table.Td>{ib.GroupID ? (groups.data?.find((g) => g.ID === ib.GroupID)?.Name ?? ib.GroupID) : t('inbounds.groupAll')}</Table.Td>
                 <Table.Td>{ib.Enabled ? <Badge color="teal">{t('common.enabled')}</Badge> : <Badge color="gray">{t('common.disabled')}</Badge>}</Table.Td>
                 <Table.Td><Group gap={4} justify="flex-end">
@@ -131,7 +132,7 @@ export default function NodePage() {
                 </Group></Table.Td>
               </Table.Tr>
             ))}
-            {d.inbounds.length === 0 && <Table.Tr><Table.Td colSpan={7}><Text c="dimmed" ta="center" py="lg">{t('common.empty')}</Text></Table.Td></Table.Tr>}
+            {d.inbounds.length === 0 && <Table.Tr><Table.Td colSpan={8}><Text c="dimmed" ta="center" py="lg">{t('common.empty')}</Text></Table.Td></Table.Tr>}
           </Table.Tbody>
         </Table>
       </Card>

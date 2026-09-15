@@ -46,3 +46,38 @@ func (s *Store) UpsertForwardStatus(ctx context.Context, nodeID int64, tag strin
 		nodeID, tag, boolInt(up), rttMs, lastErr, active, total, in, out, now())
 	return err
 }
+
+// AddInboundTraffic folds a node's per-inbound counters into the day row.
+func (s *Store) AddInboundTraffic(ctx context.Context, inboundID, up, down int64, at time.Time) error {
+	day := at.UTC().Truncate(24 * time.Hour).Unix()
+	_, err := s.db.ExecContext(ctx, `INSERT INTO inbound_traffic_daily (inbound_id, day, up_bytes, down_bytes) VALUES (?, ?, ?, ?)
+		ON CONFLICT(inbound_id, day) DO UPDATE SET up_bytes = up_bytes + excluded.up_bytes, down_bytes = down_bytes + excluded.down_bytes`, inboundID, day, up, down)
+	return err
+}
+
+// InboundUsage is today's and the lifetime traffic of one inbound.
+type InboundUsage struct {
+	Today int64 `json:"today"`
+	Total int64 `json:"total"`
+}
+
+// InboundTrafficByNode returns usage per inbound id for a node.
+func (s *Store) InboundTrafficByNode(ctx context.Context, nodeID int64, at time.Time) (map[int64]InboundUsage, error) {
+	day := at.UTC().Truncate(24 * time.Hour).Unix()
+	rows, err := s.db.QueryContext(ctx, `SELECT t.inbound_id, SUM(CASE WHEN t.day = ? THEN t.up_bytes + t.down_bytes ELSE 0 END), SUM(t.up_bytes + t.down_bytes)
+		FROM inbound_traffic_daily t JOIN inbounds i ON i.id = t.inbound_id WHERE i.node_id = ? GROUP BY t.inbound_id`, day, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int64]InboundUsage{}
+	for rows.Next() {
+		var id int64
+		var u InboundUsage
+		if err := rows.Scan(&id, &u.Today, &u.Total); err != nil {
+			return nil, err
+		}
+		out[id] = u
+	}
+	return out, rows.Err()
+}

@@ -8,7 +8,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/libdns/cloudflare v0.2.2
 	github.com/pressly/goose/v3 v3.28.0
-	github.com/zeptop-dev/bosun v0.21.0
+	github.com/zeptop-dev/bosun v0.22.0
 	go.uber.org/zap v1.27.1
 	golang.org/x/crypto v0.57.0
 	golang.org/x/net v0.58.0
@@ -42,5 +42,3 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 )
-
-replace github.com/zeptop-dev/bosun => ../bosun
