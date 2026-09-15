@@ -2,7 +2,7 @@ import { Accordion, ActionIcon, Badge, Button, Card, Code, Group, Modal, Progres
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react'
+import { IconInfoCircle, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -10,6 +10,7 @@ import { api, type DoctorReport, type Ingress, type CertStatus, type Group as UG
 import { ago, bytes, when } from '../lib/format'
 import { dnsToast, toast, type DNSResult } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
+import { InfoGrid, InfoTile, SectionTitle } from '../components/InfoTile'
 import { InboundForm, toPayload, toValues, type InboundValues } from '../components/InboundForm'
 import { NodeStatus, PairCodeBox } from './NodesPage'
 import { NodeProbeCard } from '../components/NodeProbeCard'
@@ -64,7 +65,7 @@ export default function NodePage() {
       {d.status?.doctor && <DoctorCard report={d.status.doctor} />}
       {d.status?.certs && d.status.certs.length > 0 && (
         <Card mb="lg">
-          <Text size="xs" tt="uppercase" c="dimmed" fw={600} mb="xs">{t('nodes.certs')}</Text>
+          <Text size="sm" c="dimmed" fw={500} mb="xs">{t('nodes.certs')}</Text>
           <Table>
             <Table.Tbody>
               {d.status.certs.map((c) => (
@@ -80,28 +81,33 @@ export default function NodePage() {
         </Card>
       )}
 
-      <SimpleGrid cols={{ base: 1, md: 3 }} mb="lg">
-        <Card>
-          <Text size="xs" tt="uppercase" c="dimmed" fw={600} mb="xs">{t('nodes.host')}</Text>
-          {host && host.mem_total ? (
-            <Stack gap="xs">
-              <div><Group justify="space-between"><Text size="sm">{t('nodes.cpu')}</Text><Text size="sm">{Math.round(host.cpu_percent ?? 0)}%</Text></Group><Progress value={host.cpu_percent ?? 0} size="sm" /></div>
-              <div><Group justify="space-between"><Text size="sm">{t('nodes.mem')}</Text><Text size="sm">{bytes(host.mem_used)} / {bytes(host.mem_total)}</Text></Group><Progress value={pct(host.mem_used, host.mem_total)} size="sm" color="violet" /></div>
-              <div><Group justify="space-between"><Text size="sm">{t('nodes.disk')}</Text><Text size="sm">{bytes(host.disk_used)} / {bytes(host.disk_total)}</Text></Group><Progress value={pct(host.disk_used, host.disk_total)} size="sm" color="teal" /></div>
-            </Stack>
-          ) : <Text size="sm" c="dimmed">{t('nodes.noStatus')}</Text>}
-        </Card>
-        <Card>
-          <Text size="xs" tt="uppercase" c="dimmed" fw={600} mb="xs">{t('nodes.cores')}</Text>
-          <Group gap="xs">{Object.entries(d.status?.cores ?? {}).map(([name, c]) => <Badge key={name} color={c.running ? 'teal' : 'gray'}>{name}</Badge>)}{!d.status?.cores || Object.keys(d.status.cores).length === 0 ? <Text size="sm" c="dimmed">—</Text> : null}</Group>
-        </Card>
-        <Card>
-          <Text size="xs" tt="uppercase" c="dimmed" fw={600} mb="xs">{t('nodes.publicAddr')}</Text>
-          <Code>{n.public_addr || '—'}</Code>
-          <Text size="xs" c="dimmed" mt="sm">{t('nodes.lastSeen')}: {ago(n.last_seen_at)} · {t('nodes.trafficToday')}: {bytes(n.traffic_today_bytes)}</Text>
-          {n.monitor_url && <Text size="xs" mt={4}><a href={n.monitor_url} target="_blank" rel="noreferrer">{t('nodes.monitorUrl')}</a></Text>}
-        </Card>
-      </SimpleGrid>
+      <Card mb="lg">
+        <SectionTitle icon={<IconInfoCircle size={20} />}>{t('nodes.info')}</SectionTitle>
+        <InfoGrid>
+          <InfoTile label={t('nodes.hostname')} value={n.hostname} mono />
+          <InfoTile label={t('nodes.platform')} value={n.platform} />
+          <InfoTile label={t('nodes.version')} value={n.version} mono />
+          <InfoTile label={t('nodes.publicAddr')} value={n.public_addr} mono />
+          <InfoTile label={t('nodes.internalAddr')} value={n.internal_addr} mono />
+          <InfoTile label={t('nodes.v6Addr')} value={n.v6_addr} mono />
+          <InfoTile label={t('nodes.nodeDomain')} value={n.domain} mono />
+          <InfoTile label={t('nodes.lastSeen')} value={n.last_seen_at ? ago(n.last_seen_at) : undefined} />
+          <InfoTile label={t('nodes.trafficToday')} value={bytes(n.traffic_today_bytes)} />
+          <InfoTile label={t('nodes.cores')} value={Object.keys(d.status?.cores ?? {}).length ? <Group gap={4}>{Object.entries(d.status?.cores ?? {}).map(([name, c]) => <Badge key={name} color={c.running ? 'teal' : 'gray'}>{name}</Badge>)}</Group> : undefined} />
+          {n.monitor_url && <InfoTile label={t('nodes.monitor')} value={<a href={n.monitor_url} target="_blank" rel="noreferrer">{t('nodes.open')}</a>} />}
+        </InfoGrid>
+      </Card>
+
+      <Card mb="lg">
+        <Text size="sm" c="dimmed" fw={500} mb="xs">{t('nodes.host')}</Text>
+        {host && host.mem_total ? (
+          <SimpleGrid cols={{ base: 1, md: 3 }}>
+            <div><Group justify="space-between"><Text size="sm">{t('nodes.cpu')}</Text><Text size="sm">{Math.round(host.cpu_percent ?? 0)}%</Text></Group><Progress value={host.cpu_percent ?? 0} size="sm" /></div>
+            <div><Group justify="space-between"><Text size="sm">{t('nodes.mem')}</Text><Text size="sm">{bytes(host.mem_used)} / {bytes(host.mem_total)}</Text></Group><Progress value={pct(host.mem_used, host.mem_total)} size="sm" color="violet" /></div>
+            <div><Group justify="space-between"><Text size="sm">{t('nodes.disk')}</Text><Text size="sm">{bytes(host.disk_used)} / {bytes(host.disk_total)}</Text></Group><Progress value={pct(host.disk_used, host.disk_total)} size="sm" color="teal" /></div>
+          </SimpleGrid>
+        ) : <Text size="sm" c="dimmed">{t('nodes.noStatus')}</Text>}
+      </Card>
 
       <Card p={0}>
         <Group justify="space-between" p="md" pb="xs">

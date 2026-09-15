@@ -121,7 +121,13 @@
     "installCmd": "ワンライナーインストール（systemd）",
     "dockerCmd": "Docker（host ネットワーク）",
     "manualHint": "bosun をインストール済みですか？ペアリングコードで手動で引き継ぐか、設定スニペットをコピーしてください：",
-    "monitorUrlHint": "別の監視ツール（Komari、Nezha）を使う場合、このノードのページURLを入力すると、ノードページにリンクが表示されます。"
+    "monitorUrlHint": "別の監視ツール（Komari、Nezha）を使う場合、このノードのページURLを入力すると、ノードページにリンクが表示されます。",
+    "info": "ノード情報",
+    "hostname": "ホスト名",
+    "platform": "プラットフォーム",
+    "nodeDomain": "ドメイン",
+    "monitor": "外部モニター",
+    "open": "開く"
   },
   "inbounds": {
     "title": "インバウンド",
