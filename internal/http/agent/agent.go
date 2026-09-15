@@ -150,6 +150,9 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 		if err := h.Store.CompleteNodeJob(ctx, n.ID, jr.ID, jr.Result, jr.Error); err != nil {
 			h.Log.Error("complete node job", "job", jr.ID, "err", err)
 		}
+		if jr.Kind == "warp_register" && len(jr.Result) > 0 {
+			_ = h.Store.SetNodeWARP(ctx, n.ID, jr.Result)
+		}
 	}
 	// Traffic is attributed to the node's first inbound for daily stats; the
 	// subscription charge is per user regardless of inbound.

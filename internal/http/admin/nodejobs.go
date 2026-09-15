@@ -12,7 +12,7 @@ import (
 // Node jobs: one-off tasks (REALITY target scans) the panel hands a node
 // through its state. The node answers in its next report; the UI polls.
 
-var jobKinds = map[string]bool{"reality_scan": true}
+var jobKinds = map[string]bool{"reality_scan": true, "warp_register": true}
 
 func (h *handlers) createNodeJob(w http.ResponseWriter, r *http.Request) {
 	id, okID := pathID(r)

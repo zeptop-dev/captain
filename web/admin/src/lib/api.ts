@@ -34,6 +34,17 @@ export interface Node {
   version: string; platform: string; hostname: string; last_seen_at: string | null; online: boolean; paired: boolean
   pair_code?: string; traffic_today_bytes: number; inbounds: number; upgrade_to?: string; outdated: boolean; cert_problem: boolean; doctor_fail?: boolean
 }
+// runNodeJob queues a one-off job on the node and polls until it answers.
+export async function runNodeJob<T>(nodeID: number, kind: string, params: unknown, timeoutMs = 150_000): Promise<T> {
+  const { id } = await api.post<{ id: string }>(`/api/admin/nodes/${nodeID}/jobs`, { kind, params })
+  const started = Date.now()
+  while (Date.now() - started < timeoutMs) {
+    await new Promise((r) => setTimeout(r, 2000))
+    const j = await api.get<NodeJob>(`/api/admin/nodes/${nodeID}/jobs/${id}`)
+    if (j.done_at) { if (j.error) throw new Error(j.error); return j.result as T }
+  }
+  throw new Error('node did not answer in time')
+}
 export interface NodeJob { id: string; node_id: number; kind: string; params: unknown; result?: unknown; error?: string; created_at: string; done_at?: string }
 export interface CertStatus { domain: string; method: string; not_after: string; error?: string }
 export interface DoctorCheck { id: string; name: string; status: 'ok' | 'warn' | 'fail' | 'skip'; detail?: string }

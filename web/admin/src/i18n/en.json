@@ -976,5 +976,24 @@
     "keySet": "saved; blank keeps it, \"-\" clears it",
     "interval": "Report interval (s)",
     "enabled": "Enabled"
+  },
+  "warp": {
+    "title": "Cloudflare WARP exit",
+    "hint": "Register a WARP account on the node and send traffic through a WireGuard tunnel so it exits from Cloudflare's addresses. Use it when the VPS IP is refused by ChatGPT, Netflix and the like, with rules below so only those sites take it. Keys stay on the node.",
+    "free": "Free",
+    "notRegistered": "Not registered",
+    "addresses": "Tunnel addresses",
+    "endpoint": "Peer",
+    "license": "WARP+ license (optional)",
+    "licenseHint": "The 26-character key from the 1.1.1.1 app switches the account to WARP+",
+    "register": "Register WARP",
+    "reregister": "Re-register",
+    "applyLicense": "Apply license",
+    "registered": "WARP registered",
+    "licenseApplied": "License applied",
+    "addOutbound": "Add WARP outbound",
+    "outboundAdded": "WARP outbound added",
+    "addTemplate": "Add common rules",
+    "templateHint": "Route AI and streaming sites through WARP:"
   }
 }
