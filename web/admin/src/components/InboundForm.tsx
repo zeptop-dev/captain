@@ -151,13 +151,13 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
           <TextInput label={t('inbounds.tag')} required {...form.getInputProps('Tag')} />
           <Select label={t('inbounds.protocol')} data={protocols} required allowDeselect={false} {...form.getInputProps('Protocol')} />
         </Group>
-        <Select label={t('inbounds.ingress')} description={form.values.NewIngress ? t('inbounds.ingressNewHint') : selectedIngress ? t('inbounds.ingressHint', { host: selectedIngress.entry_host || t('ingress.noEntry'), ports: selectedIngress.port_from ? `${selectedIngress.port_from}–${selectedIngress.port_to}` : t('ingress.anyPort') }) : t('inbounds.ingressDirectHint')} allowDeselect={false}
+        <Select label={t('inbounds.ingress')} description={form.values.NewIngress ? t('inbounds.ingressNewHint') : selectedIngress ? (t('inbounds.ingressHint', { host: selectedIngress.entry_host || t('ingress.noEntry'), ports: selectedIngress.port_from ? `${selectedIngress.port_from}–${selectedIngress.port_to}` : t('ingress.anyPort') }) + (selectedIngress.bind_ip ? ' ' + t('inbounds.ingressBindHint', { ip: selectedIngress.bind_ip }) : '')) : t('inbounds.ingressDirectHint')} allowDeselect={false}
           data={[{ value: '', label: t('inbounds.ingressDirect') }, ...ingresses.map((g) => ({ value: String(g.id), label: `${g.name} → ${g.entry_domain || g.entry_host || t('ingress.noEntry')}` })), { value: 'new', label: t('inbounds.ingressNew') }]}
           value={form.values.NewIngress ? 'new' : form.values.IngressID} onChange={onIngress} />
         {lineOnly && !form.values.IngressID && !form.values.NewIngress && <Text size="xs" c="orange">{t('inbounds.lineOnlyHint')}</Text>}
         {form.values.NewIngress && <Stack gap="xs" p="sm" style={{ border: '1px dashed var(--mantine-color-default-border)', borderRadius: 8 }}><Text size="xs" c="dimmed">{t('inbounds.ingressNewFields')}</Text><IngressFields form={ingressForm} /></Stack>}
         <Group grow align="flex-start">
-          <TextInput label={t('inbounds.listen')} placeholder={selectedIngress?.bind_ip || '::'} description={selectedIngress?.bind_ip ? t('inbounds.listenIngressHint', { ip: selectedIngress.bind_ip }) : undefined} {...form.getInputProps('Listen')} />
+          <TextInput label={t('inbounds.listen')} placeholder={selectedIngress?.bind_ip || '::'} {...form.getInputProps('Listen')} />
           <NumberInput label={t('inbounds.port')} min={1} max={65535} required {...form.getInputProps('Port')} />
           <Select label={t('inbounds.core')} data={cores.map((c) => ({ value: c, label: c || t('inbounds.coreAuto') }))} allowDeselect={false} {...form.getInputProps('Core')} />
         </Group>
