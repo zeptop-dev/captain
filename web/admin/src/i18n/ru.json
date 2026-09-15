@@ -157,7 +157,26 @@
       "ss2022Desc": "Лёгкий; нужен серверный ключ в base64.",
       "trojanWs": "Trojan + WS + TLS",
       "trojanWsDesc": "Работает через CDN; нужен сертификат."
-    }
+    },
+    "realityAuto": "Выбрать автоматически",
+    "realityProbe": "Проверить текущую цель",
+    "realityScanning": "Рукопожатие с узла…",
+    "realityScanHint": "Реальные TLS-рукопожатия с узла: TLS 1.3, h2, X25519, сертификат и отсутствие публичного CDN.",
+    "realityLatency": "Задержка",
+    "realityCert": "Серт.",
+    "realityUse": "Использовать",
+    "realityBlocked": "Не подходит",
+    "realityNoCdn": "свой хостинг",
+    "realityCdnHint": "Сайты на CDN находят сканеры «предпочтительных IP», и чужой трафик пойдёт через ваш узел",
+    "realityPicked": "Выбран {{host}} ({{ms}} мс)",
+    "realityNone": "Подходящих целей нет",
+    "fallbackLimit": "Ограничить fallback",
+    "fallbackLimitHint": "Соединения без REALITY-аутентификации уходят на цель; с ограничением найденный узел бесполезен сканерам. Только Xray.",
+    "fallbackAfter": "Без ограничения (МБ)",
+    "fallbackRate": "Лимит (КБ/с)",
+    "realityTarget": "Цель REALITY",
+    "realityTargetHint": "Текущая цель: {{host}}. Нужны TLS 1.3 + h2 и не Cloudflare или другой CDN.",
+    "realityNeedsNode": "Сначала сохраните узел, чтобы проверять с него."
   },
   "entries": {
     "title": "Точки входа",

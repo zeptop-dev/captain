@@ -4,6 +4,35 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Group as UGroup, Inbound, Ingress } from '../lib/api'
 import { IngressFields, emptyIngress, type IngressValues } from './IngressesCard'
+import { RealityScan, type RealityResult } from './RealityScan'
+import { api, type NodeJob } from '../lib/api'
+
+// REALITY helpers over the settings JSON.
+type TLSSettings = { mode?: number; server_name?: string; reality?: { handshake_server?: string; handshake_port?: number; fallback_limit?: { off?: boolean; after_bytes?: number; bytes_per_sec?: number } } }
+function tlsOf(settings: string): TLSSettings | undefined { try { return JSON.parse(settings || '{}').tls } catch { return undefined } }
+function patchReality(settings: string, patch: { server_name?: string; handshake_server?: string; handshake_port?: number; fallback_limit?: { off?: boolean; after_bytes?: number; bytes_per_sec?: number } | null }): string {
+  let s: Record<string, unknown> = {}
+  try { s = JSON.parse(settings || '{}') } catch { s = {} }
+  const tls = (s.tls as Record<string, unknown>) ?? {}
+  const reality = (tls.reality as Record<string, unknown>) ?? {}
+  if (patch.server_name !== undefined) tls.server_name = patch.server_name
+  if (patch.handshake_server !== undefined) reality.handshake_server = patch.handshake_server
+  if (patch.handshake_port !== undefined) reality.handshake_port = patch.handshake_port
+  if (patch.fallback_limit !== undefined) { if (patch.fallback_limit === null) delete reality.fallback_limit; else reality.fallback_limit = patch.fallback_limit }
+  tls.reality = reality; s.tls = tls
+  return JSON.stringify(s, null, 2)
+}
+// scanViaNode queues a reality_scan job on the node and polls until it answers.
+async function scanViaNode(nodeID: number, hosts: string[]): Promise<RealityResult[]> {
+  const { id } = await api.post<{ id: string }>(`/api/admin/nodes/${nodeID}/jobs`, { kind: 'reality_scan', params: { hosts } })
+  const started = Date.now()
+  while (Date.now() - started < 150_000) {
+    await new Promise((r) => setTimeout(r, 2000))
+    const j = await api.get<NodeJob>(`/api/admin/nodes/${nodeID}/jobs/${id}`)
+    if (j.done_at) { if (j.error) throw new Error(j.error); return (j.result as RealityResult[]) ?? [] }
+  }
+  throw new Error('node did not answer in time')
+}
 
 const protocols = ['vless', 'vmess', 'trojan', 'shadowsocks', 'hysteria2', 'tuic', 'anytls', 'mieru', 'snell', 'socks', 'http', 'naive']
 const cores = ['', 'singbox', 'xray', 'mita', 'hysteria', 'snell']
@@ -75,7 +104,7 @@ export function toPayload(v: InboundValues) {
   return { Tag: v.Tag, Protocol: v.Protocol, Listen: v.Listen, Port: v.Port, Core: v.Core, GroupID: v.GroupID ? Number(v.GroupID) : null, Enabled: v.Enabled, Settings: settings, IngressID: v.IngressID ? Number(v.IngressID) : null }
 }
 
-export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain, ingresses = [], usedPorts = [], lineOnly }: { initial: InboundValues; groups: UGroup[]; onSubmit: (v: InboundValues) => void; busy: boolean; onCancel: () => void; domain?: string; ingresses?: Ingress[]; usedPorts?: number[]; lineOnly?: boolean }) {
+export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain, ingresses = [], usedPorts = [], lineOnly, nodeID }: { initial: InboundValues; groups: UGroup[]; onSubmit: (v: InboundValues) => void; busy: boolean; onCancel: () => void; domain?: string; ingresses?: Ingress[]; usedPorts?: number[]; lineOnly?: boolean; nodeID?: number }) {
   const { t } = useTranslation()
   const form = useForm<InboundValues>({
     initialValues: initial,
@@ -163,6 +192,24 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
             <Text size="xs" c="orange">{t('inbounds.snellHint')}</Text>
           </Stack>
         )}
+        {(() => {
+          const tls = tlsOf(form.values.Settings)
+          if (tls?.mode !== 2) return null
+          const fl = tls.reality?.fallback_limit
+          const current = tls.reality?.handshake_server || tls.server_name || ''
+          return (
+            <Card p="sm">
+              <Text size="sm" fw={600} mb={4}>{t('inbounds.realityTarget')}</Text>
+              <Text size="xs" c="dimmed" mb="xs">{t('inbounds.realityTargetHint', { host: current || '—' })}</Text>
+              {nodeID ? <RealityScan current={current} scan={(hosts) => scanViaNode(nodeID, hosts)} onPick={(host) => form.setFieldValue('Settings', patchReality(form.values.Settings, { server_name: host, handshake_server: host, handshake_port: 443 }))} /> : <Text size="xs" c="dimmed">{t('inbounds.realityNeedsNode')}</Text>}
+              <Group grow align="flex-end" mt="sm">
+                <Switch label={t('inbounds.fallbackLimit')} description={t('inbounds.fallbackLimitHint')} checked={!fl?.off} onChange={(e) => form.setFieldValue('Settings', patchReality(form.values.Settings, { fallback_limit: e.currentTarget.checked ? null : { off: true } }))} />
+                <NumberInput label={t('inbounds.fallbackAfter')} min={0} disabled={!!fl?.off} value={Math.round((fl?.after_bytes || 1048576) / 1048576)} onChange={(v) => form.setFieldValue('Settings', patchReality(form.values.Settings, { fallback_limit: { after_bytes: Math.max(0, Number(v) || 0) * 1048576 || undefined, bytes_per_sec: fl?.bytes_per_sec } }))} />
+                <NumberInput label={t('inbounds.fallbackRate')} min={1} disabled={!!fl?.off} value={Math.round((fl?.bytes_per_sec || 65536) / 1024)} onChange={(v) => form.setFieldValue('Settings', patchReality(form.values.Settings, { fallback_limit: { after_bytes: fl?.after_bytes, bytes_per_sec: Math.max(1, Number(v) || 64) * 1024 } }))} />
+              </Group>
+            </Card>
+          )
+        })()}
         <JsonInput label={t('inbounds.settings')} description={t('inbounds.settingsHint')} autosize minRows={4} maxRows={16} formatOnBlur {...form.getInputProps('Settings')} />
         <Group justify="flex-end"><Button variant="default" onClick={onCancel}>{t('common.cancel')}</Button><Button type="submit" loading={busy}>{t('common.save')}</Button></Group>
       </Stack>

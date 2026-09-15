@@ -91,6 +91,8 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("DELETE /api/admin/nodes/{id}", h.requireAdmin(h.deleteNode))
 	mux.HandleFunc("POST /api/admin/nodes/{id}/repair", h.requireAdmin(h.repairNode))
 	mux.HandleFunc("POST /api/admin/nodes/{id}/upgrade", h.requireAdmin(h.upgradeNode))
+	mux.HandleFunc("POST /api/admin/nodes/{id}/jobs", h.requireAdmin(h.createNodeJob))
+	mux.HandleFunc("GET /api/admin/nodes/{id}/jobs/{job}", h.requireAdmin(h.getNodeJob))
 	mux.HandleFunc("POST /api/admin/nodes/upgrade-all", h.requireAdmin(h.upgradeAllNodes))
 	h.registerOps(mux)
 	h.registerExternal(mux)

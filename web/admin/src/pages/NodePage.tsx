@@ -144,7 +144,7 @@ export default function NodePage() {
         </Accordion>
       </Card>
       <Modal opened={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? t('inbounds.create') : t('common.edit')} size="xl">
-        {editing !== null && <InboundForm domain={n.domain} lineOnly={!n.public_addr && !n.domain} ingresses={d.ingresses ?? []} usedPorts={d.inbounds.filter((ib) => editing === 'new' || ib.ID !== (editing as Inbound).ID).map((ib) => ib.Port)} initial={toValues(editing === 'new' ? undefined : editing)} groups={groups.data ?? []} busy={save.isPending} onSubmit={(v) => save.mutate(v)} onCancel={() => setEditing(null)} />}
+        {editing !== null && <InboundForm nodeID={n.id} domain={n.domain} lineOnly={!n.public_addr && !n.domain} ingresses={d.ingresses ?? []} usedPorts={d.inbounds.filter((ib) => editing === 'new' || ib.ID !== (editing as Inbound).ID).map((ib) => ib.Port)} initial={toValues(editing === 'new' ? undefined : editing)} groups={groups.data ?? []} busy={save.isPending} onSubmit={(v) => save.mutate(v)} onCancel={() => setEditing(null)} />}
       </Modal>
       <Modal opened={editNode} onClose={() => setEditNode(false)} title={t('common.edit')}>
         <form onSubmit={nodeForm.onSubmit((v) => saveNode.mutate(v))}><Stack>

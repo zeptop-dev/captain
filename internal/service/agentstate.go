@@ -117,6 +117,11 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 	if err := a.Store.GetSetting(ctx, store.SettingKomari, &km); err == nil && km.Enabled && km.Server != "" {
 		st.Komari = &spec.Komari{Enabled: true, Server: km.Server, Key: km.Key, Name: n.Name, Interval: km.Interval}
 	}
+	if jobs, err := a.Store.PendingNodeJobs(ctx, n.ID); err == nil {
+		for _, j := range jobs {
+			st.Jobs = append(st.Jobs, agentproto.Job{ID: j.ID, Kind: j.Kind, Params: j.Params})
+		}
+	}
 	st.Revision = revision(st)
 	return st, nil
 }
