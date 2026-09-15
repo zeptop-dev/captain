@@ -609,7 +609,9 @@
     "hintYaml": "YAML 템플릿: proxies는 노드로 대체되고 정책 그룹 proxies 목록의 자리표시자는 전체 노드 이름으로 펼쳐집니다. 자리표시자:",
     "hintIni": "텍스트 템플릿: 자리표시자는 각각 노드 줄과 쉼표로 구분된 노드 이름으로 대체됩니다. 자리표시자:",
     "hintNodeList": "Loon과 Quantumult X의 원격 구독은 노드 목록이므로 기본 템플릿에는 노드 줄만 있습니다. 완전한 설정으로 작성하면 클라이언트에서 설정으로 가져와야 합니다.",
-    "reset": "기본값으로 복원"
+    "reset": "기본값으로 복원",
+    "modeDesign": "디자이너",
+    "modeText": "텍스트"
   },
   "warp": {
     "title": "Cloudflare WARP 출구",
@@ -670,5 +672,33 @@
     "queuedDays": "대기 · {{days}}일",
     "queuedForever": "대기 · 무기한",
     "adjustTarget": "조정 대상"
+  },
+  "subDesign": {
+    "title": "비주얼 디자이너",
+    "hint": "정책 그룹을 정의하고 규칙을 순서대로 배치하세요. \"생성 후 적용\"은 모든 클라이언트 형식의 템플릿을 생성해 현재 템플릿을 덮어씁니다. 규칙 세트는 ACL4SSR 이며 클라이언트가 GitHub 에서 직접 가져옵니다.",
+    "loadPreset": "프리셋 불러오기…",
+    "presetConfirm": "프리셋을 불러오면 편집 중인 그룹과 규칙이 교체됩니다(적용하지 않은 변경은 사라짐).",
+    "groups": "정책 그룹",
+    "addGroup": "그룹 추가",
+    "groupsHint": "멤버: 전체 서버, 태그가 있는 서버, 이름이 지역과 일치하는 서버, 다른 그룹. url-test 는 최저 지연, fallback 은 첫 번째 가용, load-balance 는 순환.",
+    "groupName": "그룹 이름",
+    "members": "멤버",
+    "noGroups": "그룹이 없습니다. 프리셋으로 시작하세요.",
+    "memberServers": "서버",
+    "memberGroups": "그룹 및 내장",
+    "allServers": "전체 서버",
+    "tag": "태그: {{tag}}",
+    "rules": "규칙",
+    "addRule": "규칙 추가",
+    "rulesHint": "위에서 아래로 매칭, 첫 일치가 적용됩니다. GEOIP CN 은 중국 도메인/IP 뒤에 두세요. 최종 정책이 나머지를 처리합니다.",
+    "final": "최종 정책",
+    "finalHint": "일치하는 규칙이 없을 때 경로",
+    "preview": "미리보기",
+    "save": "디자인만 저장",
+    "saveHint": "템플릿은 그대로 두고 디자인 저장",
+    "apply": "생성 후 적용",
+    "applyConfirm": "mihomo, Stash, Surge, Surfboard, Loon, Quantumult X, Egern 템플릿을 생성해 현재 템플릿을 덮어씁니다.",
+    "applied": "템플릿이 생성되어 적용되었습니다",
+    "applyHint": "생성된 템플릿은 \"텍스트\"에서 수정할 수 있지만 다음 \"생성 후 적용\"이 덮어씁니다. 자리표시자:"
   }
 }

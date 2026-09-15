@@ -609,7 +609,9 @@
     "hintYaml": "YAML 範本：proxies 會被取代成節點；策略群組 proxies 列表裡的佔位符會展開成全部節點名。佔位符：",
     "hintIni": "文字範本：佔位符分別取代為節點行和逗號分隔的節點名。佔位符：",
     "hintNodeList": "Loon 和 Quantumult X 的遠端訂閱是節點列表，預設範本只有節點行；寫成完整設定時需在用戶端以設定方式匯入。",
-    "reset": "恢復預設"
+    "reset": "恢復預設",
+    "modeDesign": "視覺化",
+    "modeText": "文字"
   },
   "warp": {
     "title": "Cloudflare WARP 出站",
@@ -670,5 +672,33 @@
     "queuedDays": "等待開始 · {{days}} 天",
     "queuedForever": "等待開始 · 長期",
     "adjustTarget": "調整哪一張"
+  },
+  "subDesign": {
+    "title": "視覺化設計",
+    "hint": "先定義策略組，再按順序排規則；點「產生並套用」會為全部用戶端格式產生範本並覆蓋目前範本。規則集來自 ACL4SSR，用戶端自己從 GitHub 拉取。",
+    "loadPreset": "載入預設…",
+    "presetConfirm": "載入預設會取代目前編輯的策略組和規則（尚未套用的改動會遺失）。",
+    "groups": "策略組",
+    "addGroup": "新增策略組",
+    "groupsHint": "成員可以是全部節點、帶某個標籤的節點、名稱符合某個地區的節點，或其他策略組。url-test 自動選延遲最低的，fallback 按順序選可用的，load-balance 輪流用。",
+    "groupName": "組名",
+    "members": "成員",
+    "noGroups": "還沒有策略組，可以先載入一個預設。",
+    "memberServers": "節點",
+    "memberGroups": "策略組與內建",
+    "allServers": "全部節點",
+    "tag": "標籤：{{tag}}",
+    "rules": "規則",
+    "addRule": "新增規則",
+    "rulesHint": "由上而下比對，先命中先生效。GEOIP CN 放在國內網域/IP 之後，兜底策略處理剩下的全部流量。",
+    "final": "兜底策略",
+    "finalHint": "沒有規則命中時走哪裡",
+    "preview": "預覽",
+    "save": "僅儲存設計",
+    "saveHint": "儲存設計但不改動範本",
+    "apply": "產生並套用",
+    "applyConfirm": "將為 mihomo、Stash、Surge、Surfboard、Loon、Quantumult X、Egern 產生範本並覆蓋現有範本。",
+    "applied": "範本已產生並套用",
+    "applyHint": "產生的範本可以在「文字」裡繼續手改；下次再「產生並套用」會覆蓋手改。佔位符："
   }
 }

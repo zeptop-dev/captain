@@ -668,7 +668,9 @@
     "hintYaml": "YAML template: the proxies key is replaced with the servers; the placeholder inside any proxy-group list expands to every server name. Placeholders:",
     "hintIni": "Text template: the placeholders become the server lines and the comma-joined names. Placeholders:",
     "hintNodeList": "Loon and Quantumult X remote subscriptions are node lists, so the default is just the lines; a full config here must be imported as a configuration in the client.",
-    "reset": "Reset to default"
+    "reset": "Reset to default",
+    "modeDesign": "Designer",
+    "modeText": "Text"
   },
   "probe": {
     "title": "Probe / status page",
@@ -1053,5 +1055,33 @@
     "queuedDays": "waiting · {{days}} days",
     "queuedForever": "waiting · no expiry",
     "adjustTarget": "Adjust which one"
+  },
+  "subDesign": {
+    "title": "Visual designer",
+    "hint": "Define proxy groups, then order the rules; \"Generate & apply\" writes a template for every client format over the current ones. Rule sets come from ACL4SSR and clients fetch them from GitHub themselves.",
+    "loadPreset": "Load a preset…",
+    "presetConfirm": "Loading a preset replaces the groups and rules being edited (unapplied changes are lost).",
+    "groups": "Proxy groups",
+    "addGroup": "Add group",
+    "groupsHint": "Members: all servers, servers with a tag, servers whose name matches a region, or other groups. url-test picks the lowest latency, fallback the first working one, load-balance rotates.",
+    "groupName": "Group name",
+    "members": "Members",
+    "noGroups": "No groups yet; load a preset to start.",
+    "memberServers": "Servers",
+    "memberGroups": "Groups and built-ins",
+    "allServers": "All servers",
+    "tag": "Tag: {{tag}}",
+    "rules": "Rules",
+    "addRule": "Add rule",
+    "rulesHint": "Matched top to bottom, first hit wins. Keep GEOIP CN after the China domain/IP lists; the final policy takes everything else.",
+    "final": "Final policy",
+    "finalHint": "Where unmatched traffic goes",
+    "preview": "Preview",
+    "save": "Save design only",
+    "saveHint": "Store the design without touching templates",
+    "apply": "Generate & apply",
+    "applyConfirm": "Templates for mihomo, Stash, Surge, Surfboard, Loon, Quantumult X and Egern will be generated and overwrite the current ones.",
+    "applied": "Templates generated and applied",
+    "applyHint": "Generated templates can still be hand-edited under \"Text\"; the next \"Generate & apply\" overwrites those edits. Placeholders:"
   }
 }

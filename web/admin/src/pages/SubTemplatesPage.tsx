@@ -1,10 +1,11 @@
-import { Badge, Button, Card, Code, Group, Select, Stack, Text, Textarea } from '@mantine/core'
+import { Badge, Button, Card, Code, Group, SegmentedControl, Select, Stack, Text, Textarea } from '@mantine/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
 import { toast } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
+import { SubDesigner } from '../components/SubDesigner'
 
 interface Data { templates: Record<string, string>; defaults: Record<string, string> }
 const labels: Record<string, string> = { clash: 'mihomo / Clash Meta', stash: 'Stash', surge: 'Surge', surfboard: 'Surfboard', loon: 'Loon', qx: 'Quantumult X', egern: 'Egern' }
@@ -15,6 +16,7 @@ export default function SubTemplatesPage() {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const q = useQuery({ queryKey: ['sub-templates'], queryFn: () => api.get<Data>('/api/admin/settings/sub-templates') })
+  const [mode, setMode] = useState('design')
   const [format, setFormat] = useState('clash')
   const [body, setBody] = useState('')
   const custom = q.data?.templates[format] ?? ''
@@ -28,8 +30,9 @@ export default function SubTemplatesPage() {
   const isYaml = format === 'clash' || format === 'stash'
   return (
     <>
-      <PageHeader title={t('subTemplates.title')} subtitle={t('subTemplates.subtitle')} />
-      <Card>
+      <PageHeader title={t('subTemplates.title')} subtitle={t('subTemplates.subtitle')} actions={<SegmentedControl size="xs" value={mode} onChange={setMode} data={[{ value: 'design', label: t('subTemplates.modeDesign') }, { value: 'text', label: t('subTemplates.modeText') }]} />} />
+      {mode === 'design' && <SubDesigner />}
+      {mode === 'text' && <Card>
         <Stack gap="sm">
           <Group align="flex-end">
             <Select label={t('subTemplates.format')} data={names.map((n) => ({ value: n, label: labels[n] ?? n }))} value={format} onChange={(v) => v && setFormat(v)} allowDeselect={false} style={{ minWidth: 220 }} />
@@ -45,7 +48,7 @@ export default function SubTemplatesPage() {
             <Button size="xs" loading={save.isPending} onClick={() => save.mutate(body)}>{t('common.save')}</Button>
           </Group>
         </Stack>
-      </Card>
+      </Card>}
     </>
   )
 }

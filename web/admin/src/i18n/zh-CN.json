@@ -668,7 +668,9 @@
     "hintYaml": "YAML 模板：proxies 会被替换成节点；策略组 proxies 列表里的占位符会展开成全部节点名。占位符：",
     "hintIni": "文本模板：占位符分别替换为节点行和逗号分隔的节点名。占位符：",
     "hintNodeList": "Loon 和 Quantumult X 的远程订阅是节点列表，默认模板只有节点行；写成完整配置时需在客户端以配置方式导入。",
-    "reset": "恢复默认"
+    "reset": "恢复默认",
+    "modeDesign": "可视化",
+    "modeText": "文本"
   },
   "probe": {
     "title": "探针 / 状态页",
@@ -1053,5 +1055,33 @@
     "queuedDays": "等待开始 · {{days}} 天",
     "queuedForever": "等待开始 · 长期",
     "adjustTarget": "调整哪一张"
+  },
+  "subDesign": {
+    "title": "可视化设计",
+    "hint": "先定义策略组，再按顺序排规则；点\"生成并应用\"会为全部客户端格式生成模板并覆盖当前模板。规则集来自 ACL4SSR，客户端自己从 GitHub 拉取。",
+    "loadPreset": "载入预设…",
+    "presetConfirm": "载入预设会替换现在编辑的策略组和规则（尚未应用的改动会丢失）。",
+    "groups": "策略组",
+    "addGroup": "添加策略组",
+    "groupsHint": "成员可以是全部节点、带某个标签的节点、名称匹配某个地区的节点，或其他策略组。url-test 自动选延迟最低的，fallback 按顺序选可用的，load-balance 轮流用。",
+    "groupName": "组名",
+    "members": "成员",
+    "noGroups": "还没有策略组，可以先载入一个预设。",
+    "memberServers": "节点",
+    "memberGroups": "策略组与内置",
+    "allServers": "全部节点",
+    "tag": "标签：{{tag}}",
+    "rules": "规则",
+    "addRule": "添加规则",
+    "rulesHint": "自上而下匹配，先命中先生效。GEOIP CN 放在国内域名/IP 之后，兜底策略处理剩下的全部流量。",
+    "final": "兜底策略",
+    "finalHint": "没有规则命中时走哪里",
+    "preview": "预览",
+    "save": "仅保存设计",
+    "saveHint": "保存设计但不改动模板",
+    "apply": "生成并应用",
+    "applyConfirm": "将为 mihomo、Stash、Surge、Surfboard、Loon、Quantumult X、Egern 生成模板并覆盖现有模板。",
+    "applied": "模板已生成并应用",
+    "applyHint": "生成的模板可以在\"文本\"里继续手改；下次再\"生成并应用\"会覆盖手改。占位符："
   }
 }
