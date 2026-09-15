@@ -178,7 +178,9 @@
       "trojanWs": "Trojan + WS + TLS",
       "trojanWsDesc": "CDN friendly; needs a certificate.",
       "snell": "Snell v5",
-      "snellDesc": "Surge's protocol with a shared PSK; only Surge / mihomo / Stash can use it."
+      "snellDesc": "Surge's protocol with a shared PSK; only Surge / mihomo / Stash can use it.",
+      "wireguard": "WireGuard",
+      "wireguardDesc": "Whole-device VPN over UDP; for lines and internal networks."
     },
     "mieruStrategy": "mieru strategy",
     "mieruStrategyHint": "Same presets as nobrand-oneclick: dedicated line = no obfuscation, public = conservative, stealth adds fragmentation and padding; custom edits traffic_pattern below directly.",
@@ -230,7 +232,12 @@
     "realityNeedsNode": "Save the node first to probe from it.",
     "ingressBindHint": "Leave the listen address blank to bind the line IP {{ip}}.",
     "useDecoy": "Use the node decoy site {{domain}}",
-    "useDecoyHint": "SNI becomes the decoy domain, handshake target 127.0.0.1:4443"
+    "useDecoyHint": "SNI becomes the decoy domain, handshake target 127.0.0.1:4443",
+    "wgHint": "Plain WireGuard for whole-device VPN use (routers, OS-level). Its UDP signature is obvious, so use it on lines or internal networks rather than across the GFW. Client keys derive from the server key; subscriptions carry a .conf and a QR code.",
+    "wgPrivate": "Server private key",
+    "wgPublic": "Server public key",
+    "wgAddress": "Tunnel network (server address)",
+    "wgAddressHint": "Client addresses are assigned from this network by user id"
   },
   "entries": {
     "title": "Entries",

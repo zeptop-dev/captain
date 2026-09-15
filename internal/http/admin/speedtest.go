@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zeptop-dev/bosun/pkg/wg"
+
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
@@ -28,7 +30,23 @@ var (
 	tcpingCache = map[string]tcpingResult{}
 )
 
+// keys mints key material for the inbound form.
+func (h *handlers) keys(w http.ResponseWriter, r *http.Request) {
+	switch r.PathValue("kind") {
+	case "wireguard":
+		priv, pub, err := wg.Keypair()
+		if err != nil {
+			fail(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		ok(w, map[string]string{"private_key": priv, "public_key": pub})
+	default:
+		fail(w, http.StatusNotFound, "unknown key kind")
+	}
+}
+
 func (h *handlers) registerSpeedtest(mux *http.ServeMux) {
+	mux.HandleFunc("POST /api/admin/keys/{kind}", h.requireAdmin(h.keys))
 	mux.HandleFunc("GET /api/admin/speedtest", h.requireAdmin(h.speedtest))
 	mux.HandleFunc("POST /api/admin/speedtest/tcping", h.requireAdmin(h.tcping))
 }

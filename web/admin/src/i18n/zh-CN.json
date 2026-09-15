@@ -178,7 +178,9 @@
       "trojanWs": "Trojan + WS + TLS",
       "trojanWsDesc": "可套 CDN，需要证书。",
       "snell": "Snell v5",
-      "snellDesc": "Surge 官方协议，共享 PSK；只有 Surge / mihomo / Stash 能用。"
+      "snellDesc": "Surge 官方协议，共享 PSK；只有 Surge / mihomo / Stash 能用。",
+      "wireguard": "WireGuard",
+      "wireguardDesc": "整机 VPN，走 UDP；适合专线和内网。"
     },
     "mieruStrategy": "mieru 策略",
     "mieruStrategyHint": "同 nobrand-oneclick 的预设：专线不伪装，公网保守伪装，强化伪装加分片和填充；自定义则直接改下面的 traffic_pattern。",
@@ -230,7 +232,12 @@
     "realityNeedsNode": "保存节点后才能从节点发起探测。",
     "ingressBindHint": "监听地址留空则绑定到入口本地 IP {{ip}}。",
     "useDecoy": "使用节点伪装站 {{domain}}",
-    "useDecoyHint": "SNI 设为伪装站域名，握手目标指向 127.0.0.1:4443"
+    "useDecoyHint": "SNI 设为伪装站域名，握手目标指向 127.0.0.1:4443",
+    "wgHint": "标准 WireGuard，整机 VPN 用途（路由器、系统级）。UDP 明文特征明显，适合专线或内网，不适合直连国内。每个用户的密钥由服务端私钥派生，订阅里给出 .conf 和二维码。",
+    "wgPrivate": "服务端私钥",
+    "wgPublic": "服务端公钥",
+    "wgAddress": "隧道网段（服务端地址）",
+    "wgAddressHint": "用户地址从这个网段按编号分配"
   },
   "entries": {
     "title": "入口",
