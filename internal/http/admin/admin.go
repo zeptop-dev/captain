@@ -416,7 +416,8 @@ func (h *handlers) getNode(w http.ResponseWriter, r *http.Request) {
 	}
 	ingresses, _ := h.Store.IngressesByNode(r.Context(), id)
 	status, _ := h.Store.NodeStatus(r.Context(), id)
-	ok(w, map[string]any{"node": v, "inbounds": inbounds, "ingresses": ingresses, "status": status})
+	traffic, _ := h.Store.InboundTrafficByNode(r.Context(), id, time.Now())
+	ok(w, map[string]any{"node": v, "inbounds": inbounds, "ingresses": ingresses, "status": status, "traffic": traffic})
 }
 
 func (h *handlers) updateNode(w http.ResponseWriter, r *http.Request) {

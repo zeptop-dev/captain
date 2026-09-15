@@ -190,7 +190,8 @@
     "wgPrivate": "伺服端私鑰",
     "wgPublic": "伺服端公鑰",
     "wgAddress": "隧道網段（伺服端位址）",
-    "wgAddressHint": "使用者位址從這個網段按編號分配"
+    "wgAddressHint": "使用者位址從這個網段按編號分配",
+    "traffic": "流量（今日 / 累計）"
   },
   "entries": {
     "title": "入口",

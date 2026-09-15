@@ -237,7 +237,8 @@
     "wgPrivate": "服务端私钥",
     "wgPublic": "服务端公钥",
     "wgAddress": "隧道网段（服务端地址）",
-    "wgAddressHint": "用户地址从这个网段按编号分配"
+    "wgAddressHint": "用户地址从这个网段按编号分配",
+    "traffic": "流量（今日 / 累计）"
   },
   "entries": {
     "title": "入口",
