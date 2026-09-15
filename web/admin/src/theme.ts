@@ -5,7 +5,9 @@ import { createTheme, rem, type MantineColorsTuple } from '@mantine/core'
 // the sidebar. Shared by bosun's panel and Captain's admin console.
 const brand: MantineColorsTuple = ['#eef2ff', '#e0e7ff', '#c7d2fe', '#a5b4fc', '#818cf8', '#6366f1', '#4f46e5', '#4338ca', '#3730a3', '#312e81']
 
-const fieldLabel = { label: { fontSize: rem(12), fontWeight: 500, marginBottom: rem(4), color: 'var(--mantine-color-dimmed)' } }
+const fieldLabel = { label: { fontSize: rem(12), fontWeight: 500, marginBottom: rem(4), color: 'var(--mantine-color-dimmed)' }, description: { marginTop: rem(4) } }
+// Descriptions render under the control, so inputs in one row line up whatever their hints say.
+const under = { inputWrapperOrder: ['label', 'input', 'description', 'error'] as ('label' | 'input' | 'description' | 'error')[] }
 
 export const theme = createTheme({
   primaryColor: 'brand',
@@ -22,16 +24,16 @@ export const theme = createTheme({
     Badge: { defaultProps: { variant: 'light', radius: 'sm' } },
     Tabs: { defaultProps: { variant: 'pills', radius: 'md' } },
     Alert: { defaultProps: { radius: 'lg', variant: 'light' } },
-    TextInput: { styles: fieldLabel },
-    NumberInput: { styles: fieldLabel },
-    Select: { styles: fieldLabel },
-    PasswordInput: { styles: fieldLabel },
-    MultiSelect: { styles: fieldLabel },
-    DateInput: { styles: fieldLabel },
-    JsonInput: { styles: fieldLabel },
-    Textarea: { styles: fieldLabel },
-    Autocomplete: { styles: fieldLabel },
-    TagsInput: { styles: fieldLabel },
+    TextInput: { styles: fieldLabel, defaultProps: under },
+    NumberInput: { styles: fieldLabel, defaultProps: under },
+    Select: { styles: fieldLabel, defaultProps: under },
+    PasswordInput: { styles: fieldLabel, defaultProps: under },
+    MultiSelect: { styles: fieldLabel, defaultProps: under },
+    DateInput: { styles: fieldLabel, defaultProps: under },
+    JsonInput: { styles: fieldLabel, defaultProps: under },
+    Textarea: { styles: fieldLabel, defaultProps: under },
+    Autocomplete: { styles: fieldLabel, defaultProps: under },
+    TagsInput: { styles: fieldLabel, defaultProps: under },
     Modal: { defaultProps: { radius: 'lg', transitionProps: { duration: 150 } } },
     Drawer: { defaultProps: { transitionProps: { duration: 150 } } },
   },
