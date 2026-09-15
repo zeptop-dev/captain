@@ -81,3 +81,31 @@ func (s *Store) InboundTrafficByNode(ctx context.Context, nodeID int64, at time.
 	}
 	return out, rows.Err()
 }
+
+// AddOutboundTraffic folds a node's per-outbound counters into the day row.
+func (s *Store) AddOutboundTraffic(ctx context.Context, nodeID int64, tag string, up, down int64, at time.Time) error {
+	day := at.UTC().Truncate(24 * time.Hour).Unix()
+	_, err := s.db.ExecContext(ctx, `INSERT INTO outbound_traffic_daily (node_id, tag, day, up_bytes, down_bytes) VALUES (?, ?, ?, ?, ?)
+		ON CONFLICT(node_id, tag, day) DO UPDATE SET up_bytes = up_bytes + excluded.up_bytes, down_bytes = down_bytes + excluded.down_bytes`, nodeID, tag, day, up, down)
+	return err
+}
+
+// OutboundTrafficByNode returns today's and lifetime usage per outbound tag.
+func (s *Store) OutboundTrafficByNode(ctx context.Context, nodeID int64, at time.Time) (map[string]InboundUsage, error) {
+	day := at.UTC().Truncate(24 * time.Hour).Unix()
+	rows, err := s.db.QueryContext(ctx, `SELECT tag, SUM(CASE WHEN day = ? THEN up_bytes + down_bytes ELSE 0 END), SUM(up_bytes + down_bytes) FROM outbound_traffic_daily WHERE node_id = ? GROUP BY tag`, day, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]InboundUsage{}
+	for rows.Next() {
+		var tag string
+		var u InboundUsage
+		if err := rows.Scan(&tag, &u.Today, &u.Total); err != nil {
+			return nil, err
+		}
+		out[tag] = u
+	}
+	return out, rows.Err()
+}

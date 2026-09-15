@@ -1016,5 +1016,11 @@
     "outboundAdded": "WARP 出站已添加",
     "addTemplate": "添加常用分流模板",
     "templateHint": "把 AI 和流媒体站点分流到 WARP："
+  },
+  "security": {
+    "title": "后台访问控制",
+    "hint": "限制管理后台的登录和 API 调用来源。API 令牌同样受限。",
+    "allowCidrs": "IP 白名单",
+    "allowCidrsHint": "IP 或 CIDR，留空不限制；保存时会拒绝把你自己排除在外的名单"
   }
 }

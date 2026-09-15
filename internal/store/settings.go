@@ -125,6 +125,15 @@ type TelegramSettings struct {
 	NotifyTicket bool   `json:"notify_tickets"` //
 }
 
+// SecuritySettings restricts the admin console.
+type SecuritySettings struct {
+	// AdminAllowCIDRs limits admin login and API to these networks (empty = any).
+	AdminAllowCIDRs []string `json:"admin_allow_cidrs"`
+}
+
+// SettingSecurity is the settings key.
+const SettingSecurity = "security"
+
 // SettingTelegram is the settings key.
 const SettingTelegram = "telegram"
 

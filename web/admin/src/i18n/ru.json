@@ -633,5 +633,11 @@
     "dns": "DNS-серверы",
     "dnsHint": "Резолверы для исходящих имён: 1.1.1.1, tls://…, https://…; пусто = системный DNS",
     "matchHint": "Через запятую: inbound:тег, domain:example.com, full:хост, ip:1.2.3.0/24, geosite:netflix, geoip:cn, protocol:bittorrent, port:443"
+  },
+  "security": {
+    "title": "Контроль доступа к консоли",
+    "hint": "Ограничить, откуда можно пользоваться админ-консолью и её API. Токены тоже ограничены.",
+    "allowCidrs": "Список разрешённых IP",
+    "allowCidrsHint": "IP или CIDR; пусто = все. Список, отрезающий вас, отклоняется"
   }
 }
