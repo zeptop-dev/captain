@@ -41,7 +41,7 @@ func (s *Subscription) Lines(ctx context.Context, u *domain.User, at time.Time) 
 	for _, r := range rows {
 		lines = append(lines, subscription.Line{
 			Name: subscription.WithFlag(r.Entry.Name, r.Entry.DisplayHost, r.Entry.Region, ss.AutoFlags), Host: r.Entry.DisplayHost, Port: r.Entry.DisplayPort,
-			Inbound: r.Inbound.Spec(), UUID: u.UUID, Password: u.UUID, Tags: r.Entry.Tags,
+			Inbound: r.Inbound.Spec(), UUID: u.UUID, UserID: u.ID, Password: u.UUID, Tags: r.Entry.Tags,
 		})
 	}
 	// External nodes (imported share links) follow the panel's own entries.

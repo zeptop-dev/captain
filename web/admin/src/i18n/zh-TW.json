@@ -160,7 +160,9 @@
       "ss2022": "Shadowsocks 2022",
       "ss2022Desc": "輕量，需要 base64 伺服器金鑰。",
       "trojanWs": "Trojan + WS + TLS",
-      "trojanWsDesc": "可搭配 CDN，需要憑證。"
+      "trojanWsDesc": "可搭配 CDN，需要憑證。",
+      "wireguard": "WireGuard",
+      "wireguardDesc": "整機 VPN，走 UDP；適合專線和內網。"
     },
     "realityAuto": "自動選擇",
     "realityProbe": "探測目前目標",
@@ -183,7 +185,12 @@
     "realityNeedsNode": "儲存節點後才能從節點發起探測。",
     "ingressBindHint": "監聽位址留空則綁定到入口本地 IP {{ip}}。",
     "useDecoy": "使用節點偽裝站 {{domain}}",
-    "useDecoyHint": "SNI 設為偽裝站網域，握手目標指向 127.0.0.1:4443"
+    "useDecoyHint": "SNI 設為偽裝站網域，握手目標指向 127.0.0.1:4443",
+    "wgHint": "標準 WireGuard，整機 VPN 用途（路由器、系統級）。UDP 明文特徵明顯，適合專線或內網，不適合直連中國大陸。每個使用者的金鑰由伺服端私鑰派生，訂閱裡給出 .conf 和 QR code。",
+    "wgPrivate": "伺服端私鑰",
+    "wgPublic": "伺服端公鑰",
+    "wgAddress": "隧道網段（伺服端位址）",
+    "wgAddressHint": "使用者位址從這個網段按編號分配"
   },
   "entries": {
     "title": "入口",

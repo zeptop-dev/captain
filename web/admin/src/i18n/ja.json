@@ -160,7 +160,9 @@
       "ss2022": "Shadowsocks 2022",
       "ss2022Desc": "軽量。base64 のサーバー鍵が必要です。",
       "trojanWs": "Trojan + WS + TLS",
-      "trojanWsDesc": "CDN 経由が可能。証明書が必要です。"
+      "trojanWsDesc": "CDN 経由が可能。証明書が必要です。",
+      "wireguard": "WireGuard",
+      "wireguardDesc": "UDP の端末全体 VPN。専用線・内部網向け。"
     },
     "realityAuto": "自動選択",
     "realityProbe": "現在の対象を検査",
@@ -183,7 +185,12 @@
     "realityNeedsNode": "ノード保存後に検査できます。",
     "ingressBindHint": "待受アドレスを空にすると回線側 IP {{ip}} にバインドします。",
     "useDecoy": "ノードのおとりサイト {{domain}} を使う",
-    "useDecoyHint": "SNI をおとりドメインに、ハンドシェイク先を 127.0.0.1:4443 に設定"
+    "useDecoyHint": "SNI をおとりドメインに、ハンドシェイク先を 127.0.0.1:4443 に設定",
+    "wgHint": "標準 WireGuard。端末全体の VPN 用途（ルーター、OS レベル）。UDP の特徴が明確なので専用線や内部ネットワーク向け。クライアント鍵はサーバー鍵から派生し、サブスクリプションに .conf と QR を含めます。",
+    "wgPrivate": "サーバー秘密鍵",
+    "wgPublic": "サーバー公開鍵",
+    "wgAddress": "トンネルネットワーク（サーバーアドレス）",
+    "wgAddressHint": "クライアントアドレスはこのネットワークからユーザー ID で割り当て"
   },
   "entries": {
     "title": "エントリ",

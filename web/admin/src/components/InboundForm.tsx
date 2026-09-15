@@ -34,7 +34,7 @@ async function scanViaNode(nodeID: number, hosts: string[]): Promise<RealityResu
   throw new Error('node did not answer in time')
 }
 
-const protocols = ['vless', 'vmess', 'trojan', 'shadowsocks', 'hysteria2', 'tuic', 'anytls', 'mieru', 'snell', 'socks', 'http', 'naive']
+const protocols = ['vless', 'vmess', 'trojan', 'shadowsocks', 'hysteria2', 'tuic', 'anytls', 'mieru', 'snell', 'socks', 'http', 'naive', 'wireguard']
 const cores = ['', 'singbox', 'xray', 'mita', 'hysteria', 'snell']
 
 // Snell's PSK: 32 random bytes, base64 (any string works, this is the convention).
@@ -47,6 +47,7 @@ const recipes: { key: string; protocol: string; port: number; settings: Record<s
   { key: 'hysteria2', protocol: 'hysteria2', port: 8443, settings: { tls: { mode: 1, server_name: 'node.example.com', auto_cert: true, acme: 'http' }, obfs: 'salamander', obfs_password: 'change-me', up_mbps: 100, down_mbps: 500 } },
   { key: 'mieru', protocol: 'mieru', port: 24450, settings: { mieru_transport: 'TCP' } },
   { key: 'snell', protocol: 'snell', port: 6160, settings: { snell_psk: '', snell_version: 5 } },
+  { key: 'wireguard', protocol: 'wireguard', port: 51820, settings: { wg_private_key: '', wg_public_key: '', wg_address: '10.66.0.1/16', wg_mtu: 1420 } },
   { key: 'ss2022', protocol: 'shadowsocks', port: 8388, settings: { cipher: '2022-blake3-aes-128-gcm', server_key: '' } },
   { key: 'trojanWs', protocol: 'trojan', port: 443, settings: { tls: { mode: 1, server_name: 'node.example.com', auto_cert: true, acme: 'http' }, transport: { type: 'ws', path: '/trojan', host: 'node.example.com' } } },
 ]
@@ -114,10 +115,11 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
   // Recipes name node.example.com; a node with a registered host name gets it instead.
   const firstFree = (g?: { port_from: number; port_to: number; reserved_ports?: number[] }) => { if (!g || !g.port_from) return 0; for (let p = g.port_from; p <= g.port_to; p++) if (!usedPorts.includes(p) && !(g.reserved_ports ?? []).includes(p)) return p; return 0 }
   const selectedIngress = ingresses.find((g) => String(g.id) === form.values.IngressID)
-  const apply = (r: (typeof recipes)[number]) => {
+  const apply = async (r: (typeof recipes)[number]) => {
     // A recipe keeps the chosen line ingress and takes a port from its range; any protocol may ride a line.
     const port = selectedIngress && selectedIngress.port_from ? (firstFree(selectedIngress) || r.port) : r.port
-    const settings = r.key === 'snell' ? { ...r.settings, snell_psk: randomPSK() } : r.settings
+    let settings: Record<string, unknown> = r.key === 'snell' ? { ...r.settings, snell_psk: randomPSK() } : r.settings
+    if (r.key === 'wireguard') { try { const k = await api.post<{ private_key: string; public_key: string }>('/api/admin/keys/wireguard'); settings = { ...settings, wg_private_key: k.private_key, wg_public_key: k.public_key } } catch { /* leave blank; the form asks for a key */ } }
     form.setValues({ Protocol: r.protocol, Port: port, Settings: JSON.stringify(settings, null, 2).replaceAll('node.example.com', domain || 'node.example.com'), Tag: form.values.Tag || r.protocol })
   }
   // A node reachable only through a line (no public address, no domain) defaults new inbounds to its first ingress.
@@ -179,6 +181,13 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
             <NumberInput label={t('inbounds.mieruMTU')} description={t('inbounds.mieruMTUHint')} min={1280} max={1500} placeholder="1400" value={(settingOf(form.values.Settings, 'mieru_mtu') as number | undefined) || ''} onChange={(v) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { mieru_mtu: Number(v) || 0 }))} />
             <Select label={t('inbounds.mieruMux')} data={[{ value: '', label: t('inbounds.clientDefault') }, { value: 'MULTIPLEXING_OFF', label: 'off' }, { value: 'MULTIPLEXING_LOW', label: 'low' }, { value: 'MULTIPLEXING_MIDDLE', label: 'middle' }, { value: 'MULTIPLEXING_HIGH', label: 'high' }]} allowDeselect={false} value={String(settingOf(form.values.Settings, 'mieru_multiplexing') ?? '')} onChange={(v) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { mieru_multiplexing: v ?? '' }))} />
             <Select label={t('inbounds.mieruHandshake')} data={[{ value: '', label: t('inbounds.clientDefault') }, { value: 'HANDSHAKE_NO_WAIT', label: 'no-wait (0-RTT)' }, { value: 'HANDSHAKE_STANDARD', label: 'standard' }]} allowDeselect={false} value={String(settingOf(form.values.Settings, 'mieru_handshake') ?? '')} onChange={(v) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { mieru_handshake: v ?? '' }))} />
+          </Group>
+        )}
+        {form.values.Protocol === 'wireguard' && (
+          <Group grow align="flex-start">
+            <TextInput label={t('inbounds.wgPrivate')} required value={String(settingOf(form.values.Settings, 'wg_private_key') ?? '')} onChange={(e) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { wg_private_key: e.currentTarget.value }))} />
+            <TextInput label={t('inbounds.wgPublic')} value={String(settingOf(form.values.Settings, 'wg_public_key') ?? '')} onChange={(e) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { wg_public_key: e.currentTarget.value }))} />
+            <TextInput label={t('inbounds.wgAddress')} description={t('inbounds.wgAddressHint')} value={String(settingOf(form.values.Settings, 'wg_address') ?? '10.66.0.1/16')} onChange={(e) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { wg_address: e.currentTarget.value }))} />
           </Group>
         )}
         {form.values.Protocol === 'snell' && (
