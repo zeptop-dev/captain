@@ -164,7 +164,9 @@
       "trojanWs": "Trojan + WS + TLS",
       "trojanWsDesc": "CDN 経由が可能。証明書が必要です。",
       "wireguard": "WireGuard",
-      "wireguardDesc": "UDP の端末全体 VPN。専用線・内部網向け。"
+      "wireguardDesc": "UDP の端末全体 VPN。専用線・内部網向け。",
+      "socks5": "SOCKS5",
+      "socks5Desc": "平文・ユーザー名パスワード認証。専用線・内部網・ローカル用。"
     },
     "realityAuto": "自動選択",
     "realityProbe": "現在の対象を検査",

@@ -48,6 +48,7 @@ const recipes: { key: string; protocol: string; port: number; settings: Record<s
   { key: 'mieru', protocol: 'mieru', port: 24450, settings: { mieru_transport: 'TCP' } },
   { key: 'snell', protocol: 'snell', port: 6160, settings: { snell_psk: '', snell_version: 5 } },
   { key: 'wireguard', protocol: 'wireguard', port: 51820, settings: { wg_private_key: '', wg_public_key: '', wg_address: '10.66.0.1/16', wg_mtu: 1420 } },
+  { key: 'socks5', protocol: 'socks', port: 1080, settings: {} },
   { key: 'ss2022', protocol: 'shadowsocks', port: 8388, settings: { cipher: '2022-blake3-aes-128-gcm', server_key: '' } },
   { key: 'trojanWs', protocol: 'trojan', port: 443, settings: { tls: { mode: 1, server_name: 'node.example.com', auto_cert: true, acme: 'http' }, transport: { type: 'ws', path: '/trojan', host: 'node.example.com' } } },
 ]

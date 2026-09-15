@@ -182,7 +182,9 @@
       "snell": "Snell v5",
       "snellDesc": "Surge 官方协议，共享 PSK；只有 Surge / mihomo / Stash 能用。",
       "wireguard": "WireGuard",
-      "wireguardDesc": "整机 VPN，走 UDP；适合专线和内网。"
+      "wireguardDesc": "整机 VPN，走 UDP；适合专线和内网。",
+      "socks5": "SOCKS5",
+      "socks5Desc": "明文，用户名密码认证；专线、内网或本机程序用。"
     },
     "mieruStrategy": "mieru 策略",
     "mieruStrategyHint": "同 nobrand-oneclick 的预设：专线不伪装，公网保守伪装，强化伪装加分片和填充；自定义则直接改下面的 traffic_pattern。",

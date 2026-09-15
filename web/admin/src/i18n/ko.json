@@ -164,7 +164,9 @@
       "trojanWs": "Trojan + WS + TLS",
       "trojanWsDesc": "CDN을 거칠 수 있으며 인증서가 필요합니다.",
       "wireguard": "WireGuard",
-      "wireguardDesc": "UDP 기반 기기 전체 VPN. 전용선·내부망용."
+      "wireguardDesc": "UDP 기반 기기 전체 VPN. 전용선·내부망용.",
+      "socks5": "SOCKS5",
+      "socks5Desc": "평문, 사용자명/비밀번호 인증. 전용선·내부망·로컬 프로그램용."
     },
     "realityAuto": "자동 선택",
     "realityProbe": "현재 대상 검사",

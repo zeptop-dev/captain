@@ -164,7 +164,9 @@
       "trojanWs": "Trojan + WS + TLS",
       "trojanWsDesc": "Работает через CDN; нужен сертификат.",
       "wireguard": "WireGuard",
-      "wireguardDesc": "VPN всего устройства по UDP; для линий и внутренних сетей."
+      "wireguardDesc": "VPN всего устройства по UDP; для линий и внутренних сетей.",
+      "socks5": "SOCKS5",
+      "socks5Desc": "Открытый текст с логином/паролем; для линий, локальных сетей и программ."
     },
     "realityAuto": "Выбрать автоматически",
     "realityProbe": "Проверить текущую цель",
