@@ -157,7 +157,26 @@
       "ss2022Desc": "軽量。base64 のサーバー鍵が必要です。",
       "trojanWs": "Trojan + WS + TLS",
       "trojanWsDesc": "CDN 経由が可能。証明書が必要です。"
-    }
+    },
+    "realityAuto": "自動選択",
+    "realityProbe": "現在の対象を検査",
+    "realityScanning": "ノードからハンドシェイク中…",
+    "realityScanHint": "ノードから実際に TLS ハンドシェイクを行い、TLS 1.3・h2・X25519・証明書を確認し、CDN 上のサイトを除外します。",
+    "realityLatency": "遅延",
+    "realityCert": "証明書",
+    "realityUse": "使用",
+    "realityBlocked": "不可",
+    "realityNoCdn": "自社",
+    "realityCdnHint": "CDN 上のサイトは「優選 IP」スキャナーに見つかり、他人がこのノード経由で通信します",
+    "realityPicked": "{{host}} を選択（{{ms}} ms）",
+    "realityNone": "使える対象がありません",
+    "fallbackLimit": "フォールバック制限",
+    "fallbackLimitHint": "REALITY 認証に失敗した接続は対象へ転送されます。制限すればスキャナーに見つかっても利用価値がありません。Xray のみ。",
+    "fallbackAfter": "無制限枠 (MB)",
+    "fallbackRate": "制限 (KB/s)",
+    "realityTarget": "REALITY 偽装先",
+    "realityTargetHint": "現在の対象：{{host}}。TLS 1.3 + h2 対応で、Cloudflare などの CDN 上でないこと。",
+    "realityNeedsNode": "ノード保存後に検査できます。"
   },
   "entries": {
     "title": "エントリ",

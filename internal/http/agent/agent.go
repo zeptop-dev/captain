@@ -146,6 +146,11 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 	if rep.Doctor != nil {
 		_ = h.Store.SetNodeDoctor(ctx, n.ID, rep.Doctor)
 	}
+	for _, jr := range rep.Jobs {
+		if err := h.Store.CompleteNodeJob(ctx, n.ID, jr.ID, jr.Result, jr.Error); err != nil {
+			h.Log.Error("complete node job", "job", jr.ID, "err", err)
+		}
+	}
 	// Traffic is attributed to the node's first inbound for daily stats; the
 	// subscription charge is per user regardless of inbound.
 	inbounds, _ := h.Store.InboundsByNode(ctx, n.ID)

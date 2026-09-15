@@ -157,7 +157,26 @@
       "ss2022Desc": "輕量，需要 base64 伺服器金鑰。",
       "trojanWs": "Trojan + WS + TLS",
       "trojanWsDesc": "可搭配 CDN，需要憑證。"
-    }
+    },
+    "realityAuto": "自動選擇",
+    "realityProbe": "探測目前目標",
+    "realityScanning": "正在從節點發起握手…",
+    "realityScanHint": "從節點做真實 TLS 握手，檢查 TLS 1.3、h2、X25519、憑證，並排除 CDN 託管的站點。",
+    "realityLatency": "延遲",
+    "realityCert": "憑證",
+    "realityUse": "使用",
+    "realityBlocked": "不可用",
+    "realityNoCdn": "自建",
+    "realityCdnHint": "CDN 託管的站點會被「優選 IP」掃描器發現，別人會借你的節點轉發流量",
+    "realityPicked": "已選 {{host}}（{{ms}} ms）",
+    "realityNone": "沒有可用目標",
+    "fallbackLimit": "回落限速",
+    "fallbackLimitHint": "未通過 REALITY 認證的連線會被轉發到握手目標；限速後被掃描器發現也沒有利用價值。僅 Xray 核心支援。",
+    "fallbackAfter": "免限額度 (MB)",
+    "fallbackRate": "限速 (KB/s)",
+    "realityTarget": "REALITY 偽裝目標",
+    "realityTargetHint": "目前目標：{{host}}。目標站必須支援 TLS 1.3 + h2，且不能在 Cloudflare 等 CDN 上。",
+    "realityNeedsNode": "儲存節點後才能從節點發起探測。"
   },
   "entries": {
     "title": "入口",

@@ -34,6 +34,7 @@ export interface Node {
   version: string; platform: string; hostname: string; last_seen_at: string | null; online: boolean; paired: boolean
   pair_code?: string; traffic_today_bytes: number; inbounds: number; upgrade_to?: string; outdated: boolean; cert_problem: boolean; doctor_fail?: boolean
 }
+export interface NodeJob { id: string; node_id: number; kind: string; params: unknown; result?: unknown; error?: string; created_at: string; done_at?: string }
 export interface CertStatus { domain: string; method: string; not_after: string; error?: string }
 export interface DoctorCheck { id: string; name: string; status: 'ok' | 'warn' | 'fail' | 'skip'; detail?: string }
 export interface DoctorReport { at: string; checks: DoctorCheck[]; summary: { ok: number; warn: number; fail: number; skip: number } }
