@@ -7,7 +7,7 @@ import { toast } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
 
 interface Data { templates: Record<string, string>; defaults: Record<string, string> }
-const labels: Record<string, string> = { clash: 'mihomo / Clash Meta', stash: 'Stash', surge: 'Surge', surfboard: 'Surfboard', loon: 'Loon', qx: 'Quantumult X' }
+const labels: Record<string, string> = { clash: 'mihomo / Clash Meta', stash: 'Stash', surge: 'Surge', surfboard: 'Surfboard', loon: 'Loon', qx: 'Quantumult X', egern: 'Egern' }
 
 // One editable template per subscription format. An empty template means
 // the built-in default, which is what the editor shows until it is changed.

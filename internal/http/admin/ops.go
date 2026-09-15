@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/service"
 	"github.com/zeptop-dev/captain/internal/store"
 	"github.com/zeptop-dev/captain/internal/telegram"
 )
@@ -65,6 +66,8 @@ func (h *handlers) registerOps(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/admin/2fa/setup", h.requireAdmin(h.totpSetup))
 	mux.HandleFunc("POST /api/admin/2fa/enable", h.requireAdmin(h.totpEnable))
 	mux.HandleFunc("POST /api/admin/2fa/disable", h.requireAdmin(h.totpDisable))
+	mux.HandleFunc("GET /api/admin/users/{id}/entries", h.requireAdmin(h.userEntries))
+	mux.HandleFunc("PUT /api/admin/users/{id}/entries", h.requireAdmin(h.putUserEntries))
 	mux.HandleFunc("GET /api/admin/users/{id}/links", h.requireAdmin(h.listSubLinks))
 	mux.HandleFunc("POST /api/admin/users/{id}/links", h.requireAdmin(h.createTempLink))
 	mux.HandleFunc("DELETE /api/admin/users/{id}/links/{lid}", h.requireAdmin(h.deleteSubLink))
@@ -1083,6 +1086,44 @@ func firstNonEmpty(vals ...string) string {
 }
 
 // ---- temporary subscription links ----------------------------------------------------
+
+// userEntries lists the servers one user gets, each with that user's share
+// link and the blacklist flag.
+func (h *handlers) userEntries(w http.ResponseWriter, r *http.Request) {
+	id, okID := pathID(r)
+	u, err := h.Store.UserByID(r.Context(), id)
+	if !okID || err != nil {
+		fail(w, http.StatusNotFound, "user not found")
+		return
+	}
+	svc := &service.Subscription{Store: h.Store}
+	list, err := svc.EntryLinks(r.Context(), u)
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	ok(w, list)
+}
+
+// putUserEntries replaces the user's blacklist: {"blocked": [entry ids]}.
+func (h *handlers) putUserEntries(w http.ResponseWriter, r *http.Request) {
+	id, okID := pathID(r)
+	if _, err := h.Store.UserByID(r.Context(), id); !okID || err != nil {
+		fail(w, http.StatusNotFound, "user not found")
+		return
+	}
+	var in struct {
+		Blocked []int64 `json:"blocked"`
+	}
+	if !decode(r, &in) {
+		return
+	}
+	if err := h.Store.SetUserEntryBlocks(r.Context(), id, in.Blocked); err != nil {
+		fail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	h.userEntries(w, r)
+}
 
 func (h *handlers) listSubLinks(w http.ResponseWriter, r *http.Request) {
 	list, err := h.Store.ListSubLinks(r.Context(), idOf(r))

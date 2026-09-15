@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/spec"
@@ -231,5 +233,46 @@ func (s *Store) SetNodeRouting(ctx context.Context, nodeID int64, nr *NodeRoutin
 		dns = []byte("[]")
 	}
 	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET outbounds_json = ?, routes_json = ?, default_outbound = ?, dns_json = ?, updated_at = ? WHERE id = ?`, string(outs), string(routes), nr.DefaultOutbound, string(dns), now(), nodeID)
+	return err
+}
+
+// OverrideCores are the cores whose rendered config accepts an override.
+var OverrideCores = []string{"xray", "singbox", "hysteria", "mita"}
+
+// NodeOverrides returns the per-core override JSON text for a node.
+func (s *Store) NodeOverrides(ctx context.Context, nodeID int64) (map[string]string, error) {
+	var raw string
+	if err := s.db.QueryRowContext(ctx, `SELECT overrides_json FROM nodes WHERE id = ?`, nodeID).Scan(&raw); err != nil {
+		return nil, wrapNotFound(err)
+	}
+	out := map[string]string{}
+	var m map[string]json.RawMessage
+	_ = json.Unmarshal([]byte(raw), &m)
+	for _, c := range OverrideCores {
+		if v, ok := m[c]; ok && len(v) > 0 {
+			out[c] = string(v)
+		} else {
+			out[c] = ""
+		}
+	}
+	return out, nil
+}
+
+// SetNodeOverrides validates each entry as a JSON object and stores them.
+func (s *Store) SetNodeOverrides(ctx context.Context, nodeID int64, in map[string]string) error {
+	m := map[string]json.RawMessage{}
+	for _, c := range OverrideCores {
+		raw := strings.TrimSpace(in[c])
+		if raw == "" {
+			continue
+		}
+		var obj map[string]any
+		if err := json.Unmarshal([]byte(raw), &obj); err != nil {
+			return fmt.Errorf("%s: override must be a JSON object: %w", c, err)
+		}
+		m[c] = json.RawMessage(raw)
+	}
+	b, _ := json.Marshal(m)
+	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET overrides_json = ?, updated_at = ? WHERE id = ?`, string(b), now(), nodeID)
 	return err
 }

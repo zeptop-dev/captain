@@ -149,7 +149,8 @@
     "decoyUpstream": "Upstream (optional)",
     "decoyUpstreamHint": "Blank serves the built-in placeholder; an http(s) URL is reverse-proxied",
     "speedLimit": "Per-user speed limit (Mbps)",
-    "speedLimitHint": "0 = none. Applies to users on this node without a plan limit; a plan limit wins. Needs Linux with nft and tc; only xray / sing-box protocols are shaped."
+    "speedLimitHint": "0 = none. Applies to users on this node without a plan limit; a plan limit wins. Needs Linux with nft and tc; only xray / sing-box protocols are shaped.",
+    "advOverridesHint": "Core options the panel does not model"
   },
   "inbounds": {
     "title": "Inbounds",
@@ -1026,5 +1027,17 @@
     "hint": "Restrict where the admin console and its API may be used from. API tokens are limited too.",
     "allowCidrs": "IP allow-list",
     "allowCidrsHint": "IPs or CIDRs; blank = anyone. A list that would lock you out is refused"
+  },
+  "overrides": {
+    "title": "Config overrides",
+    "hint": "A JSON object per core, deep-merged into the rendered config: objects merge field by field, arrays and scalars replace, null deletes a field. For core options the panel does not expose. A bad override stops the core; the doctor shows it.",
+    "invalid": "Not valid JSON"
+  },
+  "userEntries": {
+    "title": "Entries",
+    "hint": "The servers this user receives. Each link carries this user's own credentials and can be handed over on its own; switching one off hides that entry from this user only, so it leaves their subscription.",
+    "none": "No entries available",
+    "noLink": "No share link for this protocol",
+    "allowed": "Visible"
   }
 }

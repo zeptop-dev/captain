@@ -60,6 +60,47 @@ func (s *Subscription) Lines(ctx context.Context, u *domain.User, at time.Time) 
 	return lines, account(sub), nil
 }
 
+// EntryLink is one entry as one user would receive it, with the share URI
+// and whether the admin hid it from this user.
+type EntryLink struct {
+	EntryID  int64  `json:"entry_id"`
+	Name     string `json:"name"`
+	Protocol string `json:"protocol"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	URI      string `json:"uri"`
+	Blocked  bool   `json:"blocked"`
+}
+
+// EntryLinks lists every entry the user's group allows, blacklist included
+// and flagged, so an admin can copy one user's link for one server or hide
+// a server from that user. Access checks are the caller's business.
+func (s *Subscription) EntryLinks(ctx context.Context, u *domain.User) ([]EntryLink, error) {
+	rows, err := s.Store.EntriesForUserAll(ctx, u)
+	if err != nil {
+		return nil, err
+	}
+	blocked, err := s.Store.UserEntryBlocks(ctx, u.ID)
+	if err != nil {
+		return nil, err
+	}
+	hidden := map[int64]bool{}
+	for _, id := range blocked {
+		hidden[id] = true
+	}
+	var ss SubscriptionSettings
+	_ = s.Store.GetSetting(ctx, SettingSubscription, &ss)
+	out := make([]EntryLink, 0, len(rows))
+	for _, r := range rows {
+		l := subscription.Line{
+			Name: subscription.WithFlag(r.Entry.Name, r.Entry.DisplayHost, r.Entry.Region, ss.AutoFlags), Host: r.Entry.DisplayHost, Port: r.Entry.DisplayPort,
+			Inbound: r.Inbound.Spec(), UUID: u.UUID, UserID: u.ID, Password: u.UUID, Tags: r.Entry.Tags,
+		}
+		out = append(out, EntryLink{EntryID: r.Entry.ID, Name: l.Name, Protocol: string(r.Inbound.Protocol), Host: l.Host, Port: l.Port, URI: subscription.ShareURI(l), Blocked: hidden[r.Entry.ID]})
+	}
+	return out, nil
+}
+
 func account(sub *domain.Subscription) subscription.Account {
 	a := subscription.Account{Upload: sub.UsedUpBytes, Download: sub.UsedDownBytes, Total: sub.QuotaBytes}
 	if sub.ExpiresAt != nil {

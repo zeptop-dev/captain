@@ -133,7 +133,8 @@
     "decoyUpstream": "上游站點（可選）",
     "decoyUpstreamHint": "留空用內建占位頁；填 http(s) 位址則反向代理到你的網站",
     "speedLimit": "每使用者限速（Mbps）",
-    "speedLimitHint": "0 不限。對這台節點上沒有方案限速的使用者生效；方案裡的限速值優先。需要節點是 Linux 且有 nft 和 tc，只對 Xray / sing-box 承載的協定生效。"
+    "speedLimitHint": "0 不限。對這台節點上沒有方案限速的使用者生效；方案裡的限速值優先。需要節點是 Linux 且有 nft 和 tc，只對 Xray / sing-box 承載的協定生效。",
+    "advOverridesHint": "給核心補面板沒有的選項"
   },
   "inbounds": {
     "title": "入站",
@@ -643,5 +644,17 @@
     "hint": "限制管理後台的登入和 API 呼叫來源。API 權杖同樣受限。",
     "allowCidrs": "IP 白名單",
     "allowCidrsHint": "IP 或 CIDR，留空不限制；儲存時會拒絕把你自己排除在外的名單"
+  },
+  "overrides": {
+    "title": "設定覆寫",
+    "hint": "按核心填一段 JSON，會深合併進最終產生的設定：物件逐欄位合併，陣列和純量整體取代，值為 null 表示刪除該欄位。用來設定面板沒有暴露的核心選項。改錯了核心會起不來，體檢裡能看到。",
+    "invalid": "不是合法的 JSON"
+  },
+  "userEntries": {
+    "title": "入口",
+    "hint": "這個使用者能收到的伺服器。每行的連結帶的是這個使用者自己的憑據，可以單獨發給他；關掉開關就只對這個使用者隱藏這個入口，訂閱裡不再出現。",
+    "none": "沒有可用的入口",
+    "noLink": "該協定沒有分享連結",
+    "allowed": "可見"
   }
 }

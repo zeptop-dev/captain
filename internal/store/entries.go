@@ -49,6 +49,16 @@ type EntryLine struct {
 // EntriesForUser returns enabled entries whose inbound the user may use:
 // inbound group is NULL or equals the user's group.
 func (s *Store) EntriesForUser(ctx context.Context, u *domain.User) ([]EntryLine, error) {
+	return s.entriesForUser(ctx, u, false)
+}
+
+// EntriesForUserAll is EntriesForUser without the per-user blacklist: what
+// the admin sees when deciding what to hide.
+func (s *Store) EntriesForUserAll(ctx context.Context, u *domain.User) ([]EntryLine, error) {
+	return s.entriesForUser(ctx, u, true)
+}
+
+func (s *Store) entriesForUser(ctx context.Context, u *domain.User, withBlocked bool) ([]EntryLine, error) {
 	q := `SELECT ` + entryCols + `, ` + inboundColsPrefixed("i") + `
 		FROM entries e JOIN inbounds i ON i.id = e.inbound_id
 		WHERE e.enabled = 1 AND i.enabled = 1 AND (i.group_id IS NULL`
@@ -57,7 +67,12 @@ func (s *Store) EntriesForUser(ctx context.Context, u *domain.User) ([]EntryLine
 		q += ` OR i.group_id = ?`
 		args = append(args, *u.GroupID)
 	}
-	q += `) ORDER BY e.sort, e.id`
+	q += `)`
+	if !withBlocked {
+		q += ` AND e.id NOT IN (SELECT entry_id FROM user_entry_blocks WHERE user_id = ?)`
+		args = append(args, u.ID)
+	}
+	q += ` ORDER BY e.sort, e.id`
 	rows, err := s.db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, err
