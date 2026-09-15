@@ -141,7 +141,7 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
               <UnstyledButton key={r.key} onClick={() => { setRecipe(r.key); apply(r) }} aria-pressed={recipe === r.key}>
                 <Card p="sm" withBorder style={{ height: '100%', borderColor: recipe === r.key ? 'var(--mantine-primary-color-filled)' : undefined, background: recipe === r.key ? 'var(--mantine-primary-color-light)' : undefined }}>
                   <Text size="sm" fw={600} c={recipe === r.key ? 'var(--mantine-primary-color-light-color)' : undefined}>{t(`inbounds.recipes.${r.key}`)}</Text>
-                  <Text size="xs" c="dimmed">{t(`inbounds.recipes.${r.key}Desc`)}</Text>
+                  <Text size="xs" c="dimmed" lh={1.35} lineClamp={2} mih="2.7em">{t(`inbounds.recipes.${r.key}Desc`)}</Text>
                 </Card>
               </UnstyledButton>
             ))}
@@ -156,7 +156,7 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
           value={form.values.NewIngress ? 'new' : form.values.IngressID} onChange={onIngress} />
         {lineOnly && !form.values.IngressID && !form.values.NewIngress && <Text size="xs" c="orange">{t('inbounds.lineOnlyHint')}</Text>}
         {form.values.NewIngress && <Stack gap="xs" p="sm" style={{ border: '1px dashed var(--mantine-color-default-border)', borderRadius: 8 }}><Text size="xs" c="dimmed">{t('inbounds.ingressNewFields')}</Text><IngressFields form={ingressForm} /></Stack>}
-        <Group grow>
+        <Group grow align="flex-start">
           <TextInput label={t('inbounds.listen')} placeholder={selectedIngress?.bind_ip || '::'} description={selectedIngress?.bind_ip ? t('inbounds.listenIngressHint', { ip: selectedIngress.bind_ip }) : undefined} {...form.getInputProps('Listen')} />
           <NumberInput label={t('inbounds.port')} min={1} max={65535} required {...form.getInputProps('Port')} />
           <Select label={t('inbounds.core')} data={cores.map((c) => ({ value: c, label: c || t('inbounds.coreAuto') }))} allowDeselect={false} {...form.getInputProps('Core')} />
@@ -164,7 +164,7 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
         <Group grow align="flex-end">
           <Select label={t('inbounds.group')} data={[{ value: '', label: t('inbounds.groupAll') }, ...groups.map((g) => ({ value: String(g.ID), label: g.Name }))]} allowDeselect={false} {...form.getInputProps('GroupID')} />
           {form.values.Protocol === 'mieru' && (
-            <Group grow>
+            <Group grow align="flex-start">
               <Select label={t('inbounds.mieruStrategy')} description={t('inbounds.mieruStrategyHint')} allowDeselect={false}
                 data={[{ value: 'iplc', label: t('inbounds.mieru.iplc') }, { value: 'balanced', label: t('inbounds.mieru.balanced') }, { value: 'stealth', label: t('inbounds.mieru.stealth') }, { value: 'custom', label: t('inbounds.mieru.custom') }]}
                 value={mieruStrategyOf(form.values.Settings)} onChange={(v) => v && form.setFieldValue('Settings', withMieru(form.values.Settings, { strategy: v }))} />
@@ -175,7 +175,7 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
           <Switch label={t('inbounds.enabled')} {...form.getInputProps('Enabled', { type: 'checkbox' })} />
         </Group>
         {form.values.Protocol === 'mieru' && (
-          <Group grow align="flex-end">
+          <Group grow align="flex-start">
             <NumberInput label={t('inbounds.mieruMTU')} description={t('inbounds.mieruMTUHint')} min={1280} max={1500} placeholder="1400" value={(settingOf(form.values.Settings, 'mieru_mtu') as number | undefined) || ''} onChange={(v) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { mieru_mtu: Number(v) || 0 }))} />
             <Select label={t('inbounds.mieruMux')} data={[{ value: '', label: t('inbounds.clientDefault') }, { value: 'MULTIPLEXING_OFF', label: 'off' }, { value: 'MULTIPLEXING_LOW', label: 'low' }, { value: 'MULTIPLEXING_MIDDLE', label: 'middle' }, { value: 'MULTIPLEXING_HIGH', label: 'high' }]} allowDeselect={false} value={String(settingOf(form.values.Settings, 'mieru_multiplexing') ?? '')} onChange={(v) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { mieru_multiplexing: v ?? '' }))} />
             <Select label={t('inbounds.mieruHandshake')} data={[{ value: '', label: t('inbounds.clientDefault') }, { value: 'HANDSHAKE_NO_WAIT', label: 'no-wait (0-RTT)' }, { value: 'HANDSHAKE_STANDARD', label: 'standard' }]} allowDeselect={false} value={String(settingOf(form.values.Settings, 'mieru_handshake') ?? '')} onChange={(v) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { mieru_handshake: v ?? '' }))} />
@@ -203,10 +203,11 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
               <Text size="xs" c="dimmed" mb="xs">{t('inbounds.realityTargetHint', { host: current || '—' })}</Text>
               {nodeID ? <RealityScan current={current} scan={(hosts) => scanViaNode(nodeID, hosts)} onPick={(host) => form.setFieldValue('Settings', patchReality(form.values.Settings, { server_name: host, handshake_server: host, handshake_port: 443 }))} /> : <Text size="xs" c="dimmed">{t('inbounds.realityNeedsNode')}</Text>}
               <Group grow align="flex-end" mt="sm">
-                <Switch label={t('inbounds.fallbackLimit')} description={t('inbounds.fallbackLimitHint')} checked={!fl?.off} onChange={(e) => form.setFieldValue('Settings', patchReality(form.values.Settings, { fallback_limit: e.currentTarget.checked ? null : { off: true } }))} />
+                <Switch label={t('inbounds.fallbackLimit')} mb={7} checked={!fl?.off} onChange={(e) => form.setFieldValue('Settings', patchReality(form.values.Settings, { fallback_limit: e.currentTarget.checked ? null : { off: true } }))} />
                 <NumberInput label={t('inbounds.fallbackAfter')} min={0} disabled={!!fl?.off} value={Math.round((fl?.after_bytes || 1048576) / 1048576)} onChange={(v) => form.setFieldValue('Settings', patchReality(form.values.Settings, { fallback_limit: { after_bytes: Math.max(0, Number(v) || 0) * 1048576 || undefined, bytes_per_sec: fl?.bytes_per_sec } }))} />
                 <NumberInput label={t('inbounds.fallbackRate')} min={1} disabled={!!fl?.off} value={Math.round((fl?.bytes_per_sec || 65536) / 1024)} onChange={(v) => form.setFieldValue('Settings', patchReality(form.values.Settings, { fallback_limit: { after_bytes: fl?.after_bytes, bytes_per_sec: Math.max(1, Number(v) || 64) * 1024 } }))} />
               </Group>
+              <Text size="xs" c="dimmed" mt={4}>{t('inbounds.fallbackLimitHint')}</Text>
             </Card>
           )
         })()}
