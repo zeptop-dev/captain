@@ -192,7 +192,6 @@
     "ingressHint": "Clients dial {{host}}; local port range {{ports}}.",
     "ingressNewHint": "The line ingress is created first, then the inbound.",
     "ingressNewFields": "Copy these from the provider's network information page:",
-    "listenIngressHint": "blank = bind to the ingress address {{ip}}",
     "lineOnlyHint": "This node has no public address or domain and is reached only through a line ingress: pick one, or the subscription has no usable address.",
     "mieruBothHint": "BOTH = TCP on this port, UDP on port +1",
     "mieruMTU": "MTU",
@@ -224,7 +223,8 @@
     "fallbackRate": "Limit (KB/s)",
     "realityTarget": "REALITY target",
     "realityTargetHint": "Current target: {{host}}. It must speak TLS 1.3 + h2 and not sit on Cloudflare or another CDN.",
-    "realityNeedsNode": "Save the node first to probe from it."
+    "realityNeedsNode": "Save the node first to probe from it.",
+    "ingressBindHint": "Leave the listen address blank to bind the line IP {{ip}}."
   },
   "entries": {
     "title": "Entries",

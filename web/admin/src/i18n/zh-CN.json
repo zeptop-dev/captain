@@ -192,7 +192,6 @@
     "ingressHint": "客户端连 {{host}}，本地端口范围 {{ports}}。",
     "ingressNewHint": "保存时会先创建这个专线入口，再创建入站。",
     "ingressNewFields": "从服务商的网络信息页抄这几项：",
-    "listenIngressHint": "留空 = 绑定到入口的本地 IP {{ip}}",
     "lineOnlyHint": "这台节点没有公网地址和域名，只能通过专线入口访问：请选一个入口，否则订阅里没有可用地址。",
     "mieruBothHint": "BOTH = TCP 在本端口，UDP 在端口 +1",
     "mieruMTU": "MTU",
@@ -224,7 +223,8 @@
     "fallbackRate": "限速 (KB/s)",
     "realityTarget": "REALITY 伪装目标",
     "realityTargetHint": "当前目标：{{host}}。目标站必须支持 TLS 1.3 + h2，且不能在 Cloudflare 等 CDN 上。",
-    "realityNeedsNode": "保存节点后才能从节点发起探测。"
+    "realityNeedsNode": "保存节点后才能从节点发起探测。",
+    "ingressBindHint": "监听地址留空则绑定到入口本地 IP {{ip}}。"
   },
   "entries": {
     "title": "入口",

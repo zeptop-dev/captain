@@ -176,7 +176,8 @@
     "fallbackRate": "限速 (KB/s)",
     "realityTarget": "REALITY 偽裝目標",
     "realityTargetHint": "目前目標：{{host}}。目標站必須支援 TLS 1.3 + h2，且不能在 Cloudflare 等 CDN 上。",
-    "realityNeedsNode": "儲存節點後才能從節點發起探測。"
+    "realityNeedsNode": "儲存節點後才能從節點發起探測。",
+    "ingressBindHint": "監聽位址留空則綁定到入口本地 IP {{ip}}。"
   },
   "entries": {
     "title": "入口",

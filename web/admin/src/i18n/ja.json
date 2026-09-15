@@ -176,7 +176,8 @@
     "fallbackRate": "制限 (KB/s)",
     "realityTarget": "REALITY 偽装先",
     "realityTargetHint": "現在の対象：{{host}}。TLS 1.3 + h2 対応で、Cloudflare などの CDN 上でないこと。",
-    "realityNeedsNode": "ノード保存後に検査できます。"
+    "realityNeedsNode": "ノード保存後に検査できます。",
+    "ingressBindHint": "待受アドレスを空にすると回線側 IP {{ip}} にバインドします。"
   },
   "entries": {
     "title": "エントリ",

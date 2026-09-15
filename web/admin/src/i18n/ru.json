@@ -176,7 +176,8 @@
     "fallbackRate": "Лимит (КБ/с)",
     "realityTarget": "Цель REALITY",
     "realityTargetHint": "Текущая цель: {{host}}. Нужны TLS 1.3 + h2 и не Cloudflare или другой CDN.",
-    "realityNeedsNode": "Сначала сохраните узел, чтобы проверять с него."
+    "realityNeedsNode": "Сначала сохраните узел, чтобы проверять с него.",
+    "ingressBindHint": "Пустой адрес прослушивания = привязка к IP линии {{ip}}."
   },
   "entries": {
     "title": "Точки входа",
