@@ -40,7 +40,7 @@ func TestResponseRules(t *testing.T) {
 		want  string
 	}{
 		{"Happ/2.0", map[string]string{"x-hwid": "abc"}, "", "happ-json"},
-		{"Happ/2.0", nil, "", ""},   // needs both conditions; the disabled rule never fires
+		{"Happ/2.0", nil, "", ""}, // needs both conditions; the disabled rule never fires
 		{"curl/8.0", nil, "", "bots"},
 		{"clash-verge", nil, "?client=probe", "bots"},
 		{"OldApp/1.0", nil, "", "old-app"},
