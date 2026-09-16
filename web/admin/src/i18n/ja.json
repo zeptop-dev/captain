@@ -250,10 +250,12 @@
     "snellVersion": "バージョン",
     "snellObfs": "難読化",
     "snellObfsHost": "難読化 Host",
-    "snellHint": "Snell は全員が 1 つの PSK を共有し、ユーザー別の通信量統計や制限はありません。自分用や小規模な仲間内向けです。Surge、Stash、mihomo が対応。sing-box と URI サブスクリプションには含まれません。",
+    "snellHint": "マルチユーザーでない Snell は全員共通の PSK（snell-server）で、ユーザーごとの集計や制限はありません。Surge、Stash、mihomo が対応し、sing-box と URI サブスクには含まれません。",
     "generate": "生成",
     "acceptProxy": "PROXY protocol を要求（中継専用）",
-    "acceptProxyHint": "このパネルの転送経由でのみ到達するインバウンド向け：中継がクライアントの実アドレスを PROXY protocol ヘッダーで渡し、オンライン端末とログに実クライアントが表示されます。有効にすると直接接続は失敗します。xray のみ。"
+    "acceptProxyHint": "このパネルの転送経由でのみ到達するインバウンド向け：中継がクライアントの実アドレスを PROXY protocol ヘッダーで渡し、オンライン端末とログに実クライアントが表示されます。有効にすると直接接続は失敗します。xray のみ。",
+    "snellMultiUser": "マルチユーザー（sing-box）",
+    "snellMultiUserHint": "sing-box が提供：各ユーザーは自分のキーで接続し、トラフィックはユーザーごとに集計されます。PSK はサーバーキーのままです。このモードでは obfs tls は使えません。"
   },
   "entries": {
     "title": "エントリ",

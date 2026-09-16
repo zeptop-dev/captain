@@ -220,7 +220,7 @@
     "snellVersion": "Version",
     "snellObfs": "Obfuscation",
     "snellObfsHost": "Obfs host",
-    "snellHint": "Snell has one shared PSK for everyone: no per-user accounting or limits; fine for self-use or a small circle. Surge, Stash and mihomo support it; sing-box and URI subscriptions leave it out.",
+    "snellHint": "Without multi-user, Snell has one shared PSK for everyone (snell-server): no per-user accounting or limits. Surge, Stash and mihomo support Snell; sing-box and URI subscriptions leave it out.",
     "generate": "Generate",
     "realityAuto": "Pick automatically",
     "realityProbe": "Probe current target",
@@ -253,7 +253,9 @@
     "noSniff": "Disable destination sniffing",
     "noSniffHint": "On by default: reads the real host from TLS/HTTP so domain rules apply. Turn off only if sniffing breaks a client.",
     "acceptProxy": "Expect PROXY protocol (relays only)",
-    "acceptProxyHint": "Only for an inbound reached exclusively through this panel's forwards: the relay sends the client's address in a PROXY protocol header, so online devices and logs show the real client. Direct connections to such an inbound fail. xray only."
+    "acceptProxyHint": "Only for an inbound reached exclusively through this panel's forwards: the relay sends the client's address in a PROXY protocol header, so online devices and logs show the real client. Direct connections to such an inbound fail. xray only.",
+    "snellMultiUser": "Multi-user (sing-box)",
+    "snellMultiUserHint": "Served by sing-box: every user connects with their own key and traffic is counted per user. The PSK stays the server key. Obfs tls is not available in this mode."
   },
   "entries": {
     "title": "Entries",

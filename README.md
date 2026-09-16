@@ -329,10 +329,13 @@ carrier latency is not measured through them.
 
 ## Snell, mieru knobs, doctor
 
-- **Snell** (bosun >= 0.18): inbound protocol `snell` on the `snell` core
-  (Surge's snell-server v5, or v4). One shared PSK for everyone, so there is
-  no per-user accounting or limit on such inbounds; Surge, Stash and mihomo
-  subscriptions carry it, sing-box and URI lists leave it out.
+- **Snell**: inbound protocol `snell`, served by sing-box on bosun >= 0.41
+  (its snell server speaks v5; obfs http). With "Multi-user (sing-box)" on
+  the inbound every user connects with their own key and traffic is
+  accounted per user like any other inbound; without it everyone shares
+  the PSK and nothing is attributed. Obfs tls still needs Surge's
+  snell-server (the `snell` core). Surge, Stash and mihomo subscriptions
+  carry Snell, sing-box and URI lists leave it out.
 - **mieru knobs**: MTU, multiplexing level and handshake mode per inbound
   reach the mierus:// links and mihomo/Stash lines; transport `BOTH` serves
   TCP on the port and UDP on port + 1 (links list both, mihomo takes TCP).

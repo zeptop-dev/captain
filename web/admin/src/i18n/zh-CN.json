@@ -220,7 +220,7 @@
     "snellVersion": "版本",
     "snellObfs": "混淆",
     "snellObfsHost": "混淆 Host",
-    "snellHint": "Snell 只有一个共享 PSK，所有用户用同一个，没有按用户的流量统计和限制；适合自用或小圈子。Surge、Stash、mihomo 支持，sing-box 和 URI 订阅不含它。",
+    "snellHint": "不开多用户时 Snell 只有一个共享 PSK（snell-server），没有按用户的流量统计和限制。Surge、Stash、mihomo 支持 Snell，sing-box 和 URI 订阅不含它。",
     "generate": "生成",
     "realityAuto": "自动选择",
     "realityProbe": "探测当前目标",
@@ -253,7 +253,9 @@
     "noSniff": "关闭目标嗅探",
     "noSniffHint": "默认开启：从 TLS/HTTP 头里识别真实域名，域名分流才能生效。只有嗅探导致某些客户端异常时才关。",
     "acceptProxy": "要求 PROXY protocol（仅经转发）",
-    "acceptProxyHint": "只给完全经本面板转发到达的入站开：中继会在连接前带上客户端真实地址，在线设备和日志看到的就是真实客户端。开了之后直连这个入站会失败。仅 xray。"
+    "acceptProxyHint": "只给完全经本面板转发到达的入站开：中继会在连接前带上客户端真实地址，在线设备和日志看到的就是真实客户端。开了之后直连这个入站会失败。仅 xray。",
+    "snellMultiUser": "多用户（sing-box）",
+    "snellMultiUserHint": "由 sing-box 承载：每个用户用自己的密钥连接，流量按用户统计；PSK 仍是服务端密钥。此模式不支持 obfs tls。"
   },
   "entries": {
     "title": "入口",

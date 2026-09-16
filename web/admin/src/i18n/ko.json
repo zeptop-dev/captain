@@ -250,10 +250,12 @@
     "snellVersion": "버전",
     "snellObfs": "난독화",
     "snellObfsHost": "난독화 Host",
-    "snellHint": "Snell 은 모든 사용자가 하나의 PSK 를 공유하므로 사용자별 트래픽 통계나 제한이 없습니다. 개인용이나 소규모 그룹에 적합합니다. Surge, Stash, mihomo 가 지원하며 sing-box 와 URI 구독에는 포함되지 않습니다.",
+    "snellHint": "다중 사용자를 끄면 Snell은 모두가 같은 PSK를 씁니다(snell-server): 사용자별 집계나 제한이 없습니다. Surge, Stash, mihomo가 지원하며 sing-box와 URI 구독에는 포함되지 않습니다.",
     "generate": "생성",
     "acceptProxy": "PROXY protocol 요구 (중계 전용)",
-    "acceptProxyHint": "이 패널의 포워드로만 도달하는 인바운드에만 켜세요: 중계가 클라이언트 실제 주소를 PROXY protocol 헤더로 전달해 온라인 기기와 로그에 실제 클라이언트가 표시됩니다. 켜면 직접 연결은 실패합니다. xray 전용."
+    "acceptProxyHint": "이 패널의 포워드로만 도달하는 인바운드에만 켜세요: 중계가 클라이언트 실제 주소를 PROXY protocol 헤더로 전달해 온라인 기기와 로그에 실제 클라이언트가 표시됩니다. 켜면 직접 연결은 실패합니다. xray 전용.",
+    "snellMultiUser": "다중 사용자 (sing-box)",
+    "snellMultiUserHint": "sing-box가 제공: 사용자마다 자신의 키로 접속하고 트래픽이 사용자별로 집계됩니다. PSK는 서버 키로 유지됩니다. 이 모드에서는 obfs tls를 쓸 수 없습니다."
   },
   "entries": {
     "title": "진입점",

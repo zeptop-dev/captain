@@ -201,6 +201,7 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
               <Select label={t('inbounds.snellObfs')} data={[{ value: '', label: 'off' }, { value: 'http', label: 'http' }, { value: 'tls', label: 'tls' }]} allowDeselect={false} value={String(settingOf(form.values.Settings, 'snell_obfs') ?? '')} onChange={(v) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { snell_obfs: v ?? '', ...(v ? {} : { snell_obfs_host: '' }) }))} />
               {!!settingOf(form.values.Settings, 'snell_obfs') && <TextInput label={t('inbounds.snellObfsHost')} placeholder="www.bing.com" value={String(settingOf(form.values.Settings, 'snell_obfs_host') ?? '')} onChange={(e) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { snell_obfs_host: e.currentTarget.value }))} />}
             </Group>
+            <Switch label={t('inbounds.snellMultiUser')} description={t('inbounds.snellMultiUserHint')} checked={!!settingOf(form.values.Settings, 'snell_multi_user')} onChange={(e) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { snell_multi_user: e.currentTarget.checked }))} />
             <Text size="xs" c="orange">{t('inbounds.snellHint')}</Text>
           </Stack>
         )}

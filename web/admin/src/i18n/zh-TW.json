@@ -250,10 +250,12 @@
     "snellVersion": "版本",
     "snellObfs": "混淆",
     "snellObfsHost": "混淆 Host",
-    "snellHint": "Snell 只有一個共用 PSK，所有使用者用同一個，沒有按使用者的流量統計和限制；適合自用或小圈子。Surge、Stash、mihomo 支援，sing-box 和 URI 訂閱不含它。",
+    "snellHint": "不開多使用者時 Snell 只有一個共享 PSK（snell-server），沒有按使用者的流量統計與限制。Surge、Stash、mihomo 支援 Snell，sing-box 與 URI 訂閱不含它。",
     "generate": "產生",
     "acceptProxy": "要求 PROXY protocol（僅經轉發）",
-    "acceptProxyHint": "只給完全經本面板轉發到達的入站開：中繼會在連線前帶上用戶端真實位址，線上裝置和日誌看到的就是真實用戶端。開了之後直連這個入站會失敗。僅 xray。"
+    "acceptProxyHint": "只給完全經本面板轉發到達的入站開：中繼會在連線前帶上用戶端真實位址，線上裝置和日誌看到的就是真實用戶端。開了之後直連這個入站會失敗。僅 xray。",
+    "snellMultiUser": "多使用者（sing-box）",
+    "snellMultiUserHint": "由 sing-box 承載：每位使用者以自己的金鑰連線，流量按使用者統計；PSK 仍是伺服器金鑰。此模式不支援 obfs tls。"
   },
   "entries": {
     "title": "入口",
