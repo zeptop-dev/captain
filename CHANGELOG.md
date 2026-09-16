@@ -6,6 +6,7 @@ Merge commits and formatting-only commits are left out. Binaries and
 `SHA256SUMS` for every tag are on the GitHub Release; the in-app updater
 installs them (Settings → Version and updates).
 
+- **v0.45.3** (2026-09-15) — inbound secrets generated server-side when missing (Shadowsocks 2022 key sized to the cipher, snell PSK, WireGuard and REALITY key pairs, short id), so an API-created inbound can no longer break a node's sing-box config; node upgrade requests older than the node's version are rejected up front instead of sitting unfulfilled; bosun v0.33.0
 - **v0.45.2** (2026-09-15) — pairing fills the node's public address from the agent's source IP when blank; TOTP replay guard keyed on the matched step (the next code is accepted again); systemd unit comment repaired (Restart= parse warning); bosun v0.31.0 (skipped inbounds no longer abort the apply, mita waits for users)
 - **v0.45.1** (2026-09-15) — admin: rename usage helpers that oxlint took for React hooks
 - **v0.45.0** (2026-09-15) — /api/admin/metrics (registry, counters, gauges), recover + request-log middleware with X-Request-ID, trusted_proxies with rightmost-untrusted XFF parsing, CI -race + coverage + oxlint + i18n check; bosun v0.30.0

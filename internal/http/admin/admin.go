@@ -1106,6 +1106,12 @@ func (h *handlers) upgradeNode(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	// The node refuses downgrades, so a request for an older tag would
+	// only sit in the node row forever; say so here instead.
+	if n, err := h.Store.NodeByID(r.Context(), id); err == nil && n.Version != "" && v != n.Version && !selfupdate.Newer(v, n.Version) {
+		fail(w, http.StatusBadRequest, v+" is older than the node's "+n.Version+"; nodes only move forward (roll back on the node itself)")
+		return
+	}
 	if err := h.Store.SetNodeUpgrade(r.Context(), id, v); err != nil {
 		fail(w, http.StatusInternalServerError, err.Error())
 		return
