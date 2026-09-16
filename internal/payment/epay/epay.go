@@ -180,9 +180,15 @@ func money(cents int64) string { return fmt.Sprintf("%d.%02d", cents/100, cents%
 // Create returns the page-jump URL with signed query parameters; the user's
 // browser opens it and the provider shows the cashier.
 func (g *Gateway) Create(_ context.Context, order *domain.Order, plan *domain.Plan, _ *domain.User, _ string) (*payment.Checkout, error) {
+	// Most 易支付 clones (zpayz.cn among them) refuse a submit without a
+	// type; alipay is the channel every merchant has.
+	typ := g.cfg.Type
+	if typ == "" {
+		typ = "alipay"
+	}
 	params := map[string]string{
 		"pid":          g.cfg.PID,
-		"type":         g.cfg.Type,
+		"type":         typ,
 		"out_trade_no": order.No,
 		"notify_url":   g.cfg.NotifyURL,
 		"return_url":   g.cfg.ReturnURL,

@@ -257,7 +257,7 @@ func (b *Bot) handle(ctx context.Context, chatID int64, text string) string {
 			if u, err := b.Store.UserByTelegramID(ctx, chatID); err == nil {
 				return fmt.Sprintf("Linked to <b>%s</b>. Commands: /sub /status /unbind", esc(u.Email))
 			}
-			return fmt.Sprintf("Welcome to %s. Open the portal, copy your bind code and send:\n<code>/bind CODE</code>", esc(b.SiteName))
+			return fmt.Sprintf("Welcome to %s. Open the portal, copy your bind code and send:\n<code>/bind CODE</code>\nThis chat's id is <code>%d</code> (admins paste it into Settings → Telegram).", esc(b.SiteName), chatID)
 		}
 		u, err := b.Store.BindTelegram(ctx, strings.ToUpper(arg), chatID)
 		if err != nil {
@@ -287,8 +287,10 @@ func (b *Bot) handle(ctx context.Context, chatID int64, text string) string {
 			return "Not linked. Send <code>/bind CODE</code> first."
 		}
 		return b.status(ctx, u)
+	case "/id":
+		return fmt.Sprintf("Chat id: <code>%d</code>", chatID)
 	case "/help":
-		return "/bind CODE – link this chat\n/sub – subscription link\n/status – plan, traffic, expiry\n/unbind – unlink"
+		return "/bind CODE – link this chat\n/sub – subscription link\n/status – plan, traffic, expiry\n/id – this chat's id\n/unbind – unlink"
 	}
 	return ""
 }

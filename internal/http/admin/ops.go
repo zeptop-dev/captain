@@ -502,8 +502,11 @@ func (h *handlers) putTelegram(w http.ResponseWriter, r *http.Request) {
 	var cur store.TelegramSettings
 	_ = h.Store.GetSetting(r.Context(), store.SettingTelegram, &cur)
 	v.BotToken = strings.TrimSpace(v.BotToken)
-	if v.BotToken == "" {
+	switch v.BotToken {
+	case "":
 		v.BotToken, v.BotUsername = cur.BotToken, cur.BotUsername
+	case "-": // clears, like the other masked tokens
+		v.BotToken, v.BotUsername = "", ""
 	}
 	if v.BotToken != "" && (v.BotToken != cur.BotToken || v.BotUsername == "") {
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
