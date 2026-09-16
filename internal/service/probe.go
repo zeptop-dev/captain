@@ -24,6 +24,16 @@ type Probe struct {
 	Store  *store.Store
 	Notify *notify.Notifier
 	Log    *slog.Logger
+	// AlertWindow batches the operator notices raised within it into one
+	// Telegram message (a panel-side blip takes every node offline at
+	// once); 0 = 30 s, negative = send each one immediately. Webhook
+	// events are always emitted per alert.
+	AlertWindow time.Duration
+
+	alertMu    sync.Mutex
+	pending    []string
+	alertTimer *time.Timer
+	adminSend  func(ctx context.Context, text string) // tests
 
 	mu       sync.Mutex
 	live     map[int64]*Live
@@ -232,8 +242,43 @@ func (p *Probe) notify(ctx context.Context, n *domain.Node, kind, text string) {
 	if p.Notify == nil {
 		return
 	}
-	p.Notify.Admin(ctx, text)
 	p.Notify.Event(ctx, webhook.NodeAlert, map[string]any{"node_id": n.ID, "node": n.Name, "kind": kind, "message": text})
+	p.queueAdmin(text)
+}
+
+// queueAdmin collects operator notices for AlertWindow and sends them as
+// one message.
+func (p *Probe) queueAdmin(text string) {
+	send := p.adminSend
+	if send == nil {
+		send = p.Notify.Admin
+	}
+	window := p.AlertWindow
+	if window == 0 {
+		window = 30 * time.Second
+	}
+	if window < 0 {
+		send(context.Background(), text)
+		return
+	}
+	p.alertMu.Lock()
+	defer p.alertMu.Unlock()
+	p.pending = append(p.pending, text)
+	if p.alertTimer == nil {
+		p.alertTimer = time.AfterFunc(window, func() {
+			p.alertMu.Lock()
+			lines := p.pending
+			p.pending, p.alertTimer = nil, nil
+			p.alertMu.Unlock()
+			switch len(lines) {
+			case 0:
+			case 1:
+				send(context.Background(), lines[0])
+			default:
+				send(context.Background(), fmt.Sprintf("📣 %d node alerts\n%s", len(lines), strings.Join(lines, "\n")))
+			}
+		})
+	}
 }
 
 // Live returns the latest beat of a node.

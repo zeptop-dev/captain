@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zeptop-dev/bosun/pkg/selfupdate"
+
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
@@ -141,6 +143,9 @@ func (m *Manager) snapshot(ctx context.Context, now time.Time, keep int) (string
 		keep = 7
 	}
 	if err := os.MkdirAll(m.Dir, 0o750); err != nil {
+		return "", err
+	}
+	if err := checkFreeSpace(m.Dir); err != nil {
 		return "", err
 	}
 	name := filepath.Join(m.Dir, "captain-"+now.Format("2006-01-02")+".db")
@@ -296,4 +301,25 @@ func gzipFile(src string) (string, int64, error) {
 
 func joinURL(base, name string) string {
 	return strings.TrimRight(base, "/") + "/" + path.Base(name)
+}
+
+// checkFreeSpace refuses a snapshot that would fill the disk: twice the
+// newest backup (the database has grown since) plus headroom, or 64 MiB
+// when there is none yet.
+func checkFreeSpace(dir string) error {
+	free, err := selfupdate.FreeSpace(dir)
+	if err != nil {
+		return nil
+	}
+	need := uint64(64 << 20)
+	if files, _ := filepath.Glob(filepath.Join(dir, "captain-*.db")); len(files) > 0 {
+		sort.Strings(files)
+		if st, err := os.Stat(files[len(files)-1]); err == nil {
+			need = uint64(st.Size())*2 + 32<<20
+		}
+	}
+	if free < need {
+		return fmt.Errorf("backup: not enough free space in %s: %d MiB free, %d MiB needed", dir, free>>20, need>>20)
+	}
+	return nil
 }

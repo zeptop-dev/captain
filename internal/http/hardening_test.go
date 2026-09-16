@@ -165,3 +165,39 @@ func TestMetricsEndpoint(t *testing.T) {
 		t.Fatal("request id header missing")
 	}
 }
+
+// A cookie session is only honoured for writes that come from the panel's
+// own origin; a page on another site cannot drive the admin or portal API
+// with the victim's cookie.
+func TestCrossSiteWritesRefused(t *testing.T) {
+	cfg := config.Default()
+	cfg.BaseURL = "http://test"
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+
+	evil := map[string]string{"Origin": "https://evil.example"}
+	c := &client{t: t, srv: srv}
+	if code, _, _ := c.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, evil); code != 403 {
+		t.Fatalf("cross-site login accepted: %d", code)
+	}
+	if code, _, _ := c.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, map[string]string{"Origin": "http://test"}); code != 200 {
+		t.Fatalf("same-origin login refused: %d", code)
+	}
+	if code, _, _ := c.do("POST", "/api/admin/groups", map[string]string{"Name": "g"}, evil); code != 403 {
+		t.Fatalf("cross-site write accepted: %d", code)
+	}
+	if code, _, _ := c.do("GET", "/api/admin/nodes", nil, evil); code != 200 {
+		t.Fatalf("cross-site read (harmless) refused: %d", code)
+	}
+	if code, _, _ := c.do("POST", "/api/admin/groups", map[string]string{"Name": "g"}, map[string]string{"Origin": srv.URL}); code != 200 {
+		t.Fatalf("same-origin write refused: %d", code)
+	}
+	if code, _, _ := c.do("POST", "/api/portal/login", map[string]string{"email": "admin@test", "password": "password123"}, evil); code != 403 {
+		t.Fatalf("cross-site portal login accepted: %d", code)
+	}
+}

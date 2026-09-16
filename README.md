@@ -364,6 +364,29 @@ targeting it send a PROXY protocol v2 header automatically (built-in relay
 or realm backend), the landing node sees the real client and counts devices
 exactly. Direct connections to such an inbound fail, by design.
 
+**Browser origin check.** Cookie-authenticated writes (admin console,
+portal, and the login / register / reset routes) must carry an `Origin` or
+`Referer` of the panel's own host (the request host, `X-Forwarded-Host`
+or `base_url`); a page on another site cannot drive the API with a
+victim's session even where `SameSite=Lax` would let the cookie through.
+API tokens (`Authorization: Bearer`) are exempt, as are reads.
+
+**Port conflicts.** Saving or enabling an inbound whose transport and port
+(UDP for Hysteria 2, TUIC and WireGuard; both for Shadowsocks and snell;
+mieru per its transport) is already taken by another enabled inbound or a
+forward on the same node, on an overlapping bind address, is refused with
+409 instead of failing on the node.
+
+**Alert batching.** Node alerts (offline, recovered, load, monthly traffic)
+raised within 30 s go out as one Telegram message, so a panel-side blip
+that takes every node offline at once does not page once per node.
+Webhook events are still emitted per alert.
+
+**Disk checks.** Self-update refuses to download when the binary's
+filesystem lacks twice the asset size plus headroom, and the backup job
+refuses a snapshot when the backup directory lacks twice the newest
+backup plus headroom, instead of filling the disk halfway.
+
 **Traffic thresholds and connection events.** Settings → Mail → *Traffic
 thresholds* lists the used-percentages (default 90) at which a user is told
 once per quota period, by Telegram or mail; each crossing also emits a

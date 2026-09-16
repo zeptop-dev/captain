@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zeptop-dev/captain/internal/http/origin"
+
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
 	"github.com/zeptop-dev/captain/internal/backup"
 	"github.com/zeptop-dev/captain/internal/http/ratelimit"
@@ -91,7 +93,7 @@ type handlers struct {
 // Register mounts the admin routes.
 func Register(mux *http.ServeMux, d Deps) {
 	h := &handlers{Deps: d}
-	mux.HandleFunc("POST /api/admin/login", h.login)
+	mux.HandleFunc("POST /api/admin/login", h.sameOrigin(h.login))
 	mux.HandleFunc("POST /api/admin/logout", h.logout)
 	mux.HandleFunc("GET /api/admin/me", h.requireAdmin(h.me))
 	mux.HandleFunc("GET /api/admin/dashboard", h.requireAdmin(h.dashboard))
@@ -259,6 +261,10 @@ func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 			c, err := r.Cookie(cookieName)
 			if err != nil {
 				fail(w, http.StatusUnauthorized, "not logged in")
+				return
+			}
+			if !origin.Allowed(r, h.BaseURL) {
+				fail(w, http.StatusForbidden, "cross-site request refused")
 				return
 			}
 			var admin bool
@@ -450,4 +456,15 @@ func allowed(role, method, path string) bool {
 		return false
 	}
 	return false
+}
+
+// sameOrigin refuses cross-site browser POSTs to a cookie-minting route.
+func (h *handlers) sameOrigin(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !origin.Allowed(r, h.BaseURL) {
+			fail(w, http.StatusForbidden, "cross-site request refused")
+			return
+		}
+		next(w, r)
+	}
 }

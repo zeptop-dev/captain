@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
+	"github.com/zeptop-dev/bosun/pkg/spec"
 	"github.com/zeptop-dev/captain/internal/service"
 
 	"github.com/zeptop-dev/captain/internal/auth"
@@ -218,6 +220,10 @@ func (h *handlers) createInbound(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, msg)
 		return
 	}
+	if msg := h.checkPortConflict(r.Context(), &ib); msg != "" {
+		fail(w, http.StatusConflict, msg)
+		return
+	}
 	if err := h.Store.CreateInbound(r.Context(), &ib); err != nil {
 		fail(w, http.StatusConflict, err.Error())
 		return
@@ -245,6 +251,10 @@ func (h *handlers) updateInbound(w http.ResponseWriter, r *http.Request) {
 	}
 	if msg := h.checkIngress(r, &ib); msg != "" {
 		fail(w, http.StatusBadRequest, msg)
+		return
+	}
+	if msg := h.checkPortConflict(r.Context(), &ib); msg != "" {
+		fail(w, http.StatusConflict, msg)
 		return
 	}
 	if err := h.Store.UpdateInbound(r.Context(), &ib); err != nil {
@@ -327,4 +337,77 @@ func (h *handlers) upgradeAllNodes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, map[string]any{"upgrade_to": v, "nodes": n})
+}
+
+// listener is one (transport, port) an inbound or forward occupies.
+type listener struct {
+	proto string
+	port  int
+}
+
+// inboundListeners mirrors what the node binds for the inbound: UDP for
+// the QUIC and WireGuard protocols, both for Shadowsocks and snell, mieru
+// per its transport (BOTH takes port+1 for UDP), TCP otherwise.
+func inboundListeners(ib *domain.Inbound) []listener {
+	sp := ib.Spec()
+	switch sp.Protocol {
+	case spec.Hysteria2, spec.TUIC, spec.WireGuard:
+		return []listener{{"udp", sp.Port}}
+	case spec.Mieru:
+		switch strings.ToUpper(sp.MieruTransport) {
+		case "UDP":
+			return []listener{{"udp", sp.Port}}
+		case "BOTH":
+			return []listener{{"tcp", sp.Port}, {"udp", sp.Port + 1}}
+		}
+		return []listener{{"tcp", sp.Port}}
+	case spec.Shadowsocks, spec.Snell:
+		return []listener{{"tcp", sp.Port}, {"udp", sp.Port}}
+	}
+	return []listener{{"tcp", sp.Port}}
+}
+
+// listenOverlap: two binds collide unless both are specific and differ.
+func listenOverlap(a, b string) bool {
+	any := func(s string) bool { return s == "" || s == "0.0.0.0" || s == "::" }
+	return any(a) || any(b) || a == b
+}
+
+// checkPortConflict refuses saving (or enabling) an inbound whose listener
+// is already taken by another enabled inbound or a forward on the same
+// node; the node would otherwise fail to bind and the doctor would report
+// it after the fact.
+func (h *handlers) checkPortConflict(ctx context.Context, ib *domain.Inbound) string {
+	if !ib.Enabled {
+		return ""
+	}
+	mine := inboundListeners(ib)
+	taken := func(l listener, listen string) bool {
+		for _, m := range mine {
+			if m == l && listenOverlap(listen, ib.Listen) {
+				return true
+			}
+		}
+		return false
+	}
+	others, _ := h.Store.InboundsByNode(ctx, ib.NodeID)
+	for _, o := range others {
+		if o.ID == ib.ID || !o.Enabled {
+			continue
+		}
+		for _, l := range inboundListeners(o) {
+			if taken(l, o.Listen) {
+				return fmt.Sprintf("%s port %d is already used by inbound %q", strings.ToUpper(l.proto), l.port, o.Tag)
+			}
+		}
+	}
+	fws, _ := h.Store.NodeForwards(ctx, ib.NodeID)
+	for _, f := range fws {
+		for _, proto := range []string{"tcp", "udp"} {
+			if taken(listener{proto, f.Port}, f.Listen) {
+				return fmt.Sprintf("port %d is already used by forward %q", f.Port, f.Tag)
+			}
+		}
+	}
+	return ""
 }

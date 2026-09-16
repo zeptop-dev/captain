@@ -6,18 +6,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/zeptop-dev/captain/internal/captcha"
-	"github.com/zeptop-dev/captain/internal/http/ratelimit"
-	"github.com/zeptop-dev/captain/internal/mail"
-	"github.com/zeptop-dev/captain/internal/notify"
-	"github.com/zeptop-dev/captain/internal/telegram"
-	"github.com/zeptop-dev/captain/internal/webhook"
 	"log/slog"
 	"net/http"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/zeptop-dev/captain/internal/captcha"
+	"github.com/zeptop-dev/captain/internal/http/origin"
+	"github.com/zeptop-dev/captain/internal/http/ratelimit"
+	"github.com/zeptop-dev/captain/internal/mail"
+	"github.com/zeptop-dev/captain/internal/notify"
+	"github.com/zeptop-dev/captain/internal/telegram"
+	"github.com/zeptop-dev/captain/internal/webhook"
 
 	"github.com/zeptop-dev/bosun/pkg/subscription"
 	"github.com/zeptop-dev/captain/internal/auth"
@@ -53,11 +55,11 @@ type handlers struct{ Deps }
 // Register mounts the portal routes.
 func Register(mux *http.ServeMux, d Deps) {
 	h := &handlers{d}
-	mux.HandleFunc("POST /api/portal/register", h.register)
+	mux.HandleFunc("POST /api/portal/register", h.sameOrigin(h.register))
 	mux.HandleFunc("GET /api/portal/register/policy", h.registerPolicy)
-	mux.HandleFunc("POST /api/portal/verify/send", h.sendCode)
-	mux.HandleFunc("POST /api/portal/password/reset", h.resetPassword)
-	mux.HandleFunc("POST /api/portal/login", h.login)
+	mux.HandleFunc("POST /api/portal/verify/send", h.sameOrigin(h.sendCode))
+	mux.HandleFunc("POST /api/portal/password/reset", h.sameOrigin(h.resetPassword))
+	mux.HandleFunc("POST /api/portal/login", h.sameOrigin(h.login))
 	mux.HandleFunc("POST /api/portal/logout", h.logout)
 	mux.HandleFunc("GET /api/portal/me", h.requireUser(h.me))
 	mux.HandleFunc("DELETE /api/portal/me/hwid-devices/{hwid}", h.requireUser(h.deleteHwidDevice))
@@ -89,6 +91,10 @@ func (h *handlers) requireUser(next http.HandlerFunc) http.HandlerFunc {
 		c, err := r.Cookie(cookieName)
 		if err != nil {
 			fail(w, http.StatusUnauthorized, "not logged in")
+			return
+		}
+		if !origin.Allowed(r, h.BaseURL) {
+			fail(w, http.StatusForbidden, "cross-site request refused")
 			return
 		}
 		u, _, err := h.Sessions.Resolve(r.Context(), c.Value)
@@ -683,4 +689,16 @@ func (h *handlers) deleteHwidDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, map[string]bool{"ok": true})
+}
+
+// sameOrigin refuses cross-site browser POSTs to the account routes that
+// need no session yet (login, register, codes, reset).
+func (h *handlers) sameOrigin(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !origin.Allowed(r, h.BaseURL) {
+			fail(w, http.StatusForbidden, "cross-site request refused")
+			return
+		}
+		next(w, r)
+	}
 }
