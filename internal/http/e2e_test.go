@@ -276,7 +276,10 @@ func TestEndToEnd(t *testing.T) {
 	uid := int64(u1["id"].(float64))
 	_, b, _ = agent.do("POST", "/api/agent/report", agentproto.Report{
 		Version: "0.1.0", Revision: st2.Revision,
-		Traffic: []spec.UserTraffic{{UserID: uid, Up: 100, Down: 200}},
+		// One entry names its inbound (bosun v0.36+), one does not (older
+		// agents): both are charged, the tagged one lands in that inbound's
+		// daily bucket instead of the node's first inbound.
+		Traffic: []spec.UserTraffic{{UserID: uid, Up: 100, Down: 150}, {UserID: uid, Up: 0, Down: 50, Inbound: "vip"}},
 		Online:  map[string][]string{u1["uuid"].(string): {"198.51.100.7"}},
 		Cores:   map[string]agentproto.CoreStatus{"mita": {Running: true}},
 	}, nil)
@@ -287,6 +290,12 @@ func TestEndToEnd(t *testing.T) {
 	sub, err := st.ActiveSubscription(context.Background(), uid)
 	if err != nil || sub.UsedUpBytes != 100 || sub.UsedDownBytes != 200 {
 		t.Fatalf("subscription usage: %+v %v", sub, err)
+	}
+	var vipDown, firstDown int64
+	_ = st.DB().QueryRow(`SELECT COALESCE(SUM(down_bytes),0) FROM traffic_daily WHERE user_id = ? AND inbound_id = 2`, uid).Scan(&vipDown)
+	_ = st.DB().QueryRow(`SELECT COALESCE(SUM(down_bytes),0) FROM traffic_daily WHERE user_id = ? AND inbound_id = 1`, uid).Scan(&firstDown)
+	if vipDown != 50 || firstDown != 150 {
+		t.Fatalf("daily buckets: inbound 2 = %d (want 50), inbound 1 = %d (want 150)", vipDown, firstDown)
 	}
 	_, b, _ = agent.do("POST", "/api/agent/report", agentproto.Report{Revision: st2.Revision, Traffic: []spec.UserTraffic{{UserID: uid, Up: 1 << 30, Down: 0}}}, nil)
 	if rr := mustJSON[agentproto.ReportResponse](t, b); !rr.StateChanged {

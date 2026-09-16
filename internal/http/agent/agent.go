@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
-	"github.com/zeptop-dev/bosun/pkg/spec"
 
 	"github.com/zeptop-dev/captain/internal/auth"
 	"github.com/zeptop-dev/captain/internal/domain"
@@ -196,17 +195,32 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error("node users", "node", n.ID, "err", err)
 		allowed = map[int64]bool{}
 	}
+	// Agents from bosun v0.36 say which inbound each delta went through:
+	// the daily bucket is exact and the charge goes to that inbound's
+	// group. Older agents (or cores that cannot tell) fall back to the
+	// node's groups as a whole.
+	groups, _ := h.Store.NodeGroups(ctx, n.ID)
+	byTag := map[string]*domain.Inbound{}
+	for _, ib := range inbounds {
+		byTag[ib.Tag] = ib
+	}
 	dropped := 0
-	samples := make([]spec.UserTraffic, 0, len(rep.Traffic))
+	samples := make([]store.TrafficSample, 0, len(rep.Traffic))
 	for _, t := range rep.Traffic {
 		if !allowed[t.UserID] || t.Up < 0 || t.Down < 0 {
 			dropped++
 			continue
 		}
-		samples = append(samples, t)
+		s := store.TrafficSample{UserID: t.UserID, InboundID: inboundID, Groups: groups, Up: t.Up, Down: t.Down}
+		if ib, ok := byTag[t.Inbound]; ok && t.Inbound != "" {
+			s.InboundID, s.Groups = ib.ID, nil
+			if ib.GroupID != nil {
+				s.Groups = []int64{*ib.GroupID}
+			}
+		}
+		samples = append(samples, s)
 	}
-	groups, _ := h.Store.NodeGroups(ctx, n.ID)
-	if err := h.Store.AddTrafficBatch(ctx, inboundID, groups, samples, now); err != nil {
+	if err := h.Store.AddTrafficSamples(ctx, samples, now); err != nil {
 		h.Log.Error("add traffic", "node", n.ID, "samples", len(samples), "err", err)
 	}
 	if dropped > 0 {

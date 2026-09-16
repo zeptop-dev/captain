@@ -43,6 +43,29 @@ func (s *Store) NodeGroups(ctx context.Context, nodeID int64) ([]int64, error) {
 // inbound, for stats) and on the user's subscription that matches one of
 // the node's groups, else the soonest-expiring usable one (chargeableTx).
 func (s *Store) AddTrafficBatch(ctx context.Context, inboundID int64, groups []int64, samples []spec.UserTraffic, at time.Time) error {
+	out := make([]TrafficSample, 0, len(samples))
+	for _, t := range samples {
+		out = append(out, TrafficSample{UserID: t.UserID, InboundID: inboundID, Groups: groups, Up: t.Up, Down: t.Down})
+	}
+	return s.AddTrafficSamples(ctx, out, at)
+}
+
+// TrafficSample is one user's delta on one inbound: InboundID for the
+// daily bucket, Groups the subscription groups that may pay for it (the
+// inbound's own group, or every group of the node when the agent could
+// not say which inbound; empty = any active subscription).
+type TrafficSample struct {
+	UserID    int64
+	InboundID int64
+	Groups    []int64
+	Up, Down  int64
+}
+
+// AddTrafficSamples records a report's deltas in one transaction and
+// charges each to the subscription that fits its inbound's group best
+// (chargeableTx): the soonest-expiring usable subscription of a plan in
+// Groups, else the soonest-expiring usable one of any plan.
+func (s *Store) AddTrafficSamples(ctx context.Context, samples []TrafficSample, at time.Time) error {
 	if len(samples) == 0 {
 		return nil
 	}
@@ -59,10 +82,10 @@ func (s *Store) AddTrafficBatch(ctx context.Context, inboundID int64, groups []i
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO traffic_daily (user_id, inbound_id, day, up_bytes, down_bytes) VALUES (?, ?, ?, ?, ?)
 			ON CONFLICT(user_id, inbound_id, day) DO UPDATE SET up_bytes = up_bytes + excluded.up_bytes, down_bytes = down_bytes + excluded.down_bytes`,
-			t.UserID, inboundID, day, t.Up, t.Down); err != nil {
+			t.UserID, t.InboundID, day, t.Up, t.Down); err != nil {
 			return err
 		}
-		if id, found := chargeableTx(ctx, tx, t.UserID, groups, at); found {
+		if id, found := chargeableTx(ctx, tx, t.UserID, t.Groups, at); found {
 			if _, err := tx.ExecContext(ctx, `UPDATE subscriptions SET used_up_bytes = used_up_bytes + ?, used_down_bytes = used_down_bytes + ?, updated_at = ? WHERE id = ?`, t.Up, t.Down, ts, id); err != nil {
 				return err
 			}
