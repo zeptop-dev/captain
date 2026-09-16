@@ -395,7 +395,16 @@
     "autoFlags": "Auto flags",
     "autoFlagsHint": "Prefix node names that have no flag emoji with their region flag (set or detected from the name), e.g. 🇯🇵 Tokyo.",
     "singlePlan": "One plan at a time",
-    "singlePlanHint": "On: buying a different plan replaces the current one (surplus credit applies). Off: plans stack, servers are combined and traffic is counted per plan."
+    "singlePlanHint": "On: buying a different plan replaces the current one (surplus credit applies). Off: plans stack, servers are combined and traffic is counted per plan.",
+    "hwid": "Device identification (HWID)",
+    "hwidHint": "Count devices by the x-hwid header instead of online IP for clients that send it (the standard shared with Remnawave and Happ). The plan device limit then applies per device; clients without the header still count by IP.",
+    "hwidEnabled": "Enable HWID device limit",
+    "hwidRequire": "Require x-hwid",
+    "hwidRequireHint": "Clients that send no x-hwid get 404. Only turn on when all your users use HWID-capable clients.",
+    "hwidFallback": "Fallback limit",
+    "hwidFallbackHint": "When neither the user nor a plan sets a device limit. 0 = unlimited.",
+    "hwidAnnounce": "Message when refused",
+    "hwidAnnounceHint": "Shown by Happ when a device is over the limit."
   },
   "update": {
     "title": "Version and updates",
@@ -1106,5 +1115,17 @@
     "applyConfirm": "Templates for mihomo, Stash, Surge, Surfboard, Loon, Quantumult X and Egern will be generated and overwrite the current ones.",
     "applied": "Templates generated and applied",
     "applyHint": "Generated templates can still be hand-edited under \"Text\"; the next \"Generate & apply\" overwrites those edits. Placeholders:"
+  },
+  "hwid": {
+    "title": "Devices (HWID)",
+    "hint": "Devices identified by the x-hwid header that Happ, FlClashX, V2Box, Streisand and similar clients send when fetching the subscription. Over the limit a device gets an empty subscription with the reason in headers.",
+    "limit": "Device limit",
+    "limitHint": "Empty: follow the plan. 0: unlimited.",
+    "followPlan": "plan",
+    "kick": "Forget this device",
+    "none": "No HWID device registered yet",
+    "showRequests": "Subscription fetch history ({{n}})",
+    "hideRequests": "Hide history",
+    "noRequests": "No fetch recorded yet"
   }
 }

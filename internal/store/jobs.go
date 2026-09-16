@@ -122,6 +122,9 @@ func (s *Store) PruneHistory(ctx context.Context, at time.Time, keepDays int) (i
 	}
 	day := at.UTC().AddDate(0, 0, -keepDays).Truncate(24 * time.Hour).Unix()
 	var total int64
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM sub_requests WHERE at < ?`, at.AddDate(0, 0, -30).Unix()); err != nil {
+		return total, err
+	}
 	for _, q := range []string{
 		`DELETE FROM traffic_daily WHERE day < ?`,
 		`DELETE FROM inbound_traffic_daily WHERE day < ?`,

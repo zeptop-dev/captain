@@ -60,6 +60,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/portal/login", h.login)
 	mux.HandleFunc("POST /api/portal/logout", h.logout)
 	mux.HandleFunc("GET /api/portal/me", h.requireUser(h.me))
+	mux.HandleFunc("DELETE /api/portal/me/hwid-devices/{hwid}", h.requireUser(h.deleteHwidDevice))
 	mux.HandleFunc("GET /api/portal/plans", h.plans)
 	mux.HandleFunc("GET /api/portal/servers", h.requireUser(h.servers))
 	mux.HandleFunc("GET /api/portal/orders", h.requireUser(h.orders))
@@ -238,8 +239,20 @@ func (h *handlers) writeMe(w http.ResponseWriter, r *http.Request, u *domain.Use
 	}
 	var ss service.SubscriptionSettings
 	_ = h.Store.GetSetting(r.Context(), service.SettingSubscription, &ss)
+	var hwids []store.HwidDevice
+	hwidLimit := 0
+	if ss.HWID.Enabled {
+		hwids, _ = h.Store.HwidDevices(r.Context(), u.ID)
+		hwidLimit = h.Subscription.HWIDLimit(r.Context(), u, ss.HWID.FallbackLimit)
+	}
+	if hwids == nil {
+		hwids = []store.HwidDevice{}
+	}
 	ok(w, map[string]any{
 		"id": u.ID, "email": u.Email, "balance_cents": u.BalanceCents,
+		"hwid_enabled":     ss.HWID.Enabled,
+		"hwid_devices":     hwids,
+		"hwid_limit":       hwidLimit,
 		"subscription_url": h.subURL(r.Context(), u.SubToken),
 		"subscription":     subView,
 		"subscriptions":    subs,
@@ -659,4 +672,15 @@ func (h *handlers) withdrawals(w http.ResponseWriter, r *http.Request) {
 		list = []store.Withdrawal{}
 	}
 	ok(w, list)
+}
+
+// deleteHwidDevice lets the user free a device slot (a phone they no
+// longer use) without asking support.
+func (h *handlers) deleteHwidDevice(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r)
+	if err := h.Store.DeleteHwidDevice(r.Context(), u.ID, r.PathValue("hwid")); err != nil {
+		fail(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	ok(w, map[string]bool{"ok": true})
 }

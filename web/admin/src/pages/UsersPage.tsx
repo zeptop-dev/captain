@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { IconPlus, IconSearch, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { api, type Group as UGroup, type OnlineDevice, type Page, type Plan, type UserRow } from '../lib/api'
+import { api, type Group as UGroup, type HwidDevice, type OnlineDevice, type Page, type Plan, type SubRequest, type UserRow } from '../lib/api'
 import { bytes, money, when } from '../lib/format'
 import { toast } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
@@ -15,6 +15,7 @@ import { RenewalsPanel } from '../components/RenewalsPanel'
 import { UserSubs, type UserSub } from '../components/UserSubs'
 import { TempLinks } from '../components/TempLinks'
 import { UserEntries } from '../components/UserEntries'
+import { HwidDevices } from '../components/HwidDevices'
 import { SegmentedControl } from '@mantine/core'
 
 export default function UsersPage() {
@@ -36,7 +37,7 @@ export default function UsersPage() {
 
   const editForm = useForm({ initialValues: { Status: 'active', GroupID: '', Password: '' } })
   const update = useMutation({ mutationFn: (v: typeof editForm.values) => api.patch(`/api/admin/users/${sel!.id}`, { Status: v.Status, GroupID: v.GroupID ? Number(v.GroupID) : null, Password: v.Password }), onSuccess: () => { toast.ok(t('common.saved')); invalidate() }, onError: toast.err })
-  const detail = useQuery({ queryKey: ['user', sel?.id], queryFn: () => api.get<{ devices: OnlineDevice[]; subscriptions: UserSub[] }>(`/api/admin/users/${sel!.id}`), enabled: sel !== null, refetchInterval: 15000 })
+  const detail = useQuery({ queryKey: ['user', sel?.id], queryFn: () => api.get<{ devices: OnlineDevice[]; subscriptions: UserSub[]; hwid_devices: HwidDevice[]; hwid_limit: number | null; sub_requests: SubRequest[] }>(`/api/admin/users/${sel!.id}`), enabled: sel !== null, refetchInterval: 15000 })
   const [grantPlan, setGrantPlan] = useState<string | null>(null)
   const [grantHow, setGrantHow] = useState<string>('')
   const grant = useMutation({ mutationFn: () => api.post(`/api/admin/users/${sel!.id}/grant`, { PlanID: Number(grantPlan), Activation: grantHow }), onSuccess: () => { toast.ok(t('common.saved')); invalidate(); setSel(null) }, onError: toast.err })
@@ -118,6 +119,7 @@ export default function UsersPage() {
             <UserSubs userID={sel.id} subs={detail.data?.subscriptions ?? []} onDone={() => setSel(null)} />
             <UserEntries userID={sel.id} />
             <TempLinks userID={sel.id} />
+            <HwidDevices key={sel.id} userID={sel.id} devices={detail.data?.hwid_devices ?? []} limit={detail.data?.hwid_limit ?? null} requests={detail.data?.sub_requests ?? []} />
             <Stack gap="sm">
               <Title order={6}>{t('users.topUp')}</Title>
               <Text size="xs" c="dimmed">{t('users.topUpHint')} {t('users.balance')}: {money(sel.balance_cents)}</Text>

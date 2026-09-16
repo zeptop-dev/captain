@@ -395,7 +395,16 @@
     "shortLinks": "짧은 링크 사용",
     "shortLinksHint": "구독 주소가 /sub/<긴 토큰> 대신 /s/<짧은 코드> 가 됩니다. 기존 링크도 계속 동작합니다.",
     "autoFlags": "자동 국기",
-    "autoFlagsHint": "노드 이름에 국기 이모지가 없으면 지역(설정값 또는 이름에서 인식)의 국기를 앞에 붙입니다. 예: 🇯🇵 Tokyo."
+    "autoFlagsHint": "노드 이름에 국기 이모지가 없으면 지역(설정값 또는 이름에서 인식)의 국기를 앞에 붙입니다. 예: 🇯🇵 Tokyo.",
+    "hwid": "기기 식별 (HWID)",
+    "hwidHint": "x-hwid 헤더를 보내는 클라이언트(Remnawave와 Happ이 공유하는 표준)는 온라인 IP 대신 기기 단위로 셉니다. 플랜의 기기 한도가 기기별로 적용되며, 헤더가 없는 클라이언트는 여전히 IP로 셉니다.",
+    "hwidEnabled": "HWID 기기 제한 사용",
+    "hwidRequire": "x-hwid 필수",
+    "hwidRequireHint": "x-hwid가 없는 클라이언트는 404를 받습니다. 모든 사용자가 HWID 지원 클라이언트를 쓸 때만 켜세요.",
+    "hwidFallback": "기본 한도",
+    "hwidFallbackHint": "사용자와 플랜 모두 기기 수를 정하지 않았을 때 사용. 0 = 무제한.",
+    "hwidAnnounce": "거부 시 메시지",
+    "hwidAnnounceHint": "기기가 한도를 넘으면 Happ이 이 문구를 표시합니다."
   },
   "update": {
     "title": "버전 및 업그레이드",
@@ -1106,5 +1115,17 @@
     "keySet": "저장됨. 비우면 유지, \"-\" 는 삭제",
     "interval": "보고 간격(초)",
     "enabled": "사용"
+  },
+  "hwid": {
+    "title": "기기 (HWID)",
+    "hint": "Happ, FlClashX, V2Box, Streisand 등이 구독을 가져올 때 보내는 x-hwid 헤더로 식별한 기기입니다. 한도를 넘은 기기는 빈 구독을 받고 이유는 응답 헤더에 담깁니다.",
+    "limit": "기기 수 한도",
+    "limitHint": "비움: 플랜을 따름. 0: 무제한.",
+    "followPlan": "플랜",
+    "kick": "이 기기 삭제",
+    "none": "등록된 HWID 기기가 아직 없습니다",
+    "showRequests": "구독 요청 기록 ({{n}})",
+    "hideRequests": "기록 숨기기",
+    "noRequests": "요청 기록이 아직 없습니다"
   }
 }

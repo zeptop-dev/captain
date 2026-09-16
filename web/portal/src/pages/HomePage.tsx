@@ -34,6 +34,7 @@ export default function HomePage() {
   const unlink = useMutation({ mutationFn: (p: string) => api.del(`/api/oauth/identities/${p}`), onSuccess: () => qc.invalidateQueries({ queryKey: ['identities'] }) })
   const { me, refresh } = useAuth()
   const cancelQueued = useMutation({ mutationFn: (id: number) => api.del(`/api/portal/subscriptions/${id}`), onSuccess: () => refresh(), onError: toast.err })
+  const removeDevice = useMutation({ mutationFn: (hwid: string) => api.del(`/api/portal/me/hwid-devices/${encodeURIComponent(hwid)}`), onSuccess: () => refresh(), onError: toast.err })
   if (!me) return null
   const subs = me.subscriptions ?? []
   const sub = me.subscription
@@ -90,6 +91,26 @@ export default function HomePage() {
             )
           })}
         </SimpleGrid>
+      )}
+      {me.hwid_enabled && (
+        <Card>
+          <Group justify="space-between" align="flex-start">
+            <div><Title order={4}>{t('home.devices')}</Title><Text c="dimmed" size="sm">{me.hwid_limit > 0 ? t('home.devicesHint', { n: me.hwid_devices.length, limit: me.hwid_limit }) : t('home.devicesUnlimited', { n: me.hwid_devices.length })}</Text></div>
+          </Group>
+          {me.hwid_devices.length === 0 ? <Text size="sm" c="dimmed" mt="sm">{t('home.noDevices')}</Text> : (
+            <Stack gap={6} mt="sm">
+              {me.hwid_devices.map((d) => (
+                <Group key={d.hwid} justify="space-between" wrap="nowrap">
+                  <div>
+                    <Text size="sm">{[d.platform, d.os_version].filter(Boolean).join(' ') || (d.user_agent ?? '').split(' ')[0] || d.hwid.slice(0, 8)}{d.device_model ? ' · ' + d.device_model : ''}</Text>
+                    <Text size="xs" c="dimmed">{t('home.lastSeen')} {when(d.last_seen_at)}</Text>
+                  </div>
+                  <Button size="compact-xs" variant="subtle" color="red" loading={removeDevice.isPending} onClick={() => removeDevice.mutate(d.hwid)}>{t('home.removeDevice')}</Button>
+                </Group>
+              ))}
+            </Stack>
+          )}
+        </Card>
       )}
       <SimpleGrid cols={{ base: 2 }}>
         <Card>

@@ -115,9 +115,56 @@ func (h *handlers) getUser(w http.ResponseWriter, r *http.Request) {
 		subs = append(subs, map[string]any{"id": s.ID, "plan_id": s.PlanID, "plan_name": name, "status": s.Status, "starts_at": s.StartsAt, "expires_at": s.ExpiresAt, "reset_at": s.ResetAt,
 			"quota_bytes": s.QuotaBytes, "used_bytes": s.UsedUpBytes + s.UsedDownBytes, "usable": s.Status == "active" && s.Usable(time.Now()), "period_days": s.PeriodDays})
 	}
+	hwids, _ := h.Store.HwidDevices(r.Context(), id)
+	if hwids == nil {
+		hwids = []store.HwidDevice{}
+	}
+	reqs, _ := h.Store.SubRequests(r.Context(), id, 50)
+	if reqs == nil {
+		reqs = []store.SubRequest{}
+	}
 	ok(w, map[string]any{"id": u.ID, "email": u.Email, "uuid": u.UUID, "sub_token": u.SubToken, "sub_url": h.subURL(r.Context(), u.SubToken), "group_id": u.GroupID, "status": u.Status,
-		"invite_code": u.InviteCode, "invited_by": u.InvitedBy,
-		"balance_cents": u.BalanceCents, "created_at": u.CreatedAt, "subscription": sub, "subscriptions": subs, "orders": orders, "devices": devices})
+		"invite_code": u.InviteCode, "invited_by": u.InvitedBy, "hwid_limit": u.HwidLimit,
+		"balance_cents": u.BalanceCents, "created_at": u.CreatedAt, "subscription": sub, "subscriptions": subs, "orders": orders, "devices": devices,
+		"hwid_devices": hwids, "sub_requests": reqs})
+}
+
+// deleteHwidDevice forgets one HWID device so the user can register a
+// new one (the "kick" in the user drawer).
+func (h *handlers) deleteHwidDevice(w http.ResponseWriter, r *http.Request) {
+	id, okID := pathID(r)
+	if !okID {
+		fail(w, http.StatusBadRequest, "bad id")
+		return
+	}
+	if err := h.Store.DeleteHwidDevice(r.Context(), id, r.PathValue("hwid")); err != nil {
+		serverErr(w, err)
+		return
+	}
+	ok(w, map[string]bool{"ok": true})
+}
+
+// putHwidLimit sets the per-user HWID device limit: null follows the plan,
+// 0 is unlimited.
+func (h *handlers) putHwidLimit(w http.ResponseWriter, r *http.Request) {
+	id, okID := pathID(r)
+	var in struct{ Limit *int }
+	if !okID {
+		fail(w, http.StatusBadRequest, "bad id")
+		return
+	}
+	if !readJSON(w, r, &in) {
+		return
+	}
+	if in.Limit != nil && *in.Limit < 0 {
+		fail(w, http.StatusBadRequest, "Limit must be >= 0")
+		return
+	}
+	if err := h.Store.SetUserHwidLimit(r.Context(), id, in.Limit); err != nil {
+		serverErr(w, err)
+		return
+	}
+	ok(w, map[string]bool{"ok": true})
 }
 
 func (h *handlers) updateUser(w http.ResponseWriter, r *http.Request) {

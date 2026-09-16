@@ -364,6 +364,20 @@ targeting it send a PROXY protocol v2 header automatically (built-in relay
 or realm backend), the landing node sees the real client and counts devices
 exactly. Direct connections to such an inbound fail, by design.
 
+**Device identification (HWID).** Happ, FlClashX, V2Box, Streisand and other
+clients that follow the Remnawave/Happ convention send `x-hwid`,
+`x-device-os`, `x-ver-os` and `x-device-model` when they fetch the
+subscription. Settings → Subscription → *Device identification* turns this
+on: each device is recorded, the plan's device limit (or a per-user override
+in the user drawer, or the fallback limit) is enforced per device at fetch
+time, and a device over the limit gets an empty document with
+`x-hwid-max-devices-reached: true`, `x-hwid-limit` and an optional
+`announce` text the client shows. Clients that send no `x-hwid` keep the
+online-IP counting unless *Require x-hwid* is on (then they get 404). Users
+see and remove their devices in the portal; admins see them, the per-user
+limit and the recent fetch history (IP, client, device, what was served) in
+the user drawer. History is kept 30 days.
+
 ## API tokens and MCP
 
 Settings → API tokens & MCP issues personal bearer tokens (`cap_...`) for the

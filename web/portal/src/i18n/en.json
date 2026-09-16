@@ -49,7 +49,7 @@
     "expires": "Expires",
     "never": "Never",
     "resetsOn": "Quota resets on {{date}}",
-    "devices": "{{count}} device(s) online now",
+    "devices": "My devices",
     "daysLeft": "{{count}} days left",
     "balance": "Balance",
     "subscribe": "Subscription link",
@@ -68,7 +68,12 @@
     "queuedHintForever": "Starts automatically when your current plan expires or runs out of traffic; no expiry.",
     "queuedQuota": "{{quota}} of traffic",
     "cancelQueued": "Cancel this plan",
-    "online": "Online devices"
+    "online": "Online devices",
+    "devicesHint": "{{n}} of {{limit}} device slots used. Remove a device you no longer use to free its slot.",
+    "devicesUnlimited": "{{n}} devices registered.",
+    "noDevices": "No device has fetched the subscription yet.",
+    "lastSeen": "Last seen",
+    "removeDevice": "Remove"
   },
   "plans": {
     "title": "Plans",

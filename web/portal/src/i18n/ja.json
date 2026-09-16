@@ -49,7 +49,7 @@
     "expires": "有効期限",
     "never": "無期限",
     "resetsOn": "{{date}} にデータ量をリセット",
-    "devices": "現在オンラインのデバイス：{{count}} 台",
+    "devices": "マイデバイス",
     "daysLeft": "残り {{count}} 日",
     "balance": "残高",
     "subscribe": "サブスクリプションリンク",
@@ -68,7 +68,12 @@
     "queuedHintForever": "現在のプランが期限切れか通信量を使い切ると自動で開始します。無期限。",
     "queuedQuota": "通信量 {{quota}}",
     "cancelQueued": "このプランを取り消す",
-    "online": "オンライン端末"
+    "online": "オンライン端末",
+    "devicesHint": "{{limit}} 枠中 {{n}} 枠を使用中。使わなくなったデバイスを削除すると枠が空きます。",
+    "devicesUnlimited": "{{n}} 台のデバイスを登録済み。",
+    "noDevices": "まだどのデバイスもサブスクを取得していません。",
+    "lastSeen": "最終利用",
+    "removeDevice": "削除"
   },
   "plans": {
     "title": "プラン",

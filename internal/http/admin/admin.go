@@ -159,6 +159,8 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/admin/users/{id}/grant", h.requireAdmin(h.grantPlan))
 	mux.HandleFunc("POST /api/admin/users/{id}/balance", h.requireAdmin(h.adjustBalance))
 	mux.HandleFunc("POST /api/admin/users/{id}/rotate-token", h.requireAdmin(h.rotateToken))
+	mux.HandleFunc("PUT /api/admin/users/{id}/hwid-limit", h.requireAdmin(h.putHwidLimit))
+	mux.HandleFunc("DELETE /api/admin/users/{id}/hwid-devices/{hwid}", h.requireAdmin(h.deleteHwidDevice))
 
 	mux.HandleFunc("GET /api/admin/plans", h.requireAdmin(h.listPlans))
 	mux.HandleFunc("POST /api/admin/plans", h.requireAdmin(h.createPlan))

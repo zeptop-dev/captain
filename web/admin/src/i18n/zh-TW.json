@@ -395,7 +395,16 @@
     "shortLinks": "使用短網址",
     "shortLinksHint": "訂閱位址用 /s/短碼 取代 /sub/長權杖，更短更好記；舊連結仍然有效。",
     "autoFlags": "自動加國旗",
-    "autoFlagsHint": "節點名稱沒有國旗 emoji 時，依地區（或從名稱辨識的地區）自動加上，例如 🇯🇵 Tokyo。"
+    "autoFlagsHint": "節點名稱沒有國旗 emoji 時，依地區（或從名稱辨識的地區）自動加上，例如 🇯🇵 Tokyo。",
+    "hwid": "裝置識別（HWID）",
+    "hwidHint": "對送出 x-hwid 標頭的客戶端（Remnawave 與 Happ 共用的標準）按裝置計數而非在線 IP。方案的裝置數限制按裝置生效；沒有標頭的客戶端仍按 IP 計數。",
+    "hwidEnabled": "啟用 HWID 裝置限制",
+    "hwidRequire": "必須攜帶 x-hwid",
+    "hwidRequireHint": "沒有 x-hwid 的客戶端回傳 404。只在所有使用者都用支援 HWID 的客戶端時開啟。",
+    "hwidFallback": "預設限制",
+    "hwidFallbackHint": "使用者與方案都未設定裝置數時使用，0 = 不限。",
+    "hwidAnnounce": "超限提示",
+    "hwidAnnounceHint": "裝置超限時 Happ 會顯示這段文字。"
   },
   "update": {
     "title": "版本與升級",
@@ -1106,5 +1115,17 @@
     "keySet": "已儲存；留空不改，填 - 清除",
     "interval": "回報間隔（秒）",
     "enabled": "啟用"
+  },
+  "hwid": {
+    "title": "裝置（HWID）",
+    "hint": "Happ、FlClashX、V2Box、Streisand 等客戶端拉取訂閱時以 x-hwid 標頭識別的裝置。超出限制的裝置會拿到空訂閱，原因在回應標頭中。",
+    "limit": "裝置數限制",
+    "limitHint": "留空：依方案；0：不限。",
+    "followPlan": "依方案",
+    "kick": "移除此裝置",
+    "none": "尚無登記的 HWID 裝置",
+    "showRequests": "訂閱拉取紀錄（{{n}}）",
+    "hideRequests": "收起紀錄",
+    "noRequests": "尚無拉取紀錄"
   }
 }

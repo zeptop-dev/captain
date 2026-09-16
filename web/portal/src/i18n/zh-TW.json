@@ -49,7 +49,7 @@
     "expires": "到期時間",
     "never": "永不過期",
     "resetsOn": "{{date}} 重設流量",
-    "devices": "目前線上裝置 {{count}} 台",
+    "devices": "我的裝置",
     "daysLeft": "剩餘 {{count}} 天",
     "balance": "餘額",
     "subscribe": "訂閱連結",
@@ -68,7 +68,12 @@
     "queuedHintForever": "目前方案到期或流量用完後自動開始，長期有效。",
     "queuedQuota": "流量 {{quota}}",
     "cancelQueued": "取消這個方案",
-    "online": "線上裝置"
+    "online": "線上裝置",
+    "devicesHint": "已用 {{n}} / {{limit}} 個裝置名額。移除不再使用的裝置可釋放名額。",
+    "devicesUnlimited": "已登記 {{n}} 台裝置。",
+    "noDevices": "尚無裝置拉取過訂閱。",
+    "lastSeen": "最近使用",
+    "removeDevice": "移除"
   },
   "plans": {
     "title": "方案",

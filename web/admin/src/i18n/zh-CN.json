@@ -395,7 +395,16 @@
     "autoFlags": "自动加国旗",
     "autoFlagsHint": "节点名没有旗帜 emoji 时，按地区（或从名称识别的地区）自动加上，例如 🇯🇵 Tokyo。",
     "singlePlan": "同一时间只允许一个套餐",
-    "singlePlanHint": "开启后买不同套餐会替换当前套餐（可折算剩余价值）；关闭时多个套餐同时生效，节点合并、流量各算各的。"
+    "singlePlanHint": "开启后买不同套餐会替换当前套餐（可折算剩余价值）；关闭时多个套餐同时生效，节点合并、流量各算各的。",
+    "hwid": "设备识别（HWID）",
+    "hwidHint": "对发送 x-hwid 头的客户端（Remnawave 与 Happ 共用的标准）按设备计数而不是按在线 IP。套餐的设备数限制按设备生效；不带头的客户端仍按 IP 计数。",
+    "hwidEnabled": "启用 HWID 设备限制",
+    "hwidRequire": "必须携带 x-hwid",
+    "hwidRequireHint": "不带 x-hwid 的客户端返回 404。只在所有用户都用支持 HWID 的客户端时开启。",
+    "hwidFallback": "默认限制",
+    "hwidFallbackHint": "用户和套餐都没设设备数时使用，0 = 不限。",
+    "hwidAnnounce": "超限提示",
+    "hwidAnnounceHint": "设备超限时 Happ 会显示这段文字。"
   },
   "update": {
     "title": "版本与升级",
@@ -1106,5 +1115,17 @@
     "applyConfirm": "将为 mihomo、Stash、Surge、Surfboard、Loon、Quantumult X、Egern 生成模板并覆盖现有模板。",
     "applied": "模板已生成并应用",
     "applyHint": "生成的模板可以在\"文本\"里继续手改；下次再\"生成并应用\"会覆盖手改。占位符："
+  },
+  "hwid": {
+    "title": "设备（HWID）",
+    "hint": "Happ、FlClashX、V2Box、Streisand 等客户端拉订阅时带 x-hwid 头识别的设备。超过限制的设备会拿到空订阅，原因在响应头里。",
+    "limit": "设备数限制",
+    "limitHint": "留空：按套餐；0：不限。",
+    "followPlan": "按套餐",
+    "kick": "移除此设备",
+    "none": "还没有登记的 HWID 设备",
+    "showRequests": "订阅拉取记录（{{n}}）",
+    "hideRequests": "收起记录",
+    "noRequests": "还没有拉取记录"
   }
 }

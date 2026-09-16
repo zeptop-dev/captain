@@ -91,6 +91,8 @@ export interface UserRow {
   created_at: string; plan_name: string; expires_at: string | null; quota_bytes: number; used_bytes: number; sub_usable: boolean; sub_count: number
 }
 export interface OnlineDevice { via_relay?: boolean; ip: string; node_id: number; last_seen_at: string }
+export interface HwidDevice { hwid: string; platform?: string; os_version?: string; device_model?: string; user_agent?: string; request_ip?: string; first_seen_at: string; last_seen_at: string }
+export interface SubRequest { id: number; at: string; request_ip: string; user_agent: string; hwid?: string; rule?: string; response: string }
 
 export interface Entry {
   ID: number; Name: string; InboundID: number; ChainID: number | null; DisplayHost: string; DisplayPort: number

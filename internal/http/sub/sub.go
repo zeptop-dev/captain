@@ -6,14 +6,18 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/zeptop-dev/captain/internal/domain"
-	"github.com/zeptop-dev/captain/internal/http/site"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/zeptop-dev/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/http/ratelimit"
+	"github.com/zeptop-dev/captain/internal/http/site"
 
 	"github.com/zeptop-dev/bosun/pkg/subscription"
 	"github.com/zeptop-dev/captain/internal/service"
@@ -67,6 +71,46 @@ func Register(mux *http.ServeMux, d Deps) {
 		// renders an empty document rather than an error so clients
 		// keep the subscription and see the usage header.
 		rd := subscription.Pick(r.URL.Query().Get("client"), r.UserAgent())
+		req := store.SubRequest{RequestIP: ratelimit.ClientIP(r), UserAgent: r.UserAgent(), Response: rd.Name()}
+		// Device limit by HWID: a client that identifies its device gets
+		// counted per device; over the limit it receives an empty document
+		// with the reason in headers (x-hwid-*, announce), the Happ way.
+		var subs service.SubscriptionSettings
+		_ = d.Store.GetSetting(r.Context(), service.SettingSubscription, &subs)
+		if subs.HWID.Enabled {
+			hwid := strings.TrimSpace(r.Header.Get("x-hwid"))
+			switch {
+			case hwid == "" && subs.HWID.Require:
+				req.Response = "hwid-missing"
+				_ = d.Store.RecordSubRequest(r.Context(), u.ID, req)
+				http.NotFound(w, r)
+				return
+			case hwid != "" && !hwidRe.MatchString(hwid):
+				req.Response = "hwid-invalid"
+				_ = d.Store.RecordSubRequest(r.Context(), u.ID, req)
+				http.Error(w, "bad x-hwid", http.StatusBadRequest)
+				return
+			case hwid != "":
+				req.Hwid = hwid
+				limit := d.Service.HWIDLimit(r.Context(), u, subs.HWID.FallbackLimit)
+				allowed, n, err := d.Store.ClaimHwidDevice(r.Context(), u.ID, store.HwidDevice{Hwid: hwid, Platform: r.Header.Get("x-device-os"), OSVersion: r.Header.Get("x-ver-os"), DeviceModel: r.Header.Get("x-device-model"), UserAgent: r.UserAgent(), RequestIP: req.RequestIP}, limit, time.Now())
+				if err != nil {
+					d.Log.Error("hwid", "user", u.ID, "err", err)
+				}
+				w.Header().Set("x-hwid-active", "true")
+				w.Header().Set("x-hwid-limit", strconv.Itoa(limit))
+				if err == nil && !allowed {
+					w.Header().Set("x-hwid-max-devices-reached", "true")
+					if msg := strings.TrimSpace(subs.HWID.Announce); msg != "" {
+						w.Header().Set("announce", "base64:"+base64.StdEncoding.EncodeToString([]byte(msg)))
+					}
+					lines = nil
+					req.Response = "hwid-denied"
+					d.Log.Info("hwid device limit reached", "user", u.ID, "devices", n, "limit", limit)
+				}
+			}
+		}
+		defer func() { _ = d.Store.RecordSubRequest(context.WithoutCancel(r.Context()), u.ID, req) }()
 		body, err := rd.RenderWith(lines, acct, tpls.get(r.Context(), rd.Name()))
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
@@ -119,6 +163,9 @@ func Register(mux *http.ServeMux, d Deps) {
 		serve(w, r, u)
 	})
 }
+
+// hwidRe is what Happ and Remnawave accept as a device id.
+var hwidRe = regexp.MustCompile(`^[a-zA-Z0-9=-]{10,64}$`)
 
 // asciiName reduces a name to the token characters every client accepts
 // unquoted in Content-Disposition.

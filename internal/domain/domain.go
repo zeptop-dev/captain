@@ -22,8 +22,11 @@ type User struct {
 	GroupID      *int64
 	BalanceCents int64
 	Status       string // "active" | "banned"
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	// HwidLimit overrides the plan's device limit for HWID-identified
+	// clients: nil = plan limit, 0 = unlimited for this user.
+	HwidLimit *int
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // Staff roles. "admin" can do everything; "operator" runs the business but

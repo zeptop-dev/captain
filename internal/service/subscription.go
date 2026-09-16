@@ -149,3 +149,19 @@ func account(subs []*domain.Subscription) subscription.Account {
 	}
 	return a
 }
+
+// HWIDLimit is the number of HWID devices user may register: the user's
+// own override when set (0 = unlimited), else the largest device limit
+// among their usable plans, else fallback (0 = unlimited).
+func (s *Subscription) HWIDLimit(ctx context.Context, u *domain.User, fallback int) int {
+	if u.HwidLimit != nil {
+		return *u.HwidLimit
+	}
+	limits, err := s.Store.DeviceLimits(ctx)
+	if err == nil {
+		if n, ok := limits[u.ID]; ok && n > 0 {
+			return n
+		}
+	}
+	return fallback
+}

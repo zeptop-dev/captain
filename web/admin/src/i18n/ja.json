@@ -395,7 +395,16 @@
     "shortLinks": "短いリンクを使う",
     "shortLinksHint": "サブスクリプション URL が /sub/<長いトークン> の代わりに /s/<短いコード> になります。旧リンクも引き続き有効です。",
     "autoFlags": "自動国旗",
-    "autoFlagsHint": "ノード名に国旗の絵文字がない場合、地域（設定値または名前から判定）の国旗を先頭に付けます。例：🇯🇵 Tokyo。"
+    "autoFlagsHint": "ノード名に国旗の絵文字がない場合、地域（設定値または名前から判定）の国旗を先頭に付けます。例：🇯🇵 Tokyo。",
+    "hwid": "デバイス識別（HWID）",
+    "hwidHint": "x-hwid ヘッダーを送るクライアント（Remnawave と Happ 共通の規格）はオンライン IP ではなくデバイス単位で数えます。プランのデバイス上限はデバイスごとに適用され、ヘッダーのないクライアントは従来どおり IP で数えます。",
+    "hwidEnabled": "HWID デバイス制限を有効化",
+    "hwidRequire": "x-hwid を必須にする",
+    "hwidRequireHint": "x-hwid のないクライアントには 404 を返します。全ユーザーが HWID 対応クライアントを使う場合のみ有効にしてください。",
+    "hwidFallback": "既定の上限",
+    "hwidFallbackHint": "ユーザーにもプランにもデバイス数が無いときに使用。0 = 無制限。",
+    "hwidAnnounce": "拒否時のメッセージ",
+    "hwidAnnounceHint": "上限超過時に Happ が表示します。"
   },
   "update": {
     "title": "バージョンとアップグレード",
@@ -1106,5 +1115,17 @@
     "keySet": "保存済み。空欄なら変更せず、\"-\" で消去します",
     "interval": "報告間隔（秒）",
     "enabled": "有効"
+  },
+  "hwid": {
+    "title": "デバイス（HWID）",
+    "hint": "Happ、FlClashX、V2Box、Streisand などがサブスク取得時に送る x-hwid ヘッダーで識別したデバイス。上限を超えたデバイスには空のサブスクを返し、理由はレスポンスヘッダーに入ります。",
+    "limit": "デバイス数上限",
+    "limitHint": "空欄：プランに従う。0：無制限。",
+    "followPlan": "プラン",
+    "kick": "このデバイスを削除",
+    "none": "登録された HWID デバイスはまだありません",
+    "showRequests": "取得履歴（{{n}}）",
+    "hideRequests": "履歴を隠す",
+    "noRequests": "取得記録はまだありません"
   }
 }

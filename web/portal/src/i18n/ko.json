@@ -49,7 +49,7 @@
     "expires": "만료일",
     "never": "무기한",
     "resetsOn": "{{date}}에 데이터 초기화",
-    "devices": "현재 온라인 기기 {{count}}대",
+    "devices": "내 기기",
     "daysLeft": "{{count}}일 남음",
     "balance": "잔액",
     "subscribe": "구독 링크",
@@ -68,7 +68,12 @@
     "queuedHintForever": "현재 플랜이 만료되거나 트래픽을 다 쓰면 자동으로 시작됩니다. 무기한.",
     "queuedQuota": "트래픽 {{quota}}",
     "cancelQueued": "이 플랜 취소",
-    "online": "온라인 기기"
+    "online": "온라인 기기",
+    "devicesHint": "{{limit}}개 중 {{n}}개 기기 슬롯 사용 중. 더 이상 쓰지 않는 기기를 삭제하면 슬롯이 비워집니다.",
+    "devicesUnlimited": "{{n}}개 기기 등록됨.",
+    "noDevices": "아직 구독을 가져온 기기가 없습니다.",
+    "lastSeen": "마지막 사용",
+    "removeDevice": "삭제"
   },
   "plans": {
     "title": "요금제",

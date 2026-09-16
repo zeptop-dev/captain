@@ -27,6 +27,26 @@ type SubscriptionSettings struct {
 	// SinglePlan turns stacking off: buying a different plan replaces the
 	// current one (with the surplus credit) instead of running alongside it.
 	SinglePlan bool `json:"single_plan"`
+	// HWID counts devices by the x-hwid header Happ-class clients send
+	// (the standard Remnawave and Happ share) instead of by online IP.
+	HWID HWIDSettings `json:"hwid"`
+}
+
+// HWIDSettings configures device identification on /sub.
+type HWIDSettings struct {
+	// Enabled reads x-hwid / x-device-os / x-ver-os / x-device-model and
+	// enforces the device limit per device.
+	Enabled bool `json:"enabled"`
+	// Require refuses clients that send no x-hwid at all (404), so only
+	// HWID-capable clients can use the subscription. Off: such clients
+	// fall back to online-IP counting.
+	Require bool `json:"require"`
+	// FallbackLimit applies when neither the user nor a plan sets a device
+	// limit (0 = unlimited).
+	FallbackLimit int `json:"fallback_limit"`
+	// Announce is shown by the client when a device is refused (Happ reads
+	// the "announce" header).
+	Announce string `json:"announce"`
 }
 
 // SettingSubscription is the settings key.

@@ -49,7 +49,7 @@
     "expires": "到期时间",
     "never": "永不过期",
     "resetsOn": "{{date}} 重置流量",
-    "devices": "当前在线设备 {{count}} 台",
+    "devices": "我的设备",
     "daysLeft": "剩余 {{count}} 天",
     "balance": "余额",
     "subscribe": "订阅链接",
@@ -68,7 +68,12 @@
     "queuedHintForever": "当前套餐到期或流量用完后自动开始，长期有效。",
     "queuedQuota": "流量 {{quota}}",
     "cancelQueued": "取消这个套餐",
-    "online": "在线设备"
+    "online": "在线设备",
+    "devicesHint": "已用 {{n}} / {{limit}} 个设备名额。移除不再使用的设备可释放名额。",
+    "devicesUnlimited": "已登记 {{n}} 台设备。",
+    "noDevices": "还没有设备拉取过订阅。",
+    "lastSeen": "最近使用",
+    "removeDevice": "移除"
   },
   "plans": {
     "title": "套餐",
