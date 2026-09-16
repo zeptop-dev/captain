@@ -152,7 +152,10 @@
     "doctorOk": "正常",
     "doctorWarn": "警告",
     "doctorFail": "失敗",
-    "doctorFailHint": "節點上次自我檢查有失敗項目，進節點頁看詳情"
+    "doctorFailHint": "節點上次自我檢查有失敗項目，進節點頁看詳情",
+    "rollback": "回滾節點",
+    "rollbackConfirm": "把 {{name}}（目前 {{version}}）換回上一個 bosun 版本，節點上的核心會重啟，使用者斷線幾秒。繼續？",
+    "rollbackQueued": "已通知節點回滾，節點將以上一個版本重啟"
   },
   "inbounds": {
     "title": "入站",

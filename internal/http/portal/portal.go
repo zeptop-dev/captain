@@ -312,7 +312,7 @@ func (h *handlers) createOrder(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "gateway not available")
 		return
 	case err != nil:
-		fail(w, http.StatusBadRequest, err.Error())
+		fail(w, http.StatusBadRequest, strings.TrimPrefix(err.Error(), "orders: "))
 		return
 	}
 	resp := map[string]any{"order_no": order.No, "status": order.Status, "amount_cents": order.AmountCents}

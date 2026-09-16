@@ -152,7 +152,10 @@
     "speedLimitHint": "0 不限。对这台节点上没有套餐限速的用户生效；套餐里的限速值优先。需要节点是 Linux 且有 nft 和 tc，只对 Xray / sing-box 承载的协议生效。",
     "advOverridesHint": "给内核补面板没有的选项",
     "mitaQuotas": "mita 原生配额",
-    "mitaQuotasHint": "把用户的流量额度也写进 mita 自己的 quotas，面板掉线时内核照样拦。窗口取套餐的重置周期（按月按 31 天滚动），月初刚重置时 mita 可能还拦几天。"
+    "mitaQuotasHint": "把用户的流量额度也写进 mita 自己的 quotas，面板掉线时内核照样拦。窗口取套餐的重置周期（按月按 31 天滚动），月初刚重置时 mita 可能还拦几天。",
+    "rollback": "回滚节点",
+    "rollbackConfirm": "把 {{name}}（当前 {{version}}）换回上一个 bosun 版本，节点上的内核会重启，用户断线几秒。继续？",
+    "rollbackQueued": "已通知节点回滚，节点将以上一个版本重启"
   },
   "inbounds": {
     "title": "入站",

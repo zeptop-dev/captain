@@ -6,6 +6,7 @@ Merge commits and formatting-only commits are left out. Binaries and
 `SHA256SUMS` for every tag are on the GitHub Release; the in-app updater
 installs them (Settings → Version and updates).
 
+- **v0.48.0** (2026-09-16) — nodes page: roll a node back to its previous bosun build (a "rollback" node job; the node restarts on the old binary and reports its version); bosun v0.37.0
 - **v0.47.1** (2026-09-16) — renewals keep what was used: the expiry moves on, a plan with a reset cycle keeps its counter and next reset, a plan without one gets the new period's allowance added (before, every renewal zeroed the counter); "activate after the current plan" for a plan the buyer already holds is refused with "renew it instead" rather than silently renewing; portal renewal dialog says so
 - **v0.47.0** (2026-09-16) — multi-plan charging by inbound: a report entry that names its inbound lands in that inbound's daily bucket and is charged to a subscription of that inbound's group (an ungrouped inbound charges the soonest-expiring plan of any group); entries without an inbound (older agents) keep the node-groups rule; bosun v0.36.0
 - **v0.46.0** (2026-09-16) — inbounds created or edited through the API or console are checked with bosun's shared `spec.Inbound.Validate()` (same wording as the node's doctor), after the server-side secret generation; `scripts/e2e/live.py` + `make e2e`: the live regression against a real panel, nodes and a headless mihomo (node health, every proxy handshake, one download charged) meant to run before every release; bosun v0.35.0

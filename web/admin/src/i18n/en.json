@@ -152,7 +152,10 @@
     "speedLimitHint": "0 = none. Applies to users on this node without a plan limit; a plan limit wins. Needs Linux with nft and tc; only xray / sing-box protocols are shaped.",
     "advOverridesHint": "Core options the panel does not model",
     "mitaQuotas": "mita native quotas",
-    "mitaQuotasHint": "Also write users' allowances into mita's own quotas so the core blocks overuse while the panel is unreachable. The window is the plan's reset cycle (monthly = rolling 31 days), so right after a calendar reset mita may still block for a few days."
+    "mitaQuotasHint": "Also write users' allowances into mita's own quotas so the core blocks overuse while the panel is unreachable. The window is the plan's reset cycle (monthly = rolling 31 days), so right after a calendar reset mita may still block for a few days.",
+    "rollback": "Roll back node",
+    "rollbackConfirm": "Put the previous bosun build back on {{name}} (now {{version}}). Cores restart, users drop for a few seconds. Continue?",
+    "rollbackQueued": "Rollback queued; the node restarts on its previous build"
   },
   "inbounds": {
     "title": "Inbounds",

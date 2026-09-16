@@ -1,8 +1,8 @@
-import { Badge, Button, Card, Code, Group, Modal, Stack, Table, Text, TextInput, Anchor, Autocomplete } from '@mantine/core'
+import { Badge, Button, Card, Code, Group, Modal, Stack, Table, Text, TextInput, Anchor, Autocomplete, ActionIcon, Tooltip } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { useDisclosure } from '@mantine/hooks'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { IconPlus, IconArrowUp } from '@tabler/icons-react'
+import { IconPlus, IconArrowUp, IconArrowBackUp } from '@tabler/icons-react'
 import { modals } from '@mantine/modals'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -47,6 +47,7 @@ export default function NodesPage() {
   const form = useForm({ initialValues: { Name: '', PublicAddr: '', InternalAddr: '', V6Addr: '', Domain: '', MonitorURL: '' } })
   const domainList = useQuery({ queryKey: ['domains'], queryFn: () => api.get<{ domains: { name: string }[] }>('/api/admin/domains') })
   const sys = useQuery({ queryKey: ['update'], queryFn: () => api.get<SystemUpdate>('/api/admin/system/update'), staleTime: 10 * 60_000, retry: false })
+  const rollback = useMutation({ mutationFn: (id: number) => api.post(`/api/admin/nodes/${id}/jobs`, { kind: 'rollback', params: {} }), onSuccess: () => { toast.ok(t('nodes.rollbackQueued')); qc.invalidateQueries({ queryKey: ['nodes'] }) }, onError: toast.err })
   const upgrade = useMutation({ mutationFn: (id: number) => api.post(`/api/admin/nodes/${id}/upgrade`, {}), onSuccess: () => { toast.ok(t('nodes.upgradeQueued')); qc.invalidateQueries({ queryKey: ['nodes'] }) }, onError: toast.err })
   const upgradeAll = useMutation({ mutationFn: () => api.post<{ nodes: number; upgrade_to: string }>('/api/admin/nodes/upgrade-all', {}), onSuccess: (r) => { toast.ok(t('nodes.upgradeAllQueued', { count: r.nodes, version: r.upgrade_to })); qc.invalidateQueries({ queryKey: ['nodes'] }) }, onError: toast.err })
   const outdated = (q.data ?? []).filter((n) => n.outdated && n.paired).length
@@ -80,6 +81,7 @@ export default function NodesPage() {
                     <Group gap={6} wrap="nowrap">
                       <Text size="sm">{n.version || '—'}</Text>
                       {n.upgrade_to ? <Badge size="xs" color="blue">{t('nodes.upgrading', { version: n.upgrade_to })}</Badge> : n.outdated && n.paired && <Badge size="xs" color="orange" style={{ cursor: 'pointer' }} onClick={() => modals.openConfirmModal({ title: t('nodes.upgrade'), children: <Text size="sm">{t('nodes.upgradeConfirm', { name: n.name, version: sys.data?.bosun_latest ?? '' })}</Text>, labels: { confirm: t('nodes.upgrade'), cancel: t('common.cancel') }, confirmProps: { color: 'orange' }, onConfirm: () => upgrade.mutate(n.id) })}>{t('nodes.outdated', { version: sys.data?.bosun_latest ?? '' })}</Badge>}
+                      {n.paired && n.version && !n.upgrade_to && <Tooltip label={t('nodes.rollback')}><ActionIcon size="xs" variant="subtle" color="gray" aria-label={t('nodes.rollback')} onClick={() => modals.openConfirmModal({ title: t('nodes.rollback'), children: <Text size="sm">{t('nodes.rollbackConfirm', { name: n.name, version: n.version })}</Text>, labels: { confirm: t('nodes.rollback'), cancel: t('common.cancel') }, confirmProps: { color: 'orange' }, onConfirm: () => rollback.mutate(n.id) })}><IconArrowBackUp size={14} /></ActionIcon></Tooltip>}
                     </Group>
                     <Text size="xs" c="dimmed">{n.platform}</Text>
                   </Table.Td>
