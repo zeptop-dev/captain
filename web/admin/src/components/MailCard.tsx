@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { api, type MailSettings } from '../lib/api'
 import { toast } from '../lib/notify'
 
-const empty: MailSettings = { provider: '', from_name: '', from_address: '', smtp: { host: '', port: 587, username: '', password: '', security: '' }, resend: { api_key: '' }, verify_registration: false, reminders: true }
+const empty: MailSettings = { provider: '', from_name: '', from_address: '', smtp: { host: '', port: 587, username: '', password: '', security: '' }, resend: { api_key: '' }, verify_registration: false, reminders: true, traffic_thresholds: [90] }
 
 export function MailCard() {
   const { t } = useTranslation()
@@ -16,6 +16,8 @@ export function MailCard() {
   useEffect(() => { if (q.data) form.setValues({ ...empty, ...q.data.settings, smtp: { ...empty.smtp, ...q.data.settings.smtp, password: '' }, resend: { api_key: '' } }) }, [q.data]) // eslint-disable-line react-hooks/exhaustive-deps
   const save = useMutation({ mutationFn: (v: MailSettings) => api.put('/api/admin/settings/mail', v), onSuccess: () => { toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['mail-settings'] }) }, onError: toast.err })
   const [to, setTo] = useState('')
+  const [thresholdsText, setThresholdsText] = useState('90')
+  useEffect(() => { if (q.data) setThresholdsText((q.data.settings.traffic_thresholds?.length ? q.data.settings.traffic_thresholds : [90]).join(', ')) }, [q.data])
   const test = useMutation({ mutationFn: () => api.post('/api/admin/settings/mail/test', { To: to }), onSuccess: () => toast.ok(t('mail.testSent')), onError: toast.err })
   const v = form.values
   return (
@@ -40,9 +42,10 @@ export function MailCard() {
           </Group>
         </>)}
         {v.provider === 'resend' && <PasswordInput label="Resend API key" placeholder={q.data?.has_resend_key ? t('mail.keep') : 're_...'} {...form.getInputProps('resend.api_key')} />}
-        <Group>
-          <Switch label={t('mail.verify')} {...form.getInputProps('verify_registration', { type: 'checkbox' })} />
-          <Switch label={t('mail.reminders')} {...form.getInputProps('reminders', { type: 'checkbox' })} />
+        <Group align="flex-end">
+          <Switch label={t('mail.verify')} {...form.getInputProps('verify_registration', { type: 'checkbox' })} pb={6} />
+          <Switch label={t('mail.reminders')} {...form.getInputProps('reminders', { type: 'checkbox' })} pb={6} />
+          <TextInput w={200} label={t('mail.thresholds')} description={t('mail.thresholdsHint')} placeholder="60, 80, 90" value={thresholdsText} onChange={(e) => { setThresholdsText(e.currentTarget.value); form.setFieldValue('traffic_thresholds', e.currentTarget.value.split(/[,\s]+/).map((x) => Number(x)).filter((n) => n >= 1 && n <= 100)) }} />
         </Group>
         <Group justify="space-between" align="flex-end">
           <Group align="flex-end"><TextInput label={t('mail.testTo')} placeholder="you@example.com" value={to} onChange={(e) => setTo(e.currentTarget.value)} /><Button variant="default" size="sm" loading={test.isPending} disabled={!to.includes('@')} onClick={() => test.mutate()}>{t('mail.test')}</Button></Group>

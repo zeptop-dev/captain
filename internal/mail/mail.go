@@ -4,6 +4,7 @@
 package mail
 
 import (
+	"sort"
 	"sync"
 
 	"bytes"
@@ -12,7 +13,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/zeptop-dev/captain/internal/store"
 	"html"
 	"io"
 	"net"
@@ -20,6 +20,8 @@ import (
 	"net/smtp"
 	"strings"
 	"time"
+
+	"github.com/zeptop-dev/captain/internal/store"
 )
 
 // Settings is the admin-edited mail configuration.
@@ -39,8 +41,30 @@ type Settings struct {
 	} `json:"resend"`
 	// VerifyRegistration requires an emailed code to create an account.
 	VerifyRegistration bool `json:"verify_registration"`
-	// Reminders sends expiry (3 days ahead) and 90% traffic notices.
+	// Reminders sends expiry (3 days ahead) and traffic-threshold notices.
 	Reminders bool `json:"reminders"`
+	// TrafficThresholds are the used-percentages that trigger a traffic
+	// notice (and a subscription.traffic webhook), once each per quota
+	// period; empty means 90.
+	TrafficThresholds []int `json:"traffic_thresholds"`
+}
+
+// Thresholds returns the traffic thresholds to check, ascending, 1..100,
+// deduplicated; 90 when none is configured.
+func (s Settings) Thresholds() []int {
+	seen := map[int]bool{}
+	var out []int
+	for _, t := range s.TrafficThresholds {
+		if t >= 1 && t <= 100 && !seen[t] {
+			seen[t] = true
+			out = append(out, t)
+		}
+	}
+	if len(out) == 0 {
+		return []int{90}
+	}
+	sort.Ints(out)
+	return out
 }
 
 // SettingKey is the settings table key.

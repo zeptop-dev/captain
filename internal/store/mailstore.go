@@ -61,6 +61,7 @@ type Reminder struct {
 	Email     string
 	ExpiresAt time.Time
 	UsedPct   int
+	Threshold int // the traffic threshold crossed (traffic reminders)
 	Ref       string
 }
 
@@ -90,12 +91,16 @@ func (s *Store) ExpiringSubscriptions(ctx context.Context, at time.Time, window 
 }
 
 // HighTrafficSubscriptions lists active subscriptions past pct of their
-// quota that have not been reminded during this quota period.
+// quota that have not been reminded for that threshold during this quota
+// period. The 90 % threshold also honours the pre-threshold reference so
+// an upgrade does not repeat old notices.
 func (s *Store) HighTrafficSubscriptions(ctx context.Context, pct int) ([]Reminder, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT u.id, u.email, (sub.used_up_bytes + sub.used_down_bytes) * 100 / sub.quota_bytes, sub.starts_at, COALESCE(sub.reset_at, 0)
 		FROM subscriptions sub JOIN users u ON u.id = sub.user_id
 		WHERE sub.status = 'active' AND sub.quota_bytes > 0 AND (sub.used_up_bytes + sub.used_down_bytes) * 100 / sub.quota_bytes >= ?
-		AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = u.id AND n.kind = 'traffic' AND n.ref = CAST(sub.starts_at AS TEXT) || '-' || CAST(COALESCE(sub.reset_at, 0) AS TEXT))`, pct)
+		AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = u.id AND n.kind = 'traffic'
+			AND (n.ref = CAST(sub.starts_at AS TEXT) || '-' || CAST(COALESCE(sub.reset_at, 0) AS TEXT) || ':' || ?
+			     OR (? = 90 AND n.ref = CAST(sub.starts_at AS TEXT) || '-' || CAST(COALESCE(sub.reset_at, 0) AS TEXT))))`, pct, pct, pct)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +113,32 @@ func (s *Store) HighTrafficSubscriptions(ctx context.Context, pct int) ([]Remind
 			return nil, err
 		}
 		r.UsedPct = int(used)
-		r.Ref = fmt.Sprintf("%d-%d", starts, reset)
+		r.Threshold = pct
+		r.Ref = fmt.Sprintf("%d-%d:%d", starts, reset, pct)
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// NeverConnectedUsers lists users created before "before" who hold a
+// usable plan but whose traffic has never been seen, once each (the
+// "not_connected" notification kind marks them).
+func (s *Store) NeverConnectedUsers(ctx context.Context, before time.Time) ([]Reminder, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT u.id, u.email FROM users u
+		WHERE u.first_connected_at IS NULL AND u.status = 'active' AND u.created_at < ?
+		AND EXISTS (SELECT 1 FROM subscriptions sub WHERE sub.user_id = u.id AND sub.status = 'active' AND (sub.expires_at IS NULL OR sub.expires_at > ?))
+		AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = u.id AND n.kind = 'not_connected')`, before.Unix(), before.Unix())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Reminder
+	for rows.Next() {
+		var r Reminder
+		if err := rows.Scan(&r.UserID, &r.Email); err != nil {
+			return nil, err
+		}
+		r.Ref = "1"
 		out = append(out, r)
 	}
 	return out, rows.Err()

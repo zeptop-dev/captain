@@ -65,7 +65,7 @@ export interface MailSettings {
   provider: string; from_name: string; from_address: string
   smtp: { host: string; port: number; username: string; password: string; security: string }
   resend: { api_key: string }
-  verify_registration: boolean; reminders: boolean
+  verify_registration: boolean; reminders: boolean; traffic_thresholds?: number[]
 }
 export interface SubscriptionSettings { urls: string[]; short_links?: boolean; auto_flags?: boolean; single_plan?: boolean; info_lines?: string[]; hwid?: { enabled: boolean; require: boolean; fallback_limit: number; announce: string } }
 export interface ACMESettings { email: string; has_cloudflare_token: boolean }

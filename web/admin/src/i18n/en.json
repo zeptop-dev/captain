@@ -311,7 +311,9 @@
     "grantDefault": "Start now",
     "grantQueue": "After current plans",
     "grantReplace": "Replace current",
-    "viaRelay": "via relay"
+    "viaRelay": "via relay",
+    "firstConnected": "First connected",
+    "neverConnected": "never"
   },
   "plans": {
     "title": "Plans",
@@ -482,10 +484,12 @@
     "password": "Password",
     "keep": "Blank keeps the current one",
     "verify": "Registration requires an emailed code",
-    "reminders": "Remind 3 days before expiry and at 90% traffic",
+    "reminders": "Remind 3 days before expiry and at the traffic thresholds",
     "testTo": "Test recipient",
     "test": "Send test email",
-    "testSent": "Test email sent"
+    "testSent": "Test email sent",
+    "thresholds": "Traffic thresholds (%)",
+    "thresholdsHint": "One notice per threshold per quota period, e.g. 60, 80, 90."
   },
   "coupons": {
     "title": "Coupons",

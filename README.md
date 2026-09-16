@@ -364,6 +364,14 @@ targeting it send a PROXY protocol v2 header automatically (built-in relay
 or realm backend), the landing node sees the real client and counts devices
 exactly. Direct connections to such an inbound fail, by design.
 
+**Traffic thresholds and connection events.** Settings → Mail → *Traffic
+thresholds* lists the used-percentages (default 90) at which a user is told
+once per quota period, by Telegram or mail; each crossing also emits a
+`subscription.traffic` webhook. The panel stamps the first traffic it sees
+for a user (shown in the user drawer) and emits `user.first_connected`; a
+user who has held a usable plan for a day without ever connecting emits
+`user.not_connected` once, for onboarding follow-up.
+
 **Remark variables.** Entry names and the *Info lines* in Settings →
 Subscription may contain `{{DAYS_LEFT}}`, `{{EXPIRE_DATE}}`,
 `{{TRAFFIC_LEFT}}`, `{{TRAFFIC_USED}}`, `{{TRAFFIC_LIMIT}}`,

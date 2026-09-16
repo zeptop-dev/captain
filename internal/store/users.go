@@ -8,13 +8,13 @@ import (
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-const userCols = "id, email, password_hash, role, uuid, sub_token, group_id, balance_cents, status, created_at, updated_at, COALESCE(invite_code, ''), invited_by, hwid_limit"
+const userCols = "id, email, password_hash, role, uuid, sub_token, group_id, balance_cents, status, created_at, updated_at, COALESCE(invite_code, ''), invited_by, hwid_limit, first_connected_at"
 
 func scanUser(row interface{ Scan(...any) error }) (*domain.User, error) {
 	var u domain.User
-	var group, invitedBy, hwid sql.NullInt64
+	var group, invitedBy, hwid, firstConn sql.NullInt64
 	var created, updated int64
-	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.UUID, &u.SubToken, &group, &u.BalanceCents, &u.Status, &created, &updated, &u.InviteCode, &invitedBy, &hwid); err != nil {
+	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.UUID, &u.SubToken, &group, &u.BalanceCents, &u.Status, &created, &updated, &u.InviteCode, &invitedBy, &hwid, &firstConn); err != nil {
 		return nil, wrapNotFound(err)
 	}
 	u.GroupID = int64Ptr(group)
@@ -22,6 +22,10 @@ func scanUser(row interface{ Scan(...any) error }) (*domain.User, error) {
 	if hwid.Valid {
 		n := int(hwid.Int64)
 		u.HwidLimit = &n
+	}
+	if firstConn.Valid {
+		t := unix(firstConn.Int64)
+		u.FirstConnectedAt = &t
 	}
 	u.CreatedAt, u.UpdatedAt = unix(created), unix(updated)
 	return &u, nil

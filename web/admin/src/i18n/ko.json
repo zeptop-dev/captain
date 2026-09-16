@@ -311,7 +311,9 @@
     "grantReplace": "현재 플랜 대체",
     "viewList": "목록",
     "viewRenewals": "갱신 현황",
-    "viaRelay": "중계 경유"
+    "viaRelay": "중계 경유",
+    "firstConnected": "첫 연결",
+    "neverConnected": "연결한 적 없음"
   },
   "plans": {
     "title": "요금제",
@@ -482,10 +484,12 @@
     "password": "비밀번호",
     "keep": "비워 두면 유지",
     "verify": "가입 시 이메일 인증 코드 필요",
-    "reminders": "만료 3일 전과 데이터 90% 사용 시 알림",
+    "reminders": "만료 3일 전과 데이터 임계값 도달 시 알림",
     "testTo": "테스트 수신자",
     "test": "테스트 메일 보내기",
-    "testSent": "테스트 메일을 보냈습니다"
+    "testSent": "테스트 메일을 보냈습니다",
+    "thresholds": "데이터 임계값 (%)",
+    "thresholdsHint": "기간마다 임계값별로 한 번 알림. 예: 60, 80, 90"
   },
   "coupons": {
     "title": "쿠폰",

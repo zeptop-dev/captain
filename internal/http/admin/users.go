@@ -124,7 +124,7 @@ func (h *handlers) getUser(w http.ResponseWriter, r *http.Request) {
 		reqs = []store.SubRequest{}
 	}
 	ok(w, map[string]any{"id": u.ID, "email": u.Email, "uuid": u.UUID, "sub_token": u.SubToken, "sub_url": h.subURL(r.Context(), u.SubToken), "group_id": u.GroupID, "status": u.Status,
-		"invite_code": u.InviteCode, "invited_by": u.InvitedBy, "hwid_limit": u.HwidLimit,
+		"invite_code": u.InviteCode, "invited_by": u.InvitedBy, "hwid_limit": u.HwidLimit, "first_connected_at": u.FirstConnectedAt,
 		"balance_cents": u.BalanceCents, "created_at": u.CreatedAt, "subscription": sub, "subscriptions": subs, "orders": orders, "devices": devices,
 		"hwid_devices": hwids, "sub_requests": reqs})
 }

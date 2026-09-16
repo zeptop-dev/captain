@@ -211,7 +211,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	sub.Register(s.mux, sub.Deps{Store: st, Log: log, Service: subSvc, Name: cfg.SiteName})
 	agent.Register(s.mux, agent.Deps{Pairs: ratelimit.New(),
 		Store: st, Log: log, BaseURL: base,
-		State: s.state, Probe: s.probeSvc,
+		State: s.state, Probe: s.probeSvc, Hooks: s.hooks,
 	})
 	return s
 }

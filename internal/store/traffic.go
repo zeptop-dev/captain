@@ -47,7 +47,8 @@ func (s *Store) AddTrafficBatch(ctx context.Context, inboundID int64, groups []i
 	for _, t := range samples {
 		out = append(out, TrafficSample{UserID: t.UserID, InboundID: inboundID, Groups: groups, Up: t.Up, Down: t.Down})
 	}
-	return s.AddTrafficSamples(ctx, out, at)
+	_, err := s.AddTrafficSamples(ctx, out, at)
+	return err
 }
 
 // TrafficSample is one user's delta on one inbound: InboundID for the
@@ -65,33 +66,45 @@ type TrafficSample struct {
 // charges each to the subscription that fits its inbound's group best
 // (chargeableTx): the soonest-expiring usable subscription of a plan in
 // Groups, else the soonest-expiring usable one of any plan.
-func (s *Store) AddTrafficSamples(ctx context.Context, samples []TrafficSample, at time.Time) error {
+func (s *Store) AddTrafficSamples(ctx context.Context, samples []TrafficSample, at time.Time) ([]int64, error) {
 	if len(samples) == 0 {
-		return nil
+		return nil, nil
 	}
 	day := at.UTC().Truncate(24 * time.Hour).Unix()
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer tx.Rollback()
 	ts := now()
+	var first []int64
+	seen := map[int64]bool{}
 	for _, t := range samples {
 		if t.Up < 0 || t.Down < 0 || (t.Up == 0 && t.Down == 0) {
 			continue
 		}
+		if !seen[t.UserID] {
+			seen[t.UserID] = true
+			res, err := tx.ExecContext(ctx, `UPDATE users SET first_connected_at = ? WHERE id = ? AND first_connected_at IS NULL`, at.Unix(), t.UserID)
+			if err != nil {
+				return nil, err
+			}
+			if n, _ := res.RowsAffected(); n > 0 {
+				first = append(first, t.UserID)
+			}
+		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO traffic_daily (user_id, inbound_id, day, up_bytes, down_bytes) VALUES (?, ?, ?, ?, ?)
 			ON CONFLICT(user_id, inbound_id, day) DO UPDATE SET up_bytes = up_bytes + excluded.up_bytes, down_bytes = down_bytes + excluded.down_bytes`,
 			t.UserID, t.InboundID, day, t.Up, t.Down); err != nil {
-			return err
+			return nil, err
 		}
 		if id, found := chargeableTx(ctx, tx, t.UserID, t.Groups, at); found {
 			if _, err := tx.ExecContext(ctx, `UPDATE subscriptions SET used_up_bytes = used_up_bytes + ?, used_down_bytes = used_down_bytes + ?, updated_at = ? WHERE id = ?`, t.Up, t.Down, ts, id); err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
-	return tx.Commit()
+	return first, tx.Commit()
 }
 
 // UpsertOnline records client IPs seen for a user on a node.

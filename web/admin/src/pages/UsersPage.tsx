@@ -37,7 +37,7 @@ export default function UsersPage() {
 
   const editForm = useForm({ initialValues: { Status: 'active', GroupID: '', Password: '' } })
   const update = useMutation({ mutationFn: (v: typeof editForm.values) => api.patch(`/api/admin/users/${sel!.id}`, { Status: v.Status, GroupID: v.GroupID ? Number(v.GroupID) : null, Password: v.Password }), onSuccess: () => { toast.ok(t('common.saved')); invalidate() }, onError: toast.err })
-  const detail = useQuery({ queryKey: ['user', sel?.id], queryFn: () => api.get<{ devices: OnlineDevice[]; subscriptions: UserSub[]; hwid_devices: HwidDevice[]; hwid_limit: number | null; sub_requests: SubRequest[] }>(`/api/admin/users/${sel!.id}`), enabled: sel !== null, refetchInterval: 15000 })
+  const detail = useQuery({ queryKey: ['user', sel?.id], queryFn: () => api.get<{ devices: OnlineDevice[]; subscriptions: UserSub[]; hwid_devices: HwidDevice[]; hwid_limit: number | null; sub_requests: SubRequest[]; first_connected_at: string | null }>(`/api/admin/users/${sel!.id}`), enabled: sel !== null, refetchInterval: 15000 })
   const [grantPlan, setGrantPlan] = useState<string | null>(null)
   const [grantHow, setGrantHow] = useState<string>('')
   const grant = useMutation({ mutationFn: () => api.post(`/api/admin/users/${sel!.id}/grant`, { PlanID: Number(grantPlan), Activation: grantHow }), onSuccess: () => { toast.ok(t('common.saved')); invalidate(); setSel(null) }, onError: toast.err })
@@ -90,6 +90,7 @@ export default function UsersPage() {
             <Group gap="xl">
               <div><Text size="xs" c="dimmed">{t('users.uuid')}</Text><Group gap={4}><Code>{sel.uuid}</Code><Copy value={sel.uuid} /></Group></div>
               <div><Text size="xs" c="dimmed">{t('users.createdAt')}</Text><Text size="sm">{when(sel.created_at)}</Text></div>
+              <div><Text size="xs" c="dimmed">{t('users.firstConnected')}</Text><Text size="sm">{detail.data?.first_connected_at ? when(detail.data.first_connected_at) : t('users.neverConnected')}</Text></div>
             </Group>
             <div>
               <Text size="xs" c="dimmed">{t('users.subUrl')}</Text>

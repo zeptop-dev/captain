@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zeptop-dev/captain/internal/webhook"
+
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
 
 	"github.com/zeptop-dev/captain/internal/auth"
@@ -37,6 +39,8 @@ type Deps struct {
 	BosunInstaller string
 	// Pairs throttles pairing attempts per address (nil = unlimited).
 	Pairs *ratelimit.Limiter
+	// Hooks receives user.first_connected events (nil = off).
+	Hooks *webhook.Hub
 }
 
 type handlers struct{ Deps }
@@ -220,8 +224,17 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 		}
 		samples = append(samples, s)
 	}
-	if err := h.Store.AddTrafficSamples(ctx, samples, now); err != nil {
+	first, err := h.Store.AddTrafficSamples(ctx, samples, now)
+	if err != nil {
 		h.Log.Error("add traffic", "node", n.ID, "samples", len(samples), "err", err)
+	}
+	for _, uid := range first {
+		email := ""
+		if u, err := h.Store.UserByID(ctx, uid); err == nil {
+			email = u.Email
+		}
+		h.Log.Info("user first connected", "user", uid, "node", n.ID)
+		h.Hooks.Emit(ctx, webhook.UserFirstConnected, map[string]any{"user_id": uid, "email": email, "node_id": n.ID, "node": n.Name})
 	}
 	if dropped > 0 {
 		h.Log.Warn("traffic samples for users this node does not serve were dropped", "node", n.ID, "dropped", dropped)

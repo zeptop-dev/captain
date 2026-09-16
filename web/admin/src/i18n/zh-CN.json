@@ -311,7 +311,9 @@
     "grantDefault": "立即生效",
     "grantQueue": "现有套餐失效后",
     "grantReplace": "替换当前套餐",
-    "viaRelay": "经转发"
+    "viaRelay": "经转发",
+    "firstConnected": "首次连接",
+    "neverConnected": "从未连接"
   },
   "plans": {
     "title": "套餐",
@@ -482,10 +484,12 @@
     "password": "密码",
     "keep": "留空保持不变",
     "verify": "注册需要邮箱验证码",
-    "reminders": "到期前 3 天和流量 90% 时提醒",
+    "reminders": "到期前 3 天和流量到达阈值时提醒",
     "testTo": "测试收件人",
     "test": "发送测试邮件",
-    "testSent": "测试邮件已发送"
+    "testSent": "测试邮件已发送",
+    "thresholds": "流量阈值（%）",
+    "thresholdsHint": "每个周期每个阈值提醒一次，例如 60, 80, 90。"
   },
   "coupons": {
     "title": "优惠券",

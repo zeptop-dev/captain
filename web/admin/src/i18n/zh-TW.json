@@ -311,7 +311,9 @@
     "grantReplace": "取代目前方案",
     "viewList": "列表",
     "viewRenewals": "續費檢視",
-    "viaRelay": "經轉發"
+    "viaRelay": "經轉發",
+    "firstConnected": "首次連線",
+    "neverConnected": "從未連線"
   },
   "plans": {
     "title": "方案",
@@ -482,10 +484,12 @@
     "password": "密碼",
     "keep": "留空保持不變",
     "verify": "註冊需要電子郵件驗證碼",
-    "reminders": "到期前 3 天和流量 90% 時提醒",
+    "reminders": "到期前 3 天和流量達到閾值時提醒",
     "testTo": "測試收件人",
     "test": "寄送測試郵件",
-    "testSent": "測試郵件已寄出"
+    "testSent": "測試郵件已寄出",
+    "thresholds": "流量閾值（%）",
+    "thresholdsHint": "每個週期每個閾值提醒一次，例如 60, 80, 90。"
   },
   "coupons": {
     "title": "優惠券",

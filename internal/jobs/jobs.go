@@ -212,17 +212,44 @@ func (r *Runner) reminders(ctx context.Context, now time.Time, log *slog.Logger)
 		}
 		_ = r.Store.MarkNotified(ctx, e.UserID, "expiry", e.Ref)
 	}
-	high, err := r.Store.HighTrafficSubscriptions(ctx, 90)
-	if err != nil {
-		log.Error("traffic reminders", "err", err)
-	}
-	for _, e := range high {
-		if !deliver(e.UserID, mail.TrafficMessage(r.SiteName, e.Email, r.PortalURL, e.UsedPct), fmt.Sprintf("📊 %s: you have used %d%% of your traffic. %s", r.SiteName, e.UsedPct, r.PortalURL)) {
-			continue
+	// Traffic thresholds, highest first: a user who jumped past several
+	// gets one notice, for the highest, and the lower ones are marked too.
+	thresholds := ms.Thresholds()
+	sentTraffic := 0
+	done := map[int64]bool{}
+	for i := len(thresholds) - 1; i >= 0; i-- {
+		high, err := r.Store.HighTrafficSubscriptions(ctx, thresholds[i])
+		if err != nil {
+			log.Error("traffic reminders", "err", err)
+			break
 		}
-		_ = r.Store.MarkNotified(ctx, e.UserID, "traffic", e.Ref)
+		for _, e := range high {
+			if done[e.UserID] {
+				_ = r.Store.MarkNotified(ctx, e.UserID, "traffic", e.Ref)
+				continue
+			}
+			r.Hooks.Emit(ctx, webhook.SubscriptionTraffic, map[string]any{"user_id": e.UserID, "email": e.Email, "threshold": e.Threshold, "used_percent": e.UsedPct})
+			if !deliver(e.UserID, mail.TrafficMessage(r.SiteName, e.Email, r.PortalURL, e.UsedPct), fmt.Sprintf("📊 %s: you have used %d%% of your traffic. %s", r.SiteName, e.UsedPct, r.PortalURL)) {
+				continue
+			}
+			done[e.UserID] = true
+			sentTraffic++
+			_ = r.Store.MarkNotified(ctx, e.UserID, "traffic", e.Ref)
+		}
 	}
-	if len(exp)+len(high) > 0 {
-		log.Info("reminders sent", "expiry", len(exp), "traffic", len(high))
+	// Users who hold a plan for a day but never connected: one webhook
+	// event each, for the operator's onboarding follow-up.
+	if r.Hooks != nil {
+		idle, err := r.Store.NeverConnectedUsers(ctx, now.Add(-24*time.Hour))
+		if err != nil {
+			log.Error("not-connected events", "err", err)
+		}
+		for _, e := range idle {
+			r.Hooks.Emit(ctx, webhook.UserNotConnected, map[string]any{"user_id": e.UserID, "email": e.Email})
+			_ = r.Store.MarkNotified(ctx, e.UserID, "not_connected", e.Ref)
+		}
+	}
+	if len(exp)+sentTraffic > 0 {
+		log.Info("reminders sent", "expiry", len(exp), "traffic", sentTraffic)
 	}
 }

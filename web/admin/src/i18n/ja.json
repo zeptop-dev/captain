@@ -311,7 +311,9 @@
     "grantReplace": "現在のプランを置換",
     "viewList": "一覧",
     "viewRenewals": "更新状況",
-    "viaRelay": "中継経由"
+    "viaRelay": "中継経由",
+    "firstConnected": "初回接続",
+    "neverConnected": "未接続"
   },
   "plans": {
     "title": "プラン",
@@ -482,10 +484,12 @@
     "password": "パスワード",
     "keep": "空欄で変更なし",
     "verify": "登録にメール認証コードを必須にする",
-    "reminders": "期限 3 日前とデータ量 90% で通知",
+    "reminders": "期限 3 日前とデータ量のしきい値で通知",
     "testTo": "テスト送信先",
     "test": "テストメールを送信",
-    "testSent": "テストメールを送信しました"
+    "testSent": "テストメールを送信しました",
+    "thresholds": "データ量しきい値（%）",
+    "thresholdsHint": "期間ごと・しきい値ごとに 1 回通知。例: 60, 80, 90"
   },
   "coupons": {
     "title": "クーポン",

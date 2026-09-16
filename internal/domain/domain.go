@@ -25,8 +25,10 @@ type User struct {
 	// HwidLimit overrides the plan's device limit for HWID-identified
 	// clients: nil = plan limit, 0 = unlimited for this user.
 	HwidLimit *int
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	// FirstConnectedAt is when the panel first saw traffic for the user.
+	FirstConnectedAt *time.Time
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 // Staff roles. "admin" can do everything; "operator" runs the business but

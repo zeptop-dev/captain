@@ -44,12 +44,15 @@ const (
 	TicketReplied        = "ticket.replied" // by the user
 	WithdrawalRequested  = "withdrawal.requested"
 	SubscriptionExpiring = "subscription.expiring"
+	SubscriptionTraffic  = "subscription.traffic" // a traffic threshold was crossed
+	UserFirstConnected   = "user.first_connected" // first traffic ever seen for the user
+	UserNotConnected     = "user.not_connected"   // holds a plan for a day but never connected
 	NodeAlert            = "node.alert"
 	Test                 = "test"
 )
 
 // Events lists every event name for the settings UI.
-var Events = []string{UserRegistered, OrderPaid, TicketCreated, TicketReplied, WithdrawalRequested, SubscriptionExpiring, NodeAlert}
+var Events = []string{UserRegistered, OrderPaid, TicketCreated, TicketReplied, WithdrawalRequested, SubscriptionExpiring, SubscriptionTraffic, UserFirstConnected, UserNotConnected, NodeAlert}
 
 // Hub loads endpoints from the store and delivers events asynchronously.
 type Hub struct {
