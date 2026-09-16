@@ -4,10 +4,11 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 
-	"github.com/zeptop-dev/bosun/pkg/spec"
-	"github.com/zeptop-dev/captain/internal/auth"
 	"net/http"
 	"strings"
+
+	"github.com/zeptop-dev/bosun/pkg/spec"
+	"github.com/zeptop-dev/captain/internal/auth"
 
 	"github.com/zeptop-dev/captain/internal/store"
 )

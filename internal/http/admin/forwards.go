@@ -2,11 +2,12 @@ package admin
 
 import (
 	"fmt"
-	"github.com/zeptop-dev/bosun/pkg/spec"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/zeptop-dev/bosun/pkg/spec"
 
 	"github.com/zeptop-dev/captain/internal/store"
 )
