@@ -1,4 +1,4 @@
-import { Button, Card, Group, Stack, Table, Text, TextInput, Title } from '@mantine/core'
+import { Button, Card, Divider, Group, Stack, Table, Text, TextInput, Title } from '@mantine/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
