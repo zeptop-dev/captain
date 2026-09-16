@@ -37,8 +37,7 @@ func (h *handlers) getBackup(w http.ResponseWriter, r *http.Request) {
 // putBackup stores settings; blank secrets keep the stored ones.
 func (h *handlers) putBackup(w http.ResponseWriter, r *http.Request) {
 	var in backup.Settings
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	var cur backup.Settings
@@ -75,7 +74,7 @@ func (h *handlers) putBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.SetSetting(r.Context(), backup.SettingKey, in); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]bool{"ok": true})
@@ -98,8 +97,7 @@ func (h *handlers) runBackup(w http.ResponseWriter, r *http.Request) {
 // fall back to the stored ones).
 func (h *handlers) testBackup(w http.ResponseWriter, r *http.Request) {
 	var in backup.Settings
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	var cur backup.Settings

@@ -22,7 +22,7 @@ func (h *handlers) registerIngresses(mux *http.ServeMux) {
 func (h *handlers) listIngresses(w http.ResponseWriter, r *http.Request) {
 	list, err := h.Store.IngressesByNode(r.Context(), idOf(r))
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, list)
@@ -78,8 +78,7 @@ func (in *ingressInput) apply(g *store.Ingress) string {
 
 func (h *handlers) createIngress(w http.ResponseWriter, r *http.Request) {
 	var in ingressInput
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	if _, err := h.Store.NodeByID(r.Context(), idOf(r)); err != nil {
@@ -92,7 +91,7 @@ func (h *handlers) createIngress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.CreateIngress(r.Context(), g); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]any{"ingress": g, "dns": h.DNS.EnsureMany(r.Context(), [2]string{g.EntryDomain, g.EntryHost})})
@@ -100,8 +99,7 @@ func (h *handlers) createIngress(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) updateIngress(w http.ResponseWriter, r *http.Request) {
 	var in ingressInput
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	g, err := h.Store.IngressByID(r.Context(), idOf(r))
@@ -114,7 +112,7 @@ func (h *handlers) updateIngress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.UpdateIngress(r.Context(), g); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]any{"ingress": g, "dns": h.DNS.EnsureMany(r.Context(), [2]string{g.EntryDomain, g.EntryHost})})
@@ -122,7 +120,7 @@ func (h *handlers) updateIngress(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) deleteIngress(w http.ResponseWriter, r *http.Request) {
 	if err := h.Store.DeleteIngress(r.Context(), idOf(r)); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]bool{"ok": true})

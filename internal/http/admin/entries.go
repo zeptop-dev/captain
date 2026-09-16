@@ -13,7 +13,7 @@ import (
 func (h *handlers) listEntries(w http.ResponseWriter, r *http.Request) {
 	list, err := h.Store.ListEntries(r.Context())
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	if list == nil {
@@ -29,7 +29,7 @@ func (h *handlers) reorderEntries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.ReorderEntries(r.Context(), in.IDs); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]bool{"ok": true})
@@ -38,7 +38,7 @@ func (h *handlers) reorderEntries(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) entryTags(w http.ResponseWriter, r *http.Request) {
 	tags, err := h.Store.EntryTags(r.Context())
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, tags)
@@ -104,7 +104,7 @@ func (h *handlers) createEntry(w http.ResponseWriter, r *http.Request) {
 	}
 	e.Enabled = true
 	if err := h.Store.CreateEntry(r.Context(), &e); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, e)
@@ -123,7 +123,7 @@ func (h *handlers) updateEntry(w http.ResponseWriter, r *http.Request) {
 	}
 	e.ID = id
 	if err := h.Store.UpdateEntry(r.Context(), &e); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, e)
@@ -136,7 +136,7 @@ func (h *handlers) deleteEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.DeleteEntry(r.Context(), id); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]bool{"ok": true})

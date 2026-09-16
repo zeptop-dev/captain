@@ -38,7 +38,7 @@ func (h *handlers) listUsers(w http.ResponseWriter, r *http.Request) {
 	const per = 50
 	rows, total, err := h.Store.ListUsers(r.Context(), q.Get("q"), per, (page-1)*per, time.Now())
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	out := make([]userView, 0, len(rows))
@@ -58,7 +58,7 @@ func (h *handlers) createUser(w http.ResponseWriter, r *http.Request) {
 	}
 	u, err := NewUser(in.Email, in.Password, "user")
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	if err := h.Store.CreateUser(r.Context(), u); err != nil {
@@ -77,7 +77,7 @@ func (h *handlers) getUser(w http.ResponseWriter, r *http.Request) {
 	}
 	sub, err := h.Store.ActiveSubscription(r.Context(), id)
 	if err != nil && !errors.Is(err, store.ErrNotFound) {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	orders, _ := h.Store.OrdersByUser(r.Context(), id, 20)
@@ -127,8 +127,11 @@ func (h *handlers) updateUser(w http.ResponseWriter, r *http.Request) {
 		GroupID  *int64
 		Password string
 	}
-	if !okID || !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !okID {
+		fail(w, http.StatusBadRequest, "bad id")
+		return
+	}
+	if !readJSON(w, r, &in) {
 		return
 	}
 	if in.Status != "active" && in.Status != "banned" {
@@ -143,12 +146,12 @@ func (h *handlers) updateUser(w http.ResponseWriter, r *http.Request) {
 		}
 		var err error
 		if hash, err = auth.HashPassword(in.Password); err != nil {
-			fail(w, http.StatusInternalServerError, err.Error())
+			serverErr(w, err)
 			return
 		}
 	}
 	if err := h.Store.UpdateUser(r.Context(), id, in.Status, in.GroupID, hash); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	if hash != "" || in.Status != "active" {
@@ -164,7 +167,7 @@ func (h *handlers) deleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.DeleteUser(r.Context(), id); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]bool{"ok": true})
@@ -178,7 +181,7 @@ func (h *handlers) rotateToken(w http.ResponseWriter, r *http.Request) {
 	}
 	tok := auth.Token(24)
 	if err := h.Store.RotateSubToken(r.Context(), id, tok); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	_ = h.Store.RotateShortCode(r.Context(), id)
@@ -193,7 +196,7 @@ func (h *handlers) adjustBalance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.AdjustBalance(r.Context(), id, in.DeltaCents); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	u, err := h.Store.UserByID(r.Context(), id)
@@ -211,8 +214,11 @@ func (h *handlers) grantPlan(w http.ResponseWriter, r *http.Request) {
 		PlanID     int64
 		Activation string // "" stack (or replace under single-plan), "queue", "replace"
 	}
-	if !okID || !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !okID {
+		fail(w, http.StatusBadRequest, "bad id")
+		return
+	}
+	if !readJSON(w, r, &in) {
 		return
 	}
 	plan, err := h.Store.PlanByID(r.Context(), in.PlanID)
@@ -229,7 +235,7 @@ func (h *handlers) grantPlan(w http.ResponseWriter, r *http.Request) {
 	}
 	sub, err := h.Store.GrantSubscriptionMode(r.Context(), userID, plan, time.Now(), mode)
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, sub)
@@ -244,7 +250,7 @@ func (h *handlers) listOrders(w http.ResponseWriter, r *http.Request) {
 	const per = 50
 	rows, total, err := h.Store.ListOrders(r.Context(), q.Get("status"), per, (page-1)*per)
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	type row struct {

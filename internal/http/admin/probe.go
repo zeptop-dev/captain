@@ -24,8 +24,7 @@ func (h *handlers) getProbe(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) putProbe(w http.ResponseWriter, r *http.Request) {
 	var v store.ProbeSettings
-	if !decode(r, &v) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &v) {
 		return
 	}
 	v.Path = strings.TrimSpace(v.Path)
@@ -66,7 +65,7 @@ func (h *handlers) putProbe(w http.ResponseWriter, r *http.Request) {
 	v.Carriers = carriers
 	v.Normalize()
 	if err := h.Store.SetSetting(r.Context(), store.SettingProbe, v); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	if h.Probe != nil {
@@ -81,7 +80,7 @@ func (h *handlers) putProbe(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) listPingTasks(w http.ResponseWriter, r *http.Request) {
 	list, err := h.Store.ListPingTasks(r.Context())
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, list)
@@ -107,7 +106,7 @@ func (h *handlers) savePingTask(w http.ResponseWriter, r *http.Request) {
 	}
 	t.ID = idOf(r)
 	if err := h.Store.SavePingTask(r.Context(), &t); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, t)
@@ -115,7 +114,7 @@ func (h *handlers) savePingTask(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) deletePingTask(w http.ResponseWriter, r *http.Request) {
 	if err := h.Store.DeletePingTask(r.Context(), idOf(r)); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]bool{"ok": true})
@@ -144,12 +143,11 @@ func (h *handlers) putNodeProbe(w http.ResponseWriter, r *http.Request) {
 		ResetDay   int
 		Mode       string
 	}
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	if err := h.Store.UpdateNodeProbe(r.Context(), idOf(r), in.Hidden, in.Info, in.LimitBytes, in.ResetDay, in.Mode); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	if h.Probe != nil {
@@ -160,7 +158,7 @@ func (h *handlers) putNodeProbe(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) resetNodeTraffic(w http.ResponseWriter, r *http.Request) {
 	if err := h.Store.ResetNodeTraffic(r.Context(), idOf(r), time.Now()); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	_ = h.Store.ClearAlert(r.Context(), idOf(r), "traffic80")

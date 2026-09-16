@@ -32,8 +32,7 @@ func (h *handlers) putSubTemplates(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Templates map[string]string `json:"templates"`
 	}
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	v := store.SubTemplates{}
@@ -43,7 +42,7 @@ func (h *handlers) putSubTemplates(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err := h.Store.SetSetting(r.Context(), store.SettingSubTemplates, v); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	h.writeSubTemplates(w, r)

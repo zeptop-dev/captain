@@ -68,7 +68,7 @@ func (h *handlers) listNodes(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	nodes, err := h.Store.ListNodes(r.Context())
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	traffic, _ := h.Store.NodeTrafficToday(r.Context(), now)
@@ -107,7 +107,7 @@ func (h *handlers) createNode(w http.ResponseWriter, r *http.Request) {
 	}
 	n := &domain.Node{Name: in.Name, PublicAddr: in.PublicAddr, InternalAddr: in.InternalAddr, V6Addr: in.V6Addr, Domain: strings.ToLower(strings.TrimSpace(in.Domain)), MonitorURL: in.MonitorURL}
 	if err := h.Store.CreateNode(r.Context(), n, auth.PairCode(), 24*time.Hour); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	v := toNodeView(n, time.Now()) // includes the pairing code once
@@ -151,7 +151,7 @@ func (h *handlers) updateNode(w http.ResponseWriter, r *http.Request) {
 	}
 	n := &domain.Node{ID: id, Name: in.Name, PublicAddr: in.PublicAddr, InternalAddr: in.InternalAddr, V6Addr: in.V6Addr, Domain: strings.ToLower(strings.TrimSpace(in.Domain)), MonitorURL: in.MonitorURL, DecoyEnabled: in.DecoyEnabled, DecoyUpstream: strings.TrimSpace(in.DecoyUpstream), UserSpeedLimitMbps: in.UserSpeedLimitMbps, MitaQuotas: in.MitaQuotas}
 	if err := h.Store.UpdateNode(r.Context(), n); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]any{"ok": true, "dns": h.DNS.EnsureMany(r.Context(), [2]string{n.Domain, n.PublicAddr}, [2]string{n.Domain, n.V6Addr})})
@@ -164,7 +164,7 @@ func (h *handlers) deleteNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.DeleteNode(r.Context(), id); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]bool{"ok": true})
@@ -179,7 +179,7 @@ func (h *handlers) repairNode(w http.ResponseWriter, r *http.Request) {
 	}
 	code := auth.PairCode()
 	if err := h.Store.ResetPairCode(r.Context(), id, code, 24*time.Hour); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]string{"pair_code": code})
@@ -261,7 +261,7 @@ func (h *handlers) deleteInbound(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.DeleteInbound(r.Context(), id); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]bool{"ok": true})
@@ -307,7 +307,7 @@ func (h *handlers) upgradeNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.SetNodeUpgrade(r.Context(), id, v); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]any{"upgrade_to": v})
@@ -323,7 +323,7 @@ func (h *handlers) upgradeAllNodes(w http.ResponseWriter, r *http.Request) {
 	}
 	n, err := h.Store.SetAllNodesUpgrade(r.Context(), v)
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]any{"upgrade_to": v, "nodes": n})

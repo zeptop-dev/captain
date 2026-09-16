@@ -34,7 +34,7 @@ func (h *handlers) createNodeJob(w http.ResponseWriter, r *http.Request) {
 	}
 	jobID := auth.Token(12)
 	if err := h.Store.CreateNodeJob(r.Context(), jobID, id, in.Kind, in.Params); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]string{"id": jobID})
@@ -52,7 +52,7 @@ func (h *handlers) getNodeJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, j)

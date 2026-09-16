@@ -31,8 +31,7 @@ func (h *handlers) getNodeForwards(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) putNodeForwards(w http.ResponseWriter, r *http.Request) {
 	id := idOf(r)
 	var in struct{ Forwards []store.NodeForward }
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	inbounds, err := h.Store.AllInboundsByNode(r.Context(), id)
@@ -133,7 +132,7 @@ func (h *handlers) putNodeForwards(w http.ResponseWriter, r *http.Request) {
 		clean = append(clean, f)
 	}
 	if err := h.Store.SetNodeForwards(r.Context(), id, clean); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]any{"forwards": clean})

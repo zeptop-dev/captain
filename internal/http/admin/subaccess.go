@@ -21,7 +21,7 @@ func (h *handlers) userEntries(w http.ResponseWriter, r *http.Request) {
 	svc := &service.Subscription{Store: h.Store}
 	list, err := svc.EntryLinks(r.Context(), u)
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, list)
@@ -41,7 +41,7 @@ func (h *handlers) putUserEntries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.SetUserEntryBlocks(r.Context(), id, in.Blocked); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	h.userEntries(w, r)
@@ -50,7 +50,7 @@ func (h *handlers) putUserEntries(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) listSubLinks(w http.ResponseWriter, r *http.Request) {
 	list, err := h.Store.ListSubLinks(r.Context(), idOf(r))
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	base := ""
@@ -73,8 +73,7 @@ func (h *handlers) createTempLink(w http.ResponseWriter, r *http.Request) {
 		MaxUses int
 		Hours   int
 	}
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	if in.MaxUses <= 0 && in.Hours <= 0 {
@@ -87,7 +86,7 @@ func (h *handlers) createTempLink(w http.ResponseWriter, r *http.Request) {
 	}
 	l, err := h.Store.CreateTempLink(r.Context(), idOf(r), in.MaxUses, time.Duration(in.Hours)*time.Hour)
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, l)
@@ -96,7 +95,7 @@ func (h *handlers) createTempLink(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) deleteSubLink(w http.ResponseWriter, r *http.Request) {
 	lid, _ := strconv.ParseInt(r.PathValue("lid"), 10, 64)
 	if err := h.Store.DeleteSubLink(r.Context(), idOf(r), lid); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]bool{"ok": true})

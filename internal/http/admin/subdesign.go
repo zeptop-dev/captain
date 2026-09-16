@@ -65,7 +65,7 @@ func (h *handlers) putSubDesign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.SetSetting(r.Context(), store.SettingSubDesign, d); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, d)
@@ -98,7 +98,7 @@ func (h *handlers) applySubDesign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.SetSetting(r.Context(), store.SettingSubDesign, d); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	var v store.SubTemplates
@@ -110,7 +110,7 @@ func (h *handlers) applySubDesign(w http.ResponseWriter, r *http.Request) {
 		v[format] = text
 	}
 	if err := h.Store.SetSetting(r.Context(), store.SettingSubTemplates, v); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	h.writeSubTemplates(w, r)

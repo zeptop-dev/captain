@@ -72,7 +72,7 @@ func (h *handlers) systemRestart(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) getACME(w http.ResponseWriter, r *http.Request) {
 	var v store.ACMESettings
 	if err := h.Store.GetSetting(r.Context(), store.SettingACME, &v); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	// The token is write-only; tell the UI whether one is set.
@@ -83,8 +83,7 @@ func (h *handlers) getACME(w http.ResponseWriter, r *http.Request) {
 // "-" clears it.
 func (h *handlers) putACME(w http.ResponseWriter, r *http.Request) {
 	var in struct{ Email, CloudflareToken string }
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	var cur store.ACMESettings
@@ -98,7 +97,7 @@ func (h *handlers) putACME(w http.ResponseWriter, r *http.Request) {
 		cur.CloudflareToken = strings.TrimSpace(in.CloudflareToken)
 	}
 	if err := h.Store.SetSetting(r.Context(), store.SettingACME, cur); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	// The state revision hashes node.ACME, so every node pulls the new
@@ -116,7 +115,7 @@ func (h *handlers) subURL(ctx context.Context, token string) string {
 func (h *handlers) getSubscription(w http.ResponseWriter, r *http.Request) {
 	var v service.SubscriptionSettings
 	if err := h.Store.GetSetting(r.Context(), service.SettingSubscription, &v); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	if v.URLs == nil {
@@ -127,8 +126,7 @@ func (h *handlers) getSubscription(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) putSubscription(w http.ResponseWriter, r *http.Request) {
 	var in service.SubscriptionSettings
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	clean := make([]string, 0, len(in.URLs))
@@ -145,7 +143,7 @@ func (h *handlers) putSubscription(w http.ResponseWriter, r *http.Request) {
 	}
 	in.URLs = clean
 	if err := h.Store.SetSetting(r.Context(), service.SettingSubscription, in); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	if h.SubLinks != nil {
@@ -161,16 +159,7 @@ func (h *handlers) getSite(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) putSite(w http.ResponseWriter, r *http.Request) {
-	var v site.Settings
-	if !decode(r, &v) {
-		fail(w, http.StatusBadRequest, "bad json")
-		return
-	}
-	if err := h.Store.SetSetting(r.Context(), site.SettingSite, v); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	ok(w, v)
+	putSetting[site.Settings](h, w, r, site.SettingSite, nil)
 }
 
 // getOIDC returns the providers with secrets replaced by a flag.
@@ -194,8 +183,7 @@ func (h *handlers) getOIDC(w http.ResponseWriter, r *http.Request) {
 // putOIDC replaces the provider list; a blank client_secret keeps the stored one.
 func (h *handlers) putOIDC(w http.ResponseWriter, r *http.Request) {
 	var in store.OIDCSettings
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	var cur store.OIDCSettings
@@ -227,7 +215,7 @@ func (h *handlers) putOIDC(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err := h.Store.SetSetting(r.Context(), store.SettingOIDC, in); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	h.getOIDC(w, r)
@@ -244,8 +232,7 @@ func (h *handlers) getMail(w http.ResponseWriter, r *http.Request) {
 // putMail stores the settings; blank secrets keep the stored ones.
 func (h *handlers) putMail(w http.ResponseWriter, r *http.Request) {
 	var in mail.Settings
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	var cur mail.Settings
@@ -257,7 +244,7 @@ func (h *handlers) putMail(w http.ResponseWriter, r *http.Request) {
 		in.Resend.APIKey = cur.Resend.APIKey
 	}
 	if err := h.Store.SetSetting(r.Context(), mail.SettingKey, in); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	if h.Mail != nil {
@@ -286,51 +273,34 @@ func (h *handlers) testMail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) getInvite(w http.ResponseWriter, r *http.Request) {
-	var v store.InviteSettings
-	_ = h.Store.GetSetting(r.Context(), store.SettingInvite, &v)
-	ok(w, v)
+	getSetting[store.InviteSettings](h, w, r, store.SettingInvite, nil)
 }
 
 func (h *handlers) putInvite(w http.ResponseWriter, r *http.Request) {
-	var v store.InviteSettings
-	if !decode(r, &v) || v.Percent < 0 || v.Percent > 100 || v.Level2 < 0 || v.Level2 > 100 || v.Level3 < 0 || v.Level3 > 100 {
-		fail(w, http.StatusBadRequest, "percent must be 0-100")
-		return
-	}
-	if v.Payout != store.PayoutCommission {
-		v.Payout = store.PayoutBalance
-	}
-	methods := []string{}
-	for _, m := range v.WithdrawMethods {
-		if m = strings.TrimSpace(m); m != "" {
-			methods = append(methods, m)
+	putSetting(h, w, r, store.SettingInvite, func(_ context.Context, v *store.InviteSettings) string {
+		if v.Percent < 0 || v.Percent > 100 || v.Level2 < 0 || v.Level2 > 100 || v.Level3 < 0 || v.Level3 > 100 {
+			return "percent must be 0-100"
 		}
-	}
-	v.WithdrawMethods = methods
-	if err := h.Store.SetSetting(r.Context(), store.SettingInvite, v); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	ok(w, v)
+		if v.Payout != store.PayoutCommission {
+			v.Payout = store.PayoutBalance
+		}
+		methods := []string{}
+		for _, m := range v.WithdrawMethods {
+			if m = strings.TrimSpace(m); m != "" {
+				methods = append(methods, m)
+			}
+		}
+		v.WithdrawMethods = methods
+		return ""
+	})
 }
 
 func (h *handlers) getNotice(w http.ResponseWriter, r *http.Request) {
-	var v store.NoticeSettings
-	_ = h.Store.GetSetting(r.Context(), store.SettingNotice, &v)
-	ok(w, v)
+	getSetting[store.NoticeSettings](h, w, r, store.SettingNotice, nil)
 }
 
 func (h *handlers) putNotice(w http.ResponseWriter, r *http.Request) {
-	var v store.NoticeSettings
-	if !decode(r, &v) {
-		fail(w, http.StatusBadRequest, "bad json")
-		return
-	}
-	if err := h.Store.SetSetting(r.Context(), store.SettingNotice, v); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	ok(w, v)
+	putSetting[store.NoticeSettings](h, w, r, store.SettingNotice, nil)
 }
 
 func (h *handlers) getRegistration(w http.ResponseWriter, r *http.Request) {
@@ -346,8 +316,7 @@ func (h *handlers) getRegistration(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) putRegistration(w http.ResponseWriter, r *http.Request) {
 	var v store.RegistrationSettings
-	if !decode(r, &v) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &v) {
 		return
 	}
 	var cur store.RegistrationSettings
@@ -363,7 +332,7 @@ func (h *handlers) putRegistration(w http.ResponseWriter, r *http.Request) {
 	}
 	v.EmailSuffixes = clean
 	if err := h.Store.SetSetting(r.Context(), store.SettingRegistration, v); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	h.getRegistration(w, r)

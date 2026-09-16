@@ -34,7 +34,7 @@ func (h *handlers) registerExternal(mux *http.ServeMux) {
 func (h *handlers) listExternalSources(w http.ResponseWriter, r *http.Request) {
 	list, err := h.Store.ListExternalSources(r.Context())
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, list)
@@ -48,7 +48,7 @@ func (h *handlers) saveExternalSource(w http.ResponseWriter, r *http.Request) {
 	}
 	src.ID = idOf(r)
 	if err := h.Store.SaveExternalSource(r.Context(), &src); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	n, err := h.External.Sync(r.Context(), &src, time.Now())
@@ -64,7 +64,7 @@ func errString(err error) string {
 
 func (h *handlers) deleteExternalSource(w http.ResponseWriter, r *http.Request) {
 	if err := h.Store.DeleteExternalSource(r.Context(), idOf(r)); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]bool{"ok": true})
@@ -89,7 +89,7 @@ func (h *handlers) syncExternalSource(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) listExternalNodes(w http.ResponseWriter, r *http.Request) {
 	list, err := h.Store.ListExternalNodes(r.Context())
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, list)
@@ -104,8 +104,7 @@ func (h *handlers) probeExternal(w http.ResponseWriter, r *http.Request) {
 // parseLinks previews share links pasted by the admin.
 func (h *handlers) parseLinks(w http.ResponseWriter, r *http.Request) {
 	var in struct{ Text string }
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	lines, skipped := subscription.ParseList(in.Text)
@@ -123,8 +122,7 @@ func (h *handlers) importExternalNodes(w http.ResponseWriter, r *http.Request) {
 		GroupID *int64
 		Rate    float64
 	}
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	lines, skipped := subscription.ParseList(in.Text)
@@ -154,7 +152,7 @@ func (h *handlers) updateExternalNode(w http.ResponseWriter, r *http.Request) {
 	}
 	n.ID = idOf(r)
 	if err := h.Store.SaveExternalNode(r.Context(), &n); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, n)
@@ -162,7 +160,7 @@ func (h *handlers) updateExternalNode(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) deleteExternalNode(w http.ResponseWriter, r *http.Request) {
 	if err := h.Store.DeleteExternalNode(r.Context(), idOf(r)); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]bool{"ok": true})
@@ -190,8 +188,7 @@ func (h *handlers) getNodeRouting(w http.ResponseWriter, r *http.Request) {
 // a defined outbound, chains must not loop on themselves.
 func (h *handlers) putNodeRouting(w http.ResponseWriter, r *http.Request) {
 	var nr store.NodeRouting
-	if !decode(r, &nr) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &nr) {
 		return
 	}
 	tags := map[string]bool{"direct": true, "block": true}
@@ -258,7 +255,7 @@ func (h *handlers) putNodeRouting(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.SetNodeRouting(r.Context(), idOf(r), &nr); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	h.getNodeRouting(w, r)
@@ -283,8 +280,11 @@ func (h *handlers) getNodeOverrides(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) putNodeOverrides(w http.ResponseWriter, r *http.Request) {
 	id, okID := pathID(r)
 	var in map[string]string
-	if !okID || !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !okID {
+		fail(w, http.StatusBadRequest, "bad id")
+		return
+	}
+	if !readJSON(w, r, &in) {
 		return
 	}
 	if err := h.Store.SetNodeOverrides(r.Context(), id, in); err != nil {

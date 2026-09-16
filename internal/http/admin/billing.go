@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -10,53 +11,32 @@ import (
 )
 
 func (h *handlers) getTrial(w http.ResponseWriter, r *http.Request) {
-	var v store.TrialSettings
-	_ = h.Store.GetSetting(r.Context(), store.SettingTrial, &v)
-	ok(w, v)
+	getSetting[store.TrialSettings](h, w, r, store.SettingTrial, nil)
 }
 
 func (h *handlers) putTrial(w http.ResponseWriter, r *http.Request) {
-	var v store.TrialSettings
-	if !decode(r, &v) {
-		fail(w, http.StatusBadRequest, "bad json")
-		return
-	}
-	if v.PlanID != 0 {
-		if _, err := h.Store.PlanByID(r.Context(), v.PlanID); errors.Is(err, store.ErrNotFound) {
-			fail(w, http.StatusBadRequest, "unknown plan")
-			return
+	putSetting(h, w, r, store.SettingTrial, func(ctx context.Context, v *store.TrialSettings) string {
+		if v.PlanID != 0 {
+			if _, err := h.Store.PlanByID(ctx, v.PlanID); errors.Is(err, store.ErrNotFound) {
+				return "unknown plan"
+			}
 		}
-	}
-	if err := h.Store.SetSetting(r.Context(), store.SettingTrial, v); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	ok(w, v)
+		return ""
+	})
 }
 
 func (h *handlers) getSurplus(w http.ResponseWriter, r *http.Request) {
-	var v store.SurplusSettings
-	_ = h.Store.GetSetting(r.Context(), store.SettingSurplus, &v)
-	ok(w, v)
+	getSetting[store.SurplusSettings](h, w, r, store.SettingSurplus, nil)
 }
 
 func (h *handlers) putSurplus(w http.ResponseWriter, r *http.Request) {
-	var v store.SurplusSettings
-	if !decode(r, &v) {
-		fail(w, http.StatusBadRequest, "bad json")
-		return
-	}
-	if err := h.Store.SetSetting(r.Context(), store.SettingSurplus, v); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	ok(w, v)
+	putSetting[store.SurplusSettings](h, w, r, store.SettingSurplus, nil)
 }
 
 func (h *handlers) listWithdrawals(w http.ResponseWriter, r *http.Request) {
 	list, err := h.Store.ListWithdrawals(r.Context(), 0, r.URL.Query().Get("status"), queryInt(r, "limit", 200))
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	if list == nil {
@@ -67,8 +47,7 @@ func (h *handlers) listWithdrawals(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) withdrawalStatus(w http.ResponseWriter, r *http.Request) {
 	var in struct{ Status, Note string }
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	if err := h.Store.SetWithdrawalStatus(r.Context(), idOf(r), in.Status, in.Note); err != nil {
@@ -98,8 +77,7 @@ func (h *handlers) adjustSubscription(w http.ResponseWriter, r *http.Request) {
 		ResetUsage    bool
 		SubID         int64
 	}
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	sub, err := h.Store.AdjustSubscription(r.Context(), idOf(r), store.SubAdjust{SubID: in.SubID, AddDays: in.AddDays, QuotaOverride: in.QuotaOverride, ResetDay: in.ResetDay, ResetUsage: in.ResetUsage}, time.Now())
@@ -127,7 +105,7 @@ func (h *handlers) cancelQueuedSub(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) renewals(w http.ResponseWriter, r *http.Request) {
 	list, err := h.Store.ExpiringUsers(r.Context(), queryInt(r, "limit", 200))
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, list)

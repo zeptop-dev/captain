@@ -192,6 +192,57 @@ func pathID(r *http.Request) (int64, bool) {
 
 func decode(r *http.Request, v any) bool { return json.NewDecoder(r.Body).Decode(v) == nil }
 
+// readJSON decodes the body into v and answers 400 itself when it is not
+// JSON, so handlers only spell out the checks that are theirs.
+func readJSON(w http.ResponseWriter, r *http.Request, v any) bool {
+	if !decode(r, v) {
+		fail(w, http.StatusBadRequest, "bad json")
+		return false
+	}
+	return true
+}
+
+// getSetting answers the stored settings document of type T (zero value
+// when unset), after fill has had a chance to add defaults or masks.
+func getSetting[T any](h *handlers, w http.ResponseWriter, r *http.Request, key string, fill func(*T)) {
+	var v T
+	_ = h.Store.GetSetting(r.Context(), key, &v)
+	if fill != nil {
+		fill(&v)
+	}
+	ok(w, v)
+}
+
+// putSetting decodes, lets check normalise or refuse (its message is the
+// 400), stores under key and echoes the stored value.
+func putSetting[T any](h *handlers, w http.ResponseWriter, r *http.Request, key string, check func(context.Context, *T) string) {
+	var v T
+	if !readJSON(w, r, &v) {
+		return
+	}
+	if check != nil {
+		if msg := check(r.Context(), &v); msg != "" {
+			fail(w, http.StatusBadRequest, msg)
+			return
+		}
+	}
+	if err := h.Store.SetSetting(r.Context(), key, v); err != nil {
+		serverErr(w, err)
+		return
+	}
+	ok(w, v)
+}
+
+// serverErr answers a store/service error: a missing row is the client's
+// 404, everything else the 500 it is.
+func serverErr(w http.ResponseWriter, err error) {
+	if errors.Is(err, store.ErrNotFound) {
+		fail(w, http.StatusNotFound, "not found")
+		return
+	}
+	serverErr(w, err)
+}
+
 func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !h.adminAllowed(r.Context(), ratelimit.ClientIP(r)) {
@@ -241,8 +292,7 @@ func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 
 func (h *handlers) login(w http.ResponseWriter, r *http.Request) {
 	var in struct{ Email, Password, Code string }
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	ip := ratelimit.ClientIP(r)
@@ -325,12 +375,12 @@ func (h *handlers) dashboard(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	stats, err := h.Store.Dashboard(r.Context(), now)
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	series, err := h.Store.TrafficSeries(r.Context(), now, 14)
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	open, _ := h.Store.OpenTickets(r.Context())

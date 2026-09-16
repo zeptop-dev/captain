@@ -27,8 +27,7 @@ func (h *handlers) getSecurity(w http.ResponseWriter, r *http.Request) {
 // caller out.
 func (h *handlers) putSecurity(w http.ResponseWriter, r *http.Request) {
 	var v store.SecuritySettings
-	if !decode(r, &v) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &v) {
 		return
 	}
 	var clean []string
@@ -54,7 +53,7 @@ func (h *handlers) putSecurity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.SetSetting(r.Context(), store.SettingSecurity, v); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	h.securityMu.Lock()
@@ -110,7 +109,7 @@ type staffView struct {
 func (h *handlers) listStaff(w http.ResponseWriter, r *http.Request) {
 	list, err := h.Store.ListStaff(r.Context())
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	out := make([]staffView, 0, len(list))
@@ -128,7 +127,7 @@ func (h *handlers) createStaff(w http.ResponseWriter, r *http.Request) {
 	}
 	u, err := NewUser(strings.ToLower(strings.TrimSpace(in.Email)), in.Password, in.Role)
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	if err := h.Store.CreateUser(r.Context(), u); err != nil {
@@ -140,8 +139,7 @@ func (h *handlers) createStaff(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) updateStaff(w http.ResponseWriter, r *http.Request) {
 	var in struct{ Role, Status, Password string }
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	target, err := h.Store.UserByID(r.Context(), idOf(r))
@@ -163,7 +161,7 @@ func (h *handlers) updateStaff(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.Role != "" && in.Role != target.Role {
 		if err := h.Store.SetRole(r.Context(), target.ID, in.Role); err != nil {
-			fail(w, http.StatusInternalServerError, err.Error())
+			serverErr(w, err)
 			return
 		}
 	}
@@ -178,12 +176,12 @@ func (h *handlers) updateStaff(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if hash, err = auth.HashPassword(in.Password); err != nil {
-			fail(w, http.StatusInternalServerError, err.Error())
+			serverErr(w, err)
 			return
 		}
 	}
 	if err := h.Store.UpdateUser(r.Context(), target.ID, status, target.GroupID, hash); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	if hash != "" {
@@ -209,7 +207,7 @@ func (h *handlers) deleteStaff(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err := h.Store.DeleteStaff(r.Context(), target.ID); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]bool{"ok": true})
@@ -218,7 +216,7 @@ func (h *handlers) deleteStaff(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) listTokens(w http.ResponseWriter, r *http.Request) {
 	list, err := h.Store.ListAPITokens(r.Context(), userFrom(r).ID)
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, list)
@@ -232,7 +230,7 @@ func (h *handlers) createToken(w http.ResponseWriter, r *http.Request) {
 	}
 	plain, tok, err := h.Store.CreateAPIToken(r.Context(), userFrom(r).ID, strings.TrimSpace(in.Name))
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]any{"token": plain, "id": tok.ID, "name": tok.Name})
@@ -240,7 +238,7 @@ func (h *handlers) createToken(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) deleteToken(w http.ResponseWriter, r *http.Request) {
 	if err := h.Store.DeleteAPIToken(r.Context(), userFrom(r).ID, idOf(r)); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]bool{"ok": true})
@@ -261,7 +259,7 @@ func (h *handlers) totpSetup(w http.ResponseWriter, r *http.Request) {
 	}
 	secret := auth.NewTOTPSecret()
 	if err := h.Store.SetTOTP(r.Context(), u.ID, secret, false); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]any{"secret": secret, "uri": auth.TOTPURI(firstNonEmpty(h.SiteName, "Captain"), u.Email, secret)})
@@ -269,8 +267,7 @@ func (h *handlers) totpSetup(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) totpEnable(w http.ResponseWriter, r *http.Request) {
 	var in struct{ Code string }
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	u := userFrom(r)
@@ -284,7 +281,7 @@ func (h *handlers) totpEnable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.SetTOTP(r.Context(), u.ID, secret, true); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]bool{"totp": true})
@@ -292,8 +289,7 @@ func (h *handlers) totpEnable(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) totpDisable(w http.ResponseWriter, r *http.Request) {
 	var in struct{ Code string }
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	u := userFrom(r)
@@ -303,7 +299,7 @@ func (h *handlers) totpDisable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.SetTOTP(r.Context(), u.ID, "", false); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]bool{"totp": false})

@@ -44,7 +44,7 @@ func (h *handlers) certHook(r *http.Request) certHookSettings {
 func (h *handlers) listCertificates(w http.ResponseWriter, r *http.Request) {
 	list, err := h.Store.ListCertificates(r.Context())
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	deployed := h.deployments(r)
@@ -100,8 +100,7 @@ func (h *handlers) issueCertificate(w http.ResponseWriter, r *http.Request) {
 		Names    []string
 		DomainID *int64
 	}
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	if h.Certs == nil || !h.Certs.Available() {
@@ -136,8 +135,7 @@ func (h *handlers) updateCertificate(w http.ResponseWriter, r *http.Request) {
 		Name      string
 		AutoRenew *bool
 	}
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	c, err := h.Store.CertificateByID(r.Context(), idOf(r))
@@ -152,7 +150,7 @@ func (h *handlers) updateCertificate(w http.ResponseWriter, r *http.Request) {
 		c.AutoRenew = *in.AutoRenew
 	}
 	if err := h.Store.UpdateCertificateMeta(r.Context(), c.ID, c.Name, c.AutoRenew); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	c.CertPEM = ""
@@ -183,7 +181,7 @@ func (h *handlers) uploadCertificate(w http.ResponseWriter, r *http.Request) {
 	}
 	c.Source = "upload"
 	if err := h.Store.UpsertCertificate(r.Context(), c); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	c.CertPEM = ""
@@ -192,7 +190,7 @@ func (h *handlers) uploadCertificate(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) deleteCertificate(w http.ResponseWriter, r *http.Request) {
 	if err := h.Store.DeleteCertificate(r.Context(), idOf(r)); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]bool{"ok": true})
@@ -201,7 +199,7 @@ func (h *handlers) deleteCertificate(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) rotateCertHookToken(w http.ResponseWriter, r *http.Request) {
 	s := certHookSettings{Token: auth.Token(24)}
 	if err := h.Store.SetSetting(r.Context(), settingCertHook, s); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]string{"webhook_url": strings.TrimRight(h.BaseURL, "/") + "/api/hooks/certificate?token=" + s.Token})
@@ -261,7 +259,7 @@ func (h *handlers) certificateWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 	c.Source = "webhook"
 	if err := h.Store.UpsertCertificate(r.Context(), c); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	if h.Log != nil {

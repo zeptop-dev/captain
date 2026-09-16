@@ -116,7 +116,7 @@ func appendUnique(list []string, v string) []string {
 func (h *handlers) listDomains(w http.ResponseWriter, r *http.Request) {
 	list, err := h.Store.ListDomains(r.Context())
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	use, certs := h.usage(r, list)
@@ -134,8 +134,7 @@ func (h *handlers) createDomain(w http.ResponseWriter, r *http.Request) {
 		Name, Provider, CFToken string
 		AutoDNS                 *bool
 	}
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	name := strings.ToLower(strings.TrimSpace(in.Name))
@@ -161,8 +160,7 @@ func (h *handlers) updateDomain(w http.ResponseWriter, r *http.Request) {
 		Provider, CFToken string
 		AutoDNS           *bool
 	}
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	d, err := h.Store.DomainByID(r.Context(), idOf(r))
@@ -184,7 +182,7 @@ func (h *handlers) updateDomain(w http.ResponseWriter, r *http.Request) {
 		d.CFToken = strings.TrimSpace(in.CFToken)
 	}
 	if err := h.Store.UpdateDomain(r.Context(), d); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	d.HasToken = d.CFToken != ""
@@ -193,7 +191,7 @@ func (h *handlers) updateDomain(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) deleteDomain(w http.ResponseWriter, r *http.Request) {
 	if err := h.Store.DeleteDomain(r.Context(), idOf(r)); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]bool{"ok": true})

@@ -36,7 +36,7 @@ func (h *handlers) keys(w http.ResponseWriter, r *http.Request) {
 	case "wireguard":
 		priv, pub, err := wg.Keypair()
 		if err != nil {
-			fail(w, http.StatusInternalServerError, err.Error())
+			serverErr(w, err)
 			return
 		}
 		ok(w, map[string]string{"private_key": priv, "public_key": pub})
@@ -96,7 +96,7 @@ func (h *handlers) tcping(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) speedtest(w http.ResponseWriter, r *http.Request) {
 	entries, err := h.Store.ListEntries(r.Context())
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	tcpingMu.Lock()

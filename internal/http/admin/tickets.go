@@ -33,7 +33,7 @@ func (h *handlers) listTickets(w http.ResponseWriter, r *http.Request) {
 	limit, offset := queryInt(r, "limit", 50), queryInt(r, "offset", 0)
 	rows, total, err := h.Store.ListTickets(r.Context(), 0, r.URL.Query().Get("status"), limit, offset)
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	out := make([]ticketView, 0, len(rows))
@@ -75,7 +75,7 @@ func (h *handlers) replyTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.ReplyTicket(r.Context(), t.ID, true, strings.TrimSpace(in.Body)); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	if u, err := h.Store.UserByID(r.Context(), t.UserID); err == nil {
@@ -86,8 +86,7 @@ func (h *handlers) replyTicket(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) ticketStatus(w http.ResponseWriter, r *http.Request) {
 	var in struct{ Status string }
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	switch in.Status {
@@ -97,7 +96,7 @@ func (h *handlers) ticketStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.SetTicketStatus(r.Context(), idOf(r), in.Status); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	h.writeTicket(w, r, idOf(r))

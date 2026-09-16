@@ -26,7 +26,7 @@ func toArticleView(a *domain.Article) articleView {
 func (h *handlers) listArticles(w http.ResponseWriter, r *http.Request) {
 	list, err := h.Store.ListArticles(r.Context(), false)
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	out := make([]articleView, 0, len(list))
@@ -59,7 +59,7 @@ func (h *handlers) createArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.CreateArticle(r.Context(), &a); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, toArticleView(&a))
@@ -76,7 +76,7 @@ func (h *handlers) updateArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.UpdateArticle(r.Context(), a); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, toArticleView(a))
@@ -84,7 +84,7 @@ func (h *handlers) updateArticle(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) deleteArticle(w http.ResponseWriter, r *http.Request) {
 	if err := h.Store.DeleteArticle(r.Context(), idOf(r)); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]bool{"ok": true})

@@ -13,34 +13,26 @@ import (
 )
 
 func (h *handlers) getClients(w http.ResponseWriter, r *http.Request) {
-	var v store.ClientsSettings
-	_ = h.Store.GetSetting(r.Context(), store.SettingClients, &v)
-	if v.Items == nil {
-		v.Items = []store.ClientItem{}
-	}
-	ok(w, v)
+	getSetting(h, w, r, store.SettingClients, func(v *store.ClientsSettings) {
+		if v.Items == nil {
+			v.Items = []store.ClientItem{}
+		}
+	})
 }
 
 func (h *handlers) putClients(w http.ResponseWriter, r *http.Request) {
-	var v store.ClientsSettings
-	if !decode(r, &v) {
-		fail(w, http.StatusBadRequest, "bad json")
-		return
-	}
-	items := make([]store.ClientItem, 0, len(v.Items))
-	for _, it := range v.Items {
-		it.Name, it.URL = strings.TrimSpace(it.Name), strings.TrimSpace(it.URL)
-		if it.Name == "" || it.URL == "" {
-			continue
+	putSetting(h, w, r, store.SettingClients, func(_ context.Context, v *store.ClientsSettings) string {
+		items := make([]store.ClientItem, 0, len(v.Items))
+		for _, it := range v.Items {
+			it.Name, it.URL = strings.TrimSpace(it.Name), strings.TrimSpace(it.URL)
+			if it.Name == "" || it.URL == "" {
+				continue
+			}
+			items = append(items, it)
 		}
-		items = append(items, it)
-	}
-	v.Items = items
-	if err := h.Store.SetSetting(r.Context(), store.SettingClients, v); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	ok(w, v)
+		v.Items = items
+		return ""
+	})
 }
 
 func (h *handlers) getTelegram(w http.ResponseWriter, r *http.Request) {
@@ -53,8 +45,7 @@ func (h *handlers) getTelegram(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) putTelegram(w http.ResponseWriter, r *http.Request) {
 	var v store.TelegramSettings
-	if !decode(r, &v) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &v) {
 		return
 	}
 	var cur store.TelegramSettings
@@ -77,7 +68,7 @@ func (h *handlers) putTelegram(w http.ResponseWriter, r *http.Request) {
 		v.BotUsername = name
 	}
 	if err := h.Store.SetSetting(r.Context(), store.SettingTelegram, v); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	if h.Bot != nil {
@@ -124,8 +115,7 @@ func (h *handlers) getWebhooks(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) putWebhooks(w http.ResponseWriter, r *http.Request) {
 	var v webhook.Settings
-	if !decode(r, &v) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &v) {
 		return
 	}
 	var cur webhook.Settings
@@ -151,7 +141,7 @@ func (h *handlers) putWebhooks(w http.ResponseWriter, r *http.Request) {
 	}
 	v.Endpoints = eps
 	if err := h.Store.SetSetting(r.Context(), webhook.SettingKey, v); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	if h.Hooks != nil {
@@ -186,8 +176,7 @@ func (h *handlers) getKomari(w http.ResponseWriter, r *http.Request) {
 // putKomari stores the setting; a blank key keeps the stored one, "-" clears it.
 func (h *handlers) putKomari(w http.ResponseWriter, r *http.Request) {
 	var in store.KomariSettings
-	if !decode(r, &in) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &in) {
 		return
 	}
 	var cur store.KomariSettings
@@ -214,7 +203,7 @@ func (h *handlers) putKomari(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.SetSetting(r.Context(), store.SettingKomari, in); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]any{"enabled": in.Enabled, "server": in.Server, "interval": in.Interval, "has_key": in.Key != ""})

@@ -11,7 +11,7 @@ import (
 func (h *handlers) listPlans(w http.ResponseWriter, r *http.Request) {
 	plans, err := h.Store.ListPlans(r.Context(), false)
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	if plans == nil {
@@ -28,7 +28,7 @@ func (h *handlers) createPlan(w http.ResponseWriter, r *http.Request) {
 	}
 	p.Enabled = true
 	if err := h.Store.CreatePlan(r.Context(), &p); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, p)
@@ -48,7 +48,7 @@ func (h *handlers) updatePlan(w http.ResponseWriter, r *http.Request) {
 	}
 	p.ID = cur.ID
 	if err := h.Store.UpdatePlan(r.Context(), &p); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, p)
@@ -70,7 +70,7 @@ func (h *handlers) deletePlan(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) listGroups(w http.ResponseWriter, r *http.Request) {
 	groups, err := h.Store.ListGroups(r.Context())
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	if groups == nil {
@@ -96,7 +96,7 @@ func (h *handlers) createGroup(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) listCoupons(w http.ResponseWriter, r *http.Request) {
 	list, err := h.Store.ListCoupons(r.Context())
 	if err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, list)
@@ -104,8 +104,7 @@ func (h *handlers) listCoupons(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) createCoupon(w http.ResponseWriter, r *http.Request) {
 	var c domain.Coupon
-	if !decode(r, &c) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !readJSON(w, r, &c) {
 		return
 	}
 	if strings.TrimSpace(c.Code) == "" {
@@ -121,8 +120,11 @@ func (h *handlers) createCoupon(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) updateCoupon(w http.ResponseWriter, r *http.Request) {
 	id, okID := pathID(r)
 	var c domain.Coupon
-	if !okID || !decode(r, &c) {
-		fail(w, http.StatusBadRequest, "bad json")
+	if !okID {
+		fail(w, http.StatusBadRequest, "bad id")
+		return
+	}
+	if !readJSON(w, r, &c) {
 		return
 	}
 	c.ID = id
@@ -140,7 +142,7 @@ func (h *handlers) deleteCoupon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.DeleteCoupon(r.Context(), id); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		serverErr(w, err)
 		return
 	}
 	ok(w, map[string]bool{"ok": true})
