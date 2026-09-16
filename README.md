@@ -355,6 +355,15 @@ back through the node). Ports are checked against the node's own
 inbounds. (Xray-style domain/IP splitting inside a tunnel is not offered:
 use the routing rules on the landing node instead.)
 
+Relays hide the client's address from the landing node, so by default every
+connection arriving from one of the panel's own nodes counts as *one* online
+device for the limit (and is marked "via relay" in the user drawer). For the
+real per-client picture, tick "Expect PROXY protocol" on a landing inbound
+that is reached only through this panel's forwards (xray only): forwards
+targeting it send a PROXY protocol v2 header automatically (built-in relay
+or realm backend), the landing node sees the real client and counts devices
+exactly. Direct connections to such an inbound fail, by design.
+
 ## API tokens and MCP
 
 Settings → API tokens & MCP issues personal bearer tokens (`cap_...`) for the

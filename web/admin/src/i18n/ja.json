@@ -251,7 +251,9 @@
     "snellObfs": "難読化",
     "snellObfsHost": "難読化 Host",
     "snellHint": "Snell は全員が 1 つの PSK を共有し、ユーザー別の通信量統計や制限はありません。自分用や小規模な仲間内向けです。Surge、Stash、mihomo が対応。sing-box と URI サブスクリプションには含まれません。",
-    "generate": "生成"
+    "generate": "生成",
+    "acceptProxy": "PROXY protocol を要求（中継専用）",
+    "acceptProxyHint": "このパネルの転送経由でのみ到達するインバウンド向け：中継がクライアントの実アドレスを PROXY protocol ヘッダーで渡し、オンライン端末とログに実クライアントが表示されます。有効にすると直接接続は失敗します。xray のみ。"
   },
   "entries": {
     "title": "エントリ",
@@ -810,7 +812,8 @@
     "backendRelay": "内蔵転送",
     "backendNft": "nftables（カーネル DNAT）",
     "preserve": "送信元 IP を保持",
-    "nftHint": "nftables バックエンドはカーネル DNAT を使います。ノードに nft コマンドが必要で、転送先は IPv4 のみ。送信元 IP を保持する場合、転送先の戻りパケットはこのノードを経由する必要があります。"
+    "nftHint": "nftables バックエンドはカーネル DNAT を使います。ノードに nft コマンドが必要で、転送先は IPv4 のみ。送信元 IP を保持する場合、転送先の戻りパケットはこのノードを経由する必要があります。",
+    "proxyProtocol": "PROXY protocol を送信"
   },
   "ingress": {
     "derive": "末尾から派生",

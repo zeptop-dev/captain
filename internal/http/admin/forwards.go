@@ -87,6 +87,27 @@ func (h *handlers) putNodeForwards(w http.ResponseWriter, r *http.Request) {
 			fail(w, http.StatusBadRequest, "preserve_source needs the nft backend")
 			return
 		}
+		if f.ProxyProtocol && f.Backend == "nft" {
+			fail(w, http.StatusBadRequest, "proxy_protocol needs the built-in relay or realm backend (nft keeps the source with preserve_source)")
+			return
+		}
+		// A forward aimed at one of our own inbounds follows that inbound's
+		// PROXY protocol setting: an inbound that expects the header gets
+		// it, one that does not must not receive it.
+		if f.InboundID != 0 {
+			if tgt, err := h.Store.InboundByID(r.Context(), f.InboundID); err == nil {
+				switch {
+				case tgt.Settings.AcceptProxyProtocol && f.Backend == "nft":
+					fail(w, http.StatusBadRequest, fmt.Sprintf("rule %d: inbound %s expects a PROXY protocol header; use the built-in relay or realm backend", i+1, tgt.Tag))
+					return
+				case tgt.Settings.AcceptProxyProtocol:
+					f.ProxyProtocol = true
+				case f.ProxyProtocol:
+					fail(w, http.StatusBadRequest, fmt.Sprintf("rule %d: inbound %s does not accept PROXY protocol", i+1, tgt.Tag))
+					return
+				}
+			}
+		}
 		host, port, err := net.SplitHostPort(strings.TrimSpace(f.Target))
 		if err != nil || host == "" {
 			fail(w, http.StatusBadRequest, fmt.Sprintf("rule %d: target must be host:port", i+1))

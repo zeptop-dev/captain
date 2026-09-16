@@ -2767,3 +2767,54 @@ func TestAutoDNS(t *testing.T) {
 		t.Fatalf("auto dns off: %s", b)
 	}
 }
+
+// Connections arriving from one of the panel's own nodes come through a
+// forward that hides the client (no PROXY protocol): they count as one
+// device altogether, not one per relay address.
+func TestDeviceLimitRelay(t *testing.T) {
+	service.DeviceHold, service.CacheTTL = 0, 0
+	defer func() { service.DeviceHold, service.CacheTTL = 5*time.Minute, 10*time.Second }()
+	cfg := config.Default()
+	cfg.BaseURL = "http://test"
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
+	_ = st.CreateUser(context.Background(), adminUser)
+	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	defer srv.Close()
+	c := &client{t: t, srv: srv}
+	c.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
+	_, b, _ := c.do("POST", "/api/admin/nodes", map[string]string{"Name": "exit", "PublicAddr": "203.0.113.30"}, nil)
+	node := mustJSON[map[string]any](t, b)
+	c.do("POST", "/api/admin/nodes", map[string]string{"Name": "relay", "PublicAddr": "198.51.100.20"}, nil)
+	c.do("POST", "/api/admin/nodes/"+itoa(int64(node["id"].(float64)))+"/inbounds", map[string]any{"Tag": "t", "Protocol": "vless", "Port": 1}, nil)
+	_, b, _ = c.do("POST", "/api/admin/users", map[string]string{"Email": "u@test", "Password": "password123"}, nil)
+	u := mustJSON[map[string]any](t, b)
+	_, b, _ = c.do("POST", "/api/admin/plans", map[string]any{"Name": "two-devices", "PriceCents": 1, "PeriodDays": 30, "DeviceLimit": 2}, nil)
+	plan := mustJSON[map[string]any](t, b)
+	c.do("POST", "/api/admin/users/"+itoa(int64(u["id"].(float64)))+"/grant", map[string]any{"PlanID": plan["ID"]}, nil)
+	agent := &client{t: t, srv: srv}
+	_, b, _ = agent.do("POST", "/api/agent/pair", agentproto.PairRequest{Code: node["pair_code"].(string)}, nil)
+	agent.token = mustJSON[agentproto.PairResponse](t, b).Token
+	uuid := u["uuid"].(string)
+	// One direct client plus connections from the relay: two devices, fine.
+	agent.do("POST", "/api/agent/report", agentproto.Report{Online: map[string][]string{uuid: {"1.1.1.1", "198.51.100.20"}}}, nil)
+	_, b, _ = agent.do("GET", "/api/agent/state", nil, nil)
+	if stt := mustJSON[agentproto.State](t, b); len(stt.Users) != 1 {
+		t.Fatalf("direct + relay should count as two: %+v", stt.Users)
+	}
+	_, b, _ = c.do("GET", "/api/admin/users/"+itoa(int64(u["id"].(float64))), nil, nil)
+	if !strings.Contains(string(b), `"via_relay":true`) {
+		t.Fatalf("relay address should be marked: %s", b)
+	}
+	// A second direct client makes three.
+	_, b, _ = agent.do("POST", "/api/agent/report", agentproto.Report{Online: map[string][]string{uuid: {"2.2.2.2"}}}, nil)
+	if rr := mustJSON[agentproto.ReportResponse](t, b); !rr.StateChanged {
+		t.Fatal("third device should change state")
+	}
+	_, b, _ = agent.do("GET", "/api/agent/state", nil, nil)
+	if stt := mustJSON[agentproto.State](t, b); len(stt.Users) != 0 {
+		t.Fatalf("over-limit user still provisioned: %+v", stt.Users)
+	}
+}

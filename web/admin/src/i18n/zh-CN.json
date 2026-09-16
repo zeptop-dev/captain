@@ -251,7 +251,9 @@
     "wgAddressHint": "用户地址从这个网段按编号分配",
     "traffic": "流量（今日 / 累计）",
     "noSniff": "关闭目标嗅探",
-    "noSniffHint": "默认开启：从 TLS/HTTP 头里识别真实域名，域名分流才能生效。只有嗅探导致某些客户端异常时才关。"
+    "noSniffHint": "默认开启：从 TLS/HTTP 头里识别真实域名，域名分流才能生效。只有嗅探导致某些客户端异常时才关。",
+    "acceptProxy": "要求 PROXY protocol（仅经转发）",
+    "acceptProxyHint": "只给完全经本面板转发到达的入站开：中继会在连接前带上客户端真实地址，在线设备和日志看到的就是真实客户端。开了之后直连这个入站会失败。仅 xray。"
   },
   "entries": {
     "title": "入口",
@@ -893,7 +895,8 @@
     "preserve": "保留源 IP",
     "nftHint": "nftables 后端走内核 DNAT，节点需要 nft 命令，目标必须是 IPv4；保留源 IP 时目标服务器的回包路由必须经过本机。",
     "backendRealm": "Realm（独立进程）",
-    "backendRealmHint": "由 bosun 安装并运行 zhboner/realm 中转，吞吐高，支持域名目标和 UDP；没有连接数和流量统计。"
+    "backendRealmHint": "由 bosun 安装并运行 zhboner/realm 中转，吞吐高，支持域名目标和 UDP；没有连接数和流量统计。",
+    "proxyProtocol": "发送 PROXY protocol"
   },
   "backup": {
     "title": "数据库备份",

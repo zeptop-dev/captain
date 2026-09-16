@@ -251,7 +251,9 @@
     "snellObfs": "난독화",
     "snellObfsHost": "난독화 Host",
     "snellHint": "Snell 은 모든 사용자가 하나의 PSK 를 공유하므로 사용자별 트래픽 통계나 제한이 없습니다. 개인용이나 소규모 그룹에 적합합니다. Surge, Stash, mihomo 가 지원하며 sing-box 와 URI 구독에는 포함되지 않습니다.",
-    "generate": "생성"
+    "generate": "생성",
+    "acceptProxy": "PROXY protocol 요구 (중계 전용)",
+    "acceptProxyHint": "이 패널의 포워드로만 도달하는 인바운드에만 켜세요: 중계가 클라이언트 실제 주소를 PROXY protocol 헤더로 전달해 온라인 기기와 로그에 실제 클라이언트가 표시됩니다. 켜면 직접 연결은 실패합니다. xray 전용."
   },
   "entries": {
     "title": "진입점",
@@ -810,7 +812,8 @@
     "backendRelay": "내장 중계",
     "backendNft": "nftables(커널 DNAT)",
     "preserve": "출발지 IP 유지",
-    "nftHint": "nftables 백엔드는 커널 DNAT 를 씁니다. 노드에 nft 명령이 있어야 하고 대상은 IPv4 여야 합니다. 출발지 IP 를 유지하면 대상 서버의 응답 패킷이 이 노드를 거쳐 돌아와야 합니다."
+    "nftHint": "nftables 백엔드는 커널 DNAT 를 씁니다. 노드에 nft 명령이 있어야 하고 대상은 IPv4 여야 합니다. 출발지 IP 를 유지하면 대상 서버의 응답 패킷이 이 노드를 거쳐 돌아와야 합니다.",
+    "proxyProtocol": "PROXY protocol 전송"
   },
   "ingress": {
     "derive": "끝자리로 파생",

@@ -178,6 +178,7 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
           <Switch label={t('inbounds.enabled')} {...form.getInputProps('Enabled', { type: 'checkbox' })} />
         </Group>
         <Switch label={t('inbounds.noSniff')} description={t('inbounds.noSniffHint')} checked={!!settingOf(form.values.Settings, 'no_sniff')} onChange={(e) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { no_sniff: e.currentTarget.checked ? true : '' }))} />
+        <Switch label={t('inbounds.acceptProxy')} description={t('inbounds.acceptProxyHint')} checked={!!settingOf(form.values.Settings, 'accept_proxy_protocol')} onChange={(e) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { accept_proxy_protocol: e.currentTarget.checked ? true : '' }))} />
         {form.values.Protocol === 'mieru' && (
           <Group grow align="flex-start">
             <NumberInput label={t('inbounds.mieruMTU')} description={t('inbounds.mieruMTUHint')} min={1280} max={1500} placeholder="1400" value={(settingOf(form.values.Settings, 'mieru_mtu') as number | undefined) || ''} onChange={(v) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { mieru_mtu: Number(v) || 0 }))} />

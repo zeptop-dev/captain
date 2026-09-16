@@ -7,7 +7,7 @@ import { api, type Inbound, type Ingress, type Node } from '../lib/api'
 import { bytes } from '../lib/format'
 import { toast } from '../lib/notify'
 
-interface Forward { tag: string; listen?: string; port: number; protocol: string; target: string; inbound_id?: number; backend?: string; preserve_source?: boolean }
+interface Forward { tag: string; listen?: string; port: number; protocol: string; target: string; inbound_id?: number; backend?: string; preserve_source?: boolean; proxy_protocol?: boolean }
 interface Status { up: boolean; rtt_ms: number; last_error: string; active_conn: number; total_conn: number; bytes_in: number; bytes_out: number }
 
 // Port forwards on one node: raw TCP/UDP relays to a landing server. Pick a
@@ -28,6 +28,7 @@ export function ForwardsCard({ node, embedded }: { node: Node; embedded?: boolea
   const [proto, setProto] = useState('both')
   const [backend, setBackend] = useState('')
   const [preserve, setPreserve] = useState(false)
+  const [proxyProto, setProxyProto] = useState(false)
   const [target, setTarget] = useState<string | null>(null)
   const [manual, setManual] = useState('')
   const add = () => {
@@ -37,7 +38,7 @@ export function ForwardsCard({ node, embedded }: { node: Node; embedded?: boolea
     // A line ingress is reached through its far-end address, never the node's public IP.
     const tgt = pick ? `${pick.ingress?.line_ip || pick.node.public_addr}:${pick.ib.Port}` : manual.trim()
     if (!tgt) return
-    setList((cur) => [...cur, { tag: `fwd-${p}`, port: p, protocol: proto, target: tgt, inbound_id: pick?.ib.ID, backend: backend || undefined, preserve_source: backend === 'nft' && preserve ? true : undefined }])
+    setList((cur) => [...cur, { tag: `fwd-${p}`, port: p, protocol: proto, target: tgt, inbound_id: pick?.ib.ID, backend: backend || undefined, preserve_source: backend === 'nft' && preserve ? true : undefined, proxy_protocol: backend !== 'nft' && proxyProto ? true : undefined }])
     setPort(''); setTarget(null); setManual('')
   }
   const mkEntry = useMutation({ mutationFn: (f: Forward) => api.post('/api/admin/entries', { Name: `${node.name} → ${targets.find((x) => x.ib.ID === f.inbound_id)?.node.name ?? f.target}`, InboundID: f.inbound_id, DisplayHost: node.public_addr, DisplayPort: f.port, Rate: 1, Enabled: true }), onSuccess: () => { toast.ok(t('forwards.entryMade')); qc.invalidateQueries({ queryKey: ['entries'] }) }, onError: toast.err })
@@ -53,7 +54,7 @@ export function ForwardsCard({ node, embedded }: { node: Node; embedded?: boolea
           return (
             <Group key={i} justify="space-between" wrap="nowrap">
               <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
-                <Code>{f.protocol === 'both' ? 'tcp+udp' : f.protocol} :{f.port}</Code><Text size="sm">→</Text><Code>{f.target}</Code>{f.backend === 'realm' && <Badge size="xs" variant="outline" color="indigo">realm</Badge>}{f.backend === 'nft' && <Badge size="xs" variant="outline" color="grape">nft{f.preserve_source ? ' · src' : ''}</Badge>}
+                <Code>{f.protocol === 'both' ? 'tcp+udp' : f.protocol} :{f.port}</Code><Text size="sm">→</Text><Code>{f.target}</Code>{f.proxy_protocol && <Badge size="xs" variant="outline" color="teal">PROXY</Badge>}{f.backend === 'realm' && <Badge size="xs" variant="outline" color="indigo">realm</Badge>}{f.backend === 'nft' && <Badge size="xs" variant="outline" color="grape">nft{f.preserve_source ? ' · src' : ''}</Badge>}
                 {describe(f) && <Text size="xs" c="dimmed" truncate>{describe(f)}</Text>}
                 {s && <Tooltip label={s.last_error || `${s.active_conn} / ${s.total_conn} conn · ${bytes(s.bytes_in)} in · ${bytes(s.bytes_out)} out`}><Badge size="xs" color={s.up ? 'teal' : 'red'} variant="light">{s.up ? `${s.rtt_ms} ms` : t('forwards.down')}</Badge></Tooltip>}
               </Group>
@@ -71,6 +72,7 @@ export function ForwardsCard({ node, embedded }: { node: Node; embedded?: boolea
           {!target && <TextInput label={t('forwards.manual')} placeholder="1.2.3.4:443" style={{ flex: 2 }} value={manual} onChange={(e) => setManual(e.currentTarget.value)} />}
           <Select label={t('forwards.backend')} w={150} data={[{ value: '', label: t('forwards.backendRelay') }, { value: 'nft', label: t('forwards.backendNft') }, { value: 'realm', label: t('forwards.backendRealm') }]} value={backend} onChange={(v) => setBackend(v ?? '')} allowDeselect={false} />
           {backend === 'nft' && <Switch label={t('forwards.preserve')} mb={6} checked={preserve} onChange={(e) => setPreserve(e.currentTarget.checked)} />}
+          {backend !== 'nft' && <Switch label={t('forwards.proxyProtocol')} mb={6} checked={proxyProto} onChange={(e) => setProxyProto(e.currentTarget.checked)} />}
           <Button variant="light" leftSection={<IconPlus size={14} />} onClick={add} disabled={!port || (!target && !manual.trim())}>{t('forwards.add')}</Button>
         </Group>
         {dirty && <Group justify="flex-end"><Button size="xs" loading={save.isPending} onClick={() => save.mutate(list)}>{t('common.save')}</Button></Group>}

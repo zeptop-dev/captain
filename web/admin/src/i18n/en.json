@@ -251,7 +251,9 @@
     "wgAddressHint": "Client addresses are assigned from this network by user id",
     "traffic": "Traffic (today / total)",
     "noSniff": "Disable destination sniffing",
-    "noSniffHint": "On by default: reads the real host from TLS/HTTP so domain rules apply. Turn off only if sniffing breaks a client."
+    "noSniffHint": "On by default: reads the real host from TLS/HTTP so domain rules apply. Turn off only if sniffing breaks a client.",
+    "acceptProxy": "Expect PROXY protocol (relays only)",
+    "acceptProxyHint": "Only for an inbound reached exclusively through this panel's forwards: the relay sends the client's address in a PROXY protocol header, so online devices and logs show the real client. Direct connections to such an inbound fail. xray only."
   },
   "entries": {
     "title": "Entries",
@@ -893,7 +895,8 @@
     "preserve": "Preserve source IP",
     "nftHint": "The nftables backend does kernel DNAT: the node needs the nft binary and an IPv4 target; with source preserved the target must route replies back through this node.",
     "backendRealm": "Realm (separate process)",
-    "backendRealmHint": "bosun installs and runs a zhboner/realm relay: high throughput, hostname targets and UDP; no connection or traffic counters."
+    "backendRealmHint": "bosun installs and runs a zhboner/realm relay: high throughput, hostname targets and UDP; no connection or traffic counters.",
+    "proxyProtocol": "Send PROXY protocol"
   },
   "backup": {
     "title": "Database backups",

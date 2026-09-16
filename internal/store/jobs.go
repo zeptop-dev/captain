@@ -198,23 +198,58 @@ func (s *Store) OverDeviceLimit(ctx context.Context, cutoff time.Time) (map[int6
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT user_id, COUNT(DISTINCT ip) FROM online_devices WHERE last_seen_at >= ? GROUP BY user_id`, cutoff.Unix())
+	// Addresses of our own nodes are relays: a forward without PROXY
+	// protocol hides the clients behind it, so however many arrive that
+	// way they count as one device, not one per relay.
+	relay := map[string]bool{}
+	if nodes, err := s.ListNodes(ctx); err == nil {
+		for _, n := range nodes {
+			for _, a := range []string{n.PublicAddr, n.InternalAddr, n.V6Addr} {
+				if a != "" {
+					relay[a] = true
+				}
+			}
+		}
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT user_id, ip FROM online_devices WHERE last_seen_at >= ?`, cutoff.Unix())
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	out := map[int64]bool{}
+	direct := map[int64]map[string]bool{}
+	viaRelay := map[int64]bool{}
 	for rows.Next() {
 		var id int64
-		var n int
-		if err := rows.Scan(&id, &n); err != nil {
+		var ip string
+		if err := rows.Scan(&id, &ip); err != nil {
 			return nil, err
 		}
-		if limit := limits[id]; limit > 0 && n > limit {
+		if relay[ip] {
+			viaRelay[id] = true
+			continue
+		}
+		if direct[id] == nil {
+			direct[id] = map[string]bool{}
+		}
+		direct[id][ip] = true
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	out := map[int64]bool{}
+	for id, limit := range limits {
+		if limit <= 0 {
+			continue
+		}
+		n := len(direct[id])
+		if viaRelay[id] {
+			n++
+		}
+		if n > limit {
 			out[id] = true
 		}
 	}
-	return out, rows.Err()
+	return out, nil
 }
 
 // Backup writes a consistent snapshot of the database to path using
