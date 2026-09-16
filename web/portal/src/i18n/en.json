@@ -110,7 +110,7 @@
     "noteReplace": "Your current plan ends on payment and this one takes over.",
     "ask": {
       "renewTitle": "Renew \"{{plan}}\"",
-      "renewBody": "You already have this plan. This purchase extends the current expiry, and the traffic quota restarts for the new period.",
+      "renewBody": "You already have this plan. This purchase extends the current expiry; what you have used stays used. A plan with a reset cycle keeps its cycle, one without gets the new period's allowance added.",
       "renewGo": "Renew",
       "stackTitle": "You already have an active plan",
       "stackBody": "\"{{plan}}\" can run alongside your current plan: servers are combined, traffic is counted per plan. Or pay now and let it start automatically once the current plan expires or runs out of traffic.",

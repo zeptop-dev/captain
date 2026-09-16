@@ -97,7 +97,21 @@ func grantTx(ctx context.Context, tx *sql.Tx, userID int64, plan *domain.Plan, p
 				reset = sql.NullInt64{Int64: next.Unix(), Valid: true}
 			}
 		}
-		_, err := tx.ExecContext(ctx, `UPDATE subscriptions SET expires_at = ?, quota_bytes = ?, used_up_bytes = 0, used_down_bytes = 0, reset_at = ?, updated_at = ? WHERE id = ?`,
+		// A renewal buys time, not a fresh counter: what was used stays
+		// used and the reset cycle (if the plan has one) carries on. A
+		// plan without a reset cycle gets the new period's allowance
+		// added instead, or the renewal would buy nothing once the quota
+		// is spent.
+		var curReset sql.NullInt64
+		var curQuota int64
+		_ = tx.QueryRowContext(ctx, `SELECT reset_at, quota_bytes FROM subscriptions WHERE id = ?`, subID).Scan(&curReset, &curQuota)
+		if !reset.Valid && !curReset.Valid && quota > 0 {
+			quota += curQuota
+		}
+		if curReset.Valid && curReset.Int64 > at.Unix() {
+			reset = curReset
+		}
+		_, err := tx.ExecContext(ctx, `UPDATE subscriptions SET expires_at = ?, quota_bytes = ?, reset_at = ?, updated_at = ? WHERE id = ?`,
 			expires, quota, reset, now(), subID)
 		return err
 	}

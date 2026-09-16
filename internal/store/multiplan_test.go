@@ -155,3 +155,70 @@ func TestUserQuotas(t *testing.T) {
 		t.Fatalf("unlimited plan got a quota: %+v", q[c])
 	}
 }
+
+// A renewal extends the expiry and keeps what was used; a plan without a
+// reset cycle gains the new period's allowance, one with a cycle keeps its
+// counter and next reset.
+func TestRenewalKeepsUsage(t *testing.T) {
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "r.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	s := New(conn)
+	ctx := context.Background()
+	at := time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)
+	flat := &domain.Plan{Name: "flat", PeriodDays: 30, QuotaBytes: 100, Enabled: true}
+	cyc := &domain.Plan{Name: "cyc", PeriodDays: 30, QuotaBytes: 100, ResetDays: 30, Enabled: true}
+	for _, p := range []*domain.Plan{flat, cyc} {
+		if err := s.CreatePlan(ctx, p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	u := &domain.User{Email: "r@x.y", UUID: "r", Status: "active"}
+	_ = s.CreateUser(ctx, u)
+	for _, p := range []*domain.Plan{flat, cyc} {
+		if _, err := s.GrantSubscriptionMode(ctx, u.ID, p, at, GrantStack); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_ = s.AddTraffic(ctx, u.ID, 0, 10, 20, at) // charged to the soonest-expiring (both expire together: lowest id = flat)
+	before, _ := s.ActiveSubscriptions(ctx, u.ID)
+	byPlan := map[int64]*domain.Subscription{}
+	for _, sub := range before {
+		byPlan[sub.PlanID] = sub
+	}
+	usedFlat := byPlan[flat.ID].UsedUpBytes + byPlan[flat.ID].UsedDownBytes
+	if usedFlat != 30 {
+		t.Fatalf("setup: flat used %d", usedFlat)
+	}
+	cycReset := byPlan[cyc.ID].ResetAt
+	for _, p := range []*domain.Plan{flat, cyc} {
+		if _, err := s.GrantSubscriptionMode(ctx, u.ID, p, at.Add(time.Hour), GrantStack); err != nil {
+			t.Fatal(err)
+		}
+	}
+	after, _ := s.ActiveSubscriptions(ctx, u.ID)
+	if len(after) != 2 {
+		t.Fatalf("renewal must not add rows: %d", len(after))
+	}
+	for _, sub := range after {
+		prev := byPlan[sub.PlanID]
+		if sub.ID != prev.ID {
+			t.Fatalf("renewal replaced the row for plan %d", sub.PlanID)
+		}
+		if !sub.ExpiresAt.Equal(prev.ExpiresAt.AddDate(0, 0, 30)) {
+			t.Fatalf("plan %d: expiry %v, want %v", sub.PlanID, sub.ExpiresAt, prev.ExpiresAt.AddDate(0, 0, 30))
+		}
+		if sub.UsedUpBytes != prev.UsedUpBytes || sub.UsedDownBytes != prev.UsedDownBytes {
+			t.Fatalf("plan %d: usage changed on renewal: %+v -> %+v", sub.PlanID, prev, sub)
+		}
+		switch sub.PlanID {
+		case flat.ID:
+			if sub.QuotaBytes != 200 {
+				t.Fatalf("flat quota %d, want 200 (allowance added)", sub.QuotaBytes)
+			}
+		case cyc.ID:
+			if sub.QuotaBytes != 100 || sub.ResetAt == nil || cycReset == nil || !sub.ResetAt.Equal(*cycReset) {
+				t.Fatalf("cyc quota %d reset %v, want 100 and the same reset %v", sub.QuotaBytes, sub.ResetAt, cycReset)
+			}
+		}
+	}
+}

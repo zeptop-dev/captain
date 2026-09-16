@@ -96,6 +96,9 @@ func (o *Orders) Create(ctx context.Context, user *domain.User, planID int64, pe
 	return o.CreateWith(ctx, user, planID, periodDays, couponCode, gateway, clientIP, "")
 }
 
+// ErrRenewNotQueue: the buyer asked to queue a plan they already hold.
+var ErrRenewNotQueue = errors.New("orders: you already hold this plan; renew it instead of queueing")
+
 // CreateWith is Create with the buyer's activation choice: "" starts the
 // plan on payment (stacking next to, or renewing, what they have), "queue"
 // holds it until their current plans lapse.
@@ -106,6 +109,16 @@ func (o *Orders) CreateWith(ctx context.Context, user *domain.User, planID int64
 	q, plan, err := o.Price(ctx, user, planID, periodDays, couponCode)
 	if err != nil {
 		return nil, nil, err
+	}
+	if activation == "queue" {
+		// Buying the plan one already holds is a renewal; queueing it
+		// would silently turn into one, so say so instead.
+		subs, _ := o.Store.ActiveSubscriptions(ctx, user.ID)
+		for _, sub := range subs {
+			if sub.PlanID == plan.ID && sub.Status == "active" && sub.Usable(time.Now()) {
+				return nil, nil, ErrRenewNotQueue
+			}
+		}
 	}
 	order := &domain.Order{No: newOrderNo(), UserID: user.ID, PlanID: plan.ID, AmountCents: q.AmountCents, Gateway: gateway, PeriodDays: q.PeriodDays, CouponID: q.CouponID, DiscountCents: q.DiscountCents, Activation: activation, SurplusCents: q.SurplusCents}
 	switch gateway {

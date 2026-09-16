@@ -926,6 +926,11 @@ func TestPeriodsCouponsInvites(t *testing.T) {
 	if sub2.ID != sub.ID || sub2.ExpiresAt.Sub(before).Hours()/24 < 29 {
 		t.Fatalf("renewal should extend the existing subscription: %v -> %v (id %d/%d)", before, sub2.ExpiresAt, sub.ID, sub2.ID)
 	}
+	// "Activate after the current plan" for a plan one already holds is a
+	// renewal in disguise: refused, the portal offers "renew" for it.
+	if code, body, _ := u.do("POST", "/api/portal/orders", map[string]any{"plan_id": planID, "gateway": "balance", "activation": "queue"}, nil); code != http.StatusBadRequest || !strings.Contains(string(body), "renew") {
+		t.Fatalf("queueing a held plan: %d %s", code, body)
+	}
 	// Notice appears on the portal once enabled.
 	ac.do("PUT", "/api/admin/settings/notice", map[string]any{"enabled": true, "title": "维护", "body": "今晚"}, nil)
 	_, b, _ = u.do("GET", "/api/portal/notice", nil, nil)
