@@ -6,6 +6,7 @@ Merge commits and formatting-only commits are left out. Binaries and
 `SHA256SUMS` for every tag are on the GitHub Release; the in-app updater
 installs them (Settings → Version and updates).
 
+- **v0.49.3** (2026-09-16) — a banned account's subscription URL answers 403 "account disabled" (as Xboard does) instead of an empty document with the usage header; expired or quota-less accounts keep the empty-document-plus-header behaviour so clients can show why
 - **v0.49.2** (2026-09-16) — bosun v0.38.2 (xray online addresses reach the panel; device limits now see xray-served clients too)
 - **v0.49.1** (2026-09-16) — admin handlers deduplicated: `readJSON` (400 on bad body), `serverErr` (a missing row is now a 404, not a 500), generic `getSetting`/`putSetting` for the plain settings documents (trial, surplus, notice, site, invite, clients); no route or payload changes
 - **v0.49.0** (2026-09-16) — device limits behind relays: connections arriving from the panel's own node addresses count as one device altogether (a forward without PROXY protocol hides the clients); inbound form gains "Expect PROXY protocol" (xray) and forwards targeting such an inbound send the header automatically (relay or realm; nft refused), manual switch for external targets; bosun v0.38.0

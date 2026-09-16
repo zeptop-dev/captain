@@ -264,7 +264,7 @@ func (h *handlers) plans(w http.ResponseWriter, r *http.Request) {
 // servers lists the user's entries with per-server share links.
 func (h *handlers) servers(w http.ResponseWriter, r *http.Request) {
 	lines, _, err := h.Subscription.Lines(r.Context(), userFrom(r), time.Now())
-	if err != nil && !errors.Is(err, service.ErrNoAccess) {
+	if err != nil && !errors.Is(err, service.ErrNoAccess) && !errors.Is(err, service.ErrDisabled) {
 		fail(w, http.StatusInternalServerError, "internal error")
 		return
 	}

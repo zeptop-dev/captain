@@ -15,8 +15,14 @@ type Subscription struct {
 	Store *store.Store
 }
 
-// ErrNoAccess means the user has no usable subscription.
+// ErrNoAccess means the user has no usable subscription (expired, out of
+// quota, never bought one): the document is empty but the usage header
+// still tells the client what happened.
 var ErrNoAccess = errors.New("subscription: no usable subscription")
+
+// ErrDisabled means the account itself is banned: the subscription URL is
+// refused outright (403), nothing about the account leaks.
+var ErrDisabled = errors.New("subscription: account disabled")
 
 // Lines returns what the user may connect to, or ErrNoAccess.
 func (s *Subscription) Lines(ctx context.Context, u *domain.User, at time.Time) ([]subscription.Line, subscription.Account, error) {
@@ -24,8 +30,11 @@ func (s *Subscription) Lines(ctx context.Context, u *domain.User, at time.Time) 
 	if err != nil {
 		return nil, subscription.Account{}, err
 	}
+	if u.Status != "active" {
+		return nil, subscription.Account{}, ErrDisabled
+	}
 	usable := usableSubs(subs, at)
-	if len(usable) == 0 || u.Status != "active" {
+	if len(usable) == 0 {
 		return nil, account(subs), ErrNoAccess
 	}
 	rows, err := s.Store.EntriesForUser(ctx, u)

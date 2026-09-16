@@ -53,12 +53,18 @@ func Register(mux *http.ServeMux, d Deps) {
 	tpls := &templateCache{store: d.Store}
 	serve := func(w http.ResponseWriter, r *http.Request, u *domain.User) {
 		lines, acct, err := d.Service.Lines(r.Context(), u, time.Now())
+		if errors.Is(err, service.ErrDisabled) {
+			// Like Xboard: a banned account gets nothing, not even its usage.
+			http.Error(w, "account disabled", http.StatusForbidden)
+			return
+		}
 		if err != nil && !errors.Is(err, service.ErrNoAccess) {
 			d.Log.Error("subscription", "user", u.ID, "err", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		// No access renders an empty document rather than an error so clients
+		// No usable plan (as opposed to a banned account, refused above)
+		// renders an empty document rather than an error so clients
 		// keep the subscription and see the usage header.
 		rd := subscription.Pick(r.URL.Query().Get("client"), r.UserAgent())
 		body, err := rd.RenderWith(lines, acct, tpls.get(r.Context(), rd.Name()))

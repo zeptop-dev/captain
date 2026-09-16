@@ -352,6 +352,13 @@ func TestAdminLists(t *testing.T) {
 	if !strings.Contains(string(b), `"status":"banned"`) {
 		t.Fatalf("banned not reflected: %s", b)
 	}
+	// A banned account's subscription URL is refused outright, no usage header.
+	_, b, _ = c.do("GET", "/api/admin/users/2", nil, nil)
+	banned := mustJSON[map[string]any](t, b)
+	anon := &client{t: t, srv: srv}
+	if code, body, hdr := anon.do("GET", "/sub/"+banned["sub_token"].(string)+"?client=clash", nil, nil); code != http.StatusForbidden || hdr.Get("Subscription-Userinfo") != "" {
+		t.Fatalf("banned sub: %d %q %s", code, hdr.Get("Subscription-Userinfo"), body)
+	}
 }
 
 func TestDeviceLimit(t *testing.T) {
