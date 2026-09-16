@@ -20,7 +20,7 @@ func fillInboundSecrets(ib *domain.Inbound) {
 	s := &ib.Settings
 	switch ib.Protocol {
 	case spec.Shadowsocks:
-		if n := ss2022KeyLen(s.Cipher); n > 0 && strings.TrimSpace(s.ServerKey) == "" {
+		if n := spec.SS2022KeyLen(s.Cipher); n > 0 && strings.TrimSpace(s.ServerKey) == "" {
 			s.ServerKey = base64.StdEncoding.EncodeToString(randomBytes(n))
 		}
 	case spec.Snell:
@@ -56,18 +56,6 @@ func fillInboundSecrets(ib *domain.Inbound) {
 			r.ShortIDs = []string{strings.ToLower(hexOf(randomBytes(4)))}
 		}
 	}
-}
-
-// ss2022KeyLen is the PSK length a Shadowsocks 2022 cipher needs; 0 for
-// the classic AEAD ciphers, which take any password.
-func ss2022KeyLen(cipher string) int {
-	switch strings.ToLower(strings.TrimSpace(cipher)) {
-	case "2022-blake3-aes-128-gcm":
-		return 16
-	case "2022-blake3-aes-256-gcm", "2022-blake3-chacha20-poly1305":
-		return 32
-	}
-	return 0
 }
 
 func randomBytes(n int) []byte {

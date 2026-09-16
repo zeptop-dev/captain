@@ -512,14 +512,14 @@ func (h *handlers) repairNode(w http.ResponseWriter, r *http.Request) {
 // checkInboundFields rejects values the node could not embed safely: the
 // tag becomes file names and nft comments, the listen address goes into
 // nft rules.
+// checkInboundFields runs the shape check bosun's cores agree on
+// (pkg/spec Validate) so a bad inbound is refused here with the same
+// wording the node's doctor would use, instead of being pushed and skipped.
 func checkInboundFields(ib *domain.Inbound) string {
 	ib.Tag = strings.TrimSpace(ib.Tag)
-	if !spec.ValidTag(ib.Tag) {
-		return "tag may only contain letters, digits, . _ : - (max 64)"
-	}
 	ib.Listen = strings.TrimSpace(ib.Listen)
-	if !spec.ValidListen(ib.Listen) {
-		return "listen must be an IP address on the node"
+	if err := ib.Spec().Validate(); err != nil {
+		return err.Error()
 	}
 	return ""
 }

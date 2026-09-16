@@ -1,7 +1,7 @@
 BIN := bin/captain
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
-.PHONY: build web test vet tidy dev-web
+.PHONY: build web test vet tidy dev-web e2e
 
 # Frontend first so the embedded dist is current.
 build: web
@@ -22,3 +22,7 @@ vet:
 
 tidy:
 	go mod tidy
+
+# Live regression against a real panel + nodes; see scripts/e2e/README.md.
+e2e:
+	python3 scripts/e2e/live.py
