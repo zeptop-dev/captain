@@ -155,7 +155,8 @@
     "doctorFailHint": "前回の自己診断で失敗項目があります。ノードページで詳細を確認してください",
     "rollback": "ノードをロールバック",
     "rollbackConfirm": "{{name}}（現在 {{version}}）を前の bosun ビルドに戻します。コアが再起動し、ユーザーは数秒切断されます。続行しますか？",
-    "rollbackQueued": "ロールバックを通知しました。ノードは前のビルドで再起動します"
+    "rollbackQueued": "ロールバックを通知しました。ノードは前のビルドで再起動します",
+    "doctorNotApplied": "ノードに適用されていないインバウンド"
   },
   "inbounds": {
     "title": "インバウンド",
@@ -307,7 +308,8 @@
     "grantQueue": "現在のプラン失効後",
     "grantReplace": "現在のプランを置換",
     "viewList": "一覧",
-    "viewRenewals": "更新状況"
+    "viewRenewals": "更新状況",
+    "viaRelay": "中継経由"
   },
   "plans": {
     "title": "プラン",

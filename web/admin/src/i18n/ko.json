@@ -155,7 +155,8 @@
     "doctorFailHint": "노드의 마지막 자체 점검에 실패 항목이 있습니다. 노드 페이지에서 확인하세요",
     "rollback": "노드 롤백",
     "rollbackConfirm": "{{name}}(현재 {{version}})을 이전 bosun 빌드로 되돌립니다. 코어가 재시작되어 사용자가 몇 초간 끊깁니다. 계속할까요?",
-    "rollbackQueued": "롤백을 요청했습니다. 노드가 이전 빌드로 재시작합니다"
+    "rollbackQueued": "롤백을 요청했습니다. 노드가 이전 빌드로 재시작합니다",
+    "doctorNotApplied": "노드에 적용되지 않은 인바운드"
   },
   "inbounds": {
     "title": "인바운드",
@@ -307,7 +308,8 @@
     "grantQueue": "현재 플랜 종료 후",
     "grantReplace": "현재 플랜 대체",
     "viewList": "목록",
-    "viewRenewals": "갱신 현황"
+    "viewRenewals": "갱신 현황",
+    "viaRelay": "중계 경유"
   },
   "plans": {
     "title": "요금제",

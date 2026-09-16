@@ -88,6 +88,19 @@ func (h *handlers) getUser(w http.ResponseWriter, r *http.Request) {
 	if devices == nil {
 		devices = []store.OnlineDevice{}
 	}
+	if nodes, err := h.Store.ListNodes(r.Context()); err == nil {
+		relay := map[string]bool{}
+		for _, n := range nodes {
+			for _, a := range []string{n.PublicAddr, n.InternalAddr, n.V6Addr} {
+				if a != "" {
+					relay[a] = true
+				}
+			}
+		}
+		for i := range devices {
+			devices[i].ViaRelay = relay[devices[i].IP]
+		}
+	}
 	all, _ := h.Store.Subscriptions(r.Context(), id)
 	names := map[int64]string{}
 	subs := make([]map[string]any, 0, len(all))

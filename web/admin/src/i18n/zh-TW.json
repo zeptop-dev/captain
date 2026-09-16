@@ -155,7 +155,8 @@
     "doctorFailHint": "節點上次自我檢查有失敗項目，進節點頁看詳情",
     "rollback": "回滾節點",
     "rollbackConfirm": "把 {{name}}（目前 {{version}}）換回上一個 bosun 版本，節點上的核心會重啟，使用者斷線幾秒。繼續？",
-    "rollbackQueued": "已通知節點回滾，節點將以上一個版本重啟"
+    "rollbackQueued": "已通知節點回滾，節點將以上一個版本重啟",
+    "doctorNotApplied": "以下入站沒有下發到節點核心"
   },
   "inbounds": {
     "title": "入站",
@@ -307,7 +308,8 @@
     "grantQueue": "現有方案失效後",
     "grantReplace": "取代目前方案",
     "viewList": "列表",
-    "viewRenewals": "續費檢視"
+    "viewRenewals": "續費檢視",
+    "viaRelay": "經轉發"
   },
   "plans": {
     "title": "方案",

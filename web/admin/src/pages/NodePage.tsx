@@ -1,4 +1,4 @@
-import { NumberInput, Switch, Accordion, ActionIcon, Badge, Button, Card, Code, Group, Modal, Progress, SimpleGrid, Stack, Table, Text, TextInput, Title, Autocomplete } from '@mantine/core'
+import { NumberInput, Switch, Accordion, ActionIcon, Badge, Button, Card, Code, Group, Modal, Progress, SimpleGrid, Stack, Table, Text, TextInput, Title, Autocomplete, Alert } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -173,8 +173,16 @@ function DoctorCard({ report }: { report: DoctorReport }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(report.summary.fail > 0 || report.summary.warn > 0)
   const color = (s: string) => (s === 'ok' ? 'teal' : s === 'warn' ? 'orange' : s === 'fail' ? 'red' : 'gray')
+  // Inbounds the agent left out (no core, missing key, waiting for users):
+  // the one thing an operator must act on, so it gets its own bar.
+  const notApplied = report.checks.filter((c) => (c.detail ?? '').startsWith('not applied'))
   return (
     <Card mb="lg">
+      {notApplied.length > 0 && (
+        <Alert color="yellow" variant="light" mb="sm" title={t('nodes.doctorNotApplied')}>
+          {notApplied.map((c) => <Text size="sm" key={c.id}><b>{c.id.replace(/^inbound:/, '')}</b>: {(c.detail ?? '').replace(/^not applied: /, '')}</Text>)}
+        </Alert>
+      )}
       <Group justify="space-between" mb={open ? 'xs' : 0} style={{ cursor: 'pointer' }} onClick={() => setOpen((o) => !o)}>
         <Group gap="sm"><Title order={5}>{t('nodes.doctor')}</Title>
           <Badge color="teal" variant="light" size="xs">{t('nodes.doctorOk')} {report.summary.ok}</Badge>

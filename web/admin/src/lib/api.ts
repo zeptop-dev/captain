@@ -90,7 +90,7 @@ export interface UserRow {
   id: number; email: string; uuid: string; sub_token: string; sub_url: string; group_id: number | null; balance_cents: number; status: string
   created_at: string; plan_name: string; expires_at: string | null; quota_bytes: number; used_bytes: number; sub_usable: boolean; sub_count: number
 }
-export interface OnlineDevice { ip: string; node_id: number; last_seen_at: string }
+export interface OnlineDevice { via_relay?: boolean; ip: string; node_id: number; last_seen_at: string }
 
 export interface Entry {
   ID: number; Name: string; InboundID: number; ChainID: number | null; DisplayHost: string; DisplayPort: number

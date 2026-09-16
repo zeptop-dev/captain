@@ -155,7 +155,8 @@
     "mitaQuotasHint": "把用户的流量额度也写进 mita 自己的 quotas，面板掉线时内核照样拦。窗口取套餐的重置周期（按月按 31 天滚动），月初刚重置时 mita 可能还拦几天。",
     "rollback": "回滚节点",
     "rollbackConfirm": "把 {{name}}（当前 {{version}}）换回上一个 bosun 版本，节点上的内核会重启，用户断线几秒。继续？",
-    "rollbackQueued": "已通知节点回滚，节点将以上一个版本重启"
+    "rollbackQueued": "已通知节点回滚，节点将以上一个版本重启",
+    "doctorNotApplied": "以下入站没有下发到节点内核"
   },
   "inbounds": {
     "title": "入站",
@@ -307,7 +308,8 @@
     "viewRenewals": "续费视图",
     "grantDefault": "立即生效",
     "grantQueue": "现有套餐失效后",
-    "grantReplace": "替换当前套餐"
+    "grantReplace": "替换当前套餐",
+    "viaRelay": "经转发"
   },
   "plans": {
     "title": "套餐",

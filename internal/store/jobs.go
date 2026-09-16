@@ -165,6 +165,10 @@ type OnlineDevice struct {
 	NodeID     int64     `json:"node_id"`
 	IP         string    `json:"ip"`
 	LastSeenAt time.Time `json:"last_seen_at"`
+	// ViaRelay marks an address that belongs to one of the panel's own
+	// nodes: the connection came through a forward, the client's real
+	// address is hidden behind the relay (so it is not a second device).
+	ViaRelay bool `json:"via_relay,omitempty"`
 }
 
 // OnlineDevices lists a user's IPs seen since cutoff.

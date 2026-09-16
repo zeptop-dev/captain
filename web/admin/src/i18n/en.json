@@ -155,7 +155,8 @@
     "mitaQuotasHint": "Also write users' allowances into mita's own quotas so the core blocks overuse while the panel is unreachable. The window is the plan's reset cycle (monthly = rolling 31 days), so right after a calendar reset mita may still block for a few days.",
     "rollback": "Roll back node",
     "rollbackConfirm": "Put the previous bosun build back on {{name}} (now {{version}}). Cores restart, users drop for a few seconds. Continue?",
-    "rollbackQueued": "Rollback queued; the node restarts on its previous build"
+    "rollbackQueued": "Rollback queued; the node restarts on its previous build",
+    "doctorNotApplied": "Inbounds not applied on the node"
   },
   "inbounds": {
     "title": "Inbounds",
@@ -307,7 +308,8 @@
     "viewRenewals": "Renewals",
     "grantDefault": "Start now",
     "grantQueue": "After current plans",
-    "grantReplace": "Replace current"
+    "grantReplace": "Replace current",
+    "viaRelay": "via relay"
   },
   "plans": {
     "title": "Plans",

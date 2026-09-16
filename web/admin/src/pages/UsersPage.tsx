@@ -97,7 +97,7 @@ export default function UsersPage() {
             </div>
             <div>
               <Text size="xs" c="dimmed">{t('users.devices')}</Text>
-              {detail.data?.devices?.length ? <Group gap={6} mt={4}>{detail.data.devices.map((d) => <Badge key={d.ip} variant="light" color="teal" title={when(d.last_seen_at)}>{d.ip}</Badge>)}</Group> : <Text size="sm" c="dimmed">{t('users.noDevices')}</Text>}
+              {detail.data?.devices?.length ? <Group gap={6} mt={4}>{detail.data.devices.map((d) => <Badge key={d.ip} variant="light" color={d.via_relay ? 'gray' : 'teal'} title={d.via_relay ? t('users.viaRelay') + ' · ' + when(d.last_seen_at) : when(d.last_seen_at)}>{d.ip}{d.via_relay ? ' · ' + t('users.viaRelay') : ''}</Badge>)}</Group> : <Text size="sm" c="dimmed">{t('users.noDevices')}</Text>}
             </div>
             <Divider />
             <form onSubmit={editForm.onSubmit((v) => update.mutate(v))}><Stack gap="sm">
