@@ -255,7 +255,7 @@
     "acceptProxy": "要求 PROXY protocol（仅经转发）",
     "acceptProxyHint": "只给完全经本面板转发到达的入站开：中继会在连接前带上客户端真实地址，在线设备和日志看到的就是真实客户端。开了之后直连这个入站会失败。仅 xray。",
     "snellMultiUser": "多用户（sing-box）",
-    "snellMultiUserHint": "由 sing-box 承载：每个用户用自己的密钥连接，流量按用户统计；PSK 仍是服务端密钥。此模式不支持 obfs tls。"
+    "snellMultiUserHint": "由 sing-box 承载：每个用户用自己的密钥连接，流量按用户统计；PSK 仍是服务端密钥。只有 sing-box 客户端（1.14+）能携带用户密钥，所以这条线路只出现在 sing-box 订阅里。不支持 obfs tls。"
   },
   "entries": {
     "title": "入口",

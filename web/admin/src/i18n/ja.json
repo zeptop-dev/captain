@@ -255,7 +255,7 @@
     "acceptProxy": "PROXY protocol を要求（中継専用）",
     "acceptProxyHint": "このパネルの転送経由でのみ到達するインバウンド向け：中継がクライアントの実アドレスを PROXY protocol ヘッダーで渡し、オンライン端末とログに実クライアントが表示されます。有効にすると直接接続は失敗します。xray のみ。",
     "snellMultiUser": "マルチユーザー（sing-box）",
-    "snellMultiUserHint": "sing-box が提供：各ユーザーは自分のキーで接続し、トラフィックはユーザーごとに集計されます。PSK はサーバーキーのままです。このモードでは obfs tls は使えません。"
+    "snellMultiUserHint": "sing-box が提供：各ユーザーは自分のキーで接続し、トラフィックはユーザーごとに集計。PSK はサーバーキーのまま。ユーザーキーを送れるのは sing-box クライアント（1.14 以上）だけなので、この回線は sing-box サブスクにのみ現れます。obfs tls は使えません。"
   },
   "entries": {
     "title": "エントリ",

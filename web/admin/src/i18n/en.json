@@ -255,7 +255,7 @@
     "acceptProxy": "Expect PROXY protocol (relays only)",
     "acceptProxyHint": "Only for an inbound reached exclusively through this panel's forwards: the relay sends the client's address in a PROXY protocol header, so online devices and logs show the real client. Direct connections to such an inbound fail. xray only.",
     "snellMultiUser": "Multi-user (sing-box)",
-    "snellMultiUserHint": "Served by sing-box: every user connects with their own key and traffic is counted per user. The PSK stays the server key. Obfs tls is not available in this mode."
+    "snellMultiUserHint": "Served by sing-box: every user connects with their own key and traffic is counted per user; the PSK stays the server key. Only sing-box clients (1.14+) can present a user key, so this line appears in sing-box subscriptions only. Obfs tls is not available."
   },
   "entries": {
     "title": "Entries",
