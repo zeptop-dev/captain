@@ -31,4 +31,12 @@ func TestVerifyTOTPOnce(t *testing.T) {
 	if !VerifyTOTPOnce("u2", secret, code, now) {
 		t.Fatal("another key is independent")
 	}
+	// The next step's code is a different code and must be accepted.
+	next := TOTPCode(secret, now.Add(30*time.Second))
+	if !VerifyTOTPOnce("u1", secret, next, now.Add(30*time.Second)) {
+		t.Fatal("next step's code should pass")
+	}
+	if VerifyTOTPOnce("u1", secret, code, now.Add(30*time.Second)) {
+		t.Fatal("old code within drift is still a replay")
+	}
 }

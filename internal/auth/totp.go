@@ -55,17 +55,31 @@ func VerifyTOTP(secret, code string, now time.Time) bool {
 	if _, err := strconv.Atoi(code); err != nil {
 		return false
 	}
+	_, ok := verifyTOTPStep(secret, code, now)
+	return ok
+}
+
+// verifyTOTPStep is VerifyTOTP that also reports which time step the code
+// belonged to (the current one or its drift neighbours).
+func verifyTOTPStep(secret, code string, now time.Time) (int64, bool) {
+	code = strings.TrimSpace(strings.ReplaceAll(code, " ", ""))
+	if len(code) != 6 {
+		return 0, false
+	}
+	if _, err := strconv.Atoi(code); err != nil {
+		return 0, false
+	}
 	step := now.Unix() / 30
 	for _, d := range []int64{0, -1, 1} {
 		want, err := totpCode(secret, step+d)
 		if err != nil {
-			return false
+			return 0, false
 		}
 		if subtle.ConstantTimeCompare([]byte(want), []byte(code)) == 1 {
-			return true
+			return step + d, true
 		}
 	}
-	return false
+	return 0, false
 }
 
 var (
@@ -77,18 +91,19 @@ var (
 // key (a user id) within the same or an earlier step, so a sniffed code
 // cannot be replayed inside its window.
 func VerifyTOTPOnce(key, secret, code string, now time.Time) bool {
-	if !VerifyTOTP(secret, code, now) {
+	matched, ok := verifyTOTPStep(secret, code, now)
+	if !ok {
 		return false
 	}
-	step := now.Unix() / 30
 	totpMu.Lock()
 	defer totpMu.Unlock()
-	if last, ok := totpUsed[key]; ok && step <= last+1 {
-		// The window is ±1 step; anything at or before the accepted step
-		// (plus its drift neighbour) is a replay.
+	// A code belongs to exactly one step; once that step's code was
+	// accepted, that code (and any older one) is a replay. The next
+	// step's code is a different code and stays valid.
+	if last, used := totpUsed[key]; used && matched <= last {
 		return false
 	}
-	totpUsed[key] = step
+	totpUsed[key] = matched
 	return true
 }
 

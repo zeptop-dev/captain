@@ -72,6 +72,14 @@ func (s *Store) RedeemPairCode(ctx context.Context, code, tokenHash, hostname, v
 	return s.NodeByTokenHash(ctx, tokenHash)
 }
 
+// FillPublicAddr records the address a node paired from when the operator
+// left public_addr blank, so a fresh node is reachable in subscriptions
+// without a second edit. An address already set is never touched.
+func (s *Store) FillPublicAddr(ctx context.Context, id int64, addr string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET public_addr = ?, updated_at = ? WHERE id = ? AND (public_addr IS NULL OR public_addr = '')`, addr, now(), id)
+	return err
+}
+
 func (s *Store) ListNodes(ctx context.Context) ([]*domain.Node, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+nodeCols+` FROM nodes ORDER BY id`)
 	if err != nil {

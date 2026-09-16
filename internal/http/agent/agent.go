@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -104,7 +105,17 @@ func (h *handlers) pair(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	h.Log.Info("node paired", "node", n.ID, "name", n.Name, "hostname", in.Hostname, "version", in.Version)
+	if n.PublicAddr == "" {
+		// The agent's source address is the best guess for a node the
+		// operator has not addressed yet; only a public unicast IP counts
+		// (a node behind NAT or a proxy still needs the real one).
+		if p := net.ParseIP(ip); p != nil && p.IsGlobalUnicast() && !p.IsPrivate() {
+			if err := h.Store.FillPublicAddr(r.Context(), n.ID, ip); err == nil {
+				n.PublicAddr = ip
+			}
+		}
+	}
+	h.Log.Info("node paired", "node", n.ID, "name", n.Name, "hostname", in.Hostname, "version", in.Version, "public_addr", n.PublicAddr)
 	ok(w, agentproto.PairResponse{NodeID: strconv.FormatInt(n.ID, 10), Token: token})
 }
 
