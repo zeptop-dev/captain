@@ -147,6 +147,14 @@ why the pre-upgrade snapshot matters. If the release added no migrations
 (compare `ls migrations/` between the two tags), rolling the binary back
 is enough.
 
+### Rolling a node back
+
+Nodes → the ↶ icon next to a node's version queues a `rollback` job: bosun
+puts its previous binary (`bosun.backup`) back, reports the version it landed
+on and restarts; the node list shows the old version within a minute. Only
+one step back is kept, so a second rollback does nothing. Bring the node
+forward again with "upgrade".
+
 ## What to monitor
 
 - **Liveness**: `GET /api/health` answers `{"ok":true,"time":<unix>}` without

@@ -11,6 +11,8 @@ Publishing the panel through Cloudflare Tunnel (no public IP, no open ports): [d
 ## Status
 
 One binary, verified by end-to-end API tests (`internal/http/e2e_test.go`)
+and, before every release, by `make e2e` against a real panel with real nodes
+and a headless mihomo (`scripts/e2e/README.md`)
 and live runs with real bosun nodes (Captain driver) serving the official
 clients, with the traffic landing in the user's subscription:
 
@@ -26,7 +28,9 @@ clients, with the traffic landing in the user's subscription:
   group's users (`spec.Inbound.ScopedUsers`); ungrouped inbounds get every
   user with a usable subscription.
 - Agent API implementing `bosun/pkg/agentproto`: pair, state with ETag,
-  report (traffic charged to the active subscription, online devices,
+  report (traffic per user *and inbound*, charged to the subscription whose
+  plan group matches that inbound — an ungrouped inbound charges the
+  soonest-expiring plan — online devices,
   forward status, node liveness). A user whose subscription expires or runs
   out of quota disappears from the node's desired state.
 
@@ -108,8 +112,10 @@ Captain serves that directory instead.
 
 A plan has a base period and price plus any number of extra periods (quarter,
 year …) with their own prices; buyers pick one at checkout. Renewing the same
-plan before it expires extends the time and refills the quota; buying a
-different plan replaces the current one. Quota reset: never, every N days from
+plan before it expires extends the time and keeps what was used: a plan with a
+reset cycle keeps its counter and next reset, a plan without one gets the new
+period's allowance added. Buying a different plan stacks next to the current
+one (or replaces it in single-plan mode). Quota reset: never, every N days from
 purchase, on the 1st of each month, or on January 1st.
 
 Coupons (Admin → Coupons) take a percentage or a fixed amount off, optionally
@@ -175,7 +181,7 @@ external login):
 - **Plan change credit** — Settings → Plan change credit: switching to a
   different plan credits the unused remainder of the current one (by remaining
   time, or remaining traffic for plans without expiry) against the new order.
-  Renewing the same plan still stacks time and refills quota.
+  Renewing the same plan stacks time and keeps the usage counter (see above).
 - **Referral levels and payouts** — Settings → Invites: level-1 percentage,
   optional multi-level (levels 2 and 3), and where rewards go: straight to the
   balance, or a commission account the user can move to balance or withdraw

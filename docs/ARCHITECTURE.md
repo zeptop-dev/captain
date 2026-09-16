@@ -161,10 +161,19 @@ but `/sub/`.
 A user may hold several subscriptions at once (`subscriptions.status`
 `active`), plus `queued` ones bought "after the current plan". Rules:
 
-- Buying the plan the user already holds renews it in place (time extends,
-  quota refills). A different plan stacks by default; with the admin switch
+- Buying the plan the user already holds renews it in place: time extends
+  from the current expiry, the usage counter stays, a plan with a reset
+  cycle keeps its cycle and a plan without one gets the period's allowance
+  added (`grantTx`). Asking to queue a plan one already holds is refused
+  (`service.ErrRenewNotQueue`). A different plan stacks by default; with the admin switch
   *one plan at a time* (`subscription.single_plan`) it replaces every active
   one and the surplus credit applies, as before multi-plan.
+- Charging: a node report carries one traffic entry per user and inbound
+  (bosun ≥ 0.36, `spec.UserTraffic.Inbound`); `AddTrafficSamples` books it
+  in that inbound's daily bucket and charges the soonest-expiring usable
+  subscription whose plan group is the inbound's group, else the
+  soonest-expiring one of any plan. Entries without an inbound (older
+  agents) fall back to the node's groups as a whole.
 - Access is the union: `Store.AccessGroups` = groups of every usable
   subscription's plan plus `users.group_id`. `EntriesForUser`,
   `ExternalNodesForGroup` and `UsersWithAccess` all take that set.
