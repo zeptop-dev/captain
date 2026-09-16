@@ -533,6 +533,7 @@ func (h *handlers) createInbound(w http.ResponseWriter, r *http.Request) {
 	}
 	ib.NodeID = nodeID
 	ib.Enabled = true
+	fillInboundSecrets(&ib)
 	if msg := checkInboundFields(&ib); msg != "" {
 		fail(w, http.StatusBadRequest, msg)
 		return
@@ -561,6 +562,7 @@ func (h *handlers) updateInbound(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ib.ID, ib.NodeID = cur.ID, cur.NodeID
+	fillInboundSecrets(&ib)
 	if msg := checkInboundFields(&ib); msg != "" {
 		fail(w, http.StatusBadRequest, msg)
 		return
