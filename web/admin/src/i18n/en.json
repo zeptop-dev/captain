@@ -691,7 +691,8 @@
     "hintNodeList": "Loon and Quantumult X remote subscriptions are node lists, so the default is just the lines; a full config here must be imported as a configuration in the client.",
     "reset": "Reset to default",
     "modeDesign": "Designer",
-    "modeText": "Text"
+    "modeText": "Text",
+    "modeRules": "Response rules"
   },
   "probe": {
     "title": "Probe / status page",
@@ -1127,5 +1128,46 @@
     "showRequests": "Subscription fetch history ({{n}})",
     "hideRequests": "Hide history",
     "noRequests": "No fetch recorded yet"
+  },
+  "responseRules": {
+    "title": "Response rules",
+    "hint": "Evaluated top to bottom on every subscription request; the first matching rule decides the format, extra headers and template, or refuses the request. No match: the format is guessed from the User-Agent as before.",
+    "add": "Add rule",
+    "empty": "No rules: every client gets the format guessed from its User-Agent.",
+    "name": "Name",
+    "action": "Action",
+    "format": "Format",
+    "formatAuto": "auto (User-Agent)",
+    "enabled": "Enabled",
+    "when": "When",
+    "all": "all conditions hold",
+    "any": "any condition holds",
+    "addCondition": "Condition",
+    "catchAll": "No condition: this rule matches every request (put it last).",
+    "headers": "Extra response headers",
+    "headersHint": "One per line, Name: value (e.g. profile-update-interval: 12).",
+    "template": "Template override",
+    "templateHint": "Replaces the format's template for requests hitting this rule. Empty: the normal template.",
+    "test": "Test a request",
+    "testClient": "?client= parameter",
+    "testHeaders": "Other headers (Name: value per line)",
+    "run": "Evaluate",
+    "result": "Result:",
+    "noRule": "no rule (built-in detection)",
+    "actions": {
+      "serve": "Serve subscription",
+      "block": "Block (403)",
+      "not_found": "Not found (404)",
+      "unavailable": "Legal block (451)",
+      "drop": "Drop connection"
+    },
+    "ops": {
+      "contains": "contains",
+      "equals": "equals",
+      "prefix": "starts with",
+      "regex": "matches regex",
+      "exists": "is present",
+      "missing": "is absent"
+    }
   }
 }

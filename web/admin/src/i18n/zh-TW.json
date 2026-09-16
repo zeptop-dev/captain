@@ -691,7 +691,8 @@
     "hintNodeList": "Loon 和 Quantumult X 的遠端訂閱是節點列表，預設範本只有節點行；寫成完整設定時需在用戶端以設定方式匯入。",
     "reset": "恢復預設",
     "modeDesign": "視覺化",
-    "modeText": "文字"
+    "modeText": "文字",
+    "modeRules": "回應規則"
   },
   "warp": {
     "title": "Cloudflare WARP 出站",
@@ -1127,5 +1128,46 @@
     "showRequests": "訂閱拉取紀錄（{{n}}）",
     "hideRequests": "收起紀錄",
     "noRequests": "尚無拉取紀錄"
+  },
+  "responseRules": {
+    "title": "回應規則",
+    "hint": "每次拉取訂閱時由上而下比對，第一條命中的規則決定回傳格式、附加回應標頭與模板，或直接拒絕。都未命中時依 User-Agent 猜格式（原有行為）。",
+    "add": "新增規則",
+    "empty": "尚無規則：所有客戶端依 User-Agent 猜格式。",
+    "name": "名稱",
+    "action": "動作",
+    "format": "格式",
+    "formatAuto": "自動（依 User-Agent）",
+    "enabled": "啟用",
+    "when": "條件",
+    "all": "全部條件成立",
+    "any": "任一條件成立",
+    "addCondition": "加條件",
+    "catchAll": "沒有條件：這條規則符合所有請求（請放最後）。",
+    "headers": "附加回應標頭",
+    "headersHint": "每行一個，名稱: 值（例如 profile-update-interval: 12）。",
+    "template": "模板覆寫",
+    "templateHint": "命中此規則的請求改用這份模板；留空用正常模板。",
+    "test": "測試一個請求",
+    "testClient": "?client= 參數",
+    "testHeaders": "其他請求標頭（每行 名稱: 值）",
+    "run": "比對",
+    "result": "結果：",
+    "noRule": "無規則命中（內建識別）",
+    "actions": {
+      "serve": "回傳訂閱",
+      "block": "拒絕（403）",
+      "not_found": "假裝不存在（404）",
+      "unavailable": "法律原因不可用（451）",
+      "drop": "直接斷開連線"
+    },
+    "ops": {
+      "contains": "包含",
+      "equals": "等於",
+      "prefix": "開頭是",
+      "regex": "符合正則",
+      "exists": "存在",
+      "missing": "不存在"
+    }
   }
 }

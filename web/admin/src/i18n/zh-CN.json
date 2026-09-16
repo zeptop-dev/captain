@@ -691,7 +691,8 @@
     "hintNodeList": "Loon 和 Quantumult X 的远程订阅是节点列表，默认模板只有节点行；写成完整配置时需在客户端以配置方式导入。",
     "reset": "恢复默认",
     "modeDesign": "可视化",
-    "modeText": "文本"
+    "modeText": "文本",
+    "modeRules": "响应规则"
   },
   "probe": {
     "title": "探针 / 状态页",
@@ -1127,5 +1128,46 @@
     "showRequests": "订阅拉取记录（{{n}}）",
     "hideRequests": "收起记录",
     "noRequests": "还没有拉取记录"
+  },
+  "responseRules": {
+    "title": "响应规则",
+    "hint": "每次拉订阅时从上到下匹配，第一条命中的规则决定返回格式、附加响应头和模板，或者直接拒绝。都不命中时按 User-Agent 猜格式（原有行为）。",
+    "add": "添加规则",
+    "empty": "还没有规则：所有客户端按 User-Agent 猜格式。",
+    "name": "名称",
+    "action": "动作",
+    "format": "格式",
+    "formatAuto": "自动（按 User-Agent）",
+    "enabled": "启用",
+    "when": "条件",
+    "all": "全部条件成立",
+    "any": "任一条件成立",
+    "addCondition": "加条件",
+    "catchAll": "没有条件：这条规则匹配所有请求（放最后）。",
+    "headers": "附加响应头",
+    "headersHint": "每行一个，名称: 值（例如 profile-update-interval: 12）。",
+    "template": "模板覆盖",
+    "templateHint": "命中这条规则的请求用这份模板代替该格式的模板；留空用正常模板。",
+    "test": "测试一个请求",
+    "testClient": "?client= 参数",
+    "testHeaders": "其他请求头（每行 名称: 值）",
+    "run": "匹配",
+    "result": "结果：",
+    "noRule": "无规则命中（内置识别）",
+    "actions": {
+      "serve": "返回订阅",
+      "block": "拒绝（403）",
+      "not_found": "假装不存在（404）",
+      "unavailable": "法律原因不可用（451）",
+      "drop": "直接断开连接"
+    },
+    "ops": {
+      "contains": "包含",
+      "equals": "等于",
+      "prefix": "开头是",
+      "regex": "匹配正则",
+      "exists": "存在",
+      "missing": "不存在"
+    }
   }
 }

@@ -691,7 +691,8 @@
     "hintNodeList": "Loon과 Quantumult X의 원격 구독은 노드 목록이므로 기본 템플릿에는 노드 줄만 있습니다. 완전한 설정으로 작성하면 클라이언트에서 설정으로 가져와야 합니다.",
     "reset": "기본값으로 복원",
     "modeDesign": "디자이너",
-    "modeText": "텍스트"
+    "modeText": "텍스트",
+    "modeRules": "응답 규칙"
   },
   "warp": {
     "title": "Cloudflare WARP 출구",
@@ -1127,5 +1128,46 @@
     "showRequests": "구독 요청 기록 ({{n}})",
     "hideRequests": "기록 숨기기",
     "noRequests": "요청 기록이 아직 없습니다"
+  },
+  "responseRules": {
+    "title": "응답 규칙",
+    "hint": "구독 요청마다 위에서 아래로 평가하며, 처음 일치한 규칙이 형식·추가 헤더·템플릿을 정하거나 요청을 거부합니다. 일치하는 규칙이 없으면 기존처럼 User-Agent로 형식을 추정합니다.",
+    "add": "규칙 추가",
+    "empty": "규칙 없음: 모든 클라이언트는 User-Agent로 형식을 추정합니다.",
+    "name": "이름",
+    "action": "동작",
+    "format": "형식",
+    "formatAuto": "자동 (User-Agent)",
+    "enabled": "사용",
+    "when": "조건",
+    "all": "모든 조건 충족",
+    "any": "하나라도 충족",
+    "addCondition": "조건 추가",
+    "catchAll": "조건 없음: 이 규칙은 모든 요청에 일치합니다 (맨 마지막에 두세요).",
+    "headers": "추가 응답 헤더",
+    "headersHint": "한 줄에 하나, 이름: 값 (예: profile-update-interval: 12).",
+    "template": "템플릿 재정의",
+    "templateHint": "이 규칙에 걸린 요청은 이 템플릿을 사용합니다. 비우면 일반 템플릿.",
+    "test": "요청 테스트",
+    "testClient": "?client= 매개변수",
+    "testHeaders": "기타 헤더 (한 줄에 이름: 값)",
+    "run": "평가",
+    "result": "결과:",
+    "noRule": "규칙 없음 (기본 감지)",
+    "actions": {
+      "serve": "구독 제공",
+      "block": "차단 (403)",
+      "not_found": "없음 (404)",
+      "unavailable": "법적 사유로 차단 (451)",
+      "drop": "연결 끊기"
+    },
+    "ops": {
+      "contains": "포함",
+      "equals": "같음",
+      "prefix": "시작함",
+      "regex": "정규식 일치",
+      "exists": "존재함",
+      "missing": "없음"
+    }
   }
 }

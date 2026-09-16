@@ -6,6 +6,7 @@ import { api } from '../lib/api'
 import { toast } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
 import { SubDesigner } from '../components/SubDesigner'
+import { ResponseRules } from '../components/ResponseRules'
 
 interface Data { templates: Record<string, string>; defaults: Record<string, string> }
 const labels: Record<string, string> = { clash: 'mihomo / Clash Meta', stash: 'Stash', surge: 'Surge', surfboard: 'Surfboard', loon: 'Loon', qx: 'Quantumult X', egern: 'Egern' }
@@ -30,8 +31,9 @@ export default function SubTemplatesPage() {
   const isYaml = format === 'clash' || format === 'stash'
   return (
     <>
-      <PageHeader title={t('subTemplates.title')} subtitle={t('subTemplates.subtitle')} actions={<SegmentedControl size="xs" value={mode} onChange={setMode} data={[{ value: 'design', label: t('subTemplates.modeDesign') }, { value: 'text', label: t('subTemplates.modeText') }]} />} />
+      <PageHeader title={t('subTemplates.title')} subtitle={t('subTemplates.subtitle')} actions={<SegmentedControl size="xs" value={mode} onChange={setMode} data={[{ value: 'design', label: t('subTemplates.modeDesign') }, { value: 'text', label: t('subTemplates.modeText') }, { value: 'rules', label: t('subTemplates.modeRules') }]} />} />
       {mode === 'design' && <SubDesigner />}
+      {mode === 'rules' && <ResponseRules />}
       {mode === 'text' && <Card>
         <Stack gap="sm">
           <Group align="flex-end">

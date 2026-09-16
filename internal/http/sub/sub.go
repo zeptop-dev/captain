@@ -52,9 +52,29 @@ func (c *templateCache) get(ctx context.Context, format string) string {
 	return c.cached[format]
 }
 
+// rulesCache keeps the response rules for 15 s like the templates.
+type rulesCache struct {
+	store   *store.Store
+	mu      sync.Mutex
+	cached  []service.ResponseRule
+	fetched time.Time
+}
+
+func (c *rulesCache) get(ctx context.Context) []service.ResponseRule {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if time.Since(c.fetched) >= 15*time.Second {
+		var v []service.ResponseRule
+		_ = c.store.GetSetting(ctx, service.SettingResponseRules, &v)
+		c.cached, c.fetched = v, time.Now()
+	}
+	return c.cached
+}
+
 // Register mounts the subscription route.
 func Register(mux *http.ServeMux, d Deps) {
 	tpls := &templateCache{store: d.Store}
+	rules := &rulesCache{store: d.Store}
 	serve := func(w http.ResponseWriter, r *http.Request, u *domain.User) {
 		lines, acct, err := d.Service.Lines(r.Context(), u, time.Now())
 		if errors.Is(err, service.ErrDisabled) {
@@ -70,8 +90,52 @@ func Register(mux *http.ServeMux, d Deps) {
 		// No usable plan (as opposed to a banned account, refused above)
 		// renders an empty document rather than an error so clients
 		// keep the subscription and see the usage header.
-		rd := subscription.Pick(r.URL.Query().Get("client"), r.UserAgent())
-		req := store.SubRequest{RequestIP: ratelimit.ClientIP(r), UserAgent: r.UserAgent(), Response: rd.Name()}
+		req := store.SubRequest{RequestIP: ratelimit.ClientIP(r), UserAgent: r.UserAgent()}
+		// Response rules: the first matching rule decides the format and
+		// extra headers, or refuses the request outright.
+		format, template := r.URL.Query().Get("client"), ""
+		if rule := service.MatchResponseRule(rules.get(r.Context()), r); rule != nil {
+			req.Rule = rule.Name
+			refuse := func(status int, text string, resp string) {
+				req.Response = resp
+				_ = d.Store.RecordSubRequest(r.Context(), u.ID, req)
+				if status == 0 {
+					// "drop": close without an HTTP reply, so scanners
+					// learn nothing about the link.
+					if hj, ok := w.(http.Hijacker); ok {
+						if conn, _, err := hj.Hijack(); err == nil {
+							_ = conn.Close()
+							return
+						}
+					}
+					status, text = http.StatusForbidden, "forbidden"
+				}
+				http.Error(w, text, status)
+			}
+			switch rule.Action {
+			case "block":
+				refuse(http.StatusForbidden, "forbidden", "blocked")
+				return
+			case "not_found":
+				refuse(http.StatusNotFound, "404 page not found", "not-found")
+				return
+			case "unavailable":
+				refuse(http.StatusUnavailableForLegalReasons, "unavailable for legal reasons", "unavailable")
+				return
+			case "drop":
+				refuse(0, "", "dropped")
+				return
+			}
+			if rule.Format != "" {
+				format = rule.Format
+			}
+			template = rule.Template
+			for k, v := range rule.Headers {
+				w.Header().Set(k, v)
+			}
+		}
+		rd := subscription.Pick(format, r.UserAgent())
+		req.Response = rd.Name()
 		// Device limit by HWID: a client that identifies its device gets
 		// counted per device; over the limit it receives an empty document
 		// with the reason in headers (x-hwid-*, announce), the Happ way.
@@ -111,7 +175,10 @@ func Register(mux *http.ServeMux, d Deps) {
 			}
 		}
 		defer func() { _ = d.Store.RecordSubRequest(context.WithoutCancel(r.Context()), u.ID, req) }()
-		body, err := rd.RenderWith(lines, acct, tpls.get(r.Context(), rd.Name()))
+		if template == "" {
+			template = tpls.get(r.Context(), rd.Name())
+		}
+		body, err := rd.RenderWith(lines, acct, template)
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return

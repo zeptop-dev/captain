@@ -691,7 +691,8 @@
     "hintNodeList": "Loon と Quantumult X のリモートサブスクリプションはノード一覧なので、既定テンプレートはノード行のみです。完全な設定として書く場合はクライアント側で設定として取り込んでください。",
     "reset": "既定値に戻す",
     "modeDesign": "ビジュアル",
-    "modeText": "テキスト"
+    "modeText": "テキスト",
+    "modeRules": "レスポンスルール"
   },
   "warp": {
     "title": "Cloudflare WARP 出口",
@@ -1127,5 +1128,46 @@
     "showRequests": "取得履歴（{{n}}）",
     "hideRequests": "履歴を隠す",
     "noRequests": "取得記録はまだありません"
+  },
+  "responseRules": {
+    "title": "レスポンスルール",
+    "hint": "サブスク取得のたびに上から順に評価し、最初に一致したルールが形式・追加ヘッダー・テンプレートを決めるか、要求を拒否します。一致しなければ従来どおり User-Agent から形式を推定します。",
+    "add": "ルールを追加",
+    "empty": "ルールなし：すべてのクライアントは User-Agent から形式を推定します。",
+    "name": "名前",
+    "action": "動作",
+    "format": "形式",
+    "formatAuto": "自動（User-Agent）",
+    "enabled": "有効",
+    "when": "条件",
+    "all": "すべての条件が成立",
+    "any": "いずれかの条件が成立",
+    "addCondition": "条件を追加",
+    "catchAll": "条件なし：このルールはすべての要求に一致します（最後に置いてください）。",
+    "headers": "追加レスポンスヘッダー",
+    "headersHint": "1 行に 1 つ、名前: 値（例 profile-update-interval: 12）。",
+    "template": "テンプレート上書き",
+    "templateHint": "このルールに一致した要求はこのテンプレートを使います。空欄なら通常のテンプレート。",
+    "test": "要求をテスト",
+    "testClient": "?client= パラメータ",
+    "testHeaders": "その他のヘッダー（1 行に 名前: 値）",
+    "run": "評価",
+    "result": "結果：",
+    "noRule": "ルールなし（組み込み判定）",
+    "actions": {
+      "serve": "サブスクを返す",
+      "block": "拒否（403）",
+      "not_found": "見つからない（404）",
+      "unavailable": "法的理由で利用不可（451）",
+      "drop": "接続を切断"
+    },
+    "ops": {
+      "contains": "を含む",
+      "equals": "に等しい",
+      "prefix": "で始まる",
+      "regex": "正規表現に一致",
+      "exists": "が存在する",
+      "missing": "が存在しない"
+    }
   }
 }

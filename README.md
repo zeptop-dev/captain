@@ -364,6 +364,17 @@ targeting it send a PROXY protocol v2 header automatically (built-in relay
 or realm backend), the landing node sees the real client and counts devices
 exactly. Direct connections to such an inbound fail, by design.
 
+**Response rules.** Subscription templates → *Response rules* is an
+ordered list evaluated on every `/sub` request: conditions on request
+headers (`User-Agent`, `x-hwid`, `x-device-os`, … or the `?client=`
+parameter; contains / equals / prefix / regex / present / absent, all or
+any) and an action: serve a chosen format (with extra response headers and
+an optional template override), or answer 403, 404, 451, or drop the
+connection without a reply. The first matching rule wins; with no match the
+format is guessed from the User-Agent as before. A tester on the same page
+shows which rule a given request hits, and the user drawer's fetch history
+records the rule name.
+
 **Device identification (HWID).** Happ, FlClashX, V2Box, Streisand and other
 clients that follow the Remnawave/Happ convention send `x-hwid`,
 `x-device-os`, `x-ver-os` and `x-device-model` when they fetch the
