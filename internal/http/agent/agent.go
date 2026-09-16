@@ -258,6 +258,7 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 			_ = h.Store.UpsertOnline(ctx, u.ID, n.ID, ips, now)
 		}
 	}
+	h.ingestConnections(ctx, n, rep, inbounds, allowed)
 	for _, f := range rep.Forwards {
 		_ = h.Store.UpsertForwardStatus(ctx, n.ID, f.Tag, f.Up, f.RTTMillis, f.LastError, f.ActiveConn, f.TotalConn, f.BytesIn, f.BytesOut)
 	}
@@ -331,4 +332,44 @@ func (h *handlers) beat(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ingestConnections stores the report's connection log rows when the
+// setting is on (a node that still logs after it was switched off is
+// ignored). Users are resolved by UUID, inbounds by tag; unknown users
+// and users the node does not serve are dropped.
+func (h *handlers) ingestConnections(ctx context.Context, n *domain.Node, rep agentproto.Report, inbounds []*domain.Inbound, allowed map[int64]bool) {
+	if len(rep.Connections) == 0 && rep.ConnDropped == 0 {
+		return
+	}
+	var cl store.ConnLogSettings
+	_ = h.Store.GetSetting(ctx, store.SettingConnLog, &cl)
+	if !cl.Enabled {
+		return
+	}
+	tagID := map[string]int64{}
+	for _, ib := range inbounds {
+		tagID[ib.Tag] = ib.ID
+	}
+	users := map[string]int64{}
+	rows := make([]store.ConnRow, 0, len(rep.Connections))
+	for _, ev := range rep.Connections {
+		uid, seen := users[ev.User]
+		if !seen {
+			if u, err := h.Store.UserByUUID(ctx, ev.User); err == nil && allowed[u.ID] {
+				uid = u.ID
+			}
+			users[ev.User] = uid
+		}
+		if uid == 0 || ev.Host == "" {
+			continue
+		}
+		rows = append(rows, store.ConnRow{UserID: uid, NodeID: n.ID, InboundID: tagID[ev.Inbound], At: time.Unix(ev.At, 0), ClientIP: ev.ClientIP, Host: ev.Host, Port: ev.Port, Network: ev.Network})
+	}
+	if err := h.Store.AddConnEvents(ctx, rows); err != nil {
+		h.Log.Error("connection log", "node", n.ID, "rows", len(rows), "err", err)
+	}
+	if rep.ConnDropped > 0 {
+		h.Log.Warn("node dropped connection log events (buffer full)", "node", n.ID, "dropped", rep.ConnDropped)
+	}
 }

@@ -16,6 +16,7 @@ import { UserSubs, type UserSub } from '../components/UserSubs'
 import { TempLinks } from '../components/TempLinks'
 import { UserEntries } from '../components/UserEntries'
 import { HwidDevices } from '../components/HwidDevices'
+import { UserConnections } from '../components/UserConnections'
 import { SegmentedControl } from '@mantine/core'
 
 export default function UsersPage() {
@@ -121,6 +122,7 @@ export default function UsersPage() {
             <UserEntries userID={sel.id} />
             <TempLinks userID={sel.id} />
             <HwidDevices key={sel.id} userID={sel.id} devices={detail.data?.hwid_devices ?? []} limit={detail.data?.hwid_limit ?? null} requests={detail.data?.sub_requests ?? []} />
+            <UserConnections userID={sel.id} />
             <Stack gap="sm">
               <Title order={6}>{t('users.topUp')}</Title>
               <Text size="xs" c="dimmed">{t('users.topUpHint')} {t('users.balance')}: {money(sel.balance_cents)}</Text>

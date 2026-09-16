@@ -21,6 +21,7 @@ import { TwoFactorCard } from '../components/TwoFactorCard'
 import { SecurityCard } from '../components/SecurityCard'
 import { BackupCard } from '../components/BackupCard'
 import { KomariCard } from '../components/KomariCard'
+import { ConnLogCard } from '../components/ConnLogCard'
 
 export default function SettingsPage() {
   const { t } = useTranslation()
@@ -136,6 +137,7 @@ export default function SettingsPage() {
         <WebhooksCard />
         <ProbeCard />
         <KomariCard />
+        <ConnLogCard />
         <TokensCard />
         <TwoFactorCard />
         <SecurityCard />

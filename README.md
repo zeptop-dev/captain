@@ -367,6 +367,16 @@ targeting it send a PROXY protocol v2 header automatically (built-in relay
 or realm backend), the landing node sees the real client and counts devices
 exactly. Direct connections to such an inbound fail, by design.
 
+**Connection log (off by default).** Settings → Connection log makes every
+node report each accepted connection — user, inbound, client address,
+destination host and port, TCP/UDP — taken from the cores' own logs
+(sing-box, xray, hysteria; mieru has none). Rows live in `conn_log`, are
+kept for the configured days (7 by default) and are listed per user in the
+user drawer ("Connections") for abuse reports and support. This is personal
+data about what your users visit: keep it off unless you need it, keep the
+retention short, and say so in your privacy notice; switching it off
+deletes what was collected. Needs bosun ≥ 0.42.
+
 **Browser origin check.** Cookie-authenticated writes (admin console,
 portal, and the login / register / reset routes) must carry an `Origin` or
 `Referer` of the panel's own host (the request host, `X-Forwarded-Host`

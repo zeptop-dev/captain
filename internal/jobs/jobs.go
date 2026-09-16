@@ -4,16 +4,17 @@ package jobs
 import (
 	"context"
 	"fmt"
-	"github.com/zeptop-dev/captain/internal/backup"
-	"github.com/zeptop-dev/captain/internal/mail"
-	"github.com/zeptop-dev/captain/internal/service"
-	"github.com/zeptop-dev/captain/internal/telegram"
-	"github.com/zeptop-dev/captain/internal/webhook"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
 	"time"
+
+	"github.com/zeptop-dev/captain/internal/backup"
+	"github.com/zeptop-dev/captain/internal/mail"
+	"github.com/zeptop-dev/captain/internal/service"
+	"github.com/zeptop-dev/captain/internal/telegram"
+	"github.com/zeptop-dev/captain/internal/webhook"
 
 	"github.com/zeptop-dev/captain/internal/metrics"
 	"github.com/zeptop-dev/captain/internal/store"
@@ -130,6 +131,17 @@ func (r *Runner) Tick(ctx context.Context) {
 			r.lastPrune = now
 			if err := r.Store.PruneStats(ctx, now); err != nil {
 				log.Error("prune stats", "err", err)
+			}
+			var cl store.ConnLogSettings
+			_ = r.Store.GetSetting(ctx, store.SettingConnLog, &cl)
+			before := now.AddDate(0, 0, -cl.Days())
+			if !cl.Enabled {
+				before = now // off: forget everything collected so far
+			}
+			if n, err := r.Store.PruneConnLog(ctx, before); err != nil {
+				log.Error("prune connection log", "err", err)
+			} else if n > 0 {
+				log.Info("pruned connection log", "rows", n)
 			}
 		}
 	}

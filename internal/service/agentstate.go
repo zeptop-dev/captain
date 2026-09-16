@@ -165,6 +165,9 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 	}
 	speeds, _ := a.Store.SpeedLimits(ctx)
 	node.UserSpeedLimitMbps = n.UserSpeedLimitMbps
+	var cl store.ConnLogSettings
+	_ = a.Store.GetSetting(ctx, store.SettingConnLog, &cl)
+	node.ConnLog = cl.Enabled
 	var quotas map[int64]store.QuotaWindow
 	if n.MitaQuotas {
 		quotas, _ = a.Store.UserQuotas(ctx, at)

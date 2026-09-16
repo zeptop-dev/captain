@@ -1,8 +1,11 @@
 package admin
 
 import (
+	"context"
 	"net/http"
 	"strconv"
+
+	"github.com/zeptop-dev/captain/internal/store"
 )
 
 func (h *handlers) registerOps(mux *http.ServeMux) {
@@ -32,6 +35,21 @@ func (h *handlers) registerOps(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/admin/settings/webhooks", h.requireAdmin(h.getWebhooks))
 	mux.HandleFunc("PUT /api/admin/settings/webhooks", h.requireAdmin(h.putWebhooks))
 	mux.HandleFunc("POST /api/admin/settings/webhooks/test", h.requireAdmin(h.testWebhook))
+	mux.HandleFunc("GET /api/admin/settings/connlog", h.requireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		getSetting[store.ConnLogSettings](h, w, r, store.SettingConnLog, func(v *store.ConnLogSettings) { v.RetentionDays = v.Days() })
+	}))
+	mux.HandleFunc("PUT /api/admin/settings/connlog", h.requireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		putSetting[store.ConnLogSettings](h, w, r, store.SettingConnLog, func(_ context.Context, v *store.ConnLogSettings) string {
+			if v.RetentionDays < 1 || v.RetentionDays > 365 {
+				return "retention_days must be 1-365"
+			}
+			return ""
+		})
+		if h.State != nil {
+			h.State.Invalidate()
+		}
+	}))
+	mux.HandleFunc("GET /api/admin/users/{id}/connections", h.requireAdmin(h.userConnections))
 	mux.HandleFunc("GET /api/admin/settings/komari", h.requireAdmin(h.getKomari))
 	mux.HandleFunc("PUT /api/admin/settings/komari", h.requireAdmin(h.putKomari))
 	mux.HandleFunc("GET /api/admin/settings/probe", h.requireAdmin(h.getProbe))
@@ -107,3 +125,22 @@ func firstNonEmpty(vals ...string) string {
 // ---- temporary subscription links ----------------------------------------------------
 
 // ---- komari -------------------------------------------------------------------------
+
+// userConnections lists a user's recent connections (the connection log).
+func (h *handlers) userConnections(w http.ResponseWriter, r *http.Request) {
+	id, okID := pathID(r)
+	if !okID {
+		fail(w, http.StatusBadRequest, "bad id")
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	rows, err := h.Store.UserConnections(r.Context(), id, limit)
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
+	if rows == nil {
+		rows = []store.ConnRow{}
+	}
+	ok(w, rows)
+}

@@ -1177,5 +1177,15 @@
       "exists": "is present",
       "missing": "is absent"
     }
+  },
+  "connlog": {
+    "title": "Connection log",
+    "hint": "Nodes report every accepted connection: user, client address, destination host and port. Shown per user in the user drawer, for abuse reports and support. Needs bosun ≥ 0.42; mieru inbounds are not covered.",
+    "enabled": "Record connections",
+    "retention": "Keep (days)",
+    "privacy": "This is personal data about what your users visit. Keep it off unless you need it, keep the retention short, and say so in your privacy notice. Switching it off deletes what was collected.",
+    "userTitle": "Connections",
+    "show": "Show recent connections",
+    "none": "No connections recorded (is the connection log on?)"
   }
 }
