@@ -404,7 +404,9 @@
     "hwidFallback": "既定の上限",
     "hwidFallbackHint": "ユーザーにもプランにもデバイス数が無いときに使用。0 = 無制限。",
     "hwidAnnounce": "拒否時のメッセージ",
-    "hwidAnnounceHint": "上限超過時に Happ が表示します。"
+    "hwidAnnounceHint": "上限超過時に Happ が表示します。",
+    "infoLines": "情報行",
+    "infoLinesHint": "1 行につき 1 つのダミーサーバーをサブスクの先頭に置き、名前でアカウント状態を表示します。同じ変数はエントリ名にも使えます。変数：{{DAYS_LEFT}}, {{EXPIRE_DATE}}, {{TRAFFIC_LEFT}}, {{TRAFFIC_USED}}, {{TRAFFIC_LIMIT}}, {{USED_PERCENT}}, {{STATUS}}, {{STATUS:ACTIVE=✅|EXPIRED=😓|LIMITED=⛔|DISABLED=❌}}, {{PLAN}}, {{EMAIL}}, {{USERNAME}}"
   },
   "update": {
     "title": "バージョンとアップグレード",

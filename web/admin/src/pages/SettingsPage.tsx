@@ -34,9 +34,10 @@ export default function SettingsPage() {
   const [shortLinks, setShortLinks] = useState<boolean | null>(null)
   const [autoFlags, setAutoFlags] = useState<boolean | null>(null)
   const [singlePlan, setSinglePlan] = useState<boolean | null>(null)
+  const [infoText, setInfoText] = useState<string | null>(null)
   const [hwid, setHwid] = useState<{ enabled: boolean; require: boolean; fallback_limit: number; announce: string } | null>(null)
   const hw = hwid ?? subs.data?.hwid ?? { enabled: false, require: false, fallback_limit: 0, announce: '' }
-  const saveSubs = useMutation({ mutationFn: (urls: string[]) => api.put('/api/admin/settings/subscription', { URLs: urls, short_links: shortLinks ?? subs.data?.short_links ?? false, auto_flags: autoFlags ?? subs.data?.auto_flags ?? false, single_plan: singlePlan ?? subs.data?.single_plan ?? false, hwid: hw }), onSuccess: () => { toast.ok(t('common.saved')); setSubText(null); qc.invalidateQueries({ queryKey: ['subscription-settings'] }); qc.invalidateQueries({ queryKey: ['users'] }) }, onError: toast.err })
+  const saveSubs = useMutation({ mutationFn: (urls: string[]) => api.put('/api/admin/settings/subscription', { URLs: urls, short_links: shortLinks ?? subs.data?.short_links ?? false, auto_flags: autoFlags ?? subs.data?.auto_flags ?? false, single_plan: singlePlan ?? subs.data?.single_plan ?? false, hwid: hw, info_lines: (infoText ?? (subs.data?.info_lines ?? []).join('\n')).split('\n').map((l) => l.trim()).filter(Boolean) }), onSuccess: () => { toast.ok(t('common.saved')); setSubText(null); qc.invalidateQueries({ queryKey: ['subscription-settings'] }); qc.invalidateQueries({ queryKey: ['users'] }) }, onError: toast.err })
   const invite = useQuery({ queryKey: ['invite-settings'], queryFn: () => api.get<InviteSettings>('/api/admin/settings/invite') })
   const iform = useForm<InviteSettings & { methods: string }>({ initialValues: { enabled: false, percent: 10, first_order_only: false, multi_level: false, level2: 0, level3: 0, payout: 'balance', min_withdraw_cents: 0, withdraw_methods: [], methods: '' } })
   useEffect(() => { if (invite.data) iform.setValues({ ...invite.data, payout: invite.data.payout || 'balance', methods: (invite.data.withdraw_methods ?? []).join(', ') }) }, [invite.data]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -71,6 +72,7 @@ export default function SettingsPage() {
           <Switch mt="xs" label={t('settings.shortLinks')} description={t('settings.shortLinksHint')} checked={shortLinks ?? subs.data?.short_links ?? false} onChange={(e) => setShortLinks(e.currentTarget.checked)} />
           <Switch mt="xs" label={t('settings.autoFlags')} description={t('settings.autoFlagsHint')} checked={autoFlags ?? subs.data?.auto_flags ?? false} onChange={(e) => setAutoFlags(e.currentTarget.checked)} />
           <Switch mt="xs" label={t('settings.singlePlan')} description={t('settings.singlePlanHint')} checked={singlePlan ?? subs.data?.single_plan ?? false} onChange={(e) => setSinglePlan(e.currentTarget.checked)} />
+          <Textarea mt="sm" autosize minRows={2} label={t('settings.infoLines')} description={t('settings.infoLinesHint')} placeholder={'{{STATUS:ACTIVE=✅|EXPIRED=😓|LIMITED=⛔}} {{PLAN}} · {{DAYS_LEFT}} d\n{{TRAFFIC_LEFT}} / {{TRAFFIC_LIMIT}}'} value={infoText ?? (subs.data?.info_lines ?? []).join('\n')} onChange={(e) => setInfoText(e.currentTarget.value)} />
           <Divider my="sm" label={t('settings.hwid')} labelPosition="left" />
           <Text size="xs" c="dimmed" mb="xs">{t('settings.hwidHint')}</Text>
           <Switch label={t('settings.hwidEnabled')} checked={hw.enabled} onChange={(e) => setHwid({ ...hw, enabled: e.currentTarget.checked })} />
@@ -81,7 +83,7 @@ export default function SettingsPage() {
               <TextInput flex={1} label={t('settings.hwidAnnounce')} description={t('settings.hwidAnnounceHint')} value={hw.announce} onChange={(e) => setHwid({ ...hw, announce: e.currentTarget.value })} />
             </Group>
           </>}
-          <Group justify="flex-end" mt="sm"><Button size="xs" loading={saveSubs.isPending} disabled={subText === null && shortLinks === null && autoFlags === null && singlePlan === null && hwid === null} onClick={() => saveSubs.mutate((subText ?? '').split('\n').map((l) => l.trim()).filter(Boolean))}>{t('common.save')}</Button></Group>
+          <Group justify="flex-end" mt="sm"><Button size="xs" loading={saveSubs.isPending} disabled={subText === null && shortLinks === null && autoFlags === null && singlePlan === null && hwid === null && infoText === null} onClick={() => saveSubs.mutate((subText ?? '').split('\n').map((l) => l.trim()).filter(Boolean))}>{t('common.save')}</Button></Group>
         </Card>
         <Card>
           <Title order={5} mb="xs">{t('settings.acme')}</Title>

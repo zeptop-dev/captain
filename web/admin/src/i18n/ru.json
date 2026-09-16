@@ -404,7 +404,9 @@
     "hwidFallback": "Лимит по умолчанию",
     "hwidFallbackHint": "Если ни пользователь, ни тариф не задают лимит. 0 = без ограничений.",
     "hwidAnnounce": "Сообщение при отказе",
-    "hwidAnnounceHint": "Happ показывает его, когда устройство сверх лимита."
+    "hwidAnnounceHint": "Happ показывает его, когда устройство сверх лимита.",
+    "infoLines": "Информационные строки",
+    "infoLinesHint": "По одному фиктивному серверу на строку в начале каждой подписки, в имени — состояние аккаунта. Те же переменные работают в именах точек входа. Переменные: {{DAYS_LEFT}}, {{EXPIRE_DATE}}, {{TRAFFIC_LEFT}}, {{TRAFFIC_USED}}, {{TRAFFIC_LIMIT}}, {{USED_PERCENT}}, {{STATUS}}, {{STATUS:ACTIVE=✅|EXPIRED=😓|LIMITED=⛔|DISABLED=❌}}, {{PLAN}}, {{EMAIL}}, {{USERNAME}}"
   },
   "update": {
     "title": "Версия и обновление",

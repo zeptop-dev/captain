@@ -404,7 +404,9 @@
     "hwidFallback": "默认限制",
     "hwidFallbackHint": "用户和套餐都没设设备数时使用，0 = 不限。",
     "hwidAnnounce": "超限提示",
-    "hwidAnnounceHint": "设备超限时 Happ 会显示这段文字。"
+    "hwidAnnounceHint": "设备超限时 Happ 会显示这段文字。",
+    "infoLines": "信息行",
+    "infoLinesHint": "每行一个假节点，放在订阅最前面，名字里显示账户状态；同样的变量也可以写在入口名里。变量：{{DAYS_LEFT}}, {{EXPIRE_DATE}}, {{TRAFFIC_LEFT}}, {{TRAFFIC_USED}}, {{TRAFFIC_LIMIT}}, {{USED_PERCENT}}, {{STATUS}}, {{STATUS:ACTIVE=✅|EXPIRED=😓|LIMITED=⛔|DISABLED=❌}}, {{PLAN}}, {{EMAIL}}, {{USERNAME}}"
   },
   "update": {
     "title": "版本与升级",

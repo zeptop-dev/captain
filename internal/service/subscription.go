@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/subscription"
@@ -43,10 +44,17 @@ func (s *Subscription) Lines(ctx context.Context, u *domain.User, at time.Time) 
 	}
 	var ss SubscriptionSettings
 	_ = s.Store.GetSetting(ctx, SettingSubscription, &ss)
-	lines := make([]subscription.Line, 0, len(rows))
+	acct := account(usable)
+	vars := s.remarkVars(ctx, u, usable, acct, at)
+	lines := make([]subscription.Line, 0, len(rows)+len(ss.InfoLines))
+	for i, text := range ss.InfoLines {
+		if text = strings.TrimSpace(text); text != "" {
+			lines = append(lines, InfoLine(vars.Expand(text), i))
+		}
+	}
 	for _, r := range rows {
 		lines = append(lines, subscription.Line{
-			Name: subscription.WithFlag(r.Entry.Name, r.Entry.DisplayHost, r.Entry.Region, ss.AutoFlags), Host: r.Entry.DisplayHost, Port: r.Entry.DisplayPort,
+			Name: vars.Expand(subscription.WithFlag(r.Entry.Name, r.Entry.DisplayHost, r.Entry.Region, ss.AutoFlags)), Host: r.Entry.DisplayHost, Port: r.Entry.DisplayPort,
 			Inbound: r.Inbound.Spec(), UUID: u.UUID, UserID: u.ID, Password: u.UUID, Tags: r.Entry.Tags, Extra: r.Entry.ClientExtra,
 		})
 	}
@@ -64,10 +72,25 @@ func (s *Subscription) Lines(ctx context.Context, u *domain.User, at time.Time) 
 		if err != nil {
 			continue
 		}
-		l.Name = subscription.WithFlag(n.Name, l.Host, "", ss.AutoFlags)
+		l.Name = vars.Expand(subscription.WithFlag(n.Name, l.Host, "", ss.AutoFlags))
 		lines = append(lines, l)
 	}
-	return lines, account(usable), nil
+	return lines, acct, nil
+}
+
+// remarkVars resolves the {{VARIABLE}} values for this user; plan names
+// are looked up only when a name is needed.
+func (s *Subscription) remarkVars(ctx context.Context, u *domain.User, usable []*domain.Subscription, acct subscription.Account, at time.Time) RemarkVars {
+	plans := map[int64]string{}
+	for _, sub := range usable {
+		if _, seen := plans[sub.PlanID]; seen {
+			continue
+		}
+		if p, err := s.Store.PlanByID(ctx, sub.PlanID); err == nil {
+			plans[sub.PlanID] = p.Name
+		}
+	}
+	return NewRemarkVars(u, usable, plans, acct, at)
 }
 
 func usableSubs(subs []*domain.Subscription, at time.Time) []*domain.Subscription {
@@ -110,10 +133,13 @@ func (s *Subscription) EntryLinks(ctx context.Context, u *domain.User) ([]EntryL
 	}
 	var ss SubscriptionSettings
 	_ = s.Store.GetSetting(ctx, SettingSubscription, &ss)
+	subs, _ := s.Store.ActiveSubscriptions(ctx, u.ID)
+	usable := usableSubs(subs, time.Now())
+	vars := s.remarkVars(ctx, u, usable, account(usable), time.Now())
 	out := make([]EntryLink, 0, len(rows))
 	for _, r := range rows {
 		l := subscription.Line{
-			Name: subscription.WithFlag(r.Entry.Name, r.Entry.DisplayHost, r.Entry.Region, ss.AutoFlags), Host: r.Entry.DisplayHost, Port: r.Entry.DisplayPort,
+			Name: vars.Expand(subscription.WithFlag(r.Entry.Name, r.Entry.DisplayHost, r.Entry.Region, ss.AutoFlags)), Host: r.Entry.DisplayHost, Port: r.Entry.DisplayPort,
 			Inbound: r.Inbound.Spec(), UUID: u.UUID, UserID: u.ID, Password: u.UUID, Tags: r.Entry.Tags,
 		}
 		out = append(out, EntryLink{EntryID: r.Entry.ID, Name: l.Name, Protocol: string(r.Inbound.Protocol), Host: l.Host, Port: l.Port, URI: subscription.ShareURI(l), Blocked: hidden[r.Entry.ID]})

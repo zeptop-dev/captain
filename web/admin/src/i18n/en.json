@@ -404,7 +404,9 @@
     "hwidFallback": "Fallback limit",
     "hwidFallbackHint": "When neither the user nor a plan sets a device limit. 0 = unlimited.",
     "hwidAnnounce": "Message when refused",
-    "hwidAnnounceHint": "Shown by Happ when a device is over the limit."
+    "hwidAnnounceHint": "Shown by Happ when a device is over the limit.",
+    "infoLines": "Info lines",
+    "infoLinesHint": "One dummy server per line at the top of every subscription, named with the account state. Also usable in entry names. Variables: {{DAYS_LEFT}}, {{EXPIRE_DATE}}, {{TRAFFIC_LEFT}}, {{TRAFFIC_USED}}, {{TRAFFIC_LIMIT}}, {{USED_PERCENT}}, {{STATUS}}, {{STATUS:ACTIVE=✅|EXPIRED=😓|LIMITED=⛔|DISABLED=❌}}, {{PLAN}}, {{EMAIL}}, {{USERNAME}}"
   },
   "update": {
     "title": "Version and updates",

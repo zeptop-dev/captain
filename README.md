@@ -364,6 +364,15 @@ targeting it send a PROXY protocol v2 header automatically (built-in relay
 or realm backend), the landing node sees the real client and counts devices
 exactly. Direct connections to such an inbound fail, by design.
 
+**Remark variables.** Entry names and the *Info lines* in Settings →
+Subscription may contain `{{DAYS_LEFT}}`, `{{EXPIRE_DATE}}`,
+`{{TRAFFIC_LEFT}}`, `{{TRAFFIC_USED}}`, `{{TRAFFIC_LIMIT}}`,
+`{{USED_PERCENT}}`, `{{STATUS}}`, `{{PLAN}}`, `{{EMAIL}}`, `{{USERNAME}}`
+and `{{STATUS:ACTIVE=✅|EXPIRED=😓|LIMITED=⛔|DISABLED=❌}}`; they are filled
+per user at fetch time, so the client's server list shows the account
+state. Info lines are dummy Shadowsocks servers to localhost placed first
+in every format.
+
 **Response rules.** Subscription templates → *Response rules* is an
 ordered list evaluated on every `/sub` request: conditions on request
 headers (`User-Agent`, `x-hwid`, `x-device-os`, … or the `?client=`

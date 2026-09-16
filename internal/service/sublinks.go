@@ -27,6 +27,10 @@ type SubscriptionSettings struct {
 	// SinglePlan turns stacking off: buying a different plan replaces the
 	// current one (with the surplus credit) instead of running alongside it.
 	SinglePlan bool `json:"single_plan"`
+	// InfoLines are dummy servers put at the top of every subscription
+	// whose names carry the account state through {{DAYS_LEFT}},
+	// {{TRAFFIC_LEFT}} and the other RemarkVars placeholders.
+	InfoLines []string `json:"info_lines"`
 	// HWID counts devices by the x-hwid header Happ-class clients send
 	// (the standard Remnawave and Happ share) instead of by online IP.
 	HWID HWIDSettings `json:"hwid"`

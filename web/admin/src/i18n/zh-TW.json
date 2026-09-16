@@ -404,7 +404,9 @@
     "hwidFallback": "預設限制",
     "hwidFallbackHint": "使用者與方案都未設定裝置數時使用，0 = 不限。",
     "hwidAnnounce": "超限提示",
-    "hwidAnnounceHint": "裝置超限時 Happ 會顯示這段文字。"
+    "hwidAnnounceHint": "裝置超限時 Happ 會顯示這段文字。",
+    "infoLines": "資訊列",
+    "infoLinesHint": "每行一個假節點，放在訂閱最前面，名稱顯示帳戶狀態；同樣的變數也可寫在入口名稱裡。變數：{{DAYS_LEFT}}, {{EXPIRE_DATE}}, {{TRAFFIC_LEFT}}, {{TRAFFIC_USED}}, {{TRAFFIC_LIMIT}}, {{USED_PERCENT}}, {{STATUS}}, {{STATUS:ACTIVE=✅|EXPIRED=😓|LIMITED=⛔|DISABLED=❌}}, {{PLAN}}, {{EMAIL}}, {{USERNAME}}"
   },
   "update": {
     "title": "版本與升級",

@@ -404,7 +404,9 @@
     "hwidFallback": "기본 한도",
     "hwidFallbackHint": "사용자와 플랜 모두 기기 수를 정하지 않았을 때 사용. 0 = 무제한.",
     "hwidAnnounce": "거부 시 메시지",
-    "hwidAnnounceHint": "기기가 한도를 넘으면 Happ이 이 문구를 표시합니다."
+    "hwidAnnounceHint": "기기가 한도를 넘으면 Happ이 이 문구를 표시합니다.",
+    "infoLines": "정보 줄",
+    "infoLinesHint": "한 줄당 더미 서버 하나를 구독 맨 앞에 두고 이름으로 계정 상태를 보여줍니다. 같은 변수를 항목 이름에도 쓸 수 있습니다. 변수: {{DAYS_LEFT}}, {{EXPIRE_DATE}}, {{TRAFFIC_LEFT}}, {{TRAFFIC_USED}}, {{TRAFFIC_LIMIT}}, {{USED_PERCENT}}, {{STATUS}}, {{STATUS:ACTIVE=✅|EXPIRED=😓|LIMITED=⛔|DISABLED=❌}}, {{PLAN}}, {{EMAIL}}, {{USERNAME}}"
   },
   "update": {
     "title": "버전 및 업그레이드",
