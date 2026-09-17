@@ -59,7 +59,7 @@ func TestDynLimitObserve(t *testing.T) {
 	}
 	// Next report carries nothing for the fast user (the burst ended), but
 	// the two completed minutes average 13 Mbps, so it is throttled now.
-	got := d.Observe(ctx, []store.TrafficSample{{UserID: w.ID, Down: mb}}, at)
+	got := d.Observe(ctx, nil, at)
 	if len(got) != 1 || got[0] != u.ID {
 		t.Fatalf("throttled = %v", got)
 	}

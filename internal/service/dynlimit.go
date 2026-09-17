@@ -63,9 +63,11 @@ func (d *DynLimit) Invalidate() {
 // Observe takes one node report's samples. It returns the ids of users it
 // throttled just now.
 func (d *DynLimit) Observe(ctx context.Context, samples []store.TrafficSample, at time.Time) []int64 {
-	if d == nil || len(samples) == 0 {
+	if d == nil {
 		return nil
 	}
+	// An empty report still moves the clock: a burst that ended before
+	// this report is evaluated now, when its minute is complete.
 	s := d.Settings(ctx)
 	if !s.Enabled || !InWindows(s.Windows, at) {
 		return nil
