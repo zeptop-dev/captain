@@ -96,12 +96,13 @@ func (d *DynLimit) Observe(ctx context.Context, samples []store.TrafficSample, a
 		b[minute] += sm.Up + sm.Down
 		touched[sm.UserID] = true
 	}
-	// Evaluate the completed minutes only; the current one is partial.
+	// Evaluate every user with recent traffic over the completed minutes
+	// only (the current one is partial): a burst that ended a minute ago
+	// still counts, even if this report carries nothing for the user.
 	from, to := minute-windowMin, minute-1
 	var over []int64
 	var rates []int
-	for uid := range touched {
-		b := d.buckets[uid]
+	for uid, b := range d.buckets {
 		var sum int64
 		for m, n := range b {
 			if m < from {
@@ -110,15 +111,14 @@ func (d *DynLimit) Observe(ctx context.Context, samples []store.TrafficSample, a
 				sum += n
 			}
 		}
+		if len(b) == 0 {
+			delete(d.buckets, uid)
+			continue
+		}
 		mbps := int(sum * 8 / (windowMin * 60) / 1_000_000)
 		if mbps >= s.TriggerMbps && !white[uid] {
 			over = append(over, uid)
 			rates = append(rates, mbps)
-		}
-	}
-	for uid, b := range d.buckets {
-		if len(b) == 0 && !touched[uid] {
-			delete(d.buckets, uid)
 		}
 	}
 	d.mu.Unlock()
