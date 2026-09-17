@@ -93,7 +93,9 @@ func cmdServe(args []string) error {
 	}
 	cfg.Version = version
 	web := chttp.New(cfg, st, log)
-	srv := &http.Server{Addr: cfg.Listen, Handler: web.Handler(), ReadHeaderTimeout: 10 * time.Second}
+	// 16 KiB of headers is plenty; the default of about 1 MB let a caller
+	// store a megabyte of User-Agent per subscription fetch.
+	srv := &http.Server{Addr: cfg.Listen, Handler: web.Handler(), ReadHeaderTimeout: 10 * time.Second, MaxHeaderBytes: 16 << 10}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	go web.Bot().Run(ctx)
@@ -151,10 +153,10 @@ func cmdServe(args []string) error {
 			}
 			srv.TLSConfig = m.TLSConfig()
 			// Port 80 answers HTTP-01 challenges and redirects everything else.
-			httpSrv = &http.Server{Addr: cfg.TLS.HTTPListen, Handler: m.HTTPHandler(redirect), ReadHeaderTimeout: 10 * time.Second}
+			httpSrv = &http.Server{Addr: cfg.TLS.HTTPListen, Handler: m.HTTPHandler(redirect), ReadHeaderTimeout: 10 * time.Second, MaxHeaderBytes: 16 << 10}
 			log.Info("automatic certificates", "names", m.Managed(), "dns01", m.DNS(), "store", filepath.Join(cfg.DataDir, "certs"))
 		} else {
-			httpSrv = &http.Server{Addr: cfg.TLS.HTTPListen, Handler: redirect, ReadHeaderTimeout: 10 * time.Second}
+			httpSrv = &http.Server{Addr: cfg.TLS.HTTPListen, Handler: redirect, ReadHeaderTimeout: 10 * time.Second, MaxHeaderBytes: 16 << 10}
 		}
 		go func() {
 			if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {

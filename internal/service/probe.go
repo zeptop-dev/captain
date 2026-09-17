@@ -30,6 +30,7 @@ type Probe struct {
 	// events are always emitted per alert.
 	AlertWindow time.Duration
 
+	started    time.Time // first CheckOffline; see the grace period there
 	alertMu    sync.Mutex
 	pending    []string
 	alertTimer *time.Timer
@@ -76,7 +77,9 @@ func (p *Probe) Settings(ctx context.Context) store.ProbeSettings {
 		return p.settings
 	}
 	var s store.ProbeSettings
-	_ = p.Store.GetSetting(ctx, store.SettingProbe, &s)
+	if err := p.Store.GetSetting(ctx, store.SettingProbe, &s); err != nil {
+		return p.settings // keep what we had rather than "probe is off"
+	}
 	s.Normalize()
 	p.settings, p.fetched = s, time.Now()
 	return s
@@ -217,6 +220,20 @@ func (p *Probe) CheckOffline(ctx context.Context, at time.Time) {
 		return
 	}
 	grace := time.Duration(s.Alerts.OfflineSeconds) * time.Second
+	// A panel restart leaves every node's last_seen_at as old as the
+	// downtime: give the nodes one grace period to beat again before
+	// anything counts as offline, or a restart that took longer than the
+	// grace period alerts on the whole fleet (and then the 24 h
+	// AlertOnce window swallows the real outages).
+	p.mu.Lock()
+	if p.started.IsZero() {
+		p.started = at
+	}
+	started := p.started
+	p.mu.Unlock()
+	if at.Sub(started) <= grace {
+		return
+	}
 	nodes, err := p.Store.ListNodes(ctx)
 	if err != nil {
 		return
@@ -275,7 +292,7 @@ func (p *Probe) queueAdmin(text string) {
 			case 1:
 				send(context.Background(), lines[0])
 			default:
-				send(context.Background(), fmt.Sprintf("📣 %d node alerts\n%s", len(lines), strings.Join(lines, "\n")))
+				send(context.Background(), batchText(lines))
 			}
 		})
 	}
@@ -313,3 +330,28 @@ func (p *Probe) Recent(nodeID int64, since time.Time) []Sample {
 // needed beyond pruning, which jobs call.
 
 func gb(b int64) string { return fmt.Sprintf("%.1f GB", float64(b)/(1<<30)) }
+
+// tgLimit is Telegram's per-message ceiling; a longer message is rejected
+// outright, so a fleet-wide alert has to be cut.
+const tgLimit = 4096
+
+// batchText joins the notices into one message no longer than Telegram
+// allows, naming how many did not fit.
+func batchText(lines []string) string {
+	head := fmt.Sprintf("📣 %d node alerts", len(lines))
+	var b strings.Builder
+	b.WriteString(head)
+	for i, l := range lines {
+		tail := ""
+		if left := len(lines) - i; left > 1 {
+			tail = fmt.Sprintf("\n… and %d more", left)
+		}
+		if b.Len()+1+len(l)+len(tail) > tgLimit {
+			b.WriteString(fmt.Sprintf("\n… and %d more", len(lines)-i))
+			return b.String()
+		}
+		b.WriteString("\n")
+		b.WriteString(l)
+	}
+	return b.String()
+}

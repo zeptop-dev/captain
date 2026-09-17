@@ -125,7 +125,10 @@ func (h *handlers) getSubscription(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) putSubscription(w http.ResponseWriter, r *http.Request) {
+	// Decoded onto the stored document: a partial PUT edits the keys it
+	// carries and leaves HWID, single-plan and the info lines as they are.
 	var in service.SubscriptionSettings
+	_ = h.Store.GetSetting(r.Context(), service.SettingSubscription, &in)
 	if !readJSON(w, r, &in) {
 		return
 	}

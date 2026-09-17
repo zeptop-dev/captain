@@ -34,16 +34,14 @@ func (h *handlers) putNodeForwards(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &in) {
 		return
 	}
-	inbounds, err := h.Store.AllInboundsByNode(r.Context(), id)
-	if err != nil {
+	if _, err := h.Store.NodeByID(r.Context(), id); err != nil {
 		fail(w, http.StatusNotFound, "node not found")
 		return
 	}
-	used := map[string]string{} // "proto/port" -> what owns it
-	for _, ib := range inbounds {
-		used["tcp/"+strconv.Itoa(ib.Port)] = "inbound " + ib.Tag
-		used["udp/"+strconv.Itoa(ib.Port)] = "inbound " + ib.Tag
-	}
+	// Every socket the node already opens, apart from the forwards this
+	// call replaces: the same model the inbound side checks against, so
+	// the two cannot disagree about who owns a port.
+	used := h.nodeBinds(r.Context(), id, 0, true)
 	tags := map[string]bool{}
 	clean := make([]store.NodeForward, 0, len(in.Forwards))
 	for i, f := range in.Forwards {
@@ -121,13 +119,14 @@ func (h *handlers) putNodeForwards(w http.ResponseWriter, r *http.Request) {
 			fail(w, http.StatusBadRequest, fmt.Sprintf("rule %d: listen must be an IP or empty", i+1))
 			return
 		}
-		for _, proto := range protosOf(f.Protocol) {
-			key := proto + "/" + strconv.Itoa(f.Port)
-			if owner, taken := used[key]; taken {
-				fail(w, http.StatusBadRequest, fmt.Sprintf("%s port %d is already used by %s", proto, f.Port, owner))
-				return
+		for _, l := range forwardListeners(f) {
+			for _, b := range used {
+				if b.listener == l && listenOverlap(b.listen, f.Listen) {
+					fail(w, http.StatusBadRequest, fmt.Sprintf("%s port %d is already used by %s", l.proto, l.port, b.owner))
+					return
+				}
 			}
-			used[key] = "forward " + f.Tag
+			used = append(used, bind{l, f.Listen, "forward " + f.Tag})
 		}
 		clean = append(clean, f)
 	}

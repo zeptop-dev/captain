@@ -364,9 +364,9 @@ func (s *Store) paidHooksTx(ctx context.Context, tx *sql.Tx, o *domain.Order) er
 			return nil
 		}
 	}
-	column := "balance_cents"
+	column, payout := "balance_cents", PayoutBalance
 	if inv.Payout == PayoutCommission {
-		column = "commission_cents"
+		column, payout = "commission_cents", PayoutCommission
 	}
 	// Walk up the referral chain, one level per configured percentage.
 	current := o.UserID
@@ -380,7 +380,7 @@ func (s *Store) paidHooksTx(ctx context.Context, tx *sql.Tx, o *domain.Order) er
 		if amount <= 0 {
 			continue
 		}
-		res, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO commissions (order_id, inviter_id, invitee_id, level, amount_cents, created_at) VALUES (?, ?, ?, ?, ?, ?)`, o.ID, inviter.Int64, o.UserID, level+1, amount, now())
+		res, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO commissions (order_id, inviter_id, invitee_id, level, amount_cents, created_at, payout) VALUES (?, ?, ?, ?, ?, ?, ?)`, o.ID, inviter.Int64, o.UserID, level+1, amount, now(), payout)
 		if err != nil {
 			return err
 		}
@@ -388,6 +388,56 @@ func (s *Store) paidHooksTx(ctx context.Context, tx *sql.Tx, o *domain.Order) er
 			if _, err := tx.ExecContext(ctx, `UPDATE users SET `+column+` = `+column+` + ?, updated_at = ? WHERE id = ?`, amount, now(), inviter.Int64); err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+// reverseOrderHooksTx undoes what paidHooksTx granted for an order that is
+// being refunded: the inviter's commission goes back (the column may end
+// up negative, which is the debt an already-withdrawn commission leaves
+// behind) and the coupon use is released. Without this, buying a queued
+// plan and cancelling it minted commission on every round.
+func reverseOrderHooksTx(ctx context.Context, tx *sql.Tx, orderID int64, couponID *int64) error {
+	rows, err := tx.QueryContext(ctx, `SELECT inviter_id, amount_cents, payout FROM commissions WHERE order_id = ?`, orderID)
+	if err != nil {
+		return err
+	}
+	type entry struct {
+		inviter int64
+		amount  int64
+		payout  string
+	}
+	var list []entry
+	for rows.Next() {
+		var e entry
+		if err := rows.Scan(&e.inviter, &e.amount, &e.payout); err != nil {
+			rows.Close()
+			return err
+		}
+		list = append(list, e)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, e := range list {
+		column := "balance_cents"
+		if e.payout == PayoutCommission {
+			column = "commission_cents"
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE users SET `+column+` = `+column+` - ?, updated_at = ? WHERE id = ?`, e.amount, now(), e.inviter); err != nil {
+			return err
+		}
+	}
+	if len(list) > 0 {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM commissions WHERE order_id = ?`, orderID); err != nil {
+			return err
+		}
+	}
+	if couponID != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE coupons SET used = used - 1 WHERE id = ? AND used > 0`, *couponID); err != nil {
+			return err
 		}
 	}
 	return nil

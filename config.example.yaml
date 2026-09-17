@@ -27,6 +27,8 @@ agent:
 
 site_name: Captain
 
+# min_version: v0.58.0     # refuse self-update or rollback below this release
+
 portal:
   registration: true        # allow self sign-up
 

@@ -107,7 +107,10 @@ type Config struct {
 	} `yaml:"limits"`
 
 	SiteName string `yaml:"site_name"`
-	Version  string `yaml:"-"` // set by main
+	// MinVersion refuses a self-update or rollback below this release, so
+	// a rollback cannot walk back past a migration or a security fix.
+	MinVersion string `yaml:"min_version"`
+	Version    string `yaml:"-"` // set by main
 }
 
 // Load reads and validates a config file.

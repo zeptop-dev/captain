@@ -71,6 +71,7 @@ export function ForwardsCard({ node, embedded }: { node: Node; embedded?: boolea
           <Select label={t('forwards.target')} style={{ flex: 2 }} searchable clearable placeholder={t('forwards.pickInbound')} data={targets.map((x) => ({ value: String(x.ib.ID), label: `${x.node.name} / ${x.ib.Tag} (${x.ib.Protocol}:${x.ib.Port})${x.ingress ? ` · ${x.ingress.name} ${x.ingress.line_ip || ''}` : ''}` }))} value={target} onChange={setTarget} />
           {!target && <TextInput label={t('forwards.manual')} placeholder="1.2.3.4:443" style={{ flex: 2 }} value={manual} onChange={(e) => setManual(e.currentTarget.value)} />}
           <Select label={t('forwards.backend')} w={150} data={[{ value: '', label: t('forwards.backendRelay') }, { value: 'nft', label: t('forwards.backendNft') }, { value: 'realm', label: t('forwards.backendRealm') }]} value={backend} onChange={(v) => setBackend(v ?? '')} allowDeselect={false} />
+          {backend === 'realm' && <Text size="xs" c="dimmed" maw={320} mb={6}>{t('forwards.backendRealmHint')}</Text>}
           {backend === 'nft' && <Switch label={t('forwards.preserve')} mb={6} checked={preserve} onChange={(e) => setPreserve(e.currentTarget.checked)} />}
           {backend !== 'nft' && <Switch label={t('forwards.proxyProtocol')} mb={6} checked={proxyProto} onChange={(e) => setProxyProto(e.currentTarget.checked)} />}
           <Button variant="light" leftSection={<IconPlus size={14} />} onClick={add} disabled={!port || (!target && !manual.trim())}>{t('forwards.add')}</Button>

@@ -191,6 +191,14 @@ func (h *handlers) putNodeRouting(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &nr) {
 		return
 	}
+	for _, rule := range nr.Routes {
+		// Refuse here what the nodes would drop: a rule the cores cannot
+		// render leaves them running an old config for ever.
+		if err := spec.ValidateRouteRule(rule); err != nil {
+			fail(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
 	tags := map[string]bool{"direct": true, "block": true}
 	for i := range nr.Outbounds {
 		o := &nr.Outbounds[i]

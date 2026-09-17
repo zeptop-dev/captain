@@ -227,6 +227,8 @@
     }
   },
   "common": {
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "copied": "Copied",
+    "copy": "Copy"
   }
 }

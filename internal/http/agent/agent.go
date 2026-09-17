@@ -221,6 +221,15 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 			dropped++
 			continue
 		}
+		// A counter glitch (or a hostile node) must not be able to add an
+		// absurd amount: past maxDelta the value is refused, not clamped,
+		// because a wrong number in the database poisons every later read
+		// of that column.
+		if t.Up > maxTrafficDelta || t.Down > maxTrafficDelta {
+			h.Log.Warn("traffic delta out of range, dropped", "node", n.ID, "user", t.UserID, "up", t.Up, "down", t.Down)
+			dropped++
+			continue
+		}
 		s := store.TrafficSample{UserID: t.UserID, InboundID: inboundID, Groups: groups, Up: t.Up, Down: t.Down}
 		if ib, ok := byTag[t.Inbound]; ok && t.Inbound != "" {
 			s.InboundID, s.Groups = ib.ID, nil
@@ -230,12 +239,27 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 		}
 		samples = append(samples, s)
 	}
-	first, err := h.Store.AddTrafficSamples(ctx, samples, now)
+	// A report whose response was lost is re-sent unchanged under the same
+	// batch number: applying it again would charge the same traffic twice.
+	seen, err := h.Store.TrafficSeqSeen(ctx, n.ID, rep.TrafficSeq)
 	if err != nil {
-		h.Log.Error("add traffic", "node", n.ID, "samples", len(samples), "err", err)
+		h.Log.Error("traffic batch number", "node", n.ID, "err", err)
+		fail(w, http.StatusInternalServerError, "internal error")
+		return
 	}
-	if h.Dyn != nil {
-		h.Dyn.Observe(ctx, samples, now)
+	var first []int64
+	if seen {
+		h.Log.Info("traffic batch already applied, skipping", "node", n.ID, "seq", rep.TrafficSeq)
+		samples = nil
+	} else if first, err = h.Store.AddTrafficSamples(ctx, samples, now); err != nil {
+		// Answering 200 here would make the node drop the deltas it just
+		// sent, so the traffic would be lost instead of retried.
+		h.Log.Error("add traffic", "node", n.ID, "samples", len(samples), "err", err)
+		fail(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	if h.Dyn != nil && len(samples) > 0 {
+		h.Dyn.Observe(ctx, samples, rep.TrafficWindowSeconds, now)
 	}
 	for _, uid := range first {
 		email := ""
@@ -267,8 +291,8 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 			_ = h.Store.UpsertOnline(ctx, u.ID, n.ID, ips, now)
 		}
 	}
-	h.ingestConnections(ctx, n, rep, inbounds, allowed)
-	h.ingestAudits(ctx, n, rep, inbounds, allowed)
+	h.ingestConnections(ctx, n, rep, inbounds, allowed, now)
+	h.ingestAudits(ctx, n, rep, inbounds, allowed, now)
 	for _, f := range rep.Forwards {
 		_ = h.Store.UpsertForwardStatus(ctx, n.ID, f.Tag, f.Up, f.RTTMillis, f.LastError, f.ActiveConn, f.TotalConn, f.BytesIn, f.BytesOut)
 	}
@@ -348,7 +372,7 @@ func (h *handlers) beat(w http.ResponseWriter, r *http.Request) {
 // setting is on (a node that still logs after it was switched off is
 // ignored). Users are resolved by UUID, inbounds by tag; unknown users
 // and users the node does not serve are dropped.
-func (h *handlers) ingestConnections(ctx context.Context, n *domain.Node, rep agentproto.Report, inbounds []*domain.Inbound, allowed map[int64]bool) {
+func (h *handlers) ingestConnections(ctx context.Context, n *domain.Node, rep agentproto.Report, inbounds []*domain.Inbound, allowed map[int64]bool, now time.Time) {
 	if len(rep.Connections) == 0 && rep.ConnDropped == 0 {
 		return
 	}
@@ -374,7 +398,7 @@ func (h *handlers) ingestConnections(ctx context.Context, n *domain.Node, rep ag
 		if uid == 0 || ev.Host == "" {
 			continue
 		}
-		rows = append(rows, store.ConnRow{UserID: uid, NodeID: n.ID, InboundID: tagID[ev.Inbound], At: time.Unix(ev.At, 0), ClientIP: ev.ClientIP, Host: ev.Host, Port: ev.Port, Network: ev.Network})
+		rows = append(rows, store.ConnRow{UserID: uid, NodeID: n.ID, InboundID: tagID[ev.Inbound], At: eventTime(ev.At, now), ClientIP: ev.ClientIP, Host: ev.Host, Port: ev.Port, Network: ev.Network})
 	}
 	if err := h.Store.AddConnEvents(ctx, rows); err != nil {
 		h.Log.Error("connection log", "node", n.ID, "rows", len(rows), "err", err)
@@ -386,20 +410,40 @@ func (h *handlers) ingestConnections(ctx context.Context, n *domain.Node, rep ag
 
 // ingestAudits stores audit-rule hits, tells the webhooks, and applies the
 // auto-ban when a user crossed the configured number of hits in the window.
-func (h *handlers) ingestAudits(ctx context.Context, n *domain.Node, rep agentproto.Report, inbounds []*domain.Inbound, allowed map[int64]bool) {
+func (h *handlers) ingestAudits(ctx context.Context, n *domain.Node, rep agentproto.Report, inbounds []*domain.Inbound, allowed map[int64]bool, now time.Time) {
 	if len(rep.Audits) == 0 && rep.AuditDropped == 0 {
 		return
 	}
 	var as store.AuditSettings
-	_ = h.Store.GetSetting(ctx, store.SettingAudit, &as)
+	if err := h.Store.GetSetting(ctx, store.SettingAudit, &as); err != nil {
+		h.Log.Error("audit settings", "node", n.ID, "err", err)
+		return
+	}
+	// The node only reports hits for rules the panel gave it: a rule id it
+	// invented, or an action that does not match the rule, is dropped.
+	rules, err := h.Store.AuditRules(ctx, false)
+	if err != nil {
+		h.Log.Error("audit rules", "node", n.ID, "err", err)
+		return
+	}
+	byID := make(map[int64]store.AuditRule, len(rules))
+	for _, r := range rules {
+		byID[r.ID] = r
+	}
 	tagID := map[string]int64{}
 	for _, ib := range inbounds {
 		tagID[ib.Tag] = ib.ID
 	}
 	users := map[string]*domain.User{}
 	rows := make([]store.AuditHit, 0, len(rep.Audits))
+	blocks := map[int64]bool{} // users whose hits can count toward a ban
 	var lines []string
 	for _, ev := range rep.Audits {
+		rule, known := byID[ev.RuleID]
+		if !known || rule.Action != ev.Action {
+			h.Log.Warn("audit hit for an unknown rule or a changed action, dropped", "node", n.ID, "rule", ev.RuleID, "action", ev.Action)
+			continue
+		}
 		u, seen := users[ev.User]
 		if !seen {
 			if x, err := h.Store.UserByUUID(ctx, ev.User); err == nil && allowed[x.ID] {
@@ -410,10 +454,14 @@ func (h *handlers) ingestAudits(ctx context.Context, n *domain.Node, rep agentpr
 		if u == nil || ev.Host == "" {
 			continue
 		}
-		rows = append(rows, store.AuditHit{UserID: u.ID, NodeID: n.ID, InboundID: tagID[ev.Inbound], RuleID: ev.RuleID, At: time.Unix(ev.At, 0), ClientIP: ev.ClientIP, Host: ev.Host, Port: ev.Port, Action: ev.Action})
+		rows = append(rows, store.AuditHit{UserID: u.ID, NodeID: n.ID, InboundID: tagID[ev.Inbound], RuleID: ev.RuleID, At: eventTime(ev.At, now), ClientIP: ev.ClientIP, Host: ev.Host, Port: ev.Port, Action: ev.Action})
+		if ev.Action == "block" {
+			blocks[u.ID] = true
+		}
 		h.Hooks.Emit(ctx, webhook.UserAuditHit, map[string]any{"user_id": u.ID, "email": u.Email, "node_id": n.ID, "node": n.Name, "rule_id": ev.RuleID, "rule": ev.RuleName, "action": ev.Action, "host": ev.Host, "port": ev.Port, "client_ip": ev.ClientIP})
 		if as.NotifyAdmin {
-			lines = append(lines, fmt.Sprintf("%s → %s:%d (%s, %s)", u.Email, ev.Host, ev.Port, ev.RuleName, ev.Action))
+			// The host and the rule name come from the node: escape them.
+			lines = append(lines, fmt.Sprintf("%s → %s:%d (%s, %s)", notify.Escape(u.Email), notify.Escape(ev.Host), ev.Port, notify.Escape(rule.Name), ev.Action))
 		}
 	}
 	if err := h.Store.AddAuditHits(ctx, rows); err != nil {
@@ -427,16 +475,16 @@ func (h *handlers) ingestAudits(ctx context.Context, n *domain.Node, rep agentpr
 		if len(lines) > 10 {
 			lines = append(lines[:10], fmt.Sprintf("… and %d more", len(lines)-10))
 		}
-		h.Notify.Admin(ctx, "🔍 Audit hits on "+n.Name+"\n"+strings.Join(lines, "\n"))
+		h.Notify.AdminAsync("🔍 Audit hits on " + notify.Escape(n.Name) + "\n" + strings.Join(lines, "\n"))
 	}
 	if as.AutoBanHits <= 0 {
 		return
 	}
 	for _, u := range users {
-		if u == nil || u.Status != "active" || u.IsStaff() {
+		if u == nil || u.Status != "active" || u.IsStaff() || !blocks[u.ID] {
 			continue
 		}
-		cnt, err := h.Store.CountUserAuditHits(ctx, u.ID, time.Now().Add(-as.Window()))
+		cnt, err := h.Store.CountBlockedAuditHits(ctx, u.ID, time.Now().Add(-as.Window()))
 		if err != nil || cnt < as.AutoBanHits {
 			continue
 		}
@@ -451,7 +499,23 @@ func (h *handlers) ingestAudits(ctx context.Context, n *domain.Node, rep agentpr
 		h.Log.Warn("user banned by audit rules", "user", u.ID, "hits", cnt, "window", as.Window())
 		h.Hooks.Emit(ctx, webhook.UserAuditBanned, map[string]any{"user_id": u.ID, "email": u.Email, "hits": cnt, "window_hours": int(as.Window().Hours())})
 		if h.Notify != nil {
-			h.Notify.Admin(ctx, fmt.Sprintf("⛔ %s banned: %d audit hits within %dh", u.Email, cnt, int(as.Window().Hours())))
+			h.Notify.AdminAsync(fmt.Sprintf("⛔ %s banned: %d audit hits within %dh", notify.Escape(u.Email), cnt, int(as.Window().Hours())))
 		}
 	}
+}
+
+// maxTrafficDelta is the largest per-user delta one report may carry
+// (1 PiB): more than any real interval and far from overflowing the
+// database column when it accumulates.
+const maxTrafficDelta = int64(1) << 50
+
+// eventTime keeps a node's timestamp inside a plausible range: a clock
+// that is wrong (or a node that lies) must not file rows in the future,
+// where retention would never reach them, or far in the past.
+func eventTime(unix int64, now time.Time) time.Time {
+	t := time.Unix(unix, 0)
+	if unix <= 0 || t.After(now.Add(5*time.Minute)) || t.Before(now.Add(-48*time.Hour)) {
+		return now
+	}
+	return t
 }

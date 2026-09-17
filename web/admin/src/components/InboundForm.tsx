@@ -187,6 +187,9 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
           </Group>
         )}
         {form.values.Protocol === 'wireguard' && (
+          <Text size="xs" c="dimmed">{t('inbounds.wgHint')}</Text>
+        )}
+        {form.values.Protocol === 'wireguard' && (
           <Group grow align="flex-start">
             <TextInput label={t('inbounds.wgPrivate')} required value={String(settingOf(form.values.Settings, 'wg_private_key') ?? '')} onChange={(e) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { wg_private_key: e.currentTarget.value }))} />
             <TextInput label={t('inbounds.wgPublic')} value={String(settingOf(form.values.Settings, 'wg_public_key') ?? '')} onChange={(e) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { wg_public_key: e.currentTarget.value }))} />

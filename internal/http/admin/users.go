@@ -29,6 +29,14 @@ type userView struct {
 	SubCount     int        `json:"sub_count"`
 }
 
+// hidesTokens reports whether the caller may not see subscription tokens:
+// a help-desk account can look a customer up, but the token is the
+// credential to their whole subscription.
+func hidesTokens(r *http.Request) bool {
+	u := userFrom(r)
+	return u != nil && u.Role == domain.RoleSupport
+}
+
 func (h *handlers) listUsers(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	page, _ := strconv.Atoi(q.Get("page"))
@@ -44,8 +52,12 @@ func (h *handlers) listUsers(w http.ResponseWriter, r *http.Request) {
 	out := make([]userView, 0, len(rows))
 	for _, row := range rows {
 		u := row.User
-		out = append(out, userView{ID: u.ID, Email: u.Email, UUID: u.UUID, SubToken: u.SubToken, SubURL: h.subURL(r.Context(), u.SubToken), GroupID: u.GroupID, BalanceCents: u.BalanceCents, Status: u.Status, CreatedAt: u.CreatedAt,
-			PlanName: row.PlanName, ExpiresAt: row.ExpiresAt, QuotaBytes: row.QuotaBytes, UsedBytes: row.UsedBytes, SubUsable: row.SubUsable})
+		view := userView{ID: u.ID, Email: u.Email, UUID: u.UUID, SubToken: u.SubToken, SubURL: h.subURL(r.Context(), u.SubToken), GroupID: u.GroupID, BalanceCents: u.BalanceCents, Status: u.Status, CreatedAt: u.CreatedAt,
+			PlanName: row.PlanName, ExpiresAt: row.ExpiresAt, QuotaBytes: row.QuotaBytes, UsedBytes: row.UsedBytes, SubUsable: row.SubUsable}
+		if hidesTokens(r) {
+			view.SubToken, view.SubURL = "", ""
+		}
+		out = append(out, view)
 	}
 	ok(w, map[string]any{"items": out, "total": total, "page": page, "per_page": per})
 }
@@ -68,13 +80,27 @@ func (h *handlers) createUser(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]any{"id": u.ID, "email": u.Email, "uuid": u.UUID, "sub_token": u.SubToken})
 }
 
-func (h *handlers) getUser(w http.ResponseWriter, r *http.Request) {
+// customer resolves a user-scoped path id, refusing staff accounts: the
+// user endpoints manage customers only (staff live under /admins).
+func (h *handlers) customer(r *http.Request) (*domain.User, bool) {
 	id, okID := pathID(r)
+	if !okID {
+		return nil, false
+	}
 	u, err := h.Store.UserByID(r.Context(), id)
-	if !okID || err != nil {
+	if err != nil || u.IsStaff() {
+		return nil, false
+	}
+	return u, true
+}
+
+func (h *handlers) getUser(w http.ResponseWriter, r *http.Request) {
+	u, okUser := h.customer(r)
+	if !okUser {
 		fail(w, http.StatusNotFound, "user not found")
 		return
 	}
+	id := u.ID
 	sub, err := h.Store.ActiveSubscription(r.Context(), id)
 	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		serverErr(w, err)
@@ -124,7 +150,11 @@ func (h *handlers) getUser(w http.ResponseWriter, r *http.Request) {
 	if reqs == nil {
 		reqs = []store.SubRequest{}
 	}
-	ok(w, map[string]any{"id": u.ID, "email": u.Email, "uuid": u.UUID, "sub_token": u.SubToken, "sub_url": h.subURL(r.Context(), u.SubToken), "group_id": u.GroupID, "status": u.Status,
+	token, subURL := u.SubToken, h.subURL(r.Context(), u.SubToken)
+	if hidesTokens(r) {
+		token, subURL = "", ""
+	}
+	ok(w, map[string]any{"id": u.ID, "email": u.Email, "uuid": u.UUID, "sub_token": token, "sub_url": subURL, "group_id": u.GroupID, "status": u.Status,
 		"invite_code": u.InviteCode, "invited_by": u.InvitedBy, "hwid_limit": u.HwidLimit, "first_connected_at": u.FirstConnectedAt,
 		"balance_cents": u.BalanceCents, "created_at": u.CreatedAt, "subscription": sub, "subscriptions": subs, "orders": orders, "devices": devices,
 		"hwid_devices": hwids, "sub_requests": reqs, "dyn_limit": dyn})
@@ -169,16 +199,17 @@ func (h *handlers) putHwidLimit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) updateUser(w http.ResponseWriter, r *http.Request) {
-	id, okID := pathID(r)
+	u, okUser := h.customer(r)
 	var in struct {
 		Status   string
 		GroupID  *int64
 		Password string
 	}
-	if !okID {
-		fail(w, http.StatusBadRequest, "bad id")
+	if !okUser {
+		fail(w, http.StatusNotFound, "user not found")
 		return
 	}
+	id := u.ID
 	if !readJSON(w, r, &in) {
 		return
 	}

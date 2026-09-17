@@ -227,6 +227,8 @@
     }
   },
   "common": {
-    "cancel": "取消"
+    "cancel": "取消",
+    "copied": "已複製",
+    "copy": "複製"
   }
 }

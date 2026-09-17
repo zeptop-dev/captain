@@ -40,7 +40,7 @@ export default function SettingsPage() {
   const [infoText, setInfoText] = useState<string | null>(null)
   const [hwid, setHwid] = useState<{ enabled: boolean; require: boolean; fallback_limit: number; announce: string } | null>(null)
   const hw = hwid ?? subs.data?.hwid ?? { enabled: false, require: false, fallback_limit: 0, announce: '' }
-  const saveSubs = useMutation({ mutationFn: (urls: string[]) => api.put('/api/admin/settings/subscription', { URLs: urls, short_links: shortLinks ?? subs.data?.short_links ?? false, auto_flags: autoFlags ?? subs.data?.auto_flags ?? false, single_plan: singlePlan ?? subs.data?.single_plan ?? false, hwid: hw, info_lines: (infoText ?? (subs.data?.info_lines ?? []).join('\n')).split('\n').map((l) => l.trim()).filter(Boolean) }), onSuccess: () => { toast.ok(t('common.saved')); setSubText(null); qc.invalidateQueries({ queryKey: ['subscription-settings'] }); qc.invalidateQueries({ queryKey: ['users'] }) }, onError: toast.err })
+  const saveSubs = useMutation({ mutationFn: (urls: string[]) => api.put('/api/admin/settings/subscription', { URLs: urls, short_links: shortLinks ?? subs.data?.short_links ?? false, auto_flags: autoFlags ?? subs.data?.auto_flags ?? false, single_plan: singlePlan ?? subs.data?.single_plan ?? false, hwid: hw, info_lines: (infoText ?? (subs.data?.info_lines ?? []).join('\n')).split('\n').map((l) => l.trim()).filter(Boolean) }), onSuccess: () => { toast.ok(t('common.saved')); setSubText(null); setShortLinks(null); setAutoFlags(null); setSinglePlan(null); setHwid(null); setInfoText(null); qc.invalidateQueries({ queryKey: ['subscription-settings'] }); qc.invalidateQueries({ queryKey: ['users'] }) }, onError: toast.err })
   const invite = useQuery({ queryKey: ['invite-settings'], queryFn: () => api.get<InviteSettings>('/api/admin/settings/invite') })
   const iform = useForm<InviteSettings & { methods: string }>({ initialValues: { enabled: false, percent: 10, first_order_only: false, multi_level: false, level2: 0, level3: 0, payout: 'balance', min_withdraw_cents: 0, withdraw_methods: [], methods: '' } })
   useEffect(() => { if (invite.data) iform.setValues({ ...invite.data, payout: invite.data.payout || 'balance', methods: (invite.data.withdraw_methods ?? []).join(', ') }) }, [invite.data]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -86,7 +86,7 @@ export default function SettingsPage() {
               <TextInput flex={1} label={t('settings.hwidAnnounce')} description={t('settings.hwidAnnounceHint')} value={hw.announce} onChange={(e) => setHwid({ ...hw, announce: e.currentTarget.value })} />
             </Group>
           </>}
-          <Group justify="flex-end" mt="sm"><Button size="xs" loading={saveSubs.isPending} disabled={subText === null && shortLinks === null && autoFlags === null && singlePlan === null && hwid === null && infoText === null} onClick={() => saveSubs.mutate((subText ?? '').split('\n').map((l) => l.trim()).filter(Boolean))}>{t('common.save')}</Button></Group>
+          <Group justify="flex-end" mt="sm"><Button size="xs" loading={saveSubs.isPending} disabled={subText === null && shortLinks === null && autoFlags === null && singlePlan === null && hwid === null && infoText === null} onClick={() => saveSubs.mutate((subText ?? (subs.data?.urls ?? []).join('\n')).split('\n').map((l) => l.trim()).filter(Boolean))}>{t('common.save')}</Button></Group>
         </Card>
         <Card>
           <Title order={5} mb="xs">{t('settings.acme')}</Title>

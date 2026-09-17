@@ -18,6 +18,14 @@ type HwidDevice struct {
 	LastSeenAt  time.Time `json:"last_seen_at"`
 }
 
+// maxHwidRows is the ceiling on stored devices per user, whatever the
+// limit is: the rows are written by anyone holding the link, and the
+// admin drawer and the portal list them all. The oldest is evicted.
+const maxHwidRows = 64
+
+// MaxHwidRows is that ceiling, for callers that want to name it.
+const MaxHwidRows = maxHwidRows
+
 // ClaimHwidDevice records a subscription fetch from device dev. A known
 // device is always allowed (its last-seen time moves); a new one is
 // admitted while the user has fewer than limit devices (limit <= 0 =
@@ -47,6 +55,15 @@ func (s *Store) ClaimHwidDevice(ctx context.Context, userID int64, dev HwidDevic
 	}
 	if limit > 0 && count >= limit {
 		return false, count, tx.Commit()
+	}
+	// Whatever the limit says, the table is written by anyone holding the
+	// link: keep the newest maxHwidRows and drop the rest.
+	if count >= maxHwidRows {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM hwid_devices WHERE user_id = ? AND hwid IN (
+			SELECT hwid FROM hwid_devices WHERE user_id = ? ORDER BY last_seen_at ASC LIMIT ?)`, userID, userID, count-maxHwidRows+1); err != nil {
+			return false, 0, err
+		}
+		count = maxHwidRows - 1
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO hwid_devices (user_id, hwid, platform, os_version, device_model, user_agent, request_ip, first_seen_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		userID, dev.Hwid, dev.Platform, dev.OSVersion, dev.DeviceModel, dev.UserAgent, dev.RequestIP, at.Unix(), at.Unix()); err != nil {
@@ -144,6 +161,34 @@ func (s *Store) SubRequests(ctx context.Context, userID int64, limit int) ([]Sub
 // PruneSubRequests drops fetch history older than before.
 func (s *Store) PruneSubRequests(ctx context.Context, before time.Time) (int64, error) {
 	res, err := s.db.ExecContext(ctx, `DELETE FROM sub_requests WHERE at < ?`, before.Unix())
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+// PruneHwidDevices forgets devices that have not fetched the subscription
+// for a long time: a device row holds a slot of the user's limit for ever
+// otherwise, and a client that is gone should not keep one.
+func (s *Store) PruneHwidDevices(ctx context.Context, before time.Time) (int64, error) {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM hwid_devices WHERE last_seen_at < ?`, before.Unix())
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+// TrimSubRequests keeps the newest keep rows per user: the history is for
+// support, and a link that is being hammered must not fill the database
+// before the age-based prune runs.
+func (s *Store) TrimSubRequests(ctx context.Context, keep int) (int64, error) {
+	if keep <= 0 {
+		keep = 200
+	}
+	res, err := s.db.ExecContext(ctx, `DELETE FROM sub_requests WHERE id IN (
+		SELECT id FROM sub_requests s WHERE (
+			SELECT COUNT(*) FROM sub_requests n WHERE n.user_id = s.user_id AND n.id > s.id
+		) >= ?)`, keep)
 	if err != nil {
 		return 0, err
 	}

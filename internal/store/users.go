@@ -158,8 +158,14 @@ func (s *Store) NodeUserIDs(ctx context.Context, nodeID int64) (map[int64]bool, 
 
 // AdjustBalance adds delta (may be negative) to a user's balance.
 func (s *Store) AdjustBalance(ctx context.Context, userID, deltaCents int64) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE users SET balance_cents = balance_cents + ?, updated_at = ? WHERE id = ?`, deltaCents, now(), userID)
-	return err
+	res, err := s.db.ExecContext(ctx, `UPDATE users SET balance_cents = balance_cents + ?, updated_at = ? WHERE id = ? AND role = 'user'`, deltaCents, now(), userID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // UserRow is a user with subscription summary for admin lists.
@@ -220,26 +226,88 @@ func (s *Store) ListUsers(ctx context.Context, q string, limit, offset int, at t
 }
 
 // UpdateUser changes status, group and password (when non-empty).
+// UpdateUser changes a customer's status, group and password. Staff
+// accounts are out of reach here (ErrNotFound): they are managed through
+// the admins API, so an operator cannot reset an admin's password or ban
+// the last admin through the user list.
 func (s *Store) UpdateUser(ctx context.Context, id int64, status string, groupID *int64, passwordHash string) error {
 	if passwordHash != "" {
-		if _, err := s.db.ExecContext(ctx, `UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?`, passwordHash, now(), id); err != nil {
+		if _, err := s.db.ExecContext(ctx, `UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ? AND role = 'user'`, passwordHash, now(), id); err != nil {
 			return err
 		}
 	}
-	_, err := s.db.ExecContext(ctx, `UPDATE users SET status = ?, group_id = ?, updated_at = ? WHERE id = ?`, status, nullInt64(groupID), now(), id)
-	return err
+	res, err := s.db.ExecContext(ctx, `UPDATE users SET status = ?, group_id = ?, updated_at = ? WHERE id = ? AND role = 'user'`, status, nullInt64(groupID), now(), id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// UpdateStaff is UpdateUser for a staff account: the admins API guards
+// who may call it (and keeps the last admin), so the role filter that
+// protects staff from the customer endpoints does not apply here.
+func (s *Store) UpdateStaff(ctx context.Context, id int64, status string, passwordHash string) error {
+	if passwordHash != "" {
+		if _, err := s.db.ExecContext(ctx, `UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ? AND role <> 'user'`, passwordHash, now(), id); err != nil {
+			return err
+		}
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE users SET status = ?, updated_at = ? WHERE id = ?`, status, now(), id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // RotateSubToken issues a new subscription token.
 func (s *Store) RotateSubToken(ctx context.Context, id int64, token string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE users SET sub_token = ?, updated_at = ? WHERE id = ?`, token, now(), id)
-	return err
+	res, err := s.db.ExecContext(ctx, `UPDATE users SET sub_token = ?, updated_at = ? WHERE id = ? AND role = 'user'`, token, now(), id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // DeleteUser removes a user and, via cascades, sessions and subscriptions.
+// The tables the nodes fill have no foreign key (they are written on a hot
+// path), so they are cleared here: SQLite reuses row ids, and the next
+// registrant must not inherit somebody's connection log, audit hits or
+// throttle.
 func (s *Store) DeleteUser(ctx context.Context, id int64) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM users WHERE id = ? AND role = 'user'`, id)
-	return err
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	res, err := tx.ExecContext(ctx, `DELETE FROM users WHERE id = ? AND role = 'user'`, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	for _, q := range []string{
+		`DELETE FROM conn_log WHERE user_id = ?`,
+		`DELETE FROM audit_log WHERE user_id = ?`,
+		`DELETE FROM dyn_limits WHERE user_id = ?`,
+		`DELETE FROM hwid_devices WHERE user_id = ?`,
+		`DELETE FROM sub_requests WHERE user_id = ?`,
+		`DELETE FROM traffic_daily WHERE user_id = ?`,
+	} {
+		if _, err := tx.ExecContext(ctx, q, id); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 // ListGroups returns all user groups.

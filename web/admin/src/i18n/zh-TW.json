@@ -1,9 +1,6 @@
 {
   "app": {
-    "name": "Captain",
-    "logout": "登出",
-    "signedInAs": "目前登入",
-    "search": "搜尋"
+    "logout": "登出"
   },
   "nav": {
     "workspace": "工作區",
@@ -45,23 +42,15 @@
     "edit": "編輯",
     "delete": "刪除",
     "confirm": "確認",
-    "close": "關閉",
     "copy": "複製",
     "copied": "已複製",
-    "yes": "是",
-    "no": "否",
     "enabled": "啟用",
     "disabled": "停用",
     "none": "無",
-    "actions": "操作",
-    "search": "搜尋",
-    "loading": "載入中",
     "empty": "暫無資料",
-    "error": "發生錯誤",
     "saved": "已儲存",
     "deleted": "已刪除",
     "confirmDelete": "確定刪除？此操作無法復原。",
-    "refresh": "重新整理",
     "all": "全部",
     "total": "共 {{count}} 筆"
   },
@@ -199,6 +188,7 @@
     "realityProbe": "探測目前目標",
     "realityScanning": "正在從節點發起握手…",
     "realityScanHint": "從節點做真實 TLS 握手，檢查 TLS 1.3、h2、X25519、憑證，並排除 CDN 託管的站點。",
+    "handshakeServer": "握手目標",
     "realityLatency": "延遲",
     "realityCert": "憑證",
     "realityUse": "使用",
@@ -270,8 +260,6 @@
     "rate": "倍率",
     "enabled": "啟用",
     "displayHostHint": "留空用入站的 TLS 網域，否則用節點公網位址",
-    "sort": "排序",
-    "sortHint": "訂閱中依此由小到大排列",
     "clientExtra": "用戶端附加欄位",
     "clientExtraHint": "JSON 物件，合併進這個入口在 mihomo/Stash/sing-box 訂閱裡的節點條目，例如 tfo、smux、dialer-proxy、ip-version。",
     "region": "地區",
@@ -305,7 +293,6 @@
     "rotateHint": "舊連結立即失效。",
     "newPassword": "新密碼（留空不改）",
     "uuid": "UUID",
-    "orders": "訂單",
     "createdAt": "註冊時間",
     "filterPlaceholder": "依電子郵件搜尋",
     "devices": "線上裝置（最近 5 分鐘）",
@@ -999,7 +986,15 @@
     "neverUsed": "未使用",
     "mcp": "接入 AI Agent（MCP）",
     "mcpHint": "面板內建 MCP 服務：{{url}}。Claude Code、Cursor 等支援 MCP 的工具填上這段設定就能用自然語言查節點、使用者、訂單、工單和探針，寫入操作需要 confirm=true。",
-    "mcpCli": "Claude Code 一條指令："
+    "mcpCli": "Claude Code 一條指令：",
+    "scope": "權限",
+    "scopeFull": "完全存取",
+    "scopeRead": "唯讀",
+    "expiry": "有效期",
+    "noExpiry": "永不過期",
+    "days": "{{count}} 天",
+    "expires": "到期",
+    "expired": "已過期"
   },
   "twofa": {
     "title": "兩步驟驗證",
@@ -1045,7 +1040,6 @@
     "uploadFailed": "上傳失敗"
   },
   "certs": {
-    "title": "自有憑證",
     "issue": "建立憑證",
     "issueNow": "簽發",
     "issued": "憑證已簽發",

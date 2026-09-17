@@ -77,7 +77,11 @@ func (h *Hub) settings(ctx context.Context) Settings {
 		return h.cached
 	}
 	var s Settings
-	_ = h.Store.GetSetting(ctx, SettingKey, &s)
+	if err := h.Store.GetSetting(ctx, SettingKey, &s); err != nil {
+		// Keep the last good value instead of caching "no endpoints" for
+		// the length of the cache, which would drop every event.
+		return h.cached
+	}
 	h.cached, h.fetched = s, time.Now()
 	return s
 }

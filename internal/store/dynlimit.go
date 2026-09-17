@@ -19,6 +19,11 @@ type DynLimitSettings struct {
 	Windows []string `json:"windows"`
 	// Whitelist users are never throttled.
 	Whitelist []int64 `json:"whitelist"`
+	// ThrottleUnlimited also throttles users who have no speed limit at
+	// all. That adds a marking outbound to the cores serving them, so
+	// those cores restart and every user on the node reconnects; off by
+	// default.
+	ThrottleUnlimited bool `json:"throttle_unlimited"`
 }
 
 const SettingDynLimit = "dynlimit"

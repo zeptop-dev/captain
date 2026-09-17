@@ -227,6 +227,8 @@
     }
   },
   "common": {
-    "cancel": "취소"
+    "cancel": "취소",
+    "copied": "복사됨",
+    "copy": "복사"
   }
 }

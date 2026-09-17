@@ -2,5 +2,10 @@
 # install with tls.auto off). Captain's default is to serve HTTPS itself.
 panel.example.com {
 	encode zstd gzip
-	reverse_proxy 127.0.0.1:8080
+	reverse_proxy 127.0.0.1:8080 {
+		# Caddy appends the peer to X-Forwarded-For by itself, which is
+		# what Captain reads. X-Real-IP it would pass through untouched
+		# from the client, so it is overwritten here.
+		header_up X-Real-IP {remote_host}
+	}
 }

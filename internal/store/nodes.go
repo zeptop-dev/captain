@@ -195,8 +195,24 @@ func (s *Store) ResetPairCode(ctx context.Context, id int64, code string, ttl ti
 }
 
 func (s *Store) DeleteNode(ctx context.Context, id int64) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM nodes WHERE id = ?`, id)
-	return err
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `DELETE FROM nodes WHERE id = ?`, id); err != nil {
+		return err
+	}
+	// Rows the node reported, which carry no foreign key (see DeleteUser).
+	for _, q := range []string{
+		`DELETE FROM conn_log WHERE node_id = ?`,
+		`DELETE FROM audit_log WHERE node_id = ?`,
+	} {
+		if _, err := tx.ExecContext(ctx, q, id); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 // NodeStatus is the last reported host/core state.
@@ -366,4 +382,19 @@ func (s *Store) PairCodeValid(ctx context.Context, code string) (bool, error) {
 	var n int
 	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM nodes WHERE pair_code = ? AND pair_code_expires_at > ? AND token_hash IS NULL`, code, now()).Scan(&n)
 	return n > 0, err
+}
+
+// TrafficSeqSeen reports whether the node's report batch was already
+// applied, and records it when it is new. An agent that does not number
+// its batches (seq 0, before bosun 0.46) is always applied, as before.
+func (s *Store) TrafficSeqSeen(ctx context.Context, nodeID int64, seq uint64) (bool, error) {
+	if seq == 0 {
+		return false, nil
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE nodes SET traffic_seq = ? WHERE id = ? AND traffic_seq < ?`, int64(seq), nodeID, int64(seq))
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+	return n == 0, nil
 }

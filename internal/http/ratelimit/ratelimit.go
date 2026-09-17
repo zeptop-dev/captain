@@ -52,6 +52,11 @@ func (l *Limiter) Fail(addr string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	now := time.Now()
+	if l.entries == nil {
+		// Limiters declared as literals (package-level ones) never went
+		// through New.
+		l.entries = map[string]*entry{}
+	}
 	e := l.entries[addr]
 	if e == nil || now.Sub(e.first) > l.Window {
 		e = &entry{first: now}
@@ -105,23 +110,22 @@ func trusted(ip net.IP) bool {
 	return false
 }
 
-// ClientIP returns the caller's address. Behind a trusted proxy the
-// X-Real-IP header wins (proxies overwrite it), else X-Forwarded-For is
-// read from the right, skipping trusted proxy hops; the first entry is
-// whatever the client sent and is never trusted on its own.
+// ClientIP returns the caller's address. Behind a trusted proxy
+// X-Forwarded-For is read from the right, skipping trusted proxy hops:
+// every proxy appends the peer it saw, so the rightmost untrusted entry is
+// the real client and the entries before it are whatever the client sent.
+// X-Real-IP is only a fallback, because a plain `reverse_proxy` in Caddy
+// (and cloudflared) passes a client-supplied X-Real-IP through untouched
+// while it does rewrite X-Forwarded-For.
 func ClientIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		host = r.RemoteAddr
 	}
 	if trusted(net.ParseIP(host)) {
-		if v := strings.TrimSpace(r.Header.Get("X-Real-IP")); v != "" && net.ParseIP(v) != nil {
-			return v
-		}
-		if v := r.Header.Get("X-Forwarded-For"); v != "" {
-			// Walk from the proxy's own entry backwards over trusted hops;
-			// the first address that is not a proxy is the client. Entries
-			// before that are whatever the client sent.
+		// Every X-Forwarded-For line, in order, so a proxy that adds its
+		// own header line instead of appending is handled too.
+		if v := strings.Join(r.Header.Values("X-Forwarded-For"), ","); v != "" {
 			parts := strings.Split(v, ",")
 			for i := len(parts) - 1; i >= 0; i-- {
 				hop := strings.TrimSpace(parts[i])
@@ -133,6 +137,9 @@ func ClientIP(r *http.Request) string {
 					return hop
 				}
 			}
+		}
+		if v := strings.TrimSpace(r.Header.Get("X-Real-IP")); v != "" && net.ParseIP(v) != nil {
+			return v
 		}
 	}
 	return host

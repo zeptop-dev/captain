@@ -265,7 +265,8 @@ func TestEndToEnd(t *testing.T) {
 	if i, j := strings.Index(string(b), "🇭🇰 JP vip"), strings.Index(string(b), "🇯🇵 JP mieru"); i < 0 || j < 0 || i > j {
 		t.Fatalf("flags/order in clash doc:\n%s", b)
 	}
-	c.do("PUT", "/api/admin/settings/subscription", map[string]any{"URLs": []string{}}, nil)
+	// A PUT edits the keys it carries, so switching auto flags off says so.
+	c.do("PUT", "/api/admin/settings/subscription", map[string]any{"URLs": []string{}, "auto_flags": false}, nil)
 	_, b, _ = anon.do("GET", "/sub/"+u2["sub_token"].(string)+"?client=clash", nil, nil)
 	if !strings.Contains(string(b), "🇭🇰 JP vip") || strings.Contains(string(b), "🇯🇵") {
 		t.Fatalf("explicit region must still flag, auto off:\n%s", b)

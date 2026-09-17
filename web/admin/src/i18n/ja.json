@@ -1,9 +1,6 @@
 {
   "app": {
-    "name": "Captain",
-    "logout": "ログアウト",
-    "signedInAs": "ログイン中",
-    "search": "検索"
+    "logout": "ログアウト"
   },
   "nav": {
     "workspace": "ワークスペース",
@@ -45,23 +42,15 @@
     "edit": "編集",
     "delete": "削除",
     "confirm": "確認",
-    "close": "閉じる",
     "copy": "コピー",
     "copied": "コピーしました",
-    "yes": "はい",
-    "no": "いいえ",
     "enabled": "有効",
     "disabled": "無効",
     "none": "なし",
-    "actions": "操作",
-    "search": "検索",
-    "loading": "読み込み中",
     "empty": "データがありません",
-    "error": "エラーが発生しました",
     "saved": "保存しました",
     "deleted": "削除しました",
     "confirmDelete": "削除しますか？この操作は取り消せません。",
-    "refresh": "更新",
     "all": "すべて",
     "total": "合計 {{count}} 件"
   },
@@ -199,6 +188,7 @@
     "realityProbe": "現在の対象を検査",
     "realityScanning": "ノードからハンドシェイク中…",
     "realityScanHint": "ノードから実際に TLS ハンドシェイクを行い、TLS 1.3・h2・X25519・証明書を確認し、CDN 上のサイトを除外します。",
+    "handshakeServer": "ハンドシェイク先",
     "realityLatency": "遅延",
     "realityCert": "証明書",
     "realityUse": "使用",
@@ -270,8 +260,6 @@
     "rate": "倍率",
     "enabled": "有効",
     "displayHostHint": "空欄ならインバウンドの TLS ドメイン、なければノードのパブリックアドレスを使います",
-    "sort": "並び順",
-    "sortHint": "購読内でこの値の昇順に並びます",
     "clientExtra": "クライアント追加フィールド",
     "clientExtraHint": "mihomo/Stash/sing-box のサブスクでこのエントリのノードに統合する JSON（tfo、smux、dialer-proxy、ip-version など）。",
     "region": "地域",
@@ -305,7 +293,6 @@
     "rotateHint": "古いリンクは即時無効になります。",
     "newPassword": "新しいパスワード（空欄なら変更なし）",
     "uuid": "UUID",
-    "orders": "注文",
     "createdAt": "登録日時",
     "filterPlaceholder": "メールアドレスで検索",
     "devices": "オンラインデバイス（直近 5 分）",
@@ -999,7 +986,15 @@
     "neverUsed": "未使用",
     "mcp": "AI エージェント（MCP）",
     "mcpHint": "内蔵 MCP サーバー：{{url}}。Claude Code、Cursor などの MCP クライアントに設定すると、ノード、ユーザー、注文、チケット、監視を自然言語で照会できます。書き込みツールには confirm=true が必要です。",
-    "mcpCli": "Claude Code のワンライナー："
+    "mcpCli": "Claude Code のワンライナー：",
+    "scope": "権限",
+    "scopeFull": "フルアクセス",
+    "scopeRead": "読み取り専用",
+    "expiry": "有効期限",
+    "noExpiry": "無期限",
+    "days": "{{count}} 日",
+    "expires": "期限",
+    "expired": "期限切れ"
   },
   "twofa": {
     "title": "二要素認証",
@@ -1045,7 +1040,6 @@
     "uploadFailed": "アップロード失敗"
   },
   "certs": {
-    "title": "自前の証明書",
     "issue": "証明書を作成",
     "issueNow": "発行",
     "issued": "証明書を発行しました",

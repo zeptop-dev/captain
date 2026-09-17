@@ -25,11 +25,14 @@ type DynLimit struct {
 	Notify *notify.Notifier
 	Hooks  *webhook.Hub
 	Log    *slog.Logger
+	// PushSeconds is the node report interval, used when an agent does
+	// not say what window its deltas cover (before bosun 0.46).
+	PushSeconds int
 	// Now overrides the clock (tests).
 	Now func() time.Time
 
 	mu       sync.Mutex
-	buckets  map[int64]map[int64]int64 // user -> minute -> bytes
+	recent   map[int64][]sample // user -> the reports inside the trigger window
 	settings store.DynLimitSettings
 	fetched  time.Time
 }
@@ -47,8 +50,15 @@ func (d *DynLimit) Settings(ctx context.Context) store.DynLimitSettings {
 	defer d.mu.Unlock()
 	if d.now().Sub(d.fetched) >= 15*time.Second {
 		var s store.DynLimitSettings
-		_ = d.Store.GetSetting(ctx, store.SettingDynLimit, &s)
-		d.settings, d.fetched = s.Defaults(), d.now()
+		// A read error keeps the previous value: caching the zero value
+		// would turn one cancelled request into 15 seconds of "the
+		// feature is off".
+		if err := d.Store.GetSetting(ctx, store.SettingDynLimit, &s); err == nil {
+			d.settings, d.fetched = s.Defaults(), d.now()
+		} else if d.fetched.IsZero() {
+			// Nothing cached yet: run on the defaults and retry next call.
+			d.settings = s.Defaults()
+		}
 	}
 	return d.settings
 }
@@ -60,64 +70,80 @@ func (d *DynLimit) Invalidate() {
 	d.mu.Unlock()
 }
 
-// Observe takes one node report's samples. It returns the ids of users it
-// throttled just now.
-func (d *DynLimit) Observe(ctx context.Context, samples []store.TrafficSample, at time.Time) []int64 {
+// sample is one report's delta for a user: bytes accumulated over the
+// window that ended at end.
+type sample struct {
+	end   time.Time
+	win   time.Duration
+	bytes int64
+}
+
+// Observe takes one node report's deltas. window is how long they have
+// been accumulating (Report.TrafficWindowSeconds); 0 falls back to the
+// panel's push interval. It returns the ids of users throttled just now.
+func (d *DynLimit) Observe(ctx context.Context, samples []store.TrafficSample, window int, at time.Time) []int64 {
 	if d == nil {
 		return nil
 	}
-	// An empty report still moves the clock: a burst that ended before
-	// this report is evaluated now, when its minute is complete.
 	s := d.Settings(ctx)
 	if !s.Enabled || !InWindows(s.Windows, at) {
 		return nil
 	}
-	minute := at.Unix() / 60
-	windowMin := int64((s.TriggerSeconds + 59) / 60)
-	if windowMin < 1 {
-		windowMin = 1
+	win := time.Duration(window) * time.Second
+	if win <= 0 {
+		win = time.Duration(d.PushSeconds) * time.Second
 	}
+	if win <= 0 {
+		win = time.Minute
+	}
+	trigger := time.Duration(s.TriggerSeconds) * time.Second
 	white := map[int64]bool{}
 	for _, id := range s.Whitelist {
 		white[id] = true
 	}
 	d.mu.Lock()
-	if d.buckets == nil {
-		d.buckets = map[int64]map[int64]int64{}
+	if d.recent == nil {
+		d.recent = map[int64][]sample{}
 	}
-	touched := map[int64]bool{}
 	for _, sm := range samples {
-		if sm.Up+sm.Down <= 0 {
+		if sm.Up <= 0 && sm.Down <= 0 {
 			continue
 		}
-		b := d.buckets[sm.UserID]
-		if b == nil {
-			b = map[int64]int64{}
-			d.buckets[sm.UserID] = b
-		}
-		b[minute] += sm.Up + sm.Down
-		touched[sm.UserID] = true
+		d.recent[sm.UserID] = append(d.recent[sm.UserID], sample{end: at, win: win, bytes: sm.Up + sm.Down})
 	}
-	// Evaluate every user with recent traffic over the completed minutes
-	// only (the current one is partial): a burst that ended a minute ago
-	// still counts, even if this report carries nothing for the user.
-	from, to := minute-windowMin, minute-1
+	// A user's rate is the traffic that actually falls inside the trigger
+	// window, each report counted for the part of its own window that
+	// overlaps: a backlog covering twenty minutes is twenty minutes of
+	// traffic, not one minute's spike.
+	from := at.Add(-trigger)
 	var over []int64
 	var rates []int
-	for uid, b := range d.buckets {
-		var sum int64
-		for m, n := range b {
-			if m < from {
-				delete(b, m)
-			} else if m <= to {
-				sum += n
+	for uid, list := range d.recent {
+		var bits float64
+		kept := list[:0]
+		for _, sm := range list {
+			start := sm.end.Add(-sm.win)
+			if sm.end.After(from) {
+				kept = append(kept, sm)
+			} else {
+				continue // entirely before the window
 			}
+			lo := start
+			if lo.Before(from) {
+				lo = from
+			}
+			overlap := sm.end.Sub(lo)
+			if overlap <= 0 || sm.win <= 0 {
+				continue
+			}
+			bits += float64(sm.bytes) * 8 * (float64(overlap) / float64(sm.win))
 		}
-		if len(b) == 0 {
-			delete(d.buckets, uid)
+		if len(kept) == 0 {
+			delete(d.recent, uid)
 			continue
 		}
-		mbps := int(sum * 8 / (windowMin * 60) / 1_000_000)
+		d.recent[uid] = kept
+		mbps := int(bits / trigger.Seconds() / 1e6)
 		if mbps >= s.TriggerMbps && !white[uid] {
 			over = append(over, uid)
 			rates = append(rates, mbps)
@@ -128,6 +154,20 @@ func (d *DynLimit) Observe(ctx context.Context, samples []store.TrafficSample, a
 	for i, uid := range over {
 		if cur, err := d.Store.DynLimitFor(ctx, uid, at); err == nil && cur != nil {
 			continue // already limited; wait for it to lapse
+		}
+		// Throttling a user who has no speed limit at all adds a marking
+		// outbound to every core that serves them, which means a restart
+		// and a moment of dropped connections for everybody on those
+		// nodes. By default such users are left alone and only the log
+		// says so; ThrottleUnlimited accepts the restart.
+		if !s.ThrottleUnlimited {
+			limits, err := d.Store.SpeedLimits(ctx)
+			if err == nil && limits[uid] == 0 {
+				if d.Log != nil {
+					d.Log.Info("user over the dynamic limit but has no speed limit; not throttled (dynlimit.throttle_unlimited is off)", "user", uid, "rate_mbps", rates[i])
+				}
+				continue
+			}
 		}
 		until := at.Add(time.Duration(s.LimitSeconds) * time.Second)
 		if err := d.Store.SetDynLimit(ctx, uid, s.LimitMbps, rates[i], at, until); err != nil {
@@ -146,7 +186,7 @@ func (d *DynLimit) Observe(ctx context.Context, samples []store.TrafficSample, a
 		}
 		d.Hooks.Emit(ctx, webhook.UserThrottled, map[string]any{"user_id": uid, "email": email, "rate_mbps": rates[i], "limit_mbps": s.LimitMbps, "until": until})
 		if d.Notify != nil {
-			d.Notify.Admin(ctx, fmt.Sprintf("🐢 %s throttled to %d Mbps for %s (averaged %d Mbps over %ds)", email, s.LimitMbps, (time.Duration(s.LimitSeconds)*time.Second).String(), rates[i], s.TriggerSeconds))
+			d.Notify.AdminAsync(fmt.Sprintf("🐢 %s throttled to %d Mbps for %s (averaged %d Mbps over %ds)", notify.Escape(email), s.LimitMbps, (time.Duration(s.LimitSeconds) * time.Second).String(), rates[i], s.TriggerSeconds))
 		}
 	}
 	if len(throttled) > 0 && d.State != nil {

@@ -135,27 +135,51 @@ func (r *Runner) Tick(ctx context.Context) {
 	}
 	if r.Probe != nil {
 		r.Probe.CheckOffline(ctx, now)
-		if now.Sub(r.lastPrune) >= time.Hour {
-			r.lastPrune = now
+	}
+	// The hourly cleanup runs whether or not the probe is configured: the
+	// tables below grow from subscription fetches and node reports.
+	if now.Sub(r.lastPrune) >= time.Hour {
+		r.lastPrune = now
+		if r.Probe != nil {
 			if err := r.Store.PruneStats(ctx, now); err != nil {
 				log.Error("prune stats", "err", err)
 			}
-			var cl store.ConnLogSettings
-			_ = r.Store.GetSetting(ctx, store.SettingConnLog, &cl)
-			before := now.AddDate(0, 0, -cl.Days())
-			if !cl.Enabled {
-				before = now // off: forget everything collected so far
-			}
-			if n, err := r.Store.PruneConnLog(ctx, before); err != nil {
-				log.Error("prune connection log", "err", err)
-			} else if n > 0 {
-				log.Info("pruned connection log", "rows", n)
-			}
-			if n, err := r.Store.PruneAuditLog(ctx, now.AddDate(0, 0, -90)); err != nil {
-				log.Error("prune audit log", "err", err)
-			} else if n > 0 {
-				log.Info("pruned audit log", "rows", n)
-			}
+		}
+		var cl store.ConnLogSettings
+		if err := r.Store.GetSetting(ctx, store.SettingConnLog, &cl); err != nil {
+			// Never treat a failed read as "switched off": that would
+			// wipe the whole connection log.
+			log.Error("connection log settings", "err", err)
+			cl.Enabled, cl.RetentionDays = true, 7
+		}
+		before := now.AddDate(0, 0, -cl.Days())
+		if !cl.Enabled {
+			before = now // off: forget everything collected so far
+		}
+		if n, err := r.Store.PruneConnLog(ctx, before); err != nil {
+			log.Error("prune connection log", "err", err)
+		} else if n > 0 {
+			log.Info("pruned connection log", "rows", n)
+		}
+		if n, err := r.Store.PruneHwidDevices(ctx, now.AddDate(0, 0, -90)); err != nil {
+			log.Error("prune hwid devices", "err", err)
+		} else if n > 0 {
+			log.Info("forgot devices unseen for 90 days", "rows", n)
+		}
+		if n, err := r.Store.TrimSubRequests(ctx, 200); err != nil {
+			log.Error("trim subscription history", "err", err)
+		} else if n > 0 {
+			log.Info("trimmed subscription history", "rows", n)
+		}
+		if n, err := r.Store.PruneSubRequests(ctx, now.AddDate(0, 0, -30)); err != nil {
+			log.Error("prune subscription history", "err", err)
+		} else if n > 0 {
+			log.Info("pruned subscription history", "rows", n)
+		}
+		if n, err := r.Store.PruneAuditLog(ctx, now.AddDate(0, 0, -90)); err != nil {
+			log.Error("prune audit log", "err", err)
+		} else if n > 0 {
+			log.Info("pruned audit log", "rows", n)
 		}
 	}
 	if r.Mail != nil && now.Sub(r.lastReminders) >= time.Hour {
@@ -233,8 +257,11 @@ func (r *Runner) reminders(ctx context.Context, now time.Time, log *slog.Logger)
 	for _, e := range exp {
 		r.Hooks.Emit(ctx, webhook.SubscriptionExpiring, map[string]any{"user_id": e.UserID, "email": e.Email, "expires_at": e.ExpiresAt})
 		if !deliver(e.UserID, mail.ExpiryMessage(r.SiteName, e.Email, r.PortalURL, e.ExpiresAt), fmt.Sprintf("⏰ %s: your plan expires on %s. Renew: %s", r.SiteName, e.ExpiresAt.Format("2006-01-02"), r.PortalURL)) {
-			continue
+			log.Warn("expiry reminder not delivered to the user; recorded anyway", "user", e.UserID)
 		}
+		// Recorded whether or not a user-facing channel took it: the
+		// webhook already fired, and repeating the event every hour is
+		// worse than one missed mail.
 		_ = r.Store.MarkNotified(ctx, e.UserID, "expiry", e.Ref)
 	}
 	// Traffic thresholds, highest first: a user who jumped past several
@@ -255,7 +282,7 @@ func (r *Runner) reminders(ctx context.Context, now time.Time, log *slog.Logger)
 			}
 			r.Hooks.Emit(ctx, webhook.SubscriptionTraffic, map[string]any{"user_id": e.UserID, "email": e.Email, "threshold": e.Threshold, "used_percent": e.UsedPct})
 			if !deliver(e.UserID, mail.TrafficMessage(r.SiteName, e.Email, r.PortalURL, e.UsedPct), fmt.Sprintf("📊 %s: you have used %d%% of your traffic. %s", r.SiteName, e.UsedPct, r.PortalURL)) {
-				continue
+				log.Warn("traffic reminder not delivered to the user; recorded anyway", "user", e.UserID, "threshold", e.Threshold)
 			}
 			done[e.UserID] = true
 			sentTraffic++

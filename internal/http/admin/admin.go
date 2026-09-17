@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/zeptop-dev/captain/internal/http/origin"
@@ -77,6 +76,8 @@ type Deps struct {
 	Hooks *webhook.Hub
 	// Probe is the monitoring service (settings cache, live data).
 	Probe *service.Probe
+	// Allow is the console allow-list, shared with the MCP endpoint.
+	Allow *service.AdminAllow
 	// Dyn is the dynamic speed limiter (settings cache invalidation).
 	Dyn *service.DynLimit
 	// External syncs airport subscriptions into external nodes.
@@ -87,9 +88,6 @@ const cookieName = "captain_session"
 
 type handlers struct {
 	Deps
-	securityMu   sync.Mutex
-	securityList []string
-	securityAt   time.Time
 }
 
 // Register mounts the admin routes.
@@ -221,8 +219,13 @@ func getSetting[T any](h *handlers, w http.ResponseWriter, r *http.Request, key 
 
 // putSetting decodes, lets check normalise or refuse (its message is the
 // 400), stores under key and echoes the stored value.
+//
+// The body is decoded onto the stored document, so a caller that sends
+// only some keys (a script, the MCP tools) edits those and leaves the
+// rest alone instead of clearing them.
 func putSetting[T any](h *handlers, w http.ResponseWriter, r *http.Request, key string, check func(context.Context, *T) string) {
 	var v T
+	_ = h.Store.GetSetting(r.Context(), key, &v)
 	if !readJSON(w, r, &v) {
 		return
 	}
@@ -246,7 +249,7 @@ func serverErr(w http.ResponseWriter, err error) {
 		fail(w, http.StatusNotFound, "not found")
 		return
 	}
-	serverErr(w, err)
+	fail(w, http.StatusInternalServerError, "internal error")
 }
 
 func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
@@ -257,8 +260,19 @@ func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 		}
 		var u *domain.User
 		if tok := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer")); tok != "" && strings.HasPrefix(tok, "cap_") {
-			// Personal API token (scripts, MCP): same role as its owner.
-			u, _ = h.Store.UserByAPIToken(r.Context(), tok)
+			// Personal API token (scripts, MCP): the owner's role, narrowed
+			// by the token's scope. Staff management stays with the
+			// interactive login, so a leaked token cannot mint an admin.
+			var scope string
+			u, scope, _ = h.Store.UserByAPIToken(r.Context(), tok)
+			if u != nil && scope == store.ScopeRead && r.Method != http.MethodGet {
+				fail(w, http.StatusForbidden, "this token is read-only")
+				return
+			}
+			if u != nil && strings.HasPrefix(r.URL.Path, "/api/admin/admins") {
+				fail(w, http.StatusForbidden, "staff accounts can only be managed from the console")
+				return
+			}
 		} else {
 			c, err := r.Cookie(cookieName)
 			if err != nil {
@@ -331,9 +345,6 @@ func (h *handlers) login(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
-	if h.Logins != nil {
-		h.Logins.Reset(ip)
-	}
 	if err != nil {
 		fail(w, http.StatusInternalServerError, "internal error")
 		return
@@ -357,6 +368,12 @@ func (h *handlers) login(w http.ResponseWriter, r *http.Request) {
 			fail(w, http.StatusUnauthorized, "invalid or already used authenticator code")
 			return
 		}
+	}
+	// Only a complete login clears the per-address failure count: resetting
+	// it after the password alone let an attacker who holds the password
+	// guess authenticator codes for ever.
+	if h.Logins != nil {
+		h.Logins.Reset(ip)
 	}
 	sess, err := h.Sessions.Create(r.Context(), u.ID, true)
 	if err != nil {
@@ -440,7 +457,10 @@ func allowed(role, method, path string) bool {
 	case domain.RoleAdmin:
 		return true
 	case domain.RoleOperator:
-		for _, p := range []string{"/api/admin/settings/", "/api/admin/system/", "/api/admin/admins", "/api/admin/site"} {
+		// Audit rules reach every node's core config and the audit log is
+		// a record of what users visited: both stay with the admin, like
+		// the settings switches that turn them on.
+		for _, p := range []string{"/api/admin/settings/", "/api/admin/system/", "/api/admin/admins", "/api/admin/site", "/api/admin/audit"} {
 			if strings.HasPrefix(path, p) {
 				return false
 			}
@@ -452,6 +472,11 @@ func allowed(role, method, path string) bool {
 			return true
 		case strings.HasPrefix(path, "/api/admin/tickets"):
 			return true
+		case strings.HasSuffix(path, "/connections"), strings.HasSuffix(path, "/links"):
+			// A help-desk account has no business reading where a
+			// customer went, nor their subscription links (the user
+			// payloads drop the token for this role too).
+			return false
 		case method == http.MethodGet && (strings.HasPrefix(path, "/api/admin/users") || strings.HasPrefix(path, "/api/admin/orders") || strings.HasPrefix(path, "/api/admin/plans")):
 			return true
 		}

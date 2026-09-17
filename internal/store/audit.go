@@ -223,6 +223,14 @@ func (s *Store) CountUserAuditHits(ctx context.Context, userID int64, since time
 	return n, err
 }
 
+// CountBlockedAuditHits counts only the hits of block rules, which are the
+// ones the automatic ban is about: a "log only" rule is for watching.
+func (s *Store) CountBlockedAuditHits(ctx context.Context, userID int64, since time.Time) (int, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_log WHERE user_id = ? AND at >= ? AND action = 'block'`, userID, since.Unix()).Scan(&n)
+	return n, err
+}
+
 // RuleHitCounts returns hits per rule since the given time.
 func (s *Store) RuleHitCounts(ctx context.Context, since time.Time) (map[int64]int, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT rule_id, COUNT(*) FROM audit_log WHERE at >= ? GROUP BY rule_id`, since.Unix())
@@ -242,11 +250,25 @@ func (s *Store) RuleHitCounts(ctx context.Context, since time.Time) (map[int64]i
 	return out, rows.Err()
 }
 
-// PruneAuditLog deletes hits older than before.
+// PruneAuditLog deletes hits older than before, in batches (see
+// PruneConnLog).
 func (s *Store) PruneAuditLog(ctx context.Context, before time.Time) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM audit_log WHERE at < ?`, before.Unix())
-	if err != nil {
-		return 0, err
+	const batch = 20000
+	var total int64
+	for {
+		res, err := s.db.ExecContext(ctx, `DELETE FROM audit_log WHERE id IN (SELECT id FROM audit_log WHERE at < ? LIMIT ?)`, before.Unix(), batch)
+		if err != nil {
+			return total, err
+		}
+		n, _ := res.RowsAffected()
+		total += n
+		if n < batch {
+			return total, nil
+		}
+		select {
+		case <-ctx.Done():
+			return total, ctx.Err()
+		default:
+		}
 	}
-	return res.RowsAffected()
 }

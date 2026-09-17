@@ -202,13 +202,17 @@ forward again with "upgrade".
 
 - Sessions last 30 days; the admin console needs the admin login (password,
   plus a TOTP code once enabled), and only sessions minted there reach
-  `/api/admin`. Staff API tokens (`cap_...`) carry their owner's role.
+  `/api/admin`. Staff API tokens (`cap_...`) carry their owner's role,
+  narrowed by the token's scope (read-only answers GET only) and its
+  optional expiry; no token can manage staff accounts, and `/mcp` is behind
+  the same allow-list as `/api/admin`.
 - Five failed logins from one address within 15 minutes lock that address
   for 15 minutes (`internal/http/ratelimit`). The counter lives in memory:
   a restart clears it.
 - Settings → Security → *Admin allow-list* (`admin_allow_cidrs`: bare
   addresses or CIDRs) restricts the admin login and every `/api/admin`
-  route, API tokens included, so a metrics scraper must be on it too.
+  route (and `/mcp`), API tokens included, so a metrics scraper must be on
+  it too.
   Saving a list that would exclude your own address is refused; the list is
   cached for 30 s. The portal, subscriptions, node and payment endpoints are
   not affected.
@@ -217,24 +221,28 @@ forward again with "upgrade".
   config.yaml lists those proxies (addresses or CIDRs); when it is empty,
   any loopback or private peer (RFC 1918, IPv6 ULA) counts as one, which
   covers Caddy, nginx, 1Panel or cloudflared on the same host or compose
-  network. Behind a trusted proxy `X-Real-IP` wins when it is a valid
-  address, otherwise the *last* `X-Forwarded-For` entry (the one the proxy
-  itself appended); the first entry is whatever the client sent and is
-  never used. Consequences:
-  - the proxy has to set `X-Real-IP` or append to `X-Forwarded-For`,
-    otherwise everything appears to come from the proxy's address and one
-    locked address locks everyone out (and an allow-list with only your
-    public address blocks the console);
-  - with two proxy layers (Cloudflare in front of nginx, say) the last
-    entry is the outer proxy's address; have the inner proxy set
-    `X-Real-IP` from `CF-Connecting-IP` if you need the visitor's;
+  network. Behind a trusted proxy the address comes from
+  `X-Forwarded-For`, read from the right: every proxy appends the peer it
+  saw, so the rightmost entry that is not itself a trusted proxy is the
+  client and everything left of it is whatever the client sent.
+  `X-Real-IP` is only used when no `X-Forwarded-For` entry is usable,
+  because a plain `reverse_proxy` in Caddy (and cloudflared) passes a
+  client-supplied `X-Real-IP` through untouched while it does rewrite
+  `X-Forwarded-For`. Consequences:
+  - the proxy has to append to `X-Forwarded-For` (all of the bundled
+    layouts do), otherwise everything appears to come from the proxy's
+    address and one locked address locks everyone out (and an allow-list
+    with only your public address blocks the console);
+  - with two proxy layers (Cloudflare in front of nginx, say) name both in
+    `trusted_proxies` — the rightmost untrusted entry is then the visitor,
+    not the outer proxy;
   - with `trusted_proxies` empty, any client that reaches Captain from a
     loopback or private address (a VPN peer, another container, a LAN
-    host) can send `X-Real-IP` and claim any address. Keep `listen` on
-    `127.0.0.1:8080` behind the proxy, or name the proxy in
-    `trusted_proxies` so nothing else is believed. Public peers are never
-    trusted, so a client on the internet cannot spoof its way past the
-    allow-list.
+    host) is treated as a proxy and can claim any address in the headers
+    it sends. Keep `listen` on `127.0.0.1:8080` behind the proxy, or name
+    the proxy in `trusted_proxies` so nothing else is believed. Public
+    peers are never trusted, so a client on the internet cannot spoof its
+    way past the allow-list.
   Behind Cloudflare Tunnel the connection comes from cloudflared on
   localhost and it forwards the visitor's address, so the real address is
   used; details in [CLOUDFLARE_TUNNEL.md](CLOUDFLARE_TUNNEL.md).

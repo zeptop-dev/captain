@@ -5,8 +5,10 @@ package notify
 
 import (
 	"context"
-	"github.com/zeptop-dev/captain/internal/webhook"
 	"log/slog"
+	"time"
+
+	"github.com/zeptop-dev/captain/internal/webhook"
 
 	"github.com/zeptop-dev/captain/internal/mail"
 	"github.com/zeptop-dev/captain/internal/store"
@@ -80,3 +82,22 @@ func html(s string) string {
 	}
 	return string(out)
 }
+
+// AdminAsync is Admin without making the caller wait: a node report must
+// not hold the database connection (or time out and be re-sent) because
+// Telegram is slow. The text is escaped for Telegram's HTML mode by
+// Admin itself only for Admin's own markup, so callers that interpolate
+// node- or user-supplied strings use Escape first.
+func (n *Notifier) AdminAsync(text string) {
+	if n == nil || n.Bot == nil {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		defer cancel()
+		n.Admin(ctx, text)
+	}()
+}
+
+// Escape makes a string safe to place inside a Telegram HTML message.
+func Escape(s string) string { return html(s) }

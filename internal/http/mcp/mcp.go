@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/http/ratelimit"
 	"github.com/zeptop-dev/captain/internal/service"
 	"github.com/zeptop-dev/captain/internal/store"
 )
@@ -29,8 +30,12 @@ type Deps struct {
 	Probe   *service.Probe
 	Log     *slog.Logger
 	Version string
-	// Resolve turns a bearer token into a staff user, nil when invalid.
-	Resolve func(ctx context.Context, token string) *domain.User
+	// Resolve turns a bearer token into a staff user and its scope, nil
+	// when invalid or expired.
+	Resolve func(ctx context.Context, token string) (*domain.User, string)
+	// Allow is the console allow-list: /mcp is the admin API by another
+	// name, so the same addresses reach it (nil = no restriction).
+	Allow *service.AdminAllow
 	// NewUser builds a user record (password hashing lives in the admin package).
 	NewUser func(email, password string) (*domain.User, error)
 	// OnTicketReply notifies the ticket owner (nil = none).
@@ -69,10 +74,14 @@ func Register(mux *http.ServeMux, d Deps) {
 }
 
 func (h *handlers) serve(w http.ResponseWriter, r *http.Request) {
+	if h.Allow != nil && !h.Allow.Allowed(r.Context(), ratelimit.ClientIP(r)) {
+		http.Error(w, "not allowed from this address", http.StatusForbidden)
+		return
+	}
 	tok := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer"))
-	u := (*domain.User)(nil)
+	u, scope := (*domain.User)(nil), ""
 	if tok != "" && h.Resolve != nil {
-		u = h.Resolve(r.Context(), tok)
+		u, scope = h.Resolve(r.Context(), tok)
 	}
 	if u == nil {
 		w.Header().Set("WWW-Authenticate", `Bearer realm="captain"`)
@@ -101,14 +110,14 @@ func (h *handlers) serve(w http.ResponseWriter, r *http.Request) {
 	case "ping":
 		res.Result = map[string]any{}
 	case "tools/list":
-		res.Result = map[string]any{"tools": h.toolList(u)}
+		res.Result = map[string]any{"tools": h.toolList(u, scope)}
 	case "tools/call":
 		var p struct {
 			Name      string         `json:"name"`
 			Arguments map[string]any `json:"arguments"`
 		}
 		_ = json.Unmarshal(req.Params, &p)
-		out, err := h.call(r.Context(), u, p.Name, p.Arguments)
+		out, err := h.call(r.Context(), u, scope, p.Name, p.Arguments)
 		if err != nil {
 			res.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": err.Error()}}, "isError": true}
 		} else {
@@ -166,10 +175,10 @@ var tools = []tool{
 	{Name: "ticket_reply", Description: "Reply to a ticket as staff (the user is notified).", Ticket: true, Write: true, Schema: schema([]string{"ticket_id", "body", "confirm"}, map[string]any{"ticket_id": prop("integer", "ticket id"), "body": prop("string", "reply text"), "confirm": confirmProp})},
 }
 
-func (h *handlers) toolList(u *domain.User) []map[string]any {
+func (h *handlers) toolList(u *domain.User, scope string) []map[string]any {
 	out := []map[string]any{}
 	for _, t := range tools {
-		if !allowedTool(u, t) {
+		if !allowedTool(u, scope, t) {
 			continue
 		}
 		out = append(out, map[string]any{"name": t.Name, "description": t.Description, "inputSchema": t.Schema})
@@ -178,8 +187,12 @@ func (h *handlers) toolList(u *domain.User) []map[string]any {
 }
 
 // allowedTool mirrors the admin role matrix: support = tickets + reads of
-// users/orders/plans/dashboard; operator = everything but no extra; admin = all.
-func allowedTool(u *domain.User, t tool) bool {
+// users/orders/plans/dashboard; operator = everything but no extra; admin =
+// all. A read-only token narrows any of them to the read tools.
+func allowedTool(u *domain.User, scope string, t tool) bool {
+	if t.Write && scope == store.ScopeRead {
+		return false
+	}
 	switch u.Role {
 	case domain.RoleAdmin, domain.RoleOperator:
 		return true
@@ -213,14 +226,14 @@ func argBool(a map[string]any, k string) bool {
 	return b
 }
 
-func (h *handlers) call(ctx context.Context, u *domain.User, name string, a map[string]any) (any, error) {
+func (h *handlers) call(ctx context.Context, u *domain.User, scope, name string, a map[string]any) (any, error) {
 	var t *tool
 	for i := range tools {
 		if tools[i].Name == name {
 			t = &tools[i]
 		}
 	}
-	if t == nil || !allowedTool(u, *t) {
+	if t == nil || !allowedTool(u, scope, *t) {
 		return nil, fmt.Errorf("unknown or not permitted tool %q", name)
 	}
 	if a == nil {

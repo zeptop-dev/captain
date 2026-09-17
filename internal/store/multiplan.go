@@ -202,7 +202,8 @@ func (s *Store) CancelQueued(ctx context.Context, userID, id int64) error {
 		return err
 	}
 	var orderID, amount int64
-	err = tx.QueryRowContext(ctx, `SELECT id, amount_cents FROM orders WHERE user_id = ? AND plan_id = ? AND activation = 'queue' AND status = 'paid' ORDER BY paid_at DESC, id DESC LIMIT 1`, userID, planID).Scan(&orderID, &amount)
+	var couponID sql.NullInt64
+	err = tx.QueryRowContext(ctx, `SELECT id, amount_cents, coupon_id FROM orders WHERE user_id = ? AND plan_id = ? AND activation = 'queue' AND status = 'paid' ORDER BY paid_at DESC, id DESC LIMIT 1`, userID, planID).Scan(&orderID, &amount, &couponID)
 	if err == nil {
 		if _, err := tx.ExecContext(ctx, `UPDATE orders SET status = 'refunded' WHERE id = ?`, orderID); err != nil {
 			return err
@@ -211,6 +212,12 @@ func (s *Store) CancelQueued(ctx context.Context, userID, id int64) error {
 			if _, err := tx.ExecContext(ctx, `UPDATE users SET balance_cents = balance_cents + ?, updated_at = ? WHERE id = ?`, amount, now(), userID); err != nil {
 				return err
 			}
+		}
+		// The purchase is being undone, so the referral commission and the
+		// coupon use go back too: buying a queued plan and cancelling it
+		// used to mint commission on every round.
+		if err := reverseOrderHooksTx(ctx, tx, orderID, int64Ptr(couponID)); err != nil {
+			return err
 		}
 	} else if err != sql.ErrNoRows {
 		return err

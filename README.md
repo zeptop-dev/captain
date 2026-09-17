@@ -11,10 +11,12 @@ Publishing the panel through Cloudflare Tunnel (no public IP, no open ports): [d
 ## Status
 
 One binary, verified by end-to-end API tests (`internal/http/e2e_test.go`)
-and, before every release, by `make e2e` against a real panel with real nodes
-and a headless mihomo (`scripts/e2e/README.md`)
-and live runs with real bosun nodes (Captain driver) serving the official
-clients, with the traffic landing in the user's subscription:
+and by `make e2e` against a real panel with real nodes and a headless mihomo
+(`scripts/e2e/README.md`), which every release that touches the node
+protocol, subscription output or the money paths has to pass — see
+[Releasing](#releasing). Live runs use real bosun nodes (Captain driver)
+serving the official clients, with the traffic landing in the user's
+subscription:
 
 - SQLite database with embedded goose migrations (`migrations/`): users,
   sessions, plans, subscriptions, orders, nodes, inbounds, entries, traffic,
@@ -197,9 +199,12 @@ external login):
 ## Staff roles, theme, webhooks
 
 - **Staff roles** — Admin → Staff creates console accounts with a role: admin
-  (everything), operator (everything except settings, system, staff and the
-  landing page) or support (tickets, plus read-only users, orders, plans and
-  the dashboard). The last admin cannot be demoted, disabled or deleted.
+  (everything), operator (everything except settings, system, staff, the
+  landing page and the audit rules and log — those reach every node's core
+  config and record where users went) or support (tickets, plus read-only
+  users, orders, plans and the dashboard; no connection log, no subscription
+  links, and the user payloads leave the subscription token out). The last
+  admin cannot be demoted, disabled or deleted.
 - **Theme and page injection** — Admin → Landing page: primary colour, radius,
   light/dark/system scheme for the portal and the landing page, portal title,
   font, and raw HTML injected before `</head>` / `</body>` on every portal and
@@ -376,24 +381,38 @@ address; any-address inbounds keep the default route, and a default
 landing outbound takes precedence. Needs bosun ≥ 0.44.
 
 **Audit rules.** Settings → Audit rules is a panel-wide list every node
-gets: a "block" rule becomes a route rule on sing-box, xray and hysteria
-(the connection is rejected) and every hit — block or "log" — comes back
-with the next report as user, client address and destination. The match
-syntax is the routing one (`domain:`, `full:`, `keyword:`, `regexp:`,
-`ip:`, `port:`, `inbound:`, `geosite:`, `geoip:`, `protocol:bittorrent`).
-Hits are listed in the settings card and per user in the user drawer, kept
-90 days, and optionally sent to the admin chat; "auto-ban after N hits in
-M hours" bans the user (never staff) and reports it. mieru inbounds can
-neither block nor report. Needs bosun ≥ 0.43.
+gets: a "block" rule becomes a route rule on sing-box and xray (the
+connection is rejected) and every hit — block or "log" — comes back with
+the next report as user, client address and destination. The match syntax
+is the routing one (`domain:`, `full:`, `keyword:`, `regexp:`, `ip:`,
+`port:`, `inbound:`, `geosite:`, `geoip:`, `protocol:bittorrent`); a match
+the core would refuse is dropped on the node and named by its doctor
+("Panel rules") instead of breaking the config. hysteria cannot route, so
+it does **not** block: it reports the hits it sees in its own request log,
+and the panel marks them log-only and keeps them out of the auto-ban
+count. mieru inbounds can neither block nor report. Hits are listed in the
+settings card and per user in the user drawer, kept 90 days, and
+optionally sent to the admin chat; "auto-ban after N hits in M hours" bans
+the user (never staff, only block hits of a rule that still exists) and
+reports it. Attribution comes from the cores' logs, not from an API: bosun
+drops a log line that names a user the node does not serve on that
+inbound, but treat it as advisory. Needs bosun ≥ 0.43 (0.45 for the
+validation and the log checks).
 
 **Dynamic speed limit.** Settings → Dynamic speed limit throttles a user
 whose average rate across all nodes stays above the trigger for the
 trigger window (default 100 Mbps over 60 s) to a lower speed for a while
 (default 30 Mbps for 10 min), optionally only during given hours and never
-for whitelisted users. The panel computes it from node reports, so it
-spans nodes; the throttle reaches the nodes as a temporary user speed
-limit (min with the plan's) and lapses on its own. The user drawer shows
-an active throttle and can lift it.
+for whitelisted users. The panel computes the rate from the node reports,
+spread over the window each report says it covers (bosun ≥ 0.46 states it,
+older agents are assumed to cover the push interval), so a backlog of
+reports after a panel restart cannot look like one enormous burst. The
+throttle reaches the nodes as a temporary user speed limit (min with the
+plan's) and lapses on its own. It is applied with `tc`, so it takes effect
+without restarting a core — except for users who have no speed limit at
+all, which needs the core to be reloaded: those are left alone unless
+"throttle users without a speed limit" is on. The user drawer shows an
+active throttle, can lift it, and can also set one by hand ("Throttle").
 
 **Connection log (off by default).** Settings → Connection log makes every
 node report each accepted connection — user, inbound, client address,
@@ -477,6 +496,13 @@ admin API and for AI agents: Captain serves the Model Context Protocol at
 `POST /mcp` with tools for nodes, users, plans, orders, tickets, the probe
 and TCPing; write tools require `confirm: true`. See `docs/MCP.md`.
 
+A token carries its owner's role, narrowed by what it was issued with: scope
+*read-only* answers only GET requests (and only the MCP read tools), and an
+expiry (30/90/365 days) makes it stop working on its own. Staff accounts can
+never be managed with a token — `/api/admin/admins` needs the interactive
+login — and `/mcp` is behind the same admin allow-list as `/api/admin`, so a
+scraper or an agent has to come from an allowed address too.
+
 ## Speed test
 
 Admin → Speed test: TCP-connect latency from the panel to every entry's
@@ -544,6 +570,24 @@ cp config.example.yaml /etc/captain/config.yaml       # set base_url
 bin/captain admin create -c /etc/captain/config.yaml -email you@example.com -password '...'
 bin/captain serve -c /etc/captain/config.yaml
 ```
+
+## Releasing
+
+Releases are cut from `main` by pushing a tag; the workflow builds the
+binaries, the `SHA256SUMS` and the images. Three rules, each of them learned
+the hard way:
+
+1. **The release workflow runs the same gates as CI** — i18n parity, oxlint,
+   `gofmt`, `go vet`, `go test -race` — and the image job waits for the
+   binaries. A red commit cannot become a release.
+2. **A published tag is never moved.** The self-updater compares versions
+   only, so a node or panel that already fetched the first build of a tag
+   would stay on it for ever. Something wrong in a release is fixed by the
+   next patch version.
+3. **`make e2e` before a release that touches the node protocol,
+   subscription output or the money paths**, against the live rig
+   (`scripts/e2e/README.md`). A release that only touches the console or the
+   docs does not need it. Note the run in the release notes.
 
 ## License
 

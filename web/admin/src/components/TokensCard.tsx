@@ -1,4 +1,4 @@
-import { ActionIcon, Button, Card, Code, Group, Stack, Table, Text, TextInput, Title } from '@mantine/core'
+import { ActionIcon, Badge, Button, Card, Code, Group, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
@@ -8,7 +8,7 @@ import { when } from '../lib/format'
 import { toast } from '../lib/notify'
 import { Copy } from './Copy'
 
-interface Token { id: number; name: string; created_at: string; last_used_at: string | null }
+interface Token { id: number; name: string; scope: string; created_at: string; last_used_at: string | null; expires_at: string | null }
 
 // Personal API tokens for scripts and AI agents (MCP). The plaintext is
 // shown once; the token carries the owner's role.
@@ -17,8 +17,10 @@ export function TokensCard() {
   const qc = useQueryClient()
   const q = useQuery({ queryKey: ['api-tokens'], queryFn: () => api.get<Token[]>('/api/admin/tokens') })
   const [name, setName] = useState('')
+  const [scope, setScope] = useState('full')
+  const [days, setDays] = useState('0')
   const [fresh, setFresh] = useState<string | null>(null)
-  const create = useMutation({ mutationFn: () => api.post<{ token: string }>('/api/admin/tokens', { Name: name }), onSuccess: (r) => { setFresh(r.token); setName(''); qc.invalidateQueries({ queryKey: ['api-tokens'] }) }, onError: toast.err })
+  const create = useMutation({ mutationFn: () => api.post<{ token: string }>('/api/admin/tokens', { Name: name, Scope: scope, Days: Number(days) }), onSuccess: (r) => { setFresh(r.token); setName(''); qc.invalidateQueries({ queryKey: ['api-tokens'] }) }, onError: toast.err })
   const del = useMutation({ mutationFn: (id: number) => api.del(`/api/admin/tokens/${id}`), onSuccess: () => qc.invalidateQueries({ queryKey: ['api-tokens'] }), onError: toast.err })
   const origin = window.location.origin
   const snippet = `{\n  "mcpServers": {\n    "captain": {\n      "type": "http",\n      "url": "${origin}/mcp",\n      "headers": { "Authorization": "Bearer ${fresh ?? '<token>'}" }\n    }\n  }\n}`
@@ -26,7 +28,12 @@ export function TokensCard() {
     <Card>
       <Title order={5} mb="xs">{t('tokens.title')}</Title>
       <Text size="xs" c="dimmed" mb="sm">{t('tokens.hint')}</Text>
-      <Group align="flex-end" mb="sm"><TextInput label={t('tokens.name')} placeholder="claude-code" value={name} onChange={(e) => setName(e.currentTarget.value)} style={{ flex: 1 }} /><Button size="xs" mb={2} disabled={!name.trim()} loading={create.isPending} onClick={() => create.mutate()}>{t('tokens.create')}</Button></Group>
+      <Group align="flex-end" mb="sm">
+        <TextInput label={t('tokens.name')} placeholder="claude-code" value={name} onChange={(e) => setName(e.currentTarget.value)} style={{ flex: 1 }} />
+        <Select label={t('tokens.scope')} w={150} allowDeselect={false} data={[{ value: 'full', label: t('tokens.scopeFull') }, { value: 'read', label: t('tokens.scopeRead') }]} value={scope} onChange={(v) => setScope(v ?? 'full')} />
+        <Select label={t('tokens.expiry')} w={140} allowDeselect={false} data={[{ value: '0', label: t('tokens.noExpiry') }, { value: '30', label: t('tokens.days', { count: 30 }) }, { value: '90', label: t('tokens.days', { count: 90 }) }, { value: '365', label: t('tokens.days', { count: 365 }) }]} value={days} onChange={(v) => setDays(v ?? '0')} />
+        <Button size="xs" mb={2} disabled={!name.trim()} loading={create.isPending} onClick={() => create.mutate()}>{t('tokens.create')}</Button>
+      </Group>
       {fresh && (
         <Stack gap={4} mb="sm">
           <Text size="xs" c="orange">{t('tokens.showOnce')}</Text>
@@ -35,7 +42,7 @@ export function TokensCard() {
       )}
       {(q.data ?? []).length > 0 && (
         <Table fz="sm"><Table.Tbody>
-          {q.data!.map((tk) => <Table.Tr key={tk.id}><Table.Td><Text fw={600}>{tk.name}</Text></Table.Td><Table.Td><Text size="xs" c="dimmed">{t('tokens.created')} {when(tk.created_at)}</Text></Table.Td><Table.Td><Text size="xs" c="dimmed">{tk.last_used_at ? `${t('tokens.lastUsed')} ${when(tk.last_used_at)}` : t('tokens.neverUsed')}</Text></Table.Td><Table.Td><ActionIcon variant="subtle" color="red" onClick={() => del.mutate(tk.id)}><IconTrash size={14} /></ActionIcon></Table.Td></Table.Tr>)}
+          {q.data!.map((tk) => <Table.Tr key={tk.id}><Table.Td><Group gap={6}><Text fw={600}>{tk.name}</Text>{tk.scope === 'read' && <Badge size="xs" variant="light">{t('tokens.scopeRead')}</Badge>}{tk.expires_at && <Badge size="xs" variant="light" color={new Date(tk.expires_at) < new Date() ? 'red' : 'gray'}>{new Date(tk.expires_at) < new Date() ? t('tokens.expired') : `${t('tokens.expires')} ${when(tk.expires_at)}`}</Badge>}</Group></Table.Td><Table.Td><Text size="xs" c="dimmed">{t('tokens.created')} {when(tk.created_at)}</Text></Table.Td><Table.Td><Text size="xs" c="dimmed">{tk.last_used_at ? `${t('tokens.lastUsed')} ${when(tk.last_used_at)}` : t('tokens.neverUsed')}</Text></Table.Td><Table.Td><ActionIcon variant="subtle" color="red" onClick={() => del.mutate(tk.id)}><IconTrash size={14} /></ActionIcon></Table.Td></Table.Tr>)}
         </Table.Tbody></Table>
       )}
       <Text size="xs" fw={600} mt="sm">{t('tokens.mcp')}</Text>

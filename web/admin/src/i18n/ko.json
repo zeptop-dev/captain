@@ -1,9 +1,6 @@
 {
   "app": {
-    "name": "Captain",
-    "logout": "로그아웃",
-    "signedInAs": "로그인 계정",
-    "search": "검색"
+    "logout": "로그아웃"
   },
   "nav": {
     "workspace": "작업 공간",
@@ -45,23 +42,15 @@
     "edit": "편집",
     "delete": "삭제",
     "confirm": "확인",
-    "close": "닫기",
     "copy": "복사",
     "copied": "복사됨",
-    "yes": "예",
-    "no": "아니요",
     "enabled": "사용",
     "disabled": "사용 안 함",
     "none": "없음",
-    "actions": "작업",
-    "search": "검색",
-    "loading": "불러오는 중",
     "empty": "데이터가 없습니다",
-    "error": "오류가 발생했습니다",
     "saved": "저장되었습니다",
     "deleted": "삭제되었습니다",
     "confirmDelete": "삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
-    "refresh": "새로고침",
     "all": "전체",
     "total": "총 {{count}}개"
   },
@@ -199,6 +188,7 @@
     "realityProbe": "현재 대상 검사",
     "realityScanning": "노드에서 핸드셰이크 중…",
     "realityScanHint": "노드에서 실제 TLS 핸드셰이크로 TLS 1.3, h2, X25519, 인증서를 확인하고 CDN 사이트를 제외합니다.",
+    "handshakeServer": "핸드셰이크 대상",
     "realityLatency": "지연",
     "realityCert": "인증서",
     "realityUse": "사용",
@@ -270,8 +260,6 @@
     "rate": "배율",
     "enabled": "사용",
     "displayHostHint": "비워 두면 인바운드의 TLS 도메인, 없으면 노드 공인 주소를 사용합니다",
-    "sort": "정렬",
-    "sortHint": "구독 내 오름차순 정렬",
     "clientExtra": "클라이언트 추가 필드",
     "clientExtraHint": "mihomo/Stash/sing-box 구독에서 이 엔트리의 노드 항목에 병합되는 JSON 객체(tfo, smux, dialer-proxy, ip-version 등).",
     "region": "지역",
@@ -305,7 +293,6 @@
     "rotateHint": "기존 링크는 즉시 무효화됩니다.",
     "newPassword": "새 비밀번호(비워 두면 변경 없음)",
     "uuid": "UUID",
-    "orders": "주문",
     "createdAt": "가입일",
     "filterPlaceholder": "이메일로 검색",
     "devices": "온라인 기기(최근 5분)",
@@ -999,7 +986,15 @@
     "neverUsed": "사용 안 함",
     "mcp": "AI 에이전트(MCP)",
     "mcpHint": "내장 MCP 서버: {{url}}. Claude Code, Cursor 등 MCP 클라이언트에 지정하면 노드, 사용자, 주문, 티켓, 모니터링을 자연어로 조회할 수 있습니다. 쓰기 도구는 confirm=true 가 필요합니다.",
-    "mcpCli": "Claude Code 한 줄 명령:"
+    "mcpCli": "Claude Code 한 줄 명령:",
+    "scope": "권한",
+    "scopeFull": "전체 접근",
+    "scopeRead": "읽기 전용",
+    "expiry": "유효 기간",
+    "noExpiry": "무기한",
+    "days": "{{count}}일",
+    "expires": "만료",
+    "expired": "만료됨"
   },
   "twofa": {
     "title": "2단계 인증",
@@ -1045,7 +1040,6 @@
     "uploadFailed": "업로드 실패"
   },
   "certs": {
-    "title": "자체 인증서",
     "issue": "인증서 만들기",
     "issueNow": "발급",
     "issued": "인증서가 발급되었습니다",

@@ -11,6 +11,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/http/ratelimit"
 
 	"github.com/zeptop-dev/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/service"
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
@@ -56,46 +57,19 @@ func (h *handlers) putSecurity(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
-	h.securityMu.Lock()
-	h.securityAt = time.Time{}
-	h.securityMu.Unlock()
+	h.Allow.Invalidate()
 	ok(w, v)
 }
 
 // cidrsAllow reports whether ip is inside any entry (bare IPs allowed).
-func cidrsAllow(list []string, ipStr string) bool {
-	ip := net.ParseIP(ipStr)
-	if ip == nil {
-		return false
-	}
-	for _, c := range list {
-		if !strings.Contains(c, "/") {
-			if ip.Equal(net.ParseIP(c)) {
-				return true
-			}
-			continue
-		}
-		if _, n, err := net.ParseCIDR(c); err == nil && n.Contains(ip) {
-			return true
-		}
-	}
-	return false
-}
+func cidrsAllow(list []string, ipStr string) bool { return service.CIDRsAllow(list, ipStr) }
 
 // adminAllowed applies the console allow-list (cached for 30 s).
 func (h *handlers) adminAllowed(ctx context.Context, ip string) bool {
-	h.securityMu.Lock()
-	if time.Since(h.securityAt) > 30*time.Second {
-		var v store.SecuritySettings
-		_ = h.Store.GetSetting(ctx, store.SettingSecurity, &v)
-		h.securityList, h.securityAt = v.AdminAllowCIDRs, time.Now()
-	}
-	list := h.securityList
-	h.securityMu.Unlock()
-	if len(list) == 0 {
+	if h.Allow == nil {
 		return true
 	}
-	return cidrsAllow(list, ip)
+	return h.Allow.Allowed(ctx, ip)
 }
 
 type staffView struct {
@@ -180,7 +154,7 @@ func (h *handlers) updateStaff(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if err := h.Store.UpdateUser(r.Context(), target.ID, status, target.GroupID, hash); err != nil {
+	if err := h.Store.UpdateStaff(r.Context(), target.ID, status, hash); err != nil {
 		serverErr(w, err)
 		return
 	}
@@ -223,17 +197,26 @@ func (h *handlers) listTokens(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) createToken(w http.ResponseWriter, r *http.Request) {
-	var in struct{ Name string }
+	var in struct {
+		Name  string
+		Scope string
+		Days  int // 0 = no expiry
+	}
 	if !decode(r, &in) || strings.TrimSpace(in.Name) == "" {
 		fail(w, http.StatusBadRequest, "name is required")
 		return
 	}
-	plain, tok, err := h.Store.CreateAPIToken(r.Context(), userFrom(r).ID, strings.TrimSpace(in.Name))
+	var expires *time.Time
+	if in.Days > 0 {
+		t := time.Now().AddDate(0, 0, in.Days)
+		expires = &t
+	}
+	plain, tok, err := h.Store.CreateAPIToken(r.Context(), userFrom(r).ID, strings.TrimSpace(in.Name), in.Scope, expires)
 	if err != nil {
 		serverErr(w, err)
 		return
 	}
-	ok(w, map[string]any{"token": plain, "id": tok.ID, "name": tok.Name})
+	ok(w, map[string]any{"token": plain, "id": tok.ID, "name": tok.Name, "scope": tok.Scope, "expires_at": tok.ExpiresAt})
 }
 
 func (h *handlers) deleteToken(w http.ResponseWriter, r *http.Request) {

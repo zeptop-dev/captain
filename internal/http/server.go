@@ -2,6 +2,7 @@
 package http
 
 import (
+	"bufio"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -9,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"path/filepath"
 	"runtime/debug"
@@ -140,13 +142,14 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 		return u
 	}
 	s.external = &service.External{Store: st}
-	mcp.Register(s.mux, mcp.Deps{Store: st, Probe: s.probeSvc, Log: log, Version: cfg.Version,
-		Resolve: func(ctx context.Context, token string) *domain.User {
-			u, err := st.UserByAPIToken(ctx, token)
+	allow := &service.AdminAllow{Store: st}
+	mcp.Register(s.mux, mcp.Deps{Store: st, Probe: s.probeSvc, Log: log, Version: cfg.Version, Allow: allow,
+		Resolve: func(ctx context.Context, token string) (*domain.User, string) {
+			u, scope, err := st.UserByAPIToken(ctx, token)
 			if err != nil || u == nil || !u.IsStaff() || u.Status != "active" {
-				return nil
+				return nil, ""
 			}
-			return u
+			return u, scope
 		},
 		NewUser: func(email, password string) (*domain.User, error) { return admin.NewUser(email, password, "user") },
 		OnTicketReply: func(ctx context.Context, t *domain.Ticket, body string) {
@@ -160,9 +163,9 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	}
 	s.certs = &service.Certs{Store: st, Issuer: certIssuer, Log: log, Notify: notifier}
 	s.probe = probe.Register(s.mux, probe.Deps{Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe()})
-	dyn := &service.DynLimit{Store: st, State: s.state, Notify: notifier, Hooks: s.hooks, Log: log}
-	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external,
-		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version},
+	dyn := &service.DynLimit{Store: st, State: s.state, Notify: notifier, Hooks: s.hooks, Log: log, PushSeconds: cfg.Agent.PushSeconds}
+	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external, Allow: allow,
+		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version, MinVersion: cfg.MinVersion},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 	})
 	s.mux.Handle("/admin/", web.Admin("/admin/"))
@@ -280,7 +283,7 @@ func buildGateways(cfg *config.Config, log *slog.Logger) map[string]payment.Gate
 // Handler returns the root handler. Requests on a subscription-only host
 // reach nothing but /sub/.
 func (s *Server) Handler() http.Handler {
-	h := s.recover(s.logRequests(s.probe.Wrap(s.subLinks.SubscriptionOnly(s.mux))))
+	h := s.recover(s.logRequests(limitBodies(s.probe.Wrap(s.subLinks.SubscriptionOnly(s.mux)))))
 	// Any write under /api/admin (whichever package registered it) may
 	// change what nodes should run: drop the cached node state after it.
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -307,12 +310,28 @@ func (s *Server) logRequests(next http.Handler) http.Handler {
 		rw := &statusWriter{ResponseWriter: w, status: 200}
 		next.ServeHTTP(rw, r)
 		ms := time.Since(start).Milliseconds()
+		path := logPath(r.URL.Path)
 		if rw.status >= 400 || ms > 1000 {
-			s.log.Info("http", "id", id, "method", r.Method, "path", r.URL.Path, "status", rw.status, "ms", ms, "ip", ratelimit.ClientIP(r))
+			s.log.Info("http", "id", id, "method", r.Method, "path", path, "status", rw.status, "ms", ms, "ip", ratelimit.ClientIP(r))
 			return
 		}
-		s.log.Debug("http", "id", id, "method", r.Method, "path", r.URL.Path, "status", rw.status, "ms", ms)
+		s.log.Debug("http", "id", id, "method", r.Method, "path", path, "status", rw.status, "ms", ms)
 	})
+}
+
+// logPath hides the secret in a subscription path: /sub/<token> and
+// /s/<code> are credentials, and the log is read by more people (and
+// shipped further) than the database is.
+func logPath(p string) string {
+	for _, pre := range []string{"/sub/", "/s/"} {
+		if rest, ok := strings.CutPrefix(p, pre); ok && rest != "" {
+			if len(rest) > 4 {
+				rest = rest[:4]
+			}
+			return pre + rest + "…"
+		}
+	}
+	return p
 }
 
 func newRequestID() string {
@@ -342,6 +361,24 @@ type statusWriter struct {
 }
 
 func (w *statusWriter) WriteHeader(code int) { w.status = code; w.ResponseWriter.WriteHeader(code) }
+
+// Unwrap lets http.ResponseController reach the real writer, and Hijack
+// keeps the subscription "drop" action working on HTTP/1.1.
+func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+func (w *statusWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hj, ok := w.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, http.ErrNotSupported
+	}
+	return hj.Hijack()
+}
+
+func (w *statusWriter) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -448,4 +485,28 @@ func (s *Server) metricsHandler(st *store.Store) http.Handler {
 		return out
 	})
 	return reg.Handler()
+}
+
+// bodyLimits caps how much a caller may send. A node report carries a
+// batch of traffic, connection and audit rows, so it gets more room than
+// the browser APIs; everything else is small JSON.
+const (
+	defaultBodyLimit = 1 << 20  // 1 MiB
+	agentBodyLimit   = 16 << 20 // 16 MiB
+)
+
+// limitBodies keeps an unauthenticated caller from making the panel buffer
+// an arbitrary amount of memory, and a node from holding the single
+// database connection with a million-row report.
+func limitBodies(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Body != nil && r.Method != http.MethodGet && r.Method != http.MethodHead {
+			limit := int64(defaultBodyLimit)
+			if strings.HasPrefix(r.URL.Path, "/api/agent/") {
+				limit = agentBodyLimit
+			}
+			r.Body = http.MaxBytesReader(w, r.Body, limit)
+		}
+		next.ServeHTTP(w, r)
+	})
 }

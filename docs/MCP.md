@@ -3,7 +3,10 @@
 Captain exposes its admin operations to AI agents through the Model Context
 Protocol: JSON-RPC 2.0 over HTTP at `POST /mcp` (streamable HTTP, no SSE
 stream). Authenticate with a personal API token created in Settings → API
-tokens & MCP; the token carries its owner's role.
+tokens & MCP; the token carries its owner's role, narrowed by its scope (a
+read-only token sees only the read tools) and by its expiry. `/mcp` sits
+behind the console allow-list (Settings → Security), so the agent has to
+reach the panel from an allowed address.
 
 ## Connect
 
@@ -42,5 +45,7 @@ Any MCP client config:
 | `ticket_reply` ✱ | all staff | reply as staff; the user is notified |
 
 ✱ write tools refuse to run unless the call carries `confirm: true`, so an
-agent has to state the change before doing it. Destructive operations
-(deleting users or nodes, rotating tokens, changing settings) are not exposed.
+agent has to state the change before doing it, and a read-only token is not
+offered them at all. Destructive operations (deleting users or nodes,
+rotating tokens, changing settings) are not exposed, and staff accounts
+cannot be touched with a token at all.

@@ -1,9 +1,6 @@
 {
   "app": {
-    "name": "Captain",
-    "logout": "Log out",
-    "signedInAs": "Signed in as",
-    "search": "Search"
+    "logout": "Log out"
   },
   "nav": {
     "workspace": "Workspace",
@@ -45,23 +42,15 @@
     "edit": "Edit",
     "delete": "Delete",
     "confirm": "Confirm",
-    "close": "Close",
     "copy": "Copy",
     "copied": "Copied",
-    "yes": "Yes",
-    "no": "No",
     "enabled": "Enabled",
     "disabled": "Disabled",
     "none": "None",
-    "actions": "Actions",
-    "search": "Search",
-    "loading": "Loading",
     "empty": "Nothing here yet",
-    "error": "Something went wrong",
     "saved": "Saved",
     "deleted": "Deleted",
     "confirmDelete": "Delete? This cannot be undone.",
-    "refresh": "Refresh",
     "all": "All",
     "total": "{{count}} total"
   },
@@ -228,6 +217,7 @@
     "realityProbe": "Probe current target",
     "realityScanning": "Handshaking from the node…",
     "realityScanHint": "Real TLS handshakes from the node: TLS 1.3, h2, X25519, certificate, and no public CDN.",
+    "handshakeServer": "Handshake target",
     "realityLatency": "Latency",
     "realityCert": "Cert",
     "realityUse": "Use",
@@ -270,8 +260,6 @@
     "rate": "Rate",
     "enabled": "Enabled",
     "displayHostHint": "Blank uses the inbound's TLS domain, else the node's public address",
-    "sort": "Sort",
-    "sortHint": "Order in the subscription, ascending",
     "region": "Region",
     "regionHint": "Leave blank to detect from the name (needs auto flags)",
     "tags": "Tags",
@@ -305,7 +293,6 @@
     "rotateHint": "The old link stops working immediately.",
     "newPassword": "New password (blank keeps)",
     "uuid": "UUID",
-    "orders": "Orders",
     "createdAt": "Registered",
     "filterPlaceholder": "Search by email",
     "devices": "Online devices (last 5 min)",
@@ -875,7 +862,15 @@
     "neverUsed": "never used",
     "mcp": "AI agents (MCP)",
     "mcpHint": "Built-in MCP server at {{url}}. Point Claude Code, Cursor or any MCP client at it to query nodes, users, orders, tickets and the probe in natural language; write tools require confirm=true.",
-    "mcpCli": "Claude Code one-liner:"
+    "mcpCli": "Claude Code one-liner:",
+    "scope": "Scope",
+    "scopeFull": "Full access",
+    "scopeRead": "Read-only",
+    "expiry": "Expires in",
+    "noExpiry": "Never",
+    "days": "{{count}} days",
+    "expires": "expires",
+    "expired": "expired"
   },
   "twofa": {
     "title": "Two-factor authentication",
@@ -942,7 +937,6 @@
     "uploadFailed": "upload failed"
   },
   "certs": {
-    "title": "Your own certificates",
     "issue": "Create certificate",
     "issueNow": "Issue",
     "issued": "Certificate issued",

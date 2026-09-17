@@ -16,6 +16,7 @@ import (
 
 	"github.com/zeptop-dev/captain/internal/auth"
 	"github.com/zeptop-dev/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/store"
 )
 
 type nodeView struct {
@@ -369,6 +370,49 @@ func inboundListeners(ib *domain.Inbound) []listener {
 	return []listener{{"tcp", sp.Port}}
 }
 
+// forwardListeners mirrors what a forward binds: only the protocols it
+// relays, never both unless it says "both". An inbound on udp/443 and a
+// tcp-only forward on 443 can coexist.
+func forwardListeners(f store.NodeForward) []listener {
+	out := make([]listener, 0, 2)
+	for _, proto := range protosOf(f.Protocol) {
+		out = append(out, listener{proto, f.Port})
+	}
+	return out
+}
+
+// bind is one socket a node opens, with the address it opens it on.
+type bind struct {
+	listener
+	listen string
+	owner  string
+}
+
+// nodeBinds lists every socket the node already opens, excluding the
+// inbound and the forwards given (the ones being replaced). Disabled
+// inbounds are left out: they bind nothing.
+func (h *handlers) nodeBinds(ctx context.Context, nodeID, skipInbound int64, skipForwards bool) []bind {
+	var out []bind
+	ibs, _ := h.Store.InboundsByNode(ctx, nodeID)
+	for _, o := range ibs {
+		if o.ID == skipInbound || !o.Enabled {
+			continue
+		}
+		for _, l := range inboundListeners(o) {
+			out = append(out, bind{l, o.Listen, "inbound " + o.Tag})
+		}
+	}
+	if !skipForwards {
+		fws, _ := h.Store.NodeForwards(ctx, nodeID)
+		for _, f := range fws {
+			for _, l := range forwardListeners(f) {
+				out = append(out, bind{l, f.Listen, "forward " + f.Tag})
+			}
+		}
+	}
+	return out
+}
+
 // listenOverlap: two binds collide unless both are specific and differ.
 func listenOverlap(a, b string) bool {
 	any := func(s string) bool { return s == "" || s == "0.0.0.0" || s == "::" }
@@ -383,31 +427,10 @@ func (h *handlers) checkPortConflict(ctx context.Context, ib *domain.Inbound) st
 	if !ib.Enabled {
 		return ""
 	}
-	mine := inboundListeners(ib)
-	taken := func(l listener, listen string) bool {
-		for _, m := range mine {
-			if m == l && listenOverlap(listen, ib.Listen) {
-				return true
-			}
-		}
-		return false
-	}
-	others, _ := h.Store.InboundsByNode(ctx, ib.NodeID)
-	for _, o := range others {
-		if o.ID == ib.ID || !o.Enabled {
-			continue
-		}
-		for _, l := range inboundListeners(o) {
-			if taken(l, o.Listen) {
-				return fmt.Sprintf("%s port %d is already used by inbound %q", strings.ToUpper(l.proto), l.port, o.Tag)
-			}
-		}
-	}
-	fws, _ := h.Store.NodeForwards(ctx, ib.NodeID)
-	for _, f := range fws {
-		for _, proto := range []string{"tcp", "udp"} {
-			if taken(listener{proto, f.Port}, f.Listen) {
-				return fmt.Sprintf("port %d is already used by forward %q", f.Port, f.Tag)
+	for _, l := range inboundListeners(ib) {
+		for _, b := range h.nodeBinds(ctx, ib.NodeID, ib.ID, false) {
+			if b.listener == l && listenOverlap(b.listen, ib.Listen) {
+				return fmt.Sprintf("%s port %d is already used by %s", strings.ToUpper(l.proto), l.port, b.owner)
 			}
 		}
 	}

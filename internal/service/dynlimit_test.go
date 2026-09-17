@@ -45,25 +45,23 @@ func TestDynLimitObserve(t *testing.T) {
 	w := &domain.User{Email: "vip@example.com", UUID: "u2", SubToken: "t2", Status: "active"}
 	_ = st.CreateUser(ctx, u)
 	_ = st.CreateUser(ctx, w)
-	_ = st.SetSetting(ctx, store.SettingDynLimit, store.DynLimitSettings{Enabled: true, TriggerMbps: 10, TriggerSeconds: 120, LimitMbps: 2, LimitSeconds: 300, Whitelist: []int64{w.ID}})
+	_ = st.SetSetting(ctx, store.SettingDynLimit, store.DynLimitSettings{Enabled: true, TriggerMbps: 10, TriggerSeconds: 120, LimitMbps: 2, LimitSeconds: 300, Whitelist: []int64{w.ID}, ThrottleUnlimited: true})
 	at := time.Date(2026, 9, 17, 12, 0, 30, 0, time.UTC)
 	d := &DynLimit{Store: st, Now: func() time.Time { return at }}
-	// 10 Mbps over 120 s = 150 MB; feed 100 MB per minute for two minutes.
+	// 10 Mbps over 120 s is 150 MB; one minute of 100 MB is 14 Mbps but
+	// only half the window, so the first report must not throttle.
 	mb := int64(100 << 20)
-	for i := 0; i < 2; i++ {
-		got := d.Observe(ctx, []store.TrafficSample{{UserID: u.ID, Down: mb}, {UserID: w.ID, Down: mb}}, at)
-		if len(got) != 0 {
-			t.Fatalf("minute %d: throttled early: %v", i, got)
-		}
-		at = at.Add(time.Minute)
+	got := d.Observe(ctx, []store.TrafficSample{{UserID: u.ID, Down: mb}, {UserID: w.ID, Down: mb}}, 60, at)
+	if len(got) != 0 {
+		t.Fatalf("throttled on half a window: %v", got)
 	}
-	// Next report carries nothing for the fast user (the burst ended), but
-	// the two completed minutes average 13 Mbps, so it is throttled now.
-	got := d.Observe(ctx, nil, at)
+	at = at.Add(time.Minute)
+	// A second minute fills the window: 200 MB over 120 s is 14 Mbps.
+	got = d.Observe(ctx, []store.TrafficSample{{UserID: u.ID, Down: mb}, {UserID: w.ID, Down: mb}}, 60, at)
 	if len(got) != 1 || got[0] != u.ID {
 		t.Fatalf("throttled = %v", got)
 	}
-	if again := d.Observe(ctx, []store.TrafficSample{{UserID: u.ID, Down: mb}}, at); len(again) != 0 {
+	if again := d.Observe(ctx, []store.TrafficSample{{UserID: u.ID, Down: mb}}, 60, at); len(again) != 0 {
 		t.Fatal("throttled twice")
 	}
 	lim, err := st.DynLimits(ctx, at)
@@ -75,5 +73,31 @@ func TestDynLimitObserve(t *testing.T) {
 	}
 	if lim, _ = st.DynLimits(ctx, at.Add(301*time.Second)); len(lim) != 0 {
 		t.Fatal("limit did not lapse")
+	}
+}
+
+// A backlog report (one batch covering many minutes after an outage) is a
+// rate over its own window, not a spike: an ordinary user must not be
+// throttled just because the panel was restarted.
+func TestDynLimitBacklogIsNotASpike(t *testing.T) {
+	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
+	_ = db.Migrate(context.Background(), conn, "sqlite")
+	st := store.New(conn)
+	ctx := context.Background()
+	u := &domain.User{Email: "steady@example.com", UUID: "u3", SubToken: "t3", Status: "active"}
+	if err := st.CreateUser(ctx, u); err != nil {
+		t.Fatal(err)
+	}
+	_ = st.SetSetting(ctx, store.SettingDynLimit, store.DynLimitSettings{Enabled: true, TriggerMbps: 100, TriggerSeconds: 60, LimitMbps: 30, LimitSeconds: 600, ThrottleUnlimited: true})
+	at := time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
+	d := &DynLimit{Store: st, Now: func() time.Time { return at }}
+	// 12 minutes of 10 Mbps arriving in one batch: 900 MB over 720 s.
+	if got := d.Observe(ctx, []store.TrafficSample{{UserID: u.ID, Down: 900 << 20}}, 720, at); len(got) != 0 {
+		t.Fatalf("backlog throttled an ordinary user: %v", got)
+	}
+	// The same amount really inside one minute is a spike and throttles.
+	at = at.Add(time.Hour)
+	if got := d.Observe(ctx, []store.TrafficSample{{UserID: u.ID, Down: 900 << 20}}, 60, at); len(got) != 1 {
+		t.Fatalf("a real spike was not throttled: %v", got)
 	}
 }

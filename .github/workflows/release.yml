@@ -16,13 +16,17 @@ jobs:
         with: { version: 9 }
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: pnpm, cache-dependency-path: "web/*/pnpm-lock.yaml" }
-      - run: cd web/admin && pnpm install --frozen-lockfile && pnpm build
-      - run: cd web/portal && pnpm install --frozen-lockfile && pnpm build
+      - run: python3 scripts/i18n-check.py web/admin/src/i18n web/portal/src/i18n
+      - run: cd web/admin && pnpm install --frozen-lockfile && pnpm exec oxlint src && pnpm build
+      - run: cd web/portal && pnpm install --frozen-lockfile && pnpm exec oxlint src && pnpm build
       - run: cd web/site && pnpm install --frozen-lockfile && pnpm build
       - run: cd web/probe && pnpm install --frozen-lockfile && pnpm build
       - uses: actions/setup-go@v5
         with: { go-version-file: go.mod }
-      - run: go test ./...
+      # A tag must clear the same gates as master: a red commit may not ship.
+      - run: git ls-files '*.go' | xargs gofmt -l | tee /dev/stderr | test -z "$(cat)"
+      - run: go vet ./...
+      - run: go test -race ./...
       - run: |
           for arch in amd64 arm64; do
             CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=${GITHUB_REF_NAME}" -o bin/captain-linux-$arch ./cmd/captain
@@ -37,6 +41,7 @@ jobs:
             bin/SHA256SUMS
 
   image:
+    needs: binaries
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

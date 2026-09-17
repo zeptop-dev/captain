@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/zeptop-dev/bosun/pkg/spec"
 	"github.com/zeptop-dev/captain/internal/service"
 
 	"github.com/zeptop-dev/captain/internal/store"
@@ -269,15 +269,13 @@ func (h *handlers) putAuditRules(w http.ResponseWriter, r *http.Request) {
 			if mt == "" {
 				continue
 			}
-			if strings.ContainsAny(mt, "\r\n\"") {
-				fail(w, http.StatusBadRequest, fmt.Sprintf("rule %q: bad match %q", in[i].Name, mt))
+			// The same check the nodes run: a value a core would refuse
+			// (a bad CIDR, a port that is not a port, an empty pattern,
+			// an unknown kind) would stop that core from loading its
+			// whole config, on every node.
+			if err := spec.ValidateMatch(mt); err != nil {
+				fail(w, http.StatusBadRequest, fmt.Sprintf("rule %q: %v", in[i].Name, err))
 				return
-			}
-			if k, v, okc := strings.Cut(mt, ":"); okc && k == "regexp" {
-				if _, err := regexp.Compile(v); err != nil {
-					fail(w, http.StatusBadRequest, fmt.Sprintf("rule %q: bad regexp: %v", in[i].Name, err))
-					return
-				}
 			}
 			clean = append(clean, mt)
 		}
