@@ -12,7 +12,11 @@ release:
    passes a delay test through a headless mihomo (real handshakes, all
    protocols);
 3. a download through one proxy is charged to the user within the report
-   window.
+   window;
+4. with a temporary speed limit on the user (`PUT
+   /api/admin/users/{id}/dyn-limit`, captain ≥ 0.57.4) the same proxy still
+   connects and the download is shaped — the marking outbound plus the
+   kernel shaper, the path a core sandboxing change once broke.
 
 Run it from a machine that can reach the panel and the nodes:
 
@@ -34,10 +38,14 @@ Optional:
 | `E2E_SKIP` | comma-separated proxy names to leave out of the delay test |
 | `E2E_HOSTS` | `host=ip,...` pinned for mihomo (machines whose resolver intercepts DNS) |
 | `E2E_ACCOUNT_WAIT` | seconds to wait for the charge (default 240; two report intervals plus slack) |
+| `E2E_LIMIT_MBPS` | temporary limit for the speed-limit leg (default 2) |
+| `E2E_LIMIT_WAIT` | seconds for the nodes to apply it (default 90) |
+| `E2E_SKIP_LIMIT` | `1` skips the speed-limit leg (nodes without nft/tc) |
 
 Exit code 1 and a summary on any failure; mihomo's work dir is kept for
-inspection. Nothing is created on the panel: the script only reads, and
-the download is ordinary traffic on the test user's plan.
+inspection. The script only reads, apart from the temporary speed
+limit it puts on the test user and removes again; the download is
+ordinary traffic on the test user's plan.
 
 Keep a dedicated test user and, ideally, one inbound of every protocol
 you ship on the test nodes, so a regression in any core shows up here.

@@ -8,7 +8,11 @@ What it checks, in order (any failure exits 1 with a summary):
   2. the test user's subscription renders for mihomo and every proxy in it
      answers a delay test through a headless mihomo (real handshakes);
   3. a download through one proxy is charged to the user within the
-     report window (accounting end to end).
+     report window (accounting end to end);
+  4. with a temporary speed limit on the user, the same proxy still
+     connects and the download is shaped (the marking outbound and the
+     kernel shaper; a limited user who cannot connect at all is the
+     regression this catches).
 
 Needs only python3 and a mihomo binary (Clash Verge ships one). No
 credentials are read from the repo: everything comes from the
@@ -40,6 +44,9 @@ TRAFFIC_PROXY = os.environ.get("E2E_TRAFFIC_PROXY", "")
 HOSTS = dict(h.split("=", 1) for h in os.environ.get("E2E_HOSTS", "").split(",") if "=" in h)
 ACCOUNT_WAIT = int(os.environ.get("E2E_ACCOUNT_WAIT", "240"))
 DELAY_TIMEOUT_MS = int(os.environ.get("E2E_DELAY_TIMEOUT_MS", "12000"))
+LIMIT_MBPS = int(os.environ.get("E2E_LIMIT_MBPS", "2"))
+LIMIT_WAIT = int(os.environ.get("E2E_LIMIT_WAIT", "90"))
+SKIP_LIMIT = os.environ.get("E2E_SKIP_LIMIT", "") == "1"
 
 failures = []
 
@@ -200,6 +207,38 @@ def download(mixed):
     return n, time.time() - t0
 
 
+def check_speed_limit(ctl, mixed, pick):
+    """Throttle the user (a temporary limit, the same mechanism the dynamic
+    limiter uses), wait for the nodes to apply it, download again: the
+    proxy must still work and the rate must be near the limit."""
+    print("== speed limit (%d Mbps)" % LIMIT_MBPS)
+    st, out = api("PUT", "/api/admin/users/%s/dyn-limit" % USER_ID, {"Mbps": LIMIT_MBPS, "Seconds": 900})
+    if st != 200:
+        fail("PUT dyn-limit -> %s %s (captain >= 0.57.4)" % (st, out))
+        return
+    try:
+        time.sleep(LIMIT_WAIT)  # nodes pull the state and restart the cores
+        select_proxy(ctl, pick)
+        n = secs = None
+        for attempt in range(4):
+            try:
+                n, secs = download(mixed)
+                break
+            except Exception as e:  # a core restarting mid-download
+                print("      attempt %d: %s" % (attempt + 1, type(e).__name__))
+                time.sleep(15)
+        if n is None:
+            fail("limited user cannot connect through %s (marking outbound broken?)" % pick)
+            return
+        mbps = n * 8 / secs / 1e6
+        if mbps <= LIMIT_MBPS * 2.5:
+            ok("limited download shaped: %.1f Mbps (limit %d)" % (mbps, LIMIT_MBPS))
+        else:
+            fail("limit not enforced: %.1f Mbps with a %d Mbps limit" % (mbps, LIMIT_MBPS))
+    finally:
+        api("DELETE", "/api/admin/users/%s/dyn-limit" % USER_ID)
+
+
 def main():
     for k, v in (("CAPTAIN_URL", CAPTAIN_URL), ("CAPTAIN_API_TOKEN", TOKEN), ("E2E_USER_ID", USER_ID), ("MIHOMO_BIN", MIHOMO)):
         if not v:
@@ -262,6 +301,8 @@ def main():
             ok("charged %d bytes to user %s within the report window" % (delta, USER_ID))
         else:
             fail("only %d of %d bytes charged to user %s after %ds" % (delta, n, USER_ID, ACCOUNT_WAIT))
+        if not SKIP_LIMIT:
+            check_speed_limit(ctl, mixed, pick)
     finally:
         proc.send_signal(signal.SIGTERM)
         try:

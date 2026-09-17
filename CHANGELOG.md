@@ -6,6 +6,7 @@ Merge commits and formatting-only commits are left out. Binaries and
 `SHA256SUMS` for every tag are on the GitHub Release; the in-app updater
 installs them (Settings → Version and updates).
 
+- **v0.57.4** (2026-09-17) — manual throttle: `PUT /api/admin/users/{id}/dyn-limit {Mbps, Seconds}` and a "Throttle" control in the user drawer put the same temporary limit the dynamic limiter uses; `make e2e` gains a speed-limit leg (limited user must still connect and be shaped), which would have caught the bosun v0.40.0 mark regression
 - **v0.57.3** (2026-09-17) — bosun v0.44.1: mihomo subscriptions keep `udp: true` on mieru lines (QUIC and DNS no longer fall through to DIRECT with mihomo ≥ 1.19.17)
 - **v0.57.2** (2026-09-17) — dynamic speed limit: a report with no traffic at all (a quiet node after the burst) now also runs the evaluation, so a burst that ended is throttled on the next report instead of never
 - **v0.57.1** (2026-09-17) — dynamic speed limit: a user whose burst ended before the next report is still evaluated (the limiter looked only at users present in the current report, so a download that stopped a minute earlier never triggered)

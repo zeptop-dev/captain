@@ -44,6 +44,8 @@ export default function UsersPage() {
   const [grantHow, setGrantHow] = useState<string>('')
   const grant = useMutation({ mutationFn: () => api.post(`/api/admin/users/${sel!.id}/grant`, { PlanID: Number(grantPlan), Activation: grantHow }), onSuccess: () => { toast.ok(t('common.saved')); invalidate(); setSel(null) }, onError: toast.err })
   const [delta, setDelta] = useState<number | string>(0)
+  const [manualMbps, setManualMbps] = useState<number | string>(10)
+  const [manualMin, setManualMin] = useState<number | string>(30)
   const topUp = useMutation({ mutationFn: () => api.post(`/api/admin/users/${sel!.id}/balance`, { DeltaCents: Number(delta) }), onSuccess: () => { toast.ok(t('common.saved')); invalidate(); setSel(null) }, onError: toast.err })
   const rotate = useMutation({ mutationFn: () => api.post<{ sub_token: string; sub_url: string }>(`/api/admin/users/${sel!.id}/rotate-token`), onSuccess: (r) => { toast.ok(t('common.saved')); setSel({ ...sel!, sub_token: r.sub_token, sub_url: r.sub_url }); invalidate() }, onError: toast.err })
   const del = useMutation({ mutationFn: () => api.del(`/api/admin/users/${sel!.id}`), onSuccess: () => { toast.ok(t('common.deleted')); setSel(null); invalidate() }, onError: toast.err })
@@ -94,6 +96,13 @@ export default function UsersPage() {
               <div><Text size="xs" c="dimmed">{t('users.createdAt')}</Text><Text size="sm">{when(sel.created_at)}</Text></div>
               <div><Text size="xs" c="dimmed">{t('users.firstConnected')}</Text><Text size="sm">{detail.data?.first_connected_at ? when(detail.data.first_connected_at) : t('users.neverConnected')}</Text></div>
             </Group>
+            {!detail.data?.dyn_limit && (
+              <Group gap="xs" align="flex-end">
+                <NumberInput size="xs" w={140} label={t('dynlimit.manual')} min={1} value={manualMbps} onChange={setManualMbps} />
+                <NumberInput size="xs" w={140} label={t('dynlimit.manualMinutes')} min={1} value={manualMin} onChange={setManualMin} />
+                <Button size="xs" variant="default" onClick={() => api.put(`/api/admin/users/${sel.id}/dyn-limit`, { Mbps: Number(manualMbps), Seconds: Number(manualMin) * 60 }).then(() => { toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['user', sel.id] }) }).catch(toast.err)}>{t('dynlimit.throttle')}</Button>
+              </Group>
+            )}
             {detail.data?.dyn_limit && (
               <Group gap="xs">
                 <Badge color="orange" variant="light">{t('dynlimit.throttled', { mbps: detail.data.dyn_limit.mbps, rate: detail.data.dyn_limit.rate_mbps, until: when(detail.data.dyn_limit.until) })}</Badge>

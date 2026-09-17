@@ -1225,6 +1225,9 @@
     "whitelist": "Never throttle (user ids)",
     "whitelistHint": "Comma-separated user ids.",
     "throttled": "Throttled to {{mbps}} Mbps until {{until}} (was {{rate}} Mbps)",
-    "lift": "Lift now"
+    "lift": "Lift now",
+    "manual": "Throttle to (Mbps)",
+    "manualMinutes": "for (minutes)",
+    "throttle": "Throttle"
   }
 }

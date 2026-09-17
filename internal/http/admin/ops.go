@@ -75,6 +75,35 @@ func (h *handlers) registerOps(mux *http.ServeMux) {
 			h.Dyn.Invalidate()
 		}
 	}))
+	mux.HandleFunc("PUT /api/admin/users/{id}/dyn-limit", h.requireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		// A manual throttle: the same temporary limit the dynamic limiter
+		// applies, set by hand (support, or the live regression).
+		id, okID := pathID(r)
+		var in struct {
+			Mbps    int
+			Seconds int
+		}
+		if !okID {
+			fail(w, http.StatusBadRequest, "bad id")
+			return
+		}
+		if !readJSON(w, r, &in) {
+			return
+		}
+		if in.Mbps <= 0 || in.Seconds <= 0 || in.Seconds > 86400 {
+			fail(w, http.StatusBadRequest, "Mbps must be > 0 and Seconds 1-86400")
+			return
+		}
+		now := time.Now()
+		if err := h.Store.SetDynLimit(r.Context(), id, in.Mbps, 0, now, now.Add(time.Duration(in.Seconds)*time.Second)); err != nil {
+			serverErr(w, err)
+			return
+		}
+		if h.State != nil {
+			h.State.Invalidate()
+		}
+		ok(w, map[string]any{"mbps": in.Mbps, "until": now.Add(time.Duration(in.Seconds) * time.Second)})
+	}))
 	mux.HandleFunc("DELETE /api/admin/users/{id}/dyn-limit", h.requireAdmin(func(w http.ResponseWriter, r *http.Request) {
 		id, okID := pathID(r)
 		if !okID {

@@ -1225,6 +1225,9 @@
     "whitelist": "除外ユーザー ID",
     "whitelistHint": "カンマ区切りのユーザー ID。",
     "throttled": "{{until}} まで {{mbps}} Mbps に制限中（発動時 {{rate}} Mbps）",
-    "lift": "今すぐ解除"
+    "lift": "今すぐ解除",
+    "manual": "手動で制限（Mbps）",
+    "manualMinutes": "時間（分）",
+    "throttle": "制限する"
   }
 }

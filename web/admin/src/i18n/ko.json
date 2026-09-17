@@ -1225,6 +1225,9 @@
     "whitelist": "제외 사용자 ID",
     "whitelistHint": "쉼표로 구분한 사용자 ID.",
     "throttled": "{{until}}까지 {{mbps}} Mbps로 제한 중 (발동 시 {{rate}} Mbps)",
-    "lift": "지금 해제"
+    "lift": "지금 해제",
+    "manual": "수동 제한(Mbps)",
+    "manualMinutes": "시간(분)",
+    "throttle": "제한"
   }
 }

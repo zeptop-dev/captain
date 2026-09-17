@@ -1225,6 +1225,9 @@
     "whitelist": "不限速的使用者 ID",
     "whitelistHint": "逗號分隔的使用者 ID。",
     "throttled": "已限速到 {{mbps}} Mbps，至 {{until}}（觸發時 {{rate}} Mbps）",
-    "lift": "立即解除"
+    "lift": "立即解除",
+    "manual": "手動限速到（Mbps）",
+    "manualMinutes": "持續（分鐘）",
+    "throttle": "限速"
   }
 }
