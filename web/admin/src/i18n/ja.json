@@ -1187,5 +1187,42 @@
     "userTitle": "接続履歴",
     "show": "最近の接続を表示",
     "none": "接続記録がありません（接続ログは有効ですか？）"
+  },
+  "audit": {
+    "title": "監査ルール",
+    "hint": "全ノードが適用するルール：「ブロック」は sing-box / xray / hysteria で接続を拒否してヒットを報告、「記録のみ」は報告だけ。ヒットは 90 日保持。mieru インバウンドはブロックも報告もできません。",
+    "add": "ルールを追加",
+    "empty": "ルールはありません。",
+    "name": "名前",
+    "match": "条件",
+    "action": "動作",
+    "block": "ブロック",
+    "log": "記録のみ",
+    "enabled": "有効",
+    "hits": "7 日で {{n}} 件",
+    "matchHint": "条件の書式：domain:example.com (and subdomains), full:host, keyword:text, regexp:^bet[0-9]+\\., ip:198.51.100.0/24, port:6881-6889, inbound:tag, protocol:bittorrent, geosite:category-ads-all, geoip:cn。種類の異なる条件はすべて満たす必要があり、同じ種類は「または」です。",
+    "autoBan": "N 回ヒットで自動 BAN",
+    "autoBanHint": "0 = しない。スタッフは対象外。",
+    "window": "期間（時間）",
+    "notify": "ヒットごとに Telegram 管理者へ通知",
+    "recent": "最近のヒット",
+    "noHits": "ヒットはありません。",
+    "userTitle": "監査ヒット",
+    "show": "監査ヒットを表示"
+  },
+  "dynlimit": {
+    "title": "動的速度制限",
+    "hint": "全ノード合計の平均速度がしきい値を判定時間だけ超えたユーザーを一定時間指定速度に制限し、その後プランの制限に戻します。ノードはプラン制限と同じ仕組みで適用（Linux、nft と tc）。次の報告から有効。制限を緩めることはありません。",
+    "enabled": "有効",
+    "trigger": "しきい値（Mbps）",
+    "triggerSeconds": "継続（秒）",
+    "limit": "制限値（Mbps）",
+    "limitSeconds": "制限時間（秒）",
+    "windows": "適用時間帯",
+    "windowsHint": "HH:MM-HH:MM、パネルのローカル時刻、日付をまたげます。空欄は常時。",
+    "whitelist": "除外ユーザー ID",
+    "whitelistHint": "カンマ区切りのユーザー ID。",
+    "throttled": "{{until}} まで {{mbps}} Mbps に制限中（発動時 {{rate}} Mbps）",
+    "lift": "今すぐ解除"
   }
 }

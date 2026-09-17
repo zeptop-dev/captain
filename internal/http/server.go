@@ -8,6 +8,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net/http"
+	"path/filepath"
+	"runtime/debug"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
 	"github.com/zeptop-dev/captain/internal/backup"
 	"github.com/zeptop-dev/captain/internal/certs"
@@ -20,13 +28,6 @@ import (
 	"github.com/zeptop-dev/captain/internal/notify"
 	"github.com/zeptop-dev/captain/internal/telegram"
 	"github.com/zeptop-dev/captain/internal/webhook"
-	"log/slog"
-	"net/http"
-	"path/filepath"
-	"runtime/debug"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/zeptop-dev/captain/internal/config"
 	"github.com/zeptop-dev/captain/internal/domain"
@@ -159,7 +160,8 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	}
 	s.certs = &service.Certs{Store: st, Issuer: certIssuer, Log: log, Notify: notifier}
 	s.probe = probe.Register(s.mux, probe.Deps{Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe()})
-	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external,
+	dyn := &service.DynLimit{Store: st, State: s.state, Notify: notifier, Hooks: s.hooks, Log: log}
+	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 	})
@@ -211,7 +213,8 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	sub.Register(s.mux, sub.Deps{Store: st, Log: log, Service: subSvc, Name: cfg.SiteName})
 	agent.Register(s.mux, agent.Deps{Pairs: ratelimit.New(),
 		Store: st, Log: log, BaseURL: base,
-		State: s.state, Probe: s.probeSvc, Hooks: s.hooks,
+		State: s.state, Probe: s.probeSvc, Hooks: s.hooks, Notify: notifier,
+		Dyn: dyn,
 	})
 	return s
 }

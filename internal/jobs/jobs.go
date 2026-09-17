@@ -99,6 +99,14 @@ func (r *Runner) Tick(ctx context.Context) {
 	report("cancelled stale orders", n, err)
 	n, err = r.Store.ExpireSubscriptions(ctx, now)
 	report("expired subscriptions", n, err)
+	if n, err := r.Store.ClearExpiredDynLimits(ctx, now); err != nil {
+		log.Error("lapse dynamic limits", "err", err)
+	} else if n > 0 {
+		log.Info("dynamic limits lapsed", "users", n)
+		if r.Invalidate != nil {
+			r.Invalidate()
+		}
+	}
 	n, err = r.Store.PromoteQueued(ctx, now)
 	report("started queued subscriptions", n, err)
 	n, err = r.Store.ResetQuotas(ctx, now)
@@ -142,6 +150,11 @@ func (r *Runner) Tick(ctx context.Context) {
 				log.Error("prune connection log", "err", err)
 			} else if n > 0 {
 				log.Info("pruned connection log", "rows", n)
+			}
+			if n, err := r.Store.PruneAuditLog(ctx, now.AddDate(0, 0, -90)); err != nil {
+				log.Error("prune audit log", "err", err)
+			} else if n > 0 {
+				log.Info("pruned audit log", "rows", n)
 			}
 		}
 	}

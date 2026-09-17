@@ -1187,5 +1187,42 @@
     "userTitle": "连接记录",
     "show": "查看最近连接",
     "none": "没有连接记录（连接日志开了吗？）"
+  },
+  "audit": {
+    "title": "审计规则",
+    "hint": "所有节点统一执行的规则：\"拦截\"在 sing-box、xray、hysteria 上直接拒绝连接并上报命中；\"仅记录\"只上报。命中记录保留 90 天。mieru 入站无法拦截也无法上报。",
+    "add": "添加规则",
+    "empty": "还没有规则。",
+    "name": "名称",
+    "match": "匹配",
+    "action": "动作",
+    "block": "拦截",
+    "log": "仅记录",
+    "enabled": "启用",
+    "hits": "7 天命中 {{n}}",
+    "matchHint": "匹配语法：domain:example.com (and subdomains), full:host, keyword:text, regexp:^bet[0-9]+\\., ip:198.51.100.0/24, port:6881-6889, inbound:tag, protocol:bittorrent, geosite:category-ads-all, geoip:cn。不同类型的条目要同时满足，同类型条目是\"或\"。",
+    "autoBan": "命中 N 次自动封禁",
+    "autoBanHint": "0 = 不封。员工账号不会被封。",
+    "window": "时间窗（小时）",
+    "notify": "每次命中发 Telegram 管理员通知",
+    "recent": "最近命中",
+    "noHits": "没有命中记录。",
+    "userTitle": "审计命中",
+    "show": "查看审计命中"
+  },
+  "dynlimit": {
+    "title": "动态限速",
+    "hint": "用户在所有节点上的均速持续超过触发值达到触发时长，就被临时限到指定速度，时间到了恢复套餐限速。节点按套餐限速同样的方式执行（Linux，需 nft 和 tc）。下一次上报生效；只会收紧，不会放宽。",
+    "enabled": "启用",
+    "trigger": "触发阈值（Mbps）",
+    "triggerSeconds": "持续（秒）",
+    "limit": "限到（Mbps）",
+    "limitSeconds": "持续（秒）",
+    "windows": "生效时段",
+    "windowsHint": "HH:MM-HH:MM，面板本地时间，可跨零点；留空为全天。",
+    "whitelist": "不限速的用户 ID",
+    "whitelistHint": "逗号分隔的用户 ID。",
+    "throttled": "已限速到 {{mbps}} Mbps，至 {{until}}（触发时 {{rate}} Mbps）",
+    "lift": "立即解除"
   }
 }

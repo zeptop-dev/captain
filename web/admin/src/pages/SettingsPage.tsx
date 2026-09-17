@@ -22,6 +22,8 @@ import { SecurityCard } from '../components/SecurityCard'
 import { BackupCard } from '../components/BackupCard'
 import { KomariCard } from '../components/KomariCard'
 import { ConnLogCard } from '../components/ConnLogCard'
+import { AuditRulesCard } from '../components/AuditRulesCard'
+import { DynLimitCard } from '../components/DynLimitCard'
 
 export default function SettingsPage() {
   const { t } = useTranslation()
@@ -138,6 +140,8 @@ export default function SettingsPage() {
         <ProbeCard />
         <KomariCard />
         <ConnLogCard />
+        <AuditRulesCard />
+        <DynLimitCard />
         <TokensCard />
         <TwoFactorCard />
         <SecurityCard />

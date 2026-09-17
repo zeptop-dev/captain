@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zeptop-dev/captain/internal/notify"
+
 	"github.com/zeptop-dev/captain/internal/webhook"
 
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
@@ -41,6 +43,10 @@ type Deps struct {
 	Pairs *ratelimit.Limiter
 	// Hooks receives user.first_connected events (nil = off).
 	Hooks *webhook.Hub
+	// Notify reaches the admin chat for audit auto-bans (nil = off).
+	Notify *notify.Notifier
+	// Dyn is the dynamic speed limiter fed with every report (nil = off).
+	Dyn *service.DynLimit
 }
 
 type handlers struct{ Deps }
@@ -228,6 +234,9 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.Log.Error("add traffic", "node", n.ID, "samples", len(samples), "err", err)
 	}
+	if h.Dyn != nil {
+		h.Dyn.Observe(ctx, samples, now)
+	}
 	for _, uid := range first {
 		email := ""
 		if u, err := h.Store.UserByID(ctx, uid); err == nil {
@@ -259,6 +268,7 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	h.ingestConnections(ctx, n, rep, inbounds, allowed)
+	h.ingestAudits(ctx, n, rep, inbounds, allowed)
 	for _, f := range rep.Forwards {
 		_ = h.Store.UpsertForwardStatus(ctx, n.ID, f.Tag, f.Up, f.RTTMillis, f.LastError, f.ActiveConn, f.TotalConn, f.BytesIn, f.BytesOut)
 	}
@@ -371,5 +381,77 @@ func (h *handlers) ingestConnections(ctx context.Context, n *domain.Node, rep ag
 	}
 	if rep.ConnDropped > 0 {
 		h.Log.Warn("node dropped connection log events (buffer full)", "node", n.ID, "dropped", rep.ConnDropped)
+	}
+}
+
+// ingestAudits stores audit-rule hits, tells the webhooks, and applies the
+// auto-ban when a user crossed the configured number of hits in the window.
+func (h *handlers) ingestAudits(ctx context.Context, n *domain.Node, rep agentproto.Report, inbounds []*domain.Inbound, allowed map[int64]bool) {
+	if len(rep.Audits) == 0 && rep.AuditDropped == 0 {
+		return
+	}
+	var as store.AuditSettings
+	_ = h.Store.GetSetting(ctx, store.SettingAudit, &as)
+	tagID := map[string]int64{}
+	for _, ib := range inbounds {
+		tagID[ib.Tag] = ib.ID
+	}
+	users := map[string]*domain.User{}
+	rows := make([]store.AuditHit, 0, len(rep.Audits))
+	var lines []string
+	for _, ev := range rep.Audits {
+		u, seen := users[ev.User]
+		if !seen {
+			if x, err := h.Store.UserByUUID(ctx, ev.User); err == nil && allowed[x.ID] {
+				u = x
+			}
+			users[ev.User] = u
+		}
+		if u == nil || ev.Host == "" {
+			continue
+		}
+		rows = append(rows, store.AuditHit{UserID: u.ID, NodeID: n.ID, InboundID: tagID[ev.Inbound], RuleID: ev.RuleID, At: time.Unix(ev.At, 0), ClientIP: ev.ClientIP, Host: ev.Host, Port: ev.Port, Action: ev.Action})
+		h.Hooks.Emit(ctx, webhook.UserAuditHit, map[string]any{"user_id": u.ID, "email": u.Email, "node_id": n.ID, "node": n.Name, "rule_id": ev.RuleID, "rule": ev.RuleName, "action": ev.Action, "host": ev.Host, "port": ev.Port, "client_ip": ev.ClientIP})
+		if as.NotifyAdmin {
+			lines = append(lines, fmt.Sprintf("%s → %s:%d (%s, %s)", u.Email, ev.Host, ev.Port, ev.RuleName, ev.Action))
+		}
+	}
+	if err := h.Store.AddAuditHits(ctx, rows); err != nil {
+		h.Log.Error("audit log", "node", n.ID, "rows", len(rows), "err", err)
+		return
+	}
+	if rep.AuditDropped > 0 {
+		h.Log.Warn("node dropped audit hits (buffer full)", "node", n.ID, "dropped", rep.AuditDropped)
+	}
+	if len(lines) > 0 && h.Notify != nil {
+		if len(lines) > 10 {
+			lines = append(lines[:10], fmt.Sprintf("… and %d more", len(lines)-10))
+		}
+		h.Notify.Admin(ctx, "🔍 Audit hits on "+n.Name+"\n"+strings.Join(lines, "\n"))
+	}
+	if as.AutoBanHits <= 0 {
+		return
+	}
+	for _, u := range users {
+		if u == nil || u.Status != "active" || u.IsStaff() {
+			continue
+		}
+		cnt, err := h.Store.CountUserAuditHits(ctx, u.ID, time.Now().Add(-as.Window()))
+		if err != nil || cnt < as.AutoBanHits {
+			continue
+		}
+		if err := h.Store.UpdateUser(ctx, u.ID, "banned", u.GroupID, ""); err != nil {
+			h.Log.Error("audit auto-ban", "user", u.ID, "err", err)
+			continue
+		}
+		_ = h.Store.DeleteUserSessions(ctx, u.ID)
+		if h.State != nil {
+			h.State.Invalidate()
+		}
+		h.Log.Warn("user banned by audit rules", "user", u.ID, "hits", cnt, "window", as.Window())
+		h.Hooks.Emit(ctx, webhook.UserAuditBanned, map[string]any{"user_id": u.ID, "email": u.Email, "hits": cnt, "window_hours": int(as.Window().Hours())})
+		if h.Notify != nil {
+			h.Notify.Admin(ctx, fmt.Sprintf("⛔ %s banned: %d audit hits within %dh", u.Email, cnt, int(as.Window().Hours())))
+		}
 	}
 }

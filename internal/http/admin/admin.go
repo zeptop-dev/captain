@@ -77,6 +77,8 @@ type Deps struct {
 	Hooks *webhook.Hub
 	// Probe is the monitoring service (settings cache, live data).
 	Probe *service.Probe
+	// Dyn is the dynamic speed limiter (settings cache invalidation).
+	Dyn *service.DynLimit
 	// External syncs airport subscriptions into external nodes.
 	External *service.External
 }

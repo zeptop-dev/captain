@@ -164,10 +164,24 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 		}
 	}
 	speeds, _ := a.Store.SpeedLimits(ctx)
+	if dyn, err := a.Store.DynLimits(ctx, at); err == nil {
+		// A temporary throttle only ever tightens the plan limit.
+		for uid, mbps := range dyn {
+			if cur, ok := speeds[uid]; !ok || cur == 0 || mbps < cur {
+				if speeds == nil {
+					speeds = map[int64]int{}
+				}
+				speeds[uid] = mbps
+			}
+		}
+	}
 	node.UserSpeedLimitMbps = n.UserSpeedLimitMbps
 	var cl store.ConnLogSettings
 	_ = a.Store.GetSetting(ctx, store.SettingConnLog, &cl)
 	node.ConnLog = cl.Enabled
+	if rules, err := a.Store.SpecAuditRules(ctx); err == nil {
+		node.AuditRules = rules
+	}
 	var quotas map[int64]store.QuotaWindow
 	if n.MitaQuotas {
 		quotas, _ = a.Store.UserQuotas(ctx, at)

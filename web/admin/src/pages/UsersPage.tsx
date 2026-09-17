@@ -17,6 +17,7 @@ import { TempLinks } from '../components/TempLinks'
 import { UserEntries } from '../components/UserEntries'
 import { HwidDevices } from '../components/HwidDevices'
 import { UserConnections } from '../components/UserConnections'
+import { UserAudit } from '../components/UserAudit'
 import { SegmentedControl } from '@mantine/core'
 
 export default function UsersPage() {
@@ -38,7 +39,7 @@ export default function UsersPage() {
 
   const editForm = useForm({ initialValues: { Status: 'active', GroupID: '', Password: '' } })
   const update = useMutation({ mutationFn: (v: typeof editForm.values) => api.patch(`/api/admin/users/${sel!.id}`, { Status: v.Status, GroupID: v.GroupID ? Number(v.GroupID) : null, Password: v.Password }), onSuccess: () => { toast.ok(t('common.saved')); invalidate() }, onError: toast.err })
-  const detail = useQuery({ queryKey: ['user', sel?.id], queryFn: () => api.get<{ devices: OnlineDevice[]; subscriptions: UserSub[]; hwid_devices: HwidDevice[]; hwid_limit: number | null; sub_requests: SubRequest[]; first_connected_at: string | null }>(`/api/admin/users/${sel!.id}`), enabled: sel !== null, refetchInterval: 15000 })
+  const detail = useQuery({ queryKey: ['user', sel?.id], queryFn: () => api.get<{ devices: OnlineDevice[]; subscriptions: UserSub[]; hwid_devices: HwidDevice[]; hwid_limit: number | null; sub_requests: SubRequest[]; first_connected_at: string | null; dyn_limit: { mbps: number; until: string; rate_mbps: number } | null }>(`/api/admin/users/${sel!.id}`), enabled: sel !== null, refetchInterval: 15000 })
   const [grantPlan, setGrantPlan] = useState<string | null>(null)
   const [grantHow, setGrantHow] = useState<string>('')
   const grant = useMutation({ mutationFn: () => api.post(`/api/admin/users/${sel!.id}/grant`, { PlanID: Number(grantPlan), Activation: grantHow }), onSuccess: () => { toast.ok(t('common.saved')); invalidate(); setSel(null) }, onError: toast.err })
@@ -93,6 +94,12 @@ export default function UsersPage() {
               <div><Text size="xs" c="dimmed">{t('users.createdAt')}</Text><Text size="sm">{when(sel.created_at)}</Text></div>
               <div><Text size="xs" c="dimmed">{t('users.firstConnected')}</Text><Text size="sm">{detail.data?.first_connected_at ? when(detail.data.first_connected_at) : t('users.neverConnected')}</Text></div>
             </Group>
+            {detail.data?.dyn_limit && (
+              <Group gap="xs">
+                <Badge color="orange" variant="light">{t('dynlimit.throttled', { mbps: detail.data.dyn_limit.mbps, rate: detail.data.dyn_limit.rate_mbps, until: when(detail.data.dyn_limit.until) })}</Badge>
+                <Button size="compact-xs" variant="subtle" onClick={() => api.del(`/api/admin/users/${sel.id}/dyn-limit`).then(() => { toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['user', sel.id] }) }).catch(toast.err)}>{t('dynlimit.lift')}</Button>
+              </Group>
+            )}
             <div>
               <Text size="xs" c="dimmed">{t('users.subUrl')}</Text>
               <Group gap={4} wrap="nowrap"><Code style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{subURL}</Code><Copy value={subURL} /></Group>
@@ -123,6 +130,7 @@ export default function UsersPage() {
             <TempLinks userID={sel.id} />
             <HwidDevices key={sel.id} userID={sel.id} devices={detail.data?.hwid_devices ?? []} limit={detail.data?.hwid_limit ?? null} requests={detail.data?.sub_requests ?? []} />
             <UserConnections userID={sel.id} />
+            <UserAudit userID={sel.id} />
             <Stack gap="sm">
               <Title order={6}>{t('users.topUp')}</Title>
               <Text size="xs" c="dimmed">{t('users.topUpHint')} {t('users.balance')}: {money(sel.balance_cents)}</Text>

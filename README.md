@@ -368,6 +368,26 @@ targeting it send a PROXY protocol v2 header automatically (built-in relay
 or realm backend), the landing node sees the real client and counts devices
 exactly. Direct connections to such an inbound fail, by design.
 
+**Audit rules.** Settings → Audit rules is a panel-wide list every node
+gets: a "block" rule becomes a route rule on sing-box, xray and hysteria
+(the connection is rejected) and every hit — block or "log" — comes back
+with the next report as user, client address and destination. The match
+syntax is the routing one (`domain:`, `full:`, `keyword:`, `regexp:`,
+`ip:`, `port:`, `inbound:`, `geosite:`, `geoip:`, `protocol:bittorrent`).
+Hits are listed in the settings card and per user in the user drawer, kept
+90 days, and optionally sent to the admin chat; "auto-ban after N hits in
+M hours" bans the user (never staff) and reports it. mieru inbounds can
+neither block nor report. Needs bosun ≥ 0.43.
+
+**Dynamic speed limit.** Settings → Dynamic speed limit throttles a user
+whose average rate across all nodes stays above the trigger for the
+trigger window (default 100 Mbps over 60 s) to a lower speed for a while
+(default 30 Mbps for 10 min), optionally only during given hours and never
+for whitelisted users. The panel computes it from node reports, so it
+spans nodes; the throttle reaches the nodes as a temporary user speed
+limit (min with the plan's) and lapses on its own. The user drawer shows
+an active throttle and can lift it.
+
 **Connection log (off by default).** Settings → Connection log makes every
 node report each accepted connection — user, inbound, client address,
 destination host and port, TCP/UDP — taken from the cores' own logs

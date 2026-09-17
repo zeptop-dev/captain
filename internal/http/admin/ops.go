@@ -2,8 +2,14 @@ package admin
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
+	"strings"
+	"time"
+
+	"github.com/zeptop-dev/captain/internal/service"
 
 	"github.com/zeptop-dev/captain/internal/store"
 )
@@ -50,6 +56,57 @@ func (h *handlers) registerOps(mux *http.ServeMux) {
 		}
 	}))
 	mux.HandleFunc("GET /api/admin/users/{id}/connections", h.requireAdmin(h.userConnections))
+	mux.HandleFunc("GET /api/admin/audit-rules", h.requireAdmin(h.getAuditRules))
+	mux.HandleFunc("GET /api/admin/settings/dynlimit", h.requireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		getSetting[store.DynLimitSettings](h, w, r, store.SettingDynLimit, func(v *store.DynLimitSettings) { *v = v.Defaults() })
+	}))
+	mux.HandleFunc("PUT /api/admin/settings/dynlimit", h.requireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		putSetting[store.DynLimitSettings](h, w, r, store.SettingDynLimit, func(_ context.Context, v *store.DynLimitSettings) string {
+			*v = v.Defaults()
+			if v.TriggerSeconds < 60 || v.LimitSeconds < 60 {
+				return "trigger_seconds and limit_seconds must be at least 60"
+			}
+			if err := service.ValidateWindows(v.Windows); err != nil {
+				return err.Error()
+			}
+			return ""
+		})
+		if h.Dyn != nil {
+			h.Dyn.Invalidate()
+		}
+	}))
+	mux.HandleFunc("DELETE /api/admin/users/{id}/dyn-limit", h.requireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		id, okID := pathID(r)
+		if !okID {
+			fail(w, http.StatusBadRequest, "bad id")
+			return
+		}
+		if err := h.Store.DeleteDynLimit(r.Context(), id); err != nil {
+			serverErr(w, err)
+			return
+		}
+		if h.State != nil {
+			h.State.Invalidate()
+		}
+		ok(w, map[string]bool{"ok": true})
+	}))
+	mux.HandleFunc("PUT /api/admin/audit-rules", h.requireAdmin(h.putAuditRules))
+	mux.HandleFunc("GET /api/admin/audit-log", h.requireAdmin(h.auditLog))
+	mux.HandleFunc("GET /api/admin/settings/audit", h.requireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		getSetting[store.AuditSettings](h, w, r, store.SettingAudit, func(v *store.AuditSettings) {
+			if v.WindowHours <= 0 {
+				v.WindowHours = 24
+			}
+		})
+	}))
+	mux.HandleFunc("PUT /api/admin/settings/audit", h.requireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		putSetting[store.AuditSettings](h, w, r, store.SettingAudit, func(_ context.Context, v *store.AuditSettings) string {
+			if v.AutoBanHits < 0 || v.WindowHours < 0 || v.WindowHours > 720 {
+				return "auto_ban_hits must be >= 0 and window_hours 1-720"
+			}
+			return ""
+		})
+	}))
 	mux.HandleFunc("GET /api/admin/settings/komari", h.requireAdmin(h.getKomari))
 	mux.HandleFunc("PUT /api/admin/settings/komari", h.requireAdmin(h.putKomari))
 	mux.HandleFunc("GET /api/admin/settings/probe", h.requireAdmin(h.getProbe))
@@ -141,6 +198,88 @@ func (h *handlers) userConnections(w http.ResponseWriter, r *http.Request) {
 	}
 	if rows == nil {
 		rows = []store.ConnRow{}
+	}
+	ok(w, rows)
+}
+
+// getAuditRules lists the rules with their hit counts of the last 7 days.
+func (h *handlers) getAuditRules(w http.ResponseWriter, r *http.Request) {
+	rules, err := h.Store.AuditRules(r.Context(), false)
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
+	counts, _ := h.Store.RuleHitCounts(r.Context(), time.Now().AddDate(0, 0, -7))
+	out := make([]map[string]any, 0, len(rules))
+	for _, x := range rules {
+		out = append(out, map[string]any{"id": x.ID, "name": x.Name, "match": x.Match, "action": x.Action, "enabled": x.Enabled, "hits": counts[x.ID]})
+	}
+	ok(w, out)
+}
+
+// putAuditRules replaces the list; nodes pick the change up on their next
+// state poll.
+func (h *handlers) putAuditRules(w http.ResponseWriter, r *http.Request) {
+	var in []store.AuditRule
+	if !readJSON(w, r, &in) {
+		return
+	}
+	for i := range in {
+		in[i].Name = strings.TrimSpace(in[i].Name)
+		if in[i].Name == "" {
+			fail(w, http.StatusBadRequest, fmt.Sprintf("rule %d: name is required", i+1))
+			return
+		}
+		if in[i].Action != "block" && in[i].Action != "log" {
+			fail(w, http.StatusBadRequest, fmt.Sprintf("rule %q: action must be block or log", in[i].Name))
+			return
+		}
+		var clean []string
+		for _, mt := range in[i].Match {
+			mt = strings.TrimSpace(mt)
+			if mt == "" {
+				continue
+			}
+			if strings.ContainsAny(mt, "\r\n\"") {
+				fail(w, http.StatusBadRequest, fmt.Sprintf("rule %q: bad match %q", in[i].Name, mt))
+				return
+			}
+			if k, v, okc := strings.Cut(mt, ":"); okc && k == "regexp" {
+				if _, err := regexp.Compile(v); err != nil {
+					fail(w, http.StatusBadRequest, fmt.Sprintf("rule %q: bad regexp: %v", in[i].Name, err))
+					return
+				}
+			}
+			clean = append(clean, mt)
+		}
+		if len(clean) == 0 {
+			fail(w, http.StatusBadRequest, fmt.Sprintf("rule %q: at least one match is required", in[i].Name))
+			return
+		}
+		in[i].Match = clean
+	}
+	rules, err := h.Store.ReplaceAuditRules(r.Context(), in)
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
+	if h.State != nil {
+		h.State.Invalidate()
+	}
+	ok(w, rules)
+}
+
+// auditLog lists recent hits, optionally for one user.
+func (h *handlers) auditLog(w http.ResponseWriter, r *http.Request) {
+	userID, _ := strconv.ParseInt(r.URL.Query().Get("user_id"), 10, 64)
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	rows, err := h.Store.AuditHits(r.Context(), userID, limit)
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
+	if rows == nil {
+		rows = []store.AuditHit{}
 	}
 	ok(w, rows)
 }

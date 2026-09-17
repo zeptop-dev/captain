@@ -47,12 +47,15 @@ const (
 	SubscriptionTraffic  = "subscription.traffic" // a traffic threshold was crossed
 	UserFirstConnected   = "user.first_connected" // first traffic ever seen for the user
 	UserNotConnected     = "user.not_connected"   // holds a plan for a day but never connected
+	UserAuditHit         = "user.audit_hit"       // a connection matched an audit rule
+	UserAuditBanned      = "user.audit_banned"    // auto-banned after too many audit hits
+	UserThrottled        = "user.throttled"       // dynamic speed limit applied
 	NodeAlert            = "node.alert"
 	Test                 = "test"
 )
 
 // Events lists every event name for the settings UI.
-var Events = []string{UserRegistered, OrderPaid, TicketCreated, TicketReplied, WithdrawalRequested, SubscriptionExpiring, SubscriptionTraffic, UserFirstConnected, UserNotConnected, NodeAlert}
+var Events = []string{UserRegistered, OrderPaid, TicketCreated, TicketReplied, WithdrawalRequested, SubscriptionExpiring, SubscriptionTraffic, UserFirstConnected, UserNotConnected, UserAuditHit, UserAuditBanned, UserThrottled, NodeAlert}
 
 // Hub loads endpoints from the store and delivers events asynchronously.
 type Hub struct {

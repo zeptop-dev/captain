@@ -1187,5 +1187,42 @@
     "userTitle": "Connections",
     "show": "Show recent connections",
     "none": "No connections recorded (is the connection log on?)"
+  },
+  "audit": {
+    "title": "Audit rules",
+    "hint": "Rules every node enforces: \"block\" rejects the connection on sing-box, xray and hysteria and reports the hit; \"log\" only reports. Hits are kept 90 days. mieru inbounds cannot block or report.",
+    "add": "Add rule",
+    "empty": "No rules.",
+    "name": "Name",
+    "match": "Match",
+    "action": "Action",
+    "block": "Block",
+    "log": "Log only",
+    "enabled": "On",
+    "hits": "{{n}} hits / 7 d",
+    "matchHint": "Match syntax: domain:example.com (and subdomains), full:host, keyword:text, regexp:^bet[0-9]+\\., ip:198.51.100.0/24, port:6881-6889, inbound:tag, protocol:bittorrent, geosite:category-ads-all, geoip:cn. Several entries of different kinds must all hold; entries of the same kind are alternatives.",
+    "autoBan": "Auto-ban after N hits",
+    "autoBanHint": "0 = never. Staff accounts are never banned.",
+    "window": "within (hours)",
+    "notify": "Telegram admin chat on every hit",
+    "recent": "Recent hits",
+    "noHits": "No hits recorded.",
+    "userTitle": "Audit hits",
+    "show": "Show audit hits"
+  },
+  "dynlimit": {
+    "title": "Dynamic speed limit",
+    "hint": "A user whose average rate across all nodes stays above the trigger for the trigger window is limited to the given speed for a while, then gets their plan limit back. Nodes shape it like a plan limit (Linux with nft and tc). Applied from the next report; only ever tightens.",
+    "enabled": "Enable",
+    "trigger": "Trigger (Mbps)",
+    "triggerSeconds": "over (seconds)",
+    "limit": "Limit to (Mbps)",
+    "limitSeconds": "for (seconds)",
+    "windows": "Active hours",
+    "windowsHint": "HH:MM-HH:MM in the panel's local time, may cross midnight; empty = always.",
+    "whitelist": "Never throttle (user ids)",
+    "whitelistHint": "Comma-separated user ids.",
+    "throttled": "Throttled to {{mbps}} Mbps until {{until}} (was {{rate}} Mbps)",
+    "lift": "Lift now"
   }
 }

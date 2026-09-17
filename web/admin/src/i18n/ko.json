@@ -1187,5 +1187,42 @@
     "userTitle": "연결 기록",
     "show": "최근 연결 보기",
     "none": "연결 기록이 없습니다 (연결 로그가 켜져 있나요?)"
+  },
+  "audit": {
+    "title": "감사 규칙",
+    "hint": "모든 노드가 적용하는 규칙: \"차단\"은 sing-box/xray/hysteria에서 연결을 거부하고 적중을 보고, \"기록만\"은 보고만 합니다. 적중 기록은 90일 보관. mieru 인바운드는 차단도 보고도 못 합니다.",
+    "add": "규칙 추가",
+    "empty": "규칙이 없습니다.",
+    "name": "이름",
+    "match": "조건",
+    "action": "동작",
+    "block": "차단",
+    "log": "기록만",
+    "enabled": "사용",
+    "hits": "7일 {{n}}회",
+    "matchHint": "조건 문법: domain:example.com (and subdomains), full:host, keyword:text, regexp:^bet[0-9]+\\., ip:198.51.100.0/24, port:6881-6889, inbound:tag, protocol:bittorrent, geosite:category-ads-all, geoip:cn. 종류가 다른 항목은 모두 충족해야 하고, 같은 종류는 \"또는\"입니다.",
+    "autoBan": "N회 적중 시 자동 차단",
+    "autoBanHint": "0 = 안 함. 직원 계정은 제외.",
+    "window": "기간(시간)",
+    "notify": "적중마다 Telegram 관리자 알림",
+    "recent": "최근 적중",
+    "noHits": "적중 기록이 없습니다.",
+    "userTitle": "감사 적중",
+    "show": "감사 적중 보기"
+  },
+  "dynlimit": {
+    "title": "동적 속도 제한",
+    "hint": "모든 노드 합산 평균 속도가 기준을 판정 시간 동안 넘은 사용자를 일정 시간 지정 속도로 제한하고, 이후 플랜 제한으로 되돌립니다. 노드는 플랜 제한과 같은 방식으로 적용(Linux, nft와 tc). 다음 보고부터 적용되며 제한을 풀지는 않습니다.",
+    "enabled": "사용",
+    "trigger": "기준(Mbps)",
+    "triggerSeconds": "지속(초)",
+    "limit": "제한(Mbps)",
+    "limitSeconds": "제한 시간(초)",
+    "windows": "적용 시간대",
+    "windowsHint": "HH:MM-HH:MM, 패널 현지 시각, 자정을 넘길 수 있음. 비우면 항상.",
+    "whitelist": "제외 사용자 ID",
+    "whitelistHint": "쉼표로 구분한 사용자 ID.",
+    "throttled": "{{until}}까지 {{mbps}} Mbps로 제한 중 (발동 시 {{rate}} Mbps)",
+    "lift": "지금 해제"
   }
 }

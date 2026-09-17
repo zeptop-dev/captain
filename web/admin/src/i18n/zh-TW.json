@@ -1187,5 +1187,42 @@
     "userTitle": "連線紀錄",
     "show": "檢視最近連線",
     "none": "沒有連線紀錄（連線日誌開了嗎？）"
+  },
+  "audit": {
+    "title": "稽核規則",
+    "hint": "所有節點統一執行的規則：「攔截」在 sing-box、xray、hysteria 上直接拒絕連線並回報命中；「僅記錄」只回報。命中紀錄保留 90 天。mieru 入站無法攔截也無法回報。",
+    "add": "新增規則",
+    "empty": "尚無規則。",
+    "name": "名稱",
+    "match": "比對",
+    "action": "動作",
+    "block": "攔截",
+    "log": "僅記錄",
+    "enabled": "啟用",
+    "hits": "7 天命中 {{n}}",
+    "matchHint": "比對語法：domain:example.com (and subdomains), full:host, keyword:text, regexp:^bet[0-9]+\\., ip:198.51.100.0/24, port:6881-6889, inbound:tag, protocol:bittorrent, geosite:category-ads-all, geoip:cn。不同類型的條目須同時成立，同類型條目為「或」。",
+    "autoBan": "命中 N 次自動封鎖",
+    "autoBanHint": "0 = 不封。員工帳號不會被封。",
+    "window": "時間窗（小時）",
+    "notify": "每次命中發 Telegram 管理員通知",
+    "recent": "最近命中",
+    "noHits": "沒有命中紀錄。",
+    "userTitle": "稽核命中",
+    "show": "檢視稽核命中"
+  },
+  "dynlimit": {
+    "title": "動態限速",
+    "hint": "使用者在所有節點的均速持續超過觸發值達觸發時長，就被暫時限到指定速度，時間到恢復方案限速。節點以方案限速同樣的方式執行（Linux，需 nft 與 tc）。下一次回報生效；只會收緊。",
+    "enabled": "啟用",
+    "trigger": "觸發閾值（Mbps）",
+    "triggerSeconds": "持續（秒）",
+    "limit": "限到（Mbps）",
+    "limitSeconds": "持續（秒）",
+    "windows": "生效時段",
+    "windowsHint": "HH:MM-HH:MM，面板本地時間，可跨午夜；留空為全天。",
+    "whitelist": "不限速的使用者 ID",
+    "whitelistHint": "逗號分隔的使用者 ID。",
+    "throttled": "已限速到 {{mbps}} Mbps，至 {{until}}（觸發時 {{rate}} Mbps）",
+    "lift": "立即解除"
   }
 }
