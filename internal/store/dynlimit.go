@@ -9,11 +9,11 @@ import (
 // average rate across all nodes stays above TriggerMbps for TriggerSeconds:
 // they get LimitMbps for LimitSeconds, then their plan limit again.
 type DynLimitSettings struct {
-	Enabled        bool     `json:"enabled"`
-	TriggerMbps    int      `json:"trigger_mbps"`
-	TriggerSeconds int      `json:"trigger_seconds"`
-	LimitMbps      int      `json:"limit_mbps"`
-	LimitSeconds   int      `json:"limit_seconds"`
+	Enabled        bool `json:"enabled"`
+	TriggerMbps    int  `json:"trigger_mbps"`
+	TriggerSeconds int  `json:"trigger_seconds"`
+	LimitMbps      int  `json:"limit_mbps"`
+	LimitSeconds   int  `json:"limit_seconds"`
 	// Windows are local-time ranges like "20:00-02:00" when the limiter
 	// is active; empty = always.
 	Windows []string `json:"windows"`

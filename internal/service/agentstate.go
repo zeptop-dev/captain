@@ -176,6 +176,7 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 		}
 	}
 	node.UserSpeedLimitMbps = n.UserSpeedLimitMbps
+	node.EgressByIngress = n.EgressByIngress
 	var cl store.ConnLogSettings
 	_ = a.Store.GetSetting(ctx, store.SettingConnLog, &cl)
 	node.ConnLog = cl.Enabled

@@ -149,7 +149,10 @@ type Node struct {
 	UserSpeedLimitMbps int
 	// MitaQuotas also writes each user's allowance into mita's own quotas
 	// so the core enforces it when the panel is unreachable.
-	MitaQuotas      bool
+	MitaQuotas bool
+	// EgressByIngress makes inbounds bound to a specific address exit
+	// from that address (multi-IP hosts).
+	EgressByIngress bool
 	Version         string
 	Platform        string
 	Hostname        string

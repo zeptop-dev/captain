@@ -144,7 +144,7 @@ func (d *DynLimit) Observe(ctx context.Context, samples []store.TrafficSample, a
 		}
 		d.Hooks.Emit(ctx, webhook.UserThrottled, map[string]any{"user_id": uid, "email": email, "rate_mbps": rates[i], "limit_mbps": s.LimitMbps, "until": until})
 		if d.Notify != nil {
-			d.Notify.Admin(ctx, fmt.Sprintf("🐢 %s throttled to %d Mbps for %s (averaged %d Mbps over %ds)", email, s.LimitMbps, (time.Duration(s.LimitSeconds) * time.Second).String(), rates[i], s.TriggerSeconds))
+			d.Notify.Admin(ctx, fmt.Sprintf("🐢 %s throttled to %d Mbps for %s (averaged %d Mbps over %ds)", email, s.LimitMbps, (time.Duration(s.LimitSeconds)*time.Second).String(), rates[i], s.TriggerSeconds))
 		}
 	}
 	if len(throttled) > 0 && d.State != nil {

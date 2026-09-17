@@ -368,6 +368,13 @@ targeting it send a PROXY protocol v2 header automatically (built-in relay
 or realm backend), the landing node sees the real client and counts devices
 exactly. Direct connections to such an inbound fail, by design.
 
+**Egress follows ingress.** On a node with several public addresses, the
+node option "Egress follows ingress" makes every inbound that is bound to a
+specific address send its users' traffic out from that same address
+(sing-box, xray and hysteria; mita cannot). Give each inbound its bind
+address; any-address inbounds keep the default route, and a default
+landing outbound takes precedence. Needs bosun ≥ 0.44.
+
 **Audit rules.** Settings → Audit rules is a panel-wide list every node
 gets: a "block" rule becomes a route rule on sing-box, xray and hysteria
 (the connection is rejected) and every hit — block or "log" — comes back

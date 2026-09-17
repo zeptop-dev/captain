@@ -156,7 +156,9 @@
     "rollback": "ノードをロールバック",
     "rollbackConfirm": "{{name}}（現在 {{version}}）を前の bosun ビルドに戻します。コアが再起動し、ユーザーは数秒切断されます。続行しますか？",
     "rollbackQueued": "ロールバックを通知しました。ノードは前のビルドで再起動します",
-    "doctorNotApplied": "ノードに適用されていないインバウンド"
+    "doctorNotApplied": "ノードに適用されていないインバウンド",
+    "egressByIngress": "入口アドレスから出る",
+    "egressByIngressHint": "マルチ IP ホスト：特定アドレスにバインドしたインバウンドのトラフィックは同じアドレスから出ます（sing-box、xray、hysteria）。各インバウンドにバインドアドレスを設定してください。全アドレス待受のインバウンドは既定ルート、既定の着地アウトバウンドがある場合は無視。bosun 0.44 以上。"
   },
   "inbounds": {
     "title": "インバウンド",

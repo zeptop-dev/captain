@@ -156,7 +156,9 @@
     "rollback": "回滾節點",
     "rollbackConfirm": "把 {{name}}（目前 {{version}}）換回上一個 bosun 版本，節點上的核心會重啟，使用者斷線幾秒。繼續？",
     "rollbackQueued": "已通知節點回滾，節點將以上一個版本重啟",
-    "doctorNotApplied": "以下入站沒有下發到節點核心"
+    "doctorNotApplied": "以下入站沒有下發到節點核心",
+    "egressByIngress": "源進源出",
+    "egressByIngressHint": "多 IP 主機：綁定了特定位址的入站，其流量從同一位址出去（sing-box、xray、hysteria）。需為各入站填寫綁定位址；監聽全部位址的入站走預設路由；設定了預設落地出站時忽略。需要 bosun ≥ 0.44。"
   },
   "inbounds": {
     "title": "入站",

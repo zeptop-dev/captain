@@ -156,7 +156,9 @@
     "rollback": "노드 롤백",
     "rollbackConfirm": "{{name}}(현재 {{version}})을 이전 bosun 빌드로 되돌립니다. 코어가 재시작되어 사용자가 몇 초간 끊깁니다. 계속할까요?",
     "rollbackQueued": "롤백을 요청했습니다. 노드가 이전 빌드로 재시작합니다",
-    "doctorNotApplied": "노드에 적용되지 않은 인바운드"
+    "doctorNotApplied": "노드에 적용되지 않은 인바운드",
+    "egressByIngress": "들어온 주소로 나가기",
+    "egressByIngressHint": "다중 IP 호스트: 특정 주소에 바인딩된 인바운드의 트래픽은 같은 주소로 나갑니다(sing-box, xray, hysteria). 각 인바운드에 바인딩 주소를 지정하세요. 모든 주소를 듣는 인바운드는 기본 경로를 쓰며, 기본 랜딩 아웃바운드가 있으면 무시됩니다. bosun 0.44 이상."
   },
   "inbounds": {
     "title": "인바운드",

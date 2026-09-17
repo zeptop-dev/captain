@@ -156,7 +156,9 @@
     "rollback": "Roll back node",
     "rollbackConfirm": "Put the previous bosun build back on {{name}} (now {{version}}). Cores restart, users drop for a few seconds. Continue?",
     "rollbackQueued": "Rollback queued; the node restarts on its previous build",
-    "doctorNotApplied": "Inbounds not applied on the node"
+    "doctorNotApplied": "Inbounds not applied on the node",
+    "egressByIngress": "Egress follows ingress",
+    "egressByIngressHint": "Multi-IP host: an inbound bound to a specific address sends its traffic out from that address (sing-box, xray, hysteria). Set each inbound's bind address; any-address inbounds keep the default route; ignored when a default landing outbound is set. Needs bosun ≥ 0.44."
   },
   "inbounds": {
     "title": "Inbounds",

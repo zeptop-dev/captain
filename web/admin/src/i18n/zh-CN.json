@@ -156,7 +156,9 @@
     "rollback": "回滚节点",
     "rollbackConfirm": "把 {{name}}（当前 {{version}}）换回上一个 bosun 版本，节点上的内核会重启，用户断线几秒。继续？",
     "rollbackQueued": "已通知节点回滚，节点将以上一个版本重启",
-    "doctorNotApplied": "以下入站没有下发到节点内核"
+    "doctorNotApplied": "以下入站没有下发到节点内核",
+    "egressByIngress": "源进源出",
+    "egressByIngressHint": "多 IP 机器：绑定了具体地址的入站，其流量从同一个地址出去（sing-box、xray、hysteria）。需要给各入站填绑定地址；监听全部地址的入站走默认路由；设置了默认落地出站时忽略。需要 bosun ≥ 0.44。"
   },
   "inbounds": {
     "title": "入站",
