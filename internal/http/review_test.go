@@ -482,16 +482,31 @@ func TestTrafficSeqSurvivesANodeRestart(t *testing.T) {
 	if got := used(); got != 500 {
 		t.Fatalf("five batches: %d", got)
 	}
-	// The agent restarts: its counter starts over.
-	r.agent.do("POST", "/api/agent/report", agentproto.Report{TrafficSeq: 1, TrafficWindowSeconds: 60,
+	// A copy of the previous batch, delayed past the one after it, is a
+	// repeat and must not be charged again.
+	r.agent.do("POST", "/api/agent/report", agentproto.Report{TrafficSeq: 4, TrafficWindowSeconds: 60,
+		Traffic: []spec.UserTraffic{{UserID: uid, Up: 100, Down: 0}}}, nil)
+	if got := used(); got != 500 {
+		t.Fatalf("a delayed duplicate was charged: %d", got)
+	}
+	// The agent restarts with a clock-seeded series (bosun >= 0.46.1):
+	// the number jumps forward and the batch is charged.
+	r.agent.do("POST", "/api/agent/report", agentproto.Report{TrafficSeq: uint64(time.Now().Unix()), TrafficWindowSeconds: 60,
 		Traffic: []spec.UserTraffic{{UserID: uid, Up: 100, Down: 0}}}, nil)
 	if got := used(); got != 600 {
 		t.Fatalf("the first batch after a restart was dropped: %d", got)
 	}
+	// An older agent restarts and counts from 1 again: far enough behind
+	// to be a new series, so its traffic is charged rather than lost.
+	r.agent.do("POST", "/api/agent/report", agentproto.Report{TrafficSeq: 1, TrafficWindowSeconds: 60,
+		Traffic: []spec.UserTraffic{{UserID: uid, Up: 100, Down: 0}}}, nil)
+	if got := used(); got != 700 {
+		t.Fatalf("an old agent's restarted series was dropped: %d", got)
+	}
 	// And a genuine re-send of that batch is still applied once.
 	r.agent.do("POST", "/api/agent/report", agentproto.Report{TrafficSeq: 1, TrafficWindowSeconds: 60,
 		Traffic: []spec.UserTraffic{{UserID: uid, Up: 100, Down: 0}}}, nil)
-	if got := used(); got != 600 {
+	if got := used(); got != 700 {
 		t.Fatalf("re-sent batch charged twice: %d", got)
 	}
 }

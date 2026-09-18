@@ -388,16 +388,21 @@ func (s *Store) PairCodeValid(ctx context.Context, code string) (bool, error) {
 // applied, and records it when it is new. An agent that does not number
 // its batches (seq 0, before bosun 0.46) is always applied, as before.
 //
-// Only the *same* number as the last one is a repeat: an agent re-sends a
-// batch it could not acknowledge under its number unchanged, and it never
-// counts backwards otherwise. A lower number means the agent restarted and
-// began a new series — dropping those would throw away the node's traffic
-// until its counter climbed past the old one.
+// A batch is new when its number is ahead of the last one, or so far
+// behind that the agent must have restarted with a fresh series (bosun
+// ≥ 0.46.1 seeds it from the clock, so a restart moves it forward
+// instead). Everything in between is a repeat: an agent re-sends a batch
+// it could not acknowledge under the same number, and a copy delayed past
+// the following batch must not be charged twice — when in doubt, drop it
+// rather than bill it.
+const seqRestartGap = 1000
+
 func (s *Store) TrafficSeqSeen(ctx context.Context, nodeID int64, seq uint64) (bool, error) {
 	if seq == 0 {
 		return false, nil
 	}
-	res, err := s.db.ExecContext(ctx, `UPDATE nodes SET traffic_seq = ? WHERE id = ? AND traffic_seq != ?`, int64(seq), nodeID, int64(seq))
+	res, err := s.db.ExecContext(ctx, `UPDATE nodes SET traffic_seq = ? WHERE id = ? AND (traffic_seq < ? OR traffic_seq - ? > ?)`,
+		int64(seq), nodeID, int64(seq), int64(seq), int64(seqRestartGap))
 	if err != nil {
 		return false, err
 	}
