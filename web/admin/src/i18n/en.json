@@ -1224,6 +1224,8 @@
     "lift": "Lift now",
     "manual": "Throttle to (Mbps)",
     "manualMinutes": "for (minutes)",
-    "throttle": "Throttle"
+    "throttle": "Throttle",
+    "unlimited": "Also throttle users with no speed limit",
+    "unlimitedHint": "They have no shaper on the node yet, so applying and lifting a throttle reloads the cores serving them and drops their connections. Off: only users who already have a speed limit are throttled."
   }
 }
