@@ -480,7 +480,9 @@
     "test": "寄送測試郵件",
     "testSent": "測試郵件已寄出",
     "thresholds": "流量閾值（%）",
-    "thresholdsHint": "每個週期每個閾值提醒一次，例如 60, 80, 90。"
+    "thresholdsHint": "每個週期每個閾值提醒一次，例如 60, 80, 90。",
+    "language": "郵件語言",
+    "languageHint": "使用者收到的郵件用這個語言；控制台語言由每位員工自己選"
   },
   "coupons": {
     "title": "優惠券",

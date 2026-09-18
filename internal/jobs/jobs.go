@@ -236,6 +236,7 @@ func (r *Runner) backup(ctx context.Context, now time.Time) (string, error) {
 // whose quota is 90% used, once per expiry / quota period.
 func (r *Runner) reminders(ctx context.Context, now time.Time, log *slog.Logger) {
 	ms := r.Mail.Settings(ctx)
+	mails := mail.For(ms.Language)
 	viaMail := ms.Enabled() && ms.Reminders
 	viaBot := r.Bot != nil && r.Bot.Enabled(ctx)
 	if !viaMail && !viaBot && r.Hooks == nil {
@@ -263,7 +264,7 @@ func (r *Runner) reminders(ctx context.Context, now time.Time, log *slog.Logger)
 	}
 	for _, e := range exp {
 		r.Hooks.Emit(ctx, webhook.SubscriptionExpiring, map[string]any{"user_id": e.UserID, "email": e.Email, "expires_at": e.ExpiresAt})
-		if !deliver(e.UserID, mail.ExpiryMessage(r.SiteName, e.Email, r.PortalURL, e.ExpiresAt), fmt.Sprintf("⏰ %s: your plan expires on %s. Renew: %s", r.SiteName, e.ExpiresAt.Format("2006-01-02"), r.PortalURL)) {
+		if !deliver(e.UserID, mails.Expiry(r.SiteName, e.Email, r.PortalURL, e.ExpiresAt), fmt.Sprintf("⏰ %s: your plan expires on %s. Renew: %s", r.SiteName, e.ExpiresAt.Format("2006-01-02"), r.PortalURL)) {
 			log.Warn("expiry reminder not delivered to the user; recorded anyway", "user", e.UserID)
 		}
 		// Recorded whether or not a user-facing channel took it: the
@@ -288,7 +289,7 @@ func (r *Runner) reminders(ctx context.Context, now time.Time, log *slog.Logger)
 				continue
 			}
 			r.Hooks.Emit(ctx, webhook.SubscriptionTraffic, map[string]any{"user_id": e.UserID, "email": e.Email, "threshold": e.Threshold, "used_percent": e.UsedPct})
-			if !deliver(e.UserID, mail.TrafficMessage(r.SiteName, e.Email, r.PortalURL, e.UsedPct), fmt.Sprintf("📊 %s: you have used %d%% of your traffic. %s", r.SiteName, e.UsedPct, r.PortalURL)) {
+			if !deliver(e.UserID, mails.Traffic(r.SiteName, e.Email, r.PortalURL, e.UsedPct), fmt.Sprintf("📊 %s: you have used %d%% of your traffic. %s", r.SiteName, e.UsedPct, r.PortalURL)) {
 				log.Warn("traffic reminder not delivered to the user; recorded anyway", "user", e.UserID, "threshold", e.Threshold)
 			}
 			done[e.UserID] = true

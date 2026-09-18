@@ -480,7 +480,9 @@
     "test": "Send test email",
     "testSent": "Test email sent",
     "thresholds": "Traffic thresholds (%)",
-    "thresholdsHint": "One notice per threshold per quota period, e.g. 60, 80, 90."
+    "thresholdsHint": "One notice per threshold per quota period, e.g. 60, 80, 90.",
+    "language": "Mail language",
+    "languageHint": "What users receive; the console language is per staff account"
   },
   "coupons": {
     "title": "Coupons",

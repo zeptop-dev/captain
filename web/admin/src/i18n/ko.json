@@ -480,7 +480,9 @@
     "test": "테스트 메일 보내기",
     "testSent": "테스트 메일을 보냈습니다",
     "thresholds": "데이터 임계값 (%)",
-    "thresholdsHint": "기간마다 임계값별로 한 번 알림. 예: 60, 80, 90"
+    "thresholdsHint": "기간마다 임계값별로 한 번 알림. 예: 60, 80, 90",
+    "language": "메일 언어",
+    "languageHint": "사용자가 받는 메일의 언어입니다. 콘솔 언어는 직원별 설정입니다"
   },
   "coupons": {
     "title": "쿠폰",

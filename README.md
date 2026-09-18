@@ -82,8 +82,9 @@ rules on `/sub`, daily `VACUUM INTO` backups with WebDAV/S3 upload,
 self-update for the panel and every node, Telegram bot and event webhooks,
 and an MCP server so an agent can answer "which node is down" for you.
 
-**Six languages** in both interfaces: 简体中文, 繁體中文, English, 日本語,
-Русский, 한국어.
+**Six languages** in both interfaces — 简体中文, 繁體中文, English, 日本語,
+Русский, 한국어 — and the mail users receive has its own language picker in
+Settings → Mail.
 
 ## Screenshots
 

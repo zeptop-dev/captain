@@ -6,7 +6,18 @@ import { useTranslation } from 'react-i18next'
 import { api, type MailSettings } from '../lib/api'
 import { toast } from '../lib/notify'
 
-const empty: MailSettings = { provider: '', from_name: '', from_address: '', smtp: { host: '', port: 587, username: '', password: '', security: '' }, resend: { api_key: '' }, verify_registration: false, reminders: true, traffic_thresholds: [90] }
+const empty: MailSettings = { provider: '', from_name: '', from_address: '', smtp: { host: '', port: 587, username: '', password: '', security: '' }, resend: { api_key: '' }, verify_registration: false, reminders: true, traffic_thresholds: [90], language: 'en' }
+
+// The language of the mail users receive, independent of the console's own
+// language (that one is per staff member, in their browser).
+const mailLanguages = [
+  { value: 'en', label: 'English' },
+  { value: 'zh-CN', label: '简体中文' },
+  { value: 'zh-TW', label: '繁體中文' },
+  { value: 'ja', label: '日本語' },
+  { value: 'ru', label: 'Русский' },
+  { value: 'ko', label: '한국어' },
+]
 
 export function MailCard() {
   const { t } = useTranslation()
@@ -29,6 +40,7 @@ export function MailCard() {
           <Select label={t('mail.provider')} data={[{ value: '', label: t('mail.off') }, { value: 'smtp', label: 'SMTP' }, { value: 'resend', label: 'Resend API' }]} allowDeselect={false} {...form.getInputProps('provider')} />
           <TextInput label={t('mail.fromName')} {...form.getInputProps('from_name')} />
           <TextInput label={t('mail.fromAddress')} placeholder="noreply@example.com" {...form.getInputProps('from_address')} />
+          <Select label={t('mail.language')} description={t('mail.languageHint')} data={mailLanguages} allowDeselect={false} {...form.getInputProps('language')} />
         </Group>
         {v.provider === 'smtp' && (<>
           <Group grow>

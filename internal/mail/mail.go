@@ -39,6 +39,9 @@ type Settings struct {
 	Resend struct {
 		APIKey string `json:"api_key"`
 	} `json:"resend"`
+	// Language is the language of the mail sent to users (Settings →
+	// Mail); "" means English. See lang.go for the options.
+	Language string `json:"language"`
 	// VerifyRegistration requires an emailed code to create an account.
 	VerifyRegistration bool `json:"verify_registration"`
 	// Reminders sends expiry (3 days ahead) and traffic-threshold notices.
@@ -277,33 +280,47 @@ func Layout(site, body string) string {
 </table></td></tr></table></body></html>`, html.EscapeString(site), body, html.EscapeString(site))
 }
 
-// CodeMessage is the verification / reset code email.
-func CodeMessage(site, to, purpose, code string) Message {
-	title := "验证码"
-	intro := "你正在注册账号，验证码如下，10 分钟内有效："
+// Builder writes the user-facing messages in one language. Take one with
+// For(settings.Language); every message is short by design — a code, a
+// date or a percentage, and at most one button.
+type Builder struct{ t texts }
+
+// For returns a Builder in that language (English when unset or unknown).
+func For(lang string) Builder { return Builder{t: textsFor(lang)} }
+
+// Code is the verification / reset code email.
+func (b Builder) Code(site, to, purpose, code string) Message {
+	intro, subject := b.t.codeIntro, b.t.codeSubject
 	if purpose == "reset" {
-		title = "重置密码"
-		intro = "你正在重置密码，验证码如下，10 分钟内有效。如果不是你本人操作，忽略这封邮件即可："
+		intro, subject = b.t.resetIntro, b.t.resetSubject
 	}
 	body := fmt.Sprintf(`<p>%s</p><p style="font-size:32px;letter-spacing:8px;font-weight:700;margin:16px 0">%s</p>`, intro, html.EscapeString(code))
-	return Message{To: to, Subject: fmt.Sprintf("[%s] %s %s", site, title, code), HTML: Layout(site, body)}
+	return Message{To: to, Subject: fmt.Sprintf(subject, site, code), HTML: Layout(site, body)}
 }
 
-// ExpiryMessage reminds about an expiring subscription.
-func ExpiryMessage(site, to, portalURL string, expires time.Time) Message {
-	body := fmt.Sprintf(`<p>你的订阅将在 <b>%s</b> 到期。到期后节点会停止服务，续费后立即恢复。</p><p><a href="%s" style="display:inline-block;background:#0ea5e9;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px">前往续费</a></p>`,
-		expires.Format("2006-01-02 15:04"), html.EscapeString(portalURL))
-	return Message{To: to, Subject: fmt.Sprintf("[%s] 订阅将于 %s 到期", site, expires.Format("01-02")), HTML: Layout(site, body)}
+// Expiry reminds about an expiring subscription.
+func (b Builder) Expiry(site, to, portalURL string, expires time.Time) Message {
+	body := fmt.Sprintf("<p>%s</p>%s",
+		fmt.Sprintf(b.t.expiryBody, expires.Format("2006-01-02 15:04")),
+		button(portalURL, b.t.expiryButton))
+	return Message{To: to, Subject: fmt.Sprintf(b.t.expirySubject, site, expires.Format("01-02")), HTML: Layout(site, body)}
 }
 
-// TrafficMessage warns that most of the quota is used.
-func TrafficMessage(site, to, portalURL string, usedPct int) Message {
-	body := fmt.Sprintf(`<p>本周期流量已使用 <b>%d%%</b>。用完后节点会停止服务，可以购买流量或等待重置。</p><p><a href="%s" style="display:inline-block;background:#0ea5e9;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px">查看用量</a></p>`,
-		usedPct, html.EscapeString(portalURL))
-	return Message{To: to, Subject: fmt.Sprintf("[%s] 流量已使用 %d%%", site, usedPct), HTML: Layout(site, body)}
+// Traffic warns that most of the quota is used.
+func (b Builder) Traffic(site, to, portalURL string, usedPct int) Message {
+	body := fmt.Sprintf("<p>%s</p>%s",
+		fmt.Sprintf(b.t.trafficBody, usedPct),
+		button(portalURL, b.t.trafficButton))
+	return Message{To: to, Subject: fmt.Sprintf(b.t.trafficSubject, site, usedPct), HTML: Layout(site, body)}
 }
 
-// TestMessage is what the admin's "send test" button mails.
-func TestMessage(site, to string) Message {
-	return Message{To: to, Subject: fmt.Sprintf("[%s] 测试邮件", site), HTML: Layout(site, "<p>邮件配置正常，这是一封测试邮件。</p>")}
+// Test is what the admin's "send test" button mails.
+func (b Builder) Test(site, to string) Message {
+	return Message{To: to, Subject: fmt.Sprintf(b.t.testSubject, site), HTML: Layout(site, "<p>"+b.t.testBody+"</p>")}
+}
+
+// button renders the one call to action a message carries.
+func button(url, label string) string {
+	return fmt.Sprintf(`<p><a href="%s" style="display:inline-block;background:#0ea5e9;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px">%s</a></p>`,
+		html.EscapeString(url), html.EscapeString(label))
 }

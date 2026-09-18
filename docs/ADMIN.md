@@ -105,9 +105,15 @@ Settings → Mail: SMTP (any provider; port 587 STARTTLS, 465 TLS or 25
 plain) or the Resend HTTP API for hosts that block mail ports, plus a
 "send test email" button. With mail configured, registration can require an
 emailed code, users can reset their own password, and the hourly job sends
-the expiry and traffic-threshold reminders. The built-in templates are
-plain, mail-client-safe HTML written in Chinese; they live in
-`internal/mail/mail.go` if you want to change the wording.
+the expiry and traffic-threshold reminders.
+
+**Mail language** — the same picker row chooses the language of the mail
+users receive: English (the default), 简体中文, 繁體中文, 日本語, Русский or
+한국어. It is a separate choice from the console's language, which each
+staff member picks in their own browser, because this mail goes to
+customers. The messages are deliberately short — a code, a date, a
+percentage and at most one button — and live in `internal/mail/lang.go`
+if you want to reword them or add a language.
 
 ## External login (OIDC)
 

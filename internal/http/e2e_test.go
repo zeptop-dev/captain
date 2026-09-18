@@ -835,7 +835,8 @@ func TestMailVerificationAndReset(t *testing.T) {
 	for _, m := range sent[before:] {
 		subjects = append(subjects, m.Subject)
 	}
-	if len(subjects) != 2 || !strings.Contains(subjects[0], "到期") || !strings.Contains(subjects[1], "95%") {
+	// Default mail language is English (Settings → Mail picks another).
+	if len(subjects) != 2 || !strings.Contains(subjects[0], "expires on") || !strings.Contains(subjects[1], "95%") {
 		t.Fatalf("reminders: %v", subjects)
 	}
 }

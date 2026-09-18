@@ -268,7 +268,8 @@ func (h *handlers) testMail(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 40*time.Second)
 	defer cancel()
-	if err := mail.Send(ctx, h.Mail.Settings(ctx), mail.TestMessage(h.SiteName, in.To)); err != nil {
+	ms := h.Mail.Settings(ctx)
+	if err := mail.Send(ctx, ms, mail.For(ms.Language).Test(h.SiteName, in.To)); err != nil {
 		fail(w, http.StatusBadGateway, err.Error())
 		return
 	}
