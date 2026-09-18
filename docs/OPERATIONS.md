@@ -45,6 +45,29 @@ Logs go to stderr as `log/slog` text lines (`journalctl -u captain` or
 request that ends in a 4xx/5xx or takes longer than a second with a request
 id (also echoed as `X-Request-ID`); `debug` logs every request.
 
+## What makes the file grow
+
+Most tables grow with the number of users. Three grow with *traffic*, and
+they are the ones to watch:
+
+| table | written by | bounded by |
+|---|---|---|
+| `conn_log` | every accepted connection, when the connection log is on | retention days (7) **and** rows per user (1000), both in Settings → Connection log |
+| `audit_log` | every audit-rule hit | 90 days, one hit per user and rule per minute on the node |
+| `sub_requests` | every subscription fetch | 30 days and the newest 200 rows per user |
+| `hwid_devices` | every device that fetches with `x-hwid` | 64 per user, and devices unseen for 90 days are forgotten |
+
+The connection log is off by default for that reason: with it on, a busy
+node writes a row per connection, which on a few thousand users is millions
+of rows a day. Both of its limits are enforced hourly, in batches of 20 000
+rows so the single database connection is never held for long.
+
+SQLite does not return freed pages to the filesystem, so the file does not
+shrink after a cleanup: it is reused for new rows. A real shrink needs
+`VACUUM`, which rewrites the whole file and blocks the panel while it runs
+— take the downtime deliberately, or restore a snapshot (the daily backup
+is a `VACUUM INTO` copy and is already compact).
+
 ## Backups
 
 Captain snapshots its database once a day with SQLite's `VACUUM INTO`, so

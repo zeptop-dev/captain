@@ -11,6 +11,10 @@ import (
 type ConnLogSettings struct {
 	Enabled       bool `json:"enabled"`
 	RetentionDays int  `json:"retention_days"`
+	// MaxPerUser caps how many rows one user keeps, so a single busy
+	// account cannot fill the database before the retention runs out
+	// (0 = the default, 1000).
+	MaxPerUser int `json:"max_per_user"`
 }
 
 const SettingConnLog = "connlog"
@@ -21,6 +25,14 @@ func (s ConnLogSettings) Days() int {
 		return 7
 	}
 	return s.RetentionDays
+}
+
+// KeepPerUser returns the per-user row cap, 1000 when unset.
+func (s ConnLogSettings) KeepPerUser() int {
+	if s.MaxPerUser <= 0 {
+		return 1000
+	}
+	return s.MaxPerUser
 }
 
 // ConnRow is one accepted connection.
@@ -83,9 +95,9 @@ func (s *Store) UserConnections(ctx context.Context, userID int64, limit int) ([
 	return out, rows.Err()
 }
 
-// PruneConnLog deletes rows older than before (and everything when the
-// log is off, so switching it off also forgets what was collected).
-// PruneConnLog deletes rows older than before in batches: the table is the
+// PruneConnLog deletes rows older than before (and everything when the log
+// is off, so switching it off also forgets what was collected), in
+// batches: the table is the
 // biggest one in the database and a single DELETE would hold the only
 // connection (and the write lock) for as long as it takes, stalling the
 // panel and every node report behind it.
@@ -94,6 +106,37 @@ func (s *Store) PruneConnLog(ctx context.Context, before time.Time) (int64, erro
 	var total int64
 	for {
 		res, err := s.db.ExecContext(ctx, `DELETE FROM conn_log WHERE id IN (SELECT id FROM conn_log WHERE at < ? LIMIT ?)`, before.Unix(), batch)
+		if err != nil {
+			return total, err
+		}
+		n, _ := res.RowsAffected()
+		total += n
+		if n < batch {
+			return total, nil
+		}
+		select {
+		case <-ctx.Done():
+			return total, ctx.Err()
+		default:
+		}
+	}
+}
+
+// TrimConnLog keeps the newest keep rows per user. Retention alone bounds
+// the table by time, which says nothing about its size: one busy user can
+// produce more rows in a day than a thousand quiet ones in a week, and
+// this table is the first thing to outgrow the database file.
+func (s *Store) TrimConnLog(ctx context.Context, keep int) (int64, error) {
+	if keep <= 0 {
+		keep = 1000
+	}
+	const batch = 20000
+	var total int64
+	for {
+		res, err := s.db.ExecContext(ctx, `DELETE FROM conn_log WHERE id IN (
+			SELECT id FROM conn_log c WHERE (
+				SELECT COUNT(*) FROM conn_log n WHERE n.user_id = c.user_id AND n.id > c.id
+			) >= ? LIMIT ?)`, keep, batch)
 		if err != nil {
 			return total, err
 		}

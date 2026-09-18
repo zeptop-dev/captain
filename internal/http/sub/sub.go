@@ -75,7 +75,10 @@ func (c *rulesCache) get(ctx context.Context) []service.ResponseRule {
 func Register(mux *http.ServeMux, d Deps) {
 	tpls := &templateCache{store: d.Store}
 	rules := &rulesCache{store: d.Store}
-	serve := func(w http.ResponseWriter, r *http.Request, u *domain.User) {
+	// charge is called once the request has passed every refusal (response
+	// rules, HWID) and a document is about to be written; it spends a
+	// temporary link's use. nil for the permanent token route.
+	serve := func(w http.ResponseWriter, r *http.Request, u *domain.User, charge func() error) {
 		lines, acct, err := d.Service.Lines(r.Context(), u, time.Now())
 		if errors.Is(err, service.ErrDisabled) {
 			// Like Xboard: a banned account gets nothing, not even its usage.
@@ -184,6 +187,13 @@ func Register(mux *http.ServeMux, d Deps) {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
+		if charge != nil {
+			if err := charge(); err != nil {
+				req.Response = "link-exhausted"
+				http.Error(w, "subscription link not available", http.StatusGone)
+				return
+			}
+		}
 		// The profile name clients show: the admin-edited site name, else the
 		// config one. Sent three ways because clients disagree on which they
 		// read: an ASCII filename (no quotes, some clients keep them
@@ -223,14 +233,15 @@ func Register(mux *http.ServeMux, d Deps) {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		serve(w, r, u)
+		serve(w, r, u, nil)
 	})
 	// Short and temporary links: /s/<code>, use-counted for temp links.
 	mux.HandleFunc("GET /s/{code}", func(w http.ResponseWriter, r *http.Request) {
 		if !allowFetch(w, r, "code:"+r.PathValue("code")) {
 			return
 		}
-		u, err := d.Store.UseSubLink(r.Context(), r.PathValue("code"), time.Now())
+		code := r.PathValue("code")
+		u, temp, err := d.Store.ResolveSubLink(r.Context(), code, time.Now())
 		if errors.Is(err, store.ErrNotFound) || errors.Is(err, store.ErrLinkExhausted) {
 			http.Error(w, "subscription link not available", http.StatusGone)
 			return
@@ -239,7 +250,13 @@ func Register(mux *http.ServeMux, d Deps) {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		serve(w, r, u)
+		var charge func() error
+		if temp {
+			// Spent only when a document is actually served: a request a
+			// response rule refuses must not use up a trial link.
+			charge = func() error { return d.Store.ConsumeSubLink(context.WithoutCancel(r.Context()), code) }
+		}
+		serve(w, r, u, charge)
 	})
 }
 

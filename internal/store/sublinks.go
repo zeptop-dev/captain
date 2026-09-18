@@ -114,23 +114,46 @@ func (s *Store) DeleteSubLink(ctx context.Context, userID, id int64) error {
 // UseSubLink resolves a code to its user, enforcing expiry and use count
 // (temp links count every fetch).
 func (s *Store) UseSubLink(ctx context.Context, code string, at time.Time) (*domain.User, error) {
-	l, err := scanSubLink(s.db.QueryRowContext(ctx, `SELECT id, user_id, code, kind, max_uses, uses, expires_at, enabled, created_at FROM sub_links WHERE code = ?`, strings.ToLower(strings.TrimSpace(code))))
+	u, _, err := s.ResolveSubLink(ctx, code, at)
 	if err != nil {
 		return nil, err
 	}
+	if err := s.ConsumeSubLink(ctx, code); err != nil {
+		return nil, err
+	}
+	return u, nil
+}
+
+// ResolveSubLink looks a link up without spending a use, and reports
+// whether spending one is needed (a temporary link). The caller spends it
+// with ConsumeSubLink once it actually serves a document, so a request a
+// response rule refuses does not burn a use.
+func (s *Store) ResolveSubLink(ctx context.Context, code string, at time.Time) (*domain.User, bool, error) {
+	l, err := scanSubLink(s.db.QueryRowContext(ctx, `SELECT id, user_id, code, kind, max_uses, uses, expires_at, enabled, created_at FROM sub_links WHERE code = ?`, strings.ToLower(strings.TrimSpace(code))))
+	if err != nil {
+		return nil, false, err
+	}
 	if !l.Enabled || (l.ExpiresAt != nil && at.After(*l.ExpiresAt)) || (l.MaxUses > 0 && l.Uses >= l.MaxUses) {
-		return nil, ErrLinkExhausted
+		return nil, false, ErrLinkExhausted
 	}
-	if l.Kind == "temp" {
-		res, err := s.db.ExecContext(ctx, `UPDATE sub_links SET uses = uses + 1 WHERE id = ? AND (max_uses = 0 OR uses < max_uses)`, l.ID)
-		if err != nil {
-			return nil, err
-		}
-		if n, _ := res.RowsAffected(); n == 0 {
-			return nil, ErrLinkExhausted
+	u, err := s.UserByID(ctx, l.UserID)
+	return u, l.Kind == "temp", err
+}
+
+// ConsumeSubLink spends one use of a temporary link.
+func (s *Store) ConsumeSubLink(ctx context.Context, code string) error {
+	res, err := s.db.ExecContext(ctx, `UPDATE sub_links SET uses = uses + 1 WHERE code = ? AND kind = 'temp' AND (max_uses = 0 OR uses < max_uses)`, strings.ToLower(strings.TrimSpace(code)))
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		// Not a temporary link (nothing to spend) or exhausted meanwhile.
+		var kind string
+		if err := s.db.QueryRowContext(ctx, `SELECT kind FROM sub_links WHERE code = ?`, strings.ToLower(strings.TrimSpace(code))).Scan(&kind); err == nil && kind == "temp" {
+			return ErrLinkExhausted
 		}
 	}
-	return s.UserByID(ctx, l.UserID)
+	return nil
 }
 
 // ---- two-factor ---------------------------------------------------------------------

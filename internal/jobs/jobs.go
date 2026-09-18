@@ -161,6 +161,13 @@ func (r *Runner) Tick(ctx context.Context) {
 		} else if n > 0 {
 			log.Info("pruned connection log", "rows", n)
 		}
+		if cl.Enabled {
+			if n, err := r.Store.TrimConnLog(ctx, cl.KeepPerUser()); err != nil {
+				log.Error("trim connection log", "err", err)
+			} else if n > 0 {
+				log.Info("trimmed connection log", "rows", n)
+			}
+		}
 		if n, err := r.Store.PruneHwidDevices(ctx, now.AddDate(0, 0, -90)); err != nil {
 			log.Error("prune hwid devices", "err", err)
 		} else if n > 0 {

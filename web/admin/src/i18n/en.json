@@ -1182,7 +1182,9 @@
     "privacy": "This is personal data about what your users visit. Keep it off unless you need it, keep the retention short, and say so in your privacy notice. Switching it off deletes what was collected.",
     "userTitle": "Connections",
     "show": "Show recent connections",
-    "none": "No connections recorded (is the connection log on?)"
+    "none": "No connections recorded (is the connection log on?)",
+    "maxPerUser": "Rows per user",
+    "maxPerUserHint": "The newest rows one account keeps"
   },
   "audit": {
     "title": "Audit rules",
