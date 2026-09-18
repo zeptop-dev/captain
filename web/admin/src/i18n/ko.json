@@ -1229,5 +1229,24 @@
     "throttle": "제한",
     "unlimited": "속도 제한이 없는 사용자도 제한",
     "unlimitedHint": "노드에 셰이퍼가 없어 적용·해제 때마다 해당 사용자를 서비스하는 코어가 다시 로드되어 연결이 끊깁니다. 끄면 이미 속도 제한이 있는 사용자만 제한합니다."
+  },
+  "heartbeat": {
+    "title": "패널 하트비트",
+    "hint": "Captain이 주기적으로 이 URL을 호출하므로 외부 감시 서비스(healthchecks.io, Uptime Kuma 푸시, Better Stack)가 패널 중단을 알아챌 수 있습니다. 패널이 바깥으로 호출하므로 NAT나 Cloudflare Tunnel 뒤에서도 동작합니다.",
+    "enabled": "하트비트 보내기",
+    "url": "Ping 주소",
+    "interval": "주기(초)",
+    "last": "마지막 전송",
+    "test": "지금 한 번 보내기",
+    "sent": "하트비트를 보냈습니다"
+  },
+  "adminlog": {
+    "title": "콘솔 작업 기록",
+    "hint": "콘솔이나 API 토큰으로 이루어진 모든 변경: 누가, 어떤 경로를, 결과는 무엇인지. 읽기는 기록하지 않습니다. 180일 보관, 관리자 전용.",
+    "when": "시각",
+    "who": "작업자",
+    "what": "작업",
+    "result": "결과",
+    "empty": "아직 기록이 없습니다"
   }
 }

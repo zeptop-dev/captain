@@ -79,6 +79,8 @@ type Deps struct {
 	Probe *service.Probe
 	// Allow is the console allow-list, shared with the MCP endpoint.
 	Allow *service.AdminAllow
+	// Heartbeat is the panel's own watchdog ping (nil = off).
+	Heartbeat *service.Heartbeat
 	// Dyn is the dynamic speed limiter (settings cache invalidation).
 	Dyn *service.DynLimit
 	// External syncs airport subscriptions into external nodes.
@@ -265,7 +267,9 @@ func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		var u *domain.User
+		via := "session"
 		if tok := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer")); tok != "" && strings.HasPrefix(tok, "cap_") {
+			via = "token"
 			// Personal API token (scripts, MCP): the owner's role, narrowed
 			// by the token's scope. Staff management stays with the
 			// interactive login, so a leaked token cannot mint an admin.
@@ -313,6 +317,21 @@ func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 		}
 		if h.State != nil && r.Method != http.MethodGet {
 			defer h.State.Invalidate()
+		}
+		// Every write is recorded: staff accounts exist, so "who did this"
+		// has to be answerable. Reads are not logged — they would bury the
+		// changes and the console polls constantly.
+		if r.Method != http.MethodGet {
+			rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+			w = rec
+			defer func() {
+				e := store.AdminEntry{At: time.Now(), UserID: u.ID, Email: u.Email, Role: u.Role,
+					Method: r.Method, Path: r.URL.Path, Target: r.PathValue("id"),
+					Status: rec.status, Via: via, IP: ratelimit.ClientIP(r)}
+				if err := h.Store.AddAdminEntry(context.WithoutCancel(r.Context()), e); err != nil {
+					h.Log.Error("admin log", "err", err)
+				}
+			}()
 		}
 		next(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, u)))
 	}
@@ -466,7 +485,7 @@ func allowed(role, method, path string) bool {
 		// Audit rules reach every node's core config and the audit log is
 		// a record of what users visited: both stay with the admin, like
 		// the settings switches that turn them on.
-		for _, p := range []string{"/api/admin/settings/", "/api/admin/system/", "/api/admin/admins", "/api/admin/site", "/api/admin/audit"} {
+		for _, p := range []string{"/api/admin/settings/", "/api/admin/system/", "/api/admin/admins", "/api/admin/site", "/api/admin/audit", "/api/admin/admin-log"} {
 			if strings.HasPrefix(path, p) {
 				return false
 			}
@@ -501,3 +520,17 @@ func (h *handlers) sameOrigin(next http.HandlerFunc) http.HandlerFunc {
 		next(w, r)
 	}
 }
+
+// statusRecorder remembers the status code for the admin log while
+// leaving the rest of the ResponseWriter alone.
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *statusRecorder) WriteHeader(code int) {
+	w.status = code
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *statusRecorder) Unwrap() http.ResponseWriter { return w.ResponseWriter }

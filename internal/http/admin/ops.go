@@ -121,6 +121,53 @@ func (h *handlers) registerOps(mux *http.ServeMux) {
 	}))
 	mux.HandleFunc("PUT /api/admin/audit-rules", h.requireAdmin(h.putAuditRules))
 	mux.HandleFunc("GET /api/admin/audit-log", h.requireAdmin(h.auditLog))
+	// Who changed what in the console. Admin-only: it names every staff
+	// account's actions, which is not an operator's or support's business.
+	mux.HandleFunc("GET /api/admin/admin-log", h.requireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		id, _ := strconv.ParseInt(r.URL.Query().Get("user_id"), 10, 64)
+		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+		list, err := h.Store.AdminLog(r.Context(), id, limit)
+		if err != nil {
+			serverErr(w, err)
+			return
+		}
+		ok(w, list)
+	}))
+	// The panel's own watchdog: Captain fetches a URL on a schedule so an
+	// external monitor notices when it stops.
+	mux.HandleFunc("GET /api/admin/settings/heartbeat", h.requireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		var v store.HeartbeatSettings
+		_ = h.Store.GetSetting(r.Context(), store.SettingHeartbeat, &v)
+		st := store.HeartbeatStatus{}
+		if h.Heartbeat != nil {
+			st = h.Heartbeat.Status()
+		}
+		ok(w, map[string]any{"settings": v, "status": st})
+	}))
+	mux.HandleFunc("PUT /api/admin/settings/heartbeat", h.requireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		putSetting[store.HeartbeatSettings](h, w, r, store.SettingHeartbeat, func(_ context.Context, v *store.HeartbeatSettings) string {
+			v.URL = strings.TrimSpace(v.URL)
+			if v.Enabled && !strings.HasPrefix(v.URL, "http://") && !strings.HasPrefix(v.URL, "https://") {
+				return "the heartbeat URL must start with http:// or https://"
+			}
+			return ""
+		})
+		if h.Heartbeat != nil {
+			h.Heartbeat.Invalidate()
+		}
+	}))
+	mux.HandleFunc("POST /api/admin/settings/heartbeat/test", h.requireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		if h.Heartbeat == nil {
+			fail(w, http.StatusServiceUnavailable, "heartbeat is not configured")
+			return
+		}
+		h.Heartbeat.Invalidate()
+		if err := h.Heartbeat.Send(r.Context()); err != nil {
+			fail(w, http.StatusBadGateway, err.Error())
+			return
+		}
+		ok(w, map[string]bool{"ok": true})
+	}))
 	mux.HandleFunc("GET /api/admin/settings/audit", h.requireAdmin(func(w http.ResponseWriter, r *http.Request) {
 		getSetting[store.AuditSettings](h, w, r, store.SettingAudit, func(v *store.AuditSettings) {
 			if v.WindowHours <= 0 {

@@ -8,13 +8,13 @@ import (
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-const userCols = "id, email, password_hash, role, uuid, sub_token, group_id, balance_cents, status, created_at, updated_at, COALESCE(invite_code, ''), invited_by, hwid_limit, first_connected_at"
+const userCols = "id, email, password_hash, role, uuid, sub_token, group_id, balance_cents, status, created_at, updated_at, COALESCE(invite_code, ''), invited_by, hwid_limit, first_connected_at, lang"
 
 func scanUser(row interface{ Scan(...any) error }) (*domain.User, error) {
 	var u domain.User
 	var group, invitedBy, hwid, firstConn sql.NullInt64
 	var created, updated int64
-	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.UUID, &u.SubToken, &group, &u.BalanceCents, &u.Status, &created, &updated, &u.InviteCode, &invitedBy, &hwid, &firstConn); err != nil {
+	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.UUID, &u.SubToken, &group, &u.BalanceCents, &u.Status, &created, &updated, &u.InviteCode, &invitedBy, &hwid, &firstConn, &u.Lang); err != nil {
 		return nil, wrapNotFound(err)
 	}
 	u.GroupID = int64Ptr(group)
@@ -368,5 +368,12 @@ func (s *Store) CountAdmins(ctx context.Context) (int, error) {
 // DeleteStaff removes a console account (never a plain user).
 func (s *Store) DeleteStaff(ctx context.Context, id int64) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM users WHERE id = ? AND role != 'user'`, id)
+	return err
+}
+
+// SetUserLang records the language a user reads, so their mail can follow
+// it. "" clears it back to the panel's mail language.
+func (s *Store) SetUserLang(ctx context.Context, userID int64, lang string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE users SET lang = ?, updated_at = ? WHERE id = ? AND role = 'user'`, lang, now(), userID)
 	return err
 }

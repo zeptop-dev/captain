@@ -1229,5 +1229,24 @@
     "throttle": "Throttle",
     "unlimited": "Also throttle users with no speed limit",
     "unlimitedHint": "They have no shaper on the node yet, so applying and lifting a throttle reloads the cores serving them and drops their connections. Off: only users who already have a speed limit are throttled."
+  },
+  "heartbeat": {
+    "title": "Panel heartbeat",
+    "hint": "Captain fetches this URL on a schedule, so an external watchdog (healthchecks.io, Uptime Kuma push, Better Stack) alerts when the panel itself stops — crash, disk, network, anything. It works behind NAT and Cloudflare Tunnel because the panel calls out.",
+    "enabled": "Send a heartbeat",
+    "url": "Ping URL",
+    "interval": "Every (seconds)",
+    "last": "Last beat",
+    "test": "Send one now",
+    "sent": "Heartbeat sent"
+  },
+  "adminlog": {
+    "title": "Console activity",
+    "hint": "Every change made through the console or an API token: who, what route, and what it answered. Reads are not recorded. Kept 180 days; admins only.",
+    "when": "When",
+    "who": "Who",
+    "what": "What",
+    "result": "Result",
+    "empty": "Nothing recorded yet"
   }
 }

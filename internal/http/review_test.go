@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -508,5 +509,96 @@ func TestTrafficSeqSurvivesANodeRestart(t *testing.T) {
 		Traffic: []spec.UserTraffic{{UserID: uid, Up: 100, Down: 0}}}, nil)
 	if got := used(); got != 700 {
 		t.Fatalf("re-sent batch charged twice: %d", got)
+	}
+}
+
+// The console records who changed what, and only admins may read it.
+func TestAdminLogRecordsWritesOnly(t *testing.T) {
+	r := newRig(t)
+	_, b, _ := r.c.do("POST", "/api/admin/groups", map[string]string{"Name": "logged"}, nil)
+	if len(b) == 0 {
+		t.Fatal("group not created")
+	}
+	r.c.do("GET", "/api/admin/nodes", nil, nil) // a read: must not be recorded
+	_, b, _ = r.c.do("GET", "/api/admin/admin-log", nil, nil)
+	entries := mustJSON[[]store.AdminEntry](t, b)
+	if len(entries) == 0 {
+		t.Fatal("nothing recorded")
+	}
+	var sawWrite bool
+	for _, e := range entries {
+		if e.Method == "GET" {
+			t.Fatalf("a read was recorded: %s %s", e.Method, e.Path)
+		}
+		if e.Method == "POST" && e.Path == "/api/admin/groups" {
+			sawWrite = true
+			if e.Email != "admin@test" || e.Role != "admin" || e.Status != 200 || e.Via != "session" {
+				t.Fatalf("entry does not describe the actor: %+v", e)
+			}
+		}
+	}
+	if !sawWrite {
+		t.Fatalf("the group creation was not recorded: %+v", entries)
+	}
+	// A failed write is recorded with its status, which is the case an
+	// operator most wants to see afterwards.
+	r.c.do("POST", "/api/admin/groups", map[string]string{"Name": ""}, nil)
+	_, b, _ = r.c.do("GET", "/api/admin/admin-log", nil, nil)
+	bad := 0
+	for _, e := range mustJSON[[]store.AdminEntry](t, b) {
+		if e.Status >= 400 {
+			bad++
+		}
+	}
+	if bad == 0 {
+		t.Fatal("a refused write was not recorded")
+	}
+	// Operators and support cannot read it.
+	for _, role := range []string{"operator", "support"} {
+		u, _ := admin.NewUser(role+"@log.test", "password123", role)
+		if err := r.st.CreateUser(context.Background(), u); err != nil {
+			t.Fatal(err)
+		}
+		c := &client{t: t, srv: r.srv}
+		c.do("POST", "/api/admin/login", map[string]string{"Email": u.Email, "Password": "password123"}, nil)
+		if code, _, _ := c.do("GET", "/api/admin/admin-log", nil, nil); code != http.StatusForbidden {
+			t.Fatalf("%s read the console log: %d", role, code)
+		}
+	}
+}
+
+// The heartbeat fetches the operator's URL and remembers how it went, so a
+// watchdog can tell that the panel is alive.
+func TestHeartbeatPings(t *testing.T) {
+	var hits int32
+	watchdog := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		atomic.AddInt32(&hits, 1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer watchdog.Close()
+
+	r := newRig(t)
+	if code, b, _ := r.c.do("PUT", "/api/admin/settings/heartbeat", map[string]any{"enabled": true, "url": watchdog.URL, "interval_seconds": 60}, nil); code != http.StatusOK {
+		t.Fatalf("save: %d %s", code, b)
+	}
+	// A URL that is not a URL is refused rather than silently never sent.
+	if code, _, _ := r.c.do("PUT", "/api/admin/settings/heartbeat", map[string]any{"enabled": true, "url": "hc-ping.com/x"}, nil); code != http.StatusBadRequest {
+		t.Fatalf("bad url accepted: %d", code)
+	}
+	if code, b, _ := r.c.do("POST", "/api/admin/settings/heartbeat/test", map[string]any{}, nil); code != http.StatusOK {
+		t.Fatalf("test beat: %d %s", code, b)
+	}
+	if n := atomic.LoadInt32(&hits); n != 1 {
+		t.Fatalf("watchdog was pinged %d times, want 1", n)
+	}
+	_, b, _ := r.c.do("GET", "/api/admin/settings/heartbeat", nil, nil)
+	var got struct {
+		Status store.HeartbeatStatus `json:"status"`
+	}
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Status.Code != 200 || got.Status.Error != "" || got.Status.At.IsZero() {
+		t.Fatalf("status not recorded: %+v", got.Status)
 	}
 }

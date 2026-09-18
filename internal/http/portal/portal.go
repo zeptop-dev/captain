@@ -71,6 +71,27 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("DELETE /api/portal/subscriptions/{id}", h.requireUser(h.cancelQueued))
 	mux.HandleFunc("GET /api/portal/notice", h.notice)
 	mux.HandleFunc("POST /api/portal/ref", h.ref)
+	// The portal tells us which language the user reads, so their mail can
+	// follow it instead of the panel-wide setting.
+	mux.HandleFunc("PUT /api/portal/me/lang", h.requireUser(func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Lang string `json:"lang"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			fail(w, http.StatusBadRequest, "bad json")
+			return
+		}
+		lang := strings.TrimSpace(in.Lang)
+		if lang != "" && !mail.Supported(lang) {
+			fail(w, http.StatusBadRequest, "unsupported language")
+			return
+		}
+		if err := h.Store.SetUserLang(r.Context(), userFrom(r).ID, lang); err != nil {
+			fail(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+		ok(w, map[string]string{"lang": lang})
+	}))
 	mux.HandleFunc("GET /api/portal/invite", h.requireUser(h.invite))
 	mux.HandleFunc("POST /api/portal/invite/bind", h.requireUser(h.bindInvite))
 	mux.HandleFunc("POST /api/portal/invite/transfer", h.requireUser(h.transferCommission))

@@ -54,19 +54,20 @@ import (
 
 // Server is the HTTP front.
 type Server struct {
-	backups  *backup.Manager
-	certs    *service.Certs
-	external *service.External
-	state    *service.AgentState
-	probe    *probe.Router
-	probeSvc *service.Probe
-	hooks    *webhook.Hub
-	bot      *telegram.Bot
-	subLinks *service.SubLinks
-	cfg      *config.Config
-	store    *store.Store
-	log      *slog.Logger
-	mux      *http.ServeMux
+	backups   *backup.Manager
+	certs     *service.Certs
+	external  *service.External
+	state     *service.AgentState
+	probe     *probe.Router
+	probeSvc  *service.Probe
+	heartbeat *service.Heartbeat
+	hooks     *webhook.Hub
+	bot       *telegram.Bot
+	subLinks  *service.SubLinks
+	cfg       *config.Config
+	store     *store.Store
+	log       *slog.Logger
+	mux       *http.ServeMux
 }
 
 // Options carries wiring the config alone cannot express (test gateways).
@@ -143,6 +144,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	}
 	s.external = &service.External{Store: st}
 	allow := &service.AdminAllow{Store: st}
+	s.heartbeat = &service.Heartbeat{Store: st, Log: log}
 	mcp.Register(s.mux, mcp.Deps{Store: st, Probe: s.probeSvc, Log: log, Version: cfg.Version, Allow: allow,
 		Resolve: func(ctx context.Context, token string) (*domain.User, string) {
 			u, scope, err := st.UserByAPIToken(ctx, token)
@@ -164,7 +166,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	s.certs = &service.Certs{Store: st, Issuer: certIssuer, Log: log, Notify: notifier}
 	s.probe = probe.Register(s.mux, probe.Deps{Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe()})
 	dyn := &service.DynLimit{Store: st, State: s.state, Notify: notifier, Hooks: s.hooks, Log: log, PushSeconds: cfg.Agent.PushSeconds}
-	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external, Allow: allow,
+	admin.Register(s.mux, admin.Deps{Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external, Allow: allow, Heartbeat: s.heartbeat,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version, MinVersion: cfg.MinVersion},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 	})
@@ -293,6 +295,9 @@ func (s *Server) Handler() http.Handler {
 		h.ServeHTTP(w, r)
 	})
 }
+
+// Heartbeat exposes the panel's own watchdog ping (jobs).
+func (s *Server) Heartbeat() *service.Heartbeat { return s.heartbeat }
 
 // Probe exposes the probe service (jobs).
 func (s *Server) Probe() *service.Probe { return s.probeSvc }

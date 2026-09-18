@@ -4,6 +4,10 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../lib/auth'
 import { useSite } from '../lib/theme'
+import { api } from '../lib/api'
+
+// The interface languages, and the language the account's mail follows.
+const LANGS: [string, string][] = [['zh-CN', '中文'], ['zh-TW', '繁體中文'], ['en', 'English'], ['ja', '日本語'], ['ko', '한국어'], ['ru', 'Русский']]
 
 const items = [{ to: '/', key: 'home' }, { to: '/plans', key: 'plans' }, { to: '/orders', key: 'orders' }, { to: '/servers', key: 'servers' }, { to: '/invite', key: 'invite' }, { to: '/tickets', key: 'tickets' }, { to: '/help', key: 'help' }]
 
@@ -15,6 +19,12 @@ export function Layout() {
   const loc = useLocation()
   const site = useSite()
   const brand = site.data?.theme?.portal_title || site.data?.name || 'Captain'
+  // Switching the interface language also tells the panel, so the account's
+  // mail arrives in the same language. A signed-out visitor just switches.
+  const pickLanguage = (code: string) => {
+    i18n.changeLanguage(code)
+    api.put('/api/portal/me/lang', { lang: code }).catch(() => { /* not signed in, or offline: the interface still switched */ })
+  }
   return (
     <AppShell header={{ height: 56 }} padding="md" styles={{ main: { background: 'var(--mantine-color-gray-0)' } }}>
       <AppShell.Header>
@@ -32,7 +42,7 @@ export function Layout() {
             <Group gap={4}>
               {site.data?.probe_url && <ActionIcon variant="subtle" color="gray" component="a" href={site.data.probe_url} target="_blank" aria-label={t('nav.status')}><IconActivity size={18} /></ActionIcon>}
               <Menu shadow="md"><Menu.Target><ActionIcon variant="subtle" color="gray"><IconLanguage size={18} /></ActionIcon></Menu.Target>
-                <Menu.Dropdown><Menu.Item onClick={() => i18n.changeLanguage('zh-CN')}>中文</Menu.Item><Menu.Item onClick={() => i18n.changeLanguage('zh-TW')}>繁體中文</Menu.Item><Menu.Item onClick={() => i18n.changeLanguage('en')}>English</Menu.Item><Menu.Item onClick={() => i18n.changeLanguage('ja')}>日本語</Menu.Item><Menu.Item onClick={() => i18n.changeLanguage('ko')}>한국어</Menu.Item><Menu.Item onClick={() => i18n.changeLanguage('ru')}>Русский</Menu.Item></Menu.Dropdown></Menu>
+                <Menu.Dropdown>{LANGS.map(([code, label]) => <Menu.Item key={code} onClick={() => pickLanguage(code)}>{label}</Menu.Item>)}</Menu.Dropdown></Menu>
               <ActionIcon variant="subtle" color="gray" onClick={async () => { await logout(); nav('/login') }} aria-label={t('nav.logout')}><IconLogout size={18} /></ActionIcon>
             </Group>
           </Group>

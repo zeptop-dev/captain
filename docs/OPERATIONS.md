@@ -119,6 +119,17 @@ Anything that happened between the snapshot and the restore (orders,
 sign-ups, traffic counters) is gone; the nodes' own counters are already
 zeroed after each report, so that traffic is not re-charged.
 
+**This procedure is exercised, not assumed.** Last drill 2026-09-18: the
+daily snapshot taken before the 1.0 upgrade (schema version 42) was
+restored into an empty data directory and started with the current binary.
+Migrations 43–48 applied on start, the accounts, nodes, plans and orders
+came back, and the restored panel served the test user's subscription to
+mihomo, sing-box and v2rayN with the correct `Subscription-Userinfo`. Two
+things that drill is worth repeating for: an *older* snapshot on a *newer*
+binary is the normal case and it works, and make sure nothing else is
+already listening on the port you start the restored panel on — otherwise
+you will be testing the wrong process.
+
 ## Upgrade
 
 Settings → Version and updates (`GET /api/admin/system/update`; the release

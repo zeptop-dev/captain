@@ -19,6 +19,8 @@ import { ProbeCard } from '../components/ProbeCard'
 import { TokensCard } from '../components/TokensCard'
 import { TwoFactorCard } from '../components/TwoFactorCard'
 import { SecurityCard } from '../components/SecurityCard'
+import { HeartbeatCard } from '../components/HeartbeatCard'
+import { AdminLogCard } from '../components/AdminLogCard'
 import { BackupCard } from '../components/BackupCard'
 import { KomariCard } from '../components/KomariCard'
 import { ConnLogCard } from '../components/ConnLogCard'
@@ -138,6 +140,7 @@ export default function SettingsPage() {
         <TelegramCard />
         <WebhooksCard />
         <ProbeCard />
+        <HeartbeatCard />
         <KomariCard />
         <ConnLogCard />
         <AuditRulesCard />
@@ -145,6 +148,7 @@ export default function SettingsPage() {
         <TokensCard />
         <TwoFactorCard />
         <SecurityCard />
+        <AdminLogCard />
         <BackupCard />
         <ClientsCard />
         <Card>

@@ -172,3 +172,10 @@ func textsFor(lang string) texts {
 	}
 	return catalog["en"]
 }
+
+// Supported reports whether a language code is one of the options, so an
+// API can refuse a typo instead of silently falling back to English.
+func Supported(code string) bool {
+	_, ok := catalog[code]
+	return ok
+}

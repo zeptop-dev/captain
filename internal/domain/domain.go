@@ -25,6 +25,9 @@ type User struct {
 	// HwidLimit overrides the plan's device limit for HWID-identified
 	// clients: nil = plan limit, 0 = unlimited for this user.
 	HwidLimit *int
+	// Lang is the language the user reads, set from the portal; "" means
+	// the panel's mail language decides.
+	Lang string
 	// FirstConnectedAt is when the panel first saw traffic for the user.
 	FirstConnectedAt *time.Time
 	CreatedAt        time.Time

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/zeptop-dev/captain/internal/backup"
@@ -44,6 +45,9 @@ type Runner struct {
 	Hooks *webhook.Hub
 	// Probe raises offline notices and prunes metrics (nil = off).
 	Probe *service.Probe
+	// Heartbeat pings an external watchdog so somebody notices when the
+	// panel itself stops (nil = off).
+	Heartbeat *service.Heartbeat
 	// External re-syncs airport subscriptions hourly (nil = off).
 	External  *service.External
 	lastSync  time.Time
@@ -136,6 +140,11 @@ func (r *Runner) Tick(ctx context.Context) {
 	if r.Probe != nil {
 		r.Probe.CheckOffline(ctx, now)
 	}
+	// Tell the outside world the panel is still alive. Last in the tick on
+	// purpose: a beat means "this process completed a cycle of work".
+	if r.Heartbeat != nil {
+		r.Heartbeat.Tick(ctx, now)
+	}
 	// The hourly cleanup runs whether or not the probe is configured: the
 	// tables below grow from subscription fetches and node reports.
 	if now.Sub(r.lastPrune) >= time.Hour {
@@ -182,6 +191,11 @@ func (r *Runner) Tick(ctx context.Context) {
 			log.Error("prune subscription history", "err", err)
 		} else if n > 0 {
 			log.Info("pruned subscription history", "rows", n)
+		}
+		if n, err := r.Store.PruneAdminLog(ctx, now.AddDate(0, 0, -180)); err != nil {
+			log.Error("prune admin log", "err", err)
+		} else if n > 0 {
+			log.Info("pruned admin log", "rows", n)
 		}
 		if n, err := r.Store.PruneAuditLog(ctx, now.AddDate(0, 0, -90)); err != nil {
 			log.Error("prune audit log", "err", err)
@@ -236,7 +250,14 @@ func (r *Runner) backup(ctx context.Context, now time.Time) (string, error) {
 // whose quota is 90% used, once per expiry / quota period.
 func (r *Runner) reminders(ctx context.Context, now time.Time, log *slog.Logger) {
 	ms := r.Mail.Settings(ctx)
-	mails := mail.For(ms.Language)
+	// Each recipient gets their own language when they picked one in the
+	// portal, otherwise the panel's setting.
+	mails := func(lang string) mail.Builder {
+		if strings.TrimSpace(lang) == "" {
+			lang = ms.Language
+		}
+		return mail.For(lang)
+	}
 	viaMail := ms.Enabled() && ms.Reminders
 	viaBot := r.Bot != nil && r.Bot.Enabled(ctx)
 	if !viaMail && !viaBot && r.Hooks == nil {
@@ -264,7 +285,7 @@ func (r *Runner) reminders(ctx context.Context, now time.Time, log *slog.Logger)
 	}
 	for _, e := range exp {
 		r.Hooks.Emit(ctx, webhook.SubscriptionExpiring, map[string]any{"user_id": e.UserID, "email": e.Email, "expires_at": e.ExpiresAt})
-		if !deliver(e.UserID, mails.Expiry(r.SiteName, e.Email, r.PortalURL, e.ExpiresAt), fmt.Sprintf("⏰ %s: your plan expires on %s. Renew: %s", r.SiteName, e.ExpiresAt.Format("2006-01-02"), r.PortalURL)) {
+		if !deliver(e.UserID, mails(e.Lang).Expiry(r.SiteName, e.Email, r.PortalURL, e.ExpiresAt), fmt.Sprintf("⏰ %s: your plan expires on %s. Renew: %s", r.SiteName, e.ExpiresAt.Format("2006-01-02"), r.PortalURL)) {
 			log.Warn("expiry reminder not delivered to the user; recorded anyway", "user", e.UserID)
 		}
 		// Recorded whether or not a user-facing channel took it: the
@@ -289,7 +310,7 @@ func (r *Runner) reminders(ctx context.Context, now time.Time, log *slog.Logger)
 				continue
 			}
 			r.Hooks.Emit(ctx, webhook.SubscriptionTraffic, map[string]any{"user_id": e.UserID, "email": e.Email, "threshold": e.Threshold, "used_percent": e.UsedPct})
-			if !deliver(e.UserID, mails.Traffic(r.SiteName, e.Email, r.PortalURL, e.UsedPct), fmt.Sprintf("📊 %s: you have used %d%% of your traffic. %s", r.SiteName, e.UsedPct, r.PortalURL)) {
+			if !deliver(e.UserID, mails(e.Lang).Traffic(r.SiteName, e.Email, r.PortalURL, e.UsedPct), fmt.Sprintf("📊 %s: you have used %d%% of your traffic. %s", r.SiteName, e.UsedPct, r.PortalURL)) {
 				log.Warn("traffic reminder not delivered to the user; recorded anyway", "user", e.UserID, "threshold", e.Threshold)
 			}
 			done[e.UserID] = true

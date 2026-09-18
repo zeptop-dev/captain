@@ -57,8 +57,10 @@ func (s *Store) CheckCode(ctx context.Context, email, purpose, code string) erro
 // Reminder is a user due for a notice. Ref identifies what it is about so
 // each notice goes out once (MarkNotified stores it).
 type Reminder struct {
-	UserID    int64
-	Email     string
+	UserID int64
+	Email  string
+	// Lang is the recipient's own language ("" = the panel's setting).
+	Lang      string
 	ExpiresAt time.Time
 	UsedPct   int
 	Threshold int // the traffic threshold crossed (traffic reminders)
@@ -68,7 +70,7 @@ type Reminder struct {
 // ExpiringSubscriptions lists active subscriptions expiring within window
 // that have not been reminded about this expiry yet.
 func (s *Store) ExpiringSubscriptions(ctx context.Context, at time.Time, window time.Duration) ([]Reminder, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT u.id, u.email, sub.expires_at FROM subscriptions sub JOIN users u ON u.id = sub.user_id
+	rows, err := s.db.QueryContext(ctx, `SELECT u.id, u.email, u.lang, sub.expires_at FROM subscriptions sub JOIN users u ON u.id = sub.user_id
 		WHERE sub.status = 'active' AND sub.expires_at IS NOT NULL AND sub.expires_at > ? AND sub.expires_at <= ?
 		AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = u.id AND n.kind = 'expiry' AND n.ref = CAST(sub.expires_at AS TEXT))`,
 		at.Unix(), at.Add(window).Unix())
@@ -80,7 +82,7 @@ func (s *Store) ExpiringSubscriptions(ctx context.Context, at time.Time, window 
 	for rows.Next() {
 		var r Reminder
 		var exp int64
-		if err := rows.Scan(&r.UserID, &r.Email, &exp); err != nil {
+		if err := rows.Scan(&r.UserID, &r.Email, &r.Lang, &exp); err != nil {
 			return nil, err
 		}
 		r.ExpiresAt = time.Unix(exp, 0)
@@ -95,7 +97,7 @@ func (s *Store) ExpiringSubscriptions(ctx context.Context, at time.Time, window 
 // period. The 90 % threshold also honours the pre-threshold reference so
 // an upgrade does not repeat old notices.
 func (s *Store) HighTrafficSubscriptions(ctx context.Context, pct int) ([]Reminder, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT u.id, u.email, (sub.used_up_bytes + sub.used_down_bytes) * 100 / sub.quota_bytes, sub.starts_at, COALESCE(sub.reset_at, 0)
+	rows, err := s.db.QueryContext(ctx, `SELECT u.id, u.email, u.lang, (sub.used_up_bytes + sub.used_down_bytes) * 100 / sub.quota_bytes, sub.starts_at, COALESCE(sub.reset_at, 0)
 		FROM subscriptions sub JOIN users u ON u.id = sub.user_id
 		WHERE sub.status = 'active' AND sub.quota_bytes > 0 AND (sub.used_up_bytes + sub.used_down_bytes) * 100 / sub.quota_bytes >= ?
 		AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = u.id AND n.kind = 'traffic'
@@ -109,7 +111,7 @@ func (s *Store) HighTrafficSubscriptions(ctx context.Context, pct int) ([]Remind
 	for rows.Next() {
 		var r Reminder
 		var used, starts, reset int64
-		if err := rows.Scan(&r.UserID, &r.Email, &used, &starts, &reset); err != nil {
+		if err := rows.Scan(&r.UserID, &r.Email, &r.Lang, &used, &starts, &reset); err != nil {
 			return nil, err
 		}
 		r.UsedPct = int(used)

@@ -1229,5 +1229,24 @@
     "throttle": "限速",
     "unlimited": "同時限速「本來沒有限速」的使用者",
     "unlimitedHint": "這類使用者節點上還沒有整形規則，加限速和到期都會重新載入服務他們的核心並中斷連線。關閉時只限速已經有速度上限的使用者。"
+  },
+  "heartbeat": {
+    "title": "面板心跳",
+    "hint": "Captain 按週期存取這個網址，外部看門狗（healthchecks.io、Uptime Kuma 推送監控、Better Stack）在心跳停止時告警——不論是崩潰、磁碟滿還是斷網。由面板主動外呼，所以 NAT 和 Cloudflare Tunnel 後面也能用。",
+    "enabled": "傳送心跳",
+    "url": "Ping 網址",
+    "interval": "間隔（秒）",
+    "last": "上次心跳",
+    "test": "立即傳送一次",
+    "sent": "心跳已傳送"
+  },
+  "adminlog": {
+    "title": "主控台操作紀錄",
+    "hint": "經主控台或 API 權杖做出的每一次變更：誰、哪個介面、回傳什麼。讀取不記錄。保留 180 天，僅管理員可見。",
+    "when": "時間",
+    "who": "操作者",
+    "what": "操作",
+    "result": "結果",
+    "empty": "尚無紀錄"
   }
 }
