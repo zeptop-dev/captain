@@ -460,3 +460,38 @@ func TestListSettingsAreReplaced(t *testing.T) {
 		t.Fatalf("the list was merged instead of replaced: %s", b)
 	}
 }
+
+// A node that restarts begins a new batch series at 1. The panel must
+// still charge those: treating "lower than the last one" as a repeat would
+// silently drop the node's traffic until its counter climbed back past the
+// number it had before the restart.
+func TestTrafficSeqSurvivesANodeRestart(t *testing.T) {
+	r := newRig(t)
+	uid, _ := r.user("restart@test")
+	used := func() int64 {
+		s, err := r.st.ActiveSubscription(context.Background(), uid)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s.UsedUpBytes + s.UsedDownBytes
+	}
+	for seq := uint64(1); seq <= 5; seq++ {
+		r.agent.do("POST", "/api/agent/report", agentproto.Report{TrafficSeq: seq, TrafficWindowSeconds: 60,
+			Traffic: []spec.UserTraffic{{UserID: uid, Up: 100, Down: 0}}}, nil)
+	}
+	if got := used(); got != 500 {
+		t.Fatalf("five batches: %d", got)
+	}
+	// The agent restarts: its counter starts over.
+	r.agent.do("POST", "/api/agent/report", agentproto.Report{TrafficSeq: 1, TrafficWindowSeconds: 60,
+		Traffic: []spec.UserTraffic{{UserID: uid, Up: 100, Down: 0}}}, nil)
+	if got := used(); got != 600 {
+		t.Fatalf("the first batch after a restart was dropped: %d", got)
+	}
+	// And a genuine re-send of that batch is still applied once.
+	r.agent.do("POST", "/api/agent/report", agentproto.Report{TrafficSeq: 1, TrafficWindowSeconds: 60,
+		Traffic: []spec.UserTraffic{{UserID: uid, Up: 100, Down: 0}}}, nil)
+	if got := used(); got != 600 {
+		t.Fatalf("re-sent batch charged twice: %d", got)
+	}
+}
