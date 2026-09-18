@@ -6,8 +6,9 @@ Merge commits and formatting-only commits are left out. Binaries and
 `SHA256SUMS` for every tag are on the GitHub Release; the in-app updater
 installs them (Settings → Version and updates).
 
-- **v0.59.0** (2026-09-17) — 1.0 preparation, no behaviour change for an existing installation:
-  - **[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)**: what a release promises from 1.0 on (semver, the agent protocol's add-only rule, the subscription URLs, the admin API, webhook payloads, config keys, forward-only migrations), the Captain ↔ bosun version matrix, and the measured database ceiling.
+- **v1.0.0** (2026-09-18) — the first release with a promise attached. Nothing in an existing installation behaves differently from v0.58.2; what changes is what you can rely on from here.
+  - **[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)** is the contract: semantic versioning, the agent protocol's add-only rule (an older node keeps working), stable subscription URLs and admin API, stable webhook payloads, config keys that are not renamed inside 1.x, forward-only migrations, and the Captain ↔ bosun version matrix.
+  - It also states the **database ceiling as a measured number** rather than an opinion, and records why there is no Postgres, MySQL or Redis, and why the connection log stays in the main database.
   - **`database.driver` takes `sqlite` only** and says so: the `postgres` value the config used to advertise was refused at start anyway. The reasoning (and why there is no Redis either) is in the new document, with numbers.
   - **`internal/store/scale_test.go`** (`CAPTAIN_SCALE=1`) measures the hot write paths on the real schema at a chosen fleet size, so the ceiling is a number instead of an opinion: at 50 000 users and 50 nodes a report charges 1 000 users in 85 ms, which is a 7 % duty cycle on the single connection (34 % with the connection log on).
   - Decision recorded: the connection log **stays** in the main database — it is already bounded per user and by retention, and a second file would have to be added to backup, restore and migrations. The document names the numbers that would make us revisit.

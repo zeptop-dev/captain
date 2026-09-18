@@ -43,7 +43,9 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
-| 1.0 | ≥ 0.46.1 recommended | traffic batch numbering (exactly-once charging across a report retry or a node restart), the node's own address space closed to users, panel rules validated on the node |
+| 1.0 | ≥ 0.47.0 recommended | the cores' own control APIs reachable only by root on the node |
+| | ≥ 0.46.1 | traffic batch numbering (exactly-once charging across a report retry or a node restart) |
+| | ≥ 0.46 | reports say what window their deltas cover, so the dynamic speed limit cannot mistake a backlog for a burst |
 | | ≥ 0.45 | private/loopback destinations rejected in the cores, route and audit rules validated before they reach a config |
 | | ≥ 0.44 | audit rules, dynamic speed limit, egress follows ingress |
 | | ≥ 0.42 | connection log, core isolation (`cores.user`) |
