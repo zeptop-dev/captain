@@ -5,7 +5,10 @@ nodes: users, plans, orders and payments, subscription output, node fleet,
 forwarding policy and configuration push. One Go binary with the admin console
 and user portal embedded. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md);
 running it in production (backup, restore, upgrade, monitoring):
-[docs/OPERATIONS.md](docs/OPERATIONS.md); changes per release: [CHANGELOG.md](CHANGELOG.md).
+[docs/OPERATIONS.md](docs/OPERATIONS.md); what each release promises, which
+bosun it works with and what the database is good for:
+[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md); changes per release:
+[CHANGELOG.md](CHANGELOG.md).
 Publishing the panel through Cloudflare Tunnel (no public IP, no open ports): [docs/CLOUDFLARE_TUNNEL.md](docs/CLOUDFLARE_TUNNEL.md).
 
 ## Status
@@ -572,6 +575,10 @@ bin/captain serve -c /etc/captain/config.yaml
 ```
 
 ## Releasing
+
+What a release promises (semver from 1.0, the agent protocol, webhook
+payloads, config keys, the bosun version matrix) is in
+[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
 
 Releases are cut from `main` by pushing a tag; the workflow builds the
 binaries, the `SHA256SUMS` and the images. Three rules, each of them learned

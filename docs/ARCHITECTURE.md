@@ -18,7 +18,7 @@ captain/
   migrations/             goose SQL files, embedded (Up only, applied on start)
   internal/
     config/               YAML config (listen, base_url, data_dir, tls, database, agent, payments, portal, limits, trusted_proxies)
-    db/                   database/sql + goose; sqlite only (driver "postgres" is refused by db.Open)
+    db/                   database/sql + goose; sqlite is the only engine
     domain/               plain Go types and rules (User, Plan, Subscription, Order, Node, Inbound, Entry, Coupon, Ticket, GiftCode, Article)
     store/                repositories: hand-written SQL, one file per aggregate
     service/              use cases: orders, subscriptions, node desired state (agentstate), certs, dns, external nodes, probe, sub links
@@ -57,8 +57,10 @@ Language and library choices:
 - `database/sql` with `modernc.org/sqlite` (pure Go, keeps the single static
   binary), opened with WAL, foreign keys, `busy_timeout=5000` and a single
   connection (`SetMaxOpenConns(1)`): one Captain process per database file.
-  The config accepts `database.driver: postgres` but `db.Open` rejects
-  anything except `sqlite`. Migrations embedded via goose; only `Up` runs.
+  `database.driver` takes `sqlite` and nothing else; the schema avoids
+  SQLite-only constructs so another engine stays possible, but none is
+  wired (see [COMPATIBILITY.md](COMPATIBILITY.md) for the measured
+  ceiling). Migrations embedded via goose; only `Up` runs.
 - Passwords argon2id; sessions are HttpOnly cookies (`captain_session`,
   30 days) backed by a table, flagged `admin` only when minted by the admin
   login (password + TOTP), so portal, OIDC and password-reset sessions never

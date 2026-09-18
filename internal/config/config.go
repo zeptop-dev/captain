@@ -39,8 +39,11 @@ type Config struct {
 	} `yaml:"tls"`
 
 	Database struct {
-		Driver string `yaml:"driver"` // "sqlite" (default) or "postgres"
-		DSN    string `yaml:"dsn"`    // sqlite: file path; postgres: connection string
+		// Driver is "sqlite"; nothing else is implemented (see
+		// docs/COMPATIBILITY.md). The key exists so an installation can
+		// be explicit, not to offer a choice.
+		Driver string `yaml:"driver"`
+		DSN    string `yaml:"dsn"` // sqlite: the database file path
 	} `yaml:"database"`
 
 	Agent struct {

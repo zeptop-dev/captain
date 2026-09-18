@@ -21,8 +21,10 @@ one writer. Consequences:
   in-memory state (node state cache, login lockout, allow-list cache, update
   check cache) is per process. Scale by giving the process a faster disk,
   not by adding processes.
-- `database.driver` accepts `postgres` in the config, but `db.Open` refuses
-  anything except `sqlite`; there is no Postgres backend today.
+- `database.driver` takes `sqlite`; anything else is refused at start.
+  There is no Postgres or MySQL backend, and no Redis: every cache and
+  counter lives in the one process. [COMPATIBILITY.md](COMPATIBILITY.md)
+  has the measured write times and the size this is good for.
 - Migrations (`migrations/*.sql`, goose) are applied on every start of
   `captain serve` and by `captain migrate`. Only the `Up` direction is ever
   run.
@@ -284,3 +286,6 @@ forward again with "upgrade".
   tools and the `confirm: true` guard on writes.
 - [ARCHITECTURE.md](ARCHITECTURE.md): packages, domain model, agent
   protocol, jobs.
+- [COMPATIBILITY.md](COMPATIBILITY.md): what a release promises, the
+  Captain ↔ bosun version matrix, and the measured database ceiling
+  (why SQLite, and no Postgres, MySQL or Redis).

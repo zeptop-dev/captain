@@ -15,8 +15,10 @@ import (
 	"github.com/zeptop-dev/captain/migrations"
 )
 
-// Open connects to the configured database. Only sqlite is wired for now;
-// the schema is written to stay portable to Postgres later.
+// Open connects to the configured database. SQLite is the only supported
+// engine (docs/COMPATIBILITY.md says what that costs and where the
+// ceiling is); the schema stays free of SQLite-only constructs so another
+// engine remains possible, but nothing else is wired.
 func Open(driver, dsn string) (*sql.DB, error) {
 	switch driver {
 	case "sqlite":
@@ -30,7 +32,7 @@ func Open(driver, dsn string) (*sql.DB, error) {
 		db.SetMaxOpenConns(1) // sqlite: one writer; reads are fast enough behind it
 		return db, db.Ping()
 	default:
-		return nil, fmt.Errorf("db: driver %q not supported yet", driver)
+		return nil, fmt.Errorf("db: driver %q is not supported; captain runs on sqlite", driver)
 	}
 }
 
