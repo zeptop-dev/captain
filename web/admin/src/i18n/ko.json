@@ -182,7 +182,9 @@
       "socks5": "SOCKS5",
       "socks5Desc": "평문, 사용자명/비밀번호 인증. 전용선·내부망·로컬 프로그램용.",
       "snell": "Snell v5",
-      "snellDesc": "Surge 공식 프로토콜로 PSK를 공유합니다. Surge / mihomo / Stash 만 사용할 수 있습니다."
+      "snellDesc": "Surge 공식 프로토콜로 PSK를 공유합니다. Surge / mihomo / Stash 만 사용할 수 있습니다.",
+      "shadowtls": "SS2022 + ShadowTLS",
+      "shadowtlsDesc": "포트를 탐색해도 실제 HTTPS 사이트로만 보입니다. sing-box 전용."
     },
     "realityAuto": "자동 선택",
     "realityProbe": "현재 대상 검사",
@@ -247,7 +249,13 @@
     "acceptProxy": "PROXY protocol 요구 (중계 전용)",
     "acceptProxyHint": "이 패널의 포워드로만 도달하는 인바운드에만 켜세요: 중계가 클라이언트 실제 주소를 PROXY protocol 헤더로 전달해 온라인 기기와 로그에 실제 클라이언트가 표시됩니다. 켜면 직접 연결은 실패합니다. xray 전용.",
     "snellMultiUser": "다중 사용자 (sing-box)",
-    "snellMultiUserHint": "sing-box가 제공: 사용자마다 자신의 키로 접속하고 트래픽이 사용자별로 집계됩니다. PSK는 서버 키로 유지됩니다. 사용자 키를 보낼 수 있는 건 sing-box 클라이언트(1.14+)뿐이라 이 회선은 sing-box 구독에만 나타납니다. obfs tls는 쓸 수 없습니다."
+    "snellMultiUserHint": "sing-box가 제공: 사용자마다 자신의 키로 접속하고 트래픽이 사용자별로 집계됩니다. PSK는 서버 키로 유지됩니다. 사용자 키를 보낼 수 있는 건 sing-box 클라이언트(1.14+)뿐이라 이 회선은 sing-box 구독에만 나타납니다. obfs tls는 쓸 수 없습니다.",
+    "shadowTLS": "ShadowTLS v3로 감싸기",
+    "shadowTLSHint": "공개 포트가 아래 사이트와 실제 TLS 핸드셰이크를 수행하고, 인증된 클라이언트만 이 인바운드로 전달합니다(인바운드는 루프백으로 이동). sing-box가 제공하며 각 사용자는 Shadowsocks 키와 별도로 ShadowTLS 비밀번호를 갖습니다. 지원 클라이언트: mihomo, Stash, sing-box, Surge, Loon, Shadowrocket.",
+    "shadowTLSHandshake": "핸드셰이크 사이트",
+    "shadowTLSHandshakeHint": "TLS 1.3을 지원하고 이 노드와 무관한 실제 HTTPS 사이트. 탐지자는 그 인증서를 보게 됩니다",
+    "shadowTLSStrict": "엄격 모드",
+    "shadowTLSStrictHint": "해당 사이트가 받아들이지 않을 ClientHello를 거부합니다"
   },
   "entries": {
     "title": "진입점",

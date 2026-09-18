@@ -182,7 +182,9 @@
       "wireguard": "WireGuard",
       "wireguardDesc": "整机 VPN，走 UDP；适合专线和内网。",
       "socks5": "SOCKS5",
-      "socks5Desc": "明文，用户名密码认证；专线、内网或本机程序用。"
+      "socks5Desc": "明文，用户名密码认证；专线、内网或本机程序用。",
+      "shadowtls": "SS2022 + ShadowTLS",
+      "shadowtlsDesc": "对着端口探测只会看到一个真实的 HTTPS 站点；仅 sing-box 提供。"
     },
     "mieruStrategy": "mieru 策略",
     "mieruStrategyHint": "同 nobrand-oneclick 的预设：专线不伪装，公网保守伪装，强化伪装加分片和填充；自定义则直接改下面的 traffic_pattern。",
@@ -247,7 +249,13 @@
     "acceptProxy": "要求 PROXY protocol（仅经转发）",
     "acceptProxyHint": "只给完全经本面板转发到达的入站开：中继会在连接前带上客户端真实地址，在线设备和日志看到的就是真实客户端。开了之后直连这个入站会失败。仅 xray。",
     "snellMultiUser": "多用户（sing-box）",
-    "snellMultiUserHint": "由 sing-box 承载：每个用户用自己的密钥连接，流量按用户统计；PSK 仍是服务端密钥。只有 sing-box 客户端（1.14+）能携带用户密钥，所以这条线路只出现在 sing-box 订阅里。不支持 obfs tls。"
+    "snellMultiUserHint": "由 sing-box 承载：每个用户用自己的密钥连接，流量按用户统计；PSK 仍是服务端密钥。只有 sing-box 客户端（1.14+）能携带用户密钥，所以这条线路只出现在 sing-box 订阅里。不支持 obfs tls。",
+    "shadowTLS": "套一层 ShadowTLS v3",
+    "shadowTLSHint": "公网端口与下面这个站点做真实 TLS 握手，只有通过认证的客户端才被放进这个入站，入站本身改听回环。由 sing-box 提供；每个用户在 Shadowsocks 密钥之外还有一个独立的 ShadowTLS 密码。支持的客户端：mihomo、Stash、sing-box、Surge、Loon、Shadowrocket。",
+    "shadowTLSHandshake": "握手站点",
+    "shadowTLSHandshakeHint": "一个支持 TLS 1.3、与本节点无关的真实 HTTPS 站点；探测者看到的是它的证书",
+    "shadowTLSStrict": "严格模式",
+    "shadowTLSStrictHint": "拒绝该站点本身不会接受的 ClientHello"
   },
   "entries": {
     "title": "入口",

@@ -182,7 +182,9 @@
       "socks5": "SOCKS5",
       "socks5Desc": "明文，使用者名稱密碼認證；專線、內網或本機程式用。",
       "snell": "Snell v5",
-      "snellDesc": "Surge 官方協定，共用 PSK；只有 Surge / mihomo / Stash 能用。"
+      "snellDesc": "Surge 官方協定，共用 PSK；只有 Surge / mihomo / Stash 能用。",
+      "shadowtls": "SS2022 + ShadowTLS",
+      "shadowtlsDesc": "對著連接埠探測只會看到一個真實的 HTTPS 站點；僅 sing-box 提供。"
     },
     "realityAuto": "自動選擇",
     "realityProbe": "探測目前目標",
@@ -247,7 +249,13 @@
     "acceptProxy": "要求 PROXY protocol（僅經轉發）",
     "acceptProxyHint": "只給完全經本面板轉發到達的入站開：中繼會在連線前帶上用戶端真實位址，線上裝置和日誌看到的就是真實用戶端。開了之後直連這個入站會失敗。僅 xray。",
     "snellMultiUser": "多使用者（sing-box）",
-    "snellMultiUserHint": "由 sing-box 承載：每位使用者以自己的金鑰連線，流量按使用者統計；PSK 仍是伺服器金鑰。只有 sing-box 客戶端（1.14+）能攜帶使用者金鑰，所以這條線路只出現在 sing-box 訂閱裡。不支援 obfs tls。"
+    "snellMultiUserHint": "由 sing-box 承載：每位使用者以自己的金鑰連線，流量按使用者統計；PSK 仍是伺服器金鑰。只有 sing-box 客戶端（1.14+）能攜帶使用者金鑰，所以這條線路只出現在 sing-box 訂閱裡。不支援 obfs tls。",
+    "shadowTLS": "套一層 ShadowTLS v3",
+    "shadowTLSHint": "公網連接埠與下面這個站點做真實 TLS 交握，只有通過驗證的用戶端才會被放進這個入站，入站本身改聽回環。由 sing-box 提供；每個使用者在 Shadowsocks 金鑰之外還有一組獨立的 ShadowTLS 密碼。支援的用戶端：mihomo、Stash、sing-box、Surge、Loon、Shadowrocket。",
+    "shadowTLSHandshake": "交握站點",
+    "shadowTLSHandshakeHint": "一個支援 TLS 1.3、與本節點無關的真實 HTTPS 站點；探測者看到的是它的憑證",
+    "shadowTLSStrict": "嚴格模式",
+    "shadowTLSStrictHint": "拒絕該站點本身不會接受的 ClientHello"
   },
   "entries": {
     "title": "入口",

@@ -37,9 +37,9 @@ with its result.
 
 An inbound is one listening service on one node: protocol, port, listen
 address, transport and its settings. Quick-setup recipes fill in a working
-configuration for VLESS+REALITY, Hysteria2, mieru, Shadowsocks 2022 and
-Trojan+WS, generating any keys server-side so an API-created inbound cannot
-break a node.
+configuration for VLESS+REALITY, Hysteria2, mieru, Shadowsocks 2022,
+SS2022 + ShadowTLS and Trojan+WS, generating any keys server-side so an
+API-created inbound cannot break a node.
 
 Supported protocols: VLESS (+ REALITY), VMess, Trojan, Shadowsocks
 (including 2022 ciphers), Hysteria2, TUIC, AnyTLS, mieru, Snell, SOCKS,
@@ -65,6 +65,18 @@ also reserves `port + 1`).
   X25519 / certificate checks and CDN detection, then picks one. A node can
   also serve its own HTTPS *decoy* site on loopback and use it as the
   target, so a prober sees a genuine certificate for your name.
+- **ShadowTLS** — a Shadowsocks inbound can be wrapped in ShadowTLS v3
+  (the *SS2022 + ShadowTLS* recipe, or the switch on any Shadowsocks
+  inbound). The public port performs a real TLS handshake with a site you
+  name — `www.apple.com:443` by default — and only an authenticated client
+  is handed through to the Shadowsocks inbound, which moves to loopback: a
+  prober sees that site's certificate and nothing else. Every user gets
+  their own ShadowTLS password derived from their UUID, on top of the
+  Shadowsocks key, so revoking a user revokes both. Strict mode (on by
+  default) refuses a ClientHello the site itself would not accept.
+  sing-box only — Xray has no ShadowTLS, REALITY is its answer to the same
+  problem — and the subscription carries it for mihomo, Stash, sing-box,
+  Surge, Loon and Shadowrocket. Needs bosun ≥ 0.48.
 - **Snell** — served by sing-box (bosun ≥ 0.41; its Snell server speaks
   v5, obfs http). With *Multi-user (sing-box)* every user connects with
   their own key and traffic is accounted per user, but only sing-box

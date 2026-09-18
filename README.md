@@ -40,8 +40,9 @@ in lockstep with the panel.
 ## Features
 
 **Protocols and cores** ([docs](docs/NODES.md#inbounds)) — VLESS (+ REALITY, with a decoy site and a target
-scanner), VMess, Trojan, Shadowsocks (incl. 2022 ciphers), Hysteria2, TUIC,
-AnyTLS, mieru, Snell, SOCKS, HTTP, NaiveProxy and WireGuard. Each inbound
+scanner), VMess, Trojan, Shadowsocks (incl. 2022 ciphers and ShadowTLS v3),
+Hysteria2, TUIC, AnyTLS, mieru, Snell, SOCKS, HTTP, NaiveProxy and
+WireGuard. Each inbound
 picks its core; bosun installs and supervises the binaries, so there is no
 fork of anything to maintain.
 

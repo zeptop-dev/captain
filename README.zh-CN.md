@@ -39,7 +39,7 @@ mita（mieru）、Hysteria、snell-server 和 realm 作为子进程拉起来。
 ## 功能特性
 
 **协议与内核**（[文档](docs/NODES.md#inbounds)）—— VLESS（含 REALITY，带伪装站点和 dest
-扫描器）、VMess、Trojan、Shadowsocks（含 2022 加密）、Hysteria2、TUIC、
+扫描器）、VMess、Trojan、Shadowsocks（含 2022 加密与 ShadowTLS v3）、Hysteria2、TUIC、
 AnyTLS、mieru、Snell、SOCKS、HTTP、NaiveProxy 和 WireGuard。每个入站
 各自选择内核；二进制由 bosun 安装并托管，因此没有任何魔改分支需要
 维护。

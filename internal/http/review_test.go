@@ -602,3 +602,34 @@ func TestHeartbeatPings(t *testing.T) {
 		t.Fatalf("status not recorded: %+v", got.Status)
 	}
 }
+
+// A ShadowTLS inbound is accepted where it works and refused where it does
+// not: the panel validates with the same rules the node does, so a bad one
+// never reaches a config file.
+func TestShadowTLSInboundValidation(t *testing.T) {
+	r := newRig(t)
+	node := "/api/admin/nodes/" + itoa(r.nodeID)
+	st := map[string]any{"handshake": "www.apple.com:443", "strict_mode": true}
+
+	if code, b, _ := r.c.do("POST", node+"/inbounds", map[string]any{
+		"Tag": "stls", "Protocol": "shadowsocks", "Port": 8443,
+		"Settings": map[string]any{"cipher": "2022-blake3-aes-128-gcm", "shadow_tls": st},
+	}, nil); code != http.StatusOK {
+		t.Fatalf("shadowsocks + ShadowTLS refused: %d %s", code, b)
+	}
+	for _, c := range []struct {
+		name     string
+		settings map[string]any
+		protocol string
+	}{
+		{"on another protocol", map[string]any{"shadow_tls": st}, "trojan"},
+		{"without a handshake target", map[string]any{"cipher": "2022-blake3-aes-128-gcm", "shadow_tls": map[string]any{"strict_mode": true}}, "shadowsocks"},
+	} {
+		code, b, _ := r.c.do("POST", node+"/inbounds", map[string]any{
+			"Tag": "bad-" + strings.ReplaceAll(c.name, " ", "-"), "Protocol": c.protocol, "Port": 9443, "Settings": c.settings,
+		}, nil)
+		if code == http.StatusOK {
+			t.Fatalf("ShadowTLS %s was accepted: %s", c.name, b)
+		}
+	}
+}

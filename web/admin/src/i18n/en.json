@@ -182,7 +182,9 @@
       "wireguard": "WireGuard",
       "wireguardDesc": "Whole-device VPN over UDP; for lines and internal networks.",
       "socks5": "SOCKS5",
-      "socks5Desc": "Plain text with username/password; for lines, LANs or local programs."
+      "socks5Desc": "Plain text with username/password; for lines, LANs or local programs.",
+      "shadowtls": "SS2022 + ShadowTLS",
+      "shadowtlsDesc": "Looks like a real HTTPS site to anything that probes the port; sing-box only."
     },
     "mieruStrategy": "mieru strategy",
     "mieruStrategyHint": "Same presets as nobrand-oneclick: dedicated line = no obfuscation, public = conservative, stealth adds fragmentation and padding; custom edits traffic_pattern below directly.",
@@ -247,7 +249,13 @@
     "acceptProxy": "Expect PROXY protocol (relays only)",
     "acceptProxyHint": "Only for an inbound reached exclusively through this panel's forwards: the relay sends the client's address in a PROXY protocol header, so online devices and logs show the real client. Direct connections to such an inbound fail. xray only.",
     "snellMultiUser": "Multi-user (sing-box)",
-    "snellMultiUserHint": "Served by sing-box: every user connects with their own key and traffic is counted per user; the PSK stays the server key. Only sing-box clients (1.14+) can present a user key, so this line appears in sing-box subscriptions only. Obfs tls is not available."
+    "snellMultiUserHint": "Served by sing-box: every user connects with their own key and traffic is counted per user; the PSK stays the server key. Only sing-box clients (1.14+) can present a user key, so this line appears in sing-box subscriptions only. Obfs tls is not available.",
+    "shadowTLS": "Wrap in ShadowTLS v3",
+    "shadowTLSHint": "The public port performs a real TLS handshake with the site below and only lets authenticated clients through to this inbound, which moves to loopback. sing-box serves it; every user gets their own ShadowTLS password on top of the Shadowsocks key. Clients: mihomo, Stash, sing-box, Surge, Loon, Shadowrocket.",
+    "shadowTLSHandshake": "Handshake site",
+    "shadowTLSHandshakeHint": "A real HTTPS site with TLS 1.3, unrelated to this node; its certificate is what a prober sees",
+    "shadowTLSStrict": "Strict mode",
+    "shadowTLSStrictHint": "Refuse a ClientHello the site itself would not accept"
   },
   "entries": {
     "title": "Entries",

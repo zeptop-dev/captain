@@ -182,7 +182,9 @@
       "socks5": "SOCKS5",
       "socks5Desc": "平文・ユーザー名パスワード認証。専用線・内部網・ローカル用。",
       "snell": "Snell v5",
-      "snellDesc": "Surge の公式プロトコル。PSK を共有し、Surge / mihomo / Stash のみ利用可。"
+      "snellDesc": "Surge の公式プロトコル。PSK を共有し、Surge / mihomo / Stash のみ利用可。",
+      "shadowtls": "SS2022 + ShadowTLS",
+      "shadowtlsDesc": "ポートを調べても実在の HTTPS サイトにしか見えません。sing-box のみ。"
     },
     "realityAuto": "自動選択",
     "realityProbe": "現在の対象を検査",
@@ -247,7 +249,13 @@
     "acceptProxy": "PROXY protocol を要求（中継専用）",
     "acceptProxyHint": "このパネルの転送経由でのみ到達するインバウンド向け：中継がクライアントの実アドレスを PROXY protocol ヘッダーで渡し、オンライン端末とログに実クライアントが表示されます。有効にすると直接接続は失敗します。xray のみ。",
     "snellMultiUser": "マルチユーザー（sing-box）",
-    "snellMultiUserHint": "sing-box が提供：各ユーザーは自分のキーで接続し、トラフィックはユーザーごとに集計。PSK はサーバーキーのまま。ユーザーキーを送れるのは sing-box クライアント（1.14 以上）だけなので、この回線は sing-box サブスクにのみ現れます。obfs tls は使えません。"
+    "snellMultiUserHint": "sing-box が提供：各ユーザーは自分のキーで接続し、トラフィックはユーザーごとに集計。PSK はサーバーキーのまま。ユーザーキーを送れるのは sing-box クライアント（1.14 以上）だけなので、この回線は sing-box サブスクにのみ現れます。obfs tls は使えません。",
+    "shadowTLS": "ShadowTLS v3 でくるむ",
+    "shadowTLSHint": "公開ポートは下のサイトと本物の TLS ハンドシェイクを行い、認証済みのクライアントだけをこのインバウンドに通します（インバウンド自体はループバックに移ります）。sing-box が提供し、各ユーザーは Shadowsocks の鍵とは別に ShadowTLS のパスワードを持ちます。対応クライアント：mihomo、Stash、sing-box、Surge、Loon、Shadowrocket。",
+    "shadowTLSHandshake": "ハンドシェイク先",
+    "shadowTLSHandshakeHint": "TLS 1.3 に対応し、このノードとは無関係な実在の HTTPS サイト。調査者が見るのはその証明書です",
+    "shadowTLSStrict": "厳格モード",
+    "shadowTLSStrictHint": "そのサイト自身が受け付けない ClientHello を拒否します"
   },
   "entries": {
     "title": "エントリ",

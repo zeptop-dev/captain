@@ -50,6 +50,7 @@ const recipes: { key: string; protocol: string; port: number; settings: Record<s
   { key: 'wireguard', protocol: 'wireguard', port: 51820, settings: { wg_private_key: '', wg_public_key: '', wg_address: '10.66.0.1/16', wg_mtu: 1420 } },
   { key: 'socks5', protocol: 'socks', port: 1080, settings: {} },
   { key: 'ss2022', protocol: 'shadowsocks', port: 8388, settings: { cipher: '2022-blake3-aes-128-gcm', server_key: '' } },
+  { key: 'shadowtls', protocol: 'shadowsocks', port: 443, settings: { cipher: '2022-blake3-aes-128-gcm', server_key: '', shadow_tls: { handshake: 'www.apple.com:443', strict_mode: true } } },
   { key: 'trojanWs', protocol: 'trojan', port: 443, settings: { tls: { mode: 1, server_name: 'node.example.com', auto_cert: true, acme: 'http' }, transport: { type: 'ws', path: '/trojan', host: 'node.example.com' } } },
 ]
 
@@ -195,6 +196,24 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
             <TextInput label={t('inbounds.wgPublic')} value={String(settingOf(form.values.Settings, 'wg_public_key') ?? '')} onChange={(e) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { wg_public_key: e.currentTarget.value }))} />
             <TextInput label={t('inbounds.wgAddress')} description={t('inbounds.wgAddressHint')} value={String(settingOf(form.values.Settings, 'wg_address') ?? '10.66.0.1/16')} onChange={(e) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { wg_address: e.currentTarget.value }))} />
           </Group>
+        )}
+        {form.values.Protocol === 'shadowsocks' && (
+          <Stack gap="xs">
+            <Switch
+              label={t('inbounds.shadowTLS')} description={t('inbounds.shadowTLSHint')}
+              checked={!!settingOf(form.values.Settings, 'shadow_tls')}
+              onChange={(e) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { shadow_tls: e.currentTarget.checked ? { handshake: 'www.apple.com:443', strict_mode: true } : null }))} />
+            {!!settingOf(form.values.Settings, 'shadow_tls') && (() => {
+              const st = (settingOf(form.values.Settings, 'shadow_tls') ?? {}) as { handshake?: string; strict_mode?: boolean }
+              const patch = (v: Partial<typeof st>) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { shadow_tls: { ...st, ...v } }))
+              return (
+                <Group grow align="flex-end">
+                  <TextInput label={t('inbounds.shadowTLSHandshake')} description={t('inbounds.shadowTLSHandshakeHint')} placeholder="www.apple.com:443" value={st.handshake ?? ''} onChange={(e) => patch({ handshake: e.currentTarget.value })} />
+                  <Switch mb={6} label={t('inbounds.shadowTLSStrict')} description={t('inbounds.shadowTLSStrictHint')} checked={st.strict_mode !== false} onChange={(e) => patch({ strict_mode: e.currentTarget.checked })} />
+                </Group>
+              )
+            })()}
+          </Stack>
         )}
         {form.values.Protocol === 'snell' && (
           <Stack gap="xs">
