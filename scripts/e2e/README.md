@@ -13,7 +13,12 @@ release:
    protocols);
 3. a download through one proxy is charged to the user within the report
    window;
-4. with a temporary speed limit on the user (`PUT
+4. through one proxy per routing core, the node's own address space is
+   closed: the agent's metrics, the cores' control APIs, the cloud
+   metadata address and the private ranges answer nothing, while an
+   ordinary destination still works (bosun ≥ 0.45; a paying user could
+   read `127.0.0.1:9100/metrics` through the proxy before that);
+5. with a temporary speed limit on the user (`PUT
    /api/admin/users/{id}/dyn-limit`, captain ≥ 0.57.4) the same proxy still
    connects and the download is shaped — the marking outbound plus the
    kernel shaper, the path a core sandboxing change once broke.

@@ -207,6 +207,47 @@ def download(mixed):
     return n, time.time() - t0
 
 
+# The node's own address space, which a user's traffic must never reach:
+# the agent's metrics, the cores' control APIs, the cloud metadata service
+# and the private ranges behind the node.
+PRIVATE_TARGETS = [
+    "http://127.0.0.1:9100/metrics",  # bosun
+    "http://127.0.0.1:9102/",         # xray api
+    "http://[::1]:9100/metrics",
+    "http://169.254.169.254/",        # cloud metadata
+    "http://10.0.0.1/",
+    "http://192.168.1.1/",
+]
+
+
+def check_private_dest(ctl, mixed, picks):
+    """Through each core: an ordinary destination works, the node's own
+    loopback/link-local/private addresses do not. A paying user could read
+    the agent's metrics and talk to xray's unauthenticated API until the
+    cores learned to reject private destinations."""
+    print("== node address space (through each core)")
+    for pick in picks:
+        select_proxy(ctl, pick)
+        code = curl_via(mixed, "http://cp.cloudflare.com/", timeout=20)
+        if code not in ("200", "204"):
+            fail("%s: ordinary destination answered %s, cannot judge the rest" % (pick, code or "nothing"))
+            continue
+        for target in PRIVATE_TARGETS:
+            code = curl_via(mixed, target)
+            if code == "200":
+                fail("%s served %s to a user" % (pick, target))
+            else:
+                ok("%s refused %s (%s)" % (pick, target, code or "no answer"))
+
+
+def curl_via(mixed, target, timeout=8):
+    """curl through the proxy; urllib bypasses proxies for loopback URLs."""
+    out = subprocess.run(["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", "--max-time", str(timeout),
+                          "--noproxy", "", "-x", "http://127.0.0.1:%d" % mixed, target],
+                         capture_output=True, text=True).stdout.strip()
+    return out
+
+
 def check_speed_limit(ctl, mixed, pick):
     """Throttle the user (a temporary limit, the same mechanism the dynamic
     limiter uses), wait for the nodes to apply it, download again: the
@@ -301,6 +342,16 @@ def main():
             ok("charged %d bytes to user %s within the report window" % (delta, USER_ID))
         else:
             fail("only %d of %d bytes charged to user %s after %ds" % (delta, n, USER_ID, ACCOUNT_WAIT))
+        # One proxy per core that can route: sing-box and xray render the
+        # reject rules separately.
+        cores = []
+        for n in good:
+            low = n.lower()
+            if "reality" in low and not any("reality" in c.lower() for c in cores):
+                cores.append(n)
+            elif ("ss2022" in low or "trojan" in low) and not any(("ss2022" in c.lower() or "trojan" in c.lower()) for c in cores):
+                cores.append(n)
+        check_private_dest(ctl, mixed, cores or [pick])
         if not SKIP_LIMIT:
             check_speed_limit(ctl, mixed, pick)
     finally:
