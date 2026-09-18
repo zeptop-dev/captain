@@ -17,6 +17,23 @@ Captain follows semantic versioning from 1.0.0 on:
 Every release lists what changed in [CHANGELOG.md](../CHANGELOG.md), and
 the release notes name the bosun version it was tested against.
 
+## How a release is cut
+
+Three rules, each learned the hard way:
+
+1. **The release workflow runs the same gates as CI** — i18n parity,
+   oxlint, `gofmt`, `go vet`, `go test -race` — and the image job waits for
+   the binaries. A red commit cannot become a release.
+2. **A published tag is never moved.** The self-updater compares versions
+   only, so a node or panel that already fetched the first build of a tag
+   would stay on it for ever. Something wrong in a release is fixed by the
+   next patch version.
+3. **`make e2e` before a release that touches the node protocol,
+   subscription output or the money paths**, against a real panel with real
+   nodes and a real client (`scripts/e2e/README.md`). A release that only
+   touches the console or the docs does not need it. The run is noted in
+   the release notes.
+
 ## What is stable in 1.x
 
 | Contract | Promise |

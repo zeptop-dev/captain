@@ -1,601 +1,260 @@
+<div align="center">
+
 # Captain
 
-Unified management panel for [bosun](https://github.com/zeptop-dev/bosun)
-nodes: users, plans, orders and payments, subscription output, node fleet,
-forwarding policy and configuration push. One Go binary with the admin console
-and user portal embedded. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md);
-running it in production (backup, restore, upgrade, monitoring):
-[docs/OPERATIONS.md](docs/OPERATIONS.md); what each release promises, which
-bosun it works with and what the database is good for:
-[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md); changes per release:
-[CHANGELOG.md](CHANGELOG.md).
-Publishing the panel through Cloudflare Tunnel (no public IP, no open ports): [docs/CLOUDFLARE_TUNNEL.md](docs/CLOUDFLARE_TUNNEL.md).
+**A proxy panel that actually runs the fleet: users, plans, payments, subscriptions — and the nodes themselves.**
 
-## Status
+[![Release](https://img.shields.io/github/v/release/zeptop-dev/captain?style=flat-square&color=brightgreen)](https://github.com/zeptop-dev/captain/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/zeptop-dev/captain/ci.yml?branch=master&style=flat-square)](https://github.com/zeptop-dev/captain/actions)
+[![Go](https://img.shields.io/github/go-mod/go-version/zeptop-dev/captain?style=flat-square)](go.mod)
+[![Downloads](https://img.shields.io/github/downloads/zeptop-dev/captain/total?style=flat-square)](https://github.com/zeptop-dev/captain/releases)
+[![Docker](https://img.shields.io/docker/pulls/zeptop/captain?style=flat-square)](https://hub.docker.com/r/zeptop/captain)
+[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
-One binary, verified by end-to-end API tests (`internal/http/e2e_test.go`)
-and by `make e2e` against a real panel with real nodes and a headless mihomo
-(`scripts/e2e/README.md`), which every release that touches the node
-protocol, subscription output or the money paths has to pass — see
-[Releasing](#releasing). Live runs use real bosun nodes (Captain driver)
-serving the official clients, with the traffic landing in the user's
-subscription:
+[Install](#quick-start) · [Documentation](#documentation) · [Compatibility](docs/COMPATIBILITY.md) · [Changelog](CHANGELOG.md)
 
-- SQLite database with embedded goose migrations (`migrations/`): users,
-  sessions, plans, subscriptions, orders, nodes, inbounds, entries, traffic,
-  online devices, forward status, settings, and what later releases added
-  (coupons, commissions, tickets, gift codes, articles, external nodes, probe
-  stats, sub links, API tokens, domains, ingresses, certificates, node jobs).
-  One Captain process per database file (see `docs/OPERATIONS.md`).
-- Admin API: login with argon2id + session cookie, create nodes (one-time
-  pairing code), inbounds, user groups, users, plans, grant a plan, user detail.
-- Per-inbound access: an inbound bound to a user group only provisions that
-  group's users (`spec.Inbound.ScopedUsers`); ungrouped inbounds get every
-  user with a usable subscription.
-- Agent API implementing `bosun/pkg/agentproto`: pair, state with ETag,
-  report (traffic per user *and inbound*, charged to the subscription whose
-  plan group matches that inbound — an ungrouped inbound charges the
-  soonest-expiring plan — online devices,
-  forward status, node liveness). A user whose subscription expires or runs
-  out of quota disappears from the node's desired state.
+</div>
 
-- Subscriptions at `GET /sub/<token>` with client detection (`?client=` override): mihomo/Clash YAML, Stash YAML, sing-box JSON, Egern YAML, Surge, Surfboard, Loon and Quantumult X node lists, base64 share links (v2rayN, Shadowrocket), WireGuard `.conf`. The renderers are bosun's `pkg/subscription`, shared with the standalone panel. Admin → Sub templates edits the document around the servers per format: YAML templates (clash, stash) get their `proxies` replaced and a `{{proxy_names}}` entry inside any proxy-group expands to every server name; text templates (surge, surfboard, loon, qx; egern is YAML with `{{proxy_names}}` in its policy groups) replace `{{proxies}}` with the server lines and `{{proxy_names}}` with the comma-joined names. Loon and QX default to bare node lists because their remote subscriptions are node lists. Per-format protocol coverage follows each client's official reference: Loon (nsloon.app/docs/Node) gets ss, vmess, vless (+REALITY), trojan, hysteria2 and anytls over tcp/ws/http; Quantumult X (sample.conf) gets ss, vmess, vless (+REALITY) and trojan over tcp/ws; Surfboard (manual.getsurfboard.com) gets ss, vmess and trojan only; Stash (stash.wiki) uses its own keys (`sni`, hysteria2 `auth`/`up-speed`/`down-speed`, tuic `version`/`alpn`). Servers a client cannot express are left out of that client's document. `Subscription-Userinfo` header with usage and expiry. Entries decide what users see: display host and port on top of the landing inbound's settings; group-restricted inbounds only appear for that group. Rendered mihomo and sing-box documents validated with the real clients. The same page has a visual designer (bosun's `pkg/subdesign`): proxy groups whose members are all servers, servers with an entry tag (`{{proxy_names:tag=hk}}`), servers whose name matches a region pattern (`{{proxy_names:match=HK|香港}}`) or other groups, plus an ordered rule list drawn from the ACL4SSR catalogue with presets (basic, ACL4SSR standard, standard + region groups); "Generate & apply" writes every format's template at once. Each entry can carry client extra fields (a JSON object merged into its mihomo/Stash/sing-box proxy: tfo, smux, dialer-proxy, ip-version…). External nodes are TCP-probed from the panel every 10 minutes; a source with "hide unreachable nodes" drops the ones whose last probe failed from subscriptions. A node option "mita native quotas" also writes each user's allowance into mita's own quotas (window = the plan's reset cycle) so the core keeps enforcing it when the panel is unreachable.
+---
 
-- Orders and payments: EPay 易支付 **v1 (MD5) and v2 (RSA)** behind one gateway (`payments.epay.version`), Stripe Checkout, 支付宝当面付 (Alipay F2F, scan-to-pay QR page), Coinbase Commerce, CoinPayments, BTCPay Server, MGate, and balance. Every callback is signature-verified before any field is read; settlement is idempotent under repeated callbacks and refused when the callback amount differs from the order.
-- Portal API under `/api/portal`: register (optional), login, me (subscription, usage, subscription URL), plans, servers with per-server share links, orders, create order (returns the payment URL).
+Captain is one Go binary with the admin console and the user portal embedded.
+It sells access (plans, orders, eight payment gateways, invites, coupons,
+tickets), renders subscriptions for every client people actually use, and
+drives the nodes: you paste one command on a fresh server and the node
+appears in the console, configured, with certificates.
 
-- Admin console (`web/admin`, React 19 + Mantine 8 + TanStack Query, zh-CN and en) embedded at `/admin/`: overview with traffic chart, nodes with a one-line install command (`curl .../api/agent/install.sh?pair=CODE | sh`, or a `docker run` with `BOSUN_CAPTAIN`/`BOSUN_PAIR`) that installs and pairs bosun, node detail with host metrics and inbounds (quick-setup recipes for VLESS+REALITY, Hysteria2, mieru, SS2022, Trojan+WS), entries, users with an edit drawer (grant plan, balance, rotate subscription URL), plans, orders, settings.
+The node side is [**bosun**](https://github.com/zeptop-dev/bosun), a root
+agent that runs sing-box, Xray, mita (mieru), Hysteria, snell-server and
+realm as child processes from the desired state Captain pushes. The two
+speak a documented, add-only protocol, so a node never has to be upgraded
+in lockstep with the panel.
 
-- User portal (`web/portal`, light theme, phone friendly) embedded at `/portal/` (the site root redirects there): sign up / sign in, home with usage, expiry, balance, subscription link with copy, QR code and one-tap import links (Clash, sing-box, Shadowrocket, Surge), plans paid with balance or any enabled gateway (see Payment gateways), orders, servers with per-server share links.
+> [!IMPORTANT]
+> This is infrastructure for running your own service for yourself, your
+> friends or your customers. You are responsible for what runs through it
+> and for the law where your servers and your users are. Check both before
+> you deploy.
 
-Housekeeping runs in-process (`internal/jobs`, one tick a minute: stale
-order cancellation, subscription expiry, quota resets, queued-plan starts,
-session and online-device purges, hourly reminders and external node sync,
-daily backups, certificate renewal); nodes report online client IPs
-(`Report.Online`) for device limits; mail (`internal/mail`) covers
-registration codes, password reset and reminders. The sections below
-describe each.
+## Features
 
-## Install
+**Protocols and cores** ([docs](docs/NODES.md#inbounds)) — VLESS (+ REALITY, with a decoy site and a target
+scanner), VMess, Trojan, Shadowsocks (incl. 2022 ciphers), Hysteria2, TUIC,
+AnyTLS, mieru, Snell, SOCKS, HTTP, NaiveProxy and WireGuard. Each inbound
+picks its core; bosun installs and supervises the binaries, so there is no
+fork of anything to maintain.
 
-One Linux server, a domain whose A record points at it, ports 80 and 443 free.
-Captain terminates HTTPS itself with a Let's Encrypt certificate; no reverse
-proxy needed.
+**Subscriptions that fit the client** ([docs](docs/SUBSCRIPTIONS.md)) — mihomo/Clash, Stash, sing-box,
+Egern, Surge, Surfboard, Loon, Quantumult X, base64 share links (v2rayN,
+Shadowrocket) and WireGuard `.conf`, each following that client's own
+reference so a server it cannot express is simply left out. Per-format
+templates, a visual proxy-group and rule designer with the ACL4SSR
+catalogue, remark variables (`{{DAYS_LEFT}}`, `{{TRAFFIC_LEFT}}`, …), info
+lines, short links and revocable temporary links.
+
+**Billing** ([docs](docs/BILLING.md)) — plans with periods, quotas, device and speed limits; several
+plans per user (stacked, queued, replace); orders paid by balance, EPay
+易支付 (v1 MD5 and v2 RSA), Stripe, Alipay F2F, Coinbase Commerce,
+CoinPayments, BTCPay Server or MGate. Every callback is signature-verified
+before a field is read, settlement is idempotent, and a callback whose
+amount differs from the order is refused. Coupons, gift codes, invite
+commissions with withdrawals, surplus credit on upgrades.
+
+**The fleet** ([docs](docs/NODES.md)) — one-line node install and pairing; inbounds with quick-setup
+recipes; entries that decide what each group of users sees; port forwards
+(built-in relay, nftables DNAT or realm) for relay chains with PROXY
+protocol across hops; line ingresses for IPLC; egress that follows ingress;
+per-node speed limits; node jobs (upgrade, rollback, REALITY scan,
+speedtest) driven from the console.
+
+**Hardening that is checked, not claimed** ([docs](docs/ADMIN.md#access-control-and-the-client-address)) — cores run under an
+unprivileged account with only the capabilities they need; the node's own
+address space (loopback, link-local, cloud metadata, RFC 1918) is refused
+both in the cores' routing and by an nftables egress guard; the cores'
+unauthenticated control APIs are reachable only by root. Origin checks on
+cookie writes, argon2id passwords, TOTP for staff, API tokens with a
+read-only scope and an expiry, an admin allow-list that also covers the MCP
+endpoint, and a per-node doctor that reports what is actually wrong.
+
+**Operations** ([docs](docs/MONITORING.md)) — probe page with per-node history and alerts, Prometheus
+metrics, connection log and panel-wide audit rules with auto-ban, dynamic
+speed limits computed across nodes, HWID device identification, response
+rules on `/sub`, daily `VACUUM INTO` backups with WebDAV/S3 upload,
+self-update for the panel and every node, Telegram bot and event webhooks,
+and an MCP server so an agent can answer "which node is down" for you.
+
+**Six languages** in both interfaces: 简体中文, 繁體中文, English, 日本語,
+Русский, 한국어.
+
+## Screenshots
+
+<details open>
+<summary>Console and portal</summary>
+
+| | |
+|---|---|
+| **Overview** — fleet, traffic, revenue | **Nodes** — one machine, one bosun |
+| ![Overview](docs/img/overview.png) | ![Nodes](docs/img/nodes.png) |
+| **A node** — host metrics, cores, inbounds | **Entries** — what users see, with tags and regions |
+| ![Node](docs/img/node.png) | ![Entries](docs/img/entries.png) |
+| **A user** — plans, devices, throttle, subscription | **Portal** — what the customer gets |
+| ![User](docs/img/user.png) | ![Portal](docs/img/portal.png) |
+
+</details>
+
+## Quick start
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/zeptop-dev/captain/master/install.sh | sh
 ```
 
-The script asks for the domain, an email for the certificate, an optional
-Cloudflare API token (DNS-01: one wildcard certificate covers the domain, www
-and subscription hosts; without it HTTP-01 on port 80 is used), and the admin
-login, then installs with Docker when it is present (`docker compose` in
-`/opt/captain`) or as a systemd service otherwise (`--mode binary` to force).
-It does not install Docker for you: put it on first
-(`curl -fsSL https://get.docker.com | sh`) if that is the way you want to run it.
-Every answer can be given as a flag, see `install.sh --help`. Piped through `sh`
-the script never lands on disk; `... | sh -s -- uninstall` takes the whole
-installation away again (`--keep-data` keeps the database).
+The installer asks for the panel domain and an admin account, picks Docker
+when Docker is present and a systemd service otherwise, obtains a
+certificate, and prints the console URL with the credentials. Piped through
+`sh` it never writes itself to disk.
 
-Already running nginx, OpenResty (1Panel), Caddy or anything else on 80/443?
-The script notices, asks, and installs Captain behind it (`--behind-proxy` to
-skip the question): Captain serves plain HTTP on 127.0.0.1:8080 (joining the
-proxy container's Docker network when the proxy is containerised) and the
-script prints the exact proxy snippet to paste; the proxy holds the
-certificate. `--reconfigure` rewrites config.yaml when switching modes.
-
-Day-to-day (Docker):
+Non-interactive, every answer as a flag:
 
 ```sh
-cd /opt/captain
-docker compose logs -f                        # logs
-docker compose pull && docker compose up -d   # upgrade (the console shows a red dot when a release is out)
-docker run --rm -v captain_captain-data:/d -v $PWD:/out alpine sh -c 'cp /d/backups/*.db /out/'   # copy the daily snapshots to the host
+curl -fsSL https://raw.githubusercontent.com/zeptop-dev/captain/master/install.sh | sh -s -- \
+  --mode docker --domain panel.example.com --email you@example.com \
+  --admin-email you@example.com --admin-password 'a-long-secret'
 ```
 
-Captain snapshots its database every day into `backups/` inside the data
-directory and keeps the last seven, so a restore is a copy of one file. Logins
-lock an address for 15 minutes after five failures; `trusted_proxies` in
-config.yaml names the reverse proxies whose forwarding headers decide that
-address (empty: any loopback or private peer); session cookies are
-HTTPS-only whenever `base_url` is https. Certificates live in `certs/` in the
-same directory and renew themselves.
-
-Manual layouts (`deploy/docker-compose.yml`, `deploy/docker-compose.proxy.yml`,
-`deploy/captain.service`) are what the script writes; use them directly if you
-prefer.
-
-## Landing page
-
-`/` is a public landing page: hero with a rotating globe showing your node
-locations and arcs from a hub, feature cards, the plan list and an FAQ, all
-edited under Admin → Landing page (no rebuild, saves apply at once). Want your
-own design? Drop an `index.html` (plus assets) into `<data_dir>/site/` and
-Captain serves that directory instead.
-
-## Plans, coupons, invites
-
-A plan has a base period and price plus any number of extra periods (quarter,
-year …) with their own prices; buyers pick one at checkout. Renewing the same
-plan before it expires extends the time and keeps what was used: a plan with a
-reset cycle keeps its counter and next reset, a plan without one gets the new
-period's allowance added. Buying a different plan stacks next to the current
-one (or replaces it in single-plan mode). Quota reset: never, every N days from
-purchase, on the 1st of each month, or on January 1st.
-
-Coupons (Admin → Coupons) take a percentage or a fixed amount off, optionally
-limited to plans, total uses, uses per user and a date range; the checkout
-shows the discounted price as the code is typed. Invites: every user has a
-referral link `/?ref=CODE`; a visitor who arrives through it is recorded as
-invited when the account is created (by password or OIDC), and each paid order
-credits a configurable share to the inviter's balance (Settings → Referral
-rewards). Settings → Announcement puts a notice on the portal home page.
-
-Nodes learn about changes within seconds: bosun keeps a long-poll request open
-on the state endpoint, no persistent connection needed.
-
-## Payment gateways
-
-Enable any subset under `payments:` in config.yaml (see `config.example.yaml`);
-each appears in the portal's "pay with" chooser. Callback URLs to register at
-the provider are `<base_url>/api/payment/<name>/notify`.
-
-| name | provider | notes |
-|---|---|---|
-| `epay` | 易支付 v1/v2 | page jump; callback signed MD5 or RSA |
-| `stripe` | Stripe Checkout | webhook signed with the endpoint secret |
-| `alipay` | 支付宝当面付 | `alipay.trade.precreate`; Captain serves a QR page at `/api/payment/alipay/page` (RSA2 both ways) |
-| `coinbase` | Coinbase Commerce | hosted charge; webhook HMAC-SHA256 (`X-CC-Webhook-Signature`) |
-| `coinpayments` | CoinPayments | `create_transaction` (API key pair); IPN HMAC-SHA512 with the IPN secret, merchant id checked |
-| `btcpay` | BTCPay Server | Greenfield invoice; webhook HMAC-SHA256 (`BTCPay-Sig`), store id checked |
-| `mgate` | MGate | Xboard-compatible: md5(sorted query + app_secret) both ways |
-
-Crypto gateways take a `currency` for the fiat price (default CNY, USD for
-CoinPayments); the buyer picks the coin on the provider's page.
-
-## Registration limits
-
-Settings → Registration limits (all optional, applied to password sign-up;
-the email whitelist and invite-only rule also govern accounts auto-created by
-external login):
-
-- **Email domain whitelist** — only listed domains (and their subdomains) may register.
-- **Sign-ups per IP** — at most N accounts per address within the window (default 24 h).
-- **Invite only** — a valid invite code or `/?ref=` link is required.
-- **Captcha** — Cloudflare Turnstile, Google reCAPTCHA v2 or hCaptcha. Enter the
-  site key and secret; the widget appears on the sign-up form automatically and
-  the token is verified server-side.
-
-## Support, gift codes, knowledge base, Telegram
-
-- **Tickets** — users open tickets in the portal (priority low/normal/high) and
-  reply in a thread; Admin → Tickets answers them. A reply reaches the user on
-  Telegram when linked, otherwise by email; new tickets can ping the admin chat.
-- **Gift / redeem codes** — Admin → Gift codes generates single-use codes in
-  batches: balance top-up, a plan for N days, extra traffic or extra days on the
-  active plan, with optional expiry. Users redeem them on the portal home page.
-- **Knowledge base and downloads** — Admin → Knowledge base holds Markdown
-  guides grouped by category (`{{sub_url}}`, `{{email}}`, `{{site_name}}` are
-  substituted per reader); Settings → Client downloads lists the apps. Both
-  appear under Help in the portal.
-- **Telegram bot** — Settings → Telegram: paste a BotFather token (and your chat
-  id for order/ticket notices). Users link their chat from the portal with a
-  one-time `/bind CODE`; the bot answers `/sub`, `/status`, `/unbind` and
-  delivers expiry, traffic and ticket notices. Plain Bot API long polling, no
-  webhook or public URL needed.
-- **Plan change credit** — Settings → Plan change credit: switching to a
-  different plan credits the unused remainder of the current one (by remaining
-  time, or remaining traffic for plans without expiry) against the new order.
-  Renewing the same plan stacks time and keeps the usage counter (see above).
-- **Referral levels and payouts** — Settings → Invites: level-1 percentage,
-  optional multi-level (levels 2 and 3), and where rewards go: straight to the
-  balance, or a commission account the user can move to balance or withdraw
-  (minimum amount, allowed methods). Admin → Withdrawals marks requests paid or
-  rejected; rejecting refunds the commission.
-- **Subscription adjustments** — in a user's drawer: extend by N days
-  (+30/+60/+90), override the quota (kept across renewals of the same plan),
-  set a personal monthly reset day, reset usage. Users → Renewals lists
-  everyone by expiry with one-click extensions for batch renewals.
-- **Trial plan** — Settings → Trial plan hands every new account (password or
-  external login) a plan once, for the configured number of days.
-
-## Staff roles, theme, webhooks
-
-- **Staff roles** — Admin → Staff creates console accounts with a role: admin
-  (everything), operator (everything except settings, system, staff, the
-  landing page and the audit rules and log — those reach every node's core
-  config and record where users went) or support (tickets, plus read-only
-  users, orders, plans and the dashboard; no connection log, no subscription
-  links, and the user payloads leave the subscription token out). The last
-  admin cannot be demoted, disabled or deleted.
-- **Theme and page injection** — Admin → Landing page: primary colour, radius,
-  light/dark/system scheme for the portal and the landing page, portal title,
-  font, and raw HTML injected before `</head>` / `</body>` on every portal and
-  landing page (analytics, chat widgets). The console keeps its own look.
-- **Event webhooks** — Settings → Event webhooks: Captain POSTs JSON for
-  `user.registered`, `order.paid`, `ticket.created`, `ticket.replied`,
-  `withdrawal.requested` and `subscription.expiring` to your URLs with
-  `X-Captain-Event` and an HMAC-SHA256 `X-Captain-Signature` over the body;
-  failed deliveries retry three times. This is the integration point for
-  n8n, scripts or a CRM in place of an in-process plugin system, which a
-  single static binary cannot load.
-- **Device limits on nodes** — plans' device limits reach the nodes; bosun
-  counts client IPs per user on Xray, Hysteria and sing-box (log-based) and
-  Captain locks out users over their limit. mieru inbounds cannot report IPs.
-- **Languages** — the console and portal ship in 简体中文, 繁體中文, English,
-  日本語, Русский and 한국어.
-- **Two-factor sign-in** — Settings → Two-factor authentication: each staff
-  account can add a TOTP authenticator; the console then asks for the code
-  after the password. API tokens are unaffected.
-- **Entry tags, regions and drag ordering** — Admin → Entries: drag the
-  handle to set the order clients see, add free-form tags (shown to users in
-  the portal and usable as a filter) and pick a region; Settings →
-  Subscription → *Auto flags* prefixes names that lack a flag emoji with
-  their region flag (explicit region, else detected from the name: "Tokyo",
-  "HK-02", "香港", "jp1.example.com"...).
-- **Short and temporary subscription links** — Settings → Subscription: turn
-  on *Use short links* and users get `https://sub.example.com/s/<8 chars>`
-  instead of the long token URL (old links keep working; rotating a user's
-  token also rotates the code). A user's drawer can also issue temporary
-  links limited by uses and/or hours, for trials or support, revocable at
-  any time.
-
-## External nodes, outbounds and relays
-
-- **External nodes** (Admin → External nodes): paste share links (vless,
-  vmess, trojan, ss, hysteria2, tuic, anytls) or add an airport subscription
-  (base64 / URI-list form, re-synced hourly, per-source User-Agent). They are
-  offered in your subscriptions like your own entries, optionally restricted to
-  a user group. Nothing runs behind them, so their traffic is not charged.
-- **Outbounds & landing** (node page): add an exit from a share link (bosun
-  renders it in the serving core's dialect: sing-box takes every protocol,
-  Xray vless/vmess/trojan/ss/socks/http), chain exits (`via`), then pick a
-  default exit for the whole node or add rules such as `inbound:tag`,
-  `domain:`, `ip:`, `protocol:`, `port:` → outbound / direct / block. Needs
-  bosun >= 0.12.
-
-## Domains and certificates
-
-Admin → Domains & certs registers the domains you own (each with
-Cloudflare as the DNS provider, using the global token from Settings → ACME
-or its own token when the zone lives in another account, or "manual"), shows
-what uses each one (node host names, inbound TLS names, subscription hosts,
-the panel itself) and manages certificates:
-
-- **Issue** — Let's Encrypt through DNS-01 on the panel, one certificate for
-  any set of names (`example.com` + `*.example.com` together is fine), stored
-  in the database and renewed by the panel 30 days before expiry; the first
-  failed renewal notifies the admin. The Cloudflare token stays on the panel;
-  nodes need neither a token nor port 80.
-- **Upload** a PEM pair, or let a certificate manager (Certimate, an acme.sh
-  deploy hook) POST renewals to the per-panel webhook shown on the page
-  (lenient JSON keys: `domain`/`domains`, `certificate`, `privateKey`/`private_key`).
-- **Deploy by coverage** — every node whose standard-TLS inbounds use a
-  covered name (exact or wildcard) receives the pair in its state; bosun
-  (>= 0.13) uses it ahead of ACME and lists it as method `custom`. Deleting
-  a certificate lets the nodes fall back to node-side ACME.
-
-Nodes take an optional host name (Node → Domain, e.g. `jp1.example.com`):
-new inbound recipes use it as the TLS name and entries advertise it instead
-of the IP, so a certificate for it reaches the node without further setup.
-
-**Automatic DNS records.** A registered Cloudflare domain with *Auto DNS
-records* on (the default) gets A/AAAA records created or updated whenever a
-node with a host name under it is saved (node domain → public / IPv6
-address) or a line ingress with an *entry domain* is saved (entry domain →
-the provider's entry IP). Records are never deleted, never proxied, and the
-outcome is shown in a toast; the token needs DNS edit permission on the
-zone, which the DNS-01 token already has.
-
-## Komari reporting
-
-Settings → Komari reporting attaches every managed node to a Komari
-monitor as an agent: give the Komari URL and its auto-discovery key, and
-each node (bosun >= 0.17) registers under its node name, reports metrics
-every few seconds and answers Komari's ping tasks. Only the ping capability
-is offered. This runs alongside Captain's own probe; turn the probe page off
-if you prefer Komari's.
-
-## Backups
-
-Captain snapshots its SQLite database once a day (`VACUUM INTO`, so the
-copy is consistent while the panel keeps running) into `<data_dir>/backups`
-and keeps the newest seven. Settings → Database backups sets the hour and
-retention, adds a remote (WebDAV with basic auth, or any S3-compatible
-bucket: AWS, Cloudflare R2, Backblaze B2, MinIO with path-style) that
-receives each gzipped snapshot with its own retention, tests the remote,
-runs a backup on demand and downloads local copies. Restore by stopping
-Captain, replacing `captain.db` with a snapshot and starting it again
-(step by step, including the `-wal`/`-shm` caveat, in
-[docs/OPERATIONS.md](docs/OPERATIONS.md)).
-
-## Line ingresses (IPLC)
-
-A node behind an IPLC or dedicated line has more than one way in. Node page
-→ Line ingresses registers each line with the addresses the provider gives
-you: the local NIC address on the VPS (inbounds bind to it so replies go
-back through the line), the line's far-end address (what a relay must
-forward to; not reachable from the public internet), the provider's public
-entry if the service includes one (e.g. a China Mobile entry IP), the
-usable port range and an optional port offset. Inbounds pick an ingress
-(direct is the default, or the line on nodes without a public address);
-any protocol may ride a line, and a recipe applied while an ingress is
-selected takes the first free, non-reserved port of the range. Whether a
-protocol passes is up to the provider's entry (nobrand's carrier entry, for
-one, only passes non-TLS protocols such as mieru). Entries then advertise
-the public entry on the mapped port. A line
-without a public entry is served through a relay node: add a port forward
-there whose target is the far-end address (the picker fills it in) and use
-the relay's address in the entry. Direct inbounds on the same node (hy2,
-REALITY) keep using the node's public address or domain.
-
-When the probe is on, every ingress with a local NIC address and a far-end
-address gets an automatic RTT task (bosun >= 0.15 binds the TCP connect to
-the NIC; a refused port still measures the line) shown under the ingress
-name on the status and speed-test pages. Lines are usually private, so
-carrier latency is not measured through them.
-
-## Snell, mieru knobs, doctor
-
-- **Snell**: inbound protocol `snell`, served by sing-box on bosun >= 0.41
-  (its snell server speaks v5; obfs http). Surge, Stash, mihomo and
-  sing-box (1.14+) subscriptions carry the shared-PSK line; URI lists leave
-  it out. With "Multi-user (sing-box)" on the inbound every user connects
-  with their own key and traffic is accounted per user — but only sing-box
-  clients can present a user key, so such a line appears in sing-box
-  subscriptions only. Obfs tls still needs Surge's snell-server (the
-  `snell` core).
-- **mieru knobs**: MTU, multiplexing level and handshake mode per inbound
-  reach the mierus:// links and mihomo/Stash lines; transport `BOTH` serves
-  TCP on the port and UDP on port + 1 (links list both, mihomo takes TCP).
-- **Doctor**: bosun runs a self-check every 10 minutes (cores, listeners,
-  line bindings, forwards, certificates, port clashes, firewall, disk,
-  memory, panel link, clock) and sends it with its report when the verdicts
-  change; the node page shows it and the node list flags failures.
-
-## Port forwards (relay tunnels)
-
-Node page → Port forwards: listen on a port of this node and relay raw
-TCP, UDP or both to a landing server. Clients connect to the relay while
-the landing inbound keeps doing auth and per-user accounting. Pick another
-managed node's inbound as the target and one click creates an entry that
-advertises this relay's address; the node reports each rule's reachability,
-RTT, connections and bytes. A rule's backend is the built-in userspace
-relay or, with bosun >= 0.18, nftables kernel DNAT (`nft` on the node,
-IPv4 target, optional source preservation when the target routes replies
-back through the node). Ports are checked against the node's own
-inbounds. (Xray-style domain/IP splitting inside a tunnel is not offered:
-use the routing rules on the landing node instead.)
-
-Relays hide the client's address from the landing node, so by default every
-connection arriving from one of the panel's own nodes counts as *one* online
-device for the limit (and is marked "via relay" in the user drawer). For the
-real per-client picture, tick "Expect PROXY protocol" on a landing inbound
-that is reached only through this panel's forwards (xray only): forwards
-targeting it send a PROXY protocol v2 header automatically (built-in relay
-or realm backend), the landing node sees the real client and counts devices
-exactly. Direct connections to such an inbound fail, by design.
-
-**Egress follows ingress.** On a node with several public addresses, the
-node option "Egress follows ingress" makes every inbound that is bound to a
-specific address send its users' traffic out from that same address
-(sing-box, xray and hysteria; mita cannot). Give each inbound its bind
-address; any-address inbounds keep the default route, and a default
-landing outbound takes precedence. Needs bosun ≥ 0.44.
-
-**Audit rules.** Settings → Audit rules is a panel-wide list every node
-gets: a "block" rule becomes a route rule on sing-box and xray (the
-connection is rejected) and every hit — block or "log" — comes back with
-the next report as user, client address and destination. The match syntax
-is the routing one (`domain:`, `full:`, `keyword:`, `regexp:`, `ip:`,
-`port:`, `inbound:`, `geosite:`, `geoip:`, `protocol:bittorrent`); a match
-the core would refuse is dropped on the node and named by its doctor
-("Panel rules") instead of breaking the config. hysteria cannot route, so
-it does **not** block: it reports the hits it sees in its own request log,
-and the panel marks them log-only and keeps them out of the auto-ban
-count. mieru inbounds can neither block nor report. Hits are listed in the
-settings card and per user in the user drawer, kept 90 days, and
-optionally sent to the admin chat; "auto-ban after N hits in M hours" bans
-the user (never staff, only block hits of a rule that still exists) and
-reports it. Attribution comes from the cores' logs, not from an API: bosun
-drops a log line that names a user the node does not serve on that
-inbound, but treat it as advisory. Needs bosun ≥ 0.43 (0.45 for the
-validation and the log checks).
-
-**Dynamic speed limit.** Settings → Dynamic speed limit throttles a user
-whose average rate across all nodes stays above the trigger for the
-trigger window (default 100 Mbps over 60 s) to a lower speed for a while
-(default 30 Mbps for 10 min), optionally only during given hours and never
-for whitelisted users. The panel computes the rate from the node reports,
-spread over the window each report says it covers (bosun ≥ 0.46 states it,
-older agents are assumed to cover the push interval), so a backlog of
-reports after a panel restart cannot look like one enormous burst. The
-throttle reaches the nodes as a temporary user speed limit (min with the
-plan's) and lapses on its own. It is applied with `tc`, so it takes effect
-without restarting a core — except for users who have no speed limit at
-all, which needs the core to be reloaded: those are left alone unless
-"throttle users without a speed limit" is on. The user drawer shows an
-active throttle, can lift it, and can also set one by hand ("Throttle").
-
-**Connection log (off by default).** Settings → Connection log makes every
-node report each accepted connection — user, inbound, client address,
-destination host and port, TCP/UDP — taken from the cores' own logs
-(sing-box, xray, hysteria; mieru has none). Rows live in `conn_log`, are
-kept for the configured days (7 by default) and are listed per user in the
-user drawer ("Connections") for abuse reports and support. This is personal
-data about what your users visit: keep it off unless you need it, keep the
-retention short, and say so in your privacy notice; switching it off
-deletes what was collected. Needs bosun ≥ 0.42.
-
-**Browser origin check.** Cookie-authenticated writes (admin console,
-portal, and the login / register / reset routes) must carry an `Origin` or
-`Referer` of the panel's own host (the request host, `X-Forwarded-Host`
-or `base_url`); a page on another site cannot drive the API with a
-victim's session even where `SameSite=Lax` would let the cookie through.
-API tokens (`Authorization: Bearer`) are exempt, as are reads.
-
-**Port conflicts.** Saving or enabling an inbound whose transport and port
-(UDP for Hysteria 2, TUIC and WireGuard; both for Shadowsocks and snell;
-mieru per its transport) is already taken by another enabled inbound or a
-forward on the same node, on an overlapping bind address, is refused with
-409 instead of failing on the node.
-
-**Alert batching.** Node alerts (offline, recovered, load, monthly traffic)
-raised within 30 s go out as one Telegram message, so a panel-side blip
-that takes every node offline at once does not page once per node.
-Webhook events are still emitted per alert.
-
-**Disk checks.** Self-update refuses to download when the binary's
-filesystem lacks twice the asset size plus headroom, and the backup job
-refuses a snapshot when the backup directory lacks twice the newest
-backup plus headroom, instead of filling the disk halfway.
-
-**Traffic thresholds and connection events.** Settings → Mail → *Traffic
-thresholds* lists the used-percentages (default 90) at which a user is told
-once per quota period, by Telegram or mail; each crossing also emits a
-`subscription.traffic` webhook. The panel stamps the first traffic it sees
-for a user (shown in the user drawer) and emits `user.first_connected`; a
-user who has held a usable plan for a day without ever connecting emits
-`user.not_connected` once, for onboarding follow-up.
-
-**Remark variables.** Entry names and the *Info lines* in Settings →
-Subscription may contain `{{DAYS_LEFT}}`, `{{EXPIRE_DATE}}`,
-`{{TRAFFIC_LEFT}}`, `{{TRAFFIC_USED}}`, `{{TRAFFIC_LIMIT}}`,
-`{{USED_PERCENT}}`, `{{STATUS}}`, `{{PLAN}}`, `{{EMAIL}}`, `{{USERNAME}}`
-and `{{STATUS:ACTIVE=✅|EXPIRED=😓|LIMITED=⛔|DISABLED=❌}}`; they are filled
-per user at fetch time, so the client's server list shows the account
-state. Info lines are dummy Shadowsocks servers to localhost placed first
-in every format.
-
-**Response rules.** Subscription templates → *Response rules* is an
-ordered list evaluated on every `/sub` request: conditions on request
-headers (`User-Agent`, `x-hwid`, `x-device-os`, … or the `?client=`
-parameter; contains / equals / prefix / regex / present / absent, all or
-any) and an action: serve a chosen format (with extra response headers and
-an optional template override), or answer 403, 404, 451, or drop the
-connection without a reply. The first matching rule wins; with no match the
-format is guessed from the User-Agent as before. A tester on the same page
-shows which rule a given request hits, and the user drawer's fetch history
-records the rule name.
-
-**Device identification (HWID).** Happ, FlClashX, V2Box, Streisand and other
-clients that follow the Remnawave/Happ convention send `x-hwid`,
-`x-device-os`, `x-ver-os` and `x-device-model` when they fetch the
-subscription. Settings → Subscription → *Device identification* turns this
-on: each device is recorded, the plan's device limit (or a per-user override
-in the user drawer, or the fallback limit) is enforced per device at fetch
-time, and a device over the limit gets an empty document with
-`x-hwid-max-devices-reached: true`, `x-hwid-limit` and an optional
-`announce` text the client shows. Clients that send no `x-hwid` keep the
-online-IP counting unless *Require x-hwid* is on (then they get 404). Users
-see and remove their devices in the portal; admins see them, the per-user
-limit and the recent fetch history (IP, client, device, what was served) in
-the user drawer. History is kept 30 days.
-
-## API tokens and MCP
-
-Settings → API tokens & MCP issues personal bearer tokens (`cap_...`) for the
-admin API and for AI agents: Captain serves the Model Context Protocol at
-`POST /mcp` with tools for nodes, users, plans, orders, tickets, the probe
-and TCPing; write tools require `confirm: true`. See `docs/MCP.md`.
-
-A token carries its owner's role, narrowed by what it was issued with: scope
-*read-only* answers only GET requests (and only the MCP read tools), and an
-expiry (30/90/365 days) makes it stop working on its own. Staff accounts can
-never be managed with a token — `/api/admin/admins` needs the interactive
-login — and `/mcp` is behind the same admin allow-list as `/api/admin`, so a
-scraper or an agent has to come from an allowed address too.
-
-## Speed test
-
-Admin → Speed test: TCP-connect latency from the panel to every entry's
-public address (what clients dial), one click or all at once, plus the
-nodes' own probe results. Add a probe task of type `download` (a large file
-URL) and each node reports its download throughput every 10 minutes, which
-also lands in the status page history.
-
-## Probe / status page
-
-Settings → Probe. Off by default; nothing extra runs on nodes until it is on.
-When enabled, bosun (>= 0.11) sends a light host beat every few seconds
-(CPU, memory, swap, disk, load, network rate and totals, TCP/UDP/process
-counts, uptime, IPv4/IPv6 reachability, host facts) plus latency: TCP-connect
-checks against the CT/CU/CM carrier probe points and your own icmp/tcp/http
-tasks. Captain folds beats into minute/hour/day buckets (48 h / 60 d / 2 y),
-keeps a short in-memory ring for sparklines, and serves a status page:
-
-- address: a path on the main domain (default `/status`) and/or dedicated
-  hostnames (`status.example.com`) that serve only the page; both covered by
-  the built-in certificates;
-- visibility: public, signed-in users, or staff only; per-node "hide";
-  node IPs hidden unless allowed; title/logo so the page can be de-branded;
-- per node: region flag, provider, price, expiry, and a monthly NIC traffic
-  allowance (limit, reset day, counting mode) with reset-aware counters,
-  shown as a bar on the page;
-- alerts through Telegram / mail / webhooks: node offline (grace period),
-  sustained CPU/memory/disk over a threshold, monthly traffic at 80% and 100%.
-
-The carrier latency targets default to the CT/CU/CM probe points
-(cloudcpp); Settings → Probe → *Latency targets* replaces the set with
-your own `name host:port` lines, and every node managed by Captain follows
-the panel. A node running without Captain keeps its own `probe:` section
-in bosun's config.yaml instead.
-
-
-## Mail
-
-Admin → Settings → Mail: SMTP (any provider; port 587 STARTTLS, 465 TLS or 25
-plain) or the Resend HTTP API for hosts that block mail ports, plus a "send
-test email" button. With mail configured you can require an emailed code to
-register, users can reset their password themselves, and the hourly job sends
-reminders three days before a subscription expires and when 90% of the quota is
-used (each once). Templates are plain, mail-client-safe HTML in Chinese.
-
-## External login (OIDC)
-
-Admin → Settings → "External login" takes any OpenID Connect provider
-(Casdoor, Authentik, Keycloak, Zitadel, Google …): id, display name, issuer
-URL, client id and secret. Register `https://<your domain>/api/oauth/<id>/callback`
-as the redirect URI at the provider. The portal then shows "Continue with …";
-accounts are matched by the provider's subject, linked to an existing account
-with the same verified email, or created when registration is open (or
-`auto_register` is set for that provider). Users can link and unlink logins
-from the portal home page, and password login can be switched off entirely.
-
-Casdoor example: issuer `https://door.example.com`, scopes default
-(`openid profile email`), `trust_email: true` since you run it yourself.
-
-## Run
+Then sign in at `https://panel.example.com/admin/`, add a node, and paste
+the command the node page gives you on a fresh server:
 
 ```sh
-make build            # builds web/admin, web/portal, web/site and web/probe with pnpm, then the Go binary with them embedded
+curl -fsSL https://panel.example.com/api/agent/install.sh?pair=CODE | sh
+```
+
+That installs bosun, pairs it with the panel and applies the configuration.
+Users get the portal at `/portal/` and their subscription URL there.
+
+Removing everything the installer set up:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/zeptop-dev/captain/master/install.sh | sh -s -- uninstall
+```
+
+Docker Compose, a bare-metal layout, HTTPS choices and Cloudflare Tunnel
+are in [docs/DEPLOY.md](docs/DEPLOY.md).
+
+## Supported platforms
+
+|  | Panel (Captain) | Node (bosun) |
+|---|---|---|
+| Linux amd64 / arm64 | ✅ systemd, OpenRC or Docker | ✅ systemd, OpenRC (Alpine) or Docker |
+| Other Unix | builds, unsupported | needs Linux: nftables, tc and capabilities |
+| Behind a reverse proxy | ✅ Caddy, nginx, 1Panel, cloudflared | — |
+
+The panel needs no public ports of its own if you publish it through
+Cloudflare Tunnel ([docs/CLOUDFLARE_TUNNEL.md](docs/CLOUDFLARE_TUNNEL.md)).
+
+## Database
+
+SQLite, and only SQLite — no Postgres, no MySQL, no Redis. That is a
+measured decision, not a shortcut: a repeatable benchmark in the repo
+(`internal/store/scale_test.go`) puts a node report that charges 1 000
+users at 85 ms, which is a 7 % duty cycle on the single connection at
+50 000 users across 50 nodes. Every table that grows with traffic has a cap.
+The numbers, the ceilings and what would change the answer are in
+[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md#database-sqlite-only-and-what-that-is-good-for).
+
+Backups are a daily `VACUUM INTO` snapshot you can copy, gzip and restore;
+restore, upgrade and rollback procedures are in
+[docs/OPERATIONS.md](docs/OPERATIONS.md).
+
+## Configuration
+
+`/etc/captain/config.yaml` (full example: [config.example.yaml](config.example.yaml)).
+Unknown keys are refused at start, so a typo never becomes a silent default.
+
+| Key | What it does | Default |
+|---|---|---|
+| `base_url` | the panel's public origin; used for links, origin checks and ACME | — |
+| `listen` | address to serve on | `:8080` |
+| `tls.auto`, `tls.email` | obtain the panel's own certificate | off |
+| `database.dsn` | SQLite file | `/var/lib/captain/captain.db` |
+| `agent.pull_seconds`, `agent.push_seconds` | how often a node fetches state and reports | 60 / 60 |
+| `trusted_proxies` | proxies whose forwarding headers are believed | loopback + private |
+| `admin_allow_cidrs` *(setting)* | addresses allowed to reach the console and `/mcp` | open |
+| `min_version` | floor for self-update and rollback | unset |
+| `payments.*` | gateway credentials | none enabled |
+
+## Documentation
+
+| | |
+|---|---|
+| [DEPLOY.md](docs/DEPLOY.md) | installer, Docker, bare metal, HTTPS, subscription hosts |
+| [BILLING.md](docs/BILLING.md) | plans, payment gateways, coupons, gift codes, invites, registration limits |
+| [SUBSCRIPTIONS.md](docs/SUBSCRIPTIONS.md) | formats and templates, entries, remark variables, response rules, HWID, short links |
+| [NODES.md](docs/NODES.md) | nodes and inbounds, relays and forwards, line ingresses, egress, certificates |
+| [MONITORING.md](docs/MONITORING.md) | probe and status page, alerts, metrics, connection log, audit rules, dynamic limits |
+| [ADMIN.md](docs/ADMIN.md) | staff roles, API tokens, access control, webhooks, Telegram, mail, OIDC, backups |
+| [OPERATIONS.md](docs/OPERATIONS.md) | backups, restore, upgrade, rollback, what to monitor, client addresses |
+| [COMPATIBILITY.md](docs/COMPATIBILITY.md) | what a release promises, the bosun version matrix, the database ceiling |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | packages, domain model, agent protocol, jobs |
+| [CLOUDFLARE_TUNNEL.md](docs/CLOUDFLARE_TUNNEL.md) | no public IP, no open ports |
+| [MCP.md](docs/MCP.md) | the Model Context Protocol server and its tools |
+| [bosun](https://github.com/zeptop-dev/bosun) | the node agent: cores, forwards, certificates, isolation |
+
+## Versioning
+
+Semantic versioning from 1.0.0. The agent protocol only ever gains fields,
+so a node older than the panel keeps working; subscription URLs, the admin
+API, webhook payloads and config keys are stable within 1.x; migrations run
+forward only. The details, and the Captain ↔ bosun matrix, are in
+[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
+
+Every release runs the same gates as CI (i18n parity, oxlint, gofmt, vet,
+`go test -race`), and releases that touch the node protocol, subscription
+output or the money paths also pass a live regression against real nodes
+and a real client (`scripts/e2e/README.md`).
+
+## Building from source
+
+Go 1.26 and pnpm:
+
+```sh
+make build            # builds web/admin, web/portal, web/site and web/probe, then the binary with them embedded
 cp config.example.yaml /etc/captain/config.yaml       # set base_url
 bin/captain admin create -c /etc/captain/config.yaml -email you@example.com -password '...'
 bin/captain serve -c /etc/captain/config.yaml
 ```
 
-## Releasing
+`make test` runs the Go tests; `internal/http/e2e_test.go` drives the whole
+API end to end against a temporary database.
 
-What a release promises (semver from 1.0, the agent protocol, webhook
-payloads, config keys, the bosun version matrix) is in
-[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
+## Contributing
 
-Releases are cut from `main` by pushing a tag; the workflow builds the
-binaries, the `SHA256SUMS` and the images. Three rules, each of them learned
-the hard way:
+Issues and pull requests are welcome. Please run `make test` and
+`python3 scripts/i18n-check.py web/admin/src/i18n web/portal/src/i18n`
+before opening one. For anything security-sensitive, open a private
+advisory instead of a public issue.
 
-1. **The release workflow runs the same gates as CI** — i18n parity, oxlint,
-   `gofmt`, `go vet`, `go test -race` — and the image job waits for the
-   binaries. A red commit cannot become a release.
-2. **A published tag is never moved.** The self-updater compares versions
-   only, so a node or panel that already fetched the first build of a tag
-   would stay on it for ever. Something wrong in a release is fixed by the
-   next patch version.
-3. **`make e2e` before a release that touches the node protocol,
-   subscription output or the money paths**, against the live rig
-   (`scripts/e2e/README.md`). A release that only touches the console or the
-   docs does not need it. Note the run in the release notes.
+## Acknowledgements
+
+Captain would be pointless without the cores it drives:
+[sing-box](https://github.com/SagerNet/sing-box),
+[Xray-core](https://github.com/XTLS/Xray-core),
+[mieru](https://github.com/enfein/mieru),
+[Hysteria](https://github.com/apernet/hysteria),
+[snell-server](https://manual.nssurge.com/others/snell.html) and
+[realm](https://github.com/zhboner/realm); the clients it renders for,
+above all [mihomo](https://github.com/MetaCubeX/mihomo); and
+[certmagic](https://github.com/caddyserver/certmagic) for certificates.
+The rule catalogue comes from [ACL4SSR](https://github.com/ACL4SSR/ACL4SSR).
+Prior art that shaped the feature set: [Xboard](https://github.com/cedar2025/Xboard),
+[3x-ui](https://github.com/MHSanaei/3x-ui) and
+[Remnawave](https://github.com/remnawave/panel).
 
 ## License
 
-MIT, see `LICENSE`.
+MIT — see [LICENSE](LICENSE).
+
+<details>
+<summary>Star history</summary>
+
+[![Star History Chart](https://api.star-history.com/svg?repos=zeptop-dev/captain&type=Date)](https://star-history.com/#zeptop-dev/captain&Date)
+
+</details>

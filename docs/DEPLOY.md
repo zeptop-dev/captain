@@ -8,9 +8,43 @@ One Linux box, one binary, one SQLite file. Caddy (or nginx) in front for TLS.
 curl -fsSL https://raw.githubusercontent.com/zeptop-dev/captain/master/install.sh | sh
 ```
 
-Asks for domain, certificate email and admin login; installs with Docker if
-present, otherwise as a systemd service. Everything below is what it does by
-hand.
+Asks for the domain, an email for the certificate, an optional Cloudflare API
+token (DNS-01: one wildcard certificate covers the domain, `www` and the
+subscription hosts; without it HTTP-01 on port 80 is used) and the admin
+login, then installs with Docker when it is present (`docker compose` in
+`/opt/captain`) or as a systemd service otherwise (`--mode binary` forces
+it). It does not install Docker for you — put it on first
+(`curl -fsSL https://get.docker.com | sh`) if that is how you want to run it.
+Every answer can be a flag; see `install.sh --help`. Piped through `sh` the
+script never lands on disk. Everything below is what it does by hand.
+
+**Already running nginx, OpenResty (1Panel), Caddy or anything else on
+80/443?** The script notices, asks, and installs Captain behind it
+(`--behind-proxy` skips the question): Captain serves plain HTTP on
+127.0.0.1:8080 — joining the proxy container's Docker network when the proxy
+is containerised — and the script prints the exact proxy snippet to paste;
+the proxy holds the certificate. `--reconfigure` rewrites config.yaml when
+switching modes.
+
+**Removing it again:**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/zeptop-dev/captain/master/install.sh | sh -s -- uninstall
+#   ... | sh -s -- uninstall --keep-data      keeps the database
+```
+
+**Day to day, with Docker:**
+
+```sh
+cd /opt/captain
+docker compose logs -f                        # logs
+docker compose pull && docker compose up -d   # upgrade (the console shows a red dot when a release is out)
+docker run --rm -v captain_captain-data:/d -v $PWD:/out alpine sh -c 'cp /d/backups/*.db /out/'   # copy the daily snapshots out
+```
+
+The manual layouts the script writes are `deploy/docker-compose.yml`,
+`deploy/docker-compose.proxy.yml` and `deploy/captain.service`; use them
+directly if you prefer.
 
 ## 0b. Docker by hand
 

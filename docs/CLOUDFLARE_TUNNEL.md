@@ -1,21 +1,26 @@
-# 用 Cloudflare Tunnel 发布 Captain 和 bosun 面板
+# Publishing Captain and the bosun panel through Cloudflare Tunnel
 
-Cloudflare Tunnel（cloudflared）把一台机器上的 HTTP 服务通过出站连接挂到
-Cloudflare 边缘，机器本身不需要开放任何入站端口，也不需要公网 IP。适合：
+Cloudflare Tunnel (cloudflared) attaches an HTTP service to Cloudflare's
+edge over an outbound connection, so the machine needs no inbound ports and
+no public IP at all. It fits when:
 
-- Captain 面板和用户门户放在没有公网 IP 的机器上（家里、内网、NAT VPS）。
-- 不想把面板端口暴露在公网，只让它通过 Cloudflare 访问。
-- bosun 单机面板同理。
+- the panel and the user portal run on a machine without a public address
+  (at home, on an internal network, behind NAT);
+- you would rather not expose the panel's port to the internet and want it
+  reachable only through Cloudflare;
+- the same for a standalone bosun panel.
 
-先说清楚它**不能**做什么：Tunnel 只转发 HTTP/HTTPS（和少量 TCP/UDP 的
-特殊用法）。**代理协议本身的端口（VLESS、Hysteria2、mieru 这些）不能走
-Tunnel**，节点还是要有能被客户端直连的地址。Tunnel 只管面板和订阅。
+What it **cannot** do, first: a Tunnel forwards HTTP/HTTPS (plus a few
+special TCP/UDP cases). **The proxy protocols themselves — VLESS,
+Hysteria2, mieru and the rest — cannot go through a Tunnel**, so a node
+still needs an address its clients can dial directly. The Tunnel is for the
+panel and the subscriptions.
 
-## 1. 准备
+## 1. Prerequisites
 
-1. 域名托管在 Cloudflare。
-2. 一台跑 Captain（或 bosun）的机器，能出站访问互联网。
-3. 安装 cloudflared：
+1. A domain on Cloudflare.
+2. A machine running Captain (or bosun) with outbound internet access.
+3. cloudflared installed:
 
    ```sh
    # Debian / Ubuntu
@@ -24,46 +29,51 @@ Tunnel**，节点还是要有能被客户端直连的地址。Tunnel 只管面�
    sudo apt update && sudo apt install cloudflared
    ```
 
-## 2. 让 Captain 只听本机 HTTP
+## 2. Let Captain serve plain HTTP on loopback
 
-Tunnel 到面板这一段是内网 HTTP，TLS 由 Cloudflare 终止，Captain 自己不要再申请证书：
+The hop from cloudflared to the panel is local HTTP; Cloudflare terminates
+TLS, so Captain must not obtain a certificate of its own:
 
 ```yaml
 # /etc/captain/config.yaml
 listen: 127.0.0.1:8080
-base_url: https://panel.example.com     # 用户看到的地址，订阅链接用它
+base_url: https://panel.example.com     # what users see; subscription links use it
 tls:
   auto: false
 ```
 
-Docker 部署用 `deploy/docker-compose.proxy.yml`，效果一样：容器只听 8080。
+With Docker, `deploy/docker-compose.proxy.yml` does the same: the container
+listens on 8080 only.
 
-重启 Captain 后确认 `curl -s http://127.0.0.1:8080/api/health` 有响应。
+Restart Captain and check that `curl -s http://127.0.0.1:8080/api/health`
+answers.
 
-## 3. 建隧道
+## 3. Create the tunnel
 
-在 Cloudflare Zero Trust 控制台（Networks → Tunnels）点"Create a tunnel"，
-选 cloudflared，起个名字，会得到一条安装命令，类似：
+In the Cloudflare Zero Trust dashboard (Networks → Tunnels) choose "Create
+a tunnel", pick cloudflared, give it a name, and you get an install command
+like:
 
 ```sh
-sudo cloudflared service install eyJhIjoi...（token）
+sudo cloudflared service install eyJhIjoi...   # the token
 ```
 
-在机器上执行，cloudflared 会注册为 systemd 服务并常驻。
+Run it on the machine; cloudflared registers itself as a systemd service
+and stays up.
 
-然后在隧道的 **Public Hostname** 里加一条：
+Then add one **Public Hostname** to the tunnel:
 
-| 字段 | 值 |
+| Field | Value |
 |---|---|
 | Subdomain | panel |
 | Domain | example.com |
 | Type | HTTP |
 | URL | 127.0.0.1:8080 |
 
-保存后 Cloudflare 会自动创建 `panel.example.com` 的 CNAME 记录，指向隧道。
-浏览器打开 `https://panel.example.com` 应该就能看到 Captain 登录页。
+Cloudflare creates the `panel.example.com` CNAME pointing at the tunnel.
+Opening `https://panel.example.com` should show the Captain sign-in page.
 
-命令行方式等价于：
+The command-line equivalent:
 
 ```sh
 cloudflared tunnel login
@@ -80,38 +90,55 @@ EOF
 sudo cloudflared service install
 ```
 
-## 4. 订阅和真实 IP
+## 4. Subscriptions and the real client address
 
-- 订阅链接以 `base_url` 生成，走同一个域名，客户端通过 Cloudflare 拉取即可。
-- Captain 的登录限流和管理后台白名单按客户端 IP 判断。经过 Cloudflare 后
-  真实 IP 在 `CF-Connecting-IP` 头里，Captain 会读取 `X-Forwarded-For` /
-  `X-Real-IP`；在 Cloudflare 侧开启 **Transform Rules → Managed Transforms →
-  Add "True-Client-IP" header** 或者直接依赖默认的 `X-Forwarded-For` 即可。
-- Cloudflare 免费计划对单个请求有 100 秒超时，Captain 的所有接口都远短于此；
-  节点长轮询接口 `/api/agent/state?wait=` 也控制在 50 秒内。
+- Subscription links are built from `base_url`, so they use the same
+  hostname and clients fetch them through Cloudflare.
+- The login rate limit and the admin allow-list judge the client address.
+  Behind Cloudflare the visitor's address arrives in `CF-Connecting-IP`,
+  while Captain reads `X-Forwarded-For` (rightmost untrusted entry) and
+  falls back to `X-Real-IP`. cloudflared appends `X-Forwarded-For` by
+  itself, which is enough; if you want the header spelled out, enable
+  **Transform Rules → Managed Transforms → Add "True-Client-IP" header**.
+  See [OPERATIONS.md](OPERATIONS.md#admin-access-allow-list-and-client-addresses).
+- Cloudflare's free plan limits a single request to 100 seconds. Every
+  Captain endpoint is far below that, and the node long-poll
+  (`/api/agent/state?wait=`) is capped at 50 seconds for this reason.
 
-## 5. 节点怎么连面板
+## 5. How nodes reach the panel
 
-节点（bosun）向 Captain 上报也是 HTTPS 请求，所以节点同样通过
-`https://panel.example.com` 连接，不需要额外配置。配对时给节点的安装命令
-里的地址就是 `base_url`。
+A node reports over HTTPS like any other client, so it also connects to
+`https://panel.example.com` with no extra configuration: the address in the
+install command the node page shows is `base_url`.
 
-如果你不希望节点流量也经过 Cloudflare（例如想省 Cloudflare 的带宽或延迟），
-可以给节点单独开一个不走 Tunnel 的地址，但那要求机器有公网 IP，和使用
-Tunnel 的初衷相悖，一般不需要。
+If you would rather keep node traffic off Cloudflare (to save its bandwidth
+or a few milliseconds), give the panel a second address that bypasses the
+tunnel — but that needs a public IP, which defeats the point of using a
+tunnel in the first place.
 
-## 6. bosun 单机面板
+## 6. A standalone bosun panel
 
-bosun 的面板默认监听 `:2053`，用同样的方法把它加成 Public Hostname
-（Type HTTP，URL `127.0.0.1:2053`）。设置页里"面板域名"留空，不要让
-bosun 自己申请证书，TLS 交给 Cloudflare。订阅链接 `/sub/<token>` 也走这个域名。
+bosun's own panel listens on `:2053` by default. Add it as another Public
+Hostname (Type HTTP, URL `127.0.0.1:2053`), leave the panel domain empty in
+its settings so bosun does not try to obtain a certificate, and let
+Cloudflare do TLS. Its subscription links (`/sub/<token>`) use the same
+hostname.
 
-bosun 的登录白名单会看到 Cloudflare 的地址而不是你的地址，配了 Tunnel
-就不要再开白名单，或者只填 Cloudflare 的网段。
+bosun's login allow-list will see Cloudflare's addresses rather than yours,
+so either leave the allow-list empty when you use a tunnel, or fill it with
+Cloudflare's ranges.
 
-## 7. 常见问题
+## 7. Troubleshooting
 
-- **打开域名 502**：cloudflared 连不上本机服务，检查 Captain 是否在 127.0.0.1:8080 监听，`journalctl -u cloudflared` 看日志。
-- **重定向循环**：`tls.auto` 没关、或者 `base_url` 写成了 http。Tunnel 后面必须是纯 HTTP 且 `base_url` 用 https。
-- **登录后跳回登录页**：`base_url` 和实际访问的域名不一致，会话 Cookie 的 Secure 属性对不上。
-- **订阅在客户端里拉不下来**：有些客户端的 User-Agent 会被 Cloudflare 的 Bot Fight Mode 拦，关掉该功能或给 `/sub/*` 路径加一条 WAF 放行规则。
+- **502 on the hostname** — cloudflared cannot reach the local service.
+  Check that Captain listens on 127.0.0.1:8080 and read
+  `journalctl -u cloudflared`.
+- **Redirect loop** — `tls.auto` is still on, or `base_url` says `http`.
+  Behind a tunnel the panel must serve plain HTTP and `base_url` must be
+  `https`.
+- **Signed in, then bounced back to the sign-in page** — `base_url` does
+  not match the hostname you actually opened, so the session cookie's
+  Secure/host attributes do not line up.
+- **A client cannot fetch the subscription** — Cloudflare's Bot Fight Mode
+  blocks some clients' User-Agents. Turn it off, or add a WAF rule that
+  allows `/sub/*`.

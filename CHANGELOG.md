@@ -7,6 +7,7 @@ Merge commits and formatting-only commits are left out. Binaries and
 installs them (Settings → Version and updates).
 
 - **v1.0.0** (2026-09-18) — the first release with a promise attached. Nothing in an existing installation behaves differently from v0.58.2; what changes is what you can rely on from here.
+  - **The README is a front page again**, with screenshots of the console and the portal, and the 600 lines of reference it used to carry are now five topic documents: [BILLING](docs/BILLING.md), [SUBSCRIPTIONS](docs/SUBSCRIPTIONS.md), [NODES](docs/NODES.md), [MONITORING](docs/MONITORING.md) and [ADMIN](docs/ADMIN.md). Everything is in English now, including CLOUDFLARE_TUNNEL.md, which was Chinese.
   - **[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)** is the contract: semantic versioning, the agent protocol's add-only rule (an older node keeps working), stable subscription URLs and admin API, stable webhook payloads, config keys that are not renamed inside 1.x, forward-only migrations, and the Captain ↔ bosun version matrix.
   - It also states the **database ceiling as a measured number** rather than an opinion, and records why there is no Postgres, MySQL or Redis, and why the connection log stays in the main database.
   - **`database.driver` takes `sqlite` only** and says so: the `postgres` value the config used to advertise was refused at start anyway. The reasoning (and why there is no Redis either) is in the new document, with numbers.
