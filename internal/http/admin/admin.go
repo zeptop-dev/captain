@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -222,10 +223,15 @@ func getSetting[T any](h *handlers, w http.ResponseWriter, r *http.Request, key 
 //
 // The body is decoded onto the stored document, so a caller that sends
 // only some keys (a script, the MCP tools) edits those and leaves the
-// rest alone instead of clearing them.
+// rest alone instead of clearing them. Only for documents that are an
+// object: decoding a JSON array onto an existing slice reuses its
+// elements, which would let one rule inherit fields from whatever used
+// to be in its place.
 func putSetting[T any](h *handlers, w http.ResponseWriter, r *http.Request, key string, check func(context.Context, *T) string) {
 	var v T
-	_ = h.Store.GetSetting(r.Context(), key, &v)
+	if k := reflect.ValueOf(&v).Elem().Kind(); k == reflect.Struct || k == reflect.Map {
+		_ = h.Store.GetSetting(r.Context(), key, &v)
+	}
 	if !readJSON(w, r, &v) {
 		return
 	}

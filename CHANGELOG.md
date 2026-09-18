@@ -6,6 +6,7 @@ Merge commits and formatting-only commits are left out. Binaries and
 `SHA256SUMS` for every tag are on the GitHub Release; the in-app updater
 installs them (Settings → Version and updates).
 
+- **v0.58.1** (2026-09-17) — follow-ups to v0.58.0 found while re-reading the batch: a settings document that is a *list* (the subscription response rules) is replaced again, not merged — decoding a shorter array onto the stored one let a rule keep fields from whatever used to sit in its place; a per-user device limit above 64 wins over the storage ceiling, so an operator who allows 100 devices gets 100.
 - **v0.58.0** (2026-09-17) — cold-review fix batch, nothing to configure unless noted:
   - **Release gating**: `release.yml` now runs the same checks as CI (i18n parity, oxlint, gofmt, vet, `go test -race`) and the image job waits for the binaries, so a red commit cannot be released; README documents the release rules (never move a published tag, `make e2e` before a release that touches nodes, subscriptions or money).
   - **Panel crash**: `serverErr` recursed on a nil error and took the process down on any `/sub` fetch that hit it.

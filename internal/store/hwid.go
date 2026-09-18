@@ -18,9 +18,11 @@ type HwidDevice struct {
 	LastSeenAt  time.Time `json:"last_seen_at"`
 }
 
-// maxHwidRows is the ceiling on stored devices per user, whatever the
-// limit is: the rows are written by anyone holding the link, and the
-// admin drawer and the portal list them all. The oldest is evicted.
+// maxHwidRows is the ceiling on stored devices per user when no limit
+// applies: the rows are written by anyone holding the link, and the admin
+// drawer and the portal list them all. A configured limit above it wins —
+// an operator who allows 100 devices means it — the ceiling only catches
+// the unlimited case. The oldest device is evicted.
 const maxHwidRows = 64
 
 // MaxHwidRows is that ceiling, for callers that want to name it.
@@ -56,14 +58,18 @@ func (s *Store) ClaimHwidDevice(ctx context.Context, userID int64, dev HwidDevic
 	if limit > 0 && count >= limit {
 		return false, count, tx.Commit()
 	}
-	// Whatever the limit says, the table is written by anyone holding the
-	// link: keep the newest maxHwidRows and drop the rest.
-	if count >= maxHwidRows {
+	// Unlimited (or a limit below the ceiling) still cannot mean unbounded
+	// rows: keep the newest and drop the rest.
+	ceiling := maxHwidRows
+	if limit > ceiling {
+		ceiling = limit
+	}
+	if count >= ceiling {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM hwid_devices WHERE user_id = ? AND hwid IN (
-			SELECT hwid FROM hwid_devices WHERE user_id = ? ORDER BY last_seen_at ASC LIMIT ?)`, userID, userID, count-maxHwidRows+1); err != nil {
+			SELECT hwid FROM hwid_devices WHERE user_id = ? ORDER BY last_seen_at ASC LIMIT ?)`, userID, userID, count-ceiling+1); err != nil {
 			return false, 0, err
 		}
-		count = maxHwidRows - 1
+		count = ceiling - 1
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO hwid_devices (user_id, hwid, platform, os_version, device_model, user_agent, request_ip, first_seen_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		userID, dev.Hwid, dev.Platform, dev.OSVersion, dev.DeviceModel, dev.UserAgent, dev.RequestIP, at.Unix(), at.Unix()); err != nil {

@@ -438,3 +438,25 @@ func TestSettingsPutIsAMerge(t *testing.T) {
 		t.Fatalf("omitted keys were cleared: %s", b)
 	}
 }
+
+// A settings document that is a list is replaced, not merged: decoding a
+// shorter array onto the old one would let a rule keep fields from
+// whatever used to sit in its place.
+func TestListSettingsAreReplaced(t *testing.T) {
+	r := newRig(t)
+	if code, b, _ := r.c.do("PUT", "/api/admin/settings/response-rules", []map[string]any{
+		{"name": "first", "action": "block", "enabled": true, "match": []map[string]any{{"header": "user-agent", "op": "contains", "value": "curl"}}},
+		{"name": "second", "action": "serve", "format": "clash", "enabled": true, "match": []map[string]any{{"header": "user-agent", "op": "contains", "value": "clash"}}},
+	}, nil); code != http.StatusOK {
+		t.Fatalf("first put: %d %s", code, b)
+	}
+	if code, b, _ := r.c.do("PUT", "/api/admin/settings/response-rules", []map[string]any{
+		{"name": "only", "action": "serve", "enabled": true, "match": []map[string]any{{"header": "user-agent", "op": "contains", "value": "x"}}},
+	}, nil); code != http.StatusOK {
+		t.Fatalf("second put: %d %s", code, b)
+	}
+	_, b, _ := r.c.do("GET", "/api/admin/settings/response-rules", nil, nil)
+	if strings.Count(string(b), `"name"`) != 1 || strings.Contains(string(b), "clash") {
+		t.Fatalf("the list was merged instead of replaced: %s", b)
+	}
+}
