@@ -50,17 +50,28 @@ type Deps struct {
 
 const cookieName = "captain_session"
 
-type handlers struct{ Deps }
+type handlers struct {
+	Deps
+	// codes counts code mails per client address: the per-mailbox minute
+	// in NewCode does not stop one address from mailing everyone.
+	codes *ratelimit.Limiter
+}
+
+// Code mails per client address before a pause.
+const (
+	codeMailsPerIP = 10
+	codeMailWindow = time.Hour
+)
 
 // Register mounts the portal routes.
 func Register(mux *http.ServeMux, d Deps) {
-	h := &handlers{d}
+	h := &handlers{Deps: d, codes: &ratelimit.Limiter{Max: codeMailsPerIP, Window: codeMailWindow, Lock: codeMailWindow}}
 	mux.HandleFunc("POST /api/portal/register", h.sameOrigin(h.register))
 	mux.HandleFunc("GET /api/portal/register/policy", h.registerPolicy)
 	mux.HandleFunc("POST /api/portal/verify/send", h.sameOrigin(h.sendCode))
 	mux.HandleFunc("POST /api/portal/password/reset", h.sameOrigin(h.resetPassword))
 	mux.HandleFunc("POST /api/portal/login", h.sameOrigin(h.login))
-	mux.HandleFunc("POST /api/portal/logout", h.logout)
+	mux.HandleFunc("POST /api/portal/logout", h.sameOrigin(h.logout))
 	mux.HandleFunc("GET /api/portal/me", h.requireUser(h.me))
 	mux.HandleFunc("DELETE /api/portal/me/hwid-devices/{hwid}", h.requireUser(h.deleteHwidDevice))
 	mux.HandleFunc("GET /api/portal/plans", h.plans)
@@ -434,6 +445,10 @@ func (h *handlers) sendCode(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if allowed, wait := h.codes.Allow(ip); !allowed {
+		fail(w, http.StatusTooManyRequests, "too many codes requested; try again in "+wait.String())
+		return
+	}
 	switch in.Purpose {
 	case "register":
 		if !h.Registration {
@@ -451,7 +466,9 @@ func (h *handlers) sendCode(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "reset":
-		if _, err := h.Store.UserByEmail(r.Context(), email); err != nil {
+		// Unknown and staff addresses get the same answer and no mail:
+		// staff passwords are not reset from the portal.
+		if u, err := h.Store.UserByEmail(r.Context(), email); err != nil || u.IsStaff() {
 			ok(w, map[string]bool{"sent": true}) // do not reveal whether the account exists
 			return
 		}
@@ -460,10 +477,15 @@ func (h *handlers) sendCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	code, err := h.Store.NewCode(r.Context(), email, in.Purpose, 10*time.Minute)
-	if err != nil {
+	if errors.Is(err, store.ErrCodeTooSoon) {
 		fail(w, http.StatusTooManyRequests, err.Error())
 		return
 	}
+	if err != nil {
+		h.serverErr(w, "new code", err)
+		return
+	}
+	h.codes.Fail(ip) // counts a mail sent to this address, not a failure
 	if err := mail.Send(r.Context(), ms, mail.For(ms.Language).Code(h.SiteName, email, in.Purpose, code)); err != nil {
 		h.Log.Error("send code", "to", email, "err", err)
 		fail(w, http.StatusBadGateway, "could not send the email; contact the administrator")
@@ -479,19 +501,20 @@ func (h *handlers) resetPassword(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "email, code and a password of 8+ chars are required")
 		return
 	}
+	// One answer for every failure — unknown address, staff account, no
+	// code, wrong or expired code — so the form cannot be used to find out
+	// which addresses have accounts (the code mail already answers the
+	// same either way). A mailbox is never enough to take over a staff
+	// account: their passwords are reset by an administrator.
+	const refused = "invalid or expired code; request a new one"
 	email := strings.ToLower(strings.TrimSpace(in.Email))
 	u, err := h.Store.UserByEmail(r.Context(), email)
-	if err != nil {
-		fail(w, http.StatusBadRequest, "wrong code")
-		return
-	}
-	if u.IsStaff() {
-		// A mailbox must not be enough to take over a staff account.
-		fail(w, http.StatusForbidden, "staff passwords are reset by an administrator")
+	if err != nil || u.IsStaff() {
+		fail(w, http.StatusBadRequest, refused)
 		return
 	}
 	if err := h.Store.CheckCode(r.Context(), email, "reset", strings.TrimSpace(in.Code)); err != nil {
-		fail(w, http.StatusBadRequest, err.Error())
+		fail(w, http.StatusBadRequest, refused)
 		return
 	}
 	hash, err := auth.HashPassword(in.Password)
@@ -500,11 +523,18 @@ func (h *handlers) resetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.UpdateUser(r.Context(), u.ID, u.Status, u.GroupID, hash); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		h.serverErr(w, "reset password", err)
 		return
 	}
 	_ = h.Store.DeleteUserSessions(r.Context(), u.ID)
 	ok(w, map[string]bool{"ok": true})
+}
+
+// serverErr logs a failure the customer cannot act on and answers a plain
+// 500: store and driver messages name tables and constraints.
+func (h *handlers) serverErr(w http.ResponseWriter, what string, err error) {
+	h.Log.Error(what, "component", "portal", "err", err)
+	fail(w, http.StatusInternalServerError, "internal error")
 }
 
 // RefCookie carries an invite code from a ?ref= link to account creation.
@@ -577,7 +607,7 @@ func (h *handlers) notice(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) invite(w http.ResponseWriter, r *http.Request) {
 	u := userFrom(r)
 	if err := h.Store.EnsureInviteCode(r.Context(), u); err != nil {
-		fail(w, http.StatusInternalServerError, err.Error())
+		h.serverErr(w, "invite code", err)
 		return
 	}
 	var inv store.InviteSettings
@@ -664,6 +694,10 @@ func (h *handlers) withdraw(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "amount and account are required")
 		return
 	}
+	if len(in.Method) > 64 || len(in.Account) > 256 {
+		fail(w, http.StatusBadRequest, "method or account is too long")
+		return
+	}
 	var inv store.InviteSettings
 	_ = h.Store.GetSetting(r.Context(), store.SettingInvite, &inv)
 	if inv.Payout != store.PayoutCommission {
@@ -684,7 +718,9 @@ func (h *handlers) withdraw(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	h.Notify.Admin(r.Context(), fmt.Sprintf("💸 Withdrawal #%d: %.2f via %s (%s)\n%s", wd.ID, float64(wd.AmountCents)/100, wd.Method, wd.Account, u.Email))
+	// Customer text goes to Telegram as HTML: escape it, or a link or a
+	// stray tag lands in the operator chat (or Telegram drops the notice).
+	h.Notify.Admin(r.Context(), fmt.Sprintf("💸 Withdrawal #%d: %.2f via %s (%s)\n%s", wd.ID, float64(wd.AmountCents)/100, notify.Escape(wd.Method), notify.Escape(wd.Account), notify.Escape(u.Email)))
 	h.Notify.Event(r.Context(), webhook.WithdrawalRequested, map[string]any{"withdrawal_id": wd.ID, "user_id": u.ID, "email": u.Email, "amount_cents": wd.AmountCents, "method": wd.Method})
 	ok(w, wd)
 }
@@ -706,7 +742,11 @@ func (h *handlers) withdrawals(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) deleteHwidDevice(w http.ResponseWriter, r *http.Request) {
 	u := userFrom(r)
 	if err := h.Store.DeleteHwidDevice(r.Context(), u.ID, r.PathValue("hwid")); err != nil {
-		fail(w, http.StatusInternalServerError, "internal error")
+		if errors.Is(err, store.ErrNotFound) {
+			fail(w, http.StatusNotFound, "device not found")
+			return
+		}
+		h.serverErr(w, "delete device", err)
 		return
 	}
 	ok(w, map[string]bool{"ok": true})

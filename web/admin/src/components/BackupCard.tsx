@@ -28,12 +28,12 @@ export function BackupCard() {
   const test = useMutation({ mutationFn: (v: Settings) => api.post('/api/admin/settings/backup/test', v), onSuccess: () => toast.ok(t('backup.testOk')), onError: toast.err })
   const run = useMutation({ mutationFn: () => api.post('/api/admin/settings/backup/run'), onSuccess: () => { toast.ok(t('backup.ran')); refresh() }, onError: (e: Error) => { toast.err(e); refresh() } })
   // A generated identity is shown once and never stored by the panel.
-  const [identity, setIdentity] = useState<{ recipient: string; identity: string } | null>(null)
+  const [identity, setIdentity] = useState<{ recipient: string; identity: string; created: string } | null>(null)
   const keygen = useMutation({
     mutationFn: () => api.post<{ recipient: string; identity: string }>('/api/admin/settings/backup/keygen'),
-    onSuccess: (r) => { form.setFieldValue('encrypt.recipient', r.recipient); setIdentity(r) }, onError: toast.err,
+    onSuccess: (r) => { form.setFieldValue('encrypt.recipient', r.recipient); setIdentity({ ...r, created: new Date().toISOString() }) }, onError: toast.err,
   })
-  const keyFile = identity ? `# Captain backup key, created ${new Date().toISOString()}\n# public key: ${identity.recipient}\n${identity.identity}\n` : ''
+  const keyFile = identity ? `# Captain backup key, created ${identity.created}\n# public key: ${identity.recipient}\n${identity.identity}\n` : ''
   if (q.data && !q.data.available) return null
   const st = q.data?.status
   const v = form.values
@@ -48,17 +48,6 @@ export function BackupCard() {
           <Select label={t('backup.remote')} data={[{ value: '', label: t('backup.remoteNone') }, { value: 'webdav', label: 'WebDAV' }, { value: 's3', label: 'S3 / R2 / B2 / MinIO' }]} value={v.remote} onChange={(x) => form.setFieldValue('remote', x ?? '')} allowDeselect={false} />
           {v.remote && <NumberInput label={t('backup.remoteKeep')} description={t('backup.remoteKeepHint')} min={0} {...form.getInputProps('remote_keep')} />}
         </Group>
-        {v.remote && <Stack gap={6}>
-          <Select label={t('backup.encrypt')} description={t('backup.encryptHint')} allowDeselect={false} value={v.encrypt.mode} onChange={(x) => form.setFieldValue('encrypt.mode', x ?? '')}
-            data={[{ value: '', label: t('backup.encryptOff') }, { value: 'key', label: t('backup.encryptKey') }, { value: 'passphrase', label: t('backup.encryptPassphrase') }]} />
-          {v.encrypt.mode === '' && <Text size="xs" c="orange">{t('backup.encryptOffWarn')}</Text>}
-          {v.encrypt.mode === 'key' && <Group align="flex-end" wrap="nowrap">
-            <TextInput style={{ flex: 1 }} label={t('backup.recipient')} placeholder="age1…" {...form.getInputProps('encrypt.recipient')} />
-            <Button variant="light" leftSection={<IconKey size={14} />} loading={keygen.isPending} onClick={() => keygen.mutate()}>{t('backup.generateKey')}</Button>
-          </Group>}
-          {v.encrypt.mode === 'passphrase' && <PasswordInput label={t('backup.passphrase')} description={t('backup.passphraseHint')} placeholder={q.data?.has_encrypt_passphrase ? t('backup.keepSecret') : ''} {...form.getInputProps('encrypt.passphrase')} />}
-          {v.encrypt.mode !== '' && <Text size="xs" c="dimmed">{t('backup.restoreHint')}</Text>}
-        </Stack>}
         {v.remote === 'webdav' && <Group grow align="flex-end">
           <TextInput label="URL" placeholder="https://dav.example.com/remote.php/dav/files/me/captain/" {...form.getInputProps('webdav.url')} />
           <TextInput label={t('backup.username')} {...form.getInputProps('webdav.username')} />
@@ -77,6 +66,17 @@ export function BackupCard() {
             <Switch label={t('backup.pathStyle')} description={t('backup.pathStyleHint')} {...form.getInputProps('s3.path_style', { type: 'checkbox' })} />
           </Group>
         </>}
+        {v.remote && <Stack gap={6}>
+          <Select label={t('backup.encrypt')} description={t('backup.encryptHint')} allowDeselect={false} value={v.encrypt.mode} onChange={(x) => form.setFieldValue('encrypt.mode', x ?? '')}
+            data={[{ value: '', label: t('backup.encryptOff') }, { value: 'key', label: t('backup.encryptKey') }, { value: 'passphrase', label: t('backup.encryptPassphrase') }]} />
+          {v.encrypt.mode === '' && <Text size="xs" c="orange">{t('backup.encryptOffWarn')}</Text>}
+          {v.encrypt.mode === 'key' && <Group align="flex-end" wrap="nowrap">
+            <TextInput style={{ flex: 1 }} label={t('backup.recipient')} placeholder="age1…" {...form.getInputProps('encrypt.recipient')} />
+            <Button variant="light" leftSection={<IconKey size={14} />} loading={keygen.isPending} onClick={() => keygen.mutate()}>{t('backup.generateKey')}</Button>
+          </Group>}
+          {v.encrypt.mode === 'passphrase' && <PasswordInput label={t('backup.passphrase')} description={t('backup.passphraseHint')} placeholder={q.data?.has_encrypt_passphrase ? t('backup.keepSecret') : ''} {...form.getInputProps('encrypt.passphrase')} />}
+          {v.encrypt.mode !== '' && <Text size="xs" c="dimmed">{t('backup.restoreHint')}</Text>}
+        </Stack>}
         <Group justify="space-between">
           <Group gap="xs">
             <Button size="xs" variant="light" leftSection={<IconDatabaseExport size={14} />} loading={run.isPending} onClick={() => run.mutate()}>{t('backup.runNow')}</Button>

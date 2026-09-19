@@ -500,7 +500,6 @@ func TestPortalTelegramIsPerCustomer(t *testing.T) {
 // typed must arrive as text: a stray tag would make Telegram drop the
 // notice, and a link would put the customer's markup in the operator chat.
 func TestPortalOperatorNoticesEscapeCustomerText(t *testing.T) {
-	t.Skip("BUG: ticket and withdrawal notices put customer text into Telegram HTML without notify.Escape")
 	tg := &fakeTelegram{}
 	api := httptest.NewServer(tg)
 	defer api.Close()
@@ -627,7 +626,6 @@ func TestPortalCancelQueuedPlan(t *testing.T) {
 // Two queued purchases of the same plan for different periods: cancelling
 // one must refund what that one cost, not whatever was bought last.
 func TestPortalCancelQueuedRefundsItsOwnOrder(t *testing.T) {
-	t.Skip("BUG: CancelQueued refunds the newest paid queue order for the plan, not the order that bought the cancelled row")
 	p := newPortalRig(t, true)
 	ctx := context.Background()
 	basic := p.plan(map[string]any{"Name": "basic", "PriceCents": 500, "PeriodDays": 30})
@@ -724,7 +722,6 @@ func TestPortalHwidDevicesAreScoped(t *testing.T) {
 // Deleting a device that is not there is the caller's mistake, not the
 // server's: it should read as "not found".
 func TestPortalHwidDeleteUnknownIsNotFound(t *testing.T) {
-	t.Skip("BUG: DELETE /api/portal/me/hwid-devices/{hwid} answers 500 internal error for a device the caller does not have")
 	p := newPortalRig(t, true)
 	_, c := p.customer("a@test")
 	if code, b, _ := c.do("DELETE", "/api/portal/me/hwid-devices/nope", nil, nil); code != http.StatusNotFound {
@@ -804,7 +801,6 @@ func TestPortalOrdersAreOwnAndOnlyForSale(t *testing.T) {
 // left pending in their list, and a once-per-customer coupon is still
 // there for the retry after a top-up.
 func TestPortalRefusedBalancePaymentLeavesNothing(t *testing.T) {
-	t.Skip("BUG: a balance order refused for insufficient balance stays pending and keeps its coupon reserved until the stale-order sweep")
 	p := newPortalRig(t, true)
 	plan := p.plan(map[string]any{"Name": "basic", "PriceCents": 1000, "PeriodDays": 30})
 	if code, b, _ := p.admin.do("POST", "/api/admin/coupons", map[string]any{"Code": "ONCE", "Kind": "percent", "Value": 10, "PerUser": 1, "Enabled": true}, nil); code != http.StatusOK {
@@ -933,7 +929,6 @@ func inviteCode(p *portalRig, u *domain.User) string { return p.reload(u.ID).Inv
 // multi-level rewards the loop pays a buyer commission on their own
 // orders, so the second bind must be refused.
 func TestPortalBindInviteRefusesALoop(t *testing.T) {
-	t.Skip("BUG: bindInvite accepts an inviter whose own chain leads back to the caller; with multi-level rewards the buyer earns commission on their own order")
 	p := newPortalRig(t, true)
 	p.admin.do("PUT", "/api/admin/settings/invite", map[string]any{"enabled": true, "percent": 20, "multi_level": true, "level2": 10}, nil)
 	plan := p.plan(map[string]any{"Name": "basic", "PriceCents": 1000, "PeriodDays": 30})
@@ -1317,7 +1312,6 @@ func TestPortalSendCodeWithoutMail(t *testing.T) {
 // The reset form must not reveal which addresses have accounts: the code
 // mail already answers the same either way, the reset should too.
 func TestPortalResetDoesNotRevealAccounts(t *testing.T) {
-	t.Skip("BUG: POST /api/portal/password/reset answers \"wrong code\" for an unknown address but \"no code was sent to this address\" for a known one")
 	p := newPortalRig(t, true)
 	p.customer("known@test")
 	anon := &client{t: t, srv: p.srv}
@@ -1327,6 +1321,10 @@ func TestPortalResetDoesNotRevealAccounts(t *testing.T) {
 	}
 	if known, unknown := try("known@test"), try("nobody@test"); known != unknown {
 		t.Fatalf("known address %q vs unknown %q", known, unknown)
+	}
+	// Nor which of them are staff: the admin account answers the same.
+	if staff, unknown := try("admin@test"), try("nobody@test"); staff != unknown {
+		t.Fatalf("staff address %q vs unknown %q", staff, unknown)
 	}
 }
 
@@ -1451,7 +1449,6 @@ func TestPortalStoreFailuresAnswerVaguely(t *testing.T) {
 // The same, for the two handlers that pass the database's own error text
 // through to the customer.
 func TestPortalStoreErrorsAreNotEchoed(t *testing.T) {
-	t.Skip("BUG: GET /api/portal/invite and POST /api/portal/password/reset put the raw store error into their 500 body")
 	orig := mail.SendFunc
 	var (
 		mu   sync.Mutex
@@ -1487,5 +1484,46 @@ func TestPortalStoreErrorsAreNotEchoed(t *testing.T) {
 		if strings.Contains(string(got), "frozen") {
 			t.Errorf("store error reached the customer: %s", got)
 		}
+	}
+}
+
+// One client address cannot mail codes to an unlimited list of mailboxes:
+// the per-mailbox minute does not stop that, the per-address limit does.
+func TestPortalCodeMailsArePerAddressLimited(t *testing.T) {
+	var mu sync.Mutex
+	sent := 0
+	orig := mail.SendFunc
+	mail.SendFunc = func(_ context.Context, _ mail.Settings, _ mail.Message) error {
+		mu.Lock()
+		sent++
+		mu.Unlock()
+		return nil
+	}
+	defer func() { mail.SendFunc = orig }()
+	p := newPortalRig(t, true, func(st *store.Store) {
+		ms := mail.Settings{Provider: "smtp", FromAddress: "noreply@test"}
+		ms.SMTP.Host = "smtp.test"
+		_ = st.SetSetting(context.Background(), mail.SettingKey, ms)
+	})
+	anon := &client{t: t, srv: p.srv}
+	send := func(i int, ip string) int {
+		code, _, _ := anon.do("POST", "/api/portal/verify/send", map[string]string{"Email": "new" + itoa(int64(i)) + "@test", "Purpose": "register"}, map[string]string{"X-Real-IP": ip})
+		return code
+	}
+	for i := 0; i < 10; i++ {
+		if code := send(i, "198.51.100.8"); code != http.StatusOK {
+			t.Fatalf("code mail %d: %d", i, code)
+		}
+	}
+	if code := send(10, "198.51.100.8"); code != http.StatusTooManyRequests {
+		t.Fatalf("eleventh code mail from one address: %d", code)
+	}
+	if code := send(11, "198.51.100.9"); code != http.StatusOK {
+		t.Fatalf("another address was limited too: %d", code)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if sent != 11 {
+		t.Fatalf("mails sent: %d, want 11", sent)
 	}
 }

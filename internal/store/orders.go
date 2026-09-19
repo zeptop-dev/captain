@@ -98,7 +98,7 @@ func (s *Store) MarkPaid(ctx context.Context, no, gatewayRef string, at time.Tim
 	if err != nil {
 		return nil, err
 	}
-	if err := grantTx(ctx, tx, o.UserID, plan, o.PeriodDays, at, orderGrantMode(ctx, tx, o)); err != nil {
+	if err := grantTx(ctx, tx, o.UserID, plan, o.PeriodDays, at, orderGrantMode(ctx, tx, o), o.ID); err != nil {
 		return nil, err
 	}
 	if err := s.paidHooksTx(ctx, tx, o); err != nil {
@@ -147,7 +147,7 @@ func (s *Store) PayWithBalance(ctx context.Context, no string, at time.Time) (*d
 	if err != nil {
 		return nil, err
 	}
-	if err := grantTx(ctx, tx, o.UserID, plan, o.PeriodDays, at, orderGrantMode(ctx, tx, o)); err != nil {
+	if err := grantTx(ctx, tx, o.UserID, plan, o.PeriodDays, at, orderGrantMode(ctx, tx, o), o.ID); err != nil {
 		return nil, err
 	}
 	if err := s.paidHooksTx(ctx, tx, o); err != nil {
@@ -174,6 +174,15 @@ func orderGrantMode(ctx context.Context, tx *sql.Tx, o *domain.Order) GrantMode 
 
 // ErrInsufficientBalance means the user cannot cover the order.
 var ErrInsufficientBalance = errors.New("store: insufficient balance")
+
+// DiscardPendingOrder deletes an order that was never paid and that the
+// customer was told failed, releasing what a pending order holds (its
+// coupon use, its carried-over surplus). Nothing references an unpaid
+// order: commissions only exist for paid ones.
+func (s *Store) DiscardPendingOrder(ctx context.Context, no string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM orders WHERE no = ? AND status = 'pending'`, no)
+	return err
+}
 
 // CancelStaleOrders cancels pending orders created before cutoff.
 func (s *Store) CancelStaleOrders(ctx context.Context, cutoff time.Time) (int64, error) {
@@ -368,13 +377,17 @@ func (s *Store) paidHooksTx(ctx context.Context, tx *sql.Tx, o *domain.Order) er
 	if inv.Payout == PayoutCommission {
 		column, payout = "commission_cents", PayoutCommission
 	}
-	// Walk up the referral chain, one level per configured percentage.
+	// Walk up the referral chain, one level per configured percentage. A
+	// chain that comes back round (the buyer, or someone already paid for
+	// this order) ends the walk: nobody earns on their own purchase.
 	current := o.UserID
+	seen := map[int64]bool{o.UserID: true}
 	for level, pct := range inv.LevelPercents() {
 		var inviter sql.NullInt64
-		if err := tx.QueryRowContext(ctx, `SELECT invited_by FROM users WHERE id = ?`, current).Scan(&inviter); err != nil || !inviter.Valid {
+		if err := tx.QueryRowContext(ctx, `SELECT invited_by FROM users WHERE id = ?`, current).Scan(&inviter); err != nil || !inviter.Valid || seen[inviter.Int64] {
 			return nil
 		}
+		seen[inviter.Int64] = true
 		current = inviter.Int64
 		amount := o.AmountCents * int64(pct) / 100
 		if amount <= 0 {

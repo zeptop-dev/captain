@@ -159,7 +159,7 @@ func (s *Store) RedeemGiftCode(ctx context.Context, userID int64, code string, a
 		if err != nil {
 			return nil, err
 		}
-		if err := grantTx(ctx, tx, userID, p, g.PeriodDays, at, defaultGrantMode(ctx, tx)); err != nil {
+		if err := grantTx(ctx, tx, userID, p, g.PeriodDays, at, defaultGrantMode(ctx, tx), 0); err != nil {
 			return nil, err
 		}
 	case GiftTraffic, GiftDays:

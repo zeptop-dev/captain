@@ -187,15 +187,18 @@ func (s *Store) startSubscription(ctx context.Context, id int64, plan *domain.Pl
 
 // CancelQueued drops a queued subscription (portal or admin). When the
 // row came from a paid "start after the current plan" order, that order
-// is marked refunded and its amount goes back to the user's balance.
+// — the one recorded on the row, never another order for the same plan —
+// is marked refunded and its amount goes back to the user's balance. A
+// row with no recorded order (admin grant, gift code, or created before
+// the column existed) is cancelled without a refund.
 func (s *Store) CancelQueued(ctx context.Context, userID, id int64) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	var planID int64
-	if err := tx.QueryRowContext(ctx, `SELECT plan_id FROM subscriptions WHERE id = ? AND user_id = ? AND status = 'queued'`, id, userID).Scan(&planID); err != nil {
+	var subOrder sql.NullInt64
+	if err := tx.QueryRowContext(ctx, `SELECT order_id FROM subscriptions WHERE id = ? AND user_id = ? AND status = 'queued'`, id, userID).Scan(&subOrder); err != nil {
 		return wrapNotFound(err)
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE subscriptions SET status = 'cancelled', updated_at = ? WHERE id = ?`, now(), id); err != nil {
@@ -203,7 +206,10 @@ func (s *Store) CancelQueued(ctx context.Context, userID, id int64) error {
 	}
 	var orderID, amount int64
 	var couponID sql.NullInt64
-	err = tx.QueryRowContext(ctx, `SELECT id, amount_cents, coupon_id FROM orders WHERE user_id = ? AND plan_id = ? AND activation = 'queue' AND status = 'paid' ORDER BY paid_at DESC, id DESC LIMIT 1`, userID, planID).Scan(&orderID, &amount, &couponID)
+	err = sql.ErrNoRows
+	if subOrder.Valid {
+		err = tx.QueryRowContext(ctx, `SELECT id, amount_cents, coupon_id FROM orders WHERE id = ? AND user_id = ? AND status = 'paid'`, subOrder.Int64, userID).Scan(&orderID, &amount, &couponID)
+	}
 	if err == nil {
 		if _, err := tx.ExecContext(ctx, `UPDATE orders SET status = 'refunded' WHERE id = ?`, orderID); err != nil {
 			return err

@@ -127,11 +127,16 @@ func (o *Orders) CreateWith(ctx context.Context, user *domain.User, planID int64
 			return nil, nil, err
 		}
 		paid, err := o.Store.PayWithBalance(ctx, order.No, time.Now())
-		if err == nil && o.OnPaid != nil {
-			o.OnPaid(ctx, paid)
-		}
 		if err != nil {
+			// A refused balance payment leaves nothing behind: a pending
+			// order would keep its coupon use (and any carried-over
+			// surplus) until the stale-order sweep, so the retry after a
+			// top-up would fail with "coupon already used".
+			_ = o.Store.DiscardPendingOrder(context.WithoutCancel(ctx), order.No)
 			return nil, nil, err
+		}
+		if o.OnPaid != nil {
+			o.OnPaid(ctx, paid)
 		}
 		return paid, nil, nil
 	default:

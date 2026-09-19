@@ -374,6 +374,6 @@ func (s *Store) DeleteStaff(ctx context.Context, id int64) error {
 // SetUserLang records the language a user reads, so their mail can follow
 // it. "" clears it back to the panel's mail language.
 func (s *Store) SetUserLang(ctx context.Context, userID int64, lang string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE users SET lang = ?, updated_at = ? WHERE id = ? AND role = 'user'`, lang, now(), userID)
+	_, err := s.db.ExecContext(ctx, `UPDATE users SET lang = ?, updated_at = ? WHERE id = ?`, lang, now(), userID)
 	return err
 }

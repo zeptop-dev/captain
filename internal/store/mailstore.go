@@ -11,6 +11,9 @@ import (
 	"github.com/zeptop-dev/captain/internal/auth"
 )
 
+// ErrCodeTooSoon is NewCode refusing a second code within a minute.
+var ErrCodeTooSoon = errors.New("a code was sent less than a minute ago")
+
 // NewCode creates (or replaces) a six-digit code for email+purpose, valid
 // for ttl, and returns the plain code for mailing. A code issued less than
 // a minute ago is refused so the endpoint cannot be used to spam a mailbox.
@@ -18,7 +21,7 @@ func (s *Store) NewCode(ctx context.Context, email, purpose string, ttl time.Dur
 	var created int64
 	err := s.db.QueryRowContext(ctx, `SELECT created_at FROM verification_codes WHERE email = ? AND purpose = ?`, email, purpose).Scan(&created)
 	if err == nil && time.Since(time.Unix(created, 0)) < time.Minute {
-		return "", errors.New("a code was sent less than a minute ago")
+		return "", ErrCodeTooSoon
 	}
 	b := make([]byte, 4)
 	if _, err := rand.Read(b); err != nil {

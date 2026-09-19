@@ -50,7 +50,7 @@ func (s *Store) GrantSubscriptionMode(ctx context.Context, userID int64, plan *d
 		return nil, err
 	}
 	defer tx.Rollback()
-	if err := grantTx(ctx, tx, userID, plan, 0, at, mode); err != nil {
+	if err := grantTx(ctx, tx, userID, plan, 0, at, mode, 0); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -62,8 +62,10 @@ func (s *Store) GrantSubscriptionMode(ctx context.Context, userID int64, plan *d
 // grantTx gives userID the plan for periodDays (0 = the plan's base
 // period). Renewing the same plan before it expires extends the time and
 // refills the quota. Otherwise the mode decides: stack next to the current
-// subscriptions, queue behind them, or replace them.
-func grantTx(ctx context.Context, tx *sql.Tx, userID int64, plan *domain.Plan, periodDays int, at time.Time, mode GrantMode) error {
+// subscriptions, queue behind them, or replace them. orderID (0 = none)
+// is the paid order behind the grant; a queued row remembers it so that
+// cancelling the row refunds exactly that order.
+func grantTx(ctx context.Context, tx *sql.Tx, userID int64, plan *domain.Plan, periodDays int, at time.Time, mode GrantMode, orderID int64) error {
 	if periodDays <= 0 {
 		periodDays = plan.PeriodDays
 	}
@@ -125,8 +127,8 @@ func grantTx(ctx context.Context, tx *sql.Tx, userID int64, plan *domain.Plan, p
 	}
 	switch mode {
 	case GrantQueue:
-		_, err := tx.ExecContext(ctx, `INSERT INTO subscriptions (user_id, plan_id, starts_at, expires_at, quota_bytes, reset_at, status, period_days, created_at, updated_at)
-			VALUES (?, ?, ?, NULL, ?, NULL, 'queued', ?, ?, ?)`, userID, plan.ID, at.Unix(), plan.QuotaBytes, periodDays, now(), now())
+		_, err := tx.ExecContext(ctx, `INSERT INTO subscriptions (user_id, plan_id, starts_at, expires_at, quota_bytes, reset_at, status, period_days, order_id, created_at, updated_at)
+			VALUES (?, ?, ?, NULL, ?, NULL, 'queued', ?, NULLIF(?, 0), ?, ?)`, userID, plan.ID, at.Unix(), plan.QuotaBytes, periodDays, orderID, now(), now())
 		return err
 	case GrantReplace:
 		if _, err := tx.ExecContext(ctx, `UPDATE subscriptions SET status = 'expired', updated_at = ? WHERE user_id = ? AND status = 'active'`, now(), userID); err != nil {
@@ -260,7 +262,7 @@ func (s *Store) ApplyTrial(ctx context.Context, userID int64, at time.Time) erro
 		return err
 	}
 	defer tx.Rollback()
-	if err := grantTx(ctx, tx, userID, plan, tr.PeriodDays, at, GrantStack); err != nil {
+	if err := grantTx(ctx, tx, userID, plan, tr.PeriodDays, at, GrantStack, 0); err != nil {
 		return err
 	}
 	return tx.Commit()

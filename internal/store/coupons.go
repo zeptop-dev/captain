@@ -191,10 +191,26 @@ func (s *Store) EnsureInviteCode(ctx context.Context, u *domain.User) error {
 	return err
 }
 
-// SetInvitedBy records who invited a user, only once.
+// maxInviteDepth bounds the walk up a referral chain.
+const maxInviteDepth = 64
+
+// SetInvitedBy records who invited a user, only once. An inviter whose own
+// chain leads back to the user is refused: A inviting B while B invited A
+// would let a multi-level reward pay the buyer for their own order.
 func (s *Store) SetInvitedBy(ctx context.Context, userID, inviterID int64) error {
 	if userID == inviterID {
 		return errors.New("cannot invite yourself")
+	}
+	cur := inviterID
+	for i := 0; i < maxInviteDepth; i++ {
+		var up sql.NullInt64
+		if err := s.db.QueryRowContext(ctx, `SELECT invited_by FROM users WHERE id = ?`, cur).Scan(&up); err != nil || !up.Valid {
+			break
+		}
+		if up.Int64 == userID {
+			return errors.New("that code belongs to someone you invited")
+		}
+		cur = up.Int64
 	}
 	res, err := s.db.ExecContext(ctx, `UPDATE users SET invited_by = ?, updated_at = ? WHERE id = ? AND invited_by IS NULL`, inviterID, now(), userID)
 	if err != nil {

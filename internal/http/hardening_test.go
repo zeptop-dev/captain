@@ -41,9 +41,15 @@ func TestPortalSessionCannotReachAdmin(t *testing.T) {
 	if code, _, _ := viaAdmin.do("GET", "/api/admin/nodes", nil, nil); code != 200 {
 		t.Fatalf("admin session refused: %d", code)
 	}
-	// Staff passwords are not reset through the mailbox flow.
-	if code, _, _ := viaPortal.do("POST", "/api/portal/password/reset", map[string]string{"Email": "admin@test", "Code": "000000", "Password": "newpassword1"}, nil); code != 403 {
+	// Staff passwords are not reset through the mailbox flow, and the
+	// refusal looks like any wrong code, so it does not reveal staff
+	// addresses either.
+	if code, _, _ := viaPortal.do("POST", "/api/portal/password/reset", map[string]string{"Email": "admin@test", "Code": "000000", "Password": "newpassword1"}, nil); code != 400 {
 		t.Fatalf("staff reset should be refused: %d", code)
+	}
+	again := &client{t: t, srv: srv}
+	if code, _, _ := again.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil); code != 200 {
+		t.Fatalf("the staff password changed: %d", code)
 	}
 }
 
