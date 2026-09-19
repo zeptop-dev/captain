@@ -22,8 +22,10 @@ the release notes name the bosun version it was tested against.
 Three rules, each learned the hard way:
 
 1. **The release workflow runs the same gates as CI** — i18n parity,
-   oxlint, `gofmt`, `go vet`, `go test -race` — and the image job waits for
-   the binaries. A red commit cannot become a release.
+   oxlint, `gofmt`, `go vet`, `govulncheck`, `go test -race` — and the image
+   job waits for the binaries. A red commit cannot become a release. A change
+   to the workflow itself is tried first with a manual run (Actions → release
+   → Run workflow), which builds the binaries and images and publishes nothing.
 2. **A published tag is never moved.** The self-updater compares versions
    only, so a node or panel that already fetched the first build of a tag
    would stay on it for ever. Something wrong in a release is fixed by the
