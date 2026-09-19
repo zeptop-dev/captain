@@ -18,9 +18,10 @@ jobs:
       - run: cd web/portal && pnpm install --frozen-lockfile && pnpm exec oxlint src && pnpm build
       - run: cd web/site && pnpm install --frozen-lockfile && pnpm build
       - run: cd web/probe && pnpm install --frozen-lockfile && pnpm build
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with: { go-version-file: go.mod }
       - run: git ls-files '*.go' | xargs gofmt -l | tee /dev/stderr | test -z "$(cat)"
       - run: go vet ./...
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
       - run: go test -race -coverpkg=./... -coverprofile=coverage.out ./...
       - run: go tool cover -func=coverage.out | tail -1

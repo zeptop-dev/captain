@@ -1,0 +1,33 @@
+# Weekly update PRs, grouped so a week's worth of bumps is one review.
+# Security updates are not grouped and arrive on their own.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      go-modules: { patterns: ["*"] }
+  - package-ecosystem: npm
+    directories: [/web/admin, /web/portal, /web/site, /web/probe]
+    schedule: { interval: weekly }
+    groups:
+      web-minor: { patterns: ["*"], update-types: [minor, patch] }
+    # Majors (Mantine, React, Vite...) move together and need a person.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      actions: { patterns: ["*"] }
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: weekly }
+    # The build image follows the toolchain line in go.mod (patch releases
+    # only); Node stays on the LTS line.
+    ignore:
+      - dependency-name: golang
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]

@@ -13,7 +13,7 @@ RUN cd web/admin && pnpm install --frozen-lockfile && cd ../portal && pnpm insta
 COPY web/ web/
 RUN cd web/admin && pnpm build && cd ../portal && pnpm build && cd ../site && pnpm build && cd ../probe && pnpm build
 
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.26.8-alpine AS build
 ARG TARGETOS TARGETARCH VERSION=docker
 WORKDIR /src
 COPY go.mod go.sum ./

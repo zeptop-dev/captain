@@ -21,11 +21,12 @@ jobs:
       - run: cd web/portal && pnpm install --frozen-lockfile && pnpm exec oxlint src && pnpm build
       - run: cd web/site && pnpm install --frozen-lockfile && pnpm build
       - run: cd web/probe && pnpm install --frozen-lockfile && pnpm build
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with: { go-version-file: go.mod }
       # A tag must clear the same gates as master: a red commit may not ship.
       - run: git ls-files '*.go' | xargs gofmt -l | tee /dev/stderr | test -z "$(cat)"
       - run: go vet ./...
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
       - run: go test -race ./...
       - run: |
           for arch in amd64 arm64; do
