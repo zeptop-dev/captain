@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/zeptop-dev/bosun/pkg/agentproto"
 	"github.com/zeptop-dev/bosun/pkg/spec"
 )
 
@@ -27,6 +28,8 @@ type ForwardStatus struct {
 	BytesIn    int64     `json:"bytes_in"`
 	BytesOut   int64     `json:"bytes_out"`
 	UpdatedAt  time.Time `json:"updated_at"`
+	// Targets is per-hop health of a rule with several targets.
+	Targets []agentproto.ForwardTargetStatus `json:"targets,omitempty"`
 }
 
 func (s *Store) NodeForwards(ctx context.Context, nodeID int64) ([]NodeForward, error) {
@@ -69,7 +72,7 @@ func (s *Store) SetNodeForwards(ctx context.Context, nodeID int64, list []NodeFo
 }
 
 func (s *Store) ForwardStatuses(ctx context.Context, nodeID int64) (map[string]ForwardStatus, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT tag, up, rtt_ms, last_error, active_conn, total_conn, bytes_in, bytes_out, updated_at FROM forward_status WHERE node_id = ?`, nodeID)
+	rows, err := s.db.QueryContext(ctx, `SELECT tag, up, rtt_ms, last_error, active_conn, total_conn, bytes_in, bytes_out, updated_at, targets_json FROM forward_status WHERE node_id = ?`, nodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -79,10 +82,14 @@ func (s *Store) ForwardStatuses(ctx context.Context, nodeID int64) (map[string]F
 		var f ForwardStatus
 		var up int
 		var at int64
-		if err := rows.Scan(&f.Tag, &up, &f.RTTMillis, &f.LastError, &f.ActiveConn, &f.TotalConn, &f.BytesIn, &f.BytesOut, &at); err != nil {
+		var targets string
+		if err := rows.Scan(&f.Tag, &up, &f.RTTMillis, &f.LastError, &f.ActiveConn, &f.TotalConn, &f.BytesIn, &f.BytesOut, &at, &targets); err != nil {
 			return nil, err
 		}
 		f.Up, f.UpdatedAt = up == 1, unix(at)
+		if targets != "" {
+			_ = json.Unmarshal([]byte(targets), &f.Targets)
+		}
 		out[f.Tag] = f
 	}
 	return out, rows.Err()

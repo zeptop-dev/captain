@@ -633,3 +633,87 @@ func TestShadowTLSInboundValidation(t *testing.T) {
 		}
 	}
 }
+
+// Forwards with several targets: the panel refuses what the backend cannot
+// serve (the node runs the same check), keeps what it can, and shows the
+// per-hop health the node reports.
+func TestForwardTargets(t *testing.T) {
+	r := newRig(t)
+	node := "/api/admin/nodes/" + itoa(r.nodeID)
+	extra := []map[string]any{{"target": " 203.0.113.30:443 "}}
+	for name, f := range map[string]map[string]any{
+		"nft":             {"tag": "n", "port": 10001, "target": "198.51.100.20:443", "backend": "nft", "targets": extra},
+		"realm failover":  {"tag": "r", "port": 10002, "target": "198.51.100.20:443", "backend": "realm", "targets": extra},
+		"unknown balance": {"tag": "b", "port": 10003, "target": "198.51.100.20:443", "balance": "random", "targets": extra},
+		"duplicate hop":   {"tag": "d", "port": 10004, "target": "198.51.100.20:443", "targets": []map[string]any{{"target": "198.51.100.20:443"}}},
+	} {
+		if code, b, _ := r.c.do("PUT", node+"/forwards", map[string]any{"Forwards": []map[string]any{f}}, nil); code != http.StatusBadRequest {
+			t.Errorf("%s accepted: %d %s", name, code, b)
+		}
+	}
+	if code, b, _ := r.c.do("PUT", node+"/forwards", map[string]any{"Forwards": []map[string]any{
+		{"tag": "fo", "port": 10005, "protocol": "tcp", "target": "198.51.100.20:443", "targets": extra},
+		{"tag": "rr", "port": 10006, "protocol": "tcp", "target": "198.51.100.20:443", "backend": "realm", "balance": "roundrobin", "weight": 3, "targets": extra},
+	}}, nil); code != http.StatusOK {
+		t.Fatalf("valid rules refused: %d %s", code, b)
+	}
+	_, sb, _ := r.agent.do("GET", "/api/agent/state", nil, nil)
+	st := mustJSON[agentproto.State](t, sb)
+	var fo, rr spec.Forward
+	for _, f := range st.Forwards {
+		switch f.Tag {
+		case "fo":
+			fo = f
+		case "rr":
+			rr = f
+		}
+	}
+	if len(fo.Targets) != 1 || fo.Targets[0].Target != "203.0.113.30:443" || rr.Balance != "roundrobin" || rr.Weight != 3 {
+		t.Fatalf("state carries fo=%+v rr=%+v", fo, rr)
+	}
+	r.agent.do("POST", "/api/agent/report", agentproto.Report{Forwards: []agentproto.ForwardStatus{{Tag: "fo", Up: true, RTTMillis: 40,
+		Targets: []agentproto.ForwardTargetStatus{{Target: "198.51.100.20:443", Up: false, LastError: "i/o timeout"}, {Target: "203.0.113.30:443", Up: true, RTTMillis: 40, TotalConn: 7}}}}}, nil)
+	_, b, _ := r.c.do("GET", node+"/forwards", nil, nil)
+	got := mustJSON[struct {
+		Status map[string]store.ForwardStatus `json:"status"`
+	}](t, b)
+	hops := got.Status["fo"].Targets
+	if len(hops) != 2 || hops[0].Up || hops[0].LastError == "" || !hops[1].Up || hops[1].TotalConn != 7 {
+		t.Fatalf("per-hop status not kept: %+v", got.Status["fo"])
+	}
+}
+
+// The panel self-check names the gaps of a fresh install and skips what
+// does not apply; it is an admin-only view (it lists staff emails).
+func TestSelfCheck(t *testing.T) {
+	r := newRig(t)
+	code, b, _ := r.c.do("GET", "/api/admin/system/selfcheck", nil, nil)
+	if code != http.StatusOK {
+		t.Fatalf("selfcheck: %d %s", code, b)
+	}
+	got := mustJSON[struct {
+		Checks []struct {
+			ID, Status, Code string
+			Args             map[string]any
+		}
+	}](t, b)
+	by := map[string]string{}
+	for _, c := range got.Checks {
+		by[c.ID] = c.Status + "/" + c.Code
+	}
+	for id, want := range map[string]string{
+		"heartbeat":  "warn/off",
+		"mail":       "warn/off",
+		"staff_2fa":  "warn/missing",
+		"version":    "skip/",
+		"panel_cert": "skip/",
+	} {
+		if by[id] != want {
+			t.Errorf("%s = %q, want %q (all: %v)", id, by[id], want, by)
+		}
+	}
+	anon := &client{t: t, srv: r.srv}
+	if code, _, _ := anon.do("GET", "/api/admin/system/selfcheck", nil, nil); code != http.StatusUnauthorized {
+		t.Fatalf("anonymous selfcheck: %d", code)
+	}
+}

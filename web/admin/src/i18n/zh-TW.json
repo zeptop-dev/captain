@@ -830,7 +830,21 @@
     "backendNft": "nftables 核心轉發",
     "preserve": "保留來源 IP",
     "nftHint": "nftables 後端走核心 DNAT，節點需要 nft 指令，目標必須是 IPv4；保留來源 IP 時目標伺服器的回包路由必須經過本機。",
-    "proxyProtocol": "傳送 PROXY protocol"
+    "proxyProtocol": "傳送 PROXY protocol",
+    "moreTargetsHint": "同一規則的其他下一跳：備用線路，或用來分攤連線的更多線路。健康檢測為每 30 秒一次 TCP 連線。",
+    "addTarget": "新增目標",
+    "weight": "權重",
+    "primaryWeight": "第一個目標的權重",
+    "balance": "多個目標時",
+    "balanceFailover": "故障切換 — 使用第一個健康的目標",
+    "balanceRoundRobin": "輪詢 — 依權重分攤",
+    "balanceFailoverHint": "新連線走第一個通過健康檢測的目標；連線失敗會在用戶端察覺之前改連下一個。",
+    "balanceRoundRobinHint": "新連線依權重分攤到健康的目標上。單條連線仍只走一個目標。",
+    "realmRoundRobinOnly": "realm 能分攤連線，但不會改連另一個目標，所以只支援輪詢。",
+    "failoverShort": "故障切換",
+    "roundRobinShort": "輪詢",
+    "editTargets": "目標與故障切換",
+    "firstTarget": "第一個目標"
   },
   "ingress": {
     "derive": "按尾號派生",
@@ -1047,7 +1061,23 @@
     "ran": "備份完成",
     "last": "上次 {{at}}：{{file}}",
     "uploaded": "已上傳 {{name}}",
-    "uploadFailed": "上傳失敗"
+    "uploadFailed": "上傳失敗",
+    "encrypt": "加密異地副本",
+    "encryptHint": "上傳前用 age 加密，儲存桶裡只有密文。本機副本不加密，和旁邊的線上資料庫一樣。",
+    "encryptOff": "關閉",
+    "encryptKey": "公鑰（建議）",
+    "encryptPassphrase": "密語",
+    "encryptOffWarn": "異地副本以明文上傳：裡面有密碼雜湊、支付金鑰和每位使用者的訂閱權杖。",
+    "recipient": "age 公鑰",
+    "generateKey": "產生金鑰對",
+    "passphrase": "密語",
+    "passphraseHint": "至少 12 個字元。密語保存在面板上，所以它保護的是儲存桶，不是這台主機。請另外保存一份。",
+    "keyTitle": "現在就保存私鑰",
+    "keyWarn": "這是唯一的一份。Captain 只保存公鑰，自己也打不開異地備份；沒有這把私鑰，誰都打不開。請把它存到這台伺服器以外的地方，然後儲存設定。",
+    "downloadKey": "下載金鑰檔",
+    "copyKey": "複製",
+    "keySaved": "我已保存",
+    "restoreHint": "還原異地副本：captain backup open -identity key.txt -o captain.db 檔案，或 age -d -i key.txt 檔案 | gunzip > captain.db。"
   },
   "certs": {
     "issue": "建立憑證",
@@ -1256,5 +1286,45 @@
     "what": "操作",
     "result": "結果",
     "empty": "尚無紀錄"
+  },
+  "selfcheck": {
+    "title": "面板自檢",
+    "issues": "{{count}} 項需要處理",
+    "allOk": "{{count}} 項檢查全部通過",
+    "recheck": "重新檢查",
+    "fix": "前往處理",
+    "status": {
+      "warn": "注意",
+      "fail": "故障"
+    },
+    "names": {
+      "backup_local": "本機備份",
+      "backup_remote": "異地備份",
+      "backup_encrypt": "備份加密",
+      "heartbeat": "面板心跳",
+      "mail": "寄信",
+      "staff_2fa": "員工兩步驟驗證",
+      "version": "Captain 版本",
+      "disk": "磁碟空間",
+      "nodes": "節點",
+      "panel_cert": "面板憑證"
+    },
+    "msg": {
+      "backup_local_error": "最近一次快照失敗：{{error}}",
+      "backup_local_never": "還沒有做過快照",
+      "backup_local_stale": "最近一次快照在 {{at}}，本應每天一次",
+      "backup_remote_none": "備份只在這台主機上——主機沒了，備份也就沒了；請新增 WebDAV 或 S3 儲存桶",
+      "backup_remote_error": "最近一次上傳失敗：{{error}}",
+      "backup_encrypt_off": "異地副本以明文上傳",
+      "heartbeat_off": "沒有任何東西在監看面板本身；請把心跳指向外部監控",
+      "heartbeat_failing": "最近一次心跳失敗：{{error}}",
+      "mail_off": "沒有設定寄信：找回密碼、驗證碼和到期提醒都寄不出去",
+      "staff_2fa_missing": "{{count}} 個員工帳號只用密碼登入：{{emails}}",
+      "version_behind": "目前 {{current}}，已有 {{latest}}",
+      "disk_low": "資料庫所在磁碟只剩 {{free}}",
+      "nodes_offline": "離線：{{names}}",
+      "panel_cert_expiring": "{{days}} 天後到期",
+      "panel_cert_expired": "已過期"
+    }
   }
 }

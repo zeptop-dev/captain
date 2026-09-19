@@ -86,6 +86,16 @@ file without a WAL. `internal/backup.Manager` runs from the job tick:
   retention, tests the remote, runs a backup now and downloads local
   copies (`POST /api/admin/settings/backup/run`,
   `GET /api/admin/settings/backup/files/{name}`);
+- remote copies can be **encrypted** with [age](https://age-encryption.org)
+  before they leave the host (Settings → Database backups → Encrypt remote
+  copies), because the database holds password hashes, TOTP secrets,
+  payment gateway keys, node secrets and every subscription token. With a
+  *public key* (the console generates a pair and shows the private key
+  once; the panel keeps only the public half) Captain can seal its remote
+  copies but not open them. A *passphrase* is simpler and is stored on the
+  panel, so it protects the bucket, not the host. Sealed copies are named
+  `captain-<date>.db.gz.age`; local snapshots stay plain, like the live
+  database next to them;
 - the outcome (time, file, error, remote name) is stored under the
   `backup_status` setting and shown on the card; a failure logs
   `backup failed` with `component=backup`.
@@ -103,9 +113,18 @@ mid-write can be inconsistent. The snapshots exist for that.
    `captain.db-shm` aside. Never leave an old `-wal`/`-shm` pair next to a
    restored file, and never bring the `-wal`/`-shm` files of a live copy
    along: SQLite would replay that WAL into the restored database.
-3. Put the snapshot in place as `captain.db` (`gunzip` first when it came
-   from the remote). A snapshot from `VACUUM INTO` has no WAL; Captain
-   creates fresh `-wal`/`-shm` files on start.
+3. Put the snapshot in place as `captain.db`. A copy from the remote is
+   gzipped, and sealed when encryption is on; `captain backup open` does
+   both steps and refuses to overwrite an existing file:
+
+   ```sh
+   captain backup open -identity captain-backup-key.txt -o captain.db captain-2026-09-19.db.gz.age
+   CAPTAIN_BACKUP_PASS='…' captain backup open -passphrase-env CAPTAIN_BACKUP_PASS -o captain.db FILE
+   ```
+
+   Without the binary: `age -d -i captain-backup-key.txt FILE | gunzip >
+   captain.db` (plain copies: `gunzip`). A snapshot from `VACUUM INTO` has
+   no WAL; Captain creates fresh `-wal`/`-shm` files on start.
 4. Make sure the service user owns it (`chown captain:captain` for the
    binary install; uid 1000 inside the container).
 5. Start Captain. A snapshot older than the binary is fine: the missing
@@ -195,6 +214,13 @@ forward again with "upgrade".
 
 - **Liveness**: `GET /api/health` answers `{"ok":true,"time":<unix>}` without
   auth. It says the process is up, nothing more.
+- **Self-check** (dashboard, admins only; `GET /api/admin/system/selfcheck`):
+  the panel lists its own gaps — no snapshot in 26 hours, backups that
+  never leave the host or leave it unencrypted, the heartbeat off or
+  failing, no mail provider, staff accounts without two-factor login, a
+  newer release, under 1 GiB free where the database lives, nodes silent
+  for five minutes, the panel's public certificate within 14 days of
+  expiry — each with a link to where it is fixed.
 - **Metrics**: `GET /api/admin/metrics` serves Prometheus text. It sits
   behind the admin auth, so scrape it with a personal API token
   (Settings → API tokens & MCP; `Authorization: Bearer cap_...`) from an

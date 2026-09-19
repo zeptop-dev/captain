@@ -6,6 +6,7 @@ import { IconDevices, IconServer, IconArrowsExchange, IconCoin } from '@tabler/i
 import { api, type Dashboard } from '../lib/api'
 import { bytes, money } from '../lib/format'
 import { PageHeader } from '../components/PageHeader'
+import { SelfCheckCard } from '../components/SelfCheckCard'
 import { Stat } from '../components/Stat'
 
 export default function DashboardPage() {
@@ -27,6 +28,7 @@ export default function DashboardPage() {
             hint={down === 0 ? t('dashboard.allUp') : t('dashboard.someDown', { count: down })} color={down > 0 ? 'orange' : undefined} icon={<IconServer size={18} opacity={0.6} />} />
         </SimpleGrid>
       )}
+      <SelfCheckCard />
       <Card>
         <Group justify="space-between" mb="md">
           <div>

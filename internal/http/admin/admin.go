@@ -145,6 +145,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("PUT /api/admin/settings/subscription", h.requireAdmin(h.putSubscription))
 	mux.HandleFunc("GET /api/admin/settings/acme", h.requireAdmin(h.getACME))
 	mux.HandleFunc("PUT /api/admin/settings/acme", h.requireAdmin(h.putACME))
+	mux.HandleFunc("GET /api/admin/system/selfcheck", h.requireAdmin(h.selfCheck))
 	mux.HandleFunc("GET /api/admin/system/update", h.requireAdmin(h.systemUpdate))
 	mux.HandleFunc("POST /api/admin/system/update/apply", h.requireAdmin(h.systemUpdateApply))
 	mux.HandleFunc("POST /api/admin/system/update/rollback", h.requireAdmin(h.systemUpdateRollback))

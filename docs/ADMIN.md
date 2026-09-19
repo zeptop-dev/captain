@@ -140,7 +140,10 @@ the newest seven. Settings → Database backups sets the hour and retention,
 adds a remote (WebDAV with basic auth, or any S3-compatible bucket: AWS,
 Cloudflare R2, Backblaze B2, MinIO with path-style) that receives each
 snapshot gzipped with its own retention, tests the remote, runs a backup on
-demand and downloads local copies.
+demand and downloads local copies. Remote copies can be encrypted with age:
+generate a key pair in the card (the private key is shown once and never
+stored) or set a passphrase; `captain backup open` turns a remote copy back
+into a database.
 
 Restore, upgrade and rollback procedures — including the `-wal`/`-shm`
 caveat that silently corrupts a careless restore — are in

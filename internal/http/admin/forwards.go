@@ -115,6 +115,18 @@ func (h *handlers) putNodeForwards(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		f.Target = net.JoinHostPort(host, port)
+		for j := range f.Targets {
+			if h, p, err := net.SplitHostPort(strings.TrimSpace(f.Targets[j].Target)); err == nil {
+				f.Targets[j].Target = net.JoinHostPort(h, p)
+			}
+		}
+		if len(f.Targets) == 0 {
+			f.Balance, f.Weight = "", 0
+		}
+		if err := f.ValidateTargets(); err != nil {
+			fail(w, http.StatusBadRequest, fmt.Sprintf("rule %d: %v", i+1, err))
+			return
+		}
 		if f.Listen != "" && net.ParseIP(f.Listen) == nil {
 			fail(w, http.StatusBadRequest, fmt.Sprintf("rule %d: listen must be an IP or empty", i+1))
 			return

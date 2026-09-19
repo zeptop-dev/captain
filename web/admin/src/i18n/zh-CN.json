@@ -921,7 +921,21 @@
     "nftHint": "nftables 后端走内核 DNAT，节点需要 nft 命令，目标必须是 IPv4；保留源 IP 时目标服务器的回包路由必须经过本机。",
     "backendRealm": "Realm（独立进程）",
     "backendRealmHint": "由 bosun 安装并运行 zhboner/realm 中转，吞吐高，支持域名目标和 UDP；没有连接数和流量统计。",
-    "proxyProtocol": "发送 PROXY protocol"
+    "proxyProtocol": "发送 PROXY protocol",
+    "moreTargetsHint": "同一规则的其他下一跳：备用线路，或用来分摊连接的更多线路。健康检测为每 30 秒一次 TCP 连接。",
+    "addTarget": "添加目标",
+    "weight": "权重",
+    "primaryWeight": "第一个目标的权重",
+    "balance": "多个目标时",
+    "balanceFailover": "故障切换 — 用第一个健康的目标",
+    "balanceRoundRobin": "轮询 — 按权重分摊",
+    "balanceFailoverHint": "新连接走第一个通过健康检测的目标；连接失败会在客户端察觉之前改连下一个。",
+    "balanceRoundRobinHint": "新连接按权重分摊到健康的目标上。单条连接仍只走一个目标。",
+    "realmRoundRobinOnly": "realm 能分摊连接，但不会改连另一个目标，所以只支持轮询。",
+    "failoverShort": "故障切换",
+    "roundRobinShort": "轮询",
+    "editTargets": "目标与故障切换",
+    "firstTarget": "第一个目标"
   },
   "backup": {
     "title": "数据库备份",
@@ -944,7 +958,23 @@
     "ran": "备份完成",
     "last": "上次 {{at}}：{{file}}",
     "uploaded": "已上传 {{name}}",
-    "uploadFailed": "上传失败"
+    "uploadFailed": "上传失败",
+    "encrypt": "加密异地副本",
+    "encryptHint": "上传前用 age 加密，存储桶里只有密文。本地副本不加密，和旁边的线上数据库一样。",
+    "encryptOff": "关闭",
+    "encryptKey": "公钥（推荐）",
+    "encryptPassphrase": "口令",
+    "encryptOffWarn": "异地副本以明文上传：里面有密码哈希、支付密钥和每个用户的订阅令牌。",
+    "recipient": "age 公钥",
+    "generateKey": "生成密钥对",
+    "passphrase": "口令",
+    "passphraseHint": "至少 12 个字符。口令保存在面板上，所以它保护的是存储桶，不是这台主机。请另外保存一份。",
+    "keyTitle": "现在就保存私钥",
+    "keyWarn": "这是唯一的一份。Captain 只保存公钥，自己也打不开异地备份；没有这把私钥，谁都打不开。请把它存到这台服务器以外的地方，然后保存设置。",
+    "downloadKey": "下载密钥文件",
+    "copyKey": "复制",
+    "keySaved": "我已保存",
+    "restoreHint": "恢复异地副本：captain backup open -identity key.txt -o captain.db 文件，或 age -d -i key.txt 文件 | gunzip > captain.db。"
   },
   "certs": {
     "issue": "创建证书",
@@ -1256,5 +1286,45 @@
     "what": "操作",
     "result": "结果",
     "empty": "暂无记录"
+  },
+  "selfcheck": {
+    "title": "面板自检",
+    "issues": "{{count}} 项需要处理",
+    "allOk": "{{count}} 项检查全部通过",
+    "recheck": "重新检查",
+    "fix": "去处理",
+    "status": {
+      "warn": "注意",
+      "fail": "故障"
+    },
+    "names": {
+      "backup_local": "本地备份",
+      "backup_remote": "异地备份",
+      "backup_encrypt": "备份加密",
+      "heartbeat": "面板心跳",
+      "mail": "发信",
+      "staff_2fa": "员工两步验证",
+      "version": "Captain 版本",
+      "disk": "磁盘空间",
+      "nodes": "节点",
+      "panel_cert": "面板证书"
+    },
+    "msg": {
+      "backup_local_error": "最近一次快照失败：{{error}}",
+      "backup_local_never": "还没有做过快照",
+      "backup_local_stale": "最近一次快照在 {{at}}，本应每天一次",
+      "backup_remote_none": "备份只在这台主机上——主机没了，备份也就没了；请添加 WebDAV 或 S3 存储桶",
+      "backup_remote_error": "最近一次上传失败：{{error}}",
+      "backup_encrypt_off": "异地副本以明文上传",
+      "heartbeat_off": "没有任何东西在盯着面板本身；请把心跳指向外部监控",
+      "heartbeat_failing": "最近一次心跳失败：{{error}}",
+      "mail_off": "没有配置发信：找回密码、验证码和到期提醒都发不出去",
+      "staff_2fa_missing": "{{count}} 个员工账号只用密码登录：{{emails}}",
+      "version_behind": "当前 {{current}}，已有 {{latest}}",
+      "disk_low": "数据库所在磁盘只剩 {{free}}",
+      "nodes_offline": "离线：{{names}}",
+      "panel_cert_expiring": "{{days}} 天后到期",
+      "panel_cert_expired": "已过期"
+    }
   }
 }

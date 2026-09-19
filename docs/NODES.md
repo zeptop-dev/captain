@@ -2,7 +2,7 @@
 
 How a server becomes a node, what it serves, and how traffic gets in and
 out of it. Version notes name the bosun release a feature needs; Captain
-1.0 ships against bosun 0.47.
+1.2 ships against bosun 0.49.
 
 ## Adding a node
 
@@ -111,6 +111,18 @@ A rule's backend is one of:
 | built-in relay | bosun's own userspace relay | connection and byte counters, PROXY protocol support |
 | `nft` | nftables kernel DNAT (bosun ≥ 0.18) | fastest, IPv4 target, optional source preservation when replies route back through the node; no counters |
 | `realm` | bosun installs and runs [realm](https://github.com/zhboner/realm) | high throughput, hostname targets, UDP; no counters |
+
+**Several targets.** A rule can have further targets (the split-arrows
+button on the rule): a backup line for when the first is down, or more
+lines to spread connections over. *Failover* sends new connections to the
+first target whose health check passes, and a connection whose dial fails
+moves on to the next target before the client notices; *round-robin*
+spreads connections over the healthy targets by weight. Each target's
+health, RTT and connection count shows next to the rule. Built-in relay:
+both modes; realm: round-robin only (it does not retry another target);
+nft: one target. A connection always uses one target, so this keeps a
+relay up and spreads load across lines — it does not make one download
+faster. Needs bosun ≥ 0.49.
 
 Ports are checked against the node's own inbounds. Xray-style domain/IP
 splitting inside a tunnel is deliberately not offered: use the landing

@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zeptop-dev/captain/internal/backup"
 	"github.com/zeptop-dev/captain/internal/config"
 	"github.com/zeptop-dev/captain/internal/db"
 	chttp "github.com/zeptop-dev/captain/internal/http"
@@ -41,6 +42,8 @@ func main() {
 		err = cmdMigrate(os.Args[2:])
 	case "admin":
 		err = cmdAdmin(os.Args[2:])
+	case "backup":
+		err = cmdBackup(os.Args[2:])
 	case "version":
 		fmt.Println("captain", version)
 	default:
@@ -58,6 +61,8 @@ func usage() {
   captain serve   -c config.yaml                      run the panel
   captain migrate -c config.yaml                      apply database migrations
   captain admin create -c config.yaml -email E -password P   create an admin user
+  captain backup open -identity key.txt -o captain.db FILE   decrypt and unpack a remote backup
+                                                      (-passphrase-env VAR instead of -identity)
   captain version`)
 }
 
@@ -197,6 +202,58 @@ func cmdMigrate(args []string) error {
 		return err
 	}
 	log.Info("migrations applied")
+	return nil
+}
+
+// cmdBackup opens a remote copy (captain-<date>.db.gz or .db.gz.age) into
+// a database file. The passphrase is read from an environment variable so
+// it stays out of the shell history and the process list.
+func cmdBackup(args []string) error {
+	if len(args) == 0 || args[0] != "open" {
+		return fmt.Errorf("backup: only 'open' is supported")
+	}
+	fs := flag.NewFlagSet("backup open", flag.ContinueOnError)
+	identity := fs.String("identity", "", "age identity file (AGE-SECRET-KEY-1…) for key-encrypted copies")
+	passEnv := fs.String("passphrase-env", "", "environment variable holding the passphrase for passphrase-encrypted copies")
+	out := fs.String("o", "captain.db", "database file to write (must not exist)")
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return fmt.Errorf("backup open: give one backup file")
+	}
+	var id, pass string
+	if *identity != "" {
+		b, err := os.ReadFile(*identity)
+		if err != nil {
+			return err
+		}
+		id = string(b)
+	}
+	if *passEnv != "" {
+		pass = os.Getenv(*passEnv)
+		if pass == "" {
+			return fmt.Errorf("backup open: %s is empty", *passEnv)
+		}
+	}
+	in, err := os.Open(fs.Arg(0))
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	f, err := os.OpenFile(*out, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	if err := backup.Open(in, f, id, pass); err != nil {
+		f.Close()
+		os.Remove(*out)
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	fmt.Println("wrote", *out)
 	return nil
 }
 

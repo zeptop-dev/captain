@@ -16,6 +16,7 @@ func (h *handlers) registerBackup(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/admin/settings/backup", h.requireAdmin(h.putBackup))
 	mux.HandleFunc("POST /api/admin/settings/backup/run", h.requireAdmin(h.runBackup))
 	mux.HandleFunc("POST /api/admin/settings/backup/test", h.requireAdmin(h.testBackup))
+	mux.HandleFunc("POST /api/admin/settings/backup/keygen", h.requireAdmin(h.backupKeygen))
 	mux.HandleFunc("GET /api/admin/settings/backup/files/{name}", h.requireAdmin(h.downloadBackup))
 }
 
@@ -29,9 +30,9 @@ func (h *handlers) getBackup(w http.ResponseWriter, r *http.Request) {
 	var st backup.Status
 	_ = h.Store.GetSetting(r.Context(), backup.StatusKey, &st)
 	files, _ := h.Backups.List()
-	hasDav, hasS3 := s.WebDAV.Password != "", s.S3.SecretKey != ""
-	s.WebDAV.Password, s.S3.SecretKey = "", ""
-	ok(w, map[string]any{"available": true, "settings": s, "has_webdav_password": hasDav, "has_s3_secret": hasS3, "status": st, "files": files, "dir": h.Backups.Dir})
+	hasDav, hasS3, hasPass := s.WebDAV.Password != "", s.S3.SecretKey != "", s.Encrypt.Passphrase != ""
+	s.WebDAV.Password, s.S3.SecretKey, s.Encrypt.Passphrase = "", "", ""
+	ok(w, map[string]any{"available": true, "settings": s, "has_webdav_password": hasDav, "has_s3_secret": hasS3, "has_encrypt_passphrase": hasPass, "status": st, "files": files, "dir": h.Backups.Dir})
 }
 
 // putBackup stores settings; blank secrets keep the stored ones.
@@ -47,6 +48,21 @@ func (h *handlers) putBackup(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.S3.SecretKey == "" {
 		in.S3.SecretKey = cur.S3.SecretKey
+	}
+	// Only the chosen mode's secret is kept: switching to a key or off
+	// drops a stored passphrase.
+	in.Encrypt.Recipient = strings.TrimSpace(in.Encrypt.Recipient)
+	switch in.Encrypt.Mode {
+	case "passphrase":
+		if in.Encrypt.Passphrase == "" {
+			in.Encrypt.Passphrase = cur.Encrypt.Passphrase
+		}
+	default:
+		in.Encrypt.Passphrase = ""
+	}
+	if err := in.Encrypt.Validate(); err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
 	}
 	in.WebDAV.URL = strings.TrimSpace(in.WebDAV.URL)
 	in.S3.Endpoint = strings.TrimSpace(in.S3.Endpoint)
@@ -78,6 +94,18 @@ func (h *handlers) putBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, map[string]bool{"ok": true})
+}
+
+// backupKeygen makes an age key pair for remote backups. The identity is
+// shown once and never stored: without it the remote copies cannot be
+// opened, which is the point.
+func (h *handlers) backupKeygen(w http.ResponseWriter, r *http.Request) {
+	rcpt, id, err := backup.GenerateKey()
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
+	ok(w, map[string]string{"recipient": rcpt, "identity": id})
 }
 
 func (h *handlers) runBackup(w http.ResponseWriter, r *http.Request) {

@@ -830,7 +830,21 @@
     "backendNft": "nftables(커널 DNAT)",
     "preserve": "출발지 IP 유지",
     "nftHint": "nftables 백엔드는 커널 DNAT 를 씁니다. 노드에 nft 명령이 있어야 하고 대상은 IPv4 여야 합니다. 출발지 IP 를 유지하면 대상 서버의 응답 패킷이 이 노드를 거쳐 돌아와야 합니다.",
-    "proxyProtocol": "PROXY protocol 전송"
+    "proxyProtocol": "PROXY protocol 전송",
+    "moreTargetsHint": "같은 규칙의 다른 다음 홉: 예비 회선이나 연결을 분산할 추가 회선. 상태 확인은 30초마다 TCP 연결입니다.",
+    "addTarget": "대상 추가",
+    "weight": "가중치",
+    "primaryWeight": "첫 번째 대상의 가중치",
+    "balance": "대상이 여러 개일 때",
+    "balanceFailover": "장애 조치 — 첫 번째 정상 대상",
+    "balanceRoundRobin": "라운드 로빈 — 가중치로 분산",
+    "balanceFailoverHint": "새 연결은 상태 확인을 통과한 첫 번째 대상으로 갑니다. 연결에 실패하면 클라이언트가 알아차리기 전에 다음 대상으로 넘어갑니다.",
+    "balanceRoundRobinHint": "새 연결을 정상 대상에 가중치 비율로 분산합니다. 한 연결은 여전히 한 대상만 사용합니다.",
+    "realmRoundRobinOnly": "realm은 연결을 분산하지만 다른 대상으로 재시도하지 않으므로 라운드 로빈만 지원합니다.",
+    "failoverShort": "장애 조치",
+    "roundRobinShort": "라운드 로빈",
+    "editTargets": "대상 및 장애 조치",
+    "firstTarget": "첫 번째 대상"
   },
   "ingress": {
     "derive": "끝자리로 파생",
@@ -1047,7 +1061,23 @@
     "ran": "백업 완료",
     "last": "마지막 {{at}}: {{file}}",
     "uploaded": "{{name}} 업로드됨",
-    "uploadFailed": "업로드 실패"
+    "uploadFailed": "업로드 실패",
+    "encrypt": "원격 사본 암호화",
+    "encryptHint": "업로드 전에 age로 암호화하므로 버킷에는 암호문만 남습니다. 로컬 사본은 옆의 운영 데이터베이스처럼 평문으로 둡니다.",
+    "encryptOff": "끔",
+    "encryptKey": "공개 키(권장)",
+    "encryptPassphrase": "암호 문구",
+    "encryptOffWarn": "원격 사본이 암호화되지 않은 채 업로드됩니다. 비밀번호 해시, 결제 키, 모든 사용자의 구독 토큰이 들어 있습니다.",
+    "recipient": "age 공개 키",
+    "generateKey": "키 쌍 생성",
+    "passphrase": "암호 문구",
+    "passphraseHint": "12자 이상. 패널에 저장되므로 이 호스트가 아니라 버킷을 보호합니다. 다른 곳에도 사본을 보관하세요.",
+    "keyTitle": "지금 개인 키를 저장하세요",
+    "keyWarn": "이것이 유일한 사본입니다. Captain은 공개 키만 보관하므로 자신의 원격 백업도 열 수 없고, 이 키가 없으면 아무도 열 수 없습니다. 이 서버 밖에 저장한 뒤 설정을 저장하세요.",
+    "downloadKey": "키 파일 다운로드",
+    "copyKey": "복사",
+    "keySaved": "저장했습니다",
+    "restoreHint": "원격 사본 복원: captain backup open -identity key.txt -o captain.db 파일, 또는 age -d -i key.txt 파일 | gunzip > captain.db."
   },
   "certs": {
     "issue": "인증서 만들기",
@@ -1256,5 +1286,45 @@
     "what": "작업",
     "result": "결과",
     "empty": "아직 기록이 없습니다"
+  },
+  "selfcheck": {
+    "title": "패널 자체 점검",
+    "issues": "확인할 항목 {{count}}개",
+    "allOk": "점검 {{count}}개 모두 통과",
+    "recheck": "다시 점검",
+    "fix": "해결하기",
+    "status": {
+      "warn": "주의",
+      "fail": "실패"
+    },
+    "names": {
+      "backup_local": "로컬 백업",
+      "backup_remote": "외부 백업",
+      "backup_encrypt": "백업 암호화",
+      "heartbeat": "패널 하트비트",
+      "mail": "메일 발송",
+      "staff_2fa": "직원 2단계 인증",
+      "version": "Captain 버전",
+      "disk": "디스크 공간",
+      "nodes": "노드",
+      "panel_cert": "패널 인증서"
+    },
+    "msg": {
+      "backup_local_error": "마지막 스냅샷이 실패했습니다: {{error}}",
+      "backup_local_never": "아직 스냅샷이 없습니다",
+      "backup_local_stale": "마지막 스냅샷이 {{at}}입니다. 매일 한 번 생성되어야 합니다",
+      "backup_remote_none": "백업이 이 호스트에만 있습니다. 호스트를 잃으면 백업도 잃습니다. WebDAV나 S3 버킷을 추가하세요",
+      "backup_remote_error": "마지막 업로드가 실패했습니다: {{error}}",
+      "backup_encrypt_off": "외부 사본이 암호화되지 않은 채 업로드됩니다",
+      "heartbeat_off": "패널 자체를 지켜보는 것이 없습니다. 하트비트를 외부 모니터로 보내세요",
+      "heartbeat_failing": "마지막 하트비트가 실패했습니다: {{error}}",
+      "mail_off": "메일 발송이 설정되지 않아 비밀번호 재설정, 인증 코드, 만료 알림을 보낼 수 없습니다",
+      "staff_2fa_missing": "직원 계정 {{count}}개가 비밀번호만으로 로그인합니다: {{emails}}",
+      "version_behind": "{{current}} 실행 중, {{latest}} 사용 가능",
+      "disk_low": "데이터베이스 디스크 여유 공간 {{free}}",
+      "nodes_offline": "오프라인: {{names}}",
+      "panel_cert_expiring": "{{days}}일 후 만료",
+      "panel_cert_expired": "만료됨"
+    }
   }
 }

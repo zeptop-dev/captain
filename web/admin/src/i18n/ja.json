@@ -830,7 +830,21 @@
     "backendNft": "nftables（カーネル DNAT）",
     "preserve": "送信元 IP を保持",
     "nftHint": "nftables バックエンドはカーネル DNAT を使います。ノードに nft コマンドが必要で、転送先は IPv4 のみ。送信元 IP を保持する場合、転送先の戻りパケットはこのノードを経由する必要があります。",
-    "proxyProtocol": "PROXY protocol を送信"
+    "proxyProtocol": "PROXY protocol を送信",
+    "moreTargetsHint": "同じルールの別の転送先：予備回線、または接続を分散する追加の回線。ヘルスチェックは 30 秒ごとの TCP 接続です。",
+    "addTarget": "ターゲットを追加",
+    "weight": "重み",
+    "primaryWeight": "最初のターゲットの重み",
+    "balance": "ターゲットが複数あるとき",
+    "balanceFailover": "フェイルオーバー — 最初の正常なターゲット",
+    "balanceRoundRobin": "ラウンドロビン — 重みで分散",
+    "balanceFailoverHint": "新しい接続はヘルスチェックに通った最初のターゲットへ。接続に失敗すると、クライアントが気づく前に次へ切り替えます。",
+    "balanceRoundRobinHint": "新しい接続を正常なターゲットへ重みに比例して分散します。1 本の接続は 1 つのターゲットだけを使います。",
+    "realmRoundRobinOnly": "realm は接続を分散できますが別のターゲットへ再接続しないため、ラウンドロビンのみです。",
+    "failoverShort": "フェイルオーバー",
+    "roundRobinShort": "ラウンドロビン",
+    "editTargets": "ターゲットとフェイルオーバー",
+    "firstTarget": "最初のターゲット"
   },
   "ingress": {
     "derive": "末尾から派生",
@@ -1047,7 +1061,23 @@
     "ran": "バックアップ完了",
     "last": "前回 {{at}}：{{file}}",
     "uploaded": "{{name}} をアップロードしました",
-    "uploadFailed": "アップロード失敗"
+    "uploadFailed": "アップロード失敗",
+    "encrypt": "リモートコピーを暗号化",
+    "encryptHint": "アップロード前に age で暗号化し、バケットには暗号文だけが置かれます。ローカルのコピーは隣の稼働中データベースと同じく平文のままです。",
+    "encryptOff": "オフ",
+    "encryptKey": "公開鍵（推奨）",
+    "encryptPassphrase": "パスフレーズ",
+    "encryptOffWarn": "リモートコピーは暗号化されずにアップロードされます。パスワードハッシュ、決済キー、全ユーザーの購読トークンが含まれます。",
+    "recipient": "age 公開鍵",
+    "generateKey": "鍵ペアを生成",
+    "passphrase": "パスフレーズ",
+    "passphraseHint": "12 文字以上。パネルに保存されるため、守れるのはバケットであってこのホストではありません。別の場所にも控えてください。",
+    "keyTitle": "秘密鍵を今すぐ保存してください",
+    "keyWarn": "これが唯一のコピーです。Captain は公開鍵だけを保持し、自分のリモートバックアップも開けません。この鍵がなければ誰も開けません。このサーバー以外に保存してから設定を保存してください。",
+    "downloadKey": "鍵ファイルをダウンロード",
+    "copyKey": "コピー",
+    "keySaved": "保存しました",
+    "restoreHint": "リモートコピーの復元：captain backup open -identity key.txt -o captain.db ファイル、または age -d -i key.txt ファイル | gunzip > captain.db。"
   },
   "certs": {
     "issue": "証明書を作成",
@@ -1256,5 +1286,45 @@
     "what": "操作",
     "result": "結果",
     "empty": "まだ記録はありません"
+  },
+  "selfcheck": {
+    "title": "パネルの自己診断",
+    "issues": "{{count}} 件の確認事項",
+    "allOk": "{{count}} 項目すべて問題なし",
+    "recheck": "再チェック",
+    "fix": "対処する",
+    "status": {
+      "warn": "要確認",
+      "fail": "異常"
+    },
+    "names": {
+      "backup_local": "ローカルバックアップ",
+      "backup_remote": "オフサイトバックアップ",
+      "backup_encrypt": "バックアップの暗号化",
+      "heartbeat": "パネルのハートビート",
+      "mail": "メール送信",
+      "staff_2fa": "スタッフの二段階認証",
+      "version": "Captain のバージョン",
+      "disk": "ディスク容量",
+      "nodes": "ノード",
+      "panel_cert": "パネルの証明書"
+    },
+    "msg": {
+      "backup_local_error": "直近のスナップショットが失敗しました：{{error}}",
+      "backup_local_never": "まだスナップショットがありません",
+      "backup_local_stale": "直近のスナップショットは {{at}} のもので、本来は毎日作られます",
+      "backup_remote_none": "バックアップがこのホストにしかありません。ホストを失えばバックアップも失います。WebDAV か S3 バケットを追加してください",
+      "backup_remote_error": "直近のアップロードが失敗しました：{{error}}",
+      "backup_encrypt_off": "オフサイトのコピーが暗号化されずにアップロードされています",
+      "heartbeat_off": "パネル自体を見張るものがありません。ハートビートを外部の監視先に向けてください",
+      "heartbeat_failing": "直近のハートビートが失敗しました：{{error}}",
+      "mail_off": "メール送信が未設定です。パスワード再設定、認証コード、期限の通知が送れません",
+      "staff_2fa_missing": "{{count}} 件のスタッフアカウントがパスワードだけでログインしています：{{emails}}",
+      "version_behind": "{{current}} を実行中です。{{latest}} が公開されています",
+      "disk_low": "データベースのあるディスクの空きが {{free}} です",
+      "nodes_offline": "オフライン：{{names}}",
+      "panel_cert_expiring": "あと {{days}} 日で期限切れ",
+      "panel_cert_expired": "期限切れです"
+    }
   }
 }

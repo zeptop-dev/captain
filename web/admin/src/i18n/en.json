@@ -921,7 +921,21 @@
     "nftHint": "The nftables backend does kernel DNAT: the node needs the nft binary and an IPv4 target; with source preserved the target must route replies back through this node.",
     "backendRealm": "Realm (separate process)",
     "backendRealmHint": "bosun installs and runs a zhboner/realm relay: high throughput, hostname targets and UDP; no connection or traffic counters.",
-    "proxyProtocol": "Send PROXY protocol"
+    "proxyProtocol": "Send PROXY protocol",
+    "moreTargetsHint": "Further next hops for the same rule: a backup line, or more lines to spread connections over. Health is a TCP connect every 30 s.",
+    "addTarget": "Add target",
+    "weight": "Weight",
+    "primaryWeight": "Weight of the first target",
+    "balance": "With several targets",
+    "balanceFailover": "Failover — first healthy target",
+    "balanceRoundRobin": "Round-robin — spread by weight",
+    "balanceFailoverHint": "New connections go to the first target that passes its health check; a failed connect moves on to the next before the client notices.",
+    "balanceRoundRobinHint": "New connections are spread over the healthy targets in proportion to their weights. One connection still uses one target.",
+    "realmRoundRobinOnly": "realm spreads connections but cannot retry another target, so it only offers round-robin.",
+    "failoverShort": "failover",
+    "roundRobinShort": "round-robin",
+    "editTargets": "Targets and failover",
+    "firstTarget": "First target"
   },
   "backup": {
     "title": "Database backups",
@@ -944,7 +958,23 @@
     "ran": "Backup done",
     "last": "Last {{at}}: {{file}}",
     "uploaded": "uploaded {{name}}",
-    "uploadFailed": "upload failed"
+    "uploadFailed": "upload failed",
+    "encrypt": "Encrypt remote copies",
+    "encryptHint": "Sealed with age before upload; the bucket only ever holds ciphertext. Local copies stay plain, like the live database beside them.",
+    "encryptOff": "Off",
+    "encryptKey": "Public key (recommended)",
+    "encryptPassphrase": "Passphrase",
+    "encryptOffWarn": "Remote copies are uploaded unencrypted: they contain password hashes, payment keys and every subscription token.",
+    "recipient": "age public key",
+    "generateKey": "Generate key pair",
+    "passphrase": "Passphrase",
+    "passphraseHint": "At least 12 characters. Stored on the panel, so it protects the bucket, not this host. Keep a copy elsewhere.",
+    "keyTitle": "Save the private key now",
+    "keyWarn": "This is the only copy. Captain keeps the public key and cannot open its own remote backups; without this key nobody can. Store it outside this server, then save the settings.",
+    "downloadKey": "Download key file",
+    "copyKey": "Copy",
+    "keySaved": "I have saved it",
+    "restoreHint": "Restore a remote copy: captain backup open -identity key.txt -o captain.db FILE, or age -d -i key.txt FILE | gunzip > captain.db."
   },
   "certs": {
     "issue": "Create certificate",
@@ -1256,5 +1286,45 @@
     "what": "What",
     "result": "Result",
     "empty": "Nothing recorded yet"
+  },
+  "selfcheck": {
+    "title": "Panel self-check",
+    "issues": "{{count}} to look at",
+    "allOk": "All {{count}} checks passed",
+    "recheck": "Check again",
+    "fix": "Fix",
+    "status": {
+      "warn": "attention",
+      "fail": "failing"
+    },
+    "names": {
+      "backup_local": "Local backups",
+      "backup_remote": "Off-site backups",
+      "backup_encrypt": "Backup encryption",
+      "heartbeat": "Panel heartbeat",
+      "mail": "Outgoing mail",
+      "staff_2fa": "Staff two-factor login",
+      "version": "Captain version",
+      "disk": "Disk space",
+      "nodes": "Nodes",
+      "panel_cert": "Panel certificate"
+    },
+    "msg": {
+      "backup_local_error": "the last snapshot failed: {{error}}",
+      "backup_local_never": "no snapshot has been taken yet",
+      "backup_local_stale": "the last snapshot is from {{at}}; one should land every day",
+      "backup_remote_none": "backups exist only on this host — if it is lost, so are they; add WebDAV or an S3 bucket",
+      "backup_remote_error": "the last upload failed: {{error}}",
+      "backup_encrypt_off": "off-site copies are uploaded unencrypted",
+      "heartbeat_off": "nothing watches the panel itself; point the heartbeat at an external monitor",
+      "heartbeat_failing": "the last heartbeat failed: {{error}}",
+      "mail_off": "no mail provider: password resets, verification codes and expiry reminders cannot be sent",
+      "staff_2fa_missing": "{{count}} staff account(s) sign in with a password only: {{emails}}",
+      "version_behind": "running {{current}}; {{latest}} is available",
+      "disk_low": "{{free}} free where the database lives",
+      "nodes_offline": "offline: {{names}}",
+      "panel_cert_expiring": "expires in {{days}} days",
+      "panel_cert_expired": "has expired"
+    }
   }
 }

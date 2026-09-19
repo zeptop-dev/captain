@@ -3,8 +3,10 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"time"
 
+	"github.com/zeptop-dev/bosun/pkg/agentproto"
 	"github.com/zeptop-dev/bosun/pkg/spec"
 )
 
@@ -119,12 +121,18 @@ func (s *Store) UpsertOnline(ctx context.Context, userID, nodeID int64, ips []st
 }
 
 // UpsertForwardStatus stores a relay rule's latest report.
-func (s *Store) UpsertForwardStatus(ctx context.Context, nodeID int64, tag string, up bool, rttMs int64, lastErr string, active, total, in, out int64) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO forward_status (node_id, tag, up, rtt_ms, last_error, active_conn, total_conn, bytes_in, bytes_out, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+func (s *Store) UpsertForwardStatus(ctx context.Context, nodeID int64, f agentproto.ForwardStatus) error {
+	targets := ""
+	if len(f.Targets) > 0 {
+		b, _ := json.Marshal(f.Targets)
+		targets = string(b)
+	}
+	_, err := s.db.ExecContext(ctx, `INSERT INTO forward_status (node_id, tag, up, rtt_ms, last_error, active_conn, total_conn, bytes_in, bytes_out, updated_at, targets_json)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(node_id, tag) DO UPDATE SET up = excluded.up, rtt_ms = excluded.rtt_ms, last_error = excluded.last_error,
-		active_conn = excluded.active_conn, total_conn = excluded.total_conn, bytes_in = excluded.bytes_in, bytes_out = excluded.bytes_out, updated_at = excluded.updated_at`,
-		nodeID, tag, boolInt(up), rttMs, lastErr, active, total, in, out, now())
+		active_conn = excluded.active_conn, total_conn = excluded.total_conn, bytes_in = excluded.bytes_in, bytes_out = excluded.bytes_out,
+		updated_at = excluded.updated_at, targets_json = excluded.targets_json`,
+		nodeID, f.Tag, boolInt(f.Up), f.RTTMillis, f.LastError, f.ActiveConn, f.TotalConn, f.BytesIn, f.BytesOut, now(), targets)
 	return err
 }
 

@@ -65,7 +65,7 @@ commissions with withdrawals, surplus credit on upgrades.
 **The fleet** ([docs](docs/NODES.md)) — one-line node install and pairing; inbounds with quick-setup
 recipes; entries that decide what each group of users sees; port forwards
 (built-in relay, nftables DNAT or realm) for relay chains with PROXY
-protocol across hops; line ingresses for IPLC; egress that follows ingress;
+protocol across hops and backup or weighted extra targets; line ingresses for IPLC; egress that follows ingress;
 per-node speed limits; node jobs (upgrade, rollback, REALITY scan,
 speedtest) driven from the console.
 
@@ -81,8 +81,8 @@ endpoint, and a per-node doctor that reports what is actually wrong.
 **Operations** ([docs](docs/MONITORING.md)) — probe page with per-node history and alerts, Prometheus
 metrics, connection log and panel-wide audit rules with auto-ban, dynamic
 speed limits computed across nodes, HWID device identification, response
-rules on `/sub`, daily `VACUUM INTO` backups with WebDAV/S3 upload,
-self-update for the panel and every node, Telegram bot and event webhooks,
+rules on `/sub`, daily `VACUUM INTO` backups with age-encrypted WebDAV/S3
+upload, a panel self-check on the dashboard, self-update for the panel and every node, Telegram bot and event webhooks,
 and an MCP server so an agent can answer "which node is down" for you.
 
 **Six languages** in both interfaces — 简体中文, 繁體中文, English, 日本語,

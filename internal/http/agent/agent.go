@@ -294,7 +294,7 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 	h.ingestConnections(ctx, n, rep, inbounds, allowed, now)
 	h.ingestAudits(ctx, n, rep, inbounds, allowed, now)
 	for _, f := range rep.Forwards {
-		_ = h.Store.UpsertForwardStatus(ctx, n.ID, f.Tag, f.Up, f.RTTMillis, f.LastError, f.ActiveConn, f.TotalConn, f.BytesIn, f.BytesOut)
+		_ = h.Store.UpsertForwardStatus(ctx, n.ID, f)
 	}
 	// The report just wrote traffic and client addresses: rebuild fresh
 	// so device-limit changes show up in this very answer.

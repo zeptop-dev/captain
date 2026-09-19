@@ -5,13 +5,14 @@ go 1.26.0
 toolchain go1.26.8
 
 require (
+	filippo.io/age v1.3.2
 	github.com/caddyserver/certmagic v0.25.4
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/libdns/cloudflare v0.2.2
 	github.com/pressly/goose/v3 v3.28.0
-	github.com/zeptop-dev/bosun v0.48.0
-	go.uber.org/zap v1.27.1
+	github.com/zeptop-dev/bosun v0.49.0
+	go.uber.org/zap v1.28.0
 	golang.org/x/crypto v0.57.0
 	golang.org/x/net v0.58.0
 	golang.org/x/oauth2 v0.37.0
@@ -20,6 +21,7 @@ require (
 )
 
 require (
+	filippo.io/hpke v0.4.0 // indirect
 	github.com/caddyserver/zerossl v0.1.5 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect

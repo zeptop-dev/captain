@@ -61,7 +61,8 @@ CoinPayments、BTCPay Server 和 MGate 付款。每个回调都先验签再读�
 
 **机群**（[文档](docs/NODES.md)）—— 一行命令装好节点并完成配对；入站带一键配置模板；
 入口（entries）决定每组用户看到什么；端口转发（内置中转、nftables
-DNAT 或 realm）可组成中转链，并在每一跳之间传递 PROXY protocol；
+DNAT 或 realm）可组成中转链，在每一跳之间传递 PROXY protocol，
+还能配置备用目标或按权重分摊的多个目标；
 面向 IPLC 的线路入口；出口跟随入口；按节点限速；节点任务（升级、
 回滚、REALITY 扫描、测速）全部从后台下发。
 
@@ -75,8 +76,8 @@ doctor 体检，直接报出到底哪里不对。
 
 **运维**（[文档](docs/MONITORING.md)）—— 探针页面带每个节点的历史记录和告警、Prometheus
 指标、连接日志、全站审计规则与自动封禁、跨节点统一计算的动态限速、
-HWID 设备识别、`/sub` 上的响应规则、每天 `VACUUM INTO` 备份并上传
-WebDAV/S3、面板和所有节点的自更新、Telegram 机器人和事件 webhook，
+HWID 设备识别、`/sub` 上的响应规则、每天 `VACUUM INTO` 备份并用 age
+加密后上传 WebDAV/S3、仪表盘上的面板自检、面板和所有节点的自更新、Telegram 机器人和事件 webhook，
 还有一个 MCP server，让 agent 替你回答“哪个节点挂了”。
 
 **六种语言**，两套界面都支持 —— 简体中文、繁體中文、English、日本語、

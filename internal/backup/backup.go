@@ -44,6 +44,9 @@ type Settings struct {
 		PathStyle bool   `json:"path_style"` // bucket in the path (MinIO, some R2/B2 setups)
 	} `json:"s3"`
 	RemoteKeep int `json:"remote_keep"` // remote copies to keep; 0 = keep all
+	// Encrypt seals remote copies with age (crypt.go); local ones stay
+	// plain, like the live database beside them.
+	Encrypt Encryption `json:"encrypt"`
 }
 
 // Status is the last outcome, kept in the settings table for the console.
@@ -214,6 +217,14 @@ func (m *Manager) upload(ctx context.Context, s Settings, local string) (string,
 	}
 	defer os.Remove(gz)
 	name := filepath.Base(local) + ".gz"
+	if s.Encrypt.Enabled() {
+		sealed, n, err := s.Encrypt.sealFile(gz)
+		if err != nil {
+			return "", err
+		}
+		defer os.Remove(sealed)
+		gz, size, name = sealed, n, name+".age"
+	}
 	var r Remote
 	switch s.Remote {
 	case "webdav":
