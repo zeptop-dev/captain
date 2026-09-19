@@ -8,17 +8,17 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with: { version: 9 }
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with: { node-version: 24, cache: pnpm, cache-dependency-path: "web/*/pnpm-lock.yaml" }
       - run: python3 scripts/i18n-check.py web/admin/src/i18n web/portal/src/i18n
       - run: cd web/admin && pnpm install --frozen-lockfile && pnpm exec oxlint src && pnpm build
       - run: cd web/portal && pnpm install --frozen-lockfile && pnpm exec oxlint src && pnpm build
       - run: cd web/site && pnpm install --frozen-lockfile && pnpm build
       - run: cd web/probe && pnpm install --frozen-lockfile && pnpm build
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with: { go-version-file: go.mod }
       - run: git ls-files '*.go' | xargs gofmt -l | tee /dev/stderr | test -z "$(cat)"
       - run: go vet ./...
