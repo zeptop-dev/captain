@@ -974,7 +974,7 @@
     "downloadKey": "Download key file",
     "copyKey": "Copy",
     "keySaved": "I have saved it",
-    "restoreHint": "Restore a remote copy: captain backup open -identity key.txt -o captain.db FILE, or age -d -i key.txt FILE | gunzip > captain.db."
+    "restoreHint": "Restore a remote copy: captain backup open -identity key.txt -o captain.db FILE, or age -d -i key.txt FILE | gunzip > captain.db. An encrypted copy also carries config.yaml (base URL, payment keys — they are not in the database) and writes it beside the database."
   },
   "certs": {
     "issue": "Create certificate",

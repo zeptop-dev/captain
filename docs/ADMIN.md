@@ -142,8 +142,9 @@ Cloudflare R2, Backblaze B2, MinIO with path-style) that receives each
 snapshot gzipped with its own retention, tests the remote, runs a backup on
 demand and downloads local copies. Remote copies can be encrypted with age:
 generate a key pair in the card (the private key is shown once and never
-stored) or set a passphrase; `captain backup open` turns a remote copy back
-into a database.
+stored) or set a passphrase. An encrypted copy carries `config.yaml` beside
+the database, so one file rebuilds a panel; `captain backup open` writes
+both back out.
 
 Restore, upgrade and rollback procedures — including the `-wal`/`-shm`
 caveat that silently corrupts a careless restore — are in

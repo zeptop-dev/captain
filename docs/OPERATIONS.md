@@ -93,9 +93,12 @@ file without a WAL. `internal/backup.Manager` runs from the job tick:
   *public key* (the console generates a pair and shows the private key
   once; the panel keeps only the public half) Captain can seal its remote
   copies but not open them. A *passphrase* is simpler and is stored on the
-  panel, so it protects the bucket, not the host. Sealed copies are named
-  `captain-<date>.db.gz.age`; local snapshots stay plain, like the live
-  database next to them;
+  panel, so it protects the bucket, not the host. A sealed copy is a
+  `captain-<date>.tar.gz.age` holding the database **and `config.yaml`**,
+  because base_url and the payment gateway keys live only in that file and
+  a panel restored without it cannot take money; an unencrypted remote copy
+  stays the database alone (`captain-<date>.db.gz`). Local snapshots stay
+  plain, like the live database next to them;
 - the outcome (time, file, error, remote name) is stored under the
   `backup_status` setting and shown on the card; a failure logs
   `backup failed` with `component=backup`.
@@ -118,9 +121,12 @@ mid-write can be inconsistent. The snapshots exist for that.
    both steps and refuses to overwrite an existing file:
 
    ```sh
-   captain backup open -identity captain-backup-key.txt -o captain.db captain-2026-09-19.db.gz.age
+   captain backup open -identity captain-backup-key.txt -o captain.db captain-2026-09-19.tar.gz.age
    CAPTAIN_BACKUP_PASS='…' captain backup open -passphrase-env CAPTAIN_BACKUP_PASS -o captain.db FILE
    ```
+
+   It prints every file it wrote — the database, and `config.yaml` next to
+   it when the copy carries one — and never overwrites an existing file.
 
    Without the binary: `age -d -i captain-backup-key.txt FILE | gunzip >
    captain.db` (plain copies: `gunzip`). A snapshot from `VACUUM INTO` has
@@ -144,11 +150,13 @@ database still accepts it: point the panel's DNS name at the new host and
 every node reconnects on its next poll with nothing changed on the node
 itself. If the panel's address changes instead, each node's
 `/etc/bosun/config.yaml` has to be edited, because the node is the one that
-dials. What the database does *not* carry: `config.yaml` (base URL, listen
-address and the payment gateway keys), the panel's own ACME material under
+dials. What the database does *not* carry: `config.yaml` (base URL, listen address
+and the payment gateway keys), the panel's own ACME material under
 `<data_dir>/certs`, and admin-uploaded landing-page files under
-`<data_dir>/site`. Copy the config file with the snapshot, or the restored
-panel comes up without payments.
+`<data_dir>/site`. An **encrypted** off-site copy brings the config along,
+so that one file is enough to rebuild a panel; a local snapshot or an
+unencrypted remote copy is the database alone, and the config has to travel
+with it some other way.
 
 **This procedure is exercised, not assumed.** Drill 2026-09-20, from an
 encrypted off-site copy: the object was fetched straight out of the bucket

@@ -205,9 +205,11 @@ func cmdMigrate(args []string) error {
 	return nil
 }
 
-// cmdBackup opens a remote copy (captain-<date>.db.gz or .db.gz.age) into
-// a database file. The passphrase is read from an environment variable so
-// it stays out of the shell history and the process list.
+// cmdBackup opens a remote copy — captain-<date>.db.gz, or the encrypted
+// .tar.gz.age that carries config.yaml beside the database — into a
+// database file and, when the copy has one, a config.yaml next to it. The
+// passphrase is read from an environment variable so it stays out of the
+// shell history and the process list.
 func cmdBackup(args []string) error {
 	if len(args) == 0 || args[0] != "open" {
 		return fmt.Errorf("backup: only 'open' is supported")
@@ -241,19 +243,13 @@ func cmdBackup(args []string) error {
 		return err
 	}
 	defer in.Close()
-	f, err := os.OpenFile(*out, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	written, err := backup.Extract(in, *out, id, pass)
 	if err != nil {
 		return err
 	}
-	if err := backup.Open(in, f, id, pass); err != nil {
-		f.Close()
-		os.Remove(*out)
-		return err
+	for _, p := range written {
+		fmt.Println("wrote", p)
 	}
-	if err := f.Close(); err != nil {
-		return err
-	}
-	fmt.Println("wrote", *out)
 	return nil
 }
 

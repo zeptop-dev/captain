@@ -77,7 +77,7 @@ doctor 体检，直接报出到底哪里不对。
 **运维**（[文档](docs/MONITORING.md)）—— 探针页面带每个节点的历史记录和告警、Prometheus
 指标、连接日志、全站审计规则与自动封禁、跨节点统一计算的动态限速、
 HWID 设备识别、`/sub` 上的响应规则、每天 `VACUUM INTO` 备份并用 age
-加密后上传 WebDAV/S3、仪表盘上的面板自检、面板和所有节点的自更新、Telegram 机器人和事件 webhook，
+加密后连同配置文件上传 WebDAV/S3、仪表盘上的面板自检、面板和所有节点的自更新、Telegram 机器人和事件 webhook，
 还有一个 MCP server，让 agent 替你回答“哪个节点挂了”。
 
 **六种语言**，两套界面都支持 —— 简体中文、繁體中文、English、日本語、

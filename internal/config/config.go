@@ -6,12 +6,17 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
 
 // Config is the on-disk configuration.
 type Config struct {
+	// Path is where this config was read from; backups put a copy of it
+	// in the encrypted off-site archive (it holds base_url and the
+	// payment keys, which the database does not).
+	Path     string `yaml:"-"`
 	Listen   string `yaml:"listen"`   // listen address; default 127.0.0.1:8080, or :443 when tls is on
 	BaseURL  string `yaml:"base_url"` // public URL, used in subscription links and payment callbacks
 	DataDir  string `yaml:"data_dir"`
@@ -129,6 +134,11 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("config: %w", err)
 	}
 	c.applyDefaults()
+	if abs, err := filepath.Abs(path); err == nil {
+		c.Path = abs
+	} else {
+		c.Path = path
+	}
 	if c.BaseURL == "" {
 		return nil, fmt.Errorf("config: base_url is required (public URL of this panel)")
 	}

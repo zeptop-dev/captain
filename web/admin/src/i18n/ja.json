@@ -1077,7 +1077,7 @@
     "downloadKey": "鍵ファイルをダウンロード",
     "copyKey": "コピー",
     "keySaved": "保存しました",
-    "restoreHint": "リモートコピーの復元：captain backup open -identity key.txt -o captain.db ファイル、または age -d -i key.txt ファイル | gunzip > captain.db。"
+    "restoreHint": "リモートコピーの復元：captain backup open -identity key.txt -o captain.db ファイル、または age -d -i key.txt ファイル | gunzip > captain.db。暗号化されたコピーには config.yaml（公開 URL と決済キー。データベースには入っていません）も入っており、データベースの隣に書き出されます。"
   },
   "certs": {
     "issue": "証明書を作成",

@@ -114,38 +114,13 @@ func GenerateKey() (recipient, identity string, err error) {
 	return id.Recipient().String(), id.String(), nil
 }
 
-// Open turns a remote copy back into a database: it decrypts a sealed
-// file with an identity ("AGE-SECRET-KEY-1…") or a passphrase, and
-// gunzips. A plain .gz copy needs neither. Used by `captain backup open`.
+// Open gunzips a remote copy (decrypting it first when it is sealed) into
+// w. Extract is the one that also unpacks an archive; this stays for a
+// copy that is only a gzipped database.
 func Open(r io.Reader, w io.Writer, identity, passphrase string) error {
-	br, sealed, err := peekAge(r)
+	src, err := decrypt(r, identity, passphrase)
 	if err != nil {
 		return err
-	}
-	src := br
-	if sealed {
-		var ids []age.Identity
-		switch {
-		case identity != "":
-			parsed, err := age.ParseIdentities(strings.NewReader(identity))
-			if err != nil {
-				return fmt.Errorf("identity: %w", err)
-			}
-			ids = parsed
-		case passphrase != "":
-			id, err := age.NewScryptIdentity(passphrase)
-			if err != nil {
-				return err
-			}
-			ids = []age.Identity{id}
-		default:
-			return errors.New("this copy is encrypted: give the identity file or the passphrase")
-		}
-		dec, err := age.Decrypt(br, ids...)
-		if err != nil {
-			return fmt.Errorf("decrypt: %w", err)
-		}
-		src = dec
 	}
 	zr, err := gzip.NewReader(src)
 	if err != nil {
@@ -154,6 +129,40 @@ func Open(r io.Reader, w io.Writer, identity, passphrase string) error {
 	defer zr.Close()
 	_, err = io.Copy(w, zr)
 	return err
+}
+
+// decrypt unseals an age-encrypted copy with an identity
+// ("AGE-SECRET-KEY-1…") or a passphrase; a plain copy passes through.
+func decrypt(r io.Reader, identity, passphrase string) (io.Reader, error) {
+	br, sealed, err := peekAge(r)
+	if err != nil {
+		return nil, err
+	}
+	if sealed {
+		var ids []age.Identity
+		switch {
+		case identity != "":
+			parsed, err := age.ParseIdentities(strings.NewReader(identity))
+			if err != nil {
+				return nil, fmt.Errorf("identity: %w", err)
+			}
+			ids = parsed
+		case passphrase != "":
+			id, err := age.NewScryptIdentity(passphrase)
+			if err != nil {
+				return nil, err
+			}
+			ids = []age.Identity{id}
+		default:
+			return nil, errors.New("this copy is encrypted: give the identity file or the passphrase")
+		}
+		dec, err := age.Decrypt(br, ids...)
+		if err != nil {
+			return nil, fmt.Errorf("decrypt: %w", err)
+		}
+		return dec, nil
+	}
+	return br, nil
 }
 
 const ageHeader = "age-encryption.org/v1\n"

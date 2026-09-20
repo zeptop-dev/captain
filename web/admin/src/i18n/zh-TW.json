@@ -1077,7 +1077,7 @@
     "downloadKey": "下載金鑰檔",
     "copyKey": "複製",
     "keySaved": "我已保存",
-    "restoreHint": "還原異地副本：captain backup open -identity key.txt -o captain.db 檔案，或 age -d -i key.txt 檔案 | gunzip > captain.db。"
+    "restoreHint": "還原異地副本：captain backup open -identity key.txt -o captain.db 檔案，或 age -d -i key.txt 檔案 | gunzip > captain.db。加密副本裡還帶著 config.yaml（面板網址、支付金鑰，這些不在資料庫裡），會一併寫到資料庫旁邊。"
   },
   "certs": {
     "issue": "建立憑證",

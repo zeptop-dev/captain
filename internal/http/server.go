@@ -161,7 +161,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 		},
 	})
 	if cfg.DataDir != "" {
-		s.backups = &backup.Manager{Store: st, Dir: filepath.Join(cfg.DataDir, "backups"), Log: log}
+		s.backups = &backup.Manager{Store: st, Dir: filepath.Join(cfg.DataDir, "backups"), Log: log, ConfigPath: cfg.Path}
 	}
 	s.certs = &service.Certs{Store: st, Issuer: certIssuer, Log: log, Notify: notifier}
 	s.probe = probe.Register(s.mux, probe.Deps{Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe()})

@@ -974,7 +974,7 @@
     "downloadKey": "下载密钥文件",
     "copyKey": "复制",
     "keySaved": "我已保存",
-    "restoreHint": "恢复异地副本：captain backup open -identity key.txt -o captain.db 文件，或 age -d -i key.txt 文件 | gunzip > captain.db。"
+    "restoreHint": "恢复异地副本：captain backup open -identity key.txt -o captain.db 文件，或 age -d -i key.txt 文件 | gunzip > captain.db。加密副本里还带着 config.yaml（面板地址、支付密钥，这些不在数据库里），会一并写到数据库旁边。"
   },
   "certs": {
     "issue": "创建证书",

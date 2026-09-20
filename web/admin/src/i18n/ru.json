@@ -1077,7 +1077,7 @@
     "downloadKey": "Скачать файл ключа",
     "copyKey": "Копировать",
     "keySaved": "Я сохранил ключ",
-    "restoreHint": "Восстановление удалённой копии: captain backup open -identity key.txt -o captain.db ФАЙЛ или age -d -i key.txt ФАЙЛ | gunzip > captain.db."
+    "restoreHint": "Восстановление удалённой копии: captain backup open -identity key.txt -o captain.db ФАЙЛ или age -d -i key.txt ФАЙЛ | gunzip > captain.db. В зашифрованной копии есть и config.yaml (публичный адрес, ключи платёжных шлюзов — их нет в базе), он записывается рядом с базой."
   },
   "certs": {
     "issue": "Создать сертификат",

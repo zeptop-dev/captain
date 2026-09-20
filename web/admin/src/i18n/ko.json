@@ -1077,7 +1077,7 @@
     "downloadKey": "키 파일 다운로드",
     "copyKey": "복사",
     "keySaved": "저장했습니다",
-    "restoreHint": "원격 사본 복원: captain backup open -identity key.txt -o captain.db 파일, 또는 age -d -i key.txt 파일 | gunzip > captain.db."
+    "restoreHint": "원격 사본 복원: captain backup open -identity key.txt -o captain.db 파일, 또는 age -d -i key.txt 파일 | gunzip > captain.db. 암호화된 사본에는 config.yaml(공개 주소, 결제 키 — 데이터베이스에 없습니다)도 들어 있으며 데이터베이스 옆에 기록됩니다."
   },
   "certs": {
     "issue": "인증서 만들기",

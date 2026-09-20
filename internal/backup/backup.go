@@ -68,6 +68,9 @@ type Manager struct {
 	Log   *slog.Logger
 	// Client is used for uploads; nil = http.DefaultClient with a timeout.
 	Client *http.Client
+	// ConfigPath is config.yaml; an encrypted off-site copy carries it
+	// beside the database (see archive.go). Empty leaves it out.
+	ConfigPath string
 	// Now is for tests.
 	Now func() time.Time
 
@@ -209,21 +212,40 @@ func (m *Manager) client() *http.Client {
 	return &http.Client{Timeout: 10 * time.Minute}
 }
 
-// upload gzips the snapshot and sends it; returns the remote object name.
+// upload packs the snapshot and sends it; returns the remote object name.
+// With encryption on, config.yaml travels with the database, because the
+// payment keys and base_url are not in the database.
 func (m *Manager) upload(ctx context.Context, s Settings, local string) (string, error) {
-	gz, size, err := gzipFile(local)
+	archived := s.Encrypt.Enabled() && m.ConfigPath != ""
+	var payload string
+	var size int64
+	var err error
+	if archived {
+		payload, size, err = archiveFiles(local, m.ConfigPath)
+		if err != nil {
+			// An unreadable config is no reason to skip the backup: send
+			// the database alone and say what was left out.
+			if m.Log != nil {
+				m.Log.Error("config left out of the off-site copy", "component", "backup", "config", m.ConfigPath, "err", err)
+			}
+			archived = false
+		}
+	}
+	if !archived {
+		payload, size, err = gzipFile(local)
+	}
 	if err != nil {
 		return "", err
 	}
-	defer os.Remove(gz)
-	name := filepath.Base(local) + ".gz"
+	defer os.Remove(payload)
+	name := remoteName(local, archived, s.Encrypt.Enabled())
 	if s.Encrypt.Enabled() {
-		sealed, n, err := s.Encrypt.sealFile(gz)
+		sealed, n, err := s.Encrypt.sealFile(payload)
 		if err != nil {
 			return "", err
 		}
 		defer os.Remove(sealed)
-		gz, size, name = sealed, n, name+".age"
+		payload, size = sealed, n
 	}
 	var r Remote
 	switch s.Remote {
@@ -234,7 +256,7 @@ func (m *Manager) upload(ctx context.Context, s Settings, local string) (string,
 	default:
 		return "", fmt.Errorf("unknown remote %q", s.Remote)
 	}
-	f, err := os.Open(gz)
+	f, err := os.Open(payload)
 	if err != nil {
 		return "", err
 	}
