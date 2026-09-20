@@ -138,7 +138,25 @@ Anything that happened between the snapshot and the restore (orders,
 sign-ups, traffic counters) is gone; the nodes' own counters are already
 zeroed after each report, so that traffic is not re-charged.
 
-**This procedure is exercised, not assumed.** Last drill 2026-09-18: the
+**A restored panel keeps its fleet.** Node tokens are stored as hashes
+(`nodes.token_hash`), so the plain token stays on the node and the restored
+database still accepts it: point the panel's DNS name at the new host and
+every node reconnects on its next poll with nothing changed on the node
+itself. If the panel's address changes instead, each node's
+`/etc/bosun/config.yaml` has to be edited, because the node is the one that
+dials. What the database does *not* carry: `config.yaml` (base URL, listen
+address and the payment gateway keys), the panel's own ACME material under
+`<data_dir>/certs`, and admin-uploaded landing-page files under
+`<data_dir>/site`. Copy the config file with the snapshot, or the restored
+panel comes up without payments.
+
+**This procedure is exercised, not assumed.** Drill 2026-09-20, from an
+encrypted off-site copy: the object was fetched straight out of the bucket
+(not through the panel), opened with `captain backup open -identity`,
+`pragma integrity_check` passed, and a fresh Captain started on the restored
+file. A **live node's real token authenticated against it** and received its
+full desired state, and the test user's subscription rendered. Earlier drill
+2026-09-18: the
 daily snapshot taken before the 1.0 upgrade (schema version 42) was
 restored into an empty data directory and started with the current binary.
 Migrations 43–48 applied on start, the accounts, nodes, plans and orders
