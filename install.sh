@@ -37,11 +37,20 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ "$(id -u)" = 0 ] || { echo "run as root (sudo)" >&2; exit 1; }
+
+# have_tty says whether the script can actually reach a terminal. /dev/tty
+# exists and passes [ -r ] even under "ssh host 'curl … | sh'", where
+# opening it fails with ENXIO ("cannot create /dev/tty"), so the only
+# honest test is to open it — in a subshell, because a redirection that
+# fails on a special built-in ends the whole shell under POSIX sh.
+# Without a terminal, questions are skipped and anything still missing
+# has to come from a flag.
+have_tty() { ( exec 3>/dev/tty ) 2>/dev/null; }
 command -v curl >/dev/null || { echo "curl is required" >&2; exit 1; }
 
 if [ "$ACTION" = uninstall ]; then
   echo "This removes Captain: service/containers, /opt/captain, /etc/captain$( [ "$KEEP_DATA" = 1 ] || echo ', the database, backups and certificates')."
-  if [ -r /dev/tty ]; then printf 'Type yes to continue: ' >/dev/tty; read -r ans </dev/tty; [ "$ans" = yes ] || { echo "aborted"; exit 1; }; fi
+  if have_tty; then printf 'Type yes to continue: ' >/dev/tty; read -r ans </dev/tty; [ "$ans" = yes ] || { echo "aborted"; exit 1; }; fi
   if [ -f /opt/captain/docker-compose.yml ] && command -v docker >/dev/null 2>&1; then
     (cd /opt/captain && if [ "$KEEP_DATA" = 1 ]; then docker compose down; else docker compose down -v; fi) || true
   fi
@@ -60,7 +69,7 @@ fi
 ask() { # var prompt [default]
   eval "cur=\${$1:-}"
   if [ -n "$cur" ]; then return; fi
-  if [ ! -r /dev/tty ]; then echo "$2 is required; pass --$3" >&2; exit 1; fi
+  if ! have_tty; then echo "$2 is required; pass --$3" >&2; exit 1; fi
   printf '%s%s: ' "$2" "${4:+ [$4]}" >/dev/tty
   read -r val </dev/tty
   [ -n "$val" ] || val="${4:-}"
@@ -88,7 +97,7 @@ read_masked() { # var
 ask_secret() {
   eval "cur=\${$1:-}"
   if [ -n "$cur" ]; then return; fi
-  [ -r /dev/tty ] || { echo "$2 is required; pass --$3" >&2; exit 1; }
+  have_tty || { echo "$2 is required; pass --$3" >&2; exit 1; }
   printf '%s: ' "$2" >/dev/tty
   read_masked "$1"
 }
@@ -118,7 +127,7 @@ OWNER=$(port_owner 80); [ -n "$OWNER" ] || OWNER=$(port_owner 443)
 if [ "$PROXY" = 0 ]; then
   if [ -n "$OWNER" ]; then
     echo "Ports 80/443 are already used by: $OWNER"
-    if [ -r /dev/tty ]; then
+    if have_tty; then
       printf '%s' "Run Captain behind it as a reverse proxy (127.0.0.1:8080, it terminates TLS)? [Y/n]: " >/dev/tty
       read -r yn </dev/tty
       case "$yn" in n|N) echo "Free ports 80/443 or rerun with --behind-proxy." >&2; exit 1 ;; esac
@@ -132,7 +141,7 @@ fi
 ask DOMAIN "Panel domain (DNS A record must point here)" domain
 if [ "$PROXY" = 0 ]; then
   ask EMAIL "Email for the Let's Encrypt account" email
-  if [ -z "$CF_TOKEN" ] && [ -r /dev/tty ]; then
+  if [ -z "$CF_TOKEN" ] && have_tty; then
     printf '%s' "Cloudflare API token for a wildcard certificate via DNS-01 (Enter to skip and use HTTP-01 on port 80): " >/dev/tty
     read_masked CF_TOKEN
   fi
