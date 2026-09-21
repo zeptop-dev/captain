@@ -36,6 +36,12 @@ jobs:
           for arch in amd64 arm64; do
             CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=${GITHUB_REF_NAME}" -o bin/captain-linux-$arch ./cmd/captain
           done
+          # A binary linked against the builder's glibc does not start on
+          # Alpine or any other musl distribution.
+          for f in bin/captain-linux-*; do
+            file "$f"
+            file "$f" | grep -q 'statically linked' || { echo "$f is dynamically linked"; exit 1; }
+          done
           cd bin && sha256sum captain-linux-* > SHA256SUMS && cat SHA256SUMS
       - uses: softprops/action-gh-release@v3
         if: github.event_name == 'push'
