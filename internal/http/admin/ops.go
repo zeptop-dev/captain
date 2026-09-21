@@ -185,6 +185,8 @@ func (h *handlers) registerOps(mux *http.ServeMux) {
 	}))
 	mux.HandleFunc("GET /api/admin/settings/komari", h.requireAdmin(h.getKomari))
 	mux.HandleFunc("PUT /api/admin/settings/komari", h.requireAdmin(h.putKomari))
+	mux.HandleFunc("GET /api/admin/settings/dstatus", h.requireAdmin(h.getDStatus))
+	mux.HandleFunc("PUT /api/admin/settings/dstatus", h.requireAdmin(h.putDStatus))
 	mux.HandleFunc("GET /api/admin/settings/probe", h.requireAdmin(h.getProbe))
 	mux.HandleFunc("PUT /api/admin/settings/probe", h.requireAdmin(h.putProbe))
 	mux.HandleFunc("GET /api/admin/ping-tasks", h.requireAdmin(h.listPingTasks))

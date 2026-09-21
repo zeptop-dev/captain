@@ -1087,6 +1087,16 @@
     "interval": "Report interval (s)",
     "enabled": "Enabled"
   },
+  "dstatus": {
+    "title": "DStatus endpoint",
+    "hint": "Let a DStatus panel scrape your nodes without installing its neko-status agent: every node serves GET /stat on this port, guarded by the key. Add each server in DStatus with that port and key — and leave its SSH install alone, so the monitoring panel never holds your nodes' root credentials. A pull, not a push, so the port must be reachable: bosun opens it in the firewall while this is on. Independent of this panel's probe; needs bosun ≥ 0.52.",
+    "listen": "Listen address",
+    "listenHint": "host:port on every node; blank means :9999",
+    "key": "Key",
+    "keyHint": "The secret DStatus sends in the \"key\" header",
+    "keySet": "saved; blank keeps it, \"-\" clears it",
+    "enabled": "Enabled"
+  },
   "warp": {
     "title": "Cloudflare WARP exit",
     "hint": "Register a WARP account on the node and send traffic through a WireGuard tunnel so it exits from Cloudflare's addresses. Use it when the VPS IP is refused by ChatGPT, Netflix and the like, with rules below so only those sites take it. Keys stay on the node.",

@@ -2,7 +2,9 @@ package admin
 
 import (
 	"context"
+	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -207,4 +209,50 @@ func (h *handlers) putKomari(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, map[string]any{"enabled": in.Enabled, "server": in.Server, "interval": in.Interval, "has_key": in.Key != ""})
+}
+
+func (h *handlers) getDStatus(w http.ResponseWriter, r *http.Request) {
+	var v store.DStatusSettings
+	_ = h.Store.GetSetting(r.Context(), store.SettingDStatus, &v)
+	ok(w, map[string]any{"enabled": v.Enabled, "listen": v.Listen, "has_key": v.Key != ""})
+}
+
+// putDStatus stores the setting; a blank key keeps the stored one, "-"
+// clears it, as everywhere else.
+func (h *handlers) putDStatus(w http.ResponseWriter, r *http.Request) {
+	var in store.DStatusSettings
+	if !readJSON(w, r, &in) {
+		return
+	}
+	var cur store.DStatusSettings
+	_ = h.Store.GetSetting(r.Context(), store.SettingDStatus, &cur)
+	in.Listen = strings.TrimSpace(in.Listen)
+	if in.Listen != "" {
+		if _, port, err := net.SplitHostPort(in.Listen); err != nil {
+			fail(w, http.StatusBadRequest, "listen must be host:port, e.g. :9999")
+			return
+		} else if n, err := strconv.Atoi(port); err != nil || n < 1 || n > 65535 {
+			fail(w, http.StatusBadRequest, "listen must be host:port, e.g. :9999")
+			return
+		}
+	}
+	switch strings.TrimSpace(in.Key) {
+	case "":
+		in.Key = cur.Key
+	case "-":
+		in.Key = ""
+	default:
+		in.Key = strings.TrimSpace(in.Key)
+	}
+	// The endpoint is reachable from outside; without a key it would hand
+	// every host's details to anyone who finds the port.
+	if in.Enabled && in.Key == "" {
+		fail(w, http.StatusBadRequest, "a key is required: the endpoint is reachable from the network")
+		return
+	}
+	if err := h.Store.SetSetting(r.Context(), store.SettingDStatus, in); err != nil {
+		serverErr(w, err)
+		return
+	}
+	ok(w, map[string]any{"enabled": in.Enabled, "listen": in.Listen, "has_key": in.Key != ""})
 }

@@ -1087,6 +1087,16 @@
     "interval": "上报间隔（秒）",
     "enabled": "启用"
   },
+  "dstatus": {
+    "title": "DStatus 探针端点",
+    "hint": "让 DStatus 面板直接抓取你的节点，不用装它的 neko-status agent：每台节点在这个端口上提供 GET /stat，用密钥校验。在 DStatus 里按这个端口和密钥添加服务器即可，不要用它的 SSH 安装方式——那样监控面板会持有你所有节点的 root 凭据。这是拉取不是上报，所以端口必须可达，启用期间 bosun 会在防火墙里放行它。与本面板的探针互不影响，节点需 bosun ≥ 0.52。",
+    "listen": "监听地址",
+    "listenHint": "每台节点上的 host:port，留空为 :9999",
+    "key": "密钥",
+    "keyHint": "DStatus 放在 key 请求头里的那个密钥",
+    "keySet": "已保存；留空不改，填 - 清除",
+    "enabled": "启用"
+  },
   "warp": {
     "title": "Cloudflare WARP 出站",
     "hint": "在节点上注册一个 WARP 账号，流量经 WireGuard 隧道从 Cloudflare 的地址出去。VPS 的 IP 被 ChatGPT、Netflix 之类拒绝时用它，配合下面的分流只让这些站点走 WARP。密钥只保存在节点上。",

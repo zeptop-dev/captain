@@ -245,6 +245,13 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 	if err := a.Store.GetSetting(ctx, store.SettingKomari, &km); err == nil && km.Enabled && km.Server != "" {
 		st.Komari = &spec.Komari{Enabled: true, Server: km.Server, Key: km.Key, Name: n.Name, Interval: km.Interval}
 	}
+	// DStatus: also panel-wide, but a pull — every node listens on the
+	// same port with the same key and the panel tells them apart by
+	// address, which is how DStatus' own agent installer works too.
+	var ds store.DStatusSettings
+	if err := a.Store.GetSetting(ctx, store.SettingDStatus, &ds); err == nil && ds.Enabled && ds.Key != "" {
+		st.DStatus = &spec.DStatus{Enabled: true, Listen: ds.Listen, Key: ds.Key}
+	}
 	if jobs, err := a.Store.PendingNodeJobs(ctx, n.ID); err == nil {
 		for _, j := range jobs {
 			st.Jobs = append(st.Jobs, agentproto.Job{ID: j.ID, Kind: j.Kind, Params: j.Params})
@@ -284,8 +291,9 @@ func revision(st *agentproto.State) string {
 		F []spec.Forward
 		P *spec.Probe
 		K *spec.Komari
+		D *spec.DStatus
 		J []string
-	}{st.Node, st.Users, st.Forwards, st.Probe, st.Komari, jobs})
+	}{st.Node, st.Users, st.Forwards, st.Probe, st.Komari, st.DStatus, jobs})
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:8])
 }

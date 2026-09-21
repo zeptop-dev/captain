@@ -1161,6 +1161,16 @@
     "interval": "回報間隔（秒）",
     "enabled": "啟用"
   },
+  "dstatus": {
+    "title": "DStatus 探針端點",
+    "hint": "讓 DStatus 面板直接抓取你的節點，不用裝它的 neko-status agent：每台節點在這個連接埠上提供 GET /stat，以金鑰驗證。在 DStatus 裡用這個連接埠和金鑰新增伺服器即可，不要用它的 SSH 安裝方式——那樣監控面板會持有你所有節點的 root 憑證。這是拉取而非上報，所以連接埠必須可達，啟用期間 bosun 會在防火牆裡放行。與本面板的探針互不影響，節點需 bosun ≥ 0.52。",
+    "listen": "監聽位址",
+    "listenHint": "每台節點上的 host:port，留空為 :9999",
+    "key": "金鑰",
+    "keyHint": "DStatus 放在 key 請求標頭裡的那個金鑰",
+    "keySet": "已儲存；留空不改，填 - 清除",
+    "enabled": "啟用"
+  },
   "hwid": {
     "title": "裝置（HWID）",
     "hint": "Happ、FlClashX、V2Box、Streisand 等客戶端拉取訂閱時以 x-hwid 標頭識別的裝置。超出限制的裝置會拿到空訂閱，原因在回應標頭中。",

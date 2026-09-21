@@ -22,6 +22,7 @@ import { SecurityCard } from '../components/SecurityCard'
 import { HeartbeatCard } from '../components/HeartbeatCard'
 import { AdminLogCard } from '../components/AdminLogCard'
 import { BackupCard } from '../components/BackupCard'
+import { DStatusCard } from '../components/DStatusCard'
 import { KomariCard } from '../components/KomariCard'
 import { ConnLogCard } from '../components/ConnLogCard'
 import { AuditRulesCard } from '../components/AuditRulesCard'
@@ -142,6 +143,7 @@ export default function SettingsPage() {
         <ProbeCard />
         <HeartbeatCard />
         <KomariCard />
+        <DStatusCard />
         <ConnLogCard />
         <AuditRulesCard />
         <DynLimitCard />

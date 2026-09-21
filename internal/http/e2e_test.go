@@ -1629,6 +1629,24 @@ func TestProbePageAndBeats(t *testing.T) {
 	if !strings.Contains(string(b), `"komari":{"enabled":true,"server":"https://komari.example.com","key":"adkey-1234567890","name":"jp1","interval":5}`) {
 		t.Fatalf("komari missing from state: %s", b)
 	}
+	// DStatus: panel-wide too, but a pull — the key never comes back out
+	// of the API, and the endpoint refuses to be enabled without one.
+	if code, _, _ := ac.do("PUT", "/api/admin/settings/dstatus", map[string]any{"enabled": true, "listen": ":9999"}, nil); code != 400 {
+		t.Fatal("dstatus without a key accepted")
+	}
+	if code, _, _ := ac.do("PUT", "/api/admin/settings/dstatus", map[string]any{"enabled": true, "listen": "9999", "key": "scrapekey"}, nil); code != 400 {
+		t.Fatal("dstatus listen without a colon accepted")
+	}
+	if code, b, _ := ac.do("PUT", "/api/admin/settings/dstatus", map[string]any{"enabled": true, "listen": ":9999", "key": "scrapekey"}, nil); code != 200 || !strings.Contains(string(b), `"has_key":true`) || strings.Contains(string(b), "scrapekey") {
+		t.Fatalf("put dstatus: %d %s", code, b)
+	}
+	if code, b, _ := ac.do("GET", "/api/admin/settings/dstatus", nil, nil); code != 200 || strings.Contains(string(b), "scrapekey") {
+		t.Fatalf("the key must not be readable back: %d %s", code, b)
+	}
+	_, b, _ = nc.do("GET", "/api/agent/state", nil, nil)
+	if !strings.Contains(string(b), `"dstatus":{"enabled":true,"listen":":9999","key":"scrapekey"}`) {
+		t.Fatalf("dstatus missing from state: %s", b)
+	}
 	// A line ingress adds a source-bound RTT task to the far end: the
 	// reserved (SSH) port until an inbound uses the line, then that port.
 	_, b, _ = ac.do("POST", "/api/admin/nodes/"+nodeID+"/ingresses", map[string]any{"Name": "IPLC", "BindIP": "10.10.0.2", "LineIP": "198.51.100.20", "PortFrom": 17700, "PortTo": 17799, "ReservedPorts": []int{17700}}, nil)

@@ -61,6 +61,32 @@ seconds and answers Komari's ping tasks. Only the ping capability is
 offered. This runs alongside Captain's own probe; turn the probe page off
 if you prefer Komari's.
 
+## DStatus
+
+Settings → DStatus endpoint lets a [DStatus](https://github.com/fev125/dstatus)
+panel scrape the nodes **without installing its neko-status agent**: every
+node (bosun ≥ 0.52) serves `GET /stat` on the port you give, answers only
+when the request carries the key in a `key` header, and returns the host
+sample in neko-status' shape. In DStatus, add each server with that port
+and key.
+
+Do not use DStatus' own SSH-based agent installer for nodes Captain
+manages. It would leave the monitoring panel holding root credentials for
+every node, which is exactly the blast radius Captain's pairing tokens
+exist to avoid.
+
+This is a pull, unlike Komari's push, so the port has to be reachable from
+the DStatus panel — bosun's firewall auto-open opens it while the setting
+is on, and the node's doctor warns when the endpoint is up but has never
+been scraped (usually a firewall or the wrong address in DStatus) or when
+scrapes are being refused for a wrong key.
+
+Two figures will not match DStatus': it counts whole-interface traffic,
+Captain counts the per-user proxy traffic it bills, so the interface number
+runs higher. Per-core CPU and per-interface counters come back empty
+because bosun does not measure them; everything DStatus renders from
+`cpu.multi`, `mem`, `disk` and `net` is real.
+
 ## Metrics
 
 `GET /api/admin/metrics` serves Prometheus exposition (request counters and
