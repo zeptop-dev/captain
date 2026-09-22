@@ -26,6 +26,22 @@ is containerised — and the script prints the exact proxy snippet to paste;
 the proxy holds the certificate. `--reconfigure` rewrites config.yaml when
 switching modes.
 
+**Docker network (`--network bridge|host`).** The default is Compose's own
+bridge network (`captain_default`): only 80/443 — or 127.0.0.1:8080 behind
+a proxy — are published, and Captain can join a containerised proxy's
+network so the proxy reaches it as `http://captain:8080`, which a host-mode
+container cannot offer. When the host has a global IPv6 address the script
+enables IPv6 on that network (a ULA subnet Docker NATs): without it, v6
+clients reach a published port through docker-proxy and Captain sees the
+bridge gateway instead of them, so every v6 visitor shares one address in
+the login rate limit, the admin allow-list and the connection log. Docker
+older than 27 also needs `{"ip6tables": true}` in `/etc/docker/daemon.json`
+for that to take effect. `--network host` skips all of it: Captain binds
+the host's interfaces directly (`0.0.0.0:443`, or behind a proxy
+`127.0.0.1:8080` — the proxy network's gateway address when the proxy is a
+bridge container, since that is the one host address it can reach). No
+NAT, no port mapping, but nothing else may hold those ports.
+
 **Removing it again:**
 
 ```sh

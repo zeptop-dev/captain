@@ -12,6 +12,10 @@
 # switches to --behind-proxy: Captain listens on 127.0.0.1:8080 in plain HTTP and
 # prints the reverse-proxy snippet; that proxy then terminates TLS.
 # --reconfigure rewrites config.yaml (backup kept) when switching modes.
+# --network bridge|host (docker mode): bridge (default) publishes only 80/443 (or
+# 127.0.0.1:8080 behind a proxy) and can join a proxy container's network; it gets
+# IPv6 when the host has a global address, so v6 clients keep their real address.
+# host binds Captain straight to the host's interfaces: no NAT, no port mapping.
 # Use --behind-proxy when something else on the host terminates TLS (Captain
 # then listens on 127.0.0.1:8080 over plain HTTP).
 set -eu
@@ -30,6 +34,7 @@ while [ $# -gt 0 ]; do
     --admin-email) ADMIN_EMAIL="$2"; shift 2 ;;
     --admin-password) ADMIN_PASS="$2"; shift 2 ;;
     --behind-proxy) PROXY=1; shift ;;
+    --network) NETWORK="$2"; shift 2 ;;
     --reconfigure) RECONFIG=1; shift ;;
     --version) VERSION="$2"; shift 2 ;;
     -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
@@ -37,6 +42,8 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ "$(id -u)" = 0 ] || { echo "run as root (sudo)" >&2; exit 1; }
+NETWORK=${NETWORK:-bridge}
+case "$NETWORK" in bridge|host) ;; *) echo "--network must be bridge or host" >&2; exit 2 ;; esac
 
 # have_tty says whether the script can actually reach a terminal. /dev/tty
 # exists and passes [ -r ] even under "ssh host 'curl … | sh'", where
@@ -152,8 +159,24 @@ ask_secret ADMIN_PASS "Admin password (8+ characters)" admin-password
 
 DIR=/opt/captain
 mkdir -p "$DIR" /etc/captain
+# A containerised proxy (1Panel's OpenResty, nginx-proxy...) on a bridge network
+# cannot reach 127.0.0.1 of the host. With a bridge network Captain joins the
+# proxy's network so it can use http://captain:8080; with the host network
+# Captain binds the proxy network's gateway address instead, which is the one
+# address on the host such a proxy can reach.
+PNET=""; PGW=""
+if [ "$MODE" = docker ] && [ "$PROXY" = 1 ]; then
+  case "$OWNER" in docker:*)
+    PC=${OWNER#docker:}
+    if [ "$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$PC" 2>/dev/null)" != host ]; then
+      PNET=$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' "$PC" 2>/dev/null | tr ' ' '\n' | grep -v '^$' | head -1)
+      [ -n "$PNET" ] && PGW=$(docker network inspect -f '{{(index .IPAM.Config 0).Gateway}}' "$PNET" 2>/dev/null)
+    fi ;;
+  esac
+fi
 if [ "$PROXY" = 1 ]; then
   LISTEN="0.0.0.0:8080"; [ "$MODE" = binary ] && LISTEN="127.0.0.1:8080"
+  if [ "$MODE" = docker ] && [ "$NETWORK" = host ]; then LISTEN="127.0.0.1:8080"; [ -n "$PGW" ] && LISTEN="$PGW:8080"; fi
   TLS="tls:
   auto: false"
 else
@@ -169,6 +192,7 @@ CFG=/etc/captain/config.yaml
 if [ -f "$CFG" ] && [ "$RECONFIG" = 0 ]; then
   if grep -q '^  auto: true' "$CFG"; then HAD=0; else HAD=1; fi
   if [ "$HAD" != "$PROXY" ]; then echo "existing $CFG was written for another TLS mode; rewriting it (backup: $CFG.bak)"; RECONFIG=1; fi
+  if [ "$MODE" = docker ] && ! grep -q "^listen: $LISTEN\$" "$CFG"; then echo "existing $CFG listens elsewhere than $LISTEN; rewriting it (backup: $CFG.bak)"; RECONFIG=1; fi
 fi
 if [ -f "$CFG" ] && [ "$RECONFIG" = 1 ]; then cp "$CFG" "$CFG.bak"; rm -f "$CFG"; fi
 if [ ! -f "$CFG" ]; then
@@ -205,24 +229,34 @@ fi
 
 UPSTREAM="http://127.0.0.1:8080"
 if [ "$MODE" = docker ]; then
-  if [ "$PROXY" = 1 ]; then PORTS='["127.0.0.1:8080:8080"]'; else PORTS='["80:80", "443:443"]'; fi
-  NETS=""; NETDEF=""
-  # A containerised proxy (1Panel's OpenResty, nginx-proxy...) on a bridge network
-  # cannot reach 127.0.0.1 of the host: join its network so it can use http://captain:8080.
-  if [ "$PROXY" = 1 ]; then
-    case "$OWNER" in docker:*)
-      PC=${OWNER#docker:}
-      if [ "$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$PC" 2>/dev/null)" != host ]; then
-        PNET=$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' "$PC" 2>/dev/null | tr ' ' '\n' | grep -v '^$' | head -1)
-        if [ -n "$PNET" ]; then
-          NETS="    networks: [default, $PNET]"
-          NETDEF="networks:
+  PORTS=""; NETS=""; NETDEF=""; V6=0
+  if [ "$NETWORK" = host ]; then
+    NETS="    network_mode: host"
+    [ "$PROXY" = 1 ] && [ -n "$PGW" ] && UPSTREAM="http://$PGW:8080"
+  else
+    if [ "$PROXY" = 1 ]; then PORTS='    ports: ["127.0.0.1:8080:8080"]'; else PORTS='    ports: ["80:80", "443:443"]'; fi
+    NETDEF="networks:"
+    # Without IPv6 on the network, v6 clients reach a published port through
+    # docker-proxy and Captain sees the bridge gateway instead of them: every
+    # v6 visitor then shares one address in the rate limits, the allow-list
+    # and the connection log. A ULA subnet is enough; Docker NATs it.
+    if ip -6 addr show scope global 2>/dev/null | grep -q inet6; then
+      V6=1
+      NETDEF="$NETDEF
+  default:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: fd0c:a97a:1::/64"
+    fi
+    if [ "$PROXY" = 1 ] && [ -n "$PNET" ]; then
+      NETS="    networks: [default, $PNET]"
+      NETDEF="$NETDEF
   $PNET:
     external: true"
-          UPSTREAM="http://captain:8080"
-        fi
-      fi ;;
-    esac
+      UPSTREAM="http://captain:8080"
+    fi
+    [ "$NETDEF" = "networks:" ] && NETDEF=""
   fi
   cat > "$DIR/docker-compose.yml" <<YAML
 services:
@@ -230,7 +264,7 @@ services:
     image: $IMAGE
     container_name: captain
     restart: unless-stopped
-    ports: $PORTS
+$PORTS
 $NETS
     volumes:
       - ./config.yaml:/etc/captain/config.yaml:ro
@@ -249,6 +283,15 @@ YAML
   echo "Captain is running (docker). Console: https://$DOMAIN/admin/   Users: https://$DOMAIN/portal/"
   [ "$PROXY" = 1 ] || echo "The certificate is requested at startup; watch it with: docker compose logs -f"
   echo "Manage: cd $DIR && docker compose logs -f | docker compose pull && docker compose up -d"
+  if [ "$NETWORK" = host ]; then
+    echo "Network: host (Captain binds $LISTEN on the host directly; no port mapping)."
+  elif [ "$V6" = 1 ]; then
+    DV=$(docker version --format '{{.Server.Version}}' 2>/dev/null | cut -d. -f1)
+    echo "Network: bridge with IPv6, so v6 clients keep their own address."
+    if [ -n "$DV" ] && [ "$DV" -lt 27 ] 2>/dev/null; then echo "  Docker $DV is older than 27: add {\"ip6tables\": true} to /etc/docker/daemon.json (experimental there) or v6 clients still arrive as the gateway."; fi
+  else
+    echo "Network: bridge (no global IPv6 on this host, so none on the network)."
+  fi
 else
   case "$(uname -m)" in x86_64|amd64) ARCH=amd64 ;; aarch64|arm64) ARCH=arm64 ;; *) echo "unsupported arch" >&2; exit 1 ;; esac
   if [ -z "$VERSION" ]; then
