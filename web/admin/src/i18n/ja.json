@@ -116,6 +116,8 @@
     "dockerCmd": "Docker（host ネットワーク）",
     "manualHint": "bosun をインストール済みですか？ペアリングコードで手動で引き継ぐか、設定スニペットをコピーしてください：",
     "monitorUrlHint": "別の監視ツール（Komari、Nezha）を使う場合、このノードのページURLを入力すると、ノードページにリンクが表示されます。",
+    "dstatusSid": "DStatus サーバー ID（SID）",
+    "dstatusSidHint": "DStatus 設定がアクティブモードのときのみ使用。DStatus のサーバー一覧でのこのノードの ID。空欄 = このノードは送信しない。",
     "info": "ノード情報",
     "hostname": "ホスト名",
     "platform": "プラットフォーム",
@@ -1163,13 +1165,21 @@
   },
   "dstatus": {
     "title": "DStatus エンドポイント",
-    "hint": "DStatus パネルが neko-status エージェントなしでノードを取得できるようにします。各ノードがこのポートで GET /stat を提供し、キーで保護します。DStatus 側ではそのポートとキーでサーバーを追加してください。SSH インストールは使わないこと——監視パネルが全ノードの root 認証情報を持つことになります。プッシュではなくプルなのでポートが到達可能である必要があり、有効な間は bosun がファイアウォールを開けます。本パネルのプローブとは独立。bosun ≥ 0.52 が必要です。",
+    "hint": "DStatus パネルにノードを監視させます。ノードにエージェントを入れず、SSH インストール（監視パネルが全ノードの root を持つことになる）も使いません。パネルの両モードに対応。本パネルのプローブとは独立。bosun ≥ 0.53 が必要。",
     "listen": "待ち受けアドレス",
     "listenHint": "各ノードの host:port、空欄なら :9999",
     "key": "キー",
     "keyHint": "DStatus が key ヘッダーで送るシークレット",
     "keySet": "保存済み。空欄で維持、「-」で削除",
-    "enabled": "有効"
+    "enabled": "有効",
+    "passive": "パッシブ（パネルが取得）",
+    "active": "アクティブ（ノードが送信）",
+    "passiveHint": "パネルの被动模式に対応。DStatus 側でこのポートとキーで各サーバーを追加します。ノードはポートを開けます。",
+    "activeHint": "パネルの主动模式に対応。DStatus 側で各サーバーをアクティブに切り替え、その SID をここのノードページに入力します。ノードはポートを開けません（パネルから届かないホスト向け）。",
+    "server": "DStatus パネル URL",
+    "serverHint": "ノードの送信先。例 https://status.example.com",
+    "interval": "送信間隔（秒）",
+    "intervalHint": "各ノードの送信間隔（秒）。既定 3"
   },
   "hwid": {
     "title": "デバイス（HWID）",

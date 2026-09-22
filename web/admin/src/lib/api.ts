@@ -30,7 +30,7 @@ export const api = {
 
 export interface Me { id: number; email: string; role: string; version?: string; totp?: boolean }
 export interface Node {
-  id: number; name: string; public_addr: string; internal_addr: string; v6_addr: string; domain: string; monitor_url: string; decoy_enabled?: boolean; decoy_upstream?: string; user_speed_limit_mbps?: number
+  id: number; name: string; public_addr: string; internal_addr: string; v6_addr: string; domain: string; monitor_url: string; dstatus_sid?: string; decoy_enabled?: boolean; decoy_upstream?: string; user_speed_limit_mbps?: number
   version: string; platform: string; hostname: string; last_seen_at: string | null; online: boolean; paired: boolean
   pair_code?: string; traffic_today_bytes: number; inbounds: number; upgrade_to?: string; outdated: boolean; cert_problem: boolean; doctor_fail?: boolean; mita_quotas?: boolean; egress_by_ingress?: boolean }
 // runNodeJob queues a one-off job on the node and polls until it answers.

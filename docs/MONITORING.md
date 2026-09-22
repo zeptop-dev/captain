@@ -63,23 +63,38 @@ if you prefer Komari's.
 
 ## DStatus
 
-Settings → DStatus endpoint lets a [DStatus](https://github.com/fev125/dstatus)
-panel scrape the nodes **without installing its neko-status agent**: every
-node (bosun ≥ 0.52) serves `GET /stat` on the port you give, answers only
-when the request carries the key in a `key` header, and returns the host
-sample in neko-status' shape. In DStatus, add each server with that port
-and key.
+Settings → DStatus lets a [DStatus](https://github.com/fev125/dstatus)
+panel — the open-source one or the official build at dstatus.sh, which
+share the wire protocol — monitor the nodes **without installing its
+agent on them**. Do not use DStatus' own SSH-based agent installer for
+nodes Captain manages: it would leave the monitoring panel holding root
+credentials for every node, which is exactly the blast radius Captain's
+pairing tokens exist to avoid.
 
-Do not use DStatus' own SSH-based agent installer for nodes Captain
-manages. It would leave the monitoring panel holding root credentials for
-every node, which is exactly the blast radius Captain's pairing tokens
-exist to avoid.
+The setting is panel-wide and follows the panel's 通讯模式 switch:
 
-This is a pull, unlike Komari's push, so the port has to be reachable from
-the DStatus panel — bosun's firewall auto-open opens it while the setting
-is on, and the node's doctor warns when the endpoint is up but has never
-been scraped (usually a firewall or the wrong address in DStatus) or when
-scrapes are being refused for a wrong key.
+- **Passive (被动)**, the default: every node (bosun ≥ 0.52) serves
+  `GET /stat` on the port you give and answers only when the request
+  carries the key in a `key` header. In DStatus, add each server with that
+  port and key. This is a pull, so the port must be reachable from the
+  DStatus panel — bosun's firewall auto-open opens it while the setting is
+  on. The panel's optional `/ping` and `/tcping` capability probes get a
+  404, which only greys out its "network quality" feature.
+- **Active (主动)**: every node (bosun ≥ 0.53) posts its sample to the
+  panel URL you give, every few seconds, with the same key — and opens no
+  port, for hosts the panel cannot reach. Reporting has to name the
+  server it reports as, so each node carries a **DStatus server ID (SID)**
+  on its node page: the ID of that server in DStatus' list. A node without
+  one simply does not report. Switch the server to 主动 in DStatus as well.
+  DStatus' task channel (remote scripts, diagnostics) is deliberately not
+  implemented.
+
+The key is write-only here, as the other secrets are, and the setting
+refuses to be enabled without one. The node's doctor warns when a passive
+endpoint is up but has never been scraped (usually a firewall or the wrong
+address in DStatus), when scrapes are refused for a wrong key, and in
+active mode when the panel stops accepting reports — with the panel's own
+reason.
 
 Two figures will not match DStatus': it counts whole-interface traffic,
 Captain counts the per-user proxy traffic it bills, so the interface number

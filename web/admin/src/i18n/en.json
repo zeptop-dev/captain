@@ -116,6 +116,8 @@
     "dockerCmd": "Docker (host network)",
     "manualHint": "bosun already installed? Adopt with the code, or copy the config snippet:",
     "monitorUrlHint": "If you run another probe (Komari, Nezha), paste this node's page there; the node page shows a link.",
+    "dstatusSid": "DStatus server ID (SID)",
+    "dstatusSidHint": "Only for the DStatus setting's active mode: this node's ID in the DStatus server list. Blank = this node does not report.",
     "domain": "Domain (optional)",
     "domainHint": "This node's host name, e.g. jp1.example.com. New inbounds and entries default to it; certificates are matched and pushed by name.",
     "advIngressCount": "{{count}} lines",
@@ -1089,13 +1091,21 @@
   },
   "dstatus": {
     "title": "DStatus endpoint",
-    "hint": "Let a DStatus panel scrape your nodes without installing its neko-status agent: every node serves GET /stat on this port, guarded by the key. Add each server in DStatus with that port and key — and leave its SSH install alone, so the monitoring panel never holds your nodes' root credentials. A pull, not a push, so the port must be reachable: bosun opens it in the firewall while this is on. Independent of this panel's probe; needs bosun ≥ 0.52.",
+    "hint": "Let a DStatus panel monitor your nodes without installing its agent on them — and without its SSH installer, which would leave the monitoring panel holding root on every node. Both of the panel's modes are covered; pick the one matching the servers there. Independent of this panel's probe; needs bosun ≥ 0.53.",
     "listen": "Listen address",
     "listenHint": "host:port on every node; blank means :9999",
     "key": "Key",
     "keyHint": "The secret DStatus sends in the \"key\" header",
     "keySet": "saved; blank keeps it, \"-\" clears it",
-    "enabled": "Enabled"
+    "enabled": "Enabled",
+    "passive": "Passive (panel scrapes)",
+    "active": "Active (nodes report)",
+    "passiveHint": "The panel's 被动模式: add each server in DStatus with this port and key; nodes open the port.",
+    "activeHint": "The panel's 主动模式: switch each server to active in DStatus and put its SID on the node's page here; nodes open no port — for hosts the panel cannot reach.",
+    "server": "DStatus panel URL",
+    "serverHint": "Where the nodes report, e.g. https://status.example.com",
+    "interval": "Report interval (s)",
+    "intervalHint": "Seconds between reports from every node; default 3"
   },
   "warp": {
     "title": "Cloudflare WARP exit",

@@ -12,7 +12,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-const nodeCols = "id, name, token_hash, pair_code, public_addr, internal_addr, v6_addr, domain, monitor_url, version, platform, hostname, last_seen_at, applied_revision, upgrade_to, created_at, decoy_enabled, decoy_upstream, user_speed_limit_mbps, mita_quotas, egress_by_ingress"
+const nodeCols = "id, name, token_hash, pair_code, public_addr, internal_addr, v6_addr, domain, monitor_url, version, platform, hostname, last_seen_at, applied_revision, upgrade_to, created_at, decoy_enabled, decoy_upstream, user_speed_limit_mbps, mita_quotas, egress_by_ingress, dstatus_sid"
 
 func scanNode(row interface{ Scan(...any) error }) (*domain.Node, error) {
 	var n domain.Node
@@ -21,7 +21,7 @@ func scanNode(row interface{ Scan(...any) error }) (*domain.Node, error) {
 	var created int64
 	var decoy, mitaQ, egress int
 	if err := row.Scan(&n.ID, &n.Name, &tokenHash, &pairCode, &n.PublicAddr, &n.InternalAddr, &n.V6Addr, &n.Domain, &n.MonitorURL,
-		&n.Version, &n.Platform, &n.Hostname, &lastSeen, &n.AppliedRevision, &n.UpgradeTo, &created, &decoy, &n.DecoyUpstream, &n.UserSpeedLimitMbps, &mitaQ, &egress); err != nil {
+		&n.Version, &n.Platform, &n.Hostname, &lastSeen, &n.AppliedRevision, &n.UpgradeTo, &created, &decoy, &n.DecoyUpstream, &n.UserSpeedLimitMbps, &mitaQ, &egress, &n.DStatusSID); err != nil {
 		return nil, wrapNotFound(err)
 	}
 	n.Paired = tokenHash.Valid && tokenHash.String != ""
@@ -37,9 +37,9 @@ func scanNode(row interface{ Scan(...any) error }) (*domain.Node, error) {
 // CreateNode inserts a node with a fresh pairing code valid for ttl.
 func (s *Store) CreateNode(ctx context.Context, n *domain.Node, pairCode string, ttl time.Duration) error {
 	ts := now()
-	res, err := s.db.ExecContext(ctx, `INSERT INTO nodes (name, pair_code, pair_code_expires_at, public_addr, internal_addr, v6_addr, domain, monitor_url, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		n.Name, pairCode, time.Now().Add(ttl).Unix(), n.PublicAddr, n.InternalAddr, n.V6Addr, n.Domain, n.MonitorURL, ts, ts)
+	res, err := s.db.ExecContext(ctx, `INSERT INTO nodes (name, pair_code, pair_code_expires_at, public_addr, internal_addr, v6_addr, domain, monitor_url, dstatus_sid, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		n.Name, pairCode, time.Now().Add(ttl).Unix(), n.PublicAddr, n.InternalAddr, n.V6Addr, n.Domain, n.MonitorURL, n.DStatusSID, ts, ts)
 	if err != nil {
 		return err
 	}
@@ -182,8 +182,8 @@ func boolInt(b bool) int {
 
 // UpdateNode changes editable node fields.
 func (s *Store) UpdateNode(ctx context.Context, n *domain.Node) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET name = ?, public_addr = ?, internal_addr = ?, v6_addr = ?, domain = ?, monitor_url = ?, decoy_enabled = ?, decoy_upstream = ?, user_speed_limit_mbps = ?, mita_quotas = ?, egress_by_ingress = ?, updated_at = ? WHERE id = ?`,
-		n.Name, n.PublicAddr, n.InternalAddr, n.V6Addr, n.Domain, n.MonitorURL, boolInt(n.DecoyEnabled), n.DecoyUpstream, n.UserSpeedLimitMbps, boolInt(n.MitaQuotas), boolInt(n.EgressByIngress), now(), n.ID)
+	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET name = ?, public_addr = ?, internal_addr = ?, v6_addr = ?, domain = ?, monitor_url = ?, decoy_enabled = ?, decoy_upstream = ?, user_speed_limit_mbps = ?, mita_quotas = ?, egress_by_ingress = ?, dstatus_sid = ?, updated_at = ? WHERE id = ?`,
+		n.Name, n.PublicAddr, n.InternalAddr, n.V6Addr, n.Domain, n.MonitorURL, boolInt(n.DecoyEnabled), n.DecoyUpstream, n.UserSpeedLimitMbps, boolInt(n.MitaQuotas), boolInt(n.EgressByIngress), n.DStatusSID, now(), n.ID)
 	return err
 }
 

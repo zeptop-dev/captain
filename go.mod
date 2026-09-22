@@ -11,7 +11,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.5
 	github.com/libdns/cloudflare v0.2.2
 	github.com/pressly/goose/v3 v3.28.0
-	github.com/zeptop-dev/bosun v0.52.0
+	github.com/zeptop-dev/bosun v0.53.0
 	go.uber.org/zap v1.28.0
 	golang.org/x/crypto v0.57.0
 	golang.org/x/net v0.59.0

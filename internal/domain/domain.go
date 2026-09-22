@@ -144,6 +144,9 @@ type Node struct {
 	V6Addr       string
 	Domain       string // host name under a registered domain, e.g. jp1.example.com
 	MonitorURL   string
+	// DStatusSID is this node's server id in a DStatus panel, needed only
+	// when the DStatus setting runs in active (reporting) mode.
+	DStatusSID string
 	// DecoyEnabled makes the node serve Domain itself on loopback for
 	// REALITY inbounds to steal; DecoyUpstream optionally proxies a site.
 	DecoyEnabled  bool

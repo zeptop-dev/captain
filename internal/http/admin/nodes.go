@@ -32,6 +32,7 @@ type nodeView struct {
 	UserSpeedLimitMbps int        `json:"user_speed_limit_mbps"`
 	MitaQuotas         bool       `json:"mita_quotas"`
 	EgressByIngress    bool       `json:"egress_by_ingress"`
+	DStatusSID         string     `json:"dstatus_sid"`
 	Version            string     `json:"version"`
 	Platform           string     `json:"platform"`
 	Hostname           string     `json:"hostname"`
@@ -49,7 +50,7 @@ type nodeView struct {
 
 func toNodeView(n *domain.Node, at time.Time) nodeView {
 	return nodeView{
-		ID: n.ID, Name: n.Name, PublicAddr: n.PublicAddr, InternalAddr: n.InternalAddr, V6Addr: n.V6Addr, Domain: n.Domain, MonitorURL: n.MonitorURL, DecoyEnabled: n.DecoyEnabled, DecoyUpstream: n.DecoyUpstream, UserSpeedLimitMbps: n.UserSpeedLimitMbps, MitaQuotas: n.MitaQuotas, EgressByIngress: n.EgressByIngress,
+		ID: n.ID, Name: n.Name, PublicAddr: n.PublicAddr, InternalAddr: n.InternalAddr, V6Addr: n.V6Addr, Domain: n.Domain, MonitorURL: n.MonitorURL, DecoyEnabled: n.DecoyEnabled, DecoyUpstream: n.DecoyUpstream, UserSpeedLimitMbps: n.UserSpeedLimitMbps, MitaQuotas: n.MitaQuotas, EgressByIngress: n.EgressByIngress, DStatusSID: n.DStatusSID,
 		Version: n.Version, Platform: n.Platform, Hostname: n.Hostname, LastSeenAt: n.LastSeenAt,
 		Online: n.LastSeenAt != nil && at.Sub(*n.LastSeenAt) < 3*time.Minute, Paired: n.Paired, PairCode: n.PairCode,
 		UpgradeTo: n.UpgradeTo,
@@ -102,6 +103,7 @@ type nodeInput struct {
 	UserSpeedLimitMbps                                         int
 	MitaQuotas                                                 bool
 	EgressByIngress                                            bool
+	DStatusSID                                                 string
 }
 
 func (h *handlers) createNode(w http.ResponseWriter, r *http.Request) {
@@ -110,7 +112,7 @@ func (h *handlers) createNode(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "name is required")
 		return
 	}
-	n := &domain.Node{Name: in.Name, PublicAddr: in.PublicAddr, InternalAddr: in.InternalAddr, V6Addr: in.V6Addr, Domain: strings.ToLower(strings.TrimSpace(in.Domain)), MonitorURL: in.MonitorURL}
+	n := &domain.Node{Name: in.Name, PublicAddr: in.PublicAddr, InternalAddr: in.InternalAddr, V6Addr: in.V6Addr, Domain: strings.ToLower(strings.TrimSpace(in.Domain)), MonitorURL: in.MonitorURL, DStatusSID: strings.TrimSpace(in.DStatusSID)}
 	if err := h.Store.CreateNode(r.Context(), n, auth.PairCode(), 24*time.Hour); err != nil {
 		serverErr(w, err)
 		return
@@ -154,7 +156,7 @@ func (h *handlers) updateNode(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "name is required")
 		return
 	}
-	n := &domain.Node{ID: id, Name: in.Name, PublicAddr: in.PublicAddr, InternalAddr: in.InternalAddr, V6Addr: in.V6Addr, Domain: strings.ToLower(strings.TrimSpace(in.Domain)), MonitorURL: in.MonitorURL, DecoyEnabled: in.DecoyEnabled, DecoyUpstream: strings.TrimSpace(in.DecoyUpstream), UserSpeedLimitMbps: in.UserSpeedLimitMbps, MitaQuotas: in.MitaQuotas, EgressByIngress: in.EgressByIngress}
+	n := &domain.Node{ID: id, Name: in.Name, PublicAddr: in.PublicAddr, InternalAddr: in.InternalAddr, V6Addr: in.V6Addr, Domain: strings.ToLower(strings.TrimSpace(in.Domain)), MonitorURL: in.MonitorURL, DecoyEnabled: in.DecoyEnabled, DecoyUpstream: strings.TrimSpace(in.DecoyUpstream), UserSpeedLimitMbps: in.UserSpeedLimitMbps, MitaQuotas: in.MitaQuotas, EgressByIngress: in.EgressByIngress, DStatusSID: strings.TrimSpace(in.DStatusSID)}
 	if err := h.Store.UpdateNode(r.Context(), n); err != nil {
 		serverErr(w, err)
 		return

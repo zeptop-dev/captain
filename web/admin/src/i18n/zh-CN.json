@@ -116,6 +116,8 @@
     "dockerCmd": "Docker（host 网络）",
     "manualHint": "已经装好 bosun？用配对码手动接管，或复制配置片段：",
     "monitorUrlHint": "用别的探针（Komari、哪吒）时填该节点的页面地址，节点页会显示一个跳转链接。",
+    "dstatusSid": "DStatus 服务器 ID（SID）",
+    "dstatusSidHint": "只在 DStatus 设置为主动模式时用：这台节点在 DStatus 服务器列表里的 ID。留空 = 这台节点不上报。",
     "domain": "域名（可选）",
     "domainHint": "这台节点的主机名，比如 jp1.example.com。新建入站的 TLS 域名和入口展示地址默认用它；证书按域名自动匹配下发。",
     "advIngressCount": "{{count}} 条专线",
@@ -1089,13 +1091,21 @@
   },
   "dstatus": {
     "title": "DStatus 探针端点",
-    "hint": "让 DStatus 面板直接抓取你的节点，不用装它的 neko-status agent：每台节点在这个端口上提供 GET /stat，用密钥校验。在 DStatus 里按这个端口和密钥添加服务器即可，不要用它的 SSH 安装方式——那样监控面板会持有你所有节点的 root 凭据。这是拉取不是上报，所以端口必须可达，启用期间 bosun 会在防火墙里放行它。与本面板的探针互不影响，节点需 bosun ≥ 0.52。",
+    "hint": "让 DStatus 面板监控你的节点，不用在节点上装它的 agent——也不用它的 SSH 安装方式，那样监控面板会持有所有节点的 root。面板的两种模式都支持，选和那边服务器一致的那种。与本面板的探针互不影响，节点需 bosun ≥ 0.53。",
     "listen": "监听地址",
     "listenHint": "每台节点上的 host:port，留空为 :9999",
     "key": "密钥",
     "keyHint": "DStatus 放在 key 请求头里的那个密钥",
     "keySet": "已保存；留空不改，填 - 清除",
-    "enabled": "启用"
+    "enabled": "启用",
+    "passive": "被动（面板拉取）",
+    "active": "主动（节点上报）",
+    "passiveHint": "对应面板的「被动模式」：在 DStatus 里按这个端口和密钥添加每台服务器；节点会放行端口。",
+    "activeHint": "对应面板的「主动模式」：在 DStatus 里把每台服务器切成主动，把它的 SID 填到这里的节点页；节点不开端口——给面板连不到的机器用。",
+    "server": "DStatus 面板地址",
+    "serverHint": "节点往哪里上报，例如 https://status.example.com",
+    "interval": "上报间隔（秒）",
+    "intervalHint": "每台节点两次上报之间的秒数，默认 3"
   },
   "warp": {
     "title": "Cloudflare WARP 出站",

@@ -1647,6 +1647,25 @@ func TestProbePageAndBeats(t *testing.T) {
 	if !strings.Contains(string(b), `"dstatus":{"enabled":true,"listen":":9999","key":"scrapekey"}`) {
 		t.Fatalf("dstatus missing from state: %s", b)
 	}
+	// Active mode: the panel URL is required, and a node only reports
+	// once it has been given its server id in the panel.
+	if code, _, _ := ac.do("PUT", "/api/admin/settings/dstatus", map[string]any{"enabled": true, "mode": "active", "key": "scrapekey"}, nil); code != 400 {
+		t.Fatal("active mode without a panel URL accepted")
+	}
+	if code, b, _ := ac.do("PUT", "/api/admin/settings/dstatus", map[string]any{"enabled": true, "mode": "active", "server": "https://status.example.com/", "interval": 5, "key": ""}, nil); code != 200 || !strings.Contains(string(b), `"mode":"active"`) || !strings.Contains(string(b), `"has_key":true`) {
+		t.Fatalf("put dstatus active: %d %s", code, b)
+	}
+	_, b, _ = nc.do("GET", "/api/agent/state", nil, nil)
+	if strings.Contains(string(b), `"dstatus"`) {
+		t.Fatalf("a node without a SID must not be told to report: %s", b)
+	}
+	if code, b, _ := ac.do("PATCH", "/api/admin/nodes/"+nodeID, map[string]any{"Name": "jp1", "PublicAddr": "jp1.test", "DStatusSID": "srv-42"}, nil); code != 200 {
+		t.Fatalf("patch node sid: %d %s", code, b)
+	}
+	_, b, _ = nc.do("GET", "/api/agent/state", nil, nil)
+	if !strings.Contains(string(b), `"dstatus":{"enabled":true,"key":"scrapekey","mode":"active","server":"https://status.example.com","sid":"srv-42","interval":5}`) {
+		t.Fatalf("active dstatus missing from state: %s", b)
+	}
 	// A line ingress adds a source-bound RTT task to the far end: the
 	// reserved (SSH) port until an inbound uses the line, then that port.
 	_, b, _ = ac.do("POST", "/api/admin/nodes/"+nodeID+"/ingresses", map[string]any{"Name": "IPLC", "BindIP": "10.10.0.2", "LineIP": "198.51.100.20", "PortFrom": 17700, "PortTo": 17799, "ReservedPorts": []int{17700}}, nil)

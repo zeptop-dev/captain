@@ -250,7 +250,16 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 	// address, which is how DStatus' own agent installer works too.
 	var ds store.DStatusSettings
 	if err := a.Store.GetSetting(ctx, store.SettingDStatus, &ds); err == nil && ds.Enabled && ds.Key != "" {
-		st.DStatus = &spec.DStatus{Enabled: true, Listen: ds.Listen, Key: ds.Key}
+		switch ds.Mode {
+		case spec.DStatusActive:
+			// Reporting needs the node's own id in the panel; a node
+			// without one stays silent rather than reporting as nobody.
+			if n.DStatusSID != "" {
+				st.DStatus = &spec.DStatus{Enabled: true, Mode: spec.DStatusActive, Server: ds.Server, SID: n.DStatusSID, Key: ds.Key, Interval: ds.Interval}
+			}
+		default:
+			st.DStatus = &spec.DStatus{Enabled: true, Listen: ds.Listen, Key: ds.Key}
+		}
 	}
 	if jobs, err := a.Store.PendingNodeJobs(ctx, n.ID); err == nil {
 		for _, j := range jobs {

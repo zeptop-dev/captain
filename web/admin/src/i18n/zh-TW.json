@@ -116,6 +116,8 @@
     "dockerCmd": "Docker（host 網路）",
     "manualHint": "已經裝好 bosun？用配對碼手動接管，或複製設定片段：",
     "monitorUrlHint": "使用其他探針（Komari、哪吒）時填該節點的頁面網址，節點頁會顯示跳轉連結。",
+    "dstatusSid": "DStatus 伺服器 ID（SID）",
+    "dstatusSidHint": "只在 DStatus 設定為主動模式時用：這台節點在 DStatus 伺服器清單裡的 ID。留空 = 這台節點不上報。",
     "info": "節點資訊",
     "hostname": "主機名",
     "platform": "平台",
@@ -1163,13 +1165,21 @@
   },
   "dstatus": {
     "title": "DStatus 探針端點",
-    "hint": "讓 DStatus 面板直接抓取你的節點，不用裝它的 neko-status agent：每台節點在這個連接埠上提供 GET /stat，以金鑰驗證。在 DStatus 裡用這個連接埠和金鑰新增伺服器即可，不要用它的 SSH 安裝方式——那樣監控面板會持有你所有節點的 root 憑證。這是拉取而非上報，所以連接埠必須可達，啟用期間 bosun 會在防火牆裡放行。與本面板的探針互不影響，節點需 bosun ≥ 0.52。",
+    "hint": "讓 DStatus 面板監控你的節點，不用在節點上裝它的 agent——也不用它的 SSH 安裝方式，那樣監控面板會持有所有節點的 root。面板的兩種模式都支援，選和那邊伺服器一致的那種。與本面板的探針互不影響，節點需 bosun ≥ 0.53。",
     "listen": "監聽位址",
     "listenHint": "每台節點上的 host:port，留空為 :9999",
     "key": "金鑰",
     "keyHint": "DStatus 放在 key 請求標頭裡的那個金鑰",
     "keySet": "已儲存；留空不改，填 - 清除",
-    "enabled": "啟用"
+    "enabled": "啟用",
+    "passive": "被動（面板拉取）",
+    "active": "主動（節點上報）",
+    "passiveHint": "對應面板的「被動模式」：在 DStatus 裡按這個連接埠和金鑰新增每台伺服器；節點會放行連接埠。",
+    "activeHint": "對應面板的「主動模式」：在 DStatus 裡把每台伺服器切成主動，把它的 SID 填到這裡的節點頁；節點不開連接埠——給面板連不到的機器用。",
+    "server": "DStatus 面板位址",
+    "serverHint": "節點往哪裡上報，例如 https://status.example.com",
+    "interval": "上報間隔（秒）",
+    "intervalHint": "每台節點兩次上報之間的秒數，預設 3"
   },
   "hwid": {
     "title": "裝置（HWID）",

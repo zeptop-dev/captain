@@ -2,6 +2,7 @@ package admin
 
 import (
 	"context"
+	"github.com/zeptop-dev/bosun/pkg/spec"
 	"net"
 	"net/http"
 	"strconv"
@@ -214,7 +215,11 @@ func (h *handlers) putKomari(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) getDStatus(w http.ResponseWriter, r *http.Request) {
 	var v store.DStatusSettings
 	_ = h.Store.GetSetting(r.Context(), store.SettingDStatus, &v)
-	ok(w, map[string]any{"enabled": v.Enabled, "listen": v.Listen, "has_key": v.Key != ""})
+	ok(w, dstatusView(v))
+}
+
+func dstatusView(v store.DStatusSettings) map[string]any {
+	return map[string]any{"enabled": v.Enabled, "mode": v.Mode, "listen": v.Listen, "server": v.Server, "interval": v.Interval, "has_key": v.Key != ""}
 }
 
 // putDStatus stores the setting; a blank key keeps the stored one, "-"
@@ -227,6 +232,19 @@ func (h *handlers) putDStatus(w http.ResponseWriter, r *http.Request) {
 	var cur store.DStatusSettings
 	_ = h.Store.GetSetting(r.Context(), store.SettingDStatus, &cur)
 	in.Listen = strings.TrimSpace(in.Listen)
+	in.Server = strings.TrimRight(strings.TrimSpace(in.Server), "/")
+	if in.Mode != "" && in.Mode != "passive" && in.Mode != spec.DStatusActive {
+		fail(w, http.StatusBadRequest, "mode must be passive or active")
+		return
+	}
+	if in.Interval < 0 || in.Interval > 300 {
+		fail(w, http.StatusBadRequest, "interval must be 0-300 seconds")
+		return
+	}
+	if in.Enabled && in.Mode == spec.DStatusActive && !strings.HasPrefix(in.Server, "http://") && !strings.HasPrefix(in.Server, "https://") {
+		fail(w, http.StatusBadRequest, "active mode needs the DStatus panel URL (http:// or https://)")
+		return
+	}
 	if in.Listen != "" {
 		if _, port, err := net.SplitHostPort(in.Listen); err != nil {
 			fail(w, http.StatusBadRequest, "listen must be host:port, e.g. :9999")
@@ -254,5 +272,5 @@ func (h *handlers) putDStatus(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
-	ok(w, map[string]any{"enabled": in.Enabled, "listen": in.Listen, "has_key": in.Key != ""})
+	ok(w, dstatusView(in))
 }
