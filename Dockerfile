@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o /out/captain ./cmd/captain
 
-FROM alpine:3.21
+FROM alpine:3.24
 RUN apk add --no-cache ca-certificates tzdata && adduser -D -H -u 1000 captain
 # The self-updater points at `docker compose pull` instead of swapping the binary.
 ENV IN_CONTAINER=1
