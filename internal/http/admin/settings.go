@@ -43,6 +43,11 @@ func (h *handlers) systemUpdateApply(w http.ResponseWriter, r *http.Request) {
 		fail(w, code, err.Error())
 		return
 	}
+	if selfupdate.InContainer() {
+		h.Log.Info("Docker image upgrade queued", "version", ver)
+		ok(w, map[string]any{"installed": ver, "queued": true, "restarting": false})
+		return
+	}
 	h.Log.Warn("captain updated; restarting", "version", ver)
 	ok(w, map[string]any{"installed": ver, "restarting": true})
 	selfupdate.Restart(500 * time.Millisecond)

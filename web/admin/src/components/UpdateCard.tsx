@@ -18,6 +18,7 @@ function RestartOverlay({ version, onGiveUp }: { version?: string; onGiveUp: () 
   const { t } = useTranslation()
   const [seconds, setSeconds] = useState(0)
   const [timedOut, setTimedOut] = useState(false)
+  const [phase, setPhase] = useState('')
   useEffect(() => {
     setToastMuted(true)
     const started = Date.now()
@@ -27,21 +28,30 @@ function RestartOverlay({ version, onGiveUp }: { version?: string; onGiveUp: () 
       const elapsed = Math.round((Date.now() - started) / 1000)
       setSeconds(elapsed)
       if (elapsed >= 2) {
-        try { await api.get(ME_URL); window.location.reload(); return } catch { /* still restarting */ }
+        try {
+          if (version) {
+            const result = await api.get<SystemUpdate>('/api/admin/system/update')
+            const info = result.captain
+            const job = info?.host_update?.job
+            if (job?.target === version) { setPhase(job.phase); if (job.phase === 'failed') { setTimedOut(true); return } }
+            if (info?.current === version && (!info.in_container || job?.phase === 'complete')) { window.location.reload(); return }
+          } else { await api.get(ME_URL); window.location.reload(); return }
+        } catch { /* still restarting */ }
       }
-      if (elapsed >= 90) { setTimedOut(true); return }
+      if (elapsed >= 1800) { setTimedOut(true); return }
       setTimeout(tick, 1000)
     }
     const h = setTimeout(tick, 1000)
     return () => { stop = true; clearTimeout(h); setToastMuted(false) }
-  }, [])
+  }, [version])
   return (
     <Modal opened onClose={() => {}} withCloseButton={false} closeOnClickOutside={false} closeOnEscape={false} centered>
       <Stack align="center" gap="sm" py="md">
         {timedOut ? <IconAlertTriangle size={36} color="var(--mantine-color-orange-6)" /> : <Loader />}
         <Title order={4}>{version ? t('update.upgradingTo', { version }) : t('update.restartingTitle')}</Title>
-        <Text size="sm" c="dimmed" ta="center">{timedOut ? t('update.restartTimeout') : t('update.restartingHint')}</Text>
+        <Text size="sm" c="dimmed" ta="center">{phase === 'failed' ? t('update.hostFailed') : timedOut ? t('update.restartTimeout') : t('update.restartingHint')}</Text>
         <Text size="xs" c="dimmed">{t('update.elapsed', { seconds })}</Text>
+        {phase && <Text size="sm">{t(`update.hostPhases.${phase}`)}</Text>}
         {timedOut && (
           <Group gap="xs">
             <Button size="xs" onClick={() => window.location.reload()}>{t('update.reload')}</Button>
@@ -57,7 +67,7 @@ export function UpdateCard({ mb }: { mb?: string }) {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const [restarting, setRestarting] = useState<{ version?: string } | null>(null)
-  const q = useQuery({ queryKey: ['update'], queryFn: () => api.get<SystemUpdate>('/api/admin/system/update'), retry: false })
+  const q = useQuery({ queryKey: ['update'], queryFn: () => api.get<SystemUpdate>('/api/admin/system/update'), retry: false, refetchInterval: (query) => { const phase = query.state.data?.captain?.host_update?.job?.phase; return phase && !['complete', 'failed'].includes(phase) ? 3000 : false } })
   const check = useMutation({ mutationFn: () => api.get<SystemUpdate>('/api/admin/system/update?force=1'), onSuccess: (d) => qc.setQueryData(['update'], d), onError: toast.err })
   const afterExit = (r: { installed?: string }) => setRestarting({ version: r?.installed })
   const apply = useMutation({ mutationFn: () => api.post<{ installed?: string }>('/api/admin/system/update/apply'), onSuccess: afterExit, onError: toast.err })
@@ -80,14 +90,20 @@ export function UpdateCard({ mb }: { mb?: string }) {
           <Text size="sm">{t('update.current')} <b>{d.current}</b>{d.latest !== d.current && <> · {t('update.latest')} <b>{d.latest}</b>{d.published_at && <Text span c="dimmed"> ({when(d.published_at).split(',')[0]})</Text>}</>}</Text>
           {!d.release_build && <Text size="xs" c="dimmed">{t('update.devBuild')}</Text>}
           {d.has_update && d.notes && <Code block style={{ whiteSpace: 'pre-wrap', maxHeight: 160, overflow: 'auto' }}>{d.notes}</Code>}
-          {d.has_update && d.in_container && (
+          {d.in_container && !d.host_update?.available && (
             <Alert color="orange" title={t('update.containerTitle')}>
               <Text size="sm" mb="xs">{t('update.containerHint')}</Text>
-              <Code block>docker compose pull &amp;&amp; docker compose up -d</Code>
+              <Code block>{'curl -fsSL https://raw.githubusercontent.com/zeptop-dev/captain/master/install.sh | sudo sh -s -- enable-web-upgrade'}</Code>
             </Alert>
           )}
+          {d.host_update?.available && <Text size="sm" c="teal">{t('update.hostReady')}</Text>}
+          {d.host_update?.job && <Alert color={d.host_update.job.phase === 'failed' ? 'red' : 'blue'} title={d.host_update.job.target}>
+            <Text size="sm">{t(`update.hostPhases.${d.host_update.job.phase}`)}</Text>
+            {d.host_update.job.phase === 'failed' && <Text size="sm">{t('update.hostFailed')}</Text>}
+            {!['complete', 'failed'].includes(d.host_update.job.phase) && <Button mt="xs" size="xs" onClick={() => setRestarting({ version: d.host_update?.job?.target })}>{t('update.hostProgress')}</Button>}
+          </Alert>}
           <Group gap="xs">
-            {d.has_update && !d.in_container && d.release_build && (
+            {d.has_update && (!d.in_container || d.host_update?.available) && d.release_build && (
               <Button size="xs" color="orange" loading={apply.isPending} onClick={() => modals.openConfirmModal({ title: t('update.apply'), children: <Text size="sm">{t('update.applyConfirm', { version: d.latest })}</Text>, labels: { confirm: t('update.apply'), cancel: t('common.cancel') }, confirmProps: { color: 'orange' }, onConfirm: () => apply.mutate() })}>{t('update.apply')}</Button>
             )}
             {d.has_backup && !d.in_container && (

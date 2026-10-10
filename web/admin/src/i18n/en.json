@@ -467,7 +467,7 @@
     "latest": "latest",
     "devBuild": "Development build: online updates are not offered.",
     "containerTitle": "Running in a container",
-    "containerHint": "A binary swapped inside the container is lost on the next recreate. Pull the new image on the host instead:",
+    "containerHint": "Enable the host updater once using the installer command below. It replaces the image and preserves deployment settings.",
     "apply": "Update and restart",
     "applyConfirm": "Download {{version}}, verify it, replace the running binary and restart. The console is down for a few seconds; nodes are unaffected. Continue?",
     "rollback": "Roll back{{version}}",
@@ -479,7 +479,20 @@
     "restartingHint": "Waiting for the service to come back. The page reloads by itself and you stay signed in.",
     "restartTimeout": "No answer after 90 seconds. Startup may be slow or the upgrade failed; reload later and check the server logs if it persists.",
     "elapsed": "{{seconds}} s elapsed",
-    "reload": "Reload page"
+    "reload": "Reload page",
+    "hostReady": "Host updater connected",
+    "hostProgress": "View progress",
+    "hostFailed": "Upgrade failed. Inspect the host updater status and backup before retrying; do not downgrade an already migrated database.",
+    "hostPhases": {
+      "queued": "Queued",
+      "checking": "Checking deployment and release",
+      "pulling": "Pulling image",
+      "backing_up": "Stopping and backing up data",
+      "recreating": "Recreating container",
+      "verifying": "Verifying running version and readiness",
+      "complete": "Upgrade completed",
+      "failed": "Upgrade failed"
+    }
   },
   "site": {
     "title": "Landing page",

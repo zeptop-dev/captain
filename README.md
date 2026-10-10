@@ -166,10 +166,14 @@ curl -fsSL https://panel.example.com/api/agent/install.sh?pair=CODE | sh
 That installs bosun, pairs it with the panel and applies the configuration.
 Users get the portal at `/portal/` and their subscription URL there.
 
+Docker deployments support optional web upgrades through a separate host updater.
+Use installer `upgrade` to preserve existing settings and `--web-upgrade` on a new
+Docker install to enable the button. See [upgrade and removal](docs/LIFECYCLE.md).
+
 Removing everything the installer set up:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/zeptop-dev/captain/master/install.sh | sh -s -- uninstall
+curl -fsSL https://raw.githubusercontent.com/zeptop-dev/captain/master/install.sh | sh -s -- uninstall --yes
 ```
 
 Docker Compose, a bare-metal layout, HTTPS choices and Cloudflare Tunnel

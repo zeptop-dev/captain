@@ -3,6 +3,12 @@
 What an operator can rely on across releases, which bosun a Captain works
 with, what the database is good for, and what is deliberately not there.
 
+Docker web upgrades add optional `host_update` metadata to existing update
+responses; API paths and existing fields remain intact. Docker-managed node
+upgrades require the new bosun host-updater support (v0.65.0+) and one-time
+registration on that node. Older Docker nodes continue to reject in-container
+binary replacement. No agent protocol or database migration is required.
+
 ## Versioning
 
 Captain follows semantic versioning from 1.0.0 on:

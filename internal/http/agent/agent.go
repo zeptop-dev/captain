@@ -385,7 +385,7 @@ func (h *handlers) installScript(w http.ResponseWriter, r *http.Request) {
 set -eu
 [ "$(id -u)" = 0 ] || { echo "run as root" >&2; exit 1; }
 command -v curl >/dev/null || { echo "curl is required" >&2; exit 1; }
-curl -fsSL %q | sh -s -- --captain %q --pair %q
+curl -fsSL %q | sh -s -- --captain %q --pair %q "$@"
 `, h.BaseURL, upstream, h.BaseURL, code)
 }
 

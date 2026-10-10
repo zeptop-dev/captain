@@ -29,7 +29,7 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 
 FROM alpine:3.24
 RUN apk add --no-cache ca-certificates tzdata && adduser -D -H -u 1000 captain
-# The self-updater points at `docker compose pull` instead of swapping the binary.
+# Docker upgrades use the optional host updater; never replace image binaries.
 ENV IN_CONTAINER=1
 COPY --from=build /out/captain /usr/local/bin/captain
 COPY config.example.yaml /etc/captain/config.example.yaml
@@ -38,5 +38,6 @@ RUN mkdir -p /var/lib/captain && chown captain:captain /var/lib/captain
 USER captain
 VOLUME /var/lib/captain
 EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD ["captain", "healthcheck"]
 ENTRYPOINT ["captain"]
 CMD ["serve", "-c", "/etc/captain/config.yaml"]

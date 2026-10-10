@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zeptop-dev/bosun/pkg/hostupdate"
 	"github.com/zeptop-dev/captain/internal/backup"
 	"github.com/zeptop-dev/captain/internal/config"
 	"github.com/zeptop-dev/captain/internal/db"
@@ -36,6 +37,30 @@ func main() {
 	}
 	var err error
 	switch os.Args[1] {
+	case "installer-check-layout":
+		if len(os.Args) != 3 {
+			err = fmt.Errorf("config path required")
+		} else {
+			err = hostupdate.CheckLayoutFile("captain", os.Args[2])
+		}
+	case "installer-check-upgrade":
+		if len(os.Args) != 3 || !hostupdate.NewerRelease(version, os.Args[2]) {
+			err = fmt.Errorf("target is not a newer release")
+		}
+	case "installer-version":
+		fmt.Println("1")
+	case "uninstall":
+		err = hostupdate.Uninstall("captain", os.Args[2:], nil)
+	case "docker-updater":
+		err = hostupdate.CLI("captain", os.Args[2:])
+	case "healthcheck":
+		fs := flag.NewFlagSet("healthcheck", flag.ContinueOnError)
+		expected := fs.String("version", "", "expected running version")
+		dataDir := fs.String("data-dir", "/var/lib/captain", "application data directory")
+		err = fs.Parse(os.Args[2:])
+		if err == nil {
+			err = hostupdate.Healthcheck("captain", *expected, *dataDir)
+		}
 	case "serve":
 		err = cmdServe(os.Args[2:])
 	case "migrate":
@@ -63,6 +88,11 @@ func usage() {
   captain admin create -c config.yaml -email E -password P   create an admin user
   captain backup open -identity key.txt -o captain.db FILE   decrypt and unpack a remote backup
                                                       (-passphrase-env VAR instead of -identity)
+  captain docker-updater setup [--dir /opt/captain]   enable Docker web upgrades on the host
+  captain docker-updater status                       show persisted host upgrade status
+  captain docker-updater upgrade --version vX.Y.Z      request a stable image upgrade
+  captain uninstall --yes [--keep-data]                remove an installer-managed host deployment
+  captain healthcheck [--version vX.Y.Z]               check the running application
   captain version`)
 }
 
@@ -180,6 +210,9 @@ func cmdServe(args []string) error {
 		}
 	}()
 	log.Info("captain listening", "addr", cfg.Listen, "tls", cfg.TLSEnabled(), "base_url", cfg.BaseURL, "version", version)
+	if err := hostupdate.Readiness(ctx, "captain", version, cfg.DataDir, func() error { return hostupdate.Listening(cfg.Listen) }); err != nil {
+		return err
+	}
 	var err2 error
 	if cfg.TLSEnabled() {
 		err2 = srv.ListenAndServeTLS(cfg.TLS.Cert, cfg.TLS.Key) // empty paths use TLSConfig's GetCertificate

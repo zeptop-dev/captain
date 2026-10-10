@@ -21,7 +21,7 @@ export function PairCodeBox({ code }: { code: string }) {
   const { t } = useTranslation()
   const origin = window.location.origin
   const install = `curl -fsSL "${origin}/api/agent/install.sh?pair=${code}" | sh`
-  const docker = `docker run -d --name bosun --restart unless-stopped --network host -v bosun-data:/var/lib/bosun -e BOSUN_CAPTAIN=${origin} -e BOSUN_PAIR=${code} zeptop/bosun:latest`
+  const docker = `${install} -s -- --mode docker --web-upgrade`
   const snippet = `panel:\n  driver: captain\n  captain:\n    url: ${origin}\n    pair_code: ${code}`
   return (
     <Stack gap="xs">

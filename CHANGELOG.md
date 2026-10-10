@@ -6,6 +6,9 @@ Merge commits and formatting-only commits are left out. Binaries and
 `SHA256SUMS` for every tag are on the GitHub Release; the in-app updater
 installs them (Settings → Backups and maintenance → Version and updates).
 
+- **v1.17.0** (2026-10-10) — Add optional host-managed Docker web upgrades through a dedicated Unix socket, with fixed official image sources, stopped-data backups, persisted progress and verification of the running application's target version. Keep Docker daemon access outside the web process.
+  - Add explicit installer `upgrade` and `enable-web-upgrade` commands, preserve deployment configuration during upgrades, and complete host-side uninstall of installer-managed binary/Compose deployments. Default uninstall removes application configuration/data/backups; `--keep-data` remains available. Preserve unrelated containers, shared volumes/networks and system packages; report incomplete cleanup instead of ignoring errors.
+
 - **v1.16.0** (2026-10-09) — Protect node domain ownership with canonical domain validation, conflict previews and transactional duplicate checks. Add an explicit shared/external-DNS mode; preserve legacy duplicates while suppressing unsafe automatic DNS writes, including ingress writes and proxied/multiple Cloudflare records.
   - Add persistent DNS health checks to node details, monitoring and panel self-check, with two resolver views, public NAT/IPLC target comparison and sustained-failure incidents. Keep shared-domain resolution distinct from exclusive address matching, and preserve unknown/stale results.
   - Journal the previous DNS record durably before automatic Cloudflare mutations, preserve TTL and record separate success/failure/unknown outcomes. Add administrator-only paginated history for manual recovery, migrations 70–71, six-language controls and permission/concurrency/recovery regressions. Existing overwritten records cannot be reconstructed retroactively.

@@ -159,10 +159,14 @@ curl -fsSL https://panel.example.com/api/agent/install.sh?pair=CODE | sh
 这条命令会安装 bosun、与面板配对并应用配置。用户在 `/portal/` 打开
 前台，订阅地址也在那里。
 
-卸载安装脚本装的所有东西：
+Docker 部署可启用独立的宿主机升级服务，在网页中一键更新镜像。已有部署用安装脚本的
+`upgrade` 命令升级并保留配置，新装 Docker 可加 `--web-upgrade`。
+详见[升级与卸载](docs/LIFECYCLE.md)。
+
+卸载安装脚本装的程序、配置和数据（共享 Docker 和其他应用保留）：
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/zeptop-dev/captain/master/install.sh | sh -s -- uninstall
+curl -fsSL https://raw.githubusercontent.com/zeptop-dev/captain/master/install.sh | sh -s -- uninstall --yes
 ```
 
 Docker Compose、裸机部署、HTTPS 方案和 Cloudflare Tunnel

@@ -467,7 +467,7 @@
     "latest": "最新",
     "devBuild": "這是開發版建置，不提供線上升級。",
     "containerTitle": "執行在容器裡",
-    "containerHint": "容器裡替換二進位檔會在下次重建時遺失，請在主機拉取新映像：",
+    "containerHint": "首次執行下方安裝腳本命令啟用宿主機升級服務。之後可在網頁中更新映像並保留部署設定。",
     "apply": "升級並重新啟動",
     "applyConfirm": "下載 {{version}}，校驗後取代目前程式並重新啟動，管理端會中斷幾秒，節點不受影響。繼續？",
     "rollback": "回滾到上一版{{version}}",
@@ -479,7 +479,20 @@
     "restartingHint": "等待服務恢復，恢復後頁面會自動重新整理，登入狀態會保留。",
     "restartTimeout": "等了 90 秒服務仍未恢復。可能是啟動較慢或升級失敗，請稍後重新整理頁面，必要時到伺服器上查看日誌。",
     "elapsed": "已等待 {{seconds}} 秒",
-    "reload": "重新整理頁面"
+    "reload": "重新整理頁面",
+    "hostReady": "宿主機升級服務已連線",
+    "hostProgress": "查看進度",
+    "hostFailed": "升級失敗。請先在宿主機檢查升級狀態和備份，再決定重試；資料庫遷移後不能直接降級映像。",
+    "hostPhases": {
+      "queued": "等待執行",
+      "checking": "檢查部署和版本",
+      "pulling": "下載映像",
+      "backing_up": "停止服務並備份資料",
+      "recreating": "重建容器",
+      "verifying": "核對執行版本和就緒狀態",
+      "complete": "升級完成",
+      "failed": "升級失敗"
+    }
   },
   "site": {
     "title": "展示頁",

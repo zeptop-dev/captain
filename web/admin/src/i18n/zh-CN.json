@@ -467,7 +467,7 @@
     "latest": "最新",
     "devBuild": "这是开发版构建，不提供在线升级。",
     "containerTitle": "运行在容器里",
-    "containerHint": "容器里替换二进制会在下次重建时丢失，请在宿主机拉取新镜像：",
+    "containerHint": "首次执行下方安装脚本命令启用宿主机升级服务。之后可在网页中更新镜像并保留部署配置。",
     "apply": "升级并重启",
     "applyConfirm": "下载 {{version}}，校验后替换当前程序并重启，管理端会中断几秒，节点不受影响。继续？",
     "rollback": "回滚到上一版{{version}}",
@@ -479,7 +479,20 @@
     "restartingHint": "等待服务恢复，恢复后页面会自动刷新，登录状态会保留。",
     "restartTimeout": "等了 90 秒服务还没有恢复。可能是启动较慢或升级失败，请稍后刷新页面，必要时到服务器上查看日志。",
     "elapsed": "已等待 {{seconds}} 秒",
-    "reload": "刷新页面"
+    "reload": "刷新页面",
+    "hostReady": "宿主机升级服务已连接",
+    "hostProgress": "查看进度",
+    "hostFailed": "升级失败。请先在宿主机检查升级状态和备份，再决定重试；数据库迁移后不能直接降级镜像。",
+    "hostPhases": {
+      "queued": "等待执行",
+      "checking": "检查部署和版本",
+      "pulling": "下载镜像",
+      "backing_up": "停止服务并备份数据",
+      "recreating": "重建容器",
+      "verifying": "核对运行版本和就绪状态",
+      "complete": "升级完成",
+      "failed": "升级失败"
+    }
   },
   "site": {
     "title": "展示页",

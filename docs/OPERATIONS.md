@@ -198,9 +198,10 @@ badge means a newer release exists).
   directory must be writable by the service user (`/opt/captain` owned by
   `captain` in DEPLOY.md) and the build must be a release build: development
   builds refuse (HTTP 502 with the reason).
-- **Docker**: the same call is refused with HTTP 409 (`running in a
-  container: pull the new image instead`); do
-  `docker compose pull && docker compose up -d`.
+- **Docker**: with the optional host updater, the same call queues an image
+  upgrade and the existing process stays alive until replacement. Without host
+  registration it still returns HTTP 409. See [LIFECYCLE.md](LIFECYCLE.md) for
+  installation, persisted progress, backups and full removal.
 - **By hand**: replace the binary as in DEPLOY.md step 1 and
   `systemctl restart captain` (or `POST /api/admin/system/restart`, which
   exits the process for systemd to restart).
