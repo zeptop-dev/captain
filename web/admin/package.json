@@ -21,7 +21,7 @@
     "@mantine/hooks": "8",
     "@mantine/modals": "8",
     "@mantine/notifications": "8",
-    "@tabler/icons-react": "^3.48.0",
+    "@tabler/icons-react": "^3.49.0",
     "@tanstack/react-query": "^5.104.1",
     "dayjs": "^1.11.23",
     "i18next": "^26.4.2",
@@ -29,7 +29,7 @@
     "qrcode.react": "^4.2.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-i18next": "^17.0.15",
+    "react-i18next": "^17.0.16",
     "react-router-dom": "^7.18.4",
     "recharts": "^3.10.1"
   },
@@ -37,12 +37,12 @@
     "@types/node": "^24.19.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
-    "@vitejs/plugin-react": "^6.1.1",
-    "oxlint": "^1.86.0",
-    "postcss": "^8.5.28",
+    "@vitejs/plugin-react": "^6.1.2",
+    "oxlint": "^1.87.0",
+    "postcss": "^8.5.29",
     "postcss-preset-mantine": "^1.18.0",
     "postcss-simple-vars": "^7.0.1",
     "typescript": "~6.0.2",
-    "vite": "^8.3.2"
+    "vite": "^8.3.3"
   }
 }
