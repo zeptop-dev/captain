@@ -271,6 +271,22 @@ func compileLine(ctx context.Context, tx *sql.Tx, l *ForwardLine) (map[int64][]N
 					}
 				}
 			}
+			if l.Backend == "realm" && l.Protocol != "tcp" {
+				destination, destinationIngress, port := targetNode.node, targetIngress, ib.Port
+				if i+1 < len(l.Groups) {
+					// Realm lines have one next-hop member. Unlike its TCP dialer,
+					// realm 2.9.6 UDP tries only the first DNS address.
+					next := l.Groups[i+1].Members[0]
+					destination, destinationIngress, port = nodes[next.NodeID].node, nil, next.Port
+					if next.IngressID != nil {
+						destinationIngress = nodes[next.NodeID].ingresses[*next.IngressID]
+					}
+				}
+				f.Target, err = lineRealmUDPAddress(n.node, destination, destinationIngress, port)
+				if err != nil {
+					return nil, nil, err
+				}
+			}
 			// Prefix exactly once. Later relays carry the header as opaque bytes.
 			f.ProxyProtocol = i == 0 && ib.Settings.AcceptProxyProtocol
 			if f.ProxyProtocol && !lineVersionOK(n.node, "v0.49.0") {
@@ -297,6 +313,24 @@ func compileLine(ctx context.Context, tx *sql.Tx, l *ForwardLine) (map[int64][]N
 		}
 	}
 	return generated, endpoints, nil
+}
+
+// Use a registered common family for ordinary managed destinations instead of
+// relying on realm UDP's first DNS answer. Inventory is only a preference, not
+// proof of an OS route: unknown/disjoint inventories retain normal resolution.
+// Explicit provider paths and shared/external DNS remain authoritative. Listen
+// and public NAT ingress families say nothing about outbound reachability.
+func lineRealmUDPAddress(source, destination *domain.Node, ingress *Ingress, port int) (string, error) {
+	host, port := lineAddress(destination, ingress, port, true)
+	if ingress == nil && !destination.DomainShared {
+		switch {
+		case lineLiteralFamily(source.PublicAddr) == 4 && lineLiteralFamily(destination.PublicAddr) == 4:
+			host = destination.PublicAddr
+		case lineLiteralFamily(source.V6Addr) == 6 && lineLiteralFamily(destination.V6Addr) == 6:
+			host = destination.V6Addr
+		}
+	}
+	return lineHostPort(host, port)
 }
 
 // Backends give an empty listen different meanings: realm binds IPv4 only,

@@ -284,6 +284,24 @@ An explicit local ingress bind is preserved; a public NAT address is never
 assumed to be assigned to the server. Unknown hostnames are not resolved during
 saving and still require successful node application and connectivity checks.
 
+Realm 2.9.6 UDP uses only the first DNS answer, although its TCP dialer can try
+the other answers. For managed realm UDP/both lines, ordinary next-hop servers
+therefore use a registered IP in a family shared with the sending server (IPv4
+when both families are registered, otherwise IPv6). This applies to intermediate
+hops and the landing; subscriber-visible domains remain unchanged. Node address
+edits and confirmed automatic address following recompile these targets in the
+same transaction. Address inventory is a selection preference, not proof that
+the operating system has a usable route.
+
+Shared/external node domains and explicit ingress addresses are preserved,
+including their mapped ports. If a domain intentionally leads through an
+external relay or CDN, declare that path as an explicit ingress or mark its DNS
+as externally managed; an ordinary non-shared node domain may otherwise be
+replaced by its registered direct IP for this runtime path. With unknown or
+disjoint address inventories, the original target is retained. Domain-only or
+external realm UDP targets still require a usable first DNS answer and a real
+UDP connectivity test; no global IPv4 setting or DNS lookup is added at save time.
+
 Kernel DNAT also requires the host's **FORWARD** policy to permit the traffic.
 Automatic listener-port opening does not manage these routed allowances;
 UFW routed-deny policies, firewalld or Docker forwarding rules can still block
