@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, type Ingress } from '../lib/api'
 import { dnsToast, toast, type DNSResult } from '../lib/notify'
+import { useSettingsDirty } from '../lib/settings-draft'
 
 import { IngressFields, emptyIngress, ingressPayload, ingressValues, type IngressValues } from './IngressFields'
 export { IngressFields, emptyIngress, ingressPayload, type IngressValues } from './IngressFields'
@@ -21,10 +22,15 @@ export function IngressesCard({ nodeID, ingresses, inbounds, embedded }: { nodeI
   const qc = useQueryClient()
   const [editing, setEditing] = useState<Ingress | 'new' | null>(null)
   const form = useForm<IngressValues>({ initialValues: emptyIngress })
+  useSettingsDirty(editing !== null && form.isDirty())
   const invalidate = () => { qc.invalidateQueries({ queryKey: ['dns-health'] }); qc.invalidateQueries({ queryKey: ['dns-history'] }); qc.invalidateQueries({ queryKey: ['node', String(nodeID)] }); qc.invalidateQueries({ queryKey: ['node', nodeID] }) }
   const save = useMutation({ mutationFn: (v: IngressValues) => editing === 'new' ? api.post<{ dns?: DNSResult[] }>(`/api/admin/nodes/${nodeID}/ingresses`, ingressPayload(v)) : api.patch<{ dns?: DNSResult[] }>(`/api/admin/ingresses/${(editing as Ingress).id}`, ingressPayload(v)), onSuccess: (r) => { toast.ok(t('common.saved')); setEditing(null); invalidate(); dnsToast(r.dns) }, onError: toast.err })
   const del = useMutation({ mutationFn: (id: number) => api.del(`/api/admin/ingresses/${id}`), onSuccess: () => { toast.ok(t('common.deleted')); invalidate() }, onError: toast.err })
-  const open = (g: Ingress | 'new') => { form.setValues(g === 'new' ? emptyIngress : ingressValues(g)); setEditing(g) }
+  const open = (g: Ingress | 'new') => { const values = g === 'new' ? emptyIngress : ingressValues(g); form.setValues(values); form.resetDirty(values); setEditing(g) }
+  const close = () => {
+    if (!form.isDirty()) { setEditing(null); return }
+    modals.openConfirmModal({ title: t('workspace.unsaved'), children: <Text>{t('workspace.leaveHint')}</Text>, labels: { confirm: t('workspace.discard'), cancel: t('workspace.stay') }, onConfirm: () => setEditing(null) })
+  }
   const uses = (id: number) => inbounds.filter((ib) => ib.IngressID === id).length
   return (
     <Root mb={embedded ? 0 : "lg"}>
@@ -46,10 +52,10 @@ export function IngressesCard({ nodeID, ingresses, inbounds, embedded }: { nodeI
             ))}
           </Table.Tbody></Table></Table.ScrollContainer>
       )}
-      <Modal opened={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? t('ingress.add') : t('common.edit')} size="lg">
+      <Modal opened={editing !== null} onClose={close} title={editing === 'new' ? t('ingress.add') : t('common.edit')} size="lg" closeOnClickOutside={false}>
         <form onSubmit={form.onSubmit((v) => save.mutate(v))}><Stack>
           <IngressFields form={form} />
-          <Group justify="flex-end"><Button variant="default" onClick={() => setEditing(null)}>{t('common.cancel')}</Button><Button type="submit" loading={save.isPending}>{t('common.save')}</Button></Group>
+          <Group justify="flex-end"><Button variant="default" onClick={close}>{t('common.cancel')}</Button><Button type="submit" loading={save.isPending}>{t('common.save')}</Button></Group>
         </Stack></form>
       </Modal>
     </Root>

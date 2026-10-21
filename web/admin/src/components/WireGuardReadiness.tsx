@@ -15,7 +15,7 @@ export function useWireGuardReadiness(nodeID: number, transit = false) {
     queryFn: () => api.get<Readiness>(`/api/admin/settings/nodes/${nodeID}/wireguard-readiness?transit=${transit}`),
     refetchInterval: q => q.state.data?.job && !q.state.data.job.done_at ? 2000 : 15000 })
 }
-export function WireGuardReadiness({ nodeID, role, query }: { nodeID: number; role?: string; query: ReturnType<typeof useWireGuardReadiness> }) {
+export function WireGuardReadiness({ nodeID, role, query, readOnly = false }: { nodeID: number; role?: string; query: ReturnType<typeof useWireGuardReadiness>; readOnly?: boolean }) {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const state = query.data
@@ -43,8 +43,8 @@ export function WireGuardReadiness({ nodeID, role, query }: { nodeID: number; ro
       {state.job?.done_at && (state.job.error ? <Alert color="orange">{t('wgSetup.jobFailed')}</Alert> : state.job.result?.error_code ? <Alert color="orange">{t(`wgSetup.errors.${state.job.result.error_code}`, { defaultValue: t('wgSetup.jobFailed') })}</Alert> : <Text size="sm" c="teal">{t(state.job.params.action === 'install' ? 'wgSetup.installed' : 'wgSetup.checked')}</Text>)}
     </>}
     <Group>
-      <Button size="xs" variant="light" disabled={busy} onClick={() => state?.supported && state.fresh ? action.mutate('check') : void query.refetch()}>{t('wgSetup.recheck')}</Button>
-      {state?.installable && <Button size="xs" loading={busy} disabled={!state.fresh || query.isError} onClick={() => modals.openConfirmModal({ title: t('wgSetup.install'), children: <Text>{t('wgSetup.confirm', { packages: state.packages.join(', ') })}</Text>, labels: { confirm: t('wgSetup.install'), cancel: t('common.cancel') }, onConfirm: () => action.mutate('install') })}>{t('wgSetup.install')}</Button>}
+      <Button size="xs" variant="light" disabled={busy} onClick={() => !readOnly && state?.supported && state.fresh ? action.mutate('check') : void query.refetch()}>{t('wgSetup.recheck')}</Button>
+      {!readOnly && state?.installable && <Button size="xs" loading={busy} disabled={!state.fresh || query.isError} onClick={() => modals.openConfirmModal({ title: t('wgSetup.install'), children: <Text>{t('wgSetup.confirm', { packages: state.packages.join(', ') })}</Text>, labels: { confirm: t('wgSetup.install'), cancel: t('common.cancel') }, onConfirm: () => action.mutate('install') })}>{t('wgSetup.install')}</Button>}
     </Group>
   </Stack></Card>
 }

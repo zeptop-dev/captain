@@ -1,4 +1,4 @@
-import { ActionIcon, Badge, Button, Card, Code, Group, Modal, NumberInput, Select, Stack, Text, TextInput, Title, Tooltip, Box, Switch, SimpleGrid } from '@mantine/core'
+import { Alert, Loader, ActionIcon, Badge, Button, Card, Code, Group, Modal, NumberInput, Select, Stack, Text, TextInput, Title, Tooltip, Box, Switch, SimpleGrid } from '@mantine/core'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { IconArrowsSplit, IconLink, IconPlus, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
@@ -8,6 +8,7 @@ import { firstFreeIngressPort, ingressPort, forwardTargetAddress, forwardTargetP
 import { ForwardHealth } from './ForwardHealth'
 import type { ForwardHealthStatus } from '../lib/forward-health'
 import { toast } from '../lib/notify'
+import { useSettingsDirty } from '../lib/settings-draft'
 
 interface Hop { target: string; weight?: number }
 interface Forward { ingress_id?: string; tag: string; listen?: string; port: number; protocol: string; target: string; inbound_id?: number; backend?: string; preserve_source?: boolean; proxy_protocol?: boolean; targets?: Hop[]; balance?: string; weight?: number }
@@ -19,19 +20,20 @@ const hostPort = /^.+:\d+$/
 
 // Port forwards on one node: raw TCP/UDP relays to a landing server. Pick a
 // managed inbound as the target and an entry through this relay is one click.
-export function ForwardsCard({ node, ingresses = [], embedded }: { node: Node; ingresses?: Ingress[]; embedded?: boolean }) {
+export function ForwardsCard({ node, ingresses = [], embedded, readOnly = false }: { node: Node; ingresses?: Ingress[]; embedded?: boolean; readOnly?: boolean }) {
   // Embedded inside the node page's advanced section: no card frame, no title.
   const Root = embedded ? Box : Card
   const { t } = useTranslation()
   const qc = useQueryClient()
   const q = useQuery({ queryKey: ['forwards', node.id], queryFn: () => api.get<{ forwards: Forward[]; status: Record<string, Status> }>(`/api/admin/nodes/${node.id}/forwards`), refetchInterval: 10000 })
   const nodes = useQuery({ queryKey: ['nodes'], queryFn: () => api.get<Node[]>('/api/admin/nodes') })
-  const details = useQueries({ queries: (nodes.data ?? []).filter((n) => n.id !== node.id).map((n) => ({ queryKey: ['node', String(n.id)], queryFn: () => api.get<{ node: Node; inbounds: Inbound[]; ingresses?: Ingress[] }>(`/api/admin/nodes/${n.id}`) })) })
+  const details = useQueries({ queries: (nodes.data ?? []).filter((n) => n.id !== node.id).map((n) => ({ queryKey: ['node', String(n.id)], queryFn: () => api.get<{ node: Node; inbounds: Inbound[]; ingresses?: Ingress[] }>(`/api/admin/nodes/${n.id}`), enabled: !readOnly })) })
   const targets = details.flatMap((d) => (d.data ? d.data.inbounds.map((ib) => ({ ib, node: d.data!.node, ingress: (d.data!.ingresses ?? []).find((g) => g.id === ib.IngressID) })) : []))
   // Unsaved edits overlay the loaded list; a save (or discard) clears them.
   const [edited, setEdited] = useState<Forward[] | null>(null)
   const list = edited ?? q.data?.forwards ?? []
   const dirty = edited !== null
+  useSettingsDirty(!readOnly && dirty)
   const setList = (f: (cur: Forward[]) => Forward[]) => setEdited(f(list))
   const setDirty = (on: boolean) => { if (!on) setEdited(null) }
   const save = useMutation({ mutationFn: (v: Forward[]) => api.put<{ forwards: Forward[] }>(`/api/admin/nodes/${node.id}/forwards`, { Forwards: v }), onSuccess: r => { toast.ok(t('common.saved')); qc.setQueryData(['forwards', node.id], { ...q.data, forwards: r.forwards }); setDirty(false) }, onError: toast.err })
@@ -82,6 +84,15 @@ export function ForwardsCard({ node, ingresses = [], embedded }: { node: Node; i
   }
   const draftValid = draft.targets.every((x) => x.target.trim() === '' || hostPort.test(x.target.trim()))
   const describe = (f: Forward) => { const x = targets.find((y) => y.ib.ID === f.inbound_id); return x ? `${x.node.name} / ${x.ib.Tag} (${x.ib.Protocol})` : '' }
+  if (q.isPending) return <Loader size="sm" />
+  if (q.isError) return <Alert color="red">{t('workspace.loadError')} <Button variant="subtle" onClick={() => q.refetch()}>{t('workspace.retry')}</Button></Alert>
+  if (readOnly) return <Stack gap="xs">
+    {list.map(f => <Stack key={f.tag} gap={4}>
+      <Group><Code>{f.protocol === 'both' ? 'tcp+udp' : f.protocol} :{f.port} → {f.target}</Code><Badge variant="light">{f.backend || t('forwards.backendRelay')}</Badge><ForwardHealth status={q.data?.status?.[f.tag]} protocol={f.protocol} /></Group>
+      {!!f.targets?.length && <Text size="xs" c="dimmed">{t(f.balance === 'roundrobin' || f.backend === 'realm' ? 'forwards.balanceRoundRobin' : 'forwards.balanceFailover')}: {[f.target, ...f.targets.map(target => target.target)].join(', ')}</Text>}
+    </Stack>)}
+    {list.length === 0 && <Text size="sm" c="dimmed">{t('common.empty')}</Text>}
+  </Stack>
   return (
     <Root mb={embedded ? 0 : "lg"}>
       {!embedded && <Title order={5} mb={4}>{t('forwards.title')}</Title>}

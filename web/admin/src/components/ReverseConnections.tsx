@@ -1,7 +1,7 @@
 import { Alert, Badge, Button, Card, Group, Modal, MultiSelect, NumberInput, Select, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { api, type Group as UserGroup, type Inbound, type Ingress, type Node } from '../lib/api'
@@ -22,11 +22,12 @@ interface Connection {
 interface Detail { node: Node; inbounds: Inbound[]; ingresses: Ingress[] }
 
 
-export function ReverseConnections({ node }: { node: Node }) {
-  return <SettingsDraftBoundary key={node.id}><Connections node={node} /></SettingsDraftBoundary>
+interface Props { node: Node; readOnly?: boolean; editRequest?: number; onEditRequestHandled?: () => void }
+export function ReverseConnections(props: Props) {
+  return props.readOnly ? <Connections key={props.node.id} {...props} /> : <SettingsDraftBoundary key={props.node.id}><Connections {...props} /></SettingsDraftBoundary>
 }
 
-function Connections({ node }: { node: Node }) {
+function Connections({ node, readOnly = false, editRequest = 0, onEditRequestHandled }: Props) {
   const { t } = useTranslation()
   const stateLabels: Record<string, string> = {
     pending: t('reverse.pending'), connected: t('reverse.connected'), disconnected: t('reverse.disconnected'), offline: t('reverse.offline'), upgrade: t('reverse.upgrade'), unknown: t('reverse.unknown'), disabled: t('reverse.disabled')
@@ -43,14 +44,24 @@ function Connections({ node }: { node: Node }) {
   const [sni, setSni] = useState('')
   const [advanced, setAdvanced] = useState<number | null>(null)
   useSettingsDirty(opened && dirty)
-  const details = useQueries({ queries: (nodes.data ?? []).filter(n => n.id !== node.id && n.proxy_allowed !== false).map(n => ({ queryKey: ['node', String(n.id)], queryFn: () => api.get<Detail>(`/api/admin/nodes/${n.id}`), enabled: opened })) })
+  const details = useQueries({ queries: (nodes.data ?? []).filter(n => n.id !== node.id && n.proxy_allowed !== false && n.paired).map(n => ({ queryKey: ['node', String(n.id)], queryFn: () => api.get<Detail>(`/api/admin/nodes/${n.id}`), enabled: opened })) })
   const detail = (id: number) => details.find(d => d.data?.node.id === id)?.data
   const name = (id: number) => nodes.data?.find(n => n.id === id)?.name ?? `#${id}`
-  const edit = () => {
+  const editable = !readOnly && node.proxy_allowed !== false && node.paired
+  const handledRequest = useRef(0)
+  const edit = useCallback(() => {
+    if (!editable || !q.data || q.isError) return
     const current = (q.data ?? []).filter(c => c.exit_id === node.id)
     setDraft(structuredClone(current)); setExpected(Object.fromEntries(current.map(c => [c.id, c.version])))
     setDirty(false); setAdvanced(null); setOpened(true)
-  }
+  }, [editable, q.data, q.isError, node.id])
+  useEffect(() => {
+    if (editRequest > 0 && handledRequest.current !== editRequest && editable && q.data && !q.isError) {
+      handledRequest.current = editRequest
+      edit()
+      onEditRequestHandled?.()
+    }
+  }, [editRequest, editable, q.data, q.isError, edit, onEditRequestHandled])
   const close = () => {
     if (!dirty) { setOpened(false); return }
     modals.openConfirmModal({ title: t('workspace.unsaved'), children: <Text>{t('workspace.leaveHint')}</Text>, labels: { confirm: t('workspace.discard'), cancel: t('workspace.stay') }, onConfirm: () => { setOpened(false); setDirty(false) } })
@@ -78,12 +89,12 @@ function Connections({ node }: { node: Node }) {
     <Text size="sm" c="dimmed">{t('reverse.hint')}</Text><Text size="xs" c="dimmed">{t('reverse.retryHint')}</Text>
     {q.isError && <Alert color="red">{t('reverse.loadFailed')} <Button variant="subtle" onClick={() => q.refetch()}>{t('common.refresh')}</Button></Alert>}
     {(q.data ?? []).map(c => <Card key={c.id} withBorder p="sm"><Group justify="space-between" align="flex-start">
-      <Stack gap={4}><Text fw={600}>{c.name}</Text><Text size="xs" c="dimmed"><Link to={`/nodes/${c.transit_id}`}>{name(c.transit_id)}</Link> → <Link to={`/nodes/${c.exit_id}`}>{name(c.exit_id)}</Link> · {hostPort(c.host, c.public_port)}</Text>
-        {c.exit_id !== node.id && <Button component={Link} to={`/nodes/${c.exit_id}`} variant="subtle" size="compact-xs">{t('reverse.manageExit')}</Button>}
+      <Stack gap={4}><Text fw={600}>{c.name}</Text><Text size="xs" c="dimmed"><Link to={`/nodes/${c.transit_id}`}>{name(c.transit_id)}</Link> → <Link to={`/entries?tab=lines&section=reverse&server=${c.exit_id}`}>{name(c.exit_id)}</Link> · {hostPort(c.host, c.public_port)}</Text>
+        {c.exit_id !== node.id && <Button component={Link} to={`/entries?tab=lines&section=reverse&server=${c.exit_id}`} variant="subtle" size="compact-xs">{t('reverse.manageExit')}</Button>}
       </Stack><Badge color={c.state === 'connected' ? 'teal' : c.state === 'disconnected' ? 'red' : 'gray'}>{stateLabels[c.state] ?? stateLabels.unknown}</Badge>
     </Group></Card>)}
-    <Group><Button onClick={edit} disabled={!q.data || q.isError}>{t('reverse.manage')}</Button></Group>
-    <Modal opened={opened} onClose={close} title={t('reverse.title')} size="xl" closeOnClickOutside={false}>
+    {!readOnly && <Group><Button onClick={edit} disabled={!editable || !q.data || q.isError}>{t('reverse.manage')}</Button></Group>}
+    <Modal opened={!readOnly && opened} onClose={close} title={t('reverse.title')} size="xl" closeOnClickOutside={false}>
       <Stack>
         <Alert>{t('reverse.scope')}</Alert>
         <Alert color="yellow">{t('reverse.limits')}</Alert>
@@ -91,7 +102,7 @@ function Connections({ node }: { node: Node }) {
           <Button variant="light" disabled={!draft.length || !sni.trim()} onClick={() => modals.openConfirmModal({ title: t('reverse.applyCommon'), children: <Text>{t('reverse.applyHint', { count: draft.length })}</Text>, labels: { confirm: t('common.save'), cancel: t('common.cancel') }, onConfirm: () => { setDraft(ds => ds.map(d => withReverseTarget(d, sni.trim()))); setDirty(true) } })}>{t('reverse.applyCommon')}</Button>
         </Group>
         <Text size="xs" c="dimmed">{t('reverse.sniHint')}</Text>
-        <MultiSelect searchable label={t('reverse.transits')} value={draft.map(d => String(d.transit_id))} data={(nodes.data ?? []).filter(n => n.id !== node.id && n.proxy_allowed !== false).map(n => ({ value: String(n.id), label: n.name, disabled: !detail(n.id) }))} onChange={select} />
+        <MultiSelect searchable label={t('reverse.transits')} value={draft.map(d => String(d.transit_id))} data={(nodes.data ?? []).filter(n => n.id !== node.id && n.proxy_allowed !== false && n.paired).map(n => ({ value: String(n.id), label: n.name, disabled: !detail(n.id) }))} onChange={select} />
         {details.some(d => d.isError) && <Alert color="red">{t('reverse.loadFailed')}</Alert>}
         {draft.map((d, i) => {
           const dt = detail(d.transit_id); const gs = dt?.ingresses ?? []; const g = gs.find(g => g.id === d.ingress_id)
@@ -113,10 +124,10 @@ function Connections({ node }: { node: Node }) {
           </Stack></Card>
         })}
         <Text size="sm" c="dimmed">{t('reverse.removal')}</Text>
-        <Group justify="flex-end"><Button variant="default" onClick={close}>{t('common.cancel')}</Button><Button disabled={!dirty || draft.some(d => !detail(d.transit_id) || !d.server_name.trim())} loading={save.isPending} onClick={() => save.mutate()}>{t('common.save')}</Button></Group>
+        <Group justify="flex-end"><Button variant="default" onClick={close}>{t('common.cancel')}</Button><Button disabled={!editable || !dirty || draft.some(d => !detail(d.transit_id) || !d.server_name.trim())} loading={save.isPending} onClick={() => save.mutate()}>{t('common.save')}</Button></Group>
       </Stack>
     </Modal>
-    <Modal opened={opened && !!a} onClose={() => setAdvanced(null)} title={t('reverse.protocol')} size="xl" closeOnClickOutside={false}>
+    <Modal opened={!readOnly && opened && !!a} onClose={() => setAdvanced(null)} title={t('reverse.protocol')} size="xl" closeOnClickOutside={false}>
       {opened && a && <InboundForm key={a.transit_id} fixedCore="xray" nodeID={a.transit_id} initial={toValues({ ID: a.user_inbound_id, NodeID: a.transit_id, Tag: a.id ? `rv-user-${a.id}` : 'reverse-user', Protocol: a.protocol, Listen: a.listen || '', Port: a.port, Core: 'xray', GroupID: a.group_id, Enabled: a.enabled, Sort: 0, IngressID: a.ingress_id, Settings: withReverseTarget(a, a.server_name).settings ?? { flow: 'xtls-rprx-vision', tls: { mode: 2, server_name: a.server_name, reality: { handshake_server: a.server_name, handshake_port: 443 } } } })} ingresses={detail(a.transit_id)?.ingresses} groups={groups.data ?? []} busy={false} onCancel={() => setAdvanced(null)} onSubmit={v => {
         if (v.NewIngress) { toast.err(new Error(t('reverse.existingIngress'))); return }
         const p = toPayload(v)

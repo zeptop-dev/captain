@@ -10,11 +10,11 @@ import { WireGuardConnections } from '../components/WireGuardConnections'
 import { ReverseConnections } from '../components/ReverseConnections'
 import type { ResourceHost } from '../lib/resources'
 import { coreName } from '../lib/coreSelection'
-import { NumberInput, Switch, Accordion, ActionIcon, Badge, Button, Card, Code, Group, Modal, Stack, Table, Text, TextInput, Title, Alert } from '@mantine/core'
+import { NumberInput, Switch, Accordion, Badge, Button, Card, Code, Group, Modal, Stack, Table, Text, TextInput, Title, Alert, Loader } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { IconInfoCircle, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react'
+import { IconInfoCircle, IconPencil, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -24,15 +24,11 @@ import { ago, bytes, when } from '../lib/format'
 import { dnsToast, toast, type DNSResult } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
 import { InfoGrid, InfoTile, SectionTitle } from '../components/InfoTile'
-import { InboundForm, toPayload, toValues, type InboundValues } from '../components/InboundForm'
 import { NodeStatus, PairCodeBox } from './NodesPage'
 import { NodeProbeCard } from '../components/NodeProbeCard'
 import { NodeWorkflow } from '../components/NodeWorkflow'
-import { EgressUpstreams } from '../components/EgressUpstreams'
 import { RoutingCard } from '../components/RoutingCard'
 import { ForwardsCard } from '../components/ForwardsCard'
-import { IngressesCard, ingressPayload } from '../components/IngressesCard'
-import { OverridesCard } from '../components/OverridesCard'
 import { MetadataEditor } from '../components/MetadataEditor'
 import { DeleteNodeModal } from '../components/DeleteNodeModal'
 
@@ -46,19 +42,9 @@ export default function NodePage() {
   const nav = useNavigate()
   const q = useQuery({ queryKey: ['node', id], queryFn: () => api.get<Detail>(`/api/admin/nodes/${id}`), refetchInterval: 10_000 })
   const groups = useQuery({ queryKey: ['groups'], queryFn: () => api.get<UGroup[]>('/api/admin/groups') })
-  const [editing, setEditing] = useState<Inbound | 'new' | null>(null)
   const [editNode, setEditNode] = useState(false)
   const [pair, setPair] = useState<string | null>(null)
   const invalidate = () => { qc.invalidateQueries({ queryKey: ['node', id] }); qc.invalidateQueries({ queryKey: ['nodes'] }) }
-  const save = useMutation({
-    mutationFn: async (v: InboundValues) => {
-      // An inline line ingress from the IPLC recipe is created first, then referenced.
-      if (v.NewIngress) { const r = await api.post<{ ingress: Ingress; dns?: DNSResult[] }>(`/api/admin/nodes/${id}/ingresses`, ingressPayload(v.NewIngress)); dnsToast(r.dns); v = { ...v, IngressID: String(r.ingress.id), NewIngress: undefined } }
-      return editing === 'new' ? api.post(`/api/admin/nodes/${id}/inbounds`, toPayload(v)) : api.patch(`/api/admin/inbounds/${(editing as Inbound).ID}`, toPayload(v))
-    },
-    onSuccess: () => { toast.ok(t('common.saved')); setEditing(null); invalidate() }, onError: toast.err,
-  })
-  const del = useMutation({ mutationFn: (ibID: number) => api.del(`/api/admin/inbounds/${ibID}`), onSuccess: () => { toast.ok(t('common.deleted')); invalidate() }, onError: toast.err })
   const repair = useMutation({ mutationFn: () => api.post<{ pair_code: string }>(`/api/admin/nodes/${id}/repair`), onSuccess: (r) => { setPair(r.pair_code); invalidate() }, onError: toast.err })
   const [deletingNode, setDeletingNode] = useState(false)
   const nodeForm = useForm({ initialValues: { Name: '', PublicAddr: '', InternalAddr: '', V6Addr: '', Domain: '', DomainShared: false, MonitorURL: '', DecoyEnabled: false, DecoyUpstream: '', UserSpeedLimitMbps: 0, MitaQuotas: false, EgressByIngress: false } })
@@ -66,7 +52,8 @@ export default function NodePage() {
   const saveNode = useMutation({ mutationFn: (v: typeof nodeForm.values) => api.patch<{ ok: boolean; dns?: DNSResult[] }>(`/api/admin/nodes/${id}`, v), onSuccess: (r) => { toast.ok(t('common.saved')); setEditNode(false); invalidate(); qc.invalidateQueries({ queryKey: ['dns-health'] }); qc.invalidateQueries({ queryKey: ['dns-history'] }); dnsToast(r.dns) }, onError: (e) => { toast.err(e); qc.invalidateQueries({ queryKey: ['node-domain-check'] }) } })
 
   const d = q.data
-  if (!d) return null
+  if (q.isPending) return <Loader size="sm" />
+  if (q.isError || !d) return <Alert color="red">{t('workspace.loadError')} <Button variant="subtle" onClick={() => q.refetch()}>{t('workspace.retry')}</Button></Alert>
   const n = d.node
   const host = d.status?.host
   const proxyAllowed = n.proxy_allowed !== false
@@ -138,7 +125,7 @@ export default function NodePage() {
       {proxyAllowed && <><Card p={0} id="node-inbounds" style={{ scrollMarginTop: 80 }}>
         <Group justify="space-between" p="md" pb="xs">
           <div><Text fw={600}>{t('inbounds.title')}</Text><Text size="xs" c="dimmed">{t('inbounds.subtitle')}</Text></div>
-          <Group gap="xs"><Button component={Link} to={`/entries?node=${n.id}`} variant="light" size="xs">{t('entries.title')}</Button><Button size="xs" leftSection={<IconPlus size={14} />} onClick={() => setEditing('new')}>{t('inbounds.create')}</Button></Group>
+          <Group gap="xs"><Button component={Link} to={`/entries?server=${n.id}`} variant="light" size="xs">{t('entries.title')}</Button>{(me?.role === 'admin' || me?.role === 'operator') && <Button component={Link} to={`/entries?section=inbounds&server=${n.id}`} variant="default" size="xs">{t('inbounds.title')}</Button>}</Group>
         </Group>
         <Table>
           <Table.Thead><Table.Tr><Table.Th>{t('inbounds.tag')}</Table.Th><Table.Th>{t('inbounds.protocol')}</Table.Th><Table.Th>{t('inbounds.port')}</Table.Th><Table.Th>{t('inbounds.core')}</Table.Th><Table.Th>{t('inbounds.traffic')}</Table.Th><Table.Th>{t('inbounds.group')}</Table.Th><Table.Th>{t('inbounds.enabled')}</Table.Th><Table.Th /></Table.Tr></Table.Thead>
@@ -152,11 +139,7 @@ export default function NodePage() {
                 <Table.Td>{d.traffic?.[String(ib.ID)] ? <Text size="xs">{bytes(d.traffic[String(ib.ID)].today)} <Text span c="dimmed">/ {bytes(d.traffic[String(ib.ID)].total)}</Text></Text> : <Text size="xs" c="dimmed">—</Text>}</Table.Td>
                 <Table.Td>{ib.GroupID ? (groups.data?.find((g) => g.ID === ib.GroupID)?.Name ?? ib.GroupID) : t('inbounds.groupAll')}</Table.Td>
                 <Table.Td>{ib.Enabled ? <Badge color="teal">{t('common.enabled')}</Badge> : <Badge color="gray">{t('common.disabled')}</Badge>}</Table.Td>
-                <Table.Td>{(ib.Settings.reverse || ib.Settings.wireguard_slot) ? <Text size="xs" c="dimmed">{t('reverse.managed')}</Text> : <Group gap={4} justify="flex-end">
-                  <Button component={Link} to={`/entries?node=${n.id}&inbound=${ib.ID}`} variant="subtle" size="compact-xs">{t('entries.create')}</Button>
-                  <ActionIcon variant="subtle" onClick={() => setEditing(ib)}><IconPencil size={16} /></ActionIcon>
-                  <ActionIcon variant="subtle" color="red" onClick={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text size="sm">{t('common.confirmDelete')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => del.mutate(ib.ID) })}><IconTrash size={16} /></ActionIcon>
-                </Group>}</Table.Td>
+                <Table.Td>{(me?.role === 'admin' || (me?.role === 'operator' && !ib.Settings.reverse && !ib.Settings.wireguard_slot)) && <Button component={Link} to={(ib.Settings.reverse || ib.Settings.wireguard_slot) ? `/entries?tab=lines&section=${ib.Settings.wireguard_slot ? 'wireguard' : 'reverse'}&server=${n.id}` : `/entries?section=inbounds&server=${n.id}&inbound=${ib.ID}`} variant="subtle" size="compact-xs">{t((ib.Settings.reverse || ib.Settings.wireguard_slot) ? 'reverse.managed' : 'inbounds.title')}</Button>}</Table.Td>
               </Table.Tr>
             ))}
             {d.inbounds.length === 0 && <Table.Tr><Table.Td colSpan={8}><Text c="dimmed" ta="center" py="lg">{t('common.empty')}</Text></Table.Td></Table.Tr>}
@@ -166,18 +149,15 @@ export default function NodePage() {
 
       <Card mt="lg" p={0}>
         <Accordion multiple chevronPosition="right" variant="default">
-          <Accordion.Item value="ingress"><Accordion.Control><Text size="sm" fw={600}>{t('ingress.title')}</Text><Text size="xs" c="dimmed">{(d.ingresses ?? []).length > 0 ? t('nodes.advIngressCount', { count: (d.ingresses ?? []).length }) : t('nodes.advIngressHint')}</Text></Accordion.Control><Accordion.Panel><IngressesCard embedded nodeID={n.id} ingresses={d.ingresses ?? []} inbounds={d.inbounds} /></Accordion.Panel></Accordion.Item>
-          {me?.role === 'admin' && <Accordion.Item value="reverse"><Accordion.Control><Text size="sm" fw={600}>{t('reverse.title')}</Text></Accordion.Control><Accordion.Panel><ReverseConnections key={n.id} node={n} /></Accordion.Panel></Accordion.Item>}
-          {me?.role === 'admin' && <Accordion.Item value="wireguard"><Accordion.Control><Text size="sm" fw={600}>{t('wireguard.title')}</Text></Accordion.Control><Accordion.Panel><WireGuardConnections key={n.id} node={n} /></Accordion.Panel></Accordion.Item>}
-          <Accordion.Item value="routing"><Accordion.Control><Text size="sm" fw={600}>{t('routing.title')}</Text><Text size="xs" c="dimmed">{t('nodes.advRoutingHint')}</Text></Accordion.Control><Accordion.Panel><RoutingCard embedded nodeID={n.id} inboundTags={d.inbounds.map((ib) => ib.Tag)} />{me?.role === 'admin' && <EgressUpstreams key={n.id} endpoint={`/api/admin/settings/nodes/${n.id}/egress`} />}</Accordion.Panel></Accordion.Item>
-          <Accordion.Item value="overrides"><Accordion.Control><Text size="sm" fw={600}>{t('overrides.title')}</Text><Text size="xs" c="dimmed">{t('nodes.advOverridesHint')}</Text></Accordion.Control><Accordion.Panel><OverridesCard queryKey={['overrides', n.id]} load={() => api.get<Record<string, string>>(`/api/admin/nodes/${n.id}/overrides`)} save={(v) => api.put(`/api/admin/nodes/${n.id}/overrides`, v)} /></Accordion.Panel></Accordion.Item>
-          <Accordion.Item value="forwards"><Accordion.Control><Text size="sm" fw={600}>{t('forwards.title')}</Text><Text size="xs" c="dimmed">{t('nodes.advForwardsHint')}</Text></Accordion.Control><Accordion.Panel><ForwardsCard key={n.id} embedded node={n} ingresses={d.ingresses ?? []} /></Accordion.Panel></Accordion.Item>
+          <Accordion.Item value="ingress"><Accordion.Control><Text size="sm" fw={600}>{t('ingress.title')}</Text></Accordion.Control><Accordion.Panel><Text size="sm">{t('nodes.advIngressCount', { count: (d.ingresses ?? []).length })}</Text>{(d.ingresses ?? []).map(g => <Text key={g.id} size="sm">{g.name} · {g.entry_domain || g.entry_host}</Text>)}<Button component={Link} to={`/entries?tab=lines&section=ingresses&server=${n.id}`} variant="light" size="xs" mt="sm">{t('ingress.title')}</Button></Accordion.Panel></Accordion.Item>
+          {me?.role === 'admin' && <Accordion.Item value="reverse"><Accordion.Control><Text size="sm" fw={600}>{t('reverse.title')}</Text></Accordion.Control><Accordion.Panel><ReverseConnections key={n.id} node={n} readOnly /><Button component={Link} to={`/entries?tab=lines&section=reverse&server=${n.id}`} variant="light" size="xs" mt="sm">{t('reverse.manage')}</Button></Accordion.Panel></Accordion.Item>}
+          {me?.role === 'admin' && <Accordion.Item value="wireguard"><Accordion.Control><Text size="sm" fw={600}>{t('wireguard.title')}</Text></Accordion.Control><Accordion.Panel><WireGuardConnections key={n.id} node={n} readOnly /><Button component={Link} to={`/entries?tab=lines&section=wireguard&server=${n.id}`} variant="light" size="xs" mt="sm">{t('wireguard.title')}</Button></Accordion.Panel></Accordion.Item>}
+          <Accordion.Item value="routing"><Accordion.Control><Text size="sm" fw={600}>{t('routing.title')}</Text><Text size="xs" c="dimmed">{t('nodes.advRoutingHint')}</Text></Accordion.Control><Accordion.Panel><RoutingCard embedded nodeID={n.id} inboundTags={d.inbounds.map(ib => ib.Tag)} readOnly /><Button component={Link} to={`/entries?tab=lines&section=routing&server=${n.id}`} variant="light" size="xs" mt="sm">{t('routing.title')}</Button></Accordion.Panel></Accordion.Item>
+          <Accordion.Item value="overrides"><Accordion.Control><Text size="sm" fw={600}>{t('overrides.title')}</Text></Accordion.Control><Accordion.Panel><Text size="sm" c="dimmed">{t('nodes.advOverridesHint')}</Text><Button component={Link} to={`/entries?tab=lines&section=overrides&server=${n.id}`} variant="light" size="xs" mt="sm">{t('overrides.title')}</Button></Accordion.Panel></Accordion.Item>
+          <Accordion.Item value="forwards"><Accordion.Control><Text size="sm" fw={600}>{t('forwards.title')}</Text><Text size="xs" c="dimmed">{t('nodes.advForwardsHint')}</Text></Accordion.Control><Accordion.Panel><ForwardsCard key={n.id} embedded node={n} ingresses={d.ingresses ?? []} readOnly /><Button component={Link} to={`/entries?tab=lines&section=legacy&server=${n.id}`} variant="light" size="xs" mt="sm">{t('forwards.title')}</Button></Accordion.Panel></Accordion.Item>
         </Accordion>
       </Card>
       </>}
-      <Modal opened={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? t('inbounds.create') : t('common.edit')} size="xl">
-        {editing !== null && <InboundForm nodeID={n.id} decoyDomain={n.decoy_enabled ? n.domain : undefined} domain={n.domain} lineOnly={!n.public_addr && !n.domain} ingresses={d.ingresses ?? []} usedPorts={d.inbounds.filter((ib) => editing === 'new' || ib.ID !== (editing as Inbound).ID).map((ib) => ib.Port)} initial={toValues(editing === 'new' ? undefined : editing)} groups={groups.data ?? []} busy={save.isPending} onSubmit={(v) => save.mutate(v)} onCancel={() => setEditing(null)} />}
-      </Modal>
       <Modal opened={editNode} onClose={() => setEditNode(false)} title={t('common.edit')}>
         <form onSubmit={nodeForm.onSubmit((v) => saveNode.mutate(v))}><Stack>
           <TextInput label={t('nodes.name')} required {...nodeForm.getInputProps('Name')} />

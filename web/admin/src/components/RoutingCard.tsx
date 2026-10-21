@@ -1,4 +1,4 @@
-import { MultiSelect, TagsInput, ActionIcon, Badge, Button, Card, Code, Group, Select, Stack, Text, TextInput, Textarea, Title, Box } from '@mantine/core'
+import { Alert, Loader, MultiSelect, TagsInput, ActionIcon, Badge, Button, Card, Code, Group, Select, Stack, Text, TextInput, Textarea, Title, Box } from '@mantine/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { IconPlus, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { api, runNodeJob } from '../lib/api'
 import { toast } from '../lib/notify'
 import { bytes } from '../lib/format'
+import { useSettingsDirty } from '../lib/settings-draft'
 import { ConfigPresets } from './ConfigPresets'
 import { WarpCard, warpTemplate, type WarpAccount } from './WarpCard'
 
@@ -19,7 +20,7 @@ interface Routing { outbounds: Outbound[]; routes: Rule[]; default_outbound: str
 const geoCategories = ['netflix', 'disney', 'openai', 'anthropic', 'google', 'youtube', 'telegram', 'twitter', 'facebook', 'apple', 'microsoft', 'github', 'spotify', 'tiktok', 'category-ads-all', 'cn', 'geolocation-!cn', 'private']
 const geoCountries = ['cn', 'us', 'jp', 'hk', 'tw', 'sg', 'kr', 'gb', 'de', 'ru', 'private']
 
-export function RoutingCard({ nodeID, inboundTags, embedded }: { nodeID: number; inboundTags: string[]; embedded?: boolean }) {
+export function RoutingCard({ nodeID, inboundTags, embedded, readOnly = false }: { nodeID: number; inboundTags: string[]; embedded?: boolean; readOnly?: boolean }) {
   // Embedded inside the node page's advanced section: no card frame, no title.
   const Root = embedded ? Box : Card
   const { t } = useTranslation()
@@ -27,6 +28,7 @@ export function RoutingCard({ nodeID, inboundTags, embedded }: { nodeID: number;
   const q = useQuery({ queryKey: ['routing', nodeID], queryFn: () => api.get<Routing>(`/api/admin/nodes/${nodeID}/routing`) })
   // Local edits overlay the loaded routing until saved.
   const [draft, setDraft] = useState<Routing | null>(null)
+  useSettingsDirty(!readOnly && draft !== null)
   const nr: Routing = draft ?? { outbounds: q.data?.outbounds ?? [], routes: q.data?.routes ?? [], default_outbound: q.data?.default_outbound ?? '', dns: q.data?.dns ?? [] }
   const setNr = (next: Routing | ((cur: Routing) => Routing)) => setDraft(typeof next === 'function' ? next(nr) : next)
   const [bal, setBal] = useState<{ tag: string; members: string[]; strategy: string }>({ tag: 'lb', members: [], strategy: 'urltest' })
@@ -45,6 +47,14 @@ export function RoutingCard({ nodeID, inboundTags, embedded }: { nodeID: number;
   const describe = (o: Outbound) => o.balancer ? `${t('routing.balancer')}: ${o.balancer.members.join(', ')}` : o.warp ? 'Cloudflare WARP' : o.remote ? `${o.remote.settings.protocol} ${o.remote.host}:${o.remote.port}` : `${o.protocol} (${t('routing.raw')})`
   const addWarpOutbound = () => setNr((cur) => cur.outbounds.some((o) => o.warp) ? cur : { ...cur, outbounds: [...cur.outbounds, { tag: 'warp', warp: { from_node: true } }] })
   const addWarpTemplate = (keys: string[]) => setNr((cur) => { const tag = cur.outbounds.find((o) => o.warp)?.tag ?? 'warp'; const have = new Set(cur.routes.flatMap((r) => r.match)); const rules = warpTemplate.filter((g) => keys.includes(g.key)).map((g) => ({ match: g.domains.map((d) => `domain:${d}`).filter((m) => !have.has(m)), action: 'outbound', value: tag })).filter((r) => r.match.length); return { ...cur, routes: [...cur.routes, ...rules] } })
+  if (q.isPending) return <Loader size="sm" />
+  if (q.isError) return <Alert color="red">{t('workspace.loadError')} <Button variant="subtle" onClick={() => q.refetch()}>{t('workspace.retry')}</Button></Alert>
+  if (readOnly) return <Stack gap="xs">
+    <Text size="sm" c="dimmed">{t('routing.hint')}</Text>
+    <Text size="sm">{t('routing.default')}: <Code>{nr.default_outbound || t('routing.direct')}</Code></Text>
+    {nr.outbounds.map(o => <Group key={o.tag}><Code>{o.tag}</Code><Text size="sm">{describe(o)}</Text></Group>)}
+    {nr.routes.map((r, i) => <Text key={i} size="sm">{r.match.join(', ')} → {r.value || r.action}</Text>)}
+  </Stack>
   return (
     <Root mb={embedded ? 0 : "lg"}>
       {!embedded && <Title order={5} mb={4}>{t('routing.title')}</Title>}

@@ -102,7 +102,7 @@ export function toPayload(v: InboundValues) {
   return { Tag: v.Tag, Protocol: v.Protocol, Listen: v.Listen, Port: v.Port, Core: v.Core, GroupID: v.GroupID ? Number(v.GroupID) : null, Enabled: v.Enabled, Settings: settings, IngressID: v.IngressID ? Number(v.IngressID) : null }
 }
 
-export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain, ingresses = [], usedPorts = [], lineOnly, nodeID, decoyDomain, fixedCore }: { initial: InboundValues; groups: UGroup[]; onSubmit: (v: InboundValues) => void; busy: boolean; onCancel: () => void; domain?: string; ingresses?: Ingress[]; usedPorts?: number[]; lineOnly?: boolean; nodeID?: number; decoyDomain?: string; fixedCore?: string }) {
+export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain, ingresses = [], usedPorts = [], lineOnly, nodeID, decoyDomain, fixedCore, onDirtyChange }: { initial: InboundValues; groups: UGroup[]; onSubmit: (v: InboundValues) => void; busy: boolean; onCancel: () => void; domain?: string; ingresses?: Ingress[]; usedPorts?: number[]; lineOnly?: boolean; nodeID?: number; decoyDomain?: string; fixedCore?: string; onDirtyChange?: (dirty: boolean) => void }) {
   const { t } = useTranslation()
   const { me } = useAuth()
   const form = useForm<InboundValues>({
@@ -126,6 +126,8 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
   // A node reachable only through a line (no public address, no domain) defaults new inbounds to its first ingress.
   useEffect(() => { if ((lineOnly || ingresses.some(g => g.require_ingress)) && !initial.IngressID && !initial.Tag && ingresses[0]) form.setValues({ IngressID: String(ingresses[0].id), Port: firstFree(ingresses[0]) || form.values.Port }) }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const ingressForm = useForm<IngressValues>({ initialValues: form.values.NewIngress ?? emptyIngress })
+  const dirty = form.isDirty() || (!!form.values.NewIngress && ingressForm.isDirty())
+  useEffect(() => { onDirtyChange?.(dirty) }, [dirty, onDirtyChange])
   useEffect(() => { if (form.values.NewIngress) ingressForm.setValues(form.values.NewIngress) }, [form.values.NewIngress]) // eslint-disable-line react-hooks/exhaustive-deps
   const onIngress = (v: string | null) => {
     if (v === 'new') { form.setValues({ IngressID: '', NewIngress: { ...emptyIngress } }); return }

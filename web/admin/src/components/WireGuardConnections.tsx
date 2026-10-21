@@ -1,7 +1,7 @@
 import { Alert, Badge, Button, Card, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { api, type Node, type Group as UserGroup } from '../lib/api'
@@ -38,10 +38,11 @@ function ForwardingStatus({ status, observedAt }: { status?: Forwarding; observe
     {checked > 0 && <Text size="xs" c="dimmed">{t('host.checked', { time: new Date(checked).toLocaleString() })}</Text>}
   </Stack>
 }
-export function WireGuardConnections({ node }: { node: Node }) {
-  return <SettingsDraftBoundary key={node.id}><Connections node={node} /></SettingsDraftBoundary>
+interface Props { node: Node; readOnly?: boolean; editRequest?: number; onEditRequestHandled?: () => void }
+export function WireGuardConnections(props: Props) {
+  return props.readOnly ? <Connections key={props.node.id} {...props} /> : <SettingsDraftBoundary key={props.node.id}><Connections {...props} /></SettingsDraftBoundary>
 }
-function Connections({ node }: { node: Node }) {
+function Connections({ node, readOnly = false, editRequest = 0, onEditRequestHandled }: Props) {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const url = `/api/admin/settings/nodes/${node.id}/wireguard-connections`
@@ -61,26 +62,40 @@ function Connections({ node }: { node: Node }) {
   const invalidate = () => { for (const key of ['wireguard', 'node', 'entries']) qc.invalidateQueries({ queryKey: [key] }) }
   const save = useMutation({ mutationFn: (value: Connection) => value.id ? api.put(`${url}/${value.id}`, value) : api.post(url, value), onSuccess: () => { setDraft(null); setDirty(false); invalidate(); toast.ok(t('common.saved')) }, onError: toast.err })
   const remove = useMutation({ mutationFn: (value: Connection) => api.del(`${url}/${value.id}`, { version: value.version }), onSuccess: invalidate, onError: toast.err })
+  const editable = !readOnly && node.proxy_allowed !== false && node.paired
+  const handledRequest = useRef(0)
+  const create = useCallback(() => {
+    if (!editable || !q.data || q.isError) return
+    setDirty(false)
+    setDraft({ id: '', exit_id: node.id, transit_id: 0, version: 0, name: '', port: 18443, tunnel_port: 51820, endpoint: '', mtu: 1380, server_name: '', group_id: null, private_access: { mode: 'off' }, enabled: true, state: 'pending', domain_preference: 'ipv4', auto_forwarding: true })
+  }, [editable, q.data, q.isError, node.id])
+  useEffect(() => {
+    if (editRequest > 0 && handledRequest.current !== editRequest && editable && q.data && !q.isError) {
+      handledRequest.current = editRequest
+      create()
+      onEditRequestHandled?.()
+    }
+  }, [editRequest, editable, q.data, q.isError, create, onEditRequestHandled])
   const labels: Record<string, string> = { connected: t('reverse.connected'), disconnected: t('reverse.disconnected'), pending: t('reverse.pending'), disabled: t('reverse.disabled'), unavailable: t('wireguard.unavailable'), blocked: t('wireguard.blocked') }
   return <Stack>
     <Text size="sm" c="dimmed">{t('wireguard.hint')}</Text>
-    <WireGuardReadiness key={node.id} nodeID={node.id} query={exitReady} />
+    <WireGuardReadiness key={node.id} nodeID={node.id} query={exitReady} readOnly={readOnly} />
     {q.isError && <Alert color="red">{t('reverse.loadFailed')} <Button variant="subtle" onClick={() => q.refetch()}>{t('common.refresh')}</Button></Alert>}
     {(q.data ?? []).map(c => <Card key={c.id} withBorder p="sm"><Group justify="space-between" align="flex-start">
       <Stack gap={4}><Text fw={600}>{c.name}</Text><Text size="xs" c="dimmed">{c.endpoint}</Text>
-        {c.exit_id !== node.id && <Button component={Link} to={`/nodes/${c.exit_id}`} variant="subtle" size="compact-xs">{t('reverse.manageExit')}</Button>}
+        {c.exit_id !== node.id && <Button component={Link} to={`/entries?tab=lines&section=wireguard&server=${c.exit_id}`} variant="subtle" size="compact-xs">{t('reverse.manageExit')}</Button>}
       </Stack><Stack gap="xs" align="flex-end"><Badge color={c.state === 'connected' ? 'teal' : c.state === 'blocked' ? 'red' : 'gray'}>{labels[c.state] ?? labels.pending}</Badge>
-        {c.exit_id === node.id && <Group gap="xs"><Button size="compact-xs" variant="subtle" onClick={() => { setDraft(structuredClone(c)); setDirty(false) }}>{t('common.edit')}</Button>
+        {editable && c.exit_id === node.id && <Group gap="xs"><Button size="compact-xs" variant="subtle" onClick={() => { setDraft(structuredClone(c)); setDirty(false) }}>{t('common.edit')}</Button>
           <Button size="compact-xs" variant="subtle" color="red" loading={remove.isPending} onClick={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text>{t('common.confirmDelete')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => remove.mutate(c) })}>{t('common.delete')}</Button></Group>}
       </Stack>
     </Group><ForwardingStatus status={c.forwarding} observedAt={Math.max(q.dataUpdatedAt, q.errorUpdatedAt)} /></Card>)}
-    <Group><Button disabled={!q.data || q.isError || node.proxy_allowed === false} onClick={() => { setDirty(false); setDraft({ id: '', exit_id: node.id, transit_id: 0, version: 0, name: '', port: 18443, tunnel_port: 51820, endpoint: '', mtu: 1380, server_name: '', group_id: null, private_access: { mode: 'off' }, enabled: true, state: 'pending', domain_preference: 'ipv4', auto_forwarding: true }) }}>{t('common.create')}</Button></Group>
-    <Modal opened={!!draft} onClose={close} title={t('wireguard.title')} size="lg" closeOnClickOutside={false}>
+    {!readOnly && <Group><Button disabled={!editable || !q.data || q.isError} onClick={create}>{t('common.create')}</Button></Group>}
+    <Modal opened={!readOnly && !!draft} onClose={close} title={t('wireguard.title')} size="lg" closeOnClickOutside={false}>
       {draft && <Stack>
         <Alert>{t('wireguard.requirements')}</Alert>
         <SimpleGrid cols={{ base: 1, sm: 2 }}>
           <TextInput required label={t('entries.name')} value={draft.name} onChange={e => update({ name: e.currentTarget.value })} />
-          <Select required searchable label={t('wireguard.transit')} disabled={!!draft.id} value={draft.transit_id ? String(draft.transit_id) : null} data={(nodes.data ?? []).filter(n => n.id !== node.id && n.proxy_allowed !== false).map(n => ({ value: String(n.id), label: n.name }))} onChange={id => { const n = nodes.data?.find(n => n.id === Number(id)); update({ transit_id: Number(id), endpoint: n?.public_addr ? hostPort(n.public_addr, draft.tunnel_port) : '' }) }} />
+          <Select required searchable label={t('wireguard.transit')} disabled={!!draft.id} value={draft.transit_id ? String(draft.transit_id) : null} data={(nodes.data ?? []).filter(n => n.id !== node.id && n.proxy_allowed !== false && n.paired).map(n => ({ value: String(n.id), label: n.name }))} onChange={id => { const n = nodes.data?.find(n => n.id === Number(id)); update({ transit_id: Number(id), endpoint: n?.public_addr ? hostPort(n.public_addr, draft.tunnel_port) : '' }) }} />
           <NumberInput required label={t('reverse.userPort')} min={1} max={65535} value={draft.port} onChange={n => update({ port: Number(n) })} />
           <NumberInput required label={t('reverse.tunnelPort')} min={1} max={65535} value={draft.tunnel_port} onChange={n => update({ tunnel_port: Number(n) })} />
           <TextInput required label={t('wireguard.endpoint')} placeholder="198.51.100.20:51820" value={draft.endpoint} onChange={e => update({ endpoint: e.currentTarget.value })} />
@@ -101,7 +116,7 @@ function Connections({ node }: { node: Node }) {
         <Select clearable label={t('inbounds.group')} placeholder={t('inbounds.groupAll')} value={draft.group_id ? String(draft.group_id) : null} data={(groups.data ?? []).map(g => ({ value: String(g.ID), label: g.Name }))} onChange={id => update({ group_id: id ? Number(id) : null })} />
         <PrivateAccessFields explicitOnly json={JSON.stringify({ private_access: draft.private_access })} onChange={json => update({ private_access: JSON.parse(json).private_access })} />
         <Switch label={t('common.enabled')} checked={draft.enabled} onChange={e => update({ enabled: e.currentTarget.checked })} />
-        <Group justify="flex-end"><Button variant="default" onClick={close}>{t('common.cancel')}</Button><Button loading={save.isPending} disabled={(draft.enabled && (!exitReady.data?.ready || !transitReady.data?.ready || exitReady.isError || transitReady.isError)) || !draft.transit_id || !draft.name.trim() || !draft.endpoint || !draft.server_name.trim()} onClick={() => save.mutate(draft)}>{t('common.save')}</Button></Group>
+        <Group justify="flex-end"><Button variant="default" onClick={close}>{t('common.cancel')}</Button><Button loading={save.isPending} disabled={!editable || (draft.enabled && (!exitReady.data?.ready || !transitReady.data?.ready || exitReady.isError || transitReady.isError)) || !draft.transit_id || !draft.name.trim() || !draft.endpoint || !draft.server_name.trim()} onClick={() => save.mutate(draft)}>{t('common.save')}</Button></Group>
       </Stack>}
     </Modal>
   </Stack>

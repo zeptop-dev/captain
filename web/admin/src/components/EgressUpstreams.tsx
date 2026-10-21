@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
 import { toast } from '../lib/notify'
+import { useSettingsDirty } from '../lib/settings-draft'
 
 interface Upstream { cidr: string; protocol: string; port: number }
 interface Policy { upstreams: Upstream[]; supported: boolean; minimum_version?: string }
@@ -14,6 +15,7 @@ export function EgressUpstreams({ endpoint }: { endpoint: string }) {
   const qc = useQueryClient()
   const q = useQuery({ queryKey: ['egress', endpoint], queryFn: () => api.get<Policy>(endpoint) })
   const [draft, setDraft] = useState<Upstream[] | null>(null)
+  useSettingsDirty(draft !== null)
   const list = draft ?? q.data?.upstreams ?? []
   const save = useMutation({ mutationFn: () => api.put<Policy>(endpoint, { upstreams: list }), onSuccess: value => { qc.setQueryData(['egress', endpoint], value); setDraft(null); toast.ok(t('common.saved')) }, onError: toast.err })
   const patch = (index: number, value: Partial<Upstream>) => setDraft(list.map((u, i) => i === index ? { ...u, ...value } : u))
