@@ -262,6 +262,9 @@ not automatically configure DNS load balancing. Later groups support ordered
 TCP failover or weighted round-robin with the built-in relay. UDP/both
 multi-candidate groups allow round-robin only: the existing TCP probes do not
 establish UDP health. Established connections remain on their selected target.
+TCP failover uses next-hop TCP dial results. If that listener accepts the
+connection but its downstream path fails, the preceding relay does not retry
+another member; it does not test the entire downstream path.
 The first version accepts at most eight groups, eight members per group, and
 no repeated server. It does not implement least-connections, remaining-quota,
 lowest-latency or calendar-based scheduling.
@@ -273,6 +276,19 @@ the same family as the listener; hostname destinations are resolved by the node
 when applying the rule. `realm` is a managed userspace process. Listener/protocol,
 ingress ranges, reserved ports, existing listeners, monitor mode and agent version are checked before saving. A target
 using mieru BOTH needs a dual-port model and is not supported by this editor.
+
+For nft lines with known literal entry addresses, the compiler selects a
+matching wildcard listener and rejects cross-family forwarding. A realm member with
+a known IPv6 entry gets an IPv6 wildcard instead of realm's IPv4-only default.
+An explicit local ingress bind is preserved; a public NAT address is never
+assumed to be assigned to the server. Unknown hostnames are not resolved during
+saving and still require successful node application and connectivity checks.
+
+Kernel DNAT also requires the host's **FORWARD** policy to permit the traffic.
+Automatic listener-port opening does not manage these routed allowances;
+UFW routed-deny policies, firewalld or Docker forwarding rules can still block
+a saved nft line. Configure scoped forwarding rules separately. The WireGuard
+automatic-forwarding option applies only to its own WG connections.
 
 Line edits update owned forwards and all associated subscription endpoints in
 one database transaction. Existing individual forwards remain independent and

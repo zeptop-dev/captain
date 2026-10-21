@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 
@@ -251,9 +252,11 @@ func compileLine(ctx context.Context, tx *sql.Tx, l *ForwardLine) (map[int64][]N
 			if l.Backend != "relay" {
 				f.Backend = l.Backend
 			}
+			var ingress *Ingress
 			if m.IngressID != nil {
+				ingress = n.ingresses[*m.IngressID]
 				f.IngressID = strconv.FormatInt(*m.IngressID, 10)
-				f.Listen = n.ingresses[*m.IngressID].BindIP
+				f.Listen = ingress.BindIP
 			}
 			if i+1 < len(l.Groups) {
 				next := l.Groups[i+1]
@@ -273,6 +276,9 @@ func compileLine(ctx context.Context, tx *sql.Tx, l *ForwardLine) (map[int64][]N
 			if f.ProxyProtocol && !lineVersionOK(n.node, "v0.49.0") {
 				return nil, nil, errors.New("PROXY protocol lines require a recent bosun relay")
 			}
+			if err = setLineBackendListen(&f, n.node, ingress, i == 0); err != nil {
+				return nil, nil, err
+			}
 			f.Tag = lineRuntimeTag(l, m, f)
 			if err = f.ValidateTargets(); err != nil {
 				return nil, nil, err
@@ -291,6 +297,56 @@ func compileLine(ctx context.Context, tx *sql.Tx, l *ForwardLine) (map[int64][]N
 		}
 	}
 	return generated, endpoints, nil
+}
+
+// Backends give an empty listen different meanings: realm binds IPv4 only,
+// while nft selects the target's family. Derive only a wildcard from known
+// addresses; a public/NAT address is not necessarily assigned to this host.
+// Explicit local ingress binds remain authoritative, including when the
+// provider translates the public endpoint's family before traffic arrives.
+func setLineBackendListen(f *spec.Forward, n *domain.Node, ingress *Ingress, published bool) error {
+	if f.Listen != "" || (f.Backend != "nft" && f.Backend != "realm") {
+		return nil
+	}
+	host, _ := lineAddress(n, ingress, f.Port, true)
+	family := lineLiteralFamily(host)
+	entryFamily := 0
+	if published {
+		host, _ = lineAddress(n, ingress, f.Port, false)
+		entryFamily = lineLiteralFamily(host)
+	}
+	if f.Backend == "realm" {
+		if family == 6 || entryFamily == 6 || (ingress == nil && n.Domain != "" && lineLiteralFamily(n.V6Addr) == 6) {
+			f.Listen = "::"
+		}
+		return nil
+	}
+	if family != 0 && entryFamily != 0 && family != entryFamily {
+		return errors.New("nft ingress addresses use different families; set the actual local bind address")
+	}
+	if family == 0 {
+		family = entryFamily
+	}
+	switch family {
+	case 4:
+		f.Listen = "0.0.0.0"
+	case 6:
+		f.Listen = "::"
+	}
+	// Keep unknown domains unresolved here: compilation holds a transaction.
+	// An explicit wildcard also makes the node resolve nft targets in that family.
+	return nil
+}
+
+func lineLiteralFamily(host string) int {
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return 0
+	}
+	if ip.To4() != nil {
+		return 4
+	}
+	return 6
 }
 
 // LineProtocol is the wire transport, not the proxy payload's TCP/UDP support.
