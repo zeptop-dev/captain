@@ -125,7 +125,7 @@ export default function NodePage() {
       {proxyAllowed && <><Card p={0} id="node-inbounds" style={{ scrollMarginTop: 80 }}>
         <Group justify="space-between" p="md" pb="xs">
           <div><Text fw={600}>{t('inbounds.title')}</Text><Text size="xs" c="dimmed">{t('inbounds.subtitle')}</Text></div>
-          <Group gap="xs"><Button component={Link} to={`/entries?server=${n.id}`} variant="light" size="xs">{t('entries.title')}</Button>{(me?.role === 'admin' || me?.role === 'operator') && <Button component={Link} to={`/entries?section=inbounds&server=${n.id}`} variant="default" size="xs">{t('inbounds.title')}</Button>}</Group>
+          <Group gap="xs"><Button component={Link} to={`/entries?node=${n.id}`} variant="light" size="xs">{t('entries.title')}</Button>{(me?.role === 'admin' || me?.role === 'operator') && <Button component={Link} to={`/entries?section=inbounds&server=${n.id}`} variant="default" size="xs">{t('inbounds.title')}</Button>}</Group>
         </Group>
         <Table>
           <Table.Thead><Table.Tr><Table.Th>{t('inbounds.tag')}</Table.Th><Table.Th>{t('inbounds.protocol')}</Table.Th><Table.Th>{t('inbounds.port')}</Table.Th><Table.Th>{t('inbounds.core')}</Table.Th><Table.Th>{t('inbounds.traffic')}</Table.Th><Table.Th>{t('inbounds.group')}</Table.Th><Table.Th>{t('inbounds.enabled')}</Table.Th><Table.Th /></Table.Tr></Table.Thead>
@@ -139,7 +139,7 @@ export default function NodePage() {
                 <Table.Td>{d.traffic?.[String(ib.ID)] ? <Text size="xs">{bytes(d.traffic[String(ib.ID)].today)} <Text span c="dimmed">/ {bytes(d.traffic[String(ib.ID)].total)}</Text></Text> : <Text size="xs" c="dimmed">—</Text>}</Table.Td>
                 <Table.Td>{ib.GroupID ? (groups.data?.find((g) => g.ID === ib.GroupID)?.Name ?? ib.GroupID) : t('inbounds.groupAll')}</Table.Td>
                 <Table.Td>{ib.Enabled ? <Badge color="teal">{t('common.enabled')}</Badge> : <Badge color="gray">{t('common.disabled')}</Badge>}</Table.Td>
-                <Table.Td>{(me?.role === 'admin' || (me?.role === 'operator' && !ib.Settings.reverse && !ib.Settings.wireguard_slot)) && <Button component={Link} to={(ib.Settings.reverse || ib.Settings.wireguard_slot) ? `/entries?tab=lines&section=${ib.Settings.wireguard_slot ? 'wireguard' : 'reverse'}&server=${n.id}` : `/entries?section=inbounds&server=${n.id}&inbound=${ib.ID}`} variant="subtle" size="compact-xs">{t((ib.Settings.reverse || ib.Settings.wireguard_slot) ? 'reverse.managed' : 'inbounds.title')}</Button>}</Table.Td>
+                <Table.Td>{(me?.role === 'admin' || (me?.role === 'operator' && !ib.Settings.reverse && !ib.Settings.wireguard_slot)) && <Button component={Link} to={(ib.Settings.reverse || ib.Settings.wireguard_slot) ? `/entries?node=${n.id}` : `/entries?section=inbounds&server=${n.id}&inbound=${ib.ID}`} variant="subtle" size="compact-xs">{t((ib.Settings.reverse || ib.Settings.wireguard_slot) ? 'reverse.managed' : 'inbounds.title')}</Button>}</Table.Td>
               </Table.Tr>
             ))}
             {d.inbounds.length === 0 && <Table.Tr><Table.Td colSpan={8}><Text c="dimmed" ta="center" py="lg">{t('common.empty')}</Text></Table.Td></Table.Tr>}

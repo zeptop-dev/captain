@@ -88,8 +88,8 @@ function Manager({ serverID, onServerChange, canWrite = true, editInboundID, onE
         <Table.Tbody>{data.inbounds.map(ib => <Table.Tr key={ib.ID}>
           <Table.Td>{ib.Tag}</Table.Td><Table.Td><Badge>{ib.Protocol}</Badge></Table.Td><Table.Td><Code>{ib.Listen || '::'}:{ib.Port}</Code></Table.Td>
           <Table.Td><Badge color={ib.Enabled ? 'teal' : 'gray'}>{t(ib.Enabled ? 'common.enabled' : 'common.disabled')}</Badge></Table.Td>
-          <Table.Td>{ib.Settings.reverse || ib.Settings.wireguard_slot ? <Button component={Link} variant="subtle" size="compact-xs" to={`/entries?tab=lines&section=${ib.Settings.wireguard_slot ? 'wireguard' : 'reverse'}&server=${data.node.id}`}>{t('reverse.managed')}</Button> : <Group gap={4} justify="flex-end">
-            {canWrite && <Button component={Link} to={`/entries?server=${data.node.id}&inbound=${ib.ID}`} size="compact-xs" variant="subtle">{t('entries.create')}</Button>}
+          <Table.Td>{ib.Settings.reverse || ib.Settings.wireguard_slot ? <Button component={Link} variant="subtle" size="compact-xs" to={`/entries?node=${data.node.id}`}>{t('reverse.managed')}</Button> : <Group gap={4} justify="flex-end">
+            {canWrite && <Button component={Link} to={`/entries?node=${data.node.id}&inbound=${ib.ID}&create=node`} size="compact-xs" variant="subtle">{t('entries.create')}</Button>}
             {editable && <><ActionIcon aria-label={t('common.edit')} variant="subtle" onClick={() => { setEditing(ib); setDirty(false) }}><IconPencil size={16} /></ActionIcon><ActionIcon aria-label={t('common.delete')} variant="subtle" color="red" disabled={remove.isPending} onClick={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text>{t('common.confirmDelete')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => remove.mutate(ib) })}><IconTrash size={16} /></ActionIcon></>}
           </Group>}</Table.Td>
         </Table.Tr>)}</Table.Tbody>

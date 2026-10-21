@@ -5,9 +5,9 @@ import { IconChevronDown, IconGripVertical, IconPencil, IconPlus, IconTrash } fr
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { api, type Entry, type Line, type Node } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { type EntryNodeDetail, isSubscriberInbound } from '../lib/entry-flow'
@@ -32,6 +32,7 @@ function EntriesWorkspace() {
   const canWrite = admin || me?.role === 'operator'
   const qc = useQueryClient()
   const [params, setParams] = useSearchParams()
+  const location = useLocation()
   const tab = params.get('tab') === 'lines' ? 'lines' : 'entries'
   const section = params.get('section') ?? 'forward'
   const connectionSections: ConnectionSection[] = ['wireguard', 'reverse', 'routing', 'legacy', 'ingresses', 'overrides']
@@ -50,6 +51,32 @@ function EntriesWorkspace() {
   const reloadSources = () => { nodes.refetch(); detailQueries.forEach(query => query.refetch()); if (admin) lines.refetch() }
   const [editing, setEditing] = useState<Entry | 'new' | null>(null)
   const [initialLineID, setInitialLineID] = useState<number | undefined>()
+  const requestedInboundID = params.get('create') === 'node' ? Number(params.get('inbound')) : 0
+  const createRequest = Number.isSafeInteger(requestedInboundID) && requestedInboundID > 0 ? `${location.key}:${requestedInboundID}` : null
+  const requestedInbound = inbounds.find(choice => choice.ib.ID === requestedInboundID && (!nodeFilter || String(choice.ib.NodeID) === nodeFilter))
+  const handledCreateRequest = useRef<string | null>(null)
+  useEffect(() => {
+    if (!createRequest || handledCreateRequest.current === createRequest || !canWrite || !requestedInbound || !q.data || editing !== null) return
+    // Wait for the selected inbound before the form takes its initial snapshot.
+    // A later refetch must never reopen or replace an existing draft.
+    const frame = requestAnimationFrame(() => {
+      handledCreateRequest.current = createRequest
+      setInitialLineID(undefined)
+      setEditing('new')
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [createRequest, canWrite, requestedInbound, q.data, editing])
+  useEffect(() => {
+    if (!createRequest || editing !== null || handledCreateRequest.current !== createRequest) return
+    // The editor boundary has unmounted, so clearing the request cannot trigger
+    // a second unsaved-changes prompt after saving or confirming discard.
+    const frame = requestAnimationFrame(() => setParams(previous => {
+      const next = new URLSearchParams(previous)
+      next.delete('create'); next.delete('inbound')
+      return next
+    }, { replace: true }))
+    return () => cancelAnimationFrame(frame)
+  }, [createRequest, editing, setParams])
   const [editingLine, setEditingLine] = useState<Line | 'new' | null>(null)
   const [connectionRequest, setConnectionRequest] = useState(0)
   const connectionSerial = useRef(0)
@@ -107,6 +134,8 @@ function EntriesWorkspace() {
             {nodeFilter && <Button component={Link} variant="subtle" to={`/nodes/${nodeFilter}`}>{t('entryFlow.serverDetails')}</Button>}
           </Group>
           {q.isLoading && <Loader size="sm" mb="md" />}
+          {createRequest && sourcesLoading && <Loader size="sm" mb="md" />}
+          {createRequest && !sourcesLoading && !requestedInbound && <Alert color="red" mb="md">{t('entryFlow.targetInbound')} #{requestedInboundID}: {t('entryFlow.loadError')}</Alert>}
           {q.isError && <Alert color="red" mb="md"><Text size="sm">{t('entryFlow.loadError')}</Text><Button variant="subtle" size="xs" onClick={() => q.refetch()}>{t('entryFlow.retry')}</Button></Alert>}
           {sourcesError && <Alert color="yellow" mb="md"><Text size="sm">{t('entryFlow.partialLoad')}</Text><Button variant="subtle" size="xs" onClick={reloadSources}>{t('entryFlow.retry')}</Button></Alert>}
           <Card p={0}>
