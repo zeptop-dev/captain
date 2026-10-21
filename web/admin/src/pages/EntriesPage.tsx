@@ -1,119 +1,150 @@
-import { ActionIcon, Badge, Button, Card, Code, Group, JsonInput, Modal, NumberInput, Select, Stack, Switch, Table, TagsInput, Text, TextInput } from '@mantine/core'
-import { useForm } from '@mantine/form'
+import { ActionIcon, Alert, Badge, Button, Card, Code, Group, Loader, Menu, Select, Stack, Table, Tabs, Text } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
-import { IconGripVertical, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react'
-import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
-import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { IconChevronDown, IconGripVertical, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react'
+import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { api, type Entry, type Inbound, type Ingress, type Node } from '../lib/api'
-import { toast } from '../lib/notify'
-import { PageHeader } from '../components/PageHeader'
-import { REGIONS, flag } from '../lib/regions'
 import { Link, useSearchParams } from 'react-router-dom'
-
-type Values = { Name: string; InboundID: string; DisplayHost: string; DisplayPort: number; Rate: number; Sort: number; Enabled: boolean; Tags: string[]; Region: string; ClientExtra: string }
-const empty: Values = { Name: '', InboundID: '', DisplayHost: '', DisplayPort: 443, Rate: 1, Sort: 0, Enabled: true, Tags: [], Region: '', ClientExtra: '' }
-const parseExtra = (s: string) => { try { const v = JSON.parse(s || '{}'); return v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length ? v : null } catch { return null } }
+import { api, type Entry, type Line, type Node } from '../lib/api'
+import { useAuth } from '../lib/auth'
+import { type EntryNodeDetail, isSubscriberInbound } from '../lib/entry-flow'
+import { hostPort } from '../lib/ingress'
+import { toast } from '../lib/notify'
+import { flag } from '../lib/regions'
+import { SettingsDraftBoundary } from '../lib/settings-draft'
+import { PageHeader } from '../components/PageHeader'
+import { EntryEditor } from '../components/EntryEditor'
+import { LineEditor, LinesPanel } from '../components/LinesPanel'
+import { LinesConnections, type ConnectionSection } from '../components/LinesConnections'
+import { InboundsManager } from '../components/InboundsManager'
 
 export default function EntriesPage() {
+  return <EntriesWorkspace />
+}
+
+function EntriesWorkspace() {
   const { t } = useTranslation()
+  const { me } = useAuth()
+  const admin = me?.role === 'admin'
+  const canWrite = admin || me?.role === 'operator'
   const qc = useQueryClient()
   const [params, setParams] = useSearchParams()
+  const tab = params.get('tab') === 'lines' ? 'lines' : 'entries'
+  const section = params.get('section') ?? 'forward'
+  const connectionSections: ConnectionSection[] = ['wireguard', 'reverse', 'routing', 'legacy', 'ingresses', 'overrides']
+  const connectionSection = connectionSections.includes(section as ConnectionSection) ? section as ConnectionSection : null
   const nodeFilter = params.get('node') ?? ''
+  const serverID = Number(params.get('server')) || undefined
   const q = useQuery({ queryKey: ['entries'], queryFn: () => api.get<Entry[]>('/api/admin/entries') })
   const tags = useQuery({ queryKey: ['entry-tags'], queryFn: () => api.get<string[]>('/api/admin/entries/tags') })
   const nodes = useQuery({ queryKey: ['nodes'], queryFn: () => api.get<Node[]>('/api/admin/nodes') })
-  const details = useQueries({ queries: (nodes.data ?? []).map((n) => ({ queryKey: ['node', String(n.id)], queryFn: () => api.get<{ node: Node; inbounds: Inbound[]; ingresses?: Ingress[] }>(`/api/admin/nodes/${n.id}`) })) })
-  const inbounds = details.flatMap((d) => (d.data ? d.data.inbounds.map((ib) => ({ ib, node: d.data!.node, ingress: (d.data!.ingresses ?? []).find((g) => g.id === ib.IngressID) })) : []))
-  const label = (id: number) => { const x = inbounds.find((i) => i.ib.ID === id); return x ? `${x.node.name} / ${x.ib.Tag} (${x.ib.Protocol}:${x.ib.Port})${x.ingress ? ` · ${x.ingress.name}` : ''}` : `#${id}` }
+  const detailQueries = useQueries({ queries: (nodes.data ?? []).map(n => ({ queryKey: ['node', String(n.id)], queryFn: () => api.get<EntryNodeDetail>(`/api/admin/nodes/${n.id}`) })) })
+  const details = detailQueries.flatMap(query => query.data ? [query.data] : [])
+  const inbounds = details.flatMap(d => d.inbounds.filter(isSubscriberInbound).map(ib => ({ ib, node: d.node, ingress: d.ingresses?.find(g => g.id === ib.IngressID) })))
+  const lines = useQuery({ queryKey: ['lines'], queryFn: () => api.get<Line[]>('/api/admin/lines'), enabled: admin, refetchInterval: admin ? 10_000 : false })
+  const sourcesLoading = nodes.isLoading || detailQueries.some(query => query.isLoading)
+  const sourcesError = nodes.isError || detailQueries.some(query => query.isError)
+  const reloadSources = () => { nodes.refetch(); detailQueries.forEach(query => query.refetch()); if (admin) lines.refetch() }
   const [editing, setEditing] = useState<Entry | 'new' | null>(null)
+  const [initialLineID, setInitialLineID] = useState<number | undefined>()
+  const [editingLine, setEditingLine] = useState<Line | 'new' | null>(null)
+  const [connectionRequest, setConnectionRequest] = useState(0)
+  const connectionSerial = useRef(0)
   const [filter, setFilter] = useState<string | null>(null)
-  const form = useForm<Values>({ initialValues: empty })
-  const payload = (v: Values) => ({ Name: v.Name, InboundID: Number(v.InboundID), DisplayHost: v.DisplayHost, DisplayPort: v.DisplayPort, Rate: v.Rate, Sort: v.Sort, Enabled: v.Enabled, Tags: v.Tags, Region: v.Region, ClientExtra: parseExtra(v.ClientExtra) })
   const invalidate = () => { qc.invalidateQueries({ queryKey: ['entries'] }); qc.invalidateQueries({ queryKey: ['entry-tags'] }) }
-  const save = useMutation({ mutationFn: (v: Values) => editing === 'new' ? api.post('/api/admin/entries', payload(v)) : api.patch(`/api/admin/entries/${(editing as Entry).ID}`, payload(v)), onSuccess: () => { toast.ok(t('common.saved')); setEditing(null); invalidate() }, onError: toast.err })
   const del = useMutation({ mutationFn: (id: number) => api.del(`/api/admin/entries/${id}`), onSuccess: () => { toast.ok(t('common.deleted')); invalidate() }, onError: toast.err })
-  const reorder = useMutation({ mutationFn: (ids: number[]) => api.put('/api/admin/entries/order', { IDs: ids }), onSuccess: invalidate, onError: (e: Error) => { toast.err(e); invalidate() } })
-  const openEdit = (e: Entry | 'new') => {
-    if (e === 'new') {
-      form.setValues(empty)
-      const inbound = inbounds.find(({ ib }) => String(ib.ID) === params.get('inbound'))
-      if (inbound) { form.setFieldValue('Name', inbound.ib.Tag); onInbound(String(inbound.ib.ID)) }
-    }
-    else form.setValues({ Name: e.Name, InboundID: String(e.InboundID), DisplayHost: e.DisplayHost, DisplayPort: e.DisplayPort, Rate: e.Rate, Sort: e.Sort, Enabled: e.Enabled, Tags: e.Tags ?? [], Region: e.Region ?? '', ClientExtra: e.ClientExtra ? JSON.stringify(e.ClientExtra, null, 2) : '' })
-    setEditing(e)
+  const reorder = useMutation({ mutationFn: (ids: number[]) => api.put('/api/admin/entries/order', { IDs: ids }), onSuccess: invalidate, onError: (error: Error) => { toast.err(error); invalidate() } })
+  const label = (id: number) => { const choice = inbounds.find(c => c.ib.ID === id); return choice ? `${choice.node.name} / ${choice.ib.Tag} (${choice.ib.Protocol}:${choice.ib.Port})` : `#${id}` }
+  const managedType = (entry: Entry): 'wireguard' | 'reverse' | undefined => {
+    if (entry.ManagedConnection) return entry.ManagedConnection.type
+    const settings = inbounds.find(c => c.ib.ID === entry.InboundID)?.ib.Settings
+    return settings?.wireguard_slot ? 'wireguard' : settings?.reverse ? 'reverse' : undefined
   }
-  // Picking an inbound pre-fills the display address from the node.
-  // Address prefill: a line ingress gives its public entry and mapped port; otherwise the TLS name, the node domain, then the node IP.
-  const onInbound = (id: string | null) => { form.setFieldValue('InboundID', id ?? ''); const x = inbounds.find((i) => String(i.ib.ID) === id); if (x && !form.getValues().DisplayHost) { if (x.ingress) { form.setValues({ DisplayHost: x.ingress.entry_domain || x.ingress.entry_host, DisplayPort: x.ib.Port + (x.ingress.port_offset || 0) }); return } const tls = x.ib.Settings?.tls as { mode?: number; server_name?: string } | undefined; form.setValues({ DisplayHost: (tls?.mode === 1 && tls.server_name) || x.node.domain || x.node.public_addr || '', DisplayPort: x.ib.Port }) } }
-
-  // Local order for drag-and-drop; the server is told the new id order on drop.
-  // Drag order shown locally until the server confirms (invalidate) or rejects.
+  const editEntry = (entry: Entry) => {
+    const managed = managedType(entry)
+    if (managed) { setConnectionRequest(0); updateParams({ tab: 'lines', section: managed, server: entry.ManagedConnection?.exit_node_id ? String(entry.ManagedConnection.exit_node_id) : null }); return }
+    setInitialLineID(undefined); setEditing(entry)
+  }
+  const updateParams = (values: Record<string, string | null>) => setParams(previous => { const next = new URLSearchParams(previous); for (const [key, value] of Object.entries(values)) { if (value === null) next.delete(key); else next.set(key, value) } return next })
+  const createNode = (line?: Line) => { setInitialLineID(line?.id); setEditing('new') }
+  const createConnection = (kind: 'wireguard' | 'reverse') => { updateParams({ tab: 'lines', section: kind, line: null }); connectionSerial.current += 1; setConnectionRequest(connectionSerial.current) }
+  // A refetch never replaces an open editor's local draft.
   const [dragged, setDragged] = useState<{ base: Entry[] | undefined; rows: Entry[] } | null>(null)
   const rows = dragged && dragged.base === q.data ? dragged.rows : q.data ?? []
-  const setRows = (next: Entry[]) => setDragged({ base: q.data, rows: next })
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
-  const onDragEnd = (ev: DragEndEvent) => {
-    const { active, over } = ev
-    if (!over || active.id === over.id) return
-    const from = rows.findIndex((r) => r.ID === active.id), to = rows.findIndex((r) => r.ID === over.id)
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }))
+  const draggable = canWrite && !filter && !nodeFilter && !reorder.isPending && !q.isError
+  const onDragEnd = (event: DragEndEvent) => {
+    if (!draggable || !event.over || event.active.id === event.over.id) return
+    const from = rows.findIndex(row => row.ID === event.active.id), to = rows.findIndex(row => row.ID === event.over!.id)
+    if (from < 0 || to < 0) return
     const next = arrayMove(rows, from, to)
-    setRows(next)
-    reorder.mutate(next.map((r) => r.ID))
+    setDragged({ base: q.data, rows: next }); reorder.mutate(next.map(row => row.ID))
   }
-  const visible = rows.filter(r => (!filter || (r.Tags ?? []).includes(filter)) && (!nodeFilter || inbounds.some(({ ib }) => ib.ID === r.InboundID && String(ib.NodeID) === nodeFilter)))
-  return (
-    <>
-      <PageHeader title={t('entries.title')} subtitle={t('entries.subtitle')} actions={<Group gap="xs">{(tags.data?.length ?? 0) > 0 && <Select size="xs" w={160} clearable placeholder={t('entries.filterTag')} data={tags.data ?? []} value={filter} onChange={setFilter} />}<Button leftSection={<IconPlus size={16} />} onClick={() => openEdit('new')}>{t('entries.create')}</Button></Group>} />
-      <Group mb="md" align="flex-end"><Select label={t('nodes.title')} placeholder={t('alerts.allNodes')} clearable searchable data={(nodes.data ?? []).map(n => ({ value: String(n.id), label: n.name }))} value={nodeFilter || null} onChange={value => setParams(previous => { const next = new URLSearchParams(previous); next.delete('inbound'); if (value) next.set('node', value); else next.delete('node'); return next })} />{nodeFilter && <Button component={Link} variant="subtle" to={`/nodes/${nodeFilter}`}>{t('nodes.info')}</Button>}<Button component={Link} variant="subtle" to="/users">{t('nav.users')}</Button></Group>
-      <Card p={0}>
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-          <SortableContext items={visible.map((r) => r.ID)} strategy={verticalListSortingStrategy}>
-            <Table>
-              <Table.Thead><Table.Tr><Table.Th w={32} /><Table.Th>{t('entries.name')}</Table.Th><Table.Th>{t('entries.inbound')}</Table.Th><Table.Th>{t('entries.displayHost')}</Table.Th><Table.Th>{t('entries.rate')}</Table.Th><Table.Th>{t('entries.enabled')}</Table.Th><Table.Th /></Table.Tr></Table.Thead>
-              <Table.Tbody>
-                {visible.map((e) => <Row key={e.ID} e={e} label={label} onEdit={() => openEdit(e)} onDelete={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text size="sm">{t('common.confirmDelete')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => del.mutate(e.ID) })} draggable={!filter} />)}
-                {visible.length === 0 && <Table.Tr><Table.Td colSpan={7}><Text c="dimmed" ta="center" py="lg">{t('common.empty')}</Text></Table.Td></Table.Tr>}
-              </Table.Tbody>
-            </Table>
-          </SortableContext>
-        </DndContext>
-      </Card>
-      {!filter && rows.length > 1 && <Text size="xs" c="dimmed" mt="xs">{t('entries.dragHint')}</Text>}
-      <Modal opened={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? t('entries.create') : t('common.edit')}>
-        <form onSubmit={form.onSubmit((v) => save.mutate(v))}><Stack>
-          <TextInput label={t('entries.name')} required placeholder="Tokyo IPLC" {...form.getInputProps('Name')} />
-          <Select label={t('entries.inbound')} required searchable data={inbounds.map((i) => ({ value: String(i.ib.ID), label: label(i.ib.ID) }))} value={form.values.InboundID} onChange={onInbound} />
-          <Group grow><TextInput label={t('entries.displayHost')} placeholder={t('entries.displayHostHint')} {...form.getInputProps('DisplayHost')} /><NumberInput label={t('entries.displayPort')} required min={1} max={65535} {...form.getInputProps('DisplayPort')} /></Group>
-          <Group grow>
-            <Select label={t('entries.region')} description={t('entries.regionHint')} searchable clearable data={REGIONS.map((r) => ({ value: r.code, label: `${flag(r.code)} ${r.code} ${r.name}` }))} value={form.values.Region || null} onChange={(v) => form.setFieldValue('Region', v ?? '')} />
-            <NumberInput label={t('entries.rate')} min={0} step={0.1} decimalScale={2} {...form.getInputProps('Rate')} />
+  const visible = rows.filter(row => (!filter || row.Tags?.includes(filter)) && (!nodeFilter || inbounds.some(c => c.ib.ID === row.InboundID && String(c.ib.NodeID) === nodeFilter)))
+  return <>
+    <PageHeader title={t('entryFlow.title')} subtitle={t('entryFlow.subtitle')} actions={<Group gap="xs">
+      {canWrite && <Button leftSection={<IconPlus size={16} />} onClick={() => createNode()} disabled={q.isLoading || q.isError || sourcesLoading}>{t('entryFlow.createNode')}</Button>}
+      {admin && <Menu position="bottom-end"><Menu.Target><Button variant="light" rightSection={<IconChevronDown size={16} />}>{t('lines.create')}</Button></Menu.Target><Menu.Dropdown>
+        <Menu.Item onClick={() => { updateParams({ tab: 'lines', section: 'forward' }); setEditingLine('new') }}>{t('lines.normal')}</Menu.Item>
+        <Menu.Item onClick={() => createConnection('wireguard')}>{t('lines.sections.wireguard')}</Menu.Item>
+        <Menu.Item onClick={() => createConnection('reverse')}>{t('lines.sections.reverse')}</Menu.Item>
+      </Menu.Dropdown></Menu>}
+    </Group>} />
+    <Tabs value={tab} onChange={value => updateParams({ tab: value === 'lines' ? 'lines' : null, section: null, inbound: null })} keepMounted={false}>
+      <Tabs.List mb="lg"><Tabs.Tab value="entries">{t('entryFlow.nodesTab')}</Tabs.Tab><Tabs.Tab value="lines">{t('lines.tab')}</Tabs.Tab></Tabs.List>
+      <Tabs.Panel value="entries">
+        {section === 'inbounds' ? <Stack>
+          <Group justify="space-between"><Text fw={600}>{t('entryFlow.inbounds')}</Text><Button variant="subtle" onClick={() => updateParams({ section: null, inbound: null })}>{t('entryFlow.backToNodes')}</Button></Group>
+          <InboundsManager serverID={serverID} onServerChange={id => updateParams({ server: id ? String(id) : null, inbound: null })} canWrite={canWrite} editInboundID={params.get('inbound') === 'new' ? 'new' : Number(params.get('inbound')) || undefined} onEditorClose={() => updateParams({ inbound: null })} />
+        </Stack> : <>
+          <Group mb="md" align="flex-end">
+            <Select label={t('entryFlow.targetServer')} placeholder={t('entryFlow.allServers')} clearable searchable data={(nodes.data ?? []).map(n => ({ value: String(n.id), label: n.name }))} value={nodeFilter || null} onChange={value => updateParams({ node: value, inbound: null })} />
+            {(tags.data?.length ?? 0) > 0 && <Select label={t('entries.tags')} clearable placeholder={t('entries.filterTag')} data={tags.data ?? []} value={filter} onChange={setFilter} />}
+            <Button variant="subtle" onClick={() => updateParams({ section: 'inbounds', server: nodeFilter || null, inbound: null })}>{t('entryFlow.manageInbounds')}</Button>
+            {nodeFilter && <Button component={Link} variant="subtle" to={`/nodes/${nodeFilter}`}>{t('entryFlow.serverDetails')}</Button>}
           </Group>
-          <TagsInput label={t('entries.tags')} description={t('entries.tagsHint')} data={tags.data ?? []} {...form.getInputProps('Tags')} />
-          <JsonInput label={t('entries.clientExtra')} description={t('entries.clientExtraHint')} placeholder='{ "tfo": true, "smux": { "enabled": true } }' autosize minRows={2} maxRows={8} formatOnBlur validationError={t('overrides.invalid')} {...form.getInputProps('ClientExtra')} />
-          <Switch label={t('entries.enabled')} {...form.getInputProps('Enabled', { type: 'checkbox' })} />
-          <Group justify="flex-end"><Button variant="default" onClick={() => setEditing(null)}>{t('common.cancel')}</Button><Button type="submit" loading={save.isPending}>{t('common.save')}</Button></Group>
-        </Stack></form>
-      </Modal>
-    </>
-  )
+          {q.isLoading && <Loader size="sm" mb="md" />}
+          {q.isError && <Alert color="red" mb="md"><Text size="sm">{t('entryFlow.loadError')}</Text><Button variant="subtle" size="xs" onClick={() => q.refetch()}>{t('entryFlow.retry')}</Button></Alert>}
+          {sourcesError && <Alert color="yellow" mb="md"><Text size="sm">{t('entryFlow.partialLoad')}</Text><Button variant="subtle" size="xs" onClick={reloadSources}>{t('entryFlow.retry')}</Button></Alert>}
+          <Card p={0}>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}><SortableContext items={visible.map(row => row.ID)} strategy={verticalListSortingStrategy}>
+              <Table.ScrollContainer minWidth={780}><Table verticalSpacing="sm">
+                <Table.Thead><Table.Tr><Table.Th w={32} /><Table.Th>{t('entries.name')}</Table.Th><Table.Th>{t('entryFlow.path')}</Table.Th><Table.Th>{t('entryFlow.publishedAddress')}</Table.Th><Table.Th>{t('entries.rate')}</Table.Th><Table.Th>{t('entries.enabled')}</Table.Th><Table.Th /></Table.Tr></Table.Thead>
+                <Table.Tbody>{visible.map(entry => <EntryRow key={entry.ID} entry={entry} inboundLabel={label(entry.InboundID)} inboundKnown={inbounds.some(c => c.ib.ID === entry.InboundID)} managed={managedType(entry)} lineName={lines.data?.find(line => line.id === entry.LineID)?.name} dialerName={q.data?.find(item => item.ID === entry.ClientDialerEntryID)?.Name} draggable={draggable} canWrite={canWrite && (!managedType(entry) || admin)} busy={del.isPending} onEdit={() => editEntry(entry)} onDelete={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text size="sm">{t('entryFlow.deleteHint')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => del.mutate(entry.ID) })} />)}
+                  {!q.isLoading && !q.isError && visible.length === 0 && <Table.Tr><Table.Td colSpan={7}><Text c="dimmed" ta="center" py="lg">{t('common.empty')}</Text></Table.Td></Table.Tr>}
+                </Table.Tbody>
+              </Table></Table.ScrollContainer>
+            </SortableContext></DndContext>
+          </Card>
+          {draggable && rows.length > 1 && <Text size="xs" c="dimmed" mt="xs">{t('entries.dragHint')}</Text>}
+        </>}
+      </Tabs.Panel>
+      <Tabs.Panel value="lines">
+        <Stack>
+          <Select label={t('lines.section')} allowDeselect={false} value={connectionSection ?? 'forward'} data={['forward', ...connectionSections].map(value => ({ value, label: t(`lines.sections.${value}`) }))} onChange={value => { setConnectionRequest(0); updateParams({ section: value, inbound: null }) }} maw={420} />
+          {connectionSection ? <LinesConnections section={connectionSection} serverID={serverID} onServerChange={id => updateParams({ server: id ? String(id) : null })} editRequest={connectionRequest} onEditRequestHandled={() => setConnectionRequest(0)} canWrite={canWrite} /> : admin ? <LinesPanel lines={lines.data ?? []} nodes={nodes.data ?? []} inbounds={inbounds} loading={lines.isLoading} error={lines.isError} observedAt={Math.max(lines.dataUpdatedAt, lines.errorUpdatedAt)} focusID={Number(params.get('line')) || undefined} onRetry={() => lines.refetch()} onEdit={setEditingLine} onCreateNode={createNode} /> : <Alert color="blue">{t('lines.adminOnly')}</Alert>}
+        </Stack>
+      </Tabs.Panel>
+    </Tabs>
+    {editing !== null && <SettingsDraftBoundary><EntryEditor key={editing === 'new' ? `new-${initialLineID ?? ''}` : editing.ID} entry={editing === 'new' ? undefined : editing} nodes={nodes.data ?? []} inbounds={inbounds} entries={q.data ?? []} lines={lines.data ?? []} tags={tags.data ?? []} initialInboundID={Number(params.get('inbound')) || undefined} initialLineID={initialLineID} initialServerID={Number(nodeFilter) || serverID} canManageLines={admin} loading={sourcesLoading || admin && lines.isLoading} loadError={sourcesError || admin && lines.isError} onReload={reloadSources} onClose={() => setEditing(null)} /></SettingsDraftBoundary>}
+    {editingLine !== null && <SettingsDraftBoundary><LineEditor key={editingLine === 'new' ? 'new' : editingLine.id} line={editingLine === 'new' ? undefined : editingLine} nodes={nodes.data ?? []} details={details} inbounds={inbounds} loading={sourcesLoading} loadError={sourcesError} onReload={reloadSources} onClose={() => setEditingLine(null)} /></SettingsDraftBoundary>}
+  </>
 }
 
-function Row({ e, label, onEdit, onDelete, draggable }: { e: Entry; label: (id: number) => string; onEdit: () => void; onDelete: () => void; draggable: boolean }) {
+function EntryRow({ entry, inboundLabel, inboundKnown, managed, lineName, dialerName, draggable, canWrite, busy, onEdit, onDelete }: {
+  entry: Entry; inboundLabel: string; inboundKnown: boolean; managed?: 'wireguard' | 'reverse'; lineName?: string; dialerName?: string; draggable: boolean; canWrite: boolean; busy: boolean; onEdit: () => void; onDelete: () => void
+}) {
   const { t } = useTranslation()
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: e.ID, disabled: !draggable })
-  return (
-    <Table.Tr ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1, position: 'relative', zIndex: isDragging ? 1 : undefined }}>
-      <Table.Td><ActionIcon variant="subtle" color="gray" size="sm" style={{ cursor: draggable ? 'grab' : 'default', touchAction: 'none' }} {...attributes} {...listeners}><IconGripVertical size={14} /></ActionIcon></Table.Td>
-      <Table.Td><Group gap={6}><Text fw={600}>{e.Region ? `${flag(e.Region)} ` : ''}{e.Name}</Text>{(e.Tags ?? []).map((tg) => <Badge key={tg} size="xs" variant="light" color="grape">{tg}</Badge>)}</Group></Table.Td>
-      <Table.Td><Text size="sm">{label(e.InboundID)}</Text></Table.Td>
-      <Table.Td><Code>{e.DisplayHost}:{e.DisplayPort}</Code></Table.Td>
-      <Table.Td>×{e.Rate}</Table.Td>
-      <Table.Td>{e.Enabled ? <Badge color="teal">{t('common.enabled')}</Badge> : <Badge color="gray">{t('common.disabled')}</Badge>}</Table.Td>
-      <Table.Td><Group gap={4} justify="flex-end"><ActionIcon variant="subtle" onClick={onEdit}><IconPencil size={16} /></ActionIcon><ActionIcon variant="subtle" color="red" onClick={onDelete}><IconTrash size={16} /></ActionIcon></Group></Table.Td>
-    </Table.Tr>
-  )
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entry.ID, disabled: !draggable })
+  return <Table.Tr ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1, position: 'relative', zIndex: isDragging ? 1 : undefined }}>
+    <Table.Td><ActionIcon variant="subtle" color="gray" size="sm" disabled={!draggable} aria-label={t('entryFlow.reorder')} style={{ cursor: draggable ? 'grab' : 'default', touchAction: 'none' }} {...attributes} {...listeners}><IconGripVertical size={14} /></ActionIcon></Table.Td>
+    <Table.Td><Stack gap={4}><Text fw={600}>{entry.Region ? `${flag(entry.Region)} ` : ''}{entry.Name}</Text><Group gap={4}>{entry.Tags?.map(tag => <Badge key={tag} size="xs" variant="light" color="grape">{tag}</Badge>)}</Group></Stack></Table.Td>
+    <Table.Td><Stack gap={4}><Badge size="xs" variant="light" color={managed || entry.LineID ? 'indigo' : entry.ClientDialerEntryID ? 'grape' : 'gray'}>{managed ? t(`lines.sections.${managed}`) : entry.ClientDialerEntryID ? t('entryFlow.clientChain') : entry.LineID ? t('entryFlow.viaLine') : inboundKnown ? t('entryFlow.direct') : t('entryFlow.pathUnknown')}</Badge><Text size="xs">{entry.ClientDialerEntryID ? `${dialerName ?? `#${entry.ClientDialerEntryID}`} → ` : entry.LineID ? `${lineName ?? `#${entry.LineID}`} → ` : ''}{inboundLabel}</Text></Stack></Table.Td>
+    <Table.Td><Code>{hostPort(entry.DisplayHost, entry.DisplayPort)}</Code></Table.Td><Table.Td>×{entry.Rate}</Table.Td>
+    <Table.Td><Badge color={entry.Enabled ? 'teal' : 'gray'}>{t(entry.Enabled ? 'common.enabled' : 'common.disabled')}</Badge></Table.Td>
+    <Table.Td>{canWrite && <Group gap={4} justify="flex-end" wrap="nowrap"><ActionIcon variant="subtle" aria-label={t('common.edit')} disabled={busy} onClick={onEdit}><IconPencil size={16} /></ActionIcon>{!managed && <ActionIcon variant="subtle" color="red" aria-label={t('common.delete')} disabled={busy} onClick={onDelete}><IconTrash size={16} /></ActionIcon>}</Group>}</Table.Td>
+  </Table.Tr>
 }

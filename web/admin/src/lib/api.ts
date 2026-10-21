@@ -110,7 +110,17 @@ export interface SubRequest { id: number; at: string; request_ip: string; user_a
 
 export interface Entry {
   ID: number; Name: string; InboundID: number; ChainID: number | null; DisplayHost: string; DisplayPort: number
+  LineID?: number | null; LineMemberID?: string; ClientDialerEntryID?: number | null
+  ManagedConnection?: { type: 'wireguard' | 'reverse'; exit_node_id: number }
   Rate: number; Sort: number; Enabled: boolean; Tags?: string[]; Region?: string; ClientExtra?: Record<string, unknown> | null }
+export interface LineMember { id: string; node_id: number; port: number; ingress_id?: number | null; weight: number }
+export interface LineGroup { strategy: 'failover' | 'roundrobin'; members: LineMember[] }
+export interface LineEndpoint { member_id: string; node_id: number; host: string; port: number }
+export interface LineStatus { member_id: string; node_id: number; health: 'unknown' | 'up' | 'down'; probe_protocol: 'tcp' | 'none' | 'backend'; rtt_ms: number; updated_at?: string }
+export interface Line {
+  id: number; name: string; version: number; protocol: 'tcp' | 'udp' | 'both'; backend: 'relay' | 'nft' | 'realm'
+  target_inbound_id: number; groups: LineGroup[]; endpoints: LineEndpoint[]; status?: LineStatus[]
+}
 export interface Order {
   ID: number; No: string; UserID: number; PlanID: number; AmountCents: number; Gateway: string; GatewayRef: string
   Status: string; CreatedAt: string; PaidAt: string | null; PeriodDays: number; DiscountCents: number; email: string; plan_name: string
