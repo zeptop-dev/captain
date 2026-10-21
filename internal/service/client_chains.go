@@ -5,6 +5,7 @@ import (
 	"maps"
 	"strings"
 
+	"github.com/zeptop-dev/bosun/pkg/spec"
 	"github.com/zeptop-dev/bosun/pkg/subscription"
 	"github.com/zeptop-dev/captain/internal/store"
 	"gopkg.in/yaml.v3"
@@ -144,6 +145,12 @@ func ClientLines(lines []PublishedLine, format string, templates ...string) ([]s
 		}
 		if l.DialerEntryID == 0 {
 			return true
+		}
+		if format != "singbox" && l.Inbound.Protocol == spec.HTTP {
+			// HTTP outbounds ignore udp:true in mihomo. Selecting one skips
+			// matching UDP rules and can fall through to DIRECT. Keep ordinary
+			// HTTP proxies compatible, but do not publish this managed path.
+			return false
 		}
 		if format == "singbox" && l.Inbound.ShadowTLS != nil {
 			// The current shared renderer owns the ShadowTLS carrier detour.

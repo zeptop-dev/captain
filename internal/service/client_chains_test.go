@@ -174,3 +174,57 @@ func TestClientChainCanonicalDialerAndTemplateNames(t *testing.T) {
 		}
 	}
 }
+
+func TestClientChainHTTPDestinationCannotFallBackDirectForUDP(t *testing.T) {
+	for _, format := range []string{"clash", "stash", "singbox"} {
+		t.Run(format, func(t *testing.T) {
+			input := chainFixture()
+			input[1].Inbound.Protocol = spec.HTTP
+			input = append(input,
+				PublishedLine{EntryID: 3, DialerEntryID: 2, Line: subscription.Line{Name: "Third", Host: "third.example.com", Port: 443, Inbound: spec.Inbound{Protocol: spec.VLESS}}},
+				PublishedLine{EntryID: 4, Line: subscription.Line{Name: "Ordinary HTTP", Host: "http.example.com", Port: 8080, Inbound: spec.Inbound{Protocol: spec.HTTP}}},
+			)
+			lines, err := ClientLines(input, format)
+			if err != nil {
+				t.Fatal(err)
+			}
+			body, err := subscription.Pick(format, "").Render(lines, subscription.Account{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			names, err := renderedClientNames(format, body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, name := range []string{"Front renamed", "Ordinary HTTP"} {
+				if names[name] != 1 {
+					t.Fatalf("ordinary proxy %q changed: %s", name, body)
+				}
+			}
+			want := 0
+			if format == "singbox" {
+				want = 1 // Unsupported UDP returns an error; it does not skip a rule.
+			}
+			for _, name := range []string{"Home via front", "Third"} {
+				if names[name] != want {
+					t.Fatalf("unsafe HTTP chain or descendant %q: %s", name, body)
+				}
+			}
+
+			// An ordinary HTTP front still carries the destination's TCP transport.
+			input = chainFixture()
+			input[0].Inbound.Protocol = spec.HTTP
+			lines, err = ClientLines(input, format)
+			if err != nil || len(lines) != 2 {
+				t.Fatalf("ordinary HTTP front rejected: %+v %v", lines, err)
+			}
+			key := "dialer-proxy"
+			if format == "singbox" {
+				key = "detour"
+			}
+			if lines[1].Extra[key] != input[0].Name {
+				t.Fatalf("HTTP front reference lost: %+v", lines[1])
+			}
+		})
+	}
+}

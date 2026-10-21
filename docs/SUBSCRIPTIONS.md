@@ -103,6 +103,9 @@ exported as a direct node. Other formats and single-node share URIs omit managed
 client chains. The portal marks them as requiring a full supported subscription.
 The current sing-box renderer cannot chain a destination's ShadowTLS carrier,
 so that combination is omitted. UDP support still depends on every hop.
+Mihomo and Stash omit managed HTTP destinations and their dependent chains:
+HTTP's lack of UDP can make mihomo skip the selected rule and fall through to
+direct routing. Ordinary HTTP entries and HTTP fronts keep their existing behavior.
 
 The chain limit is eight nodes. Cycles and self-references are rejected. A
 referenced node, inbound, server or owned reverse connection cannot be deleted
