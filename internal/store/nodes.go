@@ -246,7 +246,7 @@ func (s *Store) UpdateNode(ctx context.Context, n *domain.Node) error {
 	if err != nil {
 		return err
 	}
-	if n.PublicAddr != old.PublicAddr || n.V6Addr != old.V6Addr || n.Domain != old.Domain {
+	if n.PublicAddr != old.PublicAddr || n.V6Addr != old.V6Addr || n.Domain != old.Domain || n.DomainShared != old.DomainShared {
 		if err = refreshLinesForNodeTx(ctx, tx, n.ID); err != nil {
 			return err
 		}

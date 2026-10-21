@@ -181,3 +181,55 @@ func TestLineRealmUDPAddressFollowingRecompilesTarget(t *testing.T) {
 		t.Fatalf("line revision not updated: %+v, %v", updated, err)
 	}
 }
+
+func TestLineRealmUDPDomainSharingRecompilesTarget(t *testing.T) {
+	for _, position := range []string{"landing", "intermediate"} {
+		t.Run(position, func(t *testing.T) {
+			ctx := context.Background()
+			s, ns, ib, l := lineFixture(t)
+			ib.Protocol = spec.Shadowsocks
+			if err := s.UpdateInbound(ctx, ib); err != nil {
+				t.Fatal(err)
+			}
+			l.Backend, l.Protocol = "realm", "both"
+			l.Groups[1].Members = l.Groups[1].Members[:1]
+			destination, sender, port := ns[3], ns[1], ib.Port
+			if position == "intermediate" {
+				destination, sender, port = ns[1], ns[0], l.Groups[1].Members[0].Port
+			}
+			destination.Domain = "target.example.com"
+			if err := s.UpdateNode(ctx, destination); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.SaveLine(ctx, l); err != nil {
+				t.Fatal(err)
+			}
+			fs, err := s.NodeForwards(ctx, sender.ID)
+			direct := net.JoinHostPort(destination.PublicAddr, strconv.Itoa(port))
+			if err != nil || len(fs) != 1 || fs[0].Target != direct {
+				t.Fatalf("initial target = %+v, %v; want %s", fs, err, direct)
+			}
+			previousTag, previousVersion := fs[0].Tag, l.Version
+			for _, shared := range []bool{true, false} {
+				// Only the DNS ownership flag changes; addresses and domain stay fixed.
+				destination.DomainShared = shared
+				if err := s.UpdateNode(ctx, destination); err != nil {
+					t.Fatal(err)
+				}
+				want := direct
+				if shared {
+					want = net.JoinHostPort(destination.Domain, strconv.Itoa(port))
+				}
+				fs, err = s.NodeForwards(ctx, sender.ID)
+				if err != nil || len(fs) != 1 || fs[0].Target != want || fs[0].Tag == previousTag {
+					t.Fatalf("shared=%v target/runtime identity = %+v, %v; want %s and changed tag", shared, fs, err, want)
+				}
+				updated, err := s.LineByID(ctx, l.ID)
+				if err != nil || updated.Version != previousVersion+1 {
+					t.Fatalf("shared=%v line revision = %+v, %v; previous %d", shared, updated, err, previousVersion)
+				}
+				previousTag, previousVersion = fs[0].Tag, updated.Version
+			}
+		})
+	}
+}
