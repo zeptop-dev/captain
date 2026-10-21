@@ -2716,7 +2716,10 @@
     "backToNodes": "Back to subscription nodes",
     "deleteHint": "Delete this subscription node? Its inbound remains. Referenced or managed nodes must first be detached.",
     "reorder": "Reorder node",
-    "pathUnknown": "Path not loaded"
+    "pathUnknown": "Path not loaded",
+    "lineEndpointMissing": "An entry without a public address cannot be published. Add a public address to its server or NAT / dedicated-line ingress first.",
+    "lineEndpointMissingLabel": "No public endpoint",
+    "lineExtraAdminOnly": "Only administrators can change client JSON for a node bound to a server line."
   },
   "lines": {
     "tab": "Lines",

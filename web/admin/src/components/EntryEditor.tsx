@@ -26,11 +26,12 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, init
   const qc = useQueryClient()
   const initialInbound = inbounds.find(c => c.ib.ID === (entry?.InboundID || initialInboundID))
   const initialLine = lines.find(line => line.id === (entry?.LineID || initialLineID))
+  const lineExtraReadOnly = !!entry?.LineID && !canManageLines
   const initial: Values = {
     Name: entry?.Name ?? initialInbound?.ib.Tag ?? initialLine?.name ?? '', InboundID: String(entry?.InboundID || initialLine?.target_inbound_id || initialInboundID || ''),
     ...entryEndpoint(initialInbound), ...(entry ? { DisplayHost: entry.DisplayHost, DisplayPort: entry.DisplayPort } : {}),
     Rate: entry?.Rate ?? 1, Sort: entry?.Sort ?? 0, Enabled: entry?.Enabled ?? true, Tags: entry?.Tags ?? [], Region: entry?.Region ?? '', ClientExtra: entry?.ClientExtra ? JSON.stringify(entry.ClientExtra, null, 2) : '',
-    mode: entry?.LineID || initialLineID ? 'line' : entry?.ClientDialerEntryID ? 'client' : 'direct', LineID: String(entry?.LineID || initialLineID || ''), LineMemberID: entry?.LineMemberID || initialLine?.endpoints[0]?.member_id || '', ClientDialerEntryID: String(entry?.ClientDialerEntryID || ''),
+    mode: entry?.LineID || initialLineID ? 'line' : entry?.ClientDialerEntryID ? 'client' : 'direct', LineID: String(entry?.LineID || initialLineID || ''), LineMemberID: entry?.LineMemberID || initialLine?.endpoints.find(e => e.host.trim())?.member_id || '', ClientDialerEntryID: String(entry?.ClientDialerEntryID || ''),
   }
   const form = useForm<Values>({ initialValues: initial, validate: {
     Name: value => value.trim() ? null : t('entryFlow.required'),
@@ -51,7 +52,7 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, init
   const save = useMutation({
     mutationFn: (v: Values) => {
       const extra = JSON.parse(v.ClientExtra || '{}')
-      const payload = { Name: v.Name.trim(), InboundID: v.mode === 'line' ? line?.target_inbound_id ?? Number(v.InboundID) : Number(v.InboundID), DisplayHost: v.mode === 'line' ? !canManageLines && entry ? entry.DisplayHost : '' : v.DisplayHost.trim(), DisplayPort: v.mode === 'line' ? !canManageLines && entry ? entry.DisplayPort : 0 : v.DisplayPort, Rate: v.Rate, Sort: v.Sort, Enabled: v.Enabled, Tags: v.Tags, Region: v.Region, ClientExtra: Object.keys(extra).length ? extra : null,
+      const payload = { Name: v.Name.trim(), InboundID: v.mode === 'line' ? line?.target_inbound_id ?? Number(v.InboundID) : Number(v.InboundID), DisplayHost: v.mode === 'line' ? !canManageLines && entry ? entry.DisplayHost : '' : v.DisplayHost.trim(), DisplayPort: v.mode === 'line' ? !canManageLines && entry ? entry.DisplayPort : 0 : v.DisplayPort, Rate: v.Rate, Sort: v.Sort, Enabled: v.Enabled, Tags: v.Tags, Region: v.Region, ClientExtra: lineExtraReadOnly ? entry?.ClientExtra ?? null : Object.keys(extra).length ? extra : null,
         LineID: v.mode === 'line' ? Number(v.LineID) : null, LineMemberID: v.mode === 'line' ? v.LineMemberID : '', ClientDialerEntryID: v.mode === 'client' ? Number(v.ClientDialerEntryID) : null }
       return entry ? api.patch<Entry>(`/api/admin/entries/${entry.ID}`, payload) : api.post<Entry>('/api/admin/entries', payload)
     },
@@ -71,7 +72,7 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, init
   }
   const pickLine = (id: string | null) => {
     const next = lines.find(l => String(l.id) === id)
-    form.setValues({ LineID: id ?? '', LineMemberID: next?.endpoints[0]?.member_id ?? '', InboundID: String(next?.target_inbound_id ?? ''), ...(!form.values.Name && next ? { Name: next.name } : {}) })
+    form.setValues({ LineID: id ?? '', LineMemberID: next?.endpoints.find(e => e.host.trim())?.member_id ?? '', InboundID: String(next?.target_inbound_id ?? ''), ...(!form.values.Name && next ? { Name: next.name } : {}) })
   }
   return <>
     <Modal opened onClose={close} closeOnClickOutside={false} closeOnEscape={!save.isPending} withCloseButton={!save.isPending} title={entry ? t('entryFlow.editNode') : t('entryFlow.createNode')} size="lg">
@@ -90,9 +91,10 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, init
           }} />
           <Text size="sm" c="dimmed">{form.values.mode === 'line' ? t('entryFlow.lineHint') : form.values.mode === 'client' ? t('entryFlow.clientHint') : t('entryFlow.directHint')}</Text>
           {form.values.mode === 'line' ? <>
-            {canManageLines ? <><Select label={t('entryFlow.line')} required searchable disabled={save.isPending} data={lines.map(l => ({ value: String(l.id), label: l.name }))} value={form.values.LineID || null} onChange={pickLine} error={form.errors.LineID} />
-            <Select label={t('entryFlow.lineEndpoint')} required disabled={save.isPending} data={(line?.endpoints ?? []).map(e => ({ value: e.member_id, label: `${nodes.find(n => n.id === e.node_id)?.name ?? `#${e.node_id}`} · ${hostPort(e.host, e.port)}` }))} value={form.values.LineMemberID || null} onChange={value => form.setFieldValue('LineMemberID', value ?? '')} error={form.errors.LineMemberID} /></> : <Text size="sm">{t('entryFlow.line')}: #{entry?.LineID}</Text>}
-            <Text size="sm">{t('entryFlow.publishedAddress')}: <Code>{endpoint ? hostPort(endpoint.host, endpoint.port) : entry?.LineID ? hostPort(entry.DisplayHost, entry.DisplayPort) : '—'}</Code></Text>
+            {canManageLines ? <><Select label={t('entryFlow.line')} required searchable disabled={save.isPending} data={lines.map(l => ({ value: String(l.id), label: l.endpoints.some(e => e.host.trim()) ? l.name : `${l.name} · ${t('entryFlow.lineEndpointMissingLabel')}`, disabled: !l.endpoints.some(e => e.host.trim()) }))} value={form.values.LineID || null} onChange={pickLine} error={form.errors.LineID} />
+            <Select label={t('entryFlow.lineEndpoint')} required disabled={save.isPending} data={(line?.endpoints ?? []).map(e => ({ value: e.member_id, label: `${nodes.find(n => n.id === e.node_id)?.name ?? `#${e.node_id}`} · ${e.host.trim() ? hostPort(e.host, e.port) : t('entryFlow.lineEndpointMissingLabel')}`, disabled: !e.host.trim() }))} value={form.values.LineMemberID || null} onChange={value => form.setFieldValue('LineMemberID', value ?? '')} error={form.errors.LineMemberID} /></> : <Text size="sm">{t('entryFlow.line')}: #{entry?.LineID}</Text>}
+            {line && (!line.endpoints.length || line.endpoints.some(e => !e.host.trim())) && <Alert color="yellow">{t('entryFlow.lineEndpointMissing')}</Alert>}
+            <Text size="sm">{t('entryFlow.publishedAddress')}: <Code>{endpoint?.host.trim() ? hostPort(endpoint.host, endpoint.port) : entry?.LineID ? hostPort(entry.DisplayHost, entry.DisplayPort) : '—'}</Code></Text>
             {line && <Text size="sm" c="dimmed">{t('entryFlow.targetInbound')}: {choices.find(c => c.ib.ID === line.target_inbound_id)?.ib.Tag ?? `#${line.target_inbound_id}`}</Text>}
           </> : <>
             <Group justify="space-between" align="flex-end"><Text size="sm" fw={500}>{t('entryFlow.targetInbound')}</Text><Button size="xs" variant="light" disabled={save.isPending || !!createdInbound || loading} onClick={() => setCreatingInbound(true)}>{t('entryFlow.newInbound')}</Button></Group>
@@ -111,9 +113,9 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, init
             <NumberInput label={t('entries.rate')} min={0} step={0.1} decimalScale={2} disabled={save.isPending} {...form.getInputProps('Rate')} />
           </SimpleGrid>
           <TagsInput label={t('entries.tags')} data={tags} disabled={save.isPending} {...form.getInputProps('Tags')} />
-          <JsonInput label={t('entries.clientExtra')} description={t('entries.clientExtraHint')} autosize minRows={2} maxRows={8} formatOnBlur validationError={t('overrides.invalid')} disabled={save.isPending} {...form.getInputProps('ClientExtra')} />
+          <JsonInput label={t('entries.clientExtra')} description={lineExtraReadOnly ? t('entryFlow.lineExtraAdminOnly') : t('entries.clientExtraHint')} autosize minRows={2} maxRows={8} formatOnBlur validationError={t('overrides.invalid')} disabled={save.isPending || lineExtraReadOnly} {...form.getInputProps('ClientExtra')} />
           <Switch label={t('entries.enabled')} disabled={save.isPending} {...form.getInputProps('Enabled', { type: 'checkbox' })} />
-          <Group justify="flex-end"><Button variant="default" disabled={save.isPending} onClick={close}>{t('common.cancel')}</Button><Button type="submit" loading={save.isPending} disabled={loading || form.values.mode === 'line' && canManageLines && !endpoint}>{t('common.save')}</Button></Group>
+          <Group justify="flex-end"><Button variant="default" disabled={save.isPending} onClick={close}>{t('common.cancel')}</Button><Button type="submit" loading={save.isPending} disabled={loading || form.values.mode === 'line' && canManageLines && !endpoint?.host.trim()}>{t('common.save')}</Button></Group>
         </Stack>
       </form>
     </Modal>

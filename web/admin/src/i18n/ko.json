@@ -2716,7 +2716,10 @@
     "backToNodes": "구독 노드로 돌아가기",
     "deleteHint": "이 구독 노드를 삭제할까요? 인바운드는 유지됩니다. 참조되거나 관리 중인 노드는 먼저 연결 관계를 해제해야 합니다.",
     "reorder": "노드 순서 변경",
-    "pathUnknown": "경로 미확인"
+    "pathUnknown": "경로 미확인",
+    "lineEndpointMissing": "공인 주소가 없는 진입점은 구독에 게시할 수 없습니다. 해당 서버 또는 NAT / 전용선 진입점에 공인 주소를 먼저 설정하세요.",
+    "lineEndpointMissingLabel": "공인 진입점 미설정",
+    "lineExtraAdminOnly": "서버 경로에 연결된 노드의 클라이언트 JSON은 관리자만 변경할 수 있습니다."
   },
   "lines": {
     "tab": "회선",

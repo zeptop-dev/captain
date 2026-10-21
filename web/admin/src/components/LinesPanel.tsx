@@ -42,9 +42,10 @@ export function LinesPanel({ lines, nodes, inbounds, loading, error, observedAt,
       return <Card key={line.id} id={`line-${line.id}`} withBorder style={{ scrollMarginTop: 90, borderColor: focusID === line.id ? 'var(--mantine-color-indigo-5)' : undefined }}>
         <Group justify="space-between" align="flex-start" mb="sm">
           <Stack gap={4}><Title order={4}>{line.name}</Title><Group gap="xs"><Badge variant="light">{t(`lines.backends.${line.backend}`)}</Badge><Badge variant="outline" color="gray">{line.protocol === 'both' ? 'TCP + UDP' : line.protocol.toUpperCase()}</Badge></Group></Stack>
-          <Group gap="xs"><Button size="xs" variant="light" disabled={!line.endpoints?.length || error} onClick={() => onCreateNode(line)}>{t('entryFlow.createNode')}</Button><ActionIcon variant="subtle" aria-label={t('common.edit')} onClick={() => onEdit(line)} disabled={del.isPending}><IconPencil size={17} /></ActionIcon><ActionIcon color="red" variant="subtle" aria-label={t('common.delete')} disabled={del.isPending} onClick={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text size="sm">{t('lines.deleteHint')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => del.mutate(line) })}><IconTrash size={17} /></ActionIcon></Group>
+          <Group gap="xs"><Button size="xs" variant="light" disabled={!line.endpoints?.some(e => e.host.trim()) || error} onClick={() => onCreateNode(line)}>{t('entryFlow.createNode')}</Button><ActionIcon variant="subtle" aria-label={t('common.edit')} onClick={() => onEdit(line)} disabled={del.isPending}><IconPencil size={17} /></ActionIcon><ActionIcon color="red" variant="subtle" aria-label={t('common.delete')} disabled={del.isPending} onClick={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text size="sm">{t('lines.deleteHint')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => del.mutate(line) })}><IconTrash size={17} /></ActionIcon></Group>
         </Group>
         <Stack gap="xs">
+          {!line.endpoints?.some(e => e.host.trim()) && <Alert color="yellow">{t('entryFlow.lineEndpointMissing')}</Alert>}
           {line.groups.map((group, i) => <Box key={i} pl="sm" style={{ borderLeft: '2px solid var(--mantine-color-indigo-light)' }}>
             <Text size="xs" fw={600} mb={4}>{i === 0 ? t('lines.entryGroup') : t('lines.hopGroup', { number: i + 1 })}{i > 0 && ` · ${t(`lines.strategies.${group.strategy}`)}`}</Text>
             <Group gap="sm" align="flex-start">{group.members.map(member => {
@@ -60,7 +61,7 @@ export function LinesPanel({ lines, nodes, inbounds, loading, error, observedAt,
           </Box>)}
           <Text size="sm" mt="xs">{t('lines.target')}: {target ? `${target.node.name} / ${target.ib.Tag}` : `#${line.target_inbound_id}`}</Text>
           <Text size="xs" c="dimmed">{t('lines.probeHint')}</Text>
-          {(line.endpoints?.length ?? 0) > 0 && <Group gap="xs">{line.endpoints.map(endpoint => <Code key={endpoint.member_id}>{hostPort(endpoint.host, endpoint.port)}</Code>)}</Group>}
+          {(line.endpoints?.length ?? 0) > 0 && <Group gap="xs">{line.endpoints.filter(endpoint => endpoint.host.trim()).map(endpoint => <Code key={endpoint.member_id}>{hostPort(endpoint.host, endpoint.port)}</Code>)}</Group>}
         </Stack>
       </Card>
     })}
@@ -83,7 +84,7 @@ export function LineEditor({ line, nodes, details, inbounds, loading, loadError,
   const members = draft.groups.flatMap(g => g.members)
   const duplicated = new Set(members.map(m => m.node_id)).size !== members.length
   const mixedFailover = protocol !== 'tcp' && draft.groups.some((g, i) => i > 0 && g.members.length > 1 && g.strategy !== 'roundrobin')
-  const valid = draft.name.trim() && target && options.data?.protocol && !options.isError && !options.data.error && !mixedFailover && members.every(m => m.node_id && Number.isInteger(m.port) && m.port > 0 && m.port < 65536 && m.weight >= 1 && m.weight <= 100) && !duplicated && !members.some(m => m.node_id === target.ib.NodeID) && lineSupportsGroups(draft.backend, draft.groups)
+  const valid = draft.name.trim() && target?.ib.Enabled && options.data?.protocol && !options.isError && !options.data.error && !mixedFailover && members.every(m => m.node_id && Number.isInteger(m.port) && m.port > 0 && m.port < 65536 && m.weight >= 1 && m.weight <= 100) && !duplicated && !members.some(m => m.node_id === target.ib.NodeID) && lineSupportsGroups(draft.backend, draft.groups)
   const dirty = JSON.stringify(draft) !== JSON.stringify(initial) || !!createdInbound
   const save = useMutation({
     mutationFn: () => {
@@ -142,7 +143,7 @@ export function LineEditor({ line, nodes, details, inbounds, loading, loadError,
             </Card>)}
             <Button variant="light" leftSection={<IconPlus size={16} />} disabled={draft.groups.length >= 8} onClick={() => setDraft(d => ({ ...d, groups: [...d.groups, newGroup()] }))}>{t('lines.addGroup')}</Button>
             <Group justify="space-between" align="flex-end"><Text size="sm" fw={500}>{t('lines.target')}</Text><Button size="xs" variant="light" disabled={!!createdInbound || loading} onClick={() => setCreatingInbound(true)}>{t('entryFlow.newInbound')}</Button></Group>
-            <Select aria-label={t('lines.target')} searchable required value={draft.target_inbound_id ? String(draft.target_inbound_id) : null} data={choices.map(c => ({ value: String(c.ib.ID), label: `${c.node.name} / ${c.ib.Tag} (${c.ib.Protocol}:${c.ib.Port})`, disabled: members.some(m => m.node_id === c.ib.NodeID) }))} onChange={value => setDraft(d => ({ ...d, target_inbound_id: Number(value) }))} />
+            <Select aria-label={t('lines.target')} searchable required value={draft.target_inbound_id ? String(draft.target_inbound_id) : null} data={choices.map(c => ({ value: String(c.ib.ID), label: `${c.node.name} / ${c.ib.Tag} (${c.ib.Protocol}:${c.ib.Port})${c.ib.Enabled ? '' : ` · ${t('common.disabled')}`}`, disabled: !c.ib.Enabled || members.some(m => m.node_id === c.ib.NodeID) }))} onChange={value => setDraft(d => ({ ...d, target_inbound_id: Number(value) }))} />
             {(options.isError || options.data?.error) && <Alert color="red"><Text size="sm">{options.data?.error || t('lines.protocolError')}</Text><Button variant="subtle" size="xs" onClick={() => options.refetch()}>{t('entryFlow.retry')}</Button></Alert>}
             {mixedFailover && <Alert color="yellow">{t('lines.mixedGroupHint')}</Alert>}
             {createdInbound && <Alert color="blue">{t('entryFlow.inboundSaved', { name: createdInbound.ib.Tag })}</Alert>}

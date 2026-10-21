@@ -2716,7 +2716,10 @@
     "backToNodes": "ノード一覧に戻る",
     "deleteHint": "このノードを削除しますか？インバウンドは残ります。参照中または管理対象のノードは先に関連付けを解除してください。",
     "reorder": "ノードを並べ替え",
-    "pathUnknown": "経路未取得"
+    "pathUnknown": "経路未取得",
+    "lineEndpointMissing": "公開アドレスのない入口はサブスクリプションに公開できません。対応するサーバー、または NAT・専用線入口に公開アドレスを設定してください。",
+    "lineEndpointMissingLabel": "公開入口が未設定",
+    "lineExtraAdminOnly": "サーバー側回線に紐付くノードのクライアント JSON は管理者のみ変更できます。"
   },
   "lines": {
     "tab": "回線",

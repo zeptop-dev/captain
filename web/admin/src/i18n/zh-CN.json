@@ -2716,7 +2716,10 @@
     "backToNodes": "返回订阅节点",
     "deleteHint": "删除此订阅节点？对应入站会保留。被引用或托管的节点需先解除连接关系。",
     "reorder": "调整节点顺序",
-    "pathUnknown": "路径未加载"
+    "pathUnknown": "路径未加载",
+    "lineEndpointMissing": "未配置公网地址的入口不能发布到订阅。请先在对应服务器或 NAT / 专线入口中补充公网地址。",
+    "lineEndpointMissingLabel": "未配置公网入口",
+    "lineExtraAdminOnly": "此节点绑定服务端线路，其客户端 JSON 仅管理员可修改。"
   },
   "lines": {
     "tab": "线路",

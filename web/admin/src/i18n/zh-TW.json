@@ -2716,7 +2716,10 @@
     "backToNodes": "返回訂閱節點",
     "deleteHint": "刪除此訂閱節點？對應入站會保留。被引用或受管節點須先解除連線關係。",
     "reorder": "調整節點順序",
-    "pathUnknown": "路徑未載入"
+    "pathUnknown": "路徑未載入",
+    "lineEndpointMissing": "未設定公網位址的入口無法發布至訂閱。請先在對應伺服器或 NAT / 專線入口中補上公網位址。",
+    "lineEndpointMissingLabel": "未設定公網入口",
+    "lineExtraAdminOnly": "此節點綁定伺服器端線路，其用戶端 JSON 僅管理員可修改。"
   },
   "lines": {
     "tab": "線路",
