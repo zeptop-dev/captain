@@ -92,7 +92,9 @@ func (h *handlers) discover(ctx context.Context, issuer string) (*oidc.Provider,
 	}
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	p, err := oidc.NewProvider(ctx, strings.TrimRight(issuer, "/"))
+	// Issuer identity is exact, including a trailing slash (e.g. Auth0).
+	// The OIDC library separately handles the discovery URL separator.
+	p, err := oidc.NewProvider(ctx, issuer)
 	if err != nil {
 		return nil, fmt.Errorf("provider discovery failed: %w", err)
 	}
