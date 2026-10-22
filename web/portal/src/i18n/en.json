@@ -233,5 +233,17 @@
     "cancel": "Cancel",
     "copied": "Copied",
     "copy": "Copy"
+  },
+  "loginConsent": {
+    "title": "Sign in with Captain",
+    "login": "Sign in with a Captain customer account to continue. Staff accounts cannot authorize applications.",
+    "profile": "Share your stable account identifier and generated display name.",
+    "email": "Also share your email address.",
+    "callback": "Return to application",
+    "boundary": "This does not share your password, balance, subscriptions or administrator access. The application manages its own session.",
+    "allow": "Allow and continue",
+    "deny": "Cancel",
+    "invalid": "This login request is invalid or the application is unavailable. Start again from the application.",
+    "expired": "This request expired or could not be completed. Start again from the application."
   }
 }

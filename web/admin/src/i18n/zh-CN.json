@@ -2794,5 +2794,24 @@
     "unknown": "未知",
     "unit": "单位",
     "public": "在公开探针显示带宽"
+  },
+  "loginClients": {
+    "title": "Captain 登录应用",
+    "hint": "允许已登记的应用（如 New API）使用 Captain 普通用户登录。不共享管理员身份、余额或套餐。",
+    "setup": "手动配置 New API 的自定义 OAuth，不使用 OIDC 自动发现。",
+    "authorization": "授权地址",
+    "token": "令牌地址",
+    "userinfo": "用户信息地址",
+    "mapping": "Scopes：profile email。字段：sub / preferred_username / name / email。认证方式使用 client_secret_post 或 client_secret_basic。不签发 ID Token 或刷新令牌。",
+    "add": "添加应用",
+    "enabled": "启用",
+    "disabled": "停用",
+    "rotate": "轮换密钥",
+    "name": "应用名称",
+    "callback": "回调地址",
+    "callbackHint": "必须完整匹配 HTTPS 地址，例如 New API 站点地址加 /oauth/captain。仅回环开发地址允许 HTTP。",
+    "invalidate": "保存修改、轮换密钥或删除应用会撤销其待处理登录码和 Captain 访问令牌，不会退出 New API 已建立的会话。",
+    "secretHint": "请立即复制密钥，仅显示这一次。密钥只能保存在应用服务端。",
+    "dismiss": "我已保存密钥"
   }
 }

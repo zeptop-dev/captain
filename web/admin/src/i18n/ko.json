@@ -2794,5 +2794,24 @@
     "unknown": "알 수 없음",
     "unit": "단위",
     "public": "공개 상태 페이지에 대역폭 표시"
+  },
+  "loginClients": {
+    "title": "Captain 로그인 앱",
+    "hint": "등록한 앱(New API 등)에서 Captain 일반 사용자로 로그인합니다. 관리자 권한, 잔액, 요금제는 공유하지 않습니다.",
+    "setup": "New API 사용자 정의 OAuth를 수동으로 설정하세요. OIDC 자동 검색은 사용하지 않습니다.",
+    "authorization": "인증 주소",
+    "token": "토큰 주소",
+    "userinfo": "사용자 정보 주소",
+    "mapping": "Scopes: profile email. 필드: sub / preferred_username / name / email. client_secret_post 또는 client_secret_basic 사용. ID 토큰과 갱신 토큰은 발급하지 않습니다.",
+    "add": "앱 추가",
+    "enabled": "활성",
+    "disabled": "비활성",
+    "rotate": "비밀 키 교체",
+    "name": "앱 이름",
+    "callback": "콜백 URL",
+    "callbackHint": "정확한 HTTPS URL이어야 합니다. 예: New API 사이트 주소 + /oauth/captain. HTTP는 루프백 개발 주소만 허용됩니다.",
+    "invalidate": "변경 저장, 키 교체, 앱 삭제 시 대기 중인 코드와 Captain 토큰이 취소됩니다. New API의 기존 세션은 유지됩니다.",
+    "secretHint": "지금 복사하세요. 한 번만 표시됩니다. 비밀 키는 앱 서버에만 보관하세요.",
+    "dismiss": "비밀 키를 저장했습니다"
   }
 }

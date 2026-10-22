@@ -2794,5 +2794,24 @@
     "unknown": "不明",
     "unit": "単位",
     "public": "公開ステータスページに帯域幅を表示"
+  },
+  "loginClients": {
+    "title": "Captain ログインアプリ",
+    "hint": "登録済みアプリ（New API など）から Captain の一般ユーザーでログインできます。管理者権限、残高、プランは共有しません。",
+    "setup": "New API のカスタム OAuth を手動設定します。OIDC 自動検出は使用しません。",
+    "authorization": "認可エンドポイント",
+    "token": "トークンエンドポイント",
+    "userinfo": "ユーザー情報エンドポイント",
+    "mapping": "Scopes: profile email。フィールド: sub / preferred_username / name / email。client_secret_post または client_secret_basic を使用。ID トークンと更新トークンは発行しません。",
+    "add": "アプリを追加",
+    "enabled": "有効",
+    "disabled": "無効",
+    "rotate": "シークレットを更新",
+    "name": "アプリ名",
+    "callback": "コールバック URL",
+    "callbackHint": "HTTPS URL と完全一致する必要があります。例: New API の URL + /oauth/captain。HTTP はループバック開発環境のみ。",
+    "invalidate": "変更の保存、シークレット更新、削除で保留中のコードと Captain トークンが失効します。New API の既存セッションは終了しません。",
+    "secretHint": "今すぐコピーしてください。一度だけ表示されます。シークレットはアプリのサーバーに保管してください。",
+    "dismiss": "シークレットを保存しました"
   }
 }

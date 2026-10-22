@@ -10,7 +10,7 @@ import { ThemedProvider } from './lib/theme'
 import { toast } from './lib/notify'
 import App from './App'
 
-const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 5_000 } }, queryCache: new QueryCache({ onError: (e) => toast.err(e) }) })
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 5_000 } }, queryCache: new QueryCache({ onError: (e, query) => { if (!query.meta?.handlesError) toast.err(e) } }) })
 
 const ref = new URLSearchParams(window.location.search).get('ref')
 if (ref) fetch('/api/portal/ref', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ Code: ref }), credentials: 'same-origin' }).catch(() => {})

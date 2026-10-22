@@ -21,6 +21,7 @@ import (
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
 	"github.com/zeptop-dev/captain/internal/backup"
 	"github.com/zeptop-dev/captain/internal/certs"
+	"github.com/zeptop-dev/captain/internal/http/loginprovider"
 	"github.com/zeptop-dev/captain/internal/http/mcp"
 	"github.com/zeptop-dev/captain/internal/http/oauth"
 	"github.com/zeptop-dev/captain/internal/http/probe"
@@ -209,6 +210,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 		}
 		return ""
 	}})
+	loginprovider.Register(s.mux, st, base)
 	oauth.Register(s.mux, oauth.Deps{Store: st, Sessions: sessions, Log: log, Hooks: s.hooks, BaseURL: base, Secure: secure, Registration: cfg.Portal.Registration,
 		Resolve: func(r *http.Request) *domain.User {
 			c, err := r.Cookie("captain_session")

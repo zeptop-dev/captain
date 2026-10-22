@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { Center, Loader } from '@mantine/core'
 import { AuthProvider, useAuth } from './lib/auth'
 import { Layout } from './components/Layout'
+import AuthorizePage from './pages/AuthorizePage'
 import AuthPage from './pages/AuthPage'
 import ForgotPage from './pages/ForgotPage'
 import HomePage from './pages/HomePage'
@@ -23,6 +24,7 @@ export default function App() {
   return (
     <AuthProvider>
       <Routes>
+        <Route path="/authorize" element={<AuthorizePage />} />
         <Route path="/login" element={<AuthPage mode="login" />} />
         <Route path="/register" element={<AuthPage mode="register" />} />
         <Route path="/forgot" element={<ForgotPage />} />

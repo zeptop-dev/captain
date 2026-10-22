@@ -317,3 +317,5 @@ Captain 节点详情提供实际状态、单项修改及操作记录。原生 ro
 Captain v1.28 / bosun v0.75 增加 WG 两端依赖检查与管理员确认后的系统包安装，加快首次 IP 与 DNS 同步。明确确认的仅内核私网授权可保留 WARP、代理和负载均衡分流；双层防护仍只支持直连出站。
 
 节点探针可记录服务器标称带宽，支持 Mbps／Gbps、双向一致或分别填写 RX／TX，并可选择在两套公开探针主题中展示。仅用于资料展示，不修改限速，也不代表测速结果。详见[标称带宽](docs/MONITORING.md#advertised-server-bandwidth)。
+
+Captain 可通过已登记的 OAuth 应用向 New API 提供普通用户登录。使用 New API 自定义 OAuth，Scopes 配置为 `profile email`；详见[接入步骤与边界](docs/CAPTAIN_LOGIN.md)。

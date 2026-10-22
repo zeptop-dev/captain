@@ -287,6 +287,12 @@ password login can be switched off entirely.
 Casdoor example: issuer `https://door.example.com`, default scopes
 (`openid profile email`), `trust_email: true` since you run it yourself.
 
+## Captain as a login provider
+
+Settings → Integrations → Captain login applications registers trusted applications
+such as New API. This is separate from External login and grants customer identity
+only. See [New API setup and security boundaries](CAPTAIN_LOGIN.md).
+
 ## Backups
 
 Captain snapshots its database once a day with `VACUUM INTO`, so the copy is

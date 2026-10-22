@@ -54,6 +54,7 @@ func nextCustomerID(ctx context.Context, tx *sql.Tx) (int64, error) {
 type accountRef struct{ table, column string }
 
 var customerRefs = []accountRef{
+	{"login_subjects", "user_id"},
 	{"user_subscription_profiles", "user_id"},
 	{"sessions", "user_id"}, {"subscriptions", "user_id"}, {"orders", "user_id"},
 	{"identities", "user_id"}, {"notifications", "user_id"}, {"users", "invited_by"},

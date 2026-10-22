@@ -2794,5 +2794,24 @@
     "unknown": "Unknown",
     "unit": "Unit",
     "public": "Show bandwidth on the public status page"
+  },
+  "loginClients": {
+    "title": "Captain login applications",
+    "hint": "Allow registered applications such as New API to use Captain customer accounts. Staff accounts, balances and subscriptions are not shared.",
+    "setup": "Configure New API Custom OAuth manually. Do not use OIDC discovery.",
+    "authorization": "Authorization endpoint",
+    "token": "Token endpoint",
+    "userinfo": "User information endpoint",
+    "mapping": "Scopes: profile email. Fields: sub / preferred_username / name / email. Use client_secret_post or client_secret_basic. No ID token or refresh token.",
+    "add": "Add application",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "rotate": "Rotate secret",
+    "name": "Application name",
+    "callback": "Callback URL",
+    "callbackHint": "Exact HTTPS callback, e.g. the New API site URL followed by /oauth/captain. HTTP is only allowed for loopback development.",
+    "invalidate": "Saving changes, rotating secrets or deleting an application invalidates its pending login codes and Captain access tokens. Existing sessions inside New API are unaffected.",
+    "secretHint": "Copy this secret now. It is only shown once and must be kept on the application server.",
+    "dismiss": "I have saved the secret"
   }
 }

@@ -6,7 +6,8 @@ Merge commits and formatting-only commits are left out. Binaries and
 `SHA256SUMS` for every tag are on the GitHub Release; the in-app updater
 installs them (Settings → Backups and maintenance → Version and updates).
 
-- **Unreleased** — Preserve the exact OIDC issuer, including a trailing slash, during discovery. Fix Auth0-style issuers failing before login while retaining strict issuer validation and compatibility with issuers without a trailing slash.
+- **Unreleased** — Add registered confidential-client OAuth login for New API: application management, explicit customer consent, short-lived single-use codes and opaque user-info tokens, optional S256 PKCE and stable external subjects (migration 81). Keep staff, billing and API privileges separate. Configure New API Custom OAuth manually with `profile email`; no OIDC discovery, ID tokens or refresh tokens.
+  - Preserve the exact OIDC issuer, including a trailing slash, during discovery. Fix Auth0-style issuers failing before login while retaining strict issuer validation and compatibility with issuers without a trailing slash.
 
 - **v1.29.2** (2026-10-22) — Restore server-scoped NAT/line mappings, outbounds/routing and core override editors to server details, preserving role and node-mode restrictions and unsaved drafts. Keep forwarding groups and single port forwards together under forwarding lines; retain WireGuard and VLESS Reverse line management and compatibility with existing page links. Let routing fields wrap on narrow screens instead of overlapping or shrinking to unusable widths. No API, storage or agent changes.
 

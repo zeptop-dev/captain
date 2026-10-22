@@ -2794,5 +2794,24 @@
     "unknown": "未知",
     "unit": "單位",
     "public": "在公開狀態頁顯示頻寬"
+  },
+  "loginClients": {
+    "title": "Captain 登入應用",
+    "hint": "允許已登記的應用（如 New API）使用 Captain 一般使用者登入。不共用管理員身分、餘額或方案。",
+    "setup": "手動設定 New API 的自訂 OAuth，不使用 OIDC 自動探索。",
+    "authorization": "授權位址",
+    "token": "權杖位址",
+    "userinfo": "使用者資訊位址",
+    "mapping": "Scopes：profile email。欄位：sub / preferred_username / name / email。驗證方式使用 client_secret_post 或 client_secret_basic。不簽發 ID Token 或更新權杖。",
+    "add": "新增應用",
+    "enabled": "啟用",
+    "disabled": "停用",
+    "rotate": "輪替密鑰",
+    "name": "應用名稱",
+    "callback": "回呼位址",
+    "callbackHint": "必須完整符合 HTTPS 位址，例如 New API 網站位址加 /oauth/captain。僅回環開發位址允許 HTTP。",
+    "invalidate": "儲存修改、輪替密鑰或刪除應用會撤銷其待處理登入碼與 Captain 存取權杖，不會登出 New API 已建立的工作階段。",
+    "secretHint": "請立即複製密鑰，僅顯示一次。密鑰只能保存在應用伺服器端。",
+    "dismiss": "我已儲存密鑰"
   }
 }

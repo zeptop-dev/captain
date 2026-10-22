@@ -329,3 +329,5 @@ Captain node details expose observed host state, individual changes and operatio
 Node probe settings support structured amounts/currencies/payment cycles, calendar expiry dates, and monthly traffic resets linked to the expiry day or following day. Legacy price text and manual reset settings are preserved; see [Monitoring](docs/MONITORING.md#node-cost-and-expiry-linked-traffic-reset).
 
 Node probe settings also record advertised Mbps/Gbps capacity, optionally separated into server RX/TX, with opt-in display in both status-page themes. This is metadata only, not shaping or a speed test; see [Advertised bandwidth](docs/MONITORING.md#advertised-server-bandwidth).
+
+Captain can provide customer login to New API through registered confidential OAuth applications. Configure New API Custom OAuth with `profile email`; see [setup and limits](docs/CAPTAIN_LOGIN.md).

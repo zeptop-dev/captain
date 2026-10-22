@@ -14,6 +14,7 @@ const editors: Record<string, ComponentType> = {
   notice: lazy(() => import('../components/settings/GeneralCards').then(m => ({ default: m.NoticeCard }))),
   invite: lazy(() => import('../components/settings/GeneralCards').then(m => ({ default: m.InviteCard }))),
   surplus: lazy(() => import('../components/settings/GeneralCards').then(m => ({ default: m.SurplusCard }))),
+  'login-clients': lazy(() => import('../components/settings/LoginClientsCard')),
   oidc: lazy(() => import('../components/settings/GeneralCards').then(m => ({ default: m.OIDCCard }))),
   registration: lazy(() => import('../components/RegistrationCard').then(m => ({ default: m.RegistrationCard }))),
   trial: lazy(() => import('../components/OpsCards').then(m => ({ default: m.TrialCard }))),

@@ -20,6 +20,7 @@ export const settingsCatalog: SettingsEntry[] = [
   { id: 'invite', area: 'business', titleKey: 'settings.invite', hintKey: 'settings.inviteHint', keywords: 'invite commission rebate 返佣 邀请' },
   { id: 'surplus', area: 'business', titleKey: 'settings.surplus', hintKey: 'settings.surplusHint', keywords: 'plan purchase credit 折抵 套餐' },
   { id: 'access', area: 'security', titleKey: 'security.title', hintKey: 'security.hint', keywords: 'CIDR whitelist access 白名单' },
+  { id: 'login-clients', area: 'integrations', titleKey: 'loginClients.title', hintKey: 'loginClients.hint', keywords: 'New API OAuth Captain login 应用 登录' },
   { id: 'oidc', area: 'security', titleKey: 'settings.oidc', hintKey: 'settings.oidcHint', keywords: 'OIDC SSO password 登录 身份' },
   { id: 'admin-log', area: 'security', titleKey: 'adminlog.title', hintKey: 'adminlog.hint', keywords: 'staff administrator audit 操作日志' },
   { id: 'mail', area: 'integrations', titleKey: 'mail.title', hintKey: 'mail.hint', keywords: 'SMTP Resend email 邮件' },

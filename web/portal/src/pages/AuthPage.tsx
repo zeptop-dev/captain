@@ -7,11 +7,13 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import { loginReturn } from '../lib/login-return'
 import { Captcha } from '../components/Captcha'
 
 export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const { t } = useTranslation()
   const nav = useNavigate()
+  const next = loginReturn(window.location.search)
   const { refresh } = useAuth()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(() => new URLSearchParams(window.location.search).get('error') ?? '')
@@ -32,7 +34,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const form = useForm({ initialValues: { Email: '', Password: '', Code: '', Invite: new URLSearchParams(window.location.search).get('ref') ?? '', Captcha: '' } })
   const submit = form.onSubmit(async (v) => {
     setBusy(true); setError('')
-    try { await api.post(`/api/portal/${mode}`, { ...v, Captcha: captcha }); await refresh(); nav('/') } catch (e) {
+    try { await api.post(`/api/portal/${mode}`, { ...v, Captcha: captcha }); await refresh(); nav(next.slice('/portal'.length) || '/') } catch (e) {
       setError(e instanceof ApiError && e.status === 403 ? t('auth.closed') : e instanceof ApiError && e.status !== 401 ? e.message : t('auth.failed'))
     } finally { setBusy(false) }
   })
@@ -45,7 +47,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
           {registering && !policy.isError && policy.data && !registrationOpen && <Alert>{t('auth.closed')}</Alert>}
           {providers.length > 0 && (!registering || registrationOpen) && (
             <Stack gap="xs">
-              {providers.map((p) => <Button key={p.id} component="a" href={`/api/oauth/${p.id}/start?next=/portal/`} variant="default" size="md">{t('auth.with', { name: p.name })}</Button>)}
+              {providers.map((p) => <Button key={p.id} component="a" href={`/api/oauth/${p.id}/start?next=${encodeURIComponent(next)}`} variant="default" size="md">{t('auth.with', { name: p.name })}</Button>)}
               {passwordLogin && <Divider label={t('auth.or')} labelPosition="center" />}
             </Stack>
           )}
@@ -66,7 +68,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
           {error && <Text c="red" size="sm">{error}</Text>}
           <Button type="submit" size="md" loading={busy}>{t(`auth.${mode}`)}</Button>
           </>)}
-          {(registering || registrationOpen) && <Text size="sm" ta="center"><Anchor component={Link} to={registering ? '/login' : '/register'}>{t(registering ? 'auth.toLogin' : 'auth.toRegister')}</Anchor></Text>}
+          {(registering || registrationOpen) && <Text size="sm" ta="center"><Anchor component={Link} to={`${registering ? '/login' : '/register'}?next=${encodeURIComponent(next)}`}>{t(registering ? 'auth.toLogin' : 'auth.toRegister')}</Anchor></Text>}
           <Group justify="center"><Anchor href="/" size="xs" c="dimmed">{t('auth.home')}</Anchor></Group>
         </Stack></form>
       </Card>
