@@ -266,10 +266,16 @@ if you want to reword them or add a language.
 ## External login (OIDC)
 
 Settings → Staff and site security → External login takes any OpenID Connect provider (Casdoor,
-Authentik, Keycloak, Zitadel, Google …): id, display name, issuer URL,
+Authentik, Auth0, Keycloak, Zitadel, Google …): id, display name, issuer URL,
 client id and secret. Register
 `https://<your domain>/api/oauth/<id>/callback` as the redirect URI at the
 provider.
+
+Use the exact `issuer` value from the provider’s OpenID configuration document,
+including any trailing slash. For example, an Auth0 issuer may be
+`https://auth.example.com/`. Captain preserves this value and requires exact
+discovery and ID-token issuer matches; do not remove or add a slash to normalize
+it. The issuer is not the `/.well-known/openid-configuration` URL itself.
 
 The portal then shows "Continue with …". Accounts are matched by the
 provider's subject, linked to an existing account with the same verified

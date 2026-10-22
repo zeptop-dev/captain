@@ -37,11 +37,15 @@ type fakeIdP struct {
 }
 
 func newFakeIdP(t *testing.T) *fakeIdP {
+	return newFakeIdPWithIssuerSuffix(t, "")
+}
+
+func newFakeIdPWithIssuerSuffix(t *testing.T, suffix string) *fakeIdP {
 	key, _ := rsa.GenerateKey(rand.Reader, 2048)
 	f := &fakeIdP{key: key, email: "alice@idp.test", sub: "user-1"}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(map[string]any{"issuer": f.srv.URL, "authorization_endpoint": f.srv.URL + "/auth", "token_endpoint": f.srv.URL + "/token", "jwks_uri": f.srv.URL + "/jwks", "userinfo_endpoint": f.srv.URL + "/userinfo", "id_token_signing_alg_values_supported": []string{"RS256"}})
+		json.NewEncoder(w).Encode(map[string]any{"issuer": f.srv.URL + suffix, "authorization_endpoint": f.srv.URL + "/auth", "token_endpoint": f.srv.URL + "/token", "jwks_uri": f.srv.URL + "/jwks", "userinfo_endpoint": f.srv.URL + "/userinfo", "id_token_signing_alg_values_supported": []string{"RS256"}})
 	})
 	mux.HandleFunc("/jwks", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{{Key: &key.PublicKey, KeyID: "k1", Algorithm: "RS256", Use: "sig"}}})
@@ -57,7 +61,7 @@ func newFakeIdP(t *testing.T) *fakeIdP {
 	})
 	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
 		signer, _ := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: key}, (&jose.SignerOptions{}).WithHeader("kid", "k1"))
-		cl := map[string]any{"iss": f.srv.URL, "aud": "captain-client", "sub": f.sub, "email": f.email, "email_verified": true, "nonce": f.nonce, "exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix()}
+		cl := map[string]any{"iss": f.srv.URL + suffix, "aud": "captain-client", "sub": f.sub, "email": f.email, "email_verified": true, "nonce": f.nonce, "exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix()}
 		raw, _ := jwt.Signed(signer).Claims(cl).Serialize()
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{"access_token": "at", "token_type": "Bearer", "id_token": raw, "expires_in": 3600})
@@ -68,7 +72,12 @@ func newFakeIdP(t *testing.T) *fakeIdP {
 }
 
 func TestOIDCLogin(t *testing.T) {
-	idp := newFakeIdP(t)
+	t.Run("without_trailing_slash", func(t *testing.T) { testOIDCLogin(t, "") })
+	t.Run("with_trailing_slash", func(t *testing.T) { testOIDCLogin(t, "/") })
+}
+
+func testOIDCLogin(t *testing.T, suffix string) {
+	idp := newFakeIdPWithIssuerSuffix(t, suffix)
 	cfg := config.Default()
 	cfg.Portal.Registration = true
 	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
@@ -83,7 +92,7 @@ func TestOIDCLogin(t *testing.T) {
 	}))
 	defer srv.Close()
 	cfg.BaseURL = srv.URL
-	_ = st.SetSetting(context.Background(), store.SettingOIDC, store.OIDCSettings{Providers: []store.OIDCProvider{{ID: "idp", Name: "Fake", Issuer: idp.srv.URL, ClientID: "captain-client", ClientSecret: "s", TrustEmail: true}}})
+	_ = st.SetSetting(context.Background(), store.SettingOIDC, store.OIDCSettings{Providers: []store.OIDCProvider{{ID: "idp", Name: "Fake", Issuer: idp.srv.URL + suffix, ClientID: "captain-client", ClientSecret: "s", TrustEmail: true}}})
 
 	jar, _ := cookiejar.New(nil)
 	c := &http.Client{Jar: jar}
