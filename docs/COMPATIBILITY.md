@@ -17,6 +17,16 @@ A configured monitor node cannot be paired to a mode-unaware agent. After using
 mode switching, missing support or a pending acknowledgement blocks new proxy
 configuration until the matching full-mode report arrives.
 
+## CPU topology on status cards (unreleased)
+
+CPU topology on status cards adds optional `HostInfo.cpu_physical_cores`,
+`cpu_sockets` and `virtualization_role` fields. `cpu_cores` retains its logical
+CPU meaning. No migration or existing API change is required; old reports
+fall back to a logical CPU count and do not invent physical topology. Full
+topology requires the corresponding bosun collector update (not yet released);
+release that shared module and update Captain's dependency before publishing
+this feature. Development uses an isolated two-repository Go workspace.
+
 ## Versioning
 
 Captain follows semantic versioning from 1.0.0 on:

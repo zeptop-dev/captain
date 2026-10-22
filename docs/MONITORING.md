@@ -729,9 +729,28 @@ Glass node cards place bandwidth below the remaining days in the lower-right
 information box. Both rows keep their height when a value is absent, so cards
 stay aligned. Asymmetric card values use compact receive/send arrows; hover
 for the full RX/TX capacities. The repeated load-average fallback is removed;
-load remains under CPU on regular cards and in node details.
+load remains in node details.
 
 The optional `info.bandwidth` object stores `inbound_mbps`, `outbound_mbps`, and
 `public`. Older API clients omitting it (or sending null) preserve the record;
 an explicit empty object or two zero rates clears it. It uses the existing node
 metadata storage and requires neither a migration nor a bosun upgrade.
+
+### CPU specifications on status cards
+
+Home cards show CPU usage above the progress bar and CPU specifications below:
+`8C / 16T` for a single-package physical machine, `2S · 32C / 64T` for two
+populated packages (whole-machine core/thread totals), and `4 vCPU` for a
+detected virtual machine or container. The compact Glass mini cards retain
+their existing usage-only layout. Detail-page load values and charts are unchanged.
+
+Physical topology requires a new bosun report with complete, consistent Linux
+CPU topology and a known non-guest virtualization role. No physical core count
+is inferred from a CPU model or assumed SMT ratio. Older agents, unknown
+virtualization roles and incomplete topology show the known logical CPU count;
+missing counts show `—`. The existing `cpu_cores` field still counts logical
+CPUs visible to the OS, not a container's cgroup CPU quota. On Linux, physical
+topology also needs a successful `systemd-detect-virt` non-guest check; no tool
+is installed automatically. Failed optional detection is retried every five
+minutes. Hardware specifications follow the **system** public section; usage
+follows **cpu**. Turning off system hides the specification without hiding usage.

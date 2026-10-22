@@ -157,7 +157,7 @@ func TestProbeCPUTopologySurvivesIngestAndRestart(t *testing.T) {
 				// all host facts must now come back through the persisted JSON columns.
 				r.srv.Close()
 				cfg := config.Default()
-				cfg.BaseURL = "http://test"
+				cfg.BaseURL = "http://example.com"
 				r.st = store.New(r.st.DB())
 				r.srv = httptest.NewServer(New(cfg, r.st, slog.Default()).Handler())
 				t.Cleanup(r.srv.Close)

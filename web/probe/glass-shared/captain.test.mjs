@@ -1,11 +1,53 @@
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { snapshot, clientFor, statusFor, captainCall, clearHistoryCache, pingMetrics, periodTraffic } from './captain.ts'
+import { snapshot, clientFor, statusFor, captainCall, clearHistoryCache, pingMetrics, periodTraffic, captainCPUSpec } from './captain.ts'
+import { cpuSpec } from '../src/lib/cpu-spec.ts'
 import { summarizePings } from './ping-summary.ts'
 import { selectPings, selectedHistory } from './ping-selection.ts'
 const now = Math.floor(Date.now() / 60000) * 60
 const node = {id:1,name:'Example',online:true,last_seen:new Date(now*1000).toISOString(),info:{},host:{valid:{cpu:true,memory:true,disk:true,network:true,load:true,swap:true,connections:true,processes:true},mem_total:1024},traffic:{used:100,limit:1000,mode:'sum'},recent:[]}
 beforeEach(() => { snapshot.value = { nodes:[structuredClone(node)], now }; clearHistoryCache() })
+test('CPU specifications distinguish whole-machine topology from virtual CPUs', () => {
+ const bare={cpu_cores:16,cpu_physical_cores:8,cpu_sockets:1,virtualization_role:'none'}
+ assert.equal(cpuSpec(bare),'8C / 16T')
+ assert.equal(cpuSpec({...bare,cpu_cores:64,cpu_physical_cores:32,cpu_sockets:2}),'2S · 32C / 64T')
+ assert.equal(cpuSpec({...bare,virtualization_role:'host',virt:'kvm'}),'8C / 16T')
+ assert.equal(cpuSpec({...bare,cpu_cores:4,virtualization_role:'guest'}),'4 vCPU')
+ assert.equal(cpuSpec({...bare,cpu_cores:4,cpu_physical_cores:-1,cpu_sockets:Infinity,virtualization_role:'guest'}),'4 vCPU')
+ // No SMT, or asymmetric/hybrid thread counts: never assume two threads/core.
+ assert.equal(cpuSpec({...bare,cpu_cores:8}),'8C / 8T')
+ assert.equal(cpuSpec({...bare,cpu_cores:12}),'8C / 12T')
+ // Legacy virtualization names cannot distinguish a KVM host from a guest.
+ assert.equal(cpuSpec({cpu_cores:4,virt:'kvm'},'zh-CN'),'4 逻辑 CPU')
+ for (const change of [{cpu_sockets:undefined},{cpu_sockets:9},{cpu_physical_cores:17},{cpu_physical_cores:1.5},{virtualization_role:''},{virtualization_role:'unknown'}]) {
+  assert.equal(cpuSpec({...bare,...change}), '16 logical CPU')
+ }
+ for (const cpu_cores of [undefined,0,-1,NaN,Infinity,1.5,'4',Number.MAX_SAFE_INTEGER+1]) assert.equal(cpuSpec({...bare,cpu_cores}), '—')
+ assert.equal(cpuSpec(), '—')
+ assert.equal(cpuSpec(null), '—')
+ for (const locale of ['en','zh-CN','zh-TW','ja','ko','ru']) assert(!cpuSpec({cpu_cores:4},locale).includes('undefined'))
+})
+test('CPU card specs refresh with snapshots and follow system visibility without changing detail metrics', () => {
+ const n=snapshot.value.nodes[0]
+ n.host={...n.host,info:{cpu_cores:4,virtualization_role:'guest'},cpu_percent:12.4,load1:.11,load5:.22,load15:.33}
+ assert.equal(captainCPUSpec('1'),'4 vCPU')
+ snapshot.value={...snapshot.value,nodes:[{...n,host:{...n.host,info:{cpu_cores:2,virtualization_role:'guest'}}}]}
+ assert.equal(captainCPUSpec('1'),'2 vCPU')
+ snapshot.value.nodes=[n]
+ n.host.info={cpu_cores:64,cpu_physical_cores:32,cpu_sockets:2,virtualization_role:'none'}
+ assert.equal(captainCPUSpec('1'),'2S · 32C / 64T')
+ assert.equal(clientFor(n,0).cpu_physical_cores,undefined)
+ const status=statusFor(n)
+ assert.deepEqual([status.cpu,status.load,status.load5,status.load15],[12.4,.11,.22,.33])
+ snapshot.value.public_sections=['cpu']
+ assert.equal(captainCPUSpec('1'),'')
+ assert.equal(statusFor(n).cpu,12.4)
+ snapshot.value.public_sections=['system']
+ assert.equal(captainCPUSpec('1'),'2S · 32C / 64T')
+ assert(Number.isNaN(statusFor(n).cpu))
+ n.host.info=undefined
+ assert.equal(captainCPUSpec('1'),'—')
+})
 test('omitted valid zeros differ from invalid and absent samples', () => {
  assert.equal(statusFor(node).cpu,0)
  assert(Number.isNaN(statusFor({...node,host:null}).cpu))

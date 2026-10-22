@@ -1,7 +1,7 @@
 import type { HTMLAttributes, KeyboardEvent } from 'react'
 import { Icon } from '@iconify/react'
 import { language, t } from '@shared/i18n'
-import { shows, snapshot, captainPrice, captainBandwidth } from '@shared/captain'
+import { shows, snapshot, captainPrice, captainBandwidth, captainCPUSpec } from '@shared/captain'
 import { selectPings } from '@shared/ping-selection'
 import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, formatNumber, getStatus, getUptimeDays } from '@shared/utils/helper'
 import { getDiskPercentage, getMemoryPercentage, getTrafficUsed, getTrafficUsedPercentage, hasTrafficLimit } from '@shared/utils/nodeMetricsHelper'
@@ -122,6 +122,7 @@ export default function NodeCard({ node, reduceMotion = false, pingEnabled = tru
 
   const bandwidthText = captainBandwidth(node.uuid, app.lang)
   const priceText = showPrice ? captainPrice(node.uuid, app.lang) : ''
+  const cpuSpecText = captainCPUSpec(node.uuid, app.lang)
 
   // Keep the two metadata rows stable even when one of their values is absent.
   const asymmetricBandwidth = bandwidthText.startsWith('RX ')
@@ -324,8 +325,8 @@ export default function NodeCard({ node, reduceMotion = false, pingEnabled = tru
                       <span className="tabular-nums font-medium">{`${formatNumber(node.cpu ?? Number.NaN, 1)}%`}</span>
                     </div>
                     <ProgressThin percentage={node.cpu ?? 0} status={cpuStatus} height={4} />
-                    <div className="text-[11px] text-muted-foreground truncate">
-                      {`${formatNumber(node.load ?? Number.NaN, 2)}, ${formatNumber(node.load5 ?? Number.NaN, 2)}, ${formatNumber(node.load15 ?? Number.NaN, 2)}`}
+                    <div className="text-[11px] text-muted-foreground truncate min-h-[1lh]" data-node-cpu-spec title={cpuSpecText || undefined}>
+                      {cpuSpecText}
                     </div>
                   </div>
                 )}
