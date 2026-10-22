@@ -2813,5 +2813,10 @@
     "invalidate": "儲存修改、輪替密鑰或刪除應用會撤銷其待處理登入碼與 Captain 存取權杖，不會登出 New API 已建立的工作階段。",
     "secretHint": "請立即複製密鑰，僅顯示一次。密鑰只能保存在應用伺服器端。",
     "dismiss": "我已儲存密鑰"
+  },
+  "forwardConnectionCheck": {
+    "run": "從 {{source}} 檢查 TCP",
+    "hint": "從前置伺服器檢查此 TCP 位址。新監聽需先儲存並套用。通過不代表完整代理鏈路或轉發防火牆可用；UDP 請用用戶端實測。",
+    "udpHint": "UDP 連通性需用用戶端實測，TCP 檢查不能驗證這個監聽。"
   }
 }

@@ -2813,5 +2813,10 @@
     "invalidate": "保存修改、轮换密钥或删除应用会撤销其待处理登录码和 Captain 访问令牌，不会退出 New API 已建立的会话。",
     "secretHint": "请立即复制密钥，仅显示这一次。密钥只能保存在应用服务端。",
     "dismiss": "我已保存密钥"
+  },
+  "forwardConnectionCheck": {
+    "run": "从 {{source}} 检查 TCP",
+    "hint": "从前置服务器检查此 TCP 地址。新监听需先保存并套用。通过不代表完整代理链路或转发防火墙可用；UDP 请用客户端实测。",
+    "udpHint": "UDP 连通性需用客户端实测，TCP 检查不能验证这个监听。"
   }
 }
