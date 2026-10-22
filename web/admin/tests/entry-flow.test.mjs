@@ -39,3 +39,10 @@ test('missing, future and stale observations never appear healthy', () => {
   for (const at of [undefined, 'invalid', '2026-10-21T12:01:00Z', '2026-10-21T11:56:59Z']) assert.equal(freshLineStatus(at, now), false)
   assert.equal(freshLineStatus('2026-10-21T11:59:00Z', now), true)
 })
+
+
+test('a registered internal address does not change a subscription endpoint', () => {
+ const target = choice(443)
+ target.node.internal_addr = '10.10.0.2'
+ assert.deepEqual(entryEndpoint(target), { DisplayHost: 'one.example.com', DisplayPort: 443 })
+})

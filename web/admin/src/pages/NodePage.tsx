@@ -19,7 +19,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import { api, runNodeJob, type DoctorReport, type Ingress, type CertStatus, type Group as UGroup, type Inbound, type Node } from '../lib/api'
+import { api, runNodeJob, type DoctorReport, type Ingress, type CertStatus, type Group as UGroup, type Inbound, type InternalAddressUsage, type Node } from '../lib/api'
 import { ago, bytes, when } from '../lib/format'
 import { dnsToast, toast, type DNSResult } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
@@ -44,18 +44,22 @@ export default function NodePage() {
   const q = useQuery({ queryKey: ['node', id], queryFn: () => api.get<Detail>(`/api/admin/nodes/${id}`), refetchInterval: 10_000 })
   const groups = useQuery({ queryKey: ['groups'], queryFn: () => api.get<UGroup[]>('/api/admin/groups') })
   const [editNode, setEditNode] = useState(false)
+  const internalUsage = useQuery({ queryKey: ['internal-address-usage', id], queryFn: () => api.get<InternalAddressUsage>(`/api/admin/nodes/${id}/internal-address-usage`), enabled: editNode })
   const [pair, setPair] = useState<string | null>(null)
   const invalidate = () => { qc.invalidateQueries({ queryKey: ['node', id] }); qc.invalidateQueries({ queryKey: ['nodes'] }) }
   const repair = useMutation({ mutationFn: () => api.post<{ pair_code: string }>(`/api/admin/nodes/${id}/repair`), onSuccess: (r) => { setPair(r.pair_code); invalidate() }, onError: toast.err })
   const [deletingNode, setDeletingNode] = useState(false)
   const nodeForm = useForm({ initialValues: { Name: '', PublicAddr: '', InternalAddr: '', V6Addr: '', Domain: '', DomainShared: false, MonitorURL: '', DecoyEnabled: false, DecoyUpstream: '', UserSpeedLimitMbps: 0, MitaQuotas: false, EgressByIngress: false } })
   const domainCheck = useNodeDomainCheck(nodeForm.values.Domain, nodeForm.values.DomainShared, Number(id), editNode)
-  const saveNode = useMutation({ mutationFn: (v: typeof nodeForm.values) => api.patch<{ ok: boolean; dns?: DNSResult[] }>(`/api/admin/nodes/${id}`, v), onSuccess: (r) => { toast.ok(t('common.saved')); setEditNode(false); invalidate(); qc.invalidateQueries({ queryKey: ['dns-health'] }); qc.invalidateQueries({ queryKey: ['dns-history'] }); dnsToast(r.dns) }, onError: (e) => { toast.err(e); qc.invalidateQueries({ queryKey: ['node-domain-check'] }) } })
+  const saveNode = useMutation({ mutationFn: (v: typeof nodeForm.values) => api.patch<{ ok: boolean; dns?: DNSResult[] }>(`/api/admin/nodes/${id}`, v), onSuccess: (r) => { toast.ok(t('common.saved')); setEditNode(false); invalidate(); qc.invalidateQueries({ queryKey: ['node'] }); qc.invalidateQueries({ queryKey: ['lines'] }); qc.invalidateQueries({ queryKey: ['forwards'] }); qc.invalidateQueries({ queryKey: ['internal-address-usage'] }); qc.invalidateQueries({ queryKey: ['dns-health'] }); qc.invalidateQueries({ queryKey: ['dns-history'] }); dnsToast(r.dns) }, onError: (e) => { toast.err(e); qc.invalidateQueries({ queryKey: ['node-domain-check'] }) } })
 
   const d = q.data
   if (q.isPending) return <Loader size="sm" />
   if (q.isError || !d) return <Alert color="red">{t('workspace.loadError')} <Button variant="subtle" onClick={() => q.refetch()}>{t('workspace.retry')}</Button></Alert>
   const n = d.node
+  const internalChanged = nodeForm.values.InternalAddr.trim() !== n.internal_addr.trim()
+  const internalInUse = (internalUsage.data?.uses.length ?? 0) > 0
+  const internalBlocked = internalChanged && (internalUsage.isPending || internalUsage.isError || internalInUse && !nodeForm.values.InternalAddr.trim())
   const host = d.status?.host
   const proxyAllowed = n.proxy_allowed !== false
   return (
@@ -159,11 +163,19 @@ export default function NodePage() {
       </Card>
       </>}
       <Modal opened={editNode} onClose={() => setEditNode(false)} title={t('common.edit')}>
-        <form onSubmit={nodeForm.onSubmit((v) => saveNode.mutate(v))}><Stack>
+        <form onSubmit={nodeForm.onSubmit((v) => { if (!internalBlocked) saveNode.mutate(v) })}><Stack>
           <TextInput label={t('nodes.name')} required {...nodeForm.getInputProps('Name')} />
           <TextInput label={t('nodes.publicAddr')} {...nodeForm.getInputProps('PublicAddr')} />
           <NodeDomainFields domain={nodeForm.values.Domain} shared={nodeForm.values.DomainShared} onDomainChange={v => nodeForm.setFieldValue('Domain', v)} onSharedChange={v => nodeForm.setFieldValue('DomainShared', v)} check={domainCheck} />
           <Group grow><TextInput label={t('nodes.internalAddr')} description={t('nodeAddresses.internalHint')} {...nodeForm.getInputProps('InternalAddr')} /><TextInput label={t('nodes.v6Addr')} {...nodeForm.getInputProps('V6Addr')} /></Group>
+          {internalUsage.isPending && <Text size="xs" c="dimmed">{t('forwardAddress.checkingUsage')}</Text>}
+          {internalUsage.isError && <Alert color="red"><Text size="sm">{t('forwardAddress.usageError')}</Text><Button variant="subtle" size="xs" onClick={() => internalUsage.refetch()}>{t('workspace.retry')}</Button></Alert>}
+          {internalInUse && <Alert color={internalChanged ? 'yellow' : 'blue'} title={t('forwardAddress.usedBy')}>
+            <Stack gap={4}>{internalUsage.data?.uses.map((use, index) => <Text size="sm" key={`${use.kind}-${use.id}-${use.source_node_id}-${use.tag ?? index}`}>
+              <Link to={use.kind === 'line' ? `/entries?tab=lines&section=forward&line=${use.id}#line-${use.id}` : `/entries?tab=lines&section=forward&mode=single&server=${use.source_node_id}`}>{use.name}{use.tag ? ` / ${use.tag}` : ''}</Link>
+            </Text>)}</Stack>
+            {internalChanged && <Text size="sm" mt="xs">{t(nodeForm.values.InternalAddr.trim() ? 'forwardAddress.changeWarning' : 'forwardAddress.clearBlocked')}</Text>}
+          </Alert>}
           <TextInput label={t('nodes.monitorUrl')} description={t('nodes.monitorUrlHint')} placeholder="https://monitor.example.com/..." {...nodeForm.getInputProps('MonitorURL')} />
           {proxyAllowed && <><NumberInput label={t('nodes.speedLimit')} description={t('nodes.speedLimitHint')} min={0} {...nodeForm.getInputProps('UserSpeedLimitMbps')} />
           <Switch label={t('nodes.mitaQuotas')} description={t('nodes.mitaQuotasHint')} {...nodeForm.getInputProps('MitaQuotas', { type: 'checkbox' })} />
@@ -171,7 +183,7 @@ export default function NodePage() {
           <Switch label={t('nodes.decoy')} description={t('nodes.decoyHint')} disabled={!nodeForm.values.Domain} {...nodeForm.getInputProps('DecoyEnabled', { type: 'checkbox' })} />
           {nodeForm.values.DecoyEnabled && <TextInput label={t('nodes.decoyUpstream')} description={t('nodes.decoyUpstreamHint')} placeholder="https://www.example.com" {...nodeForm.getInputProps('DecoyUpstream')} />}
           </>}
-          <Group justify="flex-end"><Button variant="default" onClick={() => setEditNode(false)}>{t('common.cancel')}</Button><Button type="submit" disabled={domainCheck.blocked} loading={saveNode.isPending}>{t('common.save')}</Button></Group>
+          <Group justify="flex-end"><Button variant="default" onClick={() => setEditNode(false)}>{t('common.cancel')}</Button><Button type="submit" disabled={domainCheck.blocked || internalBlocked} loading={saveNode.isPending}>{t('common.save')}</Button></Group>
         </Stack></form>
       </Modal>
       <Modal opened={pair !== null} onClose={() => setPair(null)} title={t('nodes.pairTitle')} size="lg">{pair && <PairCodeBox code={pair} mode={n.mode} />}</Modal>

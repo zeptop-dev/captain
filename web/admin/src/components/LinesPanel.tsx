@@ -4,17 +4,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { IconArrowDown, IconArrowUp, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { api, type Line, type LineGroup, type LineMember, type Node } from '../lib/api'
+import { api, type ForwardAddressMode, type Line, type LineGroup, type LineMember, type Node } from '../lib/api'
 import { freshLineStatus, lineSupportsGroups, proxyServer, type EntryNodeDetail, type InboundChoice } from '../lib/entry-flow'
-import { firstFreeIngressPort, hostPort, ingressPort } from '../lib/ingress'
+import { firstFreeIngressPort, forwardTargetAddress, forwardingAddress, hostPort, ingressPort } from '../lib/ingress'
 import { useSettingsDirty } from '../lib/settings-draft'
 import { toast } from '../lib/notify'
+import { ForwardAddressModeSelect } from './ForwardAddressModeSelect'
+import { ForwardConnectivityCheck } from './ForwardConnectivityCheck'
 import { EntryInboundCreator } from './EntryInboundCreator'
 
 interface DraftMember extends LineMember { key: string }
 interface DraftGroup extends Omit<LineGroup, 'members'> { key: string; members: DraftMember[] }
-interface Draft { name: string; backend: Line['backend']; protocol: Line['protocol']; target_inbound_id: number; groups: DraftGroup[] }
-const newMember = (): DraftMember => ({ key: crypto.randomUUID(), id: '', node_id: 0, port: 0, weight: 1 })
+interface Draft { name: string; backend: Line['backend']; protocol: Line['protocol']; target_inbound_id: number; target_address_mode: ForwardAddressMode; groups: DraftGroup[] }
+const newMember = (): DraftMember => ({ key: crypto.randomUUID(), id: '', node_id: 0, port: 0, weight: 1, address_mode: 'default' })
 const newGroup = (): DraftGroup => ({ key: crypto.randomUUID(), strategy: 'failover', members: [newMember()] })
 const move = <T,>(items: T[], from: number, to: number) => { const copy = [...items]; const [item] = copy.splice(from, 1); copy.splice(to, 0, item); return copy }
 
@@ -54,12 +56,13 @@ export function LinesPanel({ lines, nodes, inbounds, loading, error, observedAt,
               const state = fresh ? status.health : 'unknown'
               const transport = fresh ? status.probe_protocol : 'none'
               return <Stack key={member.id} gap={3}>
-                <Text size="sm">{nodes.find(n => n.id === member.node_id)?.name ?? `#${member.node_id}`} <Code>{member.port}</Code>{i > 0 && group.strategy === 'roundrobin' && <Text component="span" size="xs" c="dimmed"> · {t('lines.weightValue', { weight: member.weight })}</Text>}</Text>
+                <Text size="sm">{nodes.find(n => n.id === member.node_id)?.name ?? `#${member.node_id}`} <Code>{member.port}</Code>{i > 0 && member.address_mode === 'internal' && <Badge ml={4} size="xs" variant="light">{t('nodes.internalAddr')}</Badge>}{i > 0 && group.strategy === 'roundrobin' && <Text component="span" size="xs" c="dimmed"> · {t('lines.weightValue', { weight: member.weight })}</Text>}</Text>
                 <Group gap={4}><Tooltip label={t('lines.probeHint')}><Badge size="xs" color={state === 'up' && transport === 'tcp' ? 'teal' : state === 'down' ? 'red' : 'gray'} variant="light">{transport === 'tcp' && state !== 'unknown' ? `TCP · ${state === 'up' ? `${status?.rtt_ms} ms` : t('lines.probeDown')}` : transport === 'backend' && state === 'down' ? t('lines.backendFailed') : t('lines.probeUnknown')}</Badge></Tooltip>{line.protocol !== 'tcp' && <Badge size="xs" color="gray" variant="outline">{t('lines.udpUntested')}</Badge>}</Group>
               </Stack>
             })}</Group>
           </Box>)}
-          <Text size="sm" mt="xs">{t('lines.target')}: {target ? `${target.node.name} / ${target.ib.Tag}` : `#${line.target_inbound_id}`}</Text>
+          <Text size="sm" mt="xs">{t('lines.target')}: {target ? `${target.node.name} / ${target.ib.Tag}` : `#${line.target_inbound_id}`} {line.target_address_mode === 'internal' && <Badge size="xs" variant="light">{t('nodes.internalAddr')}</Badge>}</Text>
+          {target && line.target_address_mode === 'internal' && <Code>{forwardTargetAddress(target, 'internal') || t('forwardAddress.internalMissing')}</Code>}
           <Text size="xs" c="dimmed">{t('lines.probeHint')}</Text>
           {(line.endpoints?.length ?? 0) > 0 && <Group gap="xs">{line.endpoints.filter(endpoint => endpoint.host.trim()).map(endpoint => <Code key={endpoint.member_id}>{hostPort(endpoint.host, endpoint.port)}</Code>)}</Group>}
         </Stack>
@@ -73,7 +76,7 @@ export function LineEditor({ line, nodes, details, inbounds, loading, loadError,
 }) {
   const { t } = useTranslation()
   const qc = useQueryClient()
-  const [initial] = useState<Draft>(() => line ? { name: line.name, backend: line.backend, protocol: line.protocol, target_inbound_id: line.target_inbound_id, groups: line.groups.map(group => ({ ...group, key: crypto.randomUUID(), members: group.members.map(member => ({ ...member, key: crypto.randomUUID() })) })) } : { name: '', backend: 'relay', protocol: 'both', target_inbound_id: 0, groups: [newGroup()] })
+  const [initial] = useState<Draft>(() => line ? { name: line.name, backend: line.backend, protocol: line.protocol, target_inbound_id: line.target_inbound_id, target_address_mode: line.target_address_mode || 'default', groups: line.groups.map(group => ({ ...group, key: crypto.randomUUID(), members: group.members.map(member => ({ ...member, key: crypto.randomUUID() })) })) } : { name: '', backend: 'relay', protocol: 'both', target_inbound_id: 0, target_address_mode: 'default', groups: [newGroup()] })
   const [draft, setDraft] = useState(initial)
   const [creatingInbound, setCreatingInbound] = useState(false)
   const [createdInbound, setCreatedInbound] = useState<InboundChoice | null>(null)
@@ -84,11 +87,12 @@ export function LineEditor({ line, nodes, details, inbounds, loading, loadError,
   const members = draft.groups.flatMap(g => g.members)
   const duplicated = new Set(members.map(m => m.node_id)).size !== members.length
   const mixedFailover = protocol !== 'tcp' && draft.groups.some((g, i) => i > 0 && g.members.length > 1 && g.strategy !== 'roundrobin')
-  const valid = draft.name.trim() && target?.ib.Enabled && options.data?.protocol && !options.isError && !options.data.error && !mixedFailover && members.every(m => m.node_id && Number.isInteger(m.port) && m.port > 0 && m.port < 65536 && m.weight >= 1 && m.weight <= 100) && !duplicated && !members.some(m => m.node_id === target.ib.NodeID) && lineSupportsGroups(draft.backend, draft.groups)
+  const internalMissing = draft.target_address_mode === 'internal' && !target?.node.internal_addr?.trim() || draft.groups.some((g, i) => i > 0 && g.members.some(m => m.address_mode === 'internal' && !nodes.find(n => n.id === m.node_id)?.internal_addr?.trim()))
+  const valid = !internalMissing && draft.name.trim() && target?.ib.Enabled && options.data?.protocol && !options.isError && !options.data.error && !mixedFailover && members.every(m => m.node_id && Number.isInteger(m.port) && m.port > 0 && m.port < 65536 && m.weight >= 1 && m.weight <= 100) && !duplicated && !members.some(m => m.node_id === target.ib.NodeID) && lineSupportsGroups(draft.backend, draft.groups)
   const dirty = JSON.stringify(draft) !== JSON.stringify(initial) || !!createdInbound
   const save = useMutation({
     mutationFn: () => {
-      const body = { name: draft.name.trim(), backend: draft.backend, protocol, target_inbound_id: draft.target_inbound_id, groups: draft.groups.map(g => ({ strategy: g.strategy, members: g.members.map(m => ({ id: m.id, node_id: m.node_id, port: m.port, ingress_id: m.ingress_id || null, weight: m.weight })) })), ...(line ? { version: line.version } : {}) }
+      const body = { name: draft.name.trim(), backend: draft.backend, protocol, target_inbound_id: draft.target_inbound_id, target_address_mode: draft.target_address_mode, groups: draft.groups.map((g, i) => ({ strategy: g.strategy, members: g.members.map(m => ({ id: m.id, node_id: m.node_id, port: m.port, ingress_id: m.ingress_id || null, weight: m.weight, address_mode: i > 0 ? m.address_mode || 'default' : 'default' })) })), ...(line ? { version: line.version } : {}) }
       return line ? api.put<Line>(`/api/admin/lines/${line.id}`, body) : api.post<Line>('/api/admin/lines', body)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['lines'] }); qc.invalidateQueries({ queryKey: ['entries'] }); qc.invalidateQueries({ queryKey: ['node'] }); toast.ok(t('common.saved')); onClose() },
@@ -126,6 +130,8 @@ export function LineEditor({ line, nodes, details, inbounds, loading, loadError,
                 const detail = details.find(d => d.node.id === member.node_id)
                 const ingresses = detail?.ingresses ?? []
                 const ingress = ingresses.find(g => g.id === member.ingress_id)
+                const server = detail?.node ?? nodes.find(n => n.id === member.node_id)
+                const address = server ? forwardingAddress(server, member.port, ingress, index > 0 ? member.address_mode : 'default') : ''
                 return <Box key={member.key} style={{ borderTop: memberIndex ? '1px solid var(--mantine-color-default-border)' : undefined, paddingTop: memberIndex ? 12 : undefined }}>
                   <SimpleGrid cols={{ base: 1, sm: 2 }}>
                     <Select label={t('entryFlow.server')} searchable required allowDeselect={false} value={member.node_id ? String(member.node_id) : null} data={nodes.filter(proxyServer).map(n => ({ value: String(n.id), label: n.name, disabled: n.id === target?.ib.NodeID || members.some(m => m.key !== member.key && m.node_id === n.id) }))} onChange={value => patchMember(group, member.key, { node_id: Number(value), ingress_id: undefined, port: 0 })} />
@@ -136,7 +142,10 @@ export function LineEditor({ line, nodes, details, inbounds, loading, loadError,
                     {index > 0 && group.strategy === 'roundrobin' && <NumberInput style={{ flex: '1 1 90px' }} label={t('lines.weight')} min={1} max={100} value={member.weight} onChange={value => patchMember(group, member.key, { weight: Number(value) })} />}
                     <Group gap={3} mt={25}><ActionIcon variant="subtle" aria-label={t('lines.moveUp')} disabled={memberIndex === 0} onClick={() => patchGroup(group.key, { members: move(group.members, memberIndex, memberIndex - 1) })}><IconArrowUp size={16} /></ActionIcon><ActionIcon variant="subtle" aria-label={t('lines.moveDown')} disabled={memberIndex === group.members.length - 1} onClick={() => patchGroup(group.key, { members: move(group.members, memberIndex, memberIndex + 1) })}><IconArrowDown size={16} /></ActionIcon><ActionIcon variant="subtle" color="red" aria-label={t('lines.removeMember')} disabled={group.members.length === 1} onClick={() => patchGroup(group.key, { members: group.members.filter(m => m.key !== member.key) })}><IconTrash size={16} /></ActionIcon></Group>
                   </Group>
-                  {ingress && member.port > 0 && <Text size="xs" mt={4} c={ingressPort(ingress, member.port) ? 'dimmed' : 'red'}>{ingressPort(ingress, member.port) ? t('lines.mappedPort', { port: ingressPort(ingress, member.port) }) : t('lines.unmappedPort')}</Text>}
+                  {index > 0 && <Box mt="xs"><ForwardAddressModeSelect node={server} value={member.address_mode} label={t('forwardAddress.fromPreviousGroup')} onChange={address_mode => patchMember(group, member.key, { address_mode })} /></Box>}
+                  {index > 0 && <Text size="xs" mt={4}>{t(member.address_mode === 'internal' ? 'forwardAddress.target' : 'forwardAddress.configuredTarget')}: <Code style={{ overflowWrap: 'anywhere' }}>{address || '—'}</Code></Text>}
+                  {index > 0 && member.address_mode === 'internal' && address && draft.groups[index - 1].members.filter(source => source.node_id).map(source => <Box mt="xs" key={source.key}><Text size="xs" c="dimmed">{nodes.find(n => n.id === source.node_id)?.name} → {server?.name}</Text><ForwardConnectivityCheck sourceNodeID={source.node_id} sourceNodeName={nodes.find(n => n.id === source.node_id)?.name} target={address} protocol={protocol} /></Box>)}
+                  {ingress && member.port > 0 && (index === 0 || member.address_mode !== 'internal') && <Text size="xs" mt={4} c={ingressPort(ingress, member.port) ? 'dimmed' : 'red'}>{ingressPort(ingress, member.port) ? t('lines.mappedPort', { port: ingressPort(ingress, member.port) }) : t('lines.unmappedPort')}</Text>}
                 </Box>
               })}</Stack>
               <Button variant="subtle" size="xs" leftSection={<IconPlus size={14} />} mt="sm" disabled={group.members.length >= 8 || draft.backend !== 'relay' && index > 0} onClick={() => patchGroup(group.key, { members: [...group.members, newMember()], ...(index > 0 && protocol !== 'tcp' ? { strategy: 'roundrobin' } : {}) })}>{t('lines.addMember')}</Button>
@@ -144,6 +153,10 @@ export function LineEditor({ line, nodes, details, inbounds, loading, loadError,
             <Button variant="light" leftSection={<IconPlus size={16} />} disabled={draft.groups.length >= 8} onClick={() => setDraft(d => ({ ...d, groups: [...d.groups, newGroup()] }))}>{t('lines.addGroup')}</Button>
             <Group justify="space-between" align="flex-end"><Text size="sm" fw={500}>{t('lines.target')}</Text><Button size="xs" variant="light" disabled={!!createdInbound || loading} onClick={() => setCreatingInbound(true)}>{t('entryFlow.newInbound')}</Button></Group>
             <Select aria-label={t('lines.target')} searchable required value={draft.target_inbound_id ? String(draft.target_inbound_id) : null} data={choices.map(c => ({ value: String(c.ib.ID), label: `${c.node.name} / ${c.ib.Tag} (${c.ib.Protocol}:${c.ib.Port})${c.ib.Enabled ? '' : ` · ${t('common.disabled')}`}`, disabled: !c.ib.Enabled || members.some(m => m.node_id === c.ib.NodeID) }))} onChange={value => setDraft(d => ({ ...d, target_inbound_id: Number(value) }))} />
+            <ForwardAddressModeSelect node={target?.node} value={draft.target_address_mode} onChange={target_address_mode => setDraft(d => ({ ...d, target_address_mode }))} />
+            {target && <Text size="sm">{t(draft.target_address_mode === 'internal' ? 'forwardAddress.target' : 'forwardAddress.configuredTarget')}: <Code style={{ overflowWrap: 'anywhere' }}>{forwardTargetAddress(target, draft.target_address_mode) || '—'}</Code></Text>}
+            {target && draft.target_address_mode === 'internal' && forwardTargetAddress(target, 'internal') && draft.groups.at(-1)?.members.filter(source => source.node_id).map(source => <Box key={source.key}><Text size="xs" c="dimmed">{nodes.find(n => n.id === source.node_id)?.name} → {target.node.name}</Text><ForwardConnectivityCheck sourceNodeID={source.node_id} sourceNodeName={nodes.find(n => n.id === source.node_id)?.name} target={forwardTargetAddress(target, 'internal')} protocol={protocol} /></Box>)}
+            {(draft.target_address_mode === 'internal' || draft.groups.some((g, i) => i > 0 && g.members.some(m => m.address_mode === 'internal'))) && draft.backend !== 'relay' && <Alert color="yellow">{t(`forwardAddress.${draft.backend}Hint`)}</Alert>}
             {(options.isError || options.data?.error) && <Alert color="red"><Text size="sm">{options.data?.error || t('lines.protocolError')}</Text><Button variant="subtle" size="xs" onClick={() => options.refetch()}>{t('entryFlow.retry')}</Button></Alert>}
             {mixedFailover && <Alert color="yellow">{t('lines.mixedGroupHint')}</Alert>}
             {createdInbound && <Alert color="blue">{t('entryFlow.inboundSaved', { name: createdInbound.ib.Tag })}</Alert>}

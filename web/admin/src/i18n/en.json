@@ -76,7 +76,7 @@
     "autoIPv6": "Detect IPv6 automatically",
     "createHint": "Public IPs are optional by default. After pairing, bosun fills and follows addresses after repeated confirmation; IPv6 stays empty when unavailable. Requires bosun with address detection.",
     "fixedHint": "Fixed public entries do not follow detected changes. For NAT / private lines, enter the provider entry and configure port mappings separately.",
-    "internalHint": "Optional. Identifies private-network relays to avoid counting each relay as a device. Does not establish connectivity or affect bosun pairing.",
+    "internalHint": "Optional. Enter the server’s existing internal IP. Used to identify relay sources and by forwards that explicitly select the server internal address. Filling it in does not create a private network or change existing paths.",
     "title": "Machine public addresses and entry",
     "hint": "bosun probes public IPv4 / IPv6 every 30 seconds for the first 3 minutes after startup, then every 5 minutes. These are outbound public addresses; NAT egress may differ from the client entry address.",
     "waiting": "Waiting for a fresh address report from an updated bosun. Old values are for reference only.",
@@ -2818,5 +2818,24 @@
     "run": "Check TCP from {{source}}",
     "hint": "Checks this TCP endpoint from the preceding server. Save and apply new listeners before checking. Success does not verify the complete proxy path or forwarding firewall; test UDP with a real client.",
     "udpHint": "UDP connectivity must be tested with a real client; a TCP check cannot verify this listener."
+  },
+  "forwardAddress": {
+    "mode": "Connection address",
+    "default": "Default address (public / dedicated link)",
+    "internalValue": "Server internal address: {{address}}",
+    "internalMissing": "Server internal address (not set)",
+    "internalHint": "Uses the server’s registered internal address and actual listener port. Failed connections never fall back to the public address.",
+    "missingHint": "Set the internal address in the target server details first.",
+    "candidatesHint": "Internal mode for a single forward supports one target. Use forwarding groups for multiple internal candidates.",
+    "target": "Forwarding target",
+    "fromPreviousGroup": "How the previous group connects to this server",
+    "realmHint": "For realm private-network connections, configure an upstream exception for the destination address, protocol and port on the preceding server.",
+    "nftHint": "nft forwarding also needs the host FORWARD policy to allow traffic. Opening the listener port alone does not allow forwarding.",
+    "checkingUsage": "Checking internal-address references…",
+    "usageError": "Could not load internal-address references. Retry before changing this address.",
+    "usedBy": "Uses this internal address",
+    "changeWarning": "Saving updates these forwarding destinations and may interrupt existing connections. Confirm that the new address is reachable first.",
+    "clearBlocked": "This address is in use. Change or remove the referencing lines before clearing it.",
+    "configuredTarget": "Configured target address"
   }
 }
