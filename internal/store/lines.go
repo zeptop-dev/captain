@@ -28,27 +28,29 @@ var (
 // ForwardLine owns its generated listeners, but never owns its landing inbound
 // or subscription entries. Groups are ordered layers, not DNS answer pools.
 type ForwardLine struct {
-	ID              int64              `json:"id"`
-	Name            string             `json:"name"`
-	Version         int64              `json:"version"`
-	Protocol        string             `json:"protocol"`
-	Backend         string             `json:"backend"`
-	TargetInboundID int64              `json:"target_inbound_id"`
-	Groups          []LineGroup        `json:"groups"`
-	UpdatedAt       time.Time          `json:"updated_at"`
-	Endpoints       []LineEndpoint     `json:"endpoints"`
-	Status          []LineMemberStatus `json:"status"`
+	ID                int64              `json:"id"`
+	Name              string             `json:"name"`
+	Version           int64              `json:"version"`
+	Protocol          string             `json:"protocol"`
+	Backend           string             `json:"backend"`
+	TargetInboundID   int64              `json:"target_inbound_id"`
+	TargetAddressMode string             `json:"target_address_mode"`
+	Groups            []LineGroup        `json:"groups"`
+	UpdatedAt         time.Time          `json:"updated_at"`
+	Endpoints         []LineEndpoint     `json:"endpoints"`
+	Status            []LineMemberStatus `json:"status"`
 }
 type LineGroup struct {
 	Strategy string       `json:"strategy"`
 	Members  []LineMember `json:"members"`
 }
 type LineMember struct {
-	ID        string `json:"id"`
-	NodeID    int64  `json:"node_id"`
-	Port      int    `json:"port"`
-	IngressID *int64 `json:"ingress_id,omitempty"`
-	Weight    int    `json:"weight"`
+	ID          string `json:"id"`
+	NodeID      int64  `json:"node_id"`
+	Port        int    `json:"port"`
+	IngressID   *int64 `json:"ingress_id,omitempty"`
+	Weight      int    `json:"weight"`
+	AddressMode string `json:"address_mode,omitempty"`
 }
 type LineEndpoint struct {
 	MemberID string `json:"member_id"`
@@ -65,13 +67,13 @@ type LineMemberStatus struct {
 	UpdatedAt     *time.Time `json:"updated_at"`
 }
 
-const lineCols = "id,name,version,protocol,backend,target_inbound_id,groups_json,updated_at"
+const lineCols = "id,name,version,protocol,backend,target_inbound_id,groups_json,updated_at,target_address_mode"
 
 func scanLine(row interface{ Scan(...any) error }) (*ForwardLine, error) {
 	var l ForwardLine
 	var raw string
 	var at int64
-	if err := row.Scan(&l.ID, &l.Name, &l.Version, &l.Protocol, &l.Backend, &l.TargetInboundID, &raw, &at); err != nil {
+	if err := row.Scan(&l.ID, &l.Name, &l.Version, &l.Protocol, &l.Backend, &l.TargetInboundID, &raw, &at, &l.TargetAddressMode); err != nil {
 		return nil, wrapNotFound(err)
 	}
 	if err := json.Unmarshal([]byte(raw), &l.Groups); err != nil {
@@ -179,7 +181,8 @@ func (s *Store) decorateLine(ctx context.Context, l *ForwardLine) error {
 }
 
 // lineAddress chooses a provider's far-end address for a relay, and its
-// mapped public endpoint for clients. InternalAddr is accounting metadata.
+// mapped public endpoint for clients. InternalAddr is used only by explicit
+// internal address mode, never as a fallback for the default path.
 func lineAddress(n *domain.Node, g *Ingress, port int, relay bool) (string, int) {
 	if g != nil {
 		if relay && g.LineIP != "" {
@@ -197,6 +200,9 @@ func lineAddress(n *domain.Node, g *Ingress, port int, relay bool) (string, int)
 }
 
 func normalizeLine(l *ForwardLine) error {
+	if err := validateAddressMode(l.TargetAddressMode); err != nil {
+		return err
+	}
 	l.Name = strings.TrimSpace(l.Name)
 	if l.Name == "" || len(l.Name) > 128 || !spec.PublicLabel(l.Name) {
 		return errors.New("a plain line name of at most 128 characters is required")
@@ -236,6 +242,12 @@ func normalizeLine(l *ForwardLine) error {
 		}
 		for j := range g.Members {
 			m := &g.Members[j]
+			if err := validateAddressMode(m.AddressMode); err != nil {
+				return err
+			}
+			if i == 0 && m.AddressMode == AddressModeInternal {
+				return errors.New("first-group members publish client endpoints; internal address mode applies to subsequent groups")
+			}
 			if m.ID == "" {
 				b := make([]byte, 8)
 				if _, err := rand.Read(b); err != nil {
@@ -268,9 +280,6 @@ func normalizeLine(l *ForwardLine) error {
 // SaveLine is called under Topology. One transaction owns the specification,
 // membership references, generated forwards, and all bound entry addresses.
 func (s *Store) SaveLine(ctx context.Context, l *ForwardLine) error {
-	if err := normalizeLine(l); err != nil {
-		return err
-	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -285,14 +294,18 @@ func (s *Store) SaveLine(ctx context.Context, l *ForwardLine) error {
 		next.ID, _ = r.LastInsertId()
 		next.Version = 1
 	} else {
-		var version int64
-		if err := tx.QueryRowContext(ctx, `SELECT version FROM forward_lines WHERE id=?`, l.ID).Scan(&version); err != nil {
-			return wrapNotFound(err)
+		old, err := scanLine(tx.QueryRowContext(ctx, "SELECT "+lineCols+" FROM forward_lines WHERE id=?", l.ID))
+		if err != nil {
+			return err
 		}
-		if version != l.Version {
+		if old.Version != l.Version {
 			return ErrLineConflict
 		}
+		preserveLineAddressModes(&next, old)
 		next.Version++
+	}
+	if err = normalizeLine(&next); err != nil {
+		return err
 	}
 	if err = saveLineTx(ctx, tx, &next); err != nil {
 		return err
@@ -351,7 +364,7 @@ func saveLineTx(ctx context.Context, tx *sql.Tx, l *ForwardLine) error {
 	}
 	raw, _ := json.Marshal(l.Groups)
 	l.UpdatedAt = unix(now())
-	if _, err = tx.ExecContext(ctx, `UPDATE forward_lines SET name=?,version=?,protocol=?,backend=?,target_inbound_id=?,groups_json=?,updated_at=? WHERE id=?`, l.Name, l.Version, l.Protocol, l.Backend, l.TargetInboundID, string(raw), l.UpdatedAt.Unix(), l.ID); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE forward_lines SET name=?,version=?,protocol=?,backend=?,target_inbound_id=?,groups_json=?,updated_at=?,target_address_mode=? WHERE id=?`, l.Name, l.Version, l.Protocol, l.Backend, l.TargetInboundID, string(raw), l.UpdatedAt.Unix(), l.TargetAddressMode, l.ID); err != nil {
 		return err
 	}
 	for id, m := range entryMembers {
@@ -459,7 +472,7 @@ func (s *Store) PreserveLineForwards(ctx context.Context, node int64, in []NodeF
 	out := []NodeForward{}
 	for _, f := range in {
 		if o, ok := owned[f.Tag]; ok {
-			if !reflect.DeepEqual(f.Forward, o.Forward) || f.InboundID != o.InboundID || (f.LineID != 0 && f.LineID != o.LineID) || (f.LineMemberID != "" && f.LineMemberID != o.LineMemberID) {
+			if !reflect.DeepEqual(f.Forward, o.Forward) || f.InboundID != o.InboundID || (f.TargetAddressMode != "" && f.TargetAddressMode != o.TargetAddressMode) || (f.LineID != 0 && f.LineID != o.LineID) || (f.LineMemberID != "" && f.LineMemberID != o.LineMemberID) {
 				return nil, errors.New("edit generated forwards through their line")
 			}
 			out = append(out, o)
@@ -514,6 +527,7 @@ func (s *Store) NodeHasLines(ctx context.Context, id int64) (bool, error) {
 
 func nodeHasLines(ctx context.Context, q interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 }, id int64) (bool, error) {
 	var n int
 	err := q.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM forward_line_members WHERE node_id=?) + (SELECT COUNT(*) FROM forward_lines l WHERE l.target_inbound_id IN (
@@ -521,12 +535,18 @@ func nodeHasLines(ctx context.Context, q interface {
 	UNION SELECT user_inbound_id FROM node_reverse_links WHERE exit_id=?
 	UNION SELECT receiver_inbound_id FROM node_reverse_links WHERE exit_id=?
 	UNION SELECT user_inbound_id FROM node_wireguard_links WHERE exit_id=?))`, id, id, id, id, id).Scan(&n)
-	return n > 0, err
+	if err != nil || n > 0 {
+		return n > 0, err
+	}
+	return hasInternalForwardReference(ctx, q, id, 0)
 }
 func (s *Store) InboundHasLines(ctx context.Context, id int64) (bool, error) {
 	var n int
 	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM forward_lines WHERE target_inbound_id=?`, id).Scan(&n)
-	return n > 0, err
+	if err != nil || n > 0 {
+		return n > 0, err
+	}
+	return hasInternalForwardReference(ctx, s.db, 0, id)
 }
 
 func lineVersionOK(n *domain.Node, min string) bool {
@@ -572,7 +592,7 @@ func refreshLinesForNodeTx(ctx context.Context, tx *sql.Tx, node int64) error {
 			return err
 		}
 	}
-	return nil
+	return refreshInternalForwardsForNodeTx(ctx, tx, node)
 }
 
 func lineHostPort(host string, port int) (string, error) {

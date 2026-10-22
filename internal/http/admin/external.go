@@ -30,6 +30,7 @@ func (h *handlers) registerExternal(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/admin/nodes/{id}/routing", h.requireAdmin(h.putNodeRouting))
 	mux.HandleFunc("GET /api/admin/nodes/{id}/overrides", h.requireAdmin(h.getNodeOverrides))
 	mux.HandleFunc("PUT /api/admin/nodes/{id}/overrides", h.requireAdmin(h.putNodeOverrides))
+	mux.HandleFunc("GET /api/admin/nodes/{id}/internal-address-usage", h.requireAdmin(h.internalAddressUsage))
 	mux.HandleFunc("GET /api/admin/nodes/{id}/forwards", h.requireAdmin(h.getNodeForwards))
 	mux.HandleFunc("PUT /api/admin/nodes/{id}/forwards", h.requireAdmin(h.putNodeForwards))
 }

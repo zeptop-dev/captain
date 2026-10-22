@@ -534,7 +534,7 @@ func fail(w http.ResponseWriter, code int, msg string) {
 // Operator: everything except settings, system, staff management and the
 // landing page. Support: tickets, plus read-only users, orders, dashboard.
 func allowed(role, method, path string) bool {
-	if (path == "/api/admin/lines" || strings.HasPrefix(path, "/api/admin/lines/")) && role != domain.RoleAdmin {
+	if (path == "/api/admin/lines" || strings.HasPrefix(path, "/api/admin/lines/")) && role != domain.RoleAdmin && !(role == domain.RoleOperator && method == http.MethodGet && path == "/api/admin/lines/options") {
 		return false
 	}
 	switch role {
