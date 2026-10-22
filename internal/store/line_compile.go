@@ -322,6 +322,11 @@ func compileLine(ctx context.Context, tx *sql.Tx, l *ForwardLine) (map[int64][]N
 			if err = setLineBackendListen(&f, n.node, ingress, i == 0); err != nil {
 				return nil, nil, err
 			}
+			// nft creates a single-family packet rule rather than a dual-stack
+			// socket: an IPv6 wildcard cannot receive the preceding IPv4 hop.
+			if f.Backend == "nft" && m.AddressMode == AddressModeInternal && lineLiteralFamily(f.Listen) != lineLiteralFamily(strings.TrimSpace(n.node.InternalAddr)) {
+				return nil, nil, fmt.Errorf("%w: nft member listener and internal IP must use the same address family", ErrInternalAddress)
+			}
 			f.Tag = lineRuntimeTag(l, m, f)
 			if err = f.ValidateTargets(); err != nil {
 				return nil, nil, err
