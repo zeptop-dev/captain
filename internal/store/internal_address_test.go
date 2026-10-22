@@ -479,3 +479,61 @@ func TestInternalAddressEditLeavesDefaultLineRuntimeUnchanged(t *testing.T) {
 		t.Fatal("default path changed after address edit", before, after)
 	}
 }
+
+func TestInternalIntermediateNFTWildcardIsSingleFamily(t *testing.T) {
+	for _, backend := range []string{"relay", "realm", "nft"} {
+		t.Run(backend, func(t *testing.T) {
+			ctx := context.Background()
+			s, ns, _, line := lineFixture(t)
+			setInternal(t, s, ns[1], "10.10.0.2")
+			setInternal(t, s, ns[3], "2001:db8::20")
+			ingress := &Ingress{NodeID: ns[1].ID, Name: "Dual-stack bind", Kind: "mapped", BindIP: "::", EntryHost: "198.51.100.20", PortMappings: []spec.PortMapping{{LocalFrom: 19443, LocalTo: 19443, PublicFrom: 19443}}}
+			if err := s.CreateIngress(ctx, ingress); err != nil {
+				t.Fatal(err)
+			}
+			line.Backend = backend
+			line.TargetAddressMode = "internal"
+			line.Groups[1].Members = line.Groups[1].Members[:1]
+			member := &line.Groups[1].Members[0]
+			member.AddressMode = "internal"
+			member.IngressID = &ingress.ID
+			err := s.SaveLine(ctx, line)
+			if backend == "nft" {
+				if !errors.Is(err, ErrInternalAddress) || !strings.Contains(err.Error(), "same address family") {
+					t.Fatal("accepted IPv4 incoming hop into IPv6-only nft rule", err)
+				}
+				for _, node := range ns {
+					fs, e := s.NodeForwards(ctx, node.ID)
+					if e != nil || len(fs) != 0 {
+						t.Fatal("failed save partially generated forwarding rules", fs, e)
+					}
+				}
+				// A genuine IPv6 incoming hop can use the same IPv6 wildcard.
+				setInternal(t, s, ns[1], "2001:db8::10")
+				ns[0].PublicAddr, ns[0].V6Addr = "", "2001:db8::30"
+				if err = s.UpdateNode(ctx, ns[0]); err != nil {
+					t.Fatal(err)
+				}
+				if err = s.SaveLine(ctx, line); err != nil {
+					t.Fatal("IPv6 nft wildcard rejected", err)
+				}
+				fs, _ := s.NodeForwards(ctx, ns[1].ID)
+				if fs[0].Listen != "::" || fs[0].Target != "[2001:db8::20]:443" {
+					t.Fatal(fs)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal("dual-stack socket backend rejected", err)
+			}
+			fs, _ := s.NodeForwards(ctx, ns[0].ID)
+			if fs[0].Target != "10.10.0.2:19443" {
+				t.Fatal(fs)
+			}
+			fs, _ = s.NodeForwards(ctx, ns[1].ID)
+			if fs[0].Listen != "::" || fs[0].Target != "[2001:db8::20]:443" {
+				t.Fatal(fs)
+			}
+		})
+	}
+}
