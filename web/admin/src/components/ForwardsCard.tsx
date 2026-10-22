@@ -4,16 +4,18 @@ import { IconArrowsSplit, IconLink, IconPlus, IconTrash } from '@tabler/icons-re
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { api, type Inbound, type Ingress, type Node } from '../lib/api'
+import { api, type ForwardAddressMode, type Inbound, type Ingress, type Node } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { firstFreeIngressPort, ingressPort, forwardTargetAddress, forwardTargetProtocol } from '../lib/ingress'
+import { ForwardAddressModeSelect } from './ForwardAddressModeSelect'
+import { ForwardConnectivityCheck } from './ForwardConnectivityCheck'
 import { ForwardHealth } from './ForwardHealth'
 import type { ForwardHealthStatus } from '../lib/forward-health'
 import { toast } from '../lib/notify'
 import { useSettingsDirty } from '../lib/settings-draft'
 
 interface Hop { target: string; weight?: number }
-interface Forward { ingress_id?: string; tag: string; listen?: string; port: number; protocol: string; target: string; inbound_id?: number; line_id?: number; line_member_id?: string; backend?: string; preserve_source?: boolean; proxy_protocol?: boolean; targets?: Hop[]; balance?: string; weight?: number }
+interface Forward { target_address_mode?: ForwardAddressMode; ingress_id?: string; tag: string; listen?: string; port: number; protocol: string; target: string; inbound_id?: number; line_id?: number; line_member_id?: string; backend?: string; preserve_source?: boolean; proxy_protocol?: boolean; targets?: Hop[]; balance?: string; weight?: number }
 interface HopStatus extends ForwardHealthStatus { target: string; up: boolean; rtt_ms: number; last_error?: string; active_conn: number; total_conn: number }
 interface Status extends ForwardHealthStatus { up: boolean; rtt_ms: number; last_error: string; active_conn: number; total_conn: number; bytes_in: number; bytes_out: number; targets?: HopStatus[] }
 interface Draft { targets: { target: string; weight: number }[]; balance: string; weight: number }
@@ -52,16 +54,24 @@ export function ForwardsCard({ node, ingresses = [], embedded, readOnly = false 
   const [proxyProto, setProxyProto] = useState(false)
   const [target, setTarget] = useState<string | null>(null)
   const [manual, setManual] = useState('')
+  const [targetMode, setTargetMode] = useState<ForwardAddressMode>('default')
+  const pickedTarget = targets.find(x => String(x.ib.ID) === target)
+  const targetAddress = pickedTarget ? forwardTargetAddress(pickedTarget, targetMode) : manual.trim()
+  const optionIDs = [...new Set([...list.filter(f => !f.line_id && f.inbound_id).map(f => f.inbound_id!), ...(pickedTarget ? [pickedTarget.ib.ID] : [])])]
+  const targetOptions = useQueries({ queries: optionIDs.map(id => ({ queryKey: ['line-options', id], queryFn: () => api.get<{ protocol: 'tcp' | 'udp' | 'both' | ''; error?: string }>(`/api/admin/lines/options?inbound_id=${id}`), enabled: !readOnly })) })
+  const optionsFor = (id?: number) => targetOptions[optionIDs.indexOf(id ?? 0)]
+  const pickedOptions = optionsFor(pickedTarget?.ib.ID)
+  const effectiveProtocol = targetMode === 'internal' ? pickedOptions?.data?.protocol || proto : proto
   const add = () => {
     const p = Number(port)
     if (!p) return
     const pick = targets.find((x) => String(x.ib.ID) === target)
     // A line ingress is reached through its far-end address, never the node's public IP.
-    const tgt = pick ? forwardTargetAddress(pick) : manual.trim()
+    const tgt = pick ? forwardTargetAddress(pick, targetMode) : manual.trim()
     if (!tgt) return
     setDirty(true)
-    setList((cur) => [...cur, { ingress_id: ingressID || undefined, tag: `fwd-${p}`, port: p, protocol: proto, target: tgt, inbound_id: pick?.ib.ID, backend: backend || undefined, preserve_source: backend === 'nft' && preserve ? true : undefined, proxy_protocol: backend !== 'nft' && proxyProto ? true : undefined }])
-    setPort(''); setTarget(null); setManual('')
+    setList((cur) => [...cur, { ingress_id: ingressID || undefined, tag: `fwd-${p}`, port: p, protocol: effectiveProtocol, target: tgt, inbound_id: pick?.ib.ID, target_address_mode: pick ? targetMode : 'default', backend: backend || undefined, preserve_source: backend === 'nft' && preserve ? true : undefined, proxy_protocol: backend !== 'nft' && proxyProto ? true : undefined }])
+    setPort(''); setTarget(null); setManual(''); setTargetMode('default')
   }
   const mkEntry = useMutation({ mutationFn: (f: Forward) => {
     if (f.line_id) throw new Error(t('workspace.forbidden'))
@@ -75,12 +85,12 @@ export function ForwardsCard({ node, ingresses = [], embedded, readOnly = false 
   const roundRobin = draft.balance === 'roundrobin' || editing?.backend === 'realm'
   const openTargets = (i: number) => {
     const f = list[i]
-    if (f.line_id) return
+    if (f.line_id || f.target_address_mode === 'internal') return
     setDraft({ targets: (f.targets ?? []).map((x) => ({ target: x.target, weight: x.weight || 1 })), balance: f.balance || (f.backend === 'realm' ? 'roundrobin' : 'failover'), weight: f.weight || 1 })
     setEditIdx(i)
   }
   const applyTargets = () => {
-    if (editIdx === null || list[editIdx]?.line_id) return
+    if (editIdx === null || list[editIdx]?.line_id || list[editIdx]?.target_address_mode === 'internal') return
     const hops = draft.targets.filter((x) => x.target.trim() !== '').map((x) => ({ target: x.target.trim(), ...(roundRobin && x.weight !== 1 ? { weight: x.weight } : {}) }))
     setDirty(true)
     setList((cur) => cur.map((f, j) => {
@@ -92,6 +102,7 @@ export function ForwardsCard({ node, ingresses = [], embedded, readOnly = false 
     setEditIdx(null)
   }
   const draftValid = draft.targets.every((x) => x.target.trim() === '' || hostPort.test(x.target.trim()))
+  const invalidInternal = list.some(f => !f.line_id && f.target_address_mode === 'internal' && (!targets.find(x => x.ib.ID === f.inbound_id)?.node.internal_addr?.trim() || !optionsFor(f.inbound_id)?.data?.protocol || optionsFor(f.inbound_id)?.isError))
   const describe = (f: Forward) => { const x = targets.find((y) => y.ib.ID === f.inbound_id); return x ? `${x.node.name} / ${x.ib.Tag} (${x.ib.Protocol})` : '' }
   const owner = (f: Forward) => f.line_id ? me?.role === 'admin'
     ? <Button component={Link} variant="subtle" size="compact-xs" to={`/entries?tab=lines&section=forward&line=${f.line_id}#line-${f.line_id}`}>{t('lines.tab')} #{f.line_id}</Button>
@@ -100,7 +111,7 @@ export function ForwardsCard({ node, ingresses = [], embedded, readOnly = false 
   if (q.isError) return <Alert color="red">{t('workspace.loadError')} <Button variant="subtle" onClick={() => q.refetch()}>{t('workspace.retry')}</Button></Alert>
   if (readOnly) return <Stack gap="xs">
     {list.map(f => <Stack key={f.tag} gap={4}>
-      <Group><Code>{f.protocol === 'both' ? 'tcp+udp' : f.protocol} :{f.port} → {f.target}</Code><Badge variant="light">{f.backend || t('forwards.backendRelay')}</Badge><ForwardHealth status={q.data?.status?.[f.tag]} protocol={f.protocol} />{owner(f)}</Group>
+      <Group><Code>{f.protocol === 'both' ? 'tcp+udp' : f.protocol} :{f.port} → {f.target}</Code><Badge variant="light">{f.backend || t('forwards.backendRelay')}</Badge>{f.target_address_mode === 'internal' && <Badge variant="light">{t('nodes.internalAddr')}</Badge>}<ForwardHealth status={q.data?.status?.[f.tag]} protocol={f.protocol} />{owner(f)}</Group>
       {!!f.targets?.length && <Text size="xs" c="dimmed">{t(f.balance === 'roundrobin' || f.backend === 'realm' ? 'forwards.balanceRoundRobin' : 'forwards.balanceFailover')}: {[f.target, ...f.targets.map(target => target.target)].join(', ')}</Text>}
     </Stack>)}
     {list.length === 0 && <Text size="sm" c="dimmed">{t('common.empty')}</Text>}
@@ -112,16 +123,21 @@ export function ForwardsCard({ node, ingresses = [], embedded, readOnly = false 
       <Stack gap="xs">
         {list.map((f, i) => {
           const s = q.data?.status?.[f.tag]
+          const pick = targets.find(x => x.ib.ID === f.inbound_id)
+          const option = optionsFor(f.inbound_id)
           return (
             <Group key={i} justify="space-between" align="flex-start">
               <Group gap="xs" style={{ minWidth: 0 }}>
                 <Select aria-label={t('inbounds.ingress')} w={180} value={f.ingress_id || ''} disabled={!!f.line_id} allowDeselect={false} data={[{ value: '', label: t('inbounds.ingressDirect'), disabled: ingresses.some(g => g.require_ingress) }, ...ingresses.map(g => ({ value: String(g.id), label: g.name }))]} onChange={v => { if (f.line_id) return; setDirty(true); setList(cur => cur.map((x, j) => j === i ? { ...x, ingress_id: v || undefined, listen: '' } : x)) }} />
                 <Code>{f.protocol === 'both' ? 'tcp+udp' : f.protocol} :{f.port}</Code><Text size="sm">→</Text><Code>{f.target}</Code>{(f.targets ?? []).length > 0 && <Tooltip label={(f.targets ?? []).map((x) => x.target).join(', ')}><Badge size="xs" variant="light">+{f.targets!.length} · {f.balance === 'roundrobin' ? t('forwards.roundRobinShort') : t('forwards.failoverShort')}</Badge></Tooltip>}{f.proxy_protocol && <Badge size="xs" variant="outline" color="teal">PROXY</Badge>}{f.backend === 'realm' && <Badge size="xs" variant="outline" color="indigo">realm</Badge>}{f.backend === 'nft' && <Badge size="xs" variant="outline" color="grape">nft{f.preserve_source ? ' · src' : ''}</Badge>}
+                {!f.line_id && f.inbound_id && <Box style={{ flex: '1 1 280px', maxWidth: 420 }}><ForwardAddressModeSelect node={pick?.node} disabled={option?.isPending} value={f.target_address_mode} internalDisabled={!!f.targets?.length || !!option?.isError || !!option?.data?.error} internalDisabledHint={f.targets?.length ? undefined : option?.data?.error || t('lines.protocolError')} onChange={target_address_mode => { if (!pick) return; setList(cur => cur.map((x, j) => j === i ? { ...x, target_address_mode, protocol: target_address_mode === 'internal' ? option?.data?.protocol || x.protocol : x.protocol, target: forwardTargetAddress(pick, target_address_mode) } : x)) }} /></Box>}
+                {!f.line_id && f.target_address_mode === 'internal' && (option?.isError || option?.data?.error) && <Text size="xs" c="red">{option?.data?.error || t('lines.protocolError')}</Text>}
+                {!f.line_id && f.target_address_mode === 'internal' && <ForwardConnectivityCheck sourceNodeID={node.id} sourceNodeName={node.name} target={f.target} protocol={f.protocol} />}
                 {describe(f) && <Text size="xs" c="dimmed" truncate>{describe(f)}</Text>}
                 {s?.targets ? s.targets.map(h => <Box key={h.target} title={h.target}><ForwardHealth status={h} protocol={f.protocol} /></Box>) : s && <ForwardHealth status={s} protocol={f.protocol} />}
               </Group>
               {f.line_id ? owner(f) : <Group gap={4} wrap="nowrap">
-                {f.backend !== 'nft' && <Tooltip label={t('forwards.editTargets')}><ActionIcon variant="subtle" color="gray" onClick={() => openTargets(i)}><IconArrowsSplit size={16} /></ActionIcon></Tooltip>}
+                {f.backend !== 'nft' && f.target_address_mode !== 'internal' && <Tooltip label={t('forwards.editTargets')}><ActionIcon variant="subtle" color="gray" onClick={() => openTargets(i)}><IconArrowsSplit size={16} /></ActionIcon></Tooltip>}
                 {f.inbound_id && !dirty && publicAddress(f).host && publicAddress(f).port > 0 && <Tooltip label={t('forwards.makeEntry')}><ActionIcon variant="subtle" onClick={() => mkEntry.mutate(f)}><IconLink size={16} /></ActionIcon></Tooltip>}
                 <ActionIcon variant="subtle" color="red" onClick={() => { setDirty(true); setList(cur => cur.filter((_, j) => j !== i)) }}><IconTrash size={16} /></ActionIcon>
               </Group>}
@@ -131,16 +147,24 @@ export function ForwardsCard({ node, ingresses = [], embedded, readOnly = false 
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
           <Select label={t('inbounds.ingress')} allowDeselect={false} value={ingressID} data={[{ value: '', label: t('inbounds.ingressDirect'), disabled: ingresses.some(g => g.require_ingress) }, ...ingresses.map(g => ({ value: String(g.id), label: g.name }))]} onChange={v => { setIngressID(v || ''); const g = ingresses.find(g => String(g.id) === v); if (g) setPort(firstFreeIngressPort(g, list.map(f => f.port)) || '') }} />
           <NumberInput label={t('forwards.port')} min={1} max={65535} value={port} onChange={setPort} />
-          <Select label={t('forwards.protocol')} data={[{ value: 'both', label: 'tcp+udp' }, { value: 'tcp', label: 'tcp' }, { value: 'udp', label: 'udp' }]} value={proto} onChange={(v) => setProto(v ?? 'both')} allowDeselect={false} />
+          <Select label={t('forwards.protocol')} data={[{ value: 'both', label: 'tcp+udp' }, { value: 'tcp', label: 'tcp' }, { value: 'udp', label: 'udp' }]} disabled={!!target && targetMode === 'internal'} value={effectiveProtocol} onChange={(v) => setProto(v ?? 'both')} allowDeselect={false} />
           <Select label={t('forwards.target')} style={{ flex: 2 }} searchable clearable placeholder={t('forwards.pickInbound')} data={targets.map((x) => ({ value: String(x.ib.ID), label: `${x.node.name} / ${x.ib.Tag} (${x.ib.Protocol}:${x.ib.Port})${x.ingress ? ` · ${x.ingress.name} ${x.ingress.line_ip || ''}` : ''}` }))} value={target} onChange={v => { setTarget(v); const pick = targets.find(x => String(x.ib.ID) === v); if (pick) { const protocol = forwardTargetProtocol(pick.ib.Protocol); setProto(protocol); if (protocol === 'udp') setProxyProto(false) } }} />
+          {target && <ForwardAddressModeSelect node={pickedTarget?.node} disabled={pickedOptions?.isPending} internalDisabled={!!pickedOptions?.isError || !!pickedOptions?.data?.error} internalDisabledHint={pickedOptions?.data?.error || t('lines.protocolError')} value={targetMode} onChange={setTargetMode} />}
           {!target && <TextInput label={t('forwards.manual')} placeholder="198.51.100.20:443" style={{ flex: 2 }} value={manual} onChange={(e) => setManual(e.currentTarget.value)} />}
           <Select label={t('forwards.backend')} data={[{ value: '', label: t('forwards.backendRelay') }, { value: 'nft', label: t('forwards.backendNft') }, { value: 'realm', label: t('forwards.backendRealm') }]} value={backend} onChange={(v) => setBackend(v ?? '')} allowDeselect={false} />
           {backend === 'realm' && <Text size="xs" c="dimmed" maw={320} mb={6}>{t('forwards.backendRealmHint')}</Text>}
           {backend === 'nft' && <Switch label={t('forwards.preserve')} mb={6} checked={preserve} onChange={(e) => setPreserve(e.currentTarget.checked)} />}
           {backend !== 'nft' && <Switch label={t('forwards.proxyProtocol')} mb={6} checked={proxyProto} onChange={(e) => setProxyProto(e.currentTarget.checked)} />}
-          <Button variant="light" leftSection={<IconPlus size={14} />} onClick={add} disabled={!port || (!target && !manual.trim()) || (!ingressID && ingresses.some(g => g.require_ingress)) || q.isError || !q.data}>{t('forwards.add')}</Button>
+          <Button variant="light" leftSection={<IconPlus size={14} />} onClick={add} disabled={!port || !targetAddress || (targetMode === 'internal' && !!target && (!pickedOptions?.data?.protocol || pickedOptions.isError)) || (!ingressID && ingresses.some(g => g.require_ingress)) || q.isError || !q.data}>{t('forwards.add')}</Button>
         </SimpleGrid>
-        {dirty && <Group justify="flex-end"><Button size="xs" loading={save.isPending} onClick={() => save.mutate(list)}>{t('common.save')}</Button></Group>}
+        {pickedTarget && targetMode === 'internal' && (pickedOptions?.isError || pickedOptions?.data?.error) && <Alert color="red"><Text size="sm">{pickedOptions?.data?.error || t('lines.protocolError')}</Text>{pickedOptions?.isError && <Button variant="subtle" size="xs" onClick={() => pickedOptions.refetch()}>{t('workspace.retry')}</Button>}</Alert>}
+        {pickedTarget && <Text size="sm">{t('forwardAddress.target')}: <Code style={{ overflowWrap: 'anywhere' }}>{targetAddress || '—'}</Code></Text>}
+        {pickedTarget && targetMode === 'internal' && <>
+          <Text size="xs" c="dimmed">{t('forwardAddress.candidatesHint')}</Text>
+          {targetAddress && <ForwardConnectivityCheck sourceNodeID={node.id} sourceNodeName={node.name} target={targetAddress} protocol={effectiveProtocol} />}
+          {backend && <Alert color="yellow">{t(`forwardAddress.${backend}Hint`)}</Alert>}
+        </>}
+        {dirty && <Group justify="flex-end"><Button size="xs" loading={save.isPending} disabled={invalidInternal} onClick={() => save.mutate(list)}>{t('common.save')}</Button></Group>}
       </Stack>
       <Modal opened={editing !== null} onClose={() => setEditIdx(null)} title={t('forwards.editTargets')} size="lg">
         {editing && <Stack gap="sm">

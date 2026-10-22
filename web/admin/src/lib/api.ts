@@ -113,13 +113,15 @@ export interface Entry {
   LineID?: number | null; LineMemberID?: string; ClientDialerEntryID?: number | null
   ManagedConnection?: { type: 'wireguard' | 'reverse'; exit_node_id: number }
   Rate: number; Sort: number; Enabled: boolean; Tags?: string[]; Region?: string; ClientExtra?: Record<string, unknown> | null }
-export interface LineMember { id: string; node_id: number; port: number; ingress_id?: number | null; weight: number }
+export type ForwardAddressMode = 'default' | 'internal'
+export interface InternalAddressUsage { uses: { kind: 'line' | 'forward'; id: number; name: string; source_node_id: number; tag?: string }[] }
+export interface LineMember { address_mode?: ForwardAddressMode; id: string; node_id: number; port: number; ingress_id?: number | null; weight: number }
 export interface LineGroup { strategy: 'failover' | 'roundrobin'; members: LineMember[] }
 export interface LineEndpoint { member_id: string; node_id: number; host: string; port: number }
 export interface LineStatus { member_id: string; node_id: number; health: 'unknown' | 'up' | 'down'; probe_protocol: 'tcp' | 'none' | 'backend'; rtt_ms: number; updated_at?: string }
 export interface Line {
   id: number; name: string; version: number; protocol: 'tcp' | 'udp' | 'both'; backend: 'relay' | 'nft' | 'realm'
-  target_inbound_id: number; groups: LineGroup[]; endpoints: LineEndpoint[]; status?: LineStatus[]
+  target_inbound_id: number; target_address_mode?: ForwardAddressMode; groups: LineGroup[]; endpoints: LineEndpoint[]; status?: LineStatus[]
 }
 export interface Order {
   ID: number; No: string; UserID: number; PlanID: number; AmountCents: number; Gateway: string; GatewayRef: string

@@ -1,4 +1,4 @@
-import type { Ingress, Inbound, Node } from './api'
+import type { ForwardAddressMode, Ingress, Inbound, Node } from './api'
 export function ingressPort(g: Ingress, local: number): number {
   if (g.port_mappings?.length) {
     const m = g.port_mappings.find(m => local >= m.local_from && local <= m.local_to)
@@ -16,10 +16,19 @@ export function firstFreeIngressPort(g: Ingress, used: number[] = []): number {
 export const ingressPortLabel = (g: Ingress): string => g.port_mappings?.length ? g.port_mappings.map(m => `${m.local_from}–${m.local_to} → ${m.public_from}–${m.public_from + m.local_to - m.local_from}`).join(', ') : g.port_from ? `${g.port_from}–${g.port_to}${g.port_offset ? ` (${g.port_offset > 0 ? '+' : ''}${g.port_offset})` : ''}` : ''
 export const hostPort = (host: string, port: number) => `${host.includes(':') ? `[${host}]` : host}:${port}`
 
-// Primary and additional managed forwarding targets must use the same mapping.
-export function forwardTargetAddress(pick: { ib: Pick<Inbound, 'Port'>; node: Pick<Node, 'domain' | 'public_addr'>; ingress?: Ingress }) {
-  const g = pick.ingress
-  return g ? hostPort(g.line_ip || g.entry_domain || g.entry_host, g.line_ip ? pick.ib.Port : ingressPort(g, pick.ib.Port)) : hostPort(pick.node.domain || pick.node.public_addr, pick.ib.Port)
+// Internal selection is explicit, uses the actual listener port, and never
+// falls back to a public or provider address when inventory is incomplete.
+export function forwardingAddress(node: Pick<Node, 'domain' | 'public_addr'> & Partial<Pick<Node, 'internal_addr' | 'v6_addr'>>, port: number, ingress?: Ingress, mode: ForwardAddressMode = 'default'): string {
+  if (mode === 'internal') return node.internal_addr?.trim() && port > 0 ? hostPort(node.internal_addr.trim(), port) : ''
+  const host = ingress ? ingress.line_ip || ingress.entry_domain || ingress.entry_host : node.domain || node.public_addr || node.v6_addr || ''
+  const targetPort = ingress && !ingress.line_ip ? ingressPort(ingress, port) : port
+  return host && targetPort > 0 ? hostPort(host, targetPort) : ''
+}
+
+// Additional legacy targets still use the default mapping. Internal candidates
+// are represented by managed line members rather than unowned address strings.
+export function forwardTargetAddress(pick: { ib: Pick<Inbound, 'Port'>; node: Pick<Node, 'domain' | 'public_addr'> & Partial<Pick<Node, 'internal_addr' | 'v6_addr'>>; ingress?: Ingress }, mode: ForwardAddressMode = 'default') {
+  return forwardingAddress(pick.node, pick.ib.Port, pick.ingress, mode)
 }
 export function forwardTargetProtocol(protocol: string): 'udp' | 'both' {
   return ['hysteria2', 'tuic'].includes(protocol) ? 'udp' : 'both'
