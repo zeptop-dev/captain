@@ -7,7 +7,7 @@ import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, 
 import { getDiskPercentage, getMemoryPercentage, getTrafficUsed, getTrafficUsedPercentage, hasTrafficLimit } from '@shared/utils/nodeMetricsHelper'
 import { getOSImage, getOSName } from '@shared/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@shared/utils/regionHelper'
-import { formatCurrencyValue, getDaysUntilExpired, getExpireStatus, getRemainingValue, isFreePrice, parseTags } from '@shared/utils/tagHelper'
+import { getDaysUntilExpired, getExpireStatus, parseTags } from '@shared/utils/tagHelper'
 import ThreeNetworkPing from '@/components/ThreeNetworkPing'
 import { Badge } from '@/components/ui/badge'
 import { CardX } from '@/components/ui/card-x'
@@ -26,7 +26,7 @@ import type { NodeData } from '@/stores/nodes'
 // no rule matches.
 const s = scope('node-card')
 
-interface RemainingInfoTag {
+interface ExpiryInfo {
   icon: string
   text?: string
   prefix?: string
@@ -123,33 +123,23 @@ export default function NodeCard({ node, reduceMotion = false, pingEnabled = tru
   const bandwidthText = captainBandwidth(node.uuid, app.lang)
   const priceText = showPrice ? captainPrice(node.uuid, app.lang) : ''
 
-  const remainingInfoTags: RemainingInfoTag[] = (() => {
-    if (node.price === 0 || (!Number.isFinite(node.price) && !node.expired_at))
-      return []
-    const lang = 'zh-CN' as string
+  // Keep the two metadata rows stable even when one of their values is absent.
+  const asymmetricBandwidth = bandwidthText.startsWith('RX ')
+  const compactBandwidthText = asymmetricBandwidth
+    ? bandwidthText.replaceAll(' Gbps', 'G').replaceAll(' Mbps', 'M').replace('RX ', '↓').replace(' · TX ', ' ↑')
+    : bandwidthText
+  const expiryInfo: ExpiryInfo | null = (() => {
+    if (!shows('system') || !node.expired_at) return null
     const days = getDaysUntilExpired(node.expired_at)
     const status = getExpireStatus(node.expired_at)
-    const items: RemainingInfoTag[] = []
-    const expiryClass = status === 'expired' || status === 'critical'
+    const className = status === 'expired' || status === 'critical'
       ? 'text-destructive'
       : status === 'warning' ? 'text-warning' : 'text-muted-foreground'
-    if (status === 'unknown')
-      items.push({ icon: 'tabler:calendar-stats', text: '-', className: expiryClass })
-    else if (status === 'expired')
-      items.push({ icon: 'tabler:calendar-stats', text: lang === 'zh-CN' ? t('已过期') : 'Expired', className: expiryClass })
-    else if (status === 'long_term')
-      items.push({ icon: 'tabler:calendar-stats', text: lang === 'zh-CN' ? t('长期') : 'Long-term', className: expiryClass })
-    else if (lang === 'zh-CN')
-      items.push({ icon: 'tabler:calendar-stats', prefix: t('剩余'), value: String(days), unit: t('天'), className: expiryClass })
-    else
-      items.push({ icon: 'tabler:calendar-stats', prefix: 'left', value: String(days), unit: 'days', className: expiryClass })
-    if (showPrice && Number.isFinite(node.price)) {
-      const text = isFreePrice(node.price)
-        ? lang === 'zh-CN' ? t('无') : 'N/A'
-        : formatCurrencyValue(getRemainingValue(node.price, node.billing_cycle, node.expired_at), node.currency)
-      items.push({ icon: 'tabler:coins', text })
-    }
-    return items
+    const base = { icon: 'tabler:calendar-stats', className }
+    if (status === 'unknown') return { ...base, text: '—' }
+    if (status === 'expired') return { ...base, text: t('已过期') }
+    if (status === 'long_term') return { ...base, text: t('长期') }
+    return { ...base, prefix: t('剩余'), value: String(days), unit: t('天') }
   })()
 
   const customTags = parseTags(node.tags).map(tag => tag.text)
@@ -293,8 +283,6 @@ export default function NodeCard({ node, reduceMotion = false, pingEnabled = tru
           )}
         </div>
 
-        {bandwidthText && <div className="mt-1 text-[11px] text-muted-foreground break-words">{t('标称带宽')}: {bandwidthText}</div>}
-
         {isMiniNodeCard
           ? (
               <div className="grid grid-cols-[3fr_2fr] gap-x-4 gap-y-2">
@@ -400,33 +388,22 @@ export default function NodeCard({ node, reduceMotion = false, pingEnabled = tru
               </div>
             </div>
           )}
-          {shows('system') && (
-            <div className={vclass('flex flex-col gap-0.5 rounded-lg bg-slate-500/5 min-w-0 overflow-hidden', nodeCardMetricBoxClass)}>
-              {remainingInfoTags.length
-                ? remainingInfoTags.map((item, i) => (
-                    <div key={i} className={vclass('text-[11px] flex items-center gap-0.5', item.className ?? 'text-muted-foreground')}>
-                      <Icon icon={item.icon} width="11" height="11" className="shrink-0" />
-                      {item.text
-                        ? <span className="truncate min-w-0 overflow-hidden">{item.text}</span>
-                        : (
-                            <>
-                              {item.prefix && <span className="shrink-0">{item.prefix}</span>}
-                              {item.value && <span className="shrink-0 tabular-nums">{item.value}</span>}
-                              {item.unit && <span className="shrink-0">{item.unit}</span>}
-                            </>
-                          )}
-                    </div>
-                  ))
-                : (
-                    <>
-                      <div className="text-[11px] text-muted-foreground truncate">
-                        {formatNumber(node.load ?? Number.NaN, 2)}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground truncate">
-                        {`${formatNumber(node.load5 ?? Number.NaN, 2)} / ${formatNumber(node.load15 ?? Number.NaN, 2)}`}
-                      </div>
-                    </>
-                  )}
+          {(shows('system') || shows('info')) && (
+            <div className={vclass('col-start-3 grid grid-rows-[1rem_1rem] gap-0.5 rounded-lg bg-slate-500/5 min-w-0 overflow-hidden', nodeCardMetricBoxClass)}>
+              <div data-node-expiry className={vclass('text-[11px] leading-4 flex items-center gap-0.5 min-w-0', expiryInfo?.className ?? 'text-muted-foreground')}>
+                {expiryInfo && <>
+                  <Icon icon={expiryInfo.icon} width="11" height="11" className="shrink-0" />
+                  <span className="truncate min-w-0" title={expiryInfo.text ?? `${expiryInfo.prefix} ${expiryInfo.value} ${expiryInfo.unit}`}>
+                    {expiryInfo.text ?? <>{expiryInfo.prefix} <span className="tabular-nums">{expiryInfo.value}</span> {expiryInfo.unit}</>}
+                  </span>
+                </>}
+              </div>
+              <div data-node-bandwidth className="text-[11px] leading-4 text-muted-foreground flex items-center gap-1 min-w-0" title={bandwidthText ? `${t('标称带宽')}: ${bandwidthText}` : undefined} aria-label={bandwidthText ? `${t('标称带宽')}: ${bandwidthText}` : undefined}>
+                {bandwidthText && <>
+                  {!asymmetricBandwidth && <Icon icon="tabler:gauge" width="11" height="11" className="shrink-0" aria-hidden="true" />}
+                  <span className="truncate min-w-0">{compactBandwidthText}</span>
+                </>}
+              </div>
             </div>
           )}
         </div>
