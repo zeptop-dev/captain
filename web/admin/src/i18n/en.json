@@ -2813,5 +2813,10 @@
     "invalidate": "Saving changes, rotating secrets or deleting an application invalidates its pending login codes and Captain access tokens. Existing sessions inside New API are unaffected.",
     "secretHint": "Copy this secret now. It is only shown once and must be kept on the application server.",
     "dismiss": "I have saved the secret"
+  },
+  "forwardConnectionCheck": {
+    "run": "Check TCP from {{source}}",
+    "hint": "Checks this TCP endpoint from the preceding server. Save and apply new listeners before checking. Success does not verify the complete proxy path or forwarding firewall; test UDP with a real client.",
+    "udpHint": "UDP connectivity must be tested with a real client; a TCP check cannot verify this listener."
   }
 }
