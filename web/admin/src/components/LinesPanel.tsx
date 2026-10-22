@@ -56,12 +56,12 @@ export function LinesPanel({ lines, nodes, inbounds, loading, error, observedAt,
               const state = fresh ? status.health : 'unknown'
               const transport = fresh ? status.probe_protocol : 'none'
               return <Stack key={member.id} gap={3}>
-                <Text size="sm">{nodes.find(n => n.id === member.node_id)?.name ?? `#${member.node_id}`} <Code>{member.port}</Code>{i > 0 && member.address_mode === 'internal' && <Badge ml={4} size="xs" variant="light">{t('nodes.internalAddr')}</Badge>}{i > 0 && group.strategy === 'roundrobin' && <Text component="span" size="xs" c="dimmed"> · {t('lines.weightValue', { weight: member.weight })}</Text>}</Text>
+                <Text size="sm">{nodes.find(n => n.id === member.node_id)?.name ?? `#${member.node_id}`} <Code>{member.port}</Code>{i > 0 && member.address_mode === 'internal' && <Badge component="span" ml={4} size="xs" variant="light">{t('nodes.internalAddr')}</Badge>}{i > 0 && group.strategy === 'roundrobin' && <Text component="span" size="xs" c="dimmed"> · {t('lines.weightValue', { weight: member.weight })}</Text>}</Text>
                 <Group gap={4}><Tooltip label={t('lines.probeHint')}><Badge size="xs" color={state === 'up' && transport === 'tcp' ? 'teal' : state === 'down' ? 'red' : 'gray'} variant="light">{transport === 'tcp' && state !== 'unknown' ? `TCP · ${state === 'up' ? `${status?.rtt_ms} ms` : t('lines.probeDown')}` : transport === 'backend' && state === 'down' ? t('lines.backendFailed') : t('lines.probeUnknown')}</Badge></Tooltip>{line.protocol !== 'tcp' && <Badge size="xs" color="gray" variant="outline">{t('lines.udpUntested')}</Badge>}</Group>
               </Stack>
             })}</Group>
           </Box>)}
-          <Text size="sm" mt="xs">{t('lines.target')}: {target ? `${target.node.name} / ${target.ib.Tag}` : `#${line.target_inbound_id}`} {line.target_address_mode === 'internal' && <Badge size="xs" variant="light">{t('nodes.internalAddr')}</Badge>}</Text>
+          <Text size="sm" mt="xs">{t('lines.target')}: {target ? `${target.node.name} / ${target.ib.Tag}` : `#${line.target_inbound_id}`} {line.target_address_mode === 'internal' && <Badge component="span" size="xs" variant="light">{t('nodes.internalAddr')}</Badge>}</Text>
           {target && line.target_address_mode === 'internal' && <Code>{forwardTargetAddress(target, 'internal') || t('forwardAddress.internalMissing')}</Code>}
           <Text size="xs" c="dimmed">{t('lines.probeHint')}</Text>
           {(line.endpoints?.length ?? 0) > 0 && <Group gap="xs">{line.endpoints.filter(endpoint => endpoint.host.trim()).map(endpoint => <Code key={endpoint.member_id}>{hostPort(endpoint.host, endpoint.port)}</Code>)}</Group>}
