@@ -159,7 +159,7 @@ func TestWireGuardManagedAPI(t *testing.T) {
 }
 
 func TestManagedTopologyPanelRollbackFloor(t *testing.T) {
-	for _, tc := range []struct{ configured, want string }{{"", "v1.29.0"}, {"invalid", "v1.29.0"}, {"v1.20.0", "v1.29.0"}, {"v1.28.0", "v1.29.0"}, {"v1.29.0", "v1.29.0"}, {"v1.30.0", "v1.30.0"}} {
+	for _, tc := range []struct{ configured, want string }{{"", "v1.31.0"}, {"invalid", "v1.31.0"}, {"v1.20.0", "v1.31.0"}, {"v1.29.0", "v1.31.0"}, {"v1.30.0", "v1.31.0"}, {"v1.31.0", "v1.31.0"}, {"v1.32.0", "v1.32.0"}} {
 		if got := captainUpdateFloor(tc.configured); got != tc.want {
 			t.Fatalf("%q: %s", tc.configured, got)
 		}

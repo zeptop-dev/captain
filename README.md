@@ -58,6 +58,7 @@ Monitor-only nodes can be installed without proxy cores and later switched to fu
 
 ## Features
 
+- Reuse each server's registered internal IP for explicitly selected forwarding hops and landing inbounds. Preview actual targets, check TCP from the preceding server, and refresh referenced paths when addresses change. Existing paths and published subscription endpoints retain their defaults. [Internal forwarding addresses](docs/NODES.md#reusing-a-servers-internal-address).
 - Manage subscription nodes and reusable server lines together: create a direct node, publish a relay/nft/realm path, or connect two subscription nodes as a supported client chain. Server details show the associated configuration and reported state. Lines support TCP failover and weighted candidate selection, with explicit transport and firewall limits. [Lines](docs/NODES.md#managed-server-lines) · [Client chains](docs/SUBSCRIPTIONS.md#managed-server-lines-and-client-chains).
 - Node domain conflict checks and explicit shared/external DNS management prevent accidental record overwrites. DNS health checks, sustained alerts and durable automatic-write history help diagnose failures and recover recorded previous values. [DNS operations](docs/MONITORING.md).
 - Download reviewed core packages and activate a version from node details (bosun ≥ 0.64). Official and Extended sing-box can coexist; SSH TCP proxy subscriptions use persistent host-key pins. [Core management and limitations](docs/NODES.md#managing-node-core-packages).

@@ -343,6 +343,49 @@ are centralized here; server details keep read-only summaries of these connectio
 
 ## Port forwards (relay tunnels)
 
+### Reusing a server's internal address
+
+Register the server's existing internal IP once in **Servers → Edit → Internal
+address**. Captain does not assign that IP or join a provider network. When
+creating a forwarding line, explicitly choose **Server internal address** for
+each subsequent-group member or the final landing. The preceding server then
+connects to that server's registered internal IP and actual listener port,
+without applying the public port mapping. The preview shows the chosen
+destination. First-group subscription endpoints retain their public addresses.
+
+**Default address** preserves the existing public/domain or dedicated-ingress
+selection. Merely filling an internal address never changes an existing line.
+An internal selection has no automatic public fallback. The destination must
+listen on that internal address or a compatible wildcard; an explicitly
+different bind is rejected. Intermediate members reached internally bind that
+address when no ingress bind is set. Address registration is not evidence of
+network reachability or of the provider's traffic charging policy.
+
+Single port forwarding supports the same choice when the target is a managed
+inbound. Internal mode follows that inbound rather than a hand-written address;
+it cannot be combined with untracked additional targets. Use forwarding groups
+for several managed candidates and select their connection modes individually.
+Changing an internal address refreshes dependent targets atomically. The server
+editor lists affected lines/forwards; clearing a referenced address or changing
+its listener incompatibly is rejected. Removing referenced resources requires
+first editing or removing those forwards/lines.
+
+Full administrators can run a TCP connection check **from the preceding
+server** using the existing diagnostic jobs (bosun ≥ 0.56). Save and apply new
+listeners first. A successful root-agent check does not verify proxy
+authentication, UDP, or the forwarding backend's permissions. UDP requires a
+real client test. Built-in relay runs in bosun; realm runs as the proxy account
+and needs a matching, narrowly scoped **Private upstream exception** on the
+preceding server for a private target. nft still needs the host's FORWARD rules
+to allow the path. These permissions are not broadened by selecting an address.
+
+The internal-address field also retains its online-device purpose: known relay
+source IPs are marked **via relay**, and all such sources for one user count as
+one device. It does not recover the number of actual clients hidden behind a
+relay or select the agent's connection to Captain.
+
+### Standalone forwarding rules
+
 **Nodes & lines → Lines → Forwarding lines → Single port forwarding**: listen on a port of this node and relay raw TCP,
 UDP or both to a landing server. Clients connect to the relay while the
 landing inbound keeps doing authentication and per-user accounting. Pick
@@ -926,12 +969,13 @@ Unavailable IPv6 remains blank. Older agents require upgrading to support this
 workflow. Existing nodes and API clients omitting the additive creation fields
 `AutoIPv4` / `AutoIPv6` retain the previous fixed-address behavior.
 
-The optional internal address identifies relay sources in online-device views
-and device-limit accounting. Traffic arriving through known relays is grouped
-instead of counting each relay as a separate device. This field does not create
-private-network connectivity, configure a tunnel, or select the connection used
-by bosun to reach Captain. Leave it blank unless private-network relay
-identification is needed.
+The optional internal address registers an existing server IP. It identifies
+relay sources in online-device views and device-limit accounting, and can be
+explicitly selected as a forwarding destination. All known relay sources for
+one user count as one device. Filling this field alone does not change existing
+paths, create private-network connectivity, configure a tunnel, or select the
+connection used by bosun to reach Captain. See
+[internal forwarding addresses](#reusing-a-servers-internal-address).
 
 ## Three-carrier return routes (Captain 1.21 / bosun 0.69)
 

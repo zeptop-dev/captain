@@ -542,12 +542,12 @@ func limitBodies(next http.Handler) http.Handler {
 
 func (s *Server) DNSHealth() *service.DNSHealth { return s.dnsHealth }
 
-// Older panels ignore managed client dialers and line ownership, which could
-// publish a direct proxy or rewrite an owned hop. Keep rollback above the first
-// release that understands these subscription and topology fields.
+// Older panels ignore explicit internal forwarding addresses and can regenerate
+// a public path during topology edits. Keep rollback above the release that
+// understands these references as well as managed client dialers and ownership.
 func captainUpdateFloor(configured string) string {
-	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.29.0", configured) {
-		return "v1.29.0"
+	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.31.0", configured) {
+		return "v1.31.0"
 	}
 	return configured
 }

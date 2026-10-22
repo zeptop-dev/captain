@@ -435,3 +435,23 @@ built-in Captain update/rollback floor is v1.29.0, superseding the v1.28.0 floor
 above. Manually restoring an older binary requires its matching pre-upgrade
 database backup; an additive migration does not make these behaviors safe to
 ignore. bosun's own rollback floor is unchanged.
+
+## Explicit internal forwarding addresses (migration 82)
+
+Line `target_address_mode`, later member `address_mode`, and single-forward
+`target_address_mode` are additive values (`default` or `internal`). New
+resources retain default routing unless explicitly opted in; omitted/null modes
+on updates preserve the previous selection. Existing Node `InternalAddr` is
+reused without renaming its API or config fields. Omitted/null InternalAddr on
+node updates retains the stored value, while an explicit empty string is
+rejected when an internal forwarding reference still needs the address.
+
+The panel resolves references into the existing agent Forward target/listen
+fields, so no new bosun protocol or minimum version is required beyond the
+chosen backend's existing requirements. Internal address selection does not
+create a private network or grant proxy access to it. The optional TCP check
+uses existing administrator-only diagnostics (bosun ≥ 0.56).
+
+The built-in Captain update/rollback floor is now v1.31.0: older panels can
+ignore the saved mode and regenerate a public target on an unrelated edit.
+Manual downgrade requires restoring the matching pre-upgrade database backup.
