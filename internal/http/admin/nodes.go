@@ -115,16 +115,17 @@ func (h *handlers) listNodes(w http.ResponseWriter, r *http.Request) {
 }
 
 type nodeInput struct {
-	AutoIPv4, AutoIPv6                                         *bool
-	Mode                                                       *spec.NodeMode
-	Name, PublicAddr, InternalAddr, V6Addr, Domain, MonitorURL string
-	DomainShared                                               *bool
-	DecoyEnabled                                               bool
-	DecoyUpstream                                              string
-	UserSpeedLimitMbps                                         int
-	MitaQuotas                                                 bool
-	EgressByIngress                                            bool
-	DStatusSID                                                 string
+	AutoIPv4, AutoIPv6                           *bool
+	Mode                                         *spec.NodeMode
+	Name, PublicAddr, V6Addr, Domain, MonitorURL string
+	InternalAddr                                 *string
+	DomainShared                                 *bool
+	DecoyEnabled                                 bool
+	DecoyUpstream                                string
+	UserSpeedLimitMbps                           int
+	MitaQuotas                                   bool
+	EgressByIngress                              bool
+	DStatusSID                                   string
 }
 
 func (h *handlers) createNode(w http.ResponseWriter, r *http.Request) {
@@ -139,7 +140,10 @@ func (h *handlers) createNode(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "node name may not contain control characters or markup")
 		return
 	}
-	n := &domain.Node{Name: in.Name, PublicAddr: in.PublicAddr, InternalAddr: in.InternalAddr, V6Addr: in.V6Addr, Domain: strings.ToLower(strings.TrimSpace(in.Domain)), MonitorURL: in.MonitorURL, DStatusSID: strings.TrimSpace(in.DStatusSID)}
+	n := &domain.Node{Name: in.Name, PublicAddr: in.PublicAddr, V6Addr: in.V6Addr, Domain: strings.ToLower(strings.TrimSpace(in.Domain)), MonitorURL: in.MonitorURL, DStatusSID: strings.TrimSpace(in.DStatusSID)}
+	if in.InternalAddr != nil {
+		n.InternalAddr = strings.TrimSpace(*in.InternalAddr)
+	}
 	if in.Mode != nil {
 		n.Mode = *in.Mode
 	}
@@ -216,11 +220,15 @@ func (h *handlers) updateNode(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "node name may not contain control characters or markup")
 		return
 	}
-	n := &domain.Node{ID: id, Name: in.Name, PublicAddr: in.PublicAddr, InternalAddr: in.InternalAddr, V6Addr: in.V6Addr, Domain: strings.ToLower(strings.TrimSpace(in.Domain)), MonitorURL: in.MonitorURL, DecoyEnabled: in.DecoyEnabled, DecoyUpstream: strings.TrimSpace(in.DecoyUpstream), UserSpeedLimitMbps: in.UserSpeedLimitMbps, MitaQuotas: in.MitaQuotas, EgressByIngress: in.EgressByIngress, DStatusSID: strings.TrimSpace(in.DStatusSID)}
+	n := &domain.Node{ID: id, Name: in.Name, PublicAddr: in.PublicAddr, V6Addr: in.V6Addr, Domain: strings.ToLower(strings.TrimSpace(in.Domain)), MonitorURL: in.MonitorURL, DecoyEnabled: in.DecoyEnabled, DecoyUpstream: strings.TrimSpace(in.DecoyUpstream), UserSpeedLimitMbps: in.UserSpeedLimitMbps, MitaQuotas: in.MitaQuotas, EgressByIngress: in.EgressByIngress, DStatusSID: strings.TrimSpace(in.DStatusSID)}
 	old, err := h.Store.NodeByID(r.Context(), id)
 	if err != nil {
 		nodeSaveError(w, err)
 		return
+	}
+	n.InternalAddr = old.InternalAddr
+	if in.InternalAddr != nil {
+		n.InternalAddr = strings.TrimSpace(*in.InternalAddr)
 	}
 	if in.Mode != nil && in.Mode.Effective() != old.Mode {
 		fail(w, 400, "use the node mode endpoint to switch modes")

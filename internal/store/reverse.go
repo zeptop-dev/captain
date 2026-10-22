@@ -193,6 +193,11 @@ func checkReverseInboundRemoval(ctx context.Context, tx *sql.Tx, id int64) error
 	if count > 0 {
 		return ErrLineInUse
 	}
+	if used, err := hasInternalForwardReference(ctx, tx, 0, id); err != nil {
+		return err
+	} else if used {
+		return ErrLineInUse
+	}
 	return nil
 }
 

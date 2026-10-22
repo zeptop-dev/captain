@@ -148,7 +148,7 @@ func (h *handlers) updateIngress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.UpdateIngress(r.Context(), g); err != nil {
-		serverErr(w, err)
+		lineError(w, err)
 		return
 	}
 	ok(w, map[string]any{"ingress": g, "dns": h.DNS.EnsureMany(service.WithDNSOrigin(r.Context(), service.DNSOrigin{NodeID: g.NodeID, Source: "ingress:" + strconv.FormatInt(g.ID, 10), Actor: userFrom(r).Email}), [2]string{g.EntryDomain, g.EntryHost})})

@@ -148,8 +148,60 @@ func (s *Store) UpdateIngress(ctx context.Context, g *Ingress) error {
 }
 
 func (s *Store) DeleteIngress(ctx context.Context, id int64) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM ingresses WHERE id = ?`, id)
-	return err
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	rows, err := tx.QueryContext(ctx, "SELECT id FROM inbounds WHERE ingress_id=?", id)
+	if err != nil {
+		return err
+	}
+	var ids []int64
+	for rows.Next() {
+		var inbound int64
+		if err = rows.Scan(&inbound); err != nil {
+			rows.Close()
+			return err
+		}
+		ids = append(ids, inbound)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	var node int64
+	if err = tx.QueryRowContext(ctx, "SELECT node_id FROM ingresses WHERE id=?", id).Scan(&node); err != nil {
+		return wrapNotFound(err)
+	}
+	forwards, err := nodeForwardsTx(ctx, tx, node)
+	if err != nil {
+		return err
+	}
+	for _, f := range forwards {
+		if f.IngressID == strconv.FormatInt(id, 10) && f.TargetAddressMode == AddressModeInternal {
+			return ErrLineInUse
+		}
+	}
+	for _, inbound := range ids {
+		var lineCount int
+		if err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM forward_lines WHERE target_inbound_id=? AND target_address_mode='internal'", inbound).Scan(&lineCount); err != nil {
+			return err
+		}
+		if lineCount > 0 {
+			return ErrLineInUse
+		}
+		if used, err := hasInternalForwardReference(ctx, tx, 0, inbound); err != nil {
+			return err
+		} else if used {
+			return ErrLineInUse
+		}
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM ingresses WHERE id = ?`, id); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) IngressByID(ctx context.Context, id int64) (*Ingress, error) {

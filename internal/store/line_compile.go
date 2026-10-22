@@ -194,6 +194,13 @@ func compileLine(ctx context.Context, tx *sql.Tx, l *ForwardLine) (map[int64][]N
 		}
 	}
 	targetHost, targetPort := lineAddress(targetNode.node, targetIngress, ib.Port, true)
+	if l.TargetAddressMode == AddressModeInternal {
+		targetHost, err = internalInboundHost(targetNode.node, ib, targetIngress, l.Protocol)
+		if err != nil {
+			return nil, nil, err
+		}
+		targetPort = ib.Port
+	}
 	target, err := lineHostPort(targetHost, targetPort)
 	if err != nil {
 		return nil, nil, err
@@ -228,6 +235,18 @@ func compileLine(ctx context.Context, tx *sql.Tx, l *ForwardLine) (map[int64][]N
 				}
 			}
 			host, port := lineAddress(n.node, ing, m.Port, true)
+			if m.AddressMode == AddressModeInternal {
+				host, err = internalAddress(n.node.InternalAddr)
+				if err != nil {
+					return nil, nil, fmt.Errorf("server %d: %w", m.NodeID, err)
+				}
+				port = m.Port
+				if ing != nil {
+					if err = validateInternalListen(host, ing.BindIP); err != nil {
+						return nil, nil, err
+					}
+				}
+			}
 			addresses[m.ID], err = lineHostPort(host, port)
 			if err != nil {
 				return nil, nil, err
@@ -258,9 +277,17 @@ func compileLine(ctx context.Context, tx *sql.Tx, l *ForwardLine) (map[int64][]N
 				f.IngressID = strconv.FormatInt(*m.IngressID, 10)
 				f.Listen = ingress.BindIP
 			}
+			if m.AddressMode == AddressModeInternal && f.Listen == "" {
+				f.Listen, err = internalAddress(n.node.InternalAddr)
+				if err != nil {
+					return nil, nil, err
+				}
+			}
+			destinationMode := l.TargetAddressMode
 			if i+1 < len(l.Groups) {
 				next := l.Groups[i+1]
 				f.Target = addresses[next.Members[0].ID]
+				destinationMode = next.Members[0].AddressMode
 				if len(next.Members) > 1 {
 					if !lineVersionOK(n.node, "v0.49.0") {
 						return nil, nil, errors.New("candidate groups require bosun v0.49.0 or newer on every selecting relay")
@@ -271,7 +298,7 @@ func compileLine(ctx context.Context, tx *sql.Tx, l *ForwardLine) (map[int64][]N
 					}
 				}
 			}
-			if l.Backend == "realm" && l.Protocol != "tcp" {
+			if l.Backend == "realm" && l.Protocol != "tcp" && destinationMode != AddressModeInternal {
 				destination, destinationIngress, port := targetNode.node, targetIngress, ib.Port
 				if i+1 < len(l.Groups) {
 					// Realm lines have one next-hop member. Unlike its TCP dialer,

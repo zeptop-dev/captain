@@ -48,7 +48,11 @@ func (h *handlers) putNodeForwards(w http.ResponseWriter, r *http.Request) {
 		fail(w, 409, err.Error())
 		return
 	}
-	in.Forwards = preserved
+	in.Forwards, err = h.Store.ResolveNodeForwardTargets(r.Context(), id, preserved)
+	if err != nil {
+		lineError(w, err)
+		return
+	}
 	// Every socket the node already opens, apart from the forwards this
 	// call replaces: the same model the inbound side checks against, so
 	// the two cannot disagree about who owns a port.
@@ -177,7 +181,7 @@ func (h *handlers) putNodeForwards(w http.ResponseWriter, r *http.Request) {
 		clean = append(clean, f)
 	}
 	if err := h.Store.SetNodeForwards(r.Context(), id, clean); err != nil {
-		serverErr(w, err)
+		lineError(w, err)
 		return
 	}
 	ok(w, map[string]any{"forwards": clean})

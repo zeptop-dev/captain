@@ -14,6 +14,8 @@ func nodeSaveError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.As(err, &conflict):
 		fail(w, http.StatusConflict, conflict.Error())
+	case errors.Is(err, store.ErrInternalAddress):
+		fail(w, http.StatusConflict, err.Error())
 	case errors.Is(err, domain.ErrNodeDomain):
 		fail(w, http.StatusBadRequest, domain.ErrNodeDomain.Error())
 	case errors.Is(err, store.ErrNotFound):

@@ -113,3 +113,14 @@ func (h *handlers) lineOptions(w http.ResponseWriter, r *http.Request) {
 	}
 	ok(w, map[string]string{"protocol": protocol})
 }
+
+func (h *handlers) internalAddressUsage(w http.ResponseWriter, r *http.Request) {
+	h.Store.Topology.Lock()
+	defer h.Store.Topology.Unlock()
+	uses, err := h.Store.InternalAddressUses(r.Context(), idOf(r))
+	if err != nil {
+		lineError(w, err)
+		return
+	}
+	ok(w, map[string]any{"uses": uses})
+}

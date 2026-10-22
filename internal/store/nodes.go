@@ -246,7 +246,7 @@ func (s *Store) UpdateNode(ctx context.Context, n *domain.Node) error {
 	if err != nil {
 		return err
 	}
-	if n.PublicAddr != old.PublicAddr || n.V6Addr != old.V6Addr || n.Domain != old.Domain || n.DomainShared != old.DomainShared {
+	if n.PublicAddr != old.PublicAddr || n.V6Addr != old.V6Addr || n.Domain != old.Domain || n.DomainShared != old.DomainShared || n.InternalAddr != old.InternalAddr {
 		if err = refreshLinesForNodeTx(ctx, tx, n.ID); err != nil {
 			return err
 		}
@@ -405,8 +405,20 @@ func (s *Store) DeleteInbound(ctx context.Context, id int64) error {
 	if err := s.CheckClientChainRemoval(ctx, "inbound", id); err != nil {
 		return err
 	}
-	_, err := s.db.ExecContext(ctx, `DELETE FROM inbounds WHERE id = ?`, id)
-	return err
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if used, err := hasInternalForwardReference(ctx, tx, 0, id); err != nil {
+		return err
+	} else if used {
+		return ErrLineInUse
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM inbounds WHERE id = ?`, id); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // NodeTrafficToday sums today's traffic per node from daily buckets.
