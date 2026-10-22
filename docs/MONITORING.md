@@ -37,6 +37,12 @@ of the two period totals. This includes all traffic on those interfaces and is
 independent of proxy-user billing. Existing API mode values `up` and `down`
 continue to mean outbound and inbound respectively.
 
+The monthly traffic limit accepts decimals with an MB, GB or TB selector.
+These use the status page's existing 1024-based units: 1 TB = 1024 GB and
+1 GB = 1024 MB. For example, select TB and enter `1.1` for a 1.10 TB
+allowance. Zero remains unlimited. Changing units preserves the allowance;
+reopening the form or saving other settings keeps the stored byte precision.
+
 The carrier latency targets default to the CT/CU/CM probe points; Settings
 → Probe → *Latency targets* replaces the set with your own `name host:port`
 lines, and every node managed by Captain follows the panel. A node running
