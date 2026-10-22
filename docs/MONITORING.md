@@ -725,6 +725,12 @@ the capacity; asymmetric links label RX and TX separately. The global public
 Information section must also be enabled. Private bandwidth is stripped from
 the public API response, rather than only hidden in the interface.
 
+Glass node cards place bandwidth below the remaining days in the lower-right
+information box. Both rows keep their height when a value is absent, so cards
+stay aligned. Asymmetric card values use compact receive/send arrows; hover
+for the full RX/TX capacities. The repeated load-average fallback is removed;
+load remains under CPU on regular cards and in node details.
+
 The optional `info.bandwidth` object stores `inbound_mbps`, `outbound_mbps`, and
 `public`. Older API clients omitting it (or sending null) preserve the record;
 an explicit empty object or two zero rates clears it. It uses the existing node
