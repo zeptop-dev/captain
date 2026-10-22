@@ -6,6 +6,10 @@ Merge commits and formatting-only commits are left out. Binaries and
 `SHA256SUMS` for every tag are on the GitHub Release; the in-app updater
 installs them (Settings → Backups and maintenance → Version and updates).
 
+- **v1.31.0** (2026-10-22) — Reuse a server's registered internal IP in forwarding groups and single port forwards through explicit address selection. Resolve private targets to their actual listener port, keep public subscription endpoints unchanged, and never fall back to a public target. Validate listener families and transports, including nft's IPv6-only wildcard behavior; migration 82 preserves existing default paths.
+  - Refresh dependent targets atomically when addresses or listeners change, show internal-address references in server editing, and reject clearing or deleting resources that remain in use. Preserve address choices in older API writes without applying private routing to newly added rules.
+  - Add administrator-only, source-server TCP checks with cancellation when a path changes. Keep backend permissions explicit: selecting an address does not configure a private network, broaden private access or verify UDP. No bosun upgrade is required; built-in Captain rollback now requires v1.31.0 or newer.
+
 - **v1.30.0** (2026-10-22) — Add registered confidential-client OAuth login for New API: application management, explicit customer consent, short-lived single-use codes and opaque user-info tokens, optional S256 PKCE and stable external subjects (migration 81). Keep staff, billing and API privileges separate. Configure New API Custom OAuth manually with `profile email`; no OIDC discovery, ID tokens or refresh tokens.
   - Preserve the exact OIDC issuer, including a trailing slash, during discovery. Fix Auth0-style issuers failing before login while retaining strict issuer validation and compatibility with issuers without a trailing slash.
 
