@@ -248,6 +248,22 @@ ingress or a domain stand in front of the same inbound. Tags, regions,
 ordering and auto flags are described in
 [SUBSCRIPTIONS.md](SUBSCRIPTIONS.md#entries-what-each-user-sees).
 
+## Server settings and lines
+
+Server details contain **Server proxy settings**: NAT/dedicated-line address
+and port mappings, outbounds and routing, and advanced per-core overrides.
+These settings apply to the selected server. NAT mappings describe existing
+provider configuration; saving them does not create provider-side NAT rules.
+Administrators and operators retain their existing editing permissions;
+egress upstream exceptions remain administrator-only. Unpaired and
+monitor-only servers cannot edit proxy settings.
+
+**Nodes & lines → Lines** contains forwarding lines, reverse WireGuard and
+VLESS Reverse. Forwarding lines separate **Forwarding groups** from
+**Single port forwarding**. Server details show these connections and link
+to their line editors. Saved links to the former server-setting sections
+under `/entries` redirect to the corresponding server details.
+
 ## Managed server lines
 
 **Nodes & lines → Create line → Port forwarding** builds an ordered series of
@@ -323,11 +339,11 @@ The same page offers **Reverse WireGuard** and **VLESS Reverse**, reusing their
 existing capability checks and ownership rules. These are complete reverse
 connections with A-side authentication/accounting and B-side initiated tunnels,
 not arbitrary edges in a multihop forwarding graph. Their creation and editing
-are centralized here; server details remain a resource/status overview.
+are centralized here; server details keep read-only summaries of these connections.
 
 ## Port forwards (relay tunnels)
 
-Nodes & lines → Lines → Existing port forwards: listen on a port of this node and relay raw TCP,
+**Nodes & lines → Lines → Forwarding lines → Single port forwarding**: listen on a port of this node and relay raw TCP,
 UDP or both to a landing server. Clients connect to the relay while the
 landing inbound keeps doing authentication and per-user accounting. Pick
 another managed node's inbound as the target and one click creates an entry
@@ -377,7 +393,7 @@ connections to such an inbound fail, by design.
 ## Ingresses and port mappings (NAT / IPLC)
 
 A node behind NAT, an IPLC or a dedicated line may expose only provider-assigned
-ports. Nodes → Lines → NAT / dedicated-line ingress → select server records the provider's existing
+ports. **Servers → select server → Server proxy settings → NAT / dedicated-line ingress** records the provider's existing
 configuration; it does not create NAT mappings or change the provider firewall.
 Choose NAT or IPLC / dedicated line. Existing `mapped` records keep their old
 addresses, ranges and optional direct listeners after migration.
@@ -524,7 +540,7 @@ use this mode when those per-user speed guarantees are required.
 
 ## Outbounds, landing and egress
 
-**Nodes → Lines → Outbounds & routing → select server**: add an exit from a share link — bosun
+**Servers → select server → Server proxy settings → Outbounds & routing**: add an exit from a share link — bosun
 renders it in the serving core's dialect (sing-box takes every protocol,
 Xray vless/vmess/trojan/ss/socks/http) — chain exits with `via`, then pick
 a default exit for the whole node or add rules such as `inbound:tag`,

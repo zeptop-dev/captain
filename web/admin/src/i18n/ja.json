@@ -240,7 +240,7 @@
     "domainDNSSkipped": "保存しましたが、共有ドメインまたはアドレス競合のため自動 DNS 更新をスキップしました。既存レコードは変更されていません。",
     "advIngressCount": "入口 {{count}} 件",
     "advIngressHint": "NAT / 専用回線のアドレスとポート範囲",
-    "advRoutingHint": "着地サーバーから出る（中継）",
+    "advRoutingHint": "このサーバーの既定のプロキシ出力とルーティングルール",
     "advForwardsHint": "ポートを別のサーバーへ転送する（前段中継）",
     "doctor": "診断",
     "doctorOk": "正常",
@@ -252,7 +252,10 @@
     "rollbackQueued": "ロールバックを通知しました。サーバーは前のビルドで再起動します",
     "doctorNotApplied": "サーバーに適用されていないインバウンド",
     "egressByIngress": "入口アドレスから出る",
-    "egressByIngressHint": "マルチ IP ホスト：特定アドレスにバインドしたインバウンドのトラフィックは同じアドレスから出ます（sing-box、xray、hysteria）。各インバウンドにバインドアドレスを設定してください。全アドレス待受のインバウンドは既定ルート、既定の着地アウトバウンドがある場合は無視。bosun 0.44 以上。"
+    "egressByIngressHint": "マルチ IP ホスト：特定アドレスにバインドしたインバウンドのトラフィックは同じアドレスから出ます（sing-box、xray、hysteria）。各インバウンドにバインドアドレスを設定してください。全アドレス待受のインバウンドは既定ルート、既定の着地アウトバウンドがある場合は無視。bosun 0.44 以上。",
+    "proxySettings": "サーバーのプロキシ設定",
+    "proxySettingsHint": "このサーバーのアドレスマッピング、プロキシルーティング、コアオプションを設定します。",
+    "proxySettingsMoved": "これらの設定はサーバー詳細に移動しました。サーバーを選択してください。"
   },
   "inbounds": {
     "title": "インバウンド",
@@ -2778,7 +2781,8 @@
     "strategies": {
       "failover": "主系 / 待機系",
       "roundrobin": "重み付きラウンドロビン"
-    }
+    },
+    "forwardGroups": "転送グループ"
   },
   "nodeBandwidth": {
     "title": "公称帯域幅",

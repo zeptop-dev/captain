@@ -240,7 +240,7 @@
     "domainDNSSkipped": "已儲存，但已略過共用網域或位址衝突的自動 DNS 更新；現有解析未修改。",
     "advIngressCount": "{{count}} 個入口",
     "advIngressHint": "NAT / 專線位址與連接埠範圍",
-    "advRoutingHint": "讓流量從落地伺服器出去，做中轉",
+    "advRoutingHint": "設定本伺服器的預設代理出站和分流規則",
     "advForwardsHint": "把連接埠原樣轉發到別的伺服器，做前置",
     "doctor": "健檢",
     "doctorOk": "正常",
@@ -252,7 +252,10 @@
     "rollbackQueued": "已通知伺服器回滾，伺服器將以上一個版本重啟",
     "doctorNotApplied": "以下入站沒有下發到伺服器核心",
     "egressByIngress": "源進源出",
-    "egressByIngressHint": "多 IP 主機：綁定了特定位址的入站，其流量從同一位址出去（sing-box、xray、hysteria）。需為各入站填寫綁定位址；監聽全部位址的入站走預設路由；設定了預設落地出站時忽略。需要 bosun ≥ 0.44。"
+    "egressByIngressHint": "多 IP 主機：綁定了特定位址的入站，其流量從同一位址出去（sing-box、xray、hysteria）。需為各入站填寫綁定位址；監聽全部位址的入站走預設路由；設定了預設落地出站時忽略。需要 bosun ≥ 0.44。",
+    "proxySettings": "伺服器代理設定",
+    "proxySettingsHint": "設定這台伺服器的位址映射、代理分流和核心選項。",
+    "proxySettingsMoved": "這些設定已移至伺服器詳情，請選擇伺服器繼續。"
   },
   "inbounds": {
     "title": "入站",
@@ -2778,7 +2781,8 @@
     "strategies": {
       "failover": "主備",
       "roundrobin": "加權輪詢"
-    }
+    },
+    "forwardGroups": "轉發群組"
   },
   "nodeBandwidth": {
     "title": "標稱頻寬",

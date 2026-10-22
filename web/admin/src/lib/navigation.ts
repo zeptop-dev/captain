@@ -45,3 +45,7 @@ export function navigationGroup(path: string) {
   if (['/coupons', '/gifts', '/withdrawals', '/articles', '/site'].includes(path)) return 'business'
   return navigation.find(g => g.items.some(i => i.to.split('?')[0] === path || (i.to !== '/' && path.startsWith(`${i.to}/`))))?.id ?? 'system'
 }
+
+export function isServerSettingsSection(section: string | null): section is 'routing' | 'ingresses' | 'overrides' {
+  return section === 'routing' || section === 'ingresses' || section === 'overrides'
+}

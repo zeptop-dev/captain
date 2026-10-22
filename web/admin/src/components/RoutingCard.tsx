@@ -63,26 +63,26 @@ export function RoutingCard({ nodeID, inboundTags, embedded, readOnly = false }:
         <ConfigPresets kind="outbounds" current={() => nr} onLoad={v => setNr(v as Routing)} affected={inboundTags} />
         <ConfigPresets kind="routes" current={() => nr} onLoad={v => setNr(v as Routing)} affected={inboundTags} />
         {nr.outbounds.map((o, i) => (
-          <Group key={i} justify="space-between" wrap="nowrap">
-            <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}><Code>{o.tag}</Code><Text size="sm" truncate>{describe(o)}</Text>{q.data?.traffic?.[o.tag] && <Text size="xs" c="dimmed">{bytes(q.data.traffic[o.tag].today)} / {bytes(q.data.traffic[o.tag].total)}</Text>}{o.proxy_tag && <Badge size="xs" variant="light">{t('routing.via', { tag: o.proxy_tag })}</Badge>}{nr.default_outbound === o.tag && <Badge size="xs" color="teal">{t('routing.isDefault')}</Badge>}</Group>
+          <Group key={i} justify="space-between" align="flex-start">
+            <Group gap="xs" style={{ minWidth: 0, flex: '1 1 240px' }}><Code>{o.tag}</Code><Text size="sm" truncate>{describe(o)}</Text>{q.data?.traffic?.[o.tag] && <Text size="xs" c="dimmed">{bytes(q.data.traffic[o.tag].today)} / {bytes(q.data.traffic[o.tag].total)}</Text>}{o.proxy_tag && <Badge size="xs" variant="light">{t('routing.via', { tag: o.proxy_tag })}</Badge>}{nr.default_outbound === o.tag && <Badge size="xs" color="teal">{t('routing.isDefault')}</Badge>}</Group>
             <Group gap={4} wrap="nowrap">
               <Select size="xs" w={150} placeholder={t('routing.chain')} data={[{ value: '', label: t('routing.noChain') }, ...tags.filter((x) => x !== o.tag).map((x) => ({ value: x, label: t('routing.via', { tag: x }) }))]} value={o.proxy_tag ?? ''} allowDeselect={false} onChange={(v) => setNr((cur) => ({ ...cur, outbounds: cur.outbounds.map((x, j) => (j === i ? { ...x, proxy_tag: v || undefined } : x)) }))} />
               <ActionIcon variant="subtle" color="red" onClick={() => setNr((cur) => ({ ...cur, outbounds: cur.outbounds.filter((_, j) => j !== i), routes: cur.routes.filter((r) => r.value !== o.tag), default_outbound: cur.default_outbound === o.tag ? '' : cur.default_outbound }))}><IconTrash size={14} /></ActionIcon>
             </Group>
           </Group>
         ))}
-        <Group align="flex-end" wrap="nowrap">
-          <TextInput label={t('routing.addFromLink')} placeholder="vless://… / ss://… / socks://user:pass@host:port" style={{ flex: 3 }} value={link} onChange={(e) => setLink(e.currentTarget.value)} />
-          <TextInput label={t('routing.tag')} placeholder="exit-us" style={{ flex: 1 }} value={tag} onChange={(e) => setTag(e.currentTarget.value)} />
-          <Button size="xs" mb={2} variant="light" leftSection={<IconPlus size={14} />} disabled={!link.trim()} loading={parse.isPending} onClick={() => parse.mutate()}>{t('routing.add')}</Button>
+        <Group align="flex-start">
+          <TextInput label={t('routing.addFromLink')} placeholder="vless://… / ss://… / socks://user:pass@host:port" style={{ flex: '3 1 240px', minWidth: 0 }} value={link} onChange={(e) => setLink(e.currentTarget.value)} />
+          <TextInput label={t('routing.tag')} placeholder="exit-us" style={{ flex: '1 1 160px', minWidth: 0 }} value={tag} onChange={(e) => setTag(e.currentTarget.value)} />
+          <Button size="xs" mb={2} style={{ alignSelf: 'flex-end' }} variant="light" leftSection={<IconPlus size={14} />} disabled={!link.trim()} loading={parse.isPending} onClick={() => parse.mutate()}>{t('routing.add')}</Button>
         </Group>
         <Textarea label={t('routing.rawJSON')} description={t('routing.rawHint')} autosize minRows={2} ff="monospace" value={JSON.stringify(nr.outbounds.filter((o) => !o.remote && !o.warp && !o.balancer), null, 0)} onBlur={(e) => { try { const raw = JSON.parse(e.currentTarget.value || '[]') as Outbound[]; setNr((cur) => ({ ...cur, outbounds: [...cur.outbounds.filter((o) => o.remote), ...raw] })) } catch { toast.err(new Error('invalid JSON')) } }} />
         {(
-          <Group align="flex-end" wrap="nowrap">
-            <TextInput label={t('routing.balancerTag')} placeholder="lb" style={{ flex: 1 }} value={bal.tag} onChange={(e) => setBal({ ...bal, tag: e.currentTarget.value })} />
-            <MultiSelect label={t('routing.balancerMembers')} description={t('routing.balancerHint')} style={{ flex: 2 }} data={tags.filter((x) => !nr.outbounds.find((o) => o.tag === x)?.balancer)} value={bal.members} onChange={(v) => setBal({ ...bal, members: v })} />
-            <Select label={t('routing.balancerStrategy')} w={140} data={[{ value: 'urltest', label: t('routing.strategyUrltest') }, { value: 'random', label: t('routing.strategyRandom') }]} allowDeselect={false} value={bal.strategy} onChange={(v) => setBal({ ...bal, strategy: v ?? 'urltest' })} />
-            <Button size="xs" mb={2} variant="light" disabled={!bal.tag.trim() || bal.members.length === 0 || tags.includes(bal.tag.trim())} onClick={() => { setNr((cur) => ({ ...cur, outbounds: [...cur.outbounds, { tag: bal.tag.trim(), balancer: { members: bal.members, strategy: bal.strategy } }] })); setBal({ tag: 'lb', members: [], strategy: 'urltest' }) }}>{t('routing.addBalancer')}</Button>
+          <Group align="flex-start">
+            <TextInput label={t('routing.balancerTag')} placeholder="lb" style={{ flex: '1 1 160px', minWidth: 0 }} value={bal.tag} onChange={(e) => setBal({ ...bal, tag: e.currentTarget.value })} />
+            <MultiSelect label={t('routing.balancerMembers')} description={t('routing.balancerHint')} style={{ flex: '2 1 240px', minWidth: 0 }} data={tags.filter((x) => !nr.outbounds.find((o) => o.tag === x)?.balancer)} value={bal.members} onChange={(v) => setBal({ ...bal, members: v })} />
+            <Select label={t('routing.balancerStrategy')} style={{ flex: '1 1 160px', minWidth: 0 }} data={[{ value: 'urltest', label: t('routing.strategyUrltest') }, { value: 'random', label: t('routing.strategyRandom') }]} allowDeselect={false} value={bal.strategy} onChange={(v) => setBal({ ...bal, strategy: v ?? 'urltest' })} />
+            <Button size="xs" mb={2} style={{ alignSelf: 'flex-end' }} variant="light" disabled={!bal.tag.trim() || bal.members.length === 0 || tags.includes(bal.tag.trim())} onClick={() => { setNr((cur) => ({ ...cur, outbounds: [...cur.outbounds, { tag: bal.tag.trim(), balancer: { members: bal.members, strategy: bal.strategy } }] })); setBal({ tag: 'lb', members: [], strategy: 'urltest' }) }}>{t('routing.addBalancer')}</Button>
           </Group>
         )}
         <TagsInput label={t('routing.dns')} description={t('routing.dnsHint')} placeholder="1.1.1.1, tls://1.1.1.1, https://dns.google/dns-query"  value={nr.dns ?? []} onChange={(v) => setNr((cur) => ({ ...cur, dns: v }))} />
@@ -92,10 +92,10 @@ export function RoutingCard({ nodeID, inboundTags, embedded, readOnly = false }:
         </Group>
         <Text size="sm" fw={600} mt="xs">{t('routing.rules')}</Text>
         {nr.routes.map((r, i) => (
-          <Group key={i} align="flex-end" wrap="nowrap">
-            <TextInput label={i === 0 ? t('routing.match') : undefined} description={i === 0 ? t('routing.matchHint') : undefined} style={{ flex: 3 }} value={r.match.join(', ')} onChange={(e) => setNr((cur) => ({ ...cur, routes: cur.routes.map((x, j) => (j === i ? { ...x, match: e.currentTarget.value.split(',').map((s) => s.trim()).filter(Boolean) } : x)) }))} />
-            <Select label={i === 0 ? t('routing.category') : undefined} placeholder="geosite / geoip" w={170} searchable  data={[{ group: 'geosite', items: geoCategories.map((c) => ({ value: `geosite:${c}`, label: c })) }, { group: 'geoip', items: geoCountries.map((c) => ({ value: `geoip:${c}`, label: c })) }]} value={null} onChange={(v) => v && setNr((cur) => ({ ...cur, routes: cur.routes.map((x, j) => (j === i && !x.match.includes(v) ? { ...x, match: [...x.match, v] } : x)) }))} />
-            <Select label={i === 0 ? t('routing.to') : undefined} style={{ flex: 1 }} data={outboundOptions} value={r.action === 'outbound' ? r.value ?? '' : r.action} allowDeselect={false} onChange={(v) => setNr((cur) => ({ ...cur, routes: cur.routes.map((x, j) => (j === i ? (v === 'direct' || v === 'block' ? { match: x.match, action: v } : { match: x.match, action: 'outbound', value: v ?? '' }) : x)) }))} />
+          <Group key={i} align="flex-start">
+            <TextInput label={i === 0 ? t('routing.match') : undefined} description={i === 0 ? t('routing.matchHint') : undefined} style={{ flex: '3 1 240px', minWidth: 0 }} value={r.match.join(', ')} onChange={(e) => setNr((cur) => ({ ...cur, routes: cur.routes.map((x, j) => (j === i ? { ...x, match: e.currentTarget.value.split(',').map((s) => s.trim()).filter(Boolean) } : x)) }))} />
+            <Select label={i === 0 ? t('routing.category') : undefined} placeholder="geosite / geoip" style={{ flex: '1 1 170px', minWidth: 0 }} searchable  data={[{ group: 'geosite', items: geoCategories.map((c) => ({ value: `geosite:${c}`, label: c })) }, { group: 'geoip', items: geoCountries.map((c) => ({ value: `geoip:${c}`, label: c })) }]} value={null} onChange={(v) => v && setNr((cur) => ({ ...cur, routes: cur.routes.map((x, j) => (j === i && !x.match.includes(v) ? { ...x, match: [...x.match, v] } : x)) }))} />
+            <Select label={i === 0 ? t('routing.to') : undefined} style={{ flex: '1 1 160px', minWidth: 0 }} data={outboundOptions} value={r.action === 'outbound' ? r.value ?? '' : r.action} allowDeselect={false} onChange={(v) => setNr((cur) => ({ ...cur, routes: cur.routes.map((x, j) => (j === i ? (v === 'direct' || v === 'block' ? { match: x.match, action: v } : { match: x.match, action: 'outbound', value: v ?? '' }) : x)) }))} />
             <ActionIcon variant="subtle" color="red" mb={4} onClick={() => setNr((cur) => ({ ...cur, routes: cur.routes.filter((_, j) => j !== i) }))}><IconTrash size={14} /></ActionIcon>
           </Group>
         ))}

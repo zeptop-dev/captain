@@ -240,7 +240,7 @@
     "domainDNSSkipped": "저장했지만 공유 도메인 또는 주소 충돌로 자동 DNS 업데이트를 건너뛰었습니다. 기존 레코드는 변경되지 않았습니다.",
     "advIngressCount": "진입점 {{count}}개",
     "advIngressHint": "NAT / 전용선 주소 및 포트 범위",
-    "advRoutingHint": "랜딩 서버로 나가기(중계)",
+    "advRoutingHint": "이 서버의 기본 프록시 아웃바운드 및 라우팅 규칙",
     "advForwardsHint": "포트를 다른 서버로 그대로 전달(전단 중계)",
     "doctor": "진단",
     "doctorOk": "정상",
@@ -252,7 +252,10 @@
     "rollbackQueued": "롤백을 요청했습니다. 서버가 이전 빌드로 재시작합니다",
     "doctorNotApplied": "서버에 적용되지 않은 인바운드",
     "egressByIngress": "들어온 주소로 나가기",
-    "egressByIngressHint": "다중 IP 호스트: 특정 주소에 바인딩된 인바운드의 트래픽은 같은 주소로 나갑니다(sing-box, xray, hysteria). 각 인바운드에 바인딩 주소를 지정하세요. 모든 주소를 듣는 인바운드는 기본 경로를 쓰며, 기본 랜딩 아웃바운드가 있으면 무시됩니다. bosun 0.44 이상."
+    "egressByIngressHint": "다중 IP 호스트: 특정 주소에 바인딩된 인바운드의 트래픽은 같은 주소로 나갑니다(sing-box, xray, hysteria). 각 인바운드에 바인딩 주소를 지정하세요. 모든 주소를 듣는 인바운드는 기본 경로를 쓰며, 기본 랜딩 아웃바운드가 있으면 무시됩니다. bosun 0.44 이상.",
+    "proxySettings": "서버 프록시 설정",
+    "proxySettingsHint": "이 서버의 주소 매핑, 프록시 라우팅 및 코어 옵션을 설정합니다.",
+    "proxySettingsMoved": "이 설정은 서버 상세 페이지로 이동했습니다. 서버를 선택하세요."
   },
   "inbounds": {
     "title": "인바운드",
@@ -2778,7 +2781,8 @@
     "strategies": {
       "failover": "주 / 예비",
       "roundrobin": "가중 라운드 로빈"
-    }
+    },
+    "forwardGroups": "전달 그룹"
   },
   "nodeBandwidth": {
     "title": "명목 대역폭",

@@ -225,7 +225,7 @@
     "domainDNSSkipped": "Saved, but automatic DNS updates were skipped for a shared domain or address conflict. Existing records were not changed.",
     "advIngressCount": "{{count}} ingresses",
     "advIngressHint": "NAT / dedicated-line addresses and port ranges",
-    "advRoutingHint": "Exit through a landing server (relay)",
+    "advRoutingHint": "Default proxy outbound and routing rules for this server",
     "advForwardsHint": "Forward ports to another server (front relay)",
     "doctor": "Doctor",
     "doctorOk": "ok",
@@ -252,7 +252,10 @@
     "rollbackQueued": "Rollback queued; the server restarts on its previous build",
     "doctorNotApplied": "Inbounds not applied on the server",
     "egressByIngress": "Egress follows ingress",
-    "egressByIngressHint": "Multi-IP host: an inbound bound to a specific address sends its traffic out from that address (sing-box, xray, hysteria). Set each inbound's bind address; any-address inbounds keep the default route; ignored when a default landing outbound is set. Needs bosun ≥ 0.44."
+    "egressByIngressHint": "Multi-IP host: an inbound bound to a specific address sends its traffic out from that address (sing-box, xray, hysteria). Set each inbound's bind address; any-address inbounds keep the default route; ignored when a default landing outbound is set. Needs bosun ≥ 0.44.",
+    "proxySettings": "Server proxy settings",
+    "proxySettingsHint": "Configure this server’s address mappings, proxy routing and core options.",
+    "proxySettingsMoved": "These settings are now in server details. Select a server to continue."
   },
   "inbounds": {
     "title": "Inbounds",
@@ -2778,7 +2781,8 @@
     "strategies": {
       "failover": "Primary / backup",
       "roundrobin": "Weighted round robin"
-    }
+    },
+    "forwardGroups": "Forwarding groups"
   },
   "nodeBandwidth": {
     "title": "Advertised bandwidth",

@@ -7,7 +7,7 @@ import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useLocation, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { api, type Entry, type Line, type Node } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { type EntryNodeDetail, isSubscriberInbound } from '../lib/entry-flow'
@@ -18,10 +18,23 @@ import { SettingsDraftBoundary } from '../lib/settings-draft'
 import { PageHeader } from '../components/PageHeader'
 import { EntryEditor } from '../components/EntryEditor'
 import { LineEditor, LinesPanel } from '../components/LinesPanel'
-import { LinesConnections, type ConnectionSection } from '../components/LinesConnections'
+import { LinesConnections, ServerSelector } from '../components/LinesConnections'
+import { isServerSettingsSection } from '../lib/navigation'
 import { InboundsManager } from '../components/InboundsManager'
 
 export default function EntriesPage() {
+  const { t } = useTranslation()
+  const [params, setParams] = useSearchParams()
+  const section = params.get('section')
+  // Preserve bookmarks from the first unified workspace without mounting a
+  // second copy of these server-scoped editors.
+  if (isServerSettingsSection(section)) {
+    const serverID = Number(params.get('server'))
+    if (Number.isSafeInteger(serverID) && serverID > 0) return <Navigate replace to={`/nodes/${serverID}?section=${section}`} />
+    return <Stack><PageHeader title={t('nodes.proxySettings')} subtitle={t('nodes.proxySettingsMoved')} />
+      <ServerSelector onServerChange={id => { if (id) setParams(previous => { const next = new URLSearchParams(previous); next.set('server', String(id)); return next }, { replace: true }) }} />
+    </Stack>
+  }
   return <EntriesWorkspace />
 }
 
@@ -35,8 +48,8 @@ function EntriesWorkspace() {
   const location = useLocation()
   const tab = params.get('tab') === 'lines' ? 'lines' : 'entries'
   const section = params.get('section') ?? 'forward'
-  const connectionSections: ConnectionSection[] = ['wireguard', 'reverse', 'routing', 'legacy', 'ingresses', 'overrides']
-  const connectionSection = connectionSections.includes(section as ConnectionSection) ? section as ConnectionSection : null
+  const connectionSection = section === 'wireguard' || section === 'reverse' ? section : null
+  const singleForward = section === 'legacy' || params.get('mode') === 'single'
   const nodeFilter = params.get('node') ?? ''
   const serverID = Number(params.get('server')) || undefined
   const q = useQuery({ queryKey: ['entries'], queryFn: () => api.get<Entry[]>('/api/admin/entries') })
@@ -115,7 +128,7 @@ function EntriesWorkspace() {
     <PageHeader title={t('entryFlow.title')} subtitle={t('entryFlow.subtitle')} actions={<Group gap="xs">
       {canWrite && <Button leftSection={<IconPlus size={16} />} onClick={() => createNode()} disabled={q.isLoading || q.isError || sourcesLoading}>{t('entryFlow.createNode')}</Button>}
       {admin && <Menu position="bottom-end"><Menu.Target><Button variant="light" rightSection={<IconChevronDown size={16} />}>{t('lines.create')}</Button></Menu.Target><Menu.Dropdown>
-        <Menu.Item onClick={() => { updateParams({ tab: 'lines', section: 'forward' }); setEditingLine('new') }}>{t('lines.normal')}</Menu.Item>
+        <Menu.Item onClick={() => { updateParams({ tab: 'lines', section: 'forward', mode: null }); setEditingLine('new') }}>{t('lines.normal')}</Menu.Item>
         <Menu.Item onClick={() => createConnection('wireguard')}>{t('lines.sections.wireguard')}</Menu.Item>
         <Menu.Item onClick={() => createConnection('reverse')}>{t('lines.sections.reverse')}</Menu.Item>
       </Menu.Dropdown></Menu>}
@@ -153,8 +166,12 @@ function EntriesWorkspace() {
       </Tabs.Panel>
       <Tabs.Panel value="lines">
         <Stack>
-          <Select label={t('lines.section')} allowDeselect={false} value={connectionSection ?? 'forward'} data={['forward', ...connectionSections].map(value => ({ value, label: t(`lines.sections.${value}`) }))} onChange={value => { setConnectionRequest(0); updateParams({ section: value, inbound: null }) }} maw={420} />
-          {connectionSection ? <LinesConnections section={connectionSection} serverID={serverID} onServerChange={id => updateParams({ server: id ? String(id) : null })} editRequest={connectionRequest} onEditRequestHandled={() => setConnectionRequest(0)} canWrite={canWrite} /> : admin ? <LinesPanel lines={lines.data ?? []} nodes={nodes.data ?? []} inbounds={inbounds} loading={lines.isLoading} error={lines.isError} observedAt={Math.max(lines.dataUpdatedAt, lines.errorUpdatedAt)} focusID={Number(params.get('line')) || undefined} onRetry={() => lines.refetch()} onEdit={setEditingLine} onCreateNode={createNode} /> : <Alert color="blue">{t('lines.adminOnly')}</Alert>}
+          <Select label={t('lines.section')} allowDeselect={false} value={connectionSection ?? 'forward'} data={['forward', 'wireguard', 'reverse'].map(value => ({ value, label: t(`lines.sections.${value}`) }))} onChange={value => { setConnectionRequest(0); updateParams({ section: value, mode: null, inbound: null }) }} maw={420} />
+          {connectionSection ? <LinesConnections section={connectionSection} serverID={serverID} onServerChange={id => updateParams({ server: id ? String(id) : null })} editRequest={connectionRequest} onEditRequestHandled={() => setConnectionRequest(0)} canWrite={canWrite} /> : <Tabs value={singleForward ? 'single' : 'grouped'} onChange={value => updateParams({ section: 'forward', mode: value === 'single' ? 'single' : null })} keepMounted={false}>
+            <Tabs.List mb="md"><Tabs.Tab value="grouped">{t('lines.forwardGroups')}</Tabs.Tab><Tabs.Tab value="single">{t('lines.sections.legacy')}</Tabs.Tab></Tabs.List>
+            <Tabs.Panel value="single"><LinesConnections section="legacy" serverID={serverID} onServerChange={id => updateParams({ server: id ? String(id) : null })} canWrite={canWrite} /></Tabs.Panel>
+            <Tabs.Panel value="grouped">{admin ? <LinesPanel lines={lines.data ?? []} nodes={nodes.data ?? []} inbounds={inbounds} loading={lines.isLoading} error={lines.isError} observedAt={Math.max(lines.dataUpdatedAt, lines.errorUpdatedAt)} focusID={Number(params.get('line')) || undefined} onRetry={() => lines.refetch()} onEdit={setEditingLine} onCreateNode={createNode} /> : <Alert color="blue">{t('lines.adminOnly')}</Alert>}</Tabs.Panel>
+          </Tabs>}
         </Stack>
       </Tabs.Panel>
     </Tabs>

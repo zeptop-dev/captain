@@ -17,7 +17,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { IconInfoCircle, IconPencil, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { api, runNodeJob, type DoctorReport, type Ingress, type CertStatus, type Group as UGroup, type Inbound, type Node } from '../lib/api'
 import { ago, bytes, when } from '../lib/format'
@@ -27,7 +27,7 @@ import { InfoGrid, InfoTile, SectionTitle } from '../components/InfoTile'
 import { NodeStatus, PairCodeBox } from './NodesPage'
 import { NodeProbeCard } from '../components/NodeProbeCard'
 import { NodeWorkflow } from '../components/NodeWorkflow'
-import { RoutingCard } from '../components/RoutingCard'
+import { ServerProxySettings } from '../components/ServerProxySettings'
 import { ForwardsCard } from '../components/ForwardsCard'
 import { MetadataEditor } from '../components/MetadataEditor'
 import { DeleteNodeModal } from '../components/DeleteNodeModal'
@@ -36,6 +36,7 @@ interface Detail { traffic?: Record<string, { today: number; total: number }>; n
 
 export default function NodePage() {
   const { id } = useParams()
+  const [params] = useSearchParams()
   const { me } = useAuth()
   const { t } = useTranslation()
   const qc = useQueryClient()
@@ -147,14 +148,13 @@ export default function NodePage() {
         </Table>
       </Card>
 
+      <ServerProxySettings key={`server-settings-${n.id}-${params.get('section') ?? ''}`} node={n} inbounds={d.inbounds} ingresses={d.ingresses ?? []} section={params.get('section')} />
       <Card mt="lg" p={0}>
+        <Text fw={600} p="md">{t('lines.tab')}</Text>
         <Accordion multiple chevronPosition="right" variant="default">
-          <Accordion.Item value="ingress"><Accordion.Control><Text size="sm" fw={600}>{t('ingress.title')}</Text></Accordion.Control><Accordion.Panel><Text size="sm">{t('nodes.advIngressCount', { count: (d.ingresses ?? []).length })}</Text>{(d.ingresses ?? []).map(g => <Text key={g.id} size="sm">{g.name} · {g.entry_domain || g.entry_host}</Text>)}<Button component={Link} to={`/entries?tab=lines&section=ingresses&server=${n.id}`} variant="light" size="xs" mt="sm">{t('ingress.title')}</Button></Accordion.Panel></Accordion.Item>
           {me?.role === 'admin' && <Accordion.Item value="reverse"><Accordion.Control><Text size="sm" fw={600}>{t('reverse.title')}</Text></Accordion.Control><Accordion.Panel><ReverseConnections key={n.id} node={n} readOnly /><Button component={Link} to={`/entries?tab=lines&section=reverse&server=${n.id}`} variant="light" size="xs" mt="sm">{t('reverse.manage')}</Button></Accordion.Panel></Accordion.Item>}
           {me?.role === 'admin' && <Accordion.Item value="wireguard"><Accordion.Control><Text size="sm" fw={600}>{t('wireguard.title')}</Text></Accordion.Control><Accordion.Panel><WireGuardConnections key={n.id} node={n} readOnly /><Button component={Link} to={`/entries?tab=lines&section=wireguard&server=${n.id}`} variant="light" size="xs" mt="sm">{t('wireguard.title')}</Button></Accordion.Panel></Accordion.Item>}
-          <Accordion.Item value="routing"><Accordion.Control><Text size="sm" fw={600}>{t('routing.title')}</Text><Text size="xs" c="dimmed">{t('nodes.advRoutingHint')}</Text></Accordion.Control><Accordion.Panel><RoutingCard embedded nodeID={n.id} inboundTags={d.inbounds.map(ib => ib.Tag)} readOnly /><Button component={Link} to={`/entries?tab=lines&section=routing&server=${n.id}`} variant="light" size="xs" mt="sm">{t('routing.title')}</Button></Accordion.Panel></Accordion.Item>
-          <Accordion.Item value="overrides"><Accordion.Control><Text size="sm" fw={600}>{t('overrides.title')}</Text></Accordion.Control><Accordion.Panel><Text size="sm" c="dimmed">{t('nodes.advOverridesHint')}</Text><Button component={Link} to={`/entries?tab=lines&section=overrides&server=${n.id}`} variant="light" size="xs" mt="sm">{t('overrides.title')}</Button></Accordion.Panel></Accordion.Item>
-          <Accordion.Item value="forwards"><Accordion.Control><Text size="sm" fw={600}>{t('forwards.title')}</Text><Text size="xs" c="dimmed">{t('nodes.advForwardsHint')}</Text></Accordion.Control><Accordion.Panel><ForwardsCard key={n.id} embedded node={n} ingresses={d.ingresses ?? []} readOnly /><Button component={Link} to={`/entries?tab=lines&section=legacy&server=${n.id}`} variant="light" size="xs" mt="sm">{t('forwards.title')}</Button></Accordion.Panel></Accordion.Item>
+          <Accordion.Item value="forwards"><Accordion.Control><Text size="sm" fw={600}>{t('forwards.title')}</Text><Text size="xs" c="dimmed">{t('nodes.advForwardsHint')}</Text></Accordion.Control><Accordion.Panel><ForwardsCard key={n.id} embedded node={n} ingresses={d.ingresses ?? []} readOnly /><Button component={Link} to={`/entries?tab=lines&section=forward&mode=single&server=${n.id}`} variant="light" size="xs" mt="sm">{t('forwards.title')}</Button></Accordion.Panel></Accordion.Item>
         </Accordion>
       </Card>
       </>}

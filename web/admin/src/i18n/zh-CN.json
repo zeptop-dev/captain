@@ -225,7 +225,7 @@
     "domainDNSSkipped": "配置已保存，但共享域名或地址冲突的自动 DNS 更新已跳过；已有解析未修改。",
     "advIngressCount": "{{count}} 个入口",
     "advIngressHint": "NAT / 专线地址与端口范围",
-    "advRoutingHint": "让流量从落地服务器出去，做中转",
+    "advRoutingHint": "设置本服务器的默认代理出站和分流规则",
     "advForwardsHint": "把端口原样转发到别的服务器，做前置",
     "doctor": "体检",
     "doctorOk": "正常",
@@ -252,7 +252,10 @@
     "rollbackQueued": "已通知服务器回滚，服务器将以上一个版本重启",
     "doctorNotApplied": "以下入站没有下发到服务器内核",
     "egressByIngress": "源进源出",
-    "egressByIngressHint": "多 IP 机器：绑定了具体地址的入站，其流量从同一个地址出去（sing-box、xray、hysteria）。需要给各入站填绑定地址；监听全部地址的入站走默认路由；设置了默认落地出站时忽略。需要 bosun ≥ 0.44。"
+    "egressByIngressHint": "多 IP 机器：绑定了具体地址的入站，其流量从同一个地址出去（sing-box、xray、hysteria）。需要给各入站填绑定地址；监听全部地址的入站走默认路由；设置了默认落地出站时忽略。需要 bosun ≥ 0.44。",
+    "proxySettings": "服务器代理设置",
+    "proxySettingsHint": "配置这台服务器的地址映射、代理分流和内核选项。",
+    "proxySettingsMoved": "这些设置已移至服务器详情，请选择服务器继续。"
   },
   "inbounds": {
     "title": "入站",
@@ -2778,7 +2781,8 @@
     "strategies": {
       "failover": "主备",
       "roundrobin": "加权轮询"
-    }
+    },
+    "forwardGroups": "转发组"
   },
   "nodeBandwidth": {
     "title": "标称带宽",
