@@ -28,7 +28,7 @@ export default function MetricChartHeader({ title, icon, tone = 'slate', subtitl
           <Icon icon={icon} width={17} height={17} />
         </div>
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold sm:text-base">
+          <div className="truncate text-sm font-semibold sm:text-base" title={title}>
             {title}
           </div>
           {subtitle && (

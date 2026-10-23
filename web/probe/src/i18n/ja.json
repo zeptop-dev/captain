@@ -111,5 +111,6 @@
     "data": "データ",
     "systemDisk": "システムディスク",
     "dataDisk": "データディスク"
-  }
+  },
+  "storage.historyTruncated": "一部のディスク履歴データが欠けています。"
 }

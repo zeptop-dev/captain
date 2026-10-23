@@ -121,5 +121,6 @@
   "storage.disk": "磁盘",
   "storage.data": "数据",
   "storage.systemDisk": "系统盘",
-  "storage.dataDisk": "数据盘"
+  "storage.dataDisk": "数据盘",
+  "storage.historyTruncated": "部分磁盘历史数据不完整。"
 }

@@ -121,5 +121,6 @@
   "storage.disk": "Диск",
   "storage.data": "Данные",
   "storage.systemDisk": "Системный диск",
-  "storage.dataDisk": "Диск данных"
+  "storage.dataDisk": "Диск данных",
+  "storage.historyTruncated": "Часть истории дисков недоступна."
 }

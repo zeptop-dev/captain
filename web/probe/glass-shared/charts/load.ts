@@ -16,6 +16,7 @@ import { gpuUsageFromStatus } from '@shared/utils/gpuHelper'
 import { formatBytes } from '@shared/utils/helper'
 import { comparePingTaskOrder, createPingTaskOrderMap, metricTags, normalizeMetricSeriesList } from '@shared/utils/metricSeries'
 import type { getLoadChartPalette } from '@shared/utils/chartPalette'
+import { formatMetricCount, type StorageHistoryPoint } from '../../src/lib/storage-history'
 
 export const LOAD_METRIC_KEYS = [
   'cpu.usage',
@@ -400,87 +401,9 @@ export function createLoadChartModel(s: LoadChartInputs) {
           },
         ],
       })) },
-    get diskChartOption() { return memo('diskChartOption', () => ({
-        animation: false,
-        color: [chartColors.tertiary, chartColors.quinary],
-        tooltip: {
-          ...m.baseTooltipConfig,
-          formatter: (params: unknown) => {
-            const p = params as Array<{ dataIndex: number, seriesName: string, value: number, color: string }>
-            if (!p.length)
-              return ''
-            const firstParam = p[0]
-            if (!firstParam)
-              return ''
-            const record = m.chartData[firstParam.dataIndex]
-            if (!record)
-              return ''
-      
-            const diskUsed = record.disk ?? 0
-            const diskTotal = record.disk_total ?? s.nodeInfo?.disk_total ?? 0
-            const diskPercent = diskTotal > 0 ? ((diskUsed / diskTotal) * 100).toFixed(1) : '0'
-      
-            const timeStr = formatTimeForTooltip(record.time, s.effectiveHistoryHours)
-            let html = `<div style="font-weight:600;margin-bottom:6px;color:${m.chartThemeColors.textSecondary}">${timeStr}</div>`
-            html += '<div style="display:flex;flex-direction:column;gap:4px">'
-            for (const item of p) {
-              const colorDot = `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${item.color};margin-right:8px;flex-shrink:0"></span>`
-              const text = item.seriesName === '磁盘总量' ? formatBytes(diskTotal) : `${formatBytes(diskUsed)} (${diskPercent}%)`
-              html += `<div style="display:flex;align-items:center">${colorDot}<span>${escapeHTML(item.seriesName)}</span><span style="margin-left:auto;font-weight:600;margin-left:16px">${text}</span></div>`
-            }
-            html += '</div>'
-            return html
-          },
-        },
-        legend: {
-          data: ['磁盘已用', '磁盘总量'],
-          bottom: 4,
-          itemWidth: 10,
-          itemHeight: 8,
-          textStyle: { fontSize: 10, color: m.chartThemeColors.textSecondary },
-        },
-        grid: chartMarginWithLegend,
-        xAxis: m.baseXAxisConfig,
-        yAxis: {
-          ...m.baseYAxisConfig,
-          name: t('磁盘'),
-          nameTextStyle: { color: m.chartThemeColors.textSecondary, padding: [0, 40, 0, 0] },
-          axisLabel: {
-            ...m.baseYAxisConfig.axisLabel,
-            formatter: (val: number) => formatBytes(val),
-          },
-        },
-        series: [
-          {
-            name: '磁盘已用',
-            type: 'line',
-            data: m.chartData.map(r => r.disk),
-      
-            showSymbol: false,
-            lineStyle: { width: 1.5, color: chartColors.tertiary, cap: 'round' as const },
-            areaStyle: {
-              color: {
-                type: 'linear',
-                x: 0,
-                y: 0,
-                x2: 0,
-                y2: 1,
-                colorStops: [
-                  { offset: 0, color: chartColors.tertiaryAreaStrong },
-                  { offset: 1, color: chartColors.tertiaryAreaFaint },
-                ],
-              },
-            },
-          },
-          {
-            name: '磁盘总量',
-            type: 'line',
-            data: m.chartData.map(r => r.disk_total ?? s.nodeInfo?.disk_total ?? null),
-            showSymbol: false,
-            lineStyle: { width: 1.2, type: 'dashed' as const, color: chartColors.quinary, cap: 'round' as const },
-          },
-        ],
-      })) },
+    get diskChartOption() { return memo('diskChartOption', () => storageChartOption(m.chartData.map(record => ({
+      ts: dayjs(record.time).unix(), used: record.disk, total: record.disk_total ?? s.nodeInfo?.disk_total ?? null,
+    })))) },
     get networkChartOption() { return memo('networkChartOption', () => ({
         animation: false,
         color: [chartColors.quinary, chartColors.quaternary],
@@ -662,7 +585,7 @@ export function createLoadChartModel(s: LoadChartInputs) {
       
             for (const item of p) {
               const colorDot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${item.color};margin-right:8px;flex-shrink:0"></span>`
-              const displayValue = item.value != null ? Math.round(item.value) : '-'
+              const displayValue = formatMetricCount(item.value)
               html += `<div style="display:flex;align-items:center">${colorDot}<span>${escapeHTML(item.seriesName)}</span><span style="margin-left:auto;font-weight:600;margin-left:16px">${displayValue}</span></div>`
             }
             html += '</div>'
@@ -694,7 +617,7 @@ export function createLoadChartModel(s: LoadChartInputs) {
           {
             name: 'TCP',
             type: 'line',
-            data: m.chartData.map(r => r.connections ?? 0),
+            data: m.chartData.map(r => r.connections ?? null),
       
             showSymbol: false,
             lineStyle: { width: 1.5, color: chartColors.primary, cap: 'round' as const },
@@ -702,7 +625,7 @@ export function createLoadChartModel(s: LoadChartInputs) {
           {
             name: 'UDP',
             type: 'line',
-            data: m.chartData.map(r => r.connections_udp ?? 0),
+            data: m.chartData.map(r => r.connections_udp ?? null),
       
             showSymbol: false,
             lineStyle: { width: 1.5, color: chartColors.tertiary, cap: 'round' as const },
@@ -727,7 +650,7 @@ export function createLoadChartModel(s: LoadChartInputs) {
       
             const timeStr = formatTimeForTooltip(record.time, s.effectiveHistoryHours)
             const colorDot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${firstParam.color};margin-right:8px;flex-shrink:0"></span>`
-            const displayValue = firstParam.value != null ? Math.round(firstParam.value) : '-'
+            const displayValue = formatMetricCount(firstParam.value)
       
             let html = `<div style="font-weight:600;margin-bottom:6px;color:${m.chartThemeColors.textSecondary}">${timeStr}</div>`
             html += '<div style="display:flex;flex-direction:column;gap:4px">'
@@ -752,7 +675,7 @@ export function createLoadChartModel(s: LoadChartInputs) {
           {
             name: '进程数',
             type: 'line',
-            data: m.chartData.map(r => r.process ?? 0),
+            data: m.chartData.map(r => r.process ?? null),
       
             showSymbol: false,
             lineStyle: { width: 1.5, color: chartColors.quaternary, cap: 'round' as const },
@@ -1092,6 +1015,54 @@ export function createLoadChartModel(s: LoadChartInputs) {
       })
       .filter(seriesHasData)
   }
+  function storageChartOption(points: StorageHistoryPoint[]) {
+    const usedLabel = t('磁盘已用'), totalLabel = t('磁盘总量')
+    const capacity = (value: number | null) => value === null ? '—' : formatBytes(value)
+    return {
+      animation: false,
+      color: [chartColors.tertiary, chartColors.quinary],
+      tooltip: {
+        ...m.baseTooltipConfig,
+        formatter: (params: unknown) => {
+          const rows = params as Array<{ dataIndex: number; seriesName: string; color: string }>
+          const point = rows[0] && points[rows[0].dataIndex]
+          if (!point) return ''
+          const when = formatTimeForTooltip(new Date(point.ts * 1000).toISOString(), s.effectiveHistoryHours)
+          const percentage = point.used !== null && point.total !== null && point.total > 0 ? ` (${(point.used / point.total * 100).toFixed(1)}%)` : ''
+          let html = `<div style="font-weight:600;margin-bottom:6px;color:${m.chartThemeColors.textSecondary}">${when}</div><div style="display:flex;flex-direction:column;gap:4px">`
+          for (const row of rows) {
+            const value = row.seriesName === totalLabel ? capacity(point.total) : `${capacity(point.used)}${percentage}`
+            html += `<div style="display:flex;align-items:center"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${row.color};margin-right:8px;flex-shrink:0"></span><span>${escapeHTML(row.seriesName)}</span><span style="margin-left:auto;font-weight:600;margin-left:16px">${value}</span></div>`
+          }
+          return `${html}</div>`
+        },
+      },
+      legend: {
+        data: [usedLabel, totalLabel], bottom: 4, itemWidth: 10, itemHeight: 8,
+        textStyle: { fontSize: 10, color: m.chartThemeColors.textSecondary },
+      },
+      grid: chartMarginWithLegend,
+      xAxis: { ...m.baseXAxisConfig, data: points.map(point => formatTime(new Date(point.ts * 1000).toISOString(), m.showDateInAxis)) },
+      yAxis: {
+        ...m.baseYAxisConfig, name: t('磁盘'),
+        nameTextStyle: { color: m.chartThemeColors.textSecondary, padding: [0, 40, 0, 0] },
+        axisLabel: { ...m.baseYAxisConfig.axisLabel, formatter: (value: number) => formatBytes(value) },
+      },
+      series: [
+        {
+          name: usedLabel, type: 'line', data: points.map(point => point.used), showSymbol: false, connectNulls: false,
+          lineStyle: { width: 1.5, color: chartColors.tertiary, cap: 'round' as const },
+          areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [
+            { offset: 0, color: chartColors.tertiaryAreaStrong }, { offset: 1, color: chartColors.tertiaryAreaFaint },
+          ] } },
+        },
+        {
+          name: totalLabel, type: 'line', data: points.map(point => point.total), showSymbol: false, connectNulls: false,
+          lineStyle: { width: 1.2, type: 'dashed' as const, color: chartColors.quinary, cap: 'round' as const },
+        },
+      ],
+    }
+  }
   function formatTime(time: string, showDate: boolean): string {
     const date = dayjs(time)
     if (showDate) {
@@ -1138,5 +1109,5 @@ export function createLoadChartModel(s: LoadChartInputs) {
   
   // 连接数图表
 
-  return Object.assign(m, { gpuDetailsFromStatus, averageGpuMemoryPercent, statusToRecordFormat, metricValue, getMetricDeviceKey, getMetricDeviceIndex, getMetricDeviceName, ensureMetricRow, applyMetricPoint, finalizeGpuRows, getGpuDeviceNames, metricSeriesToRecordFormat, seriesHasData, recordMetricSeries, gpuDeviceEntries, pingSeries, formatTime, formatTimeForTooltip, isChartCardEnabled, getChartCardOrder, getChartCardStyle })
+  return Object.assign(m, { gpuDetailsFromStatus, averageGpuMemoryPercent, statusToRecordFormat, metricValue, getMetricDeviceKey, getMetricDeviceIndex, getMetricDeviceName, ensureMetricRow, applyMetricPoint, finalizeGpuRows, getGpuDeviceNames, metricSeriesToRecordFormat, seriesHasData, recordMetricSeries, gpuDeviceEntries, pingSeries, formatTime, formatTimeForTooltip, isChartCardEnabled, getChartCardOrder, getChartCardStyle, storageChartOption })
 }
