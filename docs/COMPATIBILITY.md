@@ -3,6 +3,19 @@
 What an operator can rely on across releases, which bosun a Captain works
 with, what the database is good for, and what is deliberately not there.
 
+## Subscription presets (Captain 1.36 / shared bosun package 0.78)
+
+Captain uses bosun v0.78.0's shared subscription compiler for administrator
+ACL4SSR imports and optional enhancements. Existing managed nodes do not need
+an agent upgrade for this feature; no agent fields or database migrations are
+added. Basic and regional designs retain the seven existing output formats.
+Official imports and DNS/Claude/WebRTC/UDP-443 enhancements currently support
+Mihomo only, with explicit format restrictions. The existing apply API keeps
+its all-format behavior when `formats` is omitted; an explicit list updates
+only those supported global templates. Existing drafts, named profile templates,
+response-rule templates and independent WireGuard subscriptions keep their
+separate scopes. See [subscription templates](SUBSCRIPTIONS.md#templates-and-the-designer).
+
 Docker web upgrades add optional `host_update` metadata to existing update
 responses; API paths and existing fields remain intact. Docker-managed node
 upgrades require the new bosun host-updater support (v0.65.0+) and one-time
