@@ -184,9 +184,21 @@ func encodeResourceBucket(b resourceBucket) ([]byte, error) {
 
 // Called inside RecordBeat's transaction, after replay detection. The same
 // receiver timestamp is used for all resolutions; agent clock skew is ignored.
-func recordResourceHistory(ctx context.Context, tx *sql.Tx, nodeID int64, h spec.SystemStatus, at time.Time, previousGPU gpuCursor) error {
+func recordResourceHistory(ctx context.Context, tx *sql.Tx, nodeID int64, h spec.SystemStatus, at time.Time, previous networkCounters) error {
 	sample := resourceValues(h)
-	if !freshGPU(h.Resources, previousGPU) {
+	if r := h.Resources; r != nil {
+		for _, f := range r.Filesystems {
+			old := int64(0)
+			if previous.Epoch == r.Epoch && r.Epoch != "" {
+				old = previous.Filesystems[f.ID]
+			}
+			if !freshFilesystem(f, r, old) {
+				delete(sample.Values, "filesystem:"+url.QueryEscape(f.Mount)+":disk")
+				delete(sample.Values, "filesystem:"+url.QueryEscape(f.Mount)+":inodes")
+			}
+		}
+	}
+	if !freshGPU(h.Resources, previous.GPU) {
 		for key := range sample.Values {
 			if strings.HasPrefix(key, "gpu:") {
 				delete(sample.Values, key)

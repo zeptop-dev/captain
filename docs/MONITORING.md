@@ -37,6 +37,13 @@ of the two period totals. This includes all traffic on those interfaces and is
 independent of proxy-user billing. Existing API mode values `up` and `down`
 continue to mean outbound and inbound respectively.
 
+Since Captain v1.32.0, the monthly traffic limit accepts decimals with an MB,
+GB or TB selector.
+These use the status page's existing 1024-based units: 1 TB = 1024 GB and
+1 GB = 1024 MB. For example, select TB and enter `1.1` for a 1.10 TB
+allowance. Zero remains unlimited. Changing units preserves the allowance;
+reopening the form or saving other settings keeps the stored byte precision.
+
 The carrier latency targets default to the CT/CU/CM probe points; Settings
 → Probe → *Latency targets* replaces the set with your own `name host:port`
 lines, and every node managed by Captain follows the panel. A node running
@@ -264,9 +271,44 @@ filesystem space and inode usage, per-device disk throughput and IOPS,
 logical CPU usage, and RSS/CPU for bosun and its supervised core/realm
 processes. Process CPU uses 100% per logical CPU and can exceed 100%; RSS
 is resident memory, not a sum of private allocations. Network filesystems
-(NFS, CIFS, SMB, FUSE and automounts) are excluded to avoid blocking a
-heartbeat on an unavailable mount. Disk devices/partitions can overlap;
-the UI deliberately does not sum disk I/O or filesystem capacity.
+(NFS, CIFS, SMB, other FUSE mounts and automounts) are excluded. The bosun
+v0.76.0+ filesystem collector also supports mergerfs, with bounded asynchronous
+reads so an unavailable mount cannot block a heartbeat. Disk devices/partitions
+can overlap; the UI deliberately does not sum disk I/O or filesystem capacity.
+
+### Storage on public status pages (Captain 1.32 / bosun 0.76)
+
+Node monitoring settings include automatic or manual storage display. Automatic
+display recommends the root filesystem and one main data filesystem, preferring
+an identified mergerfs pool and excluding boot/EFI partitions. Manual display
+selects up to 32 reported mount points, gives them optional public short names,
+and orders them. The first two appear on home cards; additional selected volumes
+are accessible in the storage dialog and node details. One selected volume uses
+the whole storage area. An empty manual selection hides storage. A missing
+selected mount stays in the list with unknown capacity, rather than falling back
+to another filesystem. Omitted/null storage in older API writes preserves the
+current configuration.
+
+The public API receives only display IDs, short names, kinds and capacity values.
+Mount paths, devices, pool members and the full resource inventory remain private.
+The global disk visibility setting hides the projection; excluding root from a
+manual selection also hides the old root-only summary and root capacity history.
+Default labels are localized by the frontend.
+
+Capacity belongs to a mounted filesystem, not a physical drive. Separate VPS
+volumes, filesystems on RAID/LVM, shared-space datasets and mergerfs use the same
+display model. No cross-volume sum is computed. Pool/member relationships are
+only used when positively identified; equal sizes or device names do not prove
+membership. Physical device I/O remains separate. ZFS/Btrfs pool topology, disk
+model inventory and storage health are not inferred from filesystem capacity.
+
+The bosun v0.76.0+ sampler discovers mounts periodically, samples capacity at most
+once per 15 seconds per mount, and reports the successful reading's own timestamp.
+Pending, failed and expired values remain unknown. Captain uses the age relative
+to the agent's resource clock plus receipt age, so clock skew and recent nonmetric
+heartbeats cannot refresh old capacity. Repeated asynchronous readings are counted
+only once in detailed history. Existing agents retain their synchronous filesystem
+data and root summary; mergerfs discovery requires bosun v0.76.0 or newer.
 
 Node → Monitoring → Include/exclude interfaces selects exact interface
 names for host totals, rates and monthly monitoring traffic. An empty
@@ -719,7 +761,32 @@ the capacity; asymmetric links label RX and TX separately. The global public
 Information section must also be enabled. Private bandwidth is stripped from
 the public API response, rather than only hidden in the interface.
 
+Since Captain v1.32.0, Glass node cards place bandwidth below the remaining days
+in the lower-right information box. Both rows keep their height when a value is
+absent, so cards stay aligned. Asymmetric card values use compact receive/send arrows; hover
+for the full RX/TX capacities. The repeated load-average fallback is removed;
+load remains in node details.
+
 The optional `info.bandwidth` object stores `inbound_mbps`, `outbound_mbps`, and
 `public`. Older API clients omitting it (or sending null) preserve the record;
 an explicit empty object or two zero rates clears it. It uses the existing node
 metadata storage and requires neither a migration nor a bosun upgrade.
+
+### CPU specifications on status cards (Captain 1.32 / bosun 0.76)
+
+Home cards show CPU usage above the progress bar and CPU specifications below:
+`8C / 16T` for a single-package physical machine, `2S · 32C / 64T` for two
+populated packages (whole-machine core/thread totals), and `4 vCPU` for a
+detected virtual machine or container. The compact Glass mini cards retain
+their existing usage-only layout. Detail-page load values and charts are unchanged.
+
+Physical topology requires bosun v0.76.0 or newer, complete, consistent Linux
+CPU topology and a known non-guest virtualization role. No physical core count
+is inferred from a CPU model or assumed SMT ratio. Older agents, unknown
+virtualization roles and incomplete topology show the known logical CPU count;
+missing counts show `—`. The existing `cpu_cores` field still counts logical
+CPUs visible to the OS, not a container's cgroup CPU quota. On Linux, physical
+topology also needs a successful `systemd-detect-virt` non-guest check; no tool
+is installed automatically. Failed optional detection is retried every five
+minutes. Hardware specifications follow the **system** public section; usage
+follows **cpu**. Turning off system hides the specification without hiding usage.

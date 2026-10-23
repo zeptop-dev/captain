@@ -6,6 +6,13 @@ import (
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
+func hideRootDisk(h *spec.SystemStatus) {
+	h.DiskUsed, h.DiskTotal = 0, 0
+	v := h.Validity()
+	v.Disk = false
+	h.Valid = &v
+}
+
 // Apply public display choices to the payload, including history endpoints.
 // Never mutate live service values: those also drive private management views.
 func publicHost(h spec.SystemStatus, s store.ProbeSettings) spec.SystemStatus {

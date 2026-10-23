@@ -10,6 +10,7 @@ import { getRealtimeTotalSpeed, getTrafficUsed, getTrafficUsedPercentage, hasTra
 import { getOSImage, getOSName } from '@shared/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@shared/utils/regionHelper'
 import { getDaysUntilExpired, getExpireStatus, parseTags } from '@shared/utils/tagHelper'
+import StorageSummary from '@/components/StorageSummary'
 import NodePingListCell from '@/components/NodePingListCell'
 import TrafficProgress from '@/components/TrafficProgress'
 import TransitionGroup from '@/components/TransitionGroup'
@@ -381,20 +382,7 @@ export default function NodeList({ nodes, transitionKey, sortResetKey, pingEnabl
           </div>
         )
       }
-      case 'disk': {
-        const p = (node.disk ?? 0) / (node.disk_total || 1) * 100
-        return (
-          <div {...s} className="group min-w-0">
-            <div {...s} className="space-y-1">
-              <div {...s} className="text-[11px] font-medium text-foreground/75 truncate">
-                <span {...s} className="inline group-hover:hidden">{`${formatNumber((node.disk ?? Number.NaN) / (node.disk_total || 1) * 100)}% `}</span>
-                <span {...s} className="hidden group-hover:inline">{`${formatBytes(node.disk ?? 0)} / ${formatBytes(node.disk_total ?? 0)}`}</span>
-              </div>
-              <ProgressThin {...s} percentage={p} status={getStatus(p)} height={4} />
-            </div>
-          </div>
-        )
-      }
+      case 'disk': return <StorageSummary uuid={node.uuid} list />
       case 'traffic':
         return (
           <div

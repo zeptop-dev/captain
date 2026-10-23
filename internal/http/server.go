@@ -542,12 +542,12 @@ func limitBodies(next http.Handler) http.Handler {
 
 func (s *Server) DNSHealth() *service.DNSHealth { return s.dnsHealth }
 
-// Older panels ignore explicit internal forwarding addresses and can regenerate
-// a public path during topology edits. Keep rollback above the release that
-// understands these references as well as managed client dialers and ownership.
+// Older panels can expose a root filesystem excluded by the storage settings.
+// Keep rollback above that privacy boundary, and the earlier releases protecting
+// explicit internal forwarding addresses, managed dialers and ownership.
 func captainUpdateFloor(configured string) string {
-	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.31.0", configured) {
-		return "v1.31.0"
+	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.32.0", configured) {
+		return "v1.32.0"
 	}
 	return configured
 }

@@ -9,10 +9,11 @@ export interface Host {
   cpu_percent?: number; mem_total?: number; mem_used?: number; swap_total?: number; swap_used?: number; disk_total?: number; disk_used?: number
   load1?: number; load5?: number; load15?: number; net_up?: number; net_down?: number; net_total_up?: number; net_total_down?: number
   tcp?: number; udp?: number; processes?: number; uptime?: number; ipv4?: boolean; ipv6?: boolean
-  info?: { cpu_model?: string; cpu_cores?: number; os?: string; kernel?: string; arch?: string; virt?: string }
+  info?: import('./cpu-spec').CPUInfo & { cpu_model?: string; os?: string; kernel?: string; arch?: string; virt?: string }
   pings?: Ping[]
 }
 export interface Node {
+  storage?: import('./storage').StorageVolume[]
   ping_tasks?: PublicPingTask[]
   id: number; name: string; group?: string; online: boolean; addr?: string; version?: string; last_seen: string | null
   info: { bandwidth?: import('./node-bandwidth').NodeBandwidth; billing?: import('./node-price').NodeCost; region?: string; provider?: string; provider_url?: string; price?: string; expires_at?: string; note?: string }

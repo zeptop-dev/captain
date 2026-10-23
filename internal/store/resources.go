@@ -10,16 +10,49 @@ import (
 var ErrStaleBeat = errors.New("resource sample already recorded")
 
 type networkCounters struct {
-	GPU      gpuCursor              `json:"gpu,omitempty"`
-	Epoch    string                 `json:"epoch"`
-	Sequence uint64                 `json:"sequence"`
-	Networks []spec.NetworkResource `json:"networks"`
+	Filesystems map[string]int64       `json:"filesystems,omitempty"`
+	GPU         gpuCursor              `json:"gpu,omitempty"`
+	Epoch       string                 `json:"epoch"`
+	Sequence    uint64                 `json:"sequence"`
+	Networks    []spec.NetworkResource `json:"networks"`
 }
 
 // A new NIC, sampler, boot or include/exclude selection starts a new baseline.
 // Missing samples also break the baseline: downtime must not become a spike.
 func nextNetworkCounters(old networkCounters, r *spec.Resources) (up, down int64, next networkCounters) {
 	next = networkCounters{Epoch: r.Epoch, Sequence: r.Sequence, Networks: r.Networks, GPU: old.GPU}
+	next.Filesystems = map[string]int64{}
+	for _, f := range r.Filesystems {
+		if len(next.Filesystems) >= 256 {
+			break
+		}
+		if f.ID == "" || len(f.ID) > 128 || f.SampledAt <= 0 {
+			continue
+		}
+		previous := int64(0)
+		if old.Epoch == r.Epoch && r.Epoch != "" {
+			previous = old.Filesystems[f.ID]
+		}
+		if freshFilesystem(f, r, previous) {
+			previous = f.SampledAt
+		}
+		next.Filesystems[f.ID] = previous
+	}
+	// A transiently absent mount can reappear with the same cached reading.
+	// Preserve recent cursors within this sampler epoch, with a fixed bound.
+	if old.Epoch == r.Epoch && r.Epoch != "" {
+		for id, sampled := range old.Filesystems {
+			if len(next.Filesystems) >= 256 {
+				break
+			}
+			if _, exists := next.Filesystems[id]; exists {
+				continue
+			}
+			if sampled > 0 && sampled <= r.At && r.At-sampled <= 90000 {
+				next.Filesystems[id] = sampled
+			}
+		}
+	}
 	if freshGPU(r, old.GPU) {
 		next.GPU = gpuCursor{Epoch: r.GPU.Epoch, Sequence: r.GPU.Sequence}
 	}

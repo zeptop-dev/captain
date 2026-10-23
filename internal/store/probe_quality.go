@@ -155,6 +155,20 @@ func MonitorSnapshot(h spec.SystemStatus, at time.Time) spec.SystemStatus {
 		r := *h.Resources
 		out.Resources = &r
 		r.At = at.UnixMilli()
+		r.Filesystems = append([]spec.FilesystemResource(nil), h.Resources.Filesystems...)
+		for i := range r.Filesystems {
+			f := &r.Filesystems[i]
+			if f.SampledAt == 0 {
+				continue // Legacy synchronous or new collector's pending reading.
+			}
+			age := h.Resources.At - f.SampledAt
+			if h.Resources.At <= 0 || f.SampledAt <= 0 || age < -1000 || age > 90000 {
+				// Keep invalid readings distinct from legacy timestamp-less data.
+				f.SampledAt = -1
+				continue
+			}
+			f.SampledAt = at.UnixMilli() - max(age, 0)
+		}
 		if h.Resources.GPU != nil {
 			g := *h.Resources.GPU
 			r.GPU = &g

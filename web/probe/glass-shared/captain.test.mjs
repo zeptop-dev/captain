@@ -1,11 +1,95 @@
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { snapshot, clientFor, statusFor, captainCall, clearHistoryCache, pingMetrics, periodTraffic } from './captain.ts'
+import { snapshot, clientFor, statusFor, captainCall, clearHistoryCache, pingMetrics, periodTraffic, captainCPUSpec, captainStorage } from './captain.ts'
+import { cpuSpec } from '../src/lib/cpu-spec.ts'
+import { storageItems, storageCapacity, storageBytes, storagePercent } from '../src/lib/storage.ts'
 import { summarizePings } from './ping-summary.ts'
 import { selectPings, selectedHistory } from './ping-selection.ts'
 const now = Math.floor(Date.now() / 60000) * 60
 const node = {id:1,name:'Example',online:true,last_seen:new Date(now*1000).toISOString(),info:{},host:{valid:{cpu:true,memory:true,disk:true,network:true,load:true,swap:true,connections:true,processes:true},mem_total:1024},traffic:{used:100,limit:1000,mode:'sum'},recent:[]}
 beforeEach(() => { snapshot.value = { nodes:[structuredClone(node)], now }; clearHistoryCache() })
+test('public storage follows selection and disk visibility, without reading private resources', () => {
+ const n = snapshot.value.nodes[0]
+ n.host.disk_total = 1024
+ n.host.disk_used = 0
+ Object.defineProperty(n.host, 'resources', { get() { throw Error('private resources must not be read') } })
+ assert.deepEqual(captainStorage('1', key => key).map(v => [v.id, v.used, v.total, v.percent]), [['legacy-root', 0, 1024, 0]])
+ n.storage = []
+ assert.deepEqual(captainStorage('1', key => key), [])
+ n.storage = [
+  {id:'pool-opaque', name:'Archive', kind:'pool', used:1024, total:4096},
+  {id:'system-opaque', name:'', kind:'system', used:null, total:1024},
+  {id:'volume-opaque', name:'', kind:'volume', used:0, total:null},
+ ]
+ const items = captainStorage('1', key => key)
+ assert.deepEqual(items.map(v => [v.label, v.percent]), [['Archive',25],['storage.system',null],['storage.volume 1',null]])
+ assert.equal(storageCapacity(items[1]), '— / 1K')
+ assert.equal(storageCapacity(items[2]), '0B / —')
+ n.host.disk_used = 999 // Explicit projection is independent of the legacy root summary.
+ assert.deepEqual(captainStorage('1', key => key), items)
+ snapshot.value.public_sections = ['cpu','system']
+ assert.deepEqual(captainStorage('1', key => key), [])
+ assert.deepEqual(captainStorage('999', key => key), [])
+})
+test('storage values preserve unknowns and format each volume without summing overlapping capacity', () => {
+ const volumes = storageItems({storage:[
+  {id:'a',name:'',kind:'pool',used:0,total:1024},
+  {id:'b',name:'',kind:'pool',used:0,total:1024},
+  {id:'c',name:'',kind:'volume',used:NaN,total:Infinity},
+  {id:'d',name:'',kind:'volume',used:-1,total:0},
+ ]}, key => key)
+ assert.deepEqual(volumes.map(v => v.label), ['storage.pool 1','storage.pool 2','storage.volume 1','storage.volume 2'])
+ assert.deepEqual(volumes.map(v => [v.used,v.total,v.percent]), [[0,1024,0],[0,1024,0],[null,null,null],[null,0,null]])
+ assert.deepEqual(volumes.map(v => storageCapacity(v)), ['0B / 1K','0B / 1K','— / —','— / 0B'])
+ assert.equal(storageBytes(1.1 * 1024**4),'1.1T')
+ assert.equal(storageBytes(463 * 1024**3),'463G')
+ assert.equal(storageCapacity({used:8.17 * 1024**2,total:14.32 * 1024**4},true),'8.2M/14.3T')
+ assert.equal(storagePercent(0),'0.0%')
+ assert.equal(storagePercent(null),'—')
+ assert.equal(storageItems({host:{valid:{disk:false},disk_used:5,disk_total:10}}, key => key)[0].percent,null)
+ assert.equal(storageItems({host:null}, key => key)[0].total,null)
+})
+test('CPU specifications distinguish whole-machine topology from virtual CPUs', () => {
+ const bare={cpu_cores:16,cpu_physical_cores:8,cpu_sockets:1,virtualization_role:'none'}
+ assert.equal(cpuSpec(bare),'8C / 16T')
+ assert.equal(cpuSpec({...bare,cpu_cores:64,cpu_physical_cores:32,cpu_sockets:2}),'2S · 32C / 64T')
+ assert.equal(cpuSpec({...bare,virtualization_role:'host',virt:'kvm'}),'8C / 16T')
+ assert.equal(cpuSpec({...bare,cpu_cores:4,virtualization_role:'guest'}),'4 vCPU')
+ assert.equal(cpuSpec({...bare,cpu_cores:4,cpu_physical_cores:-1,cpu_sockets:Infinity,virtualization_role:'guest'}),'4 vCPU')
+ // No SMT, or asymmetric/hybrid thread counts: never assume two threads/core.
+ assert.equal(cpuSpec({...bare,cpu_cores:8}),'8C / 8T')
+ assert.equal(cpuSpec({...bare,cpu_cores:12}),'8C / 12T')
+ // Legacy virtualization names cannot distinguish a KVM host from a guest.
+ assert.equal(cpuSpec({cpu_cores:4,virt:'kvm'},'zh-CN'),'4 逻辑 CPU')
+ for (const change of [{cpu_sockets:undefined},{cpu_sockets:9},{cpu_physical_cores:17},{cpu_physical_cores:1.5},{virtualization_role:''},{virtualization_role:'unknown'}]) {
+  assert.equal(cpuSpec({...bare,...change}), '16 logical CPU')
+ }
+ for (const cpu_cores of [undefined,0,-1,NaN,Infinity,1.5,'4',Number.MAX_SAFE_INTEGER+1]) assert.equal(cpuSpec({...bare,cpu_cores}), '—')
+ assert.equal(cpuSpec(), '—')
+ assert.equal(cpuSpec(null), '—')
+ for (const locale of ['en','zh-CN','zh-TW','ja','ko','ru']) assert(!cpuSpec({cpu_cores:4},locale).includes('undefined'))
+})
+test('CPU card specs refresh with snapshots and follow system visibility without changing detail metrics', () => {
+ const n=snapshot.value.nodes[0]
+ n.host={...n.host,info:{cpu_cores:4,virtualization_role:'guest'},cpu_percent:12.4,load1:.11,load5:.22,load15:.33}
+ assert.equal(captainCPUSpec('1'),'4 vCPU')
+ snapshot.value={...snapshot.value,nodes:[{...n,host:{...n.host,info:{cpu_cores:2,virtualization_role:'guest'}}}]}
+ assert.equal(captainCPUSpec('1'),'2 vCPU')
+ snapshot.value.nodes=[n]
+ n.host.info={cpu_cores:64,cpu_physical_cores:32,cpu_sockets:2,virtualization_role:'none'}
+ assert.equal(captainCPUSpec('1'),'2S · 32C / 64T')
+ assert.equal(clientFor(n,0).cpu_physical_cores,undefined)
+ const status=statusFor(n)
+ assert.deepEqual([status.cpu,status.load,status.load5,status.load15],[12.4,.11,.22,.33])
+ snapshot.value.public_sections=['cpu']
+ assert.equal(captainCPUSpec('1'),'')
+ assert.equal(statusFor(n).cpu,12.4)
+ snapshot.value.public_sections=['system']
+ assert.equal(captainCPUSpec('1'),'2S · 32C / 64T')
+ assert(Number.isNaN(statusFor(n).cpu))
+ n.host.info=undefined
+ assert.equal(captainCPUSpec('1'),'—')
+})
 test('omitted valid zeros differ from invalid and absent samples', () => {
  assert.equal(statusFor(node).cpu,0)
  assert(Number.isNaN(statusFor({...node,host:null}).cpu))

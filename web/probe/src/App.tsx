@@ -1,5 +1,6 @@
 import { nodeBandwidth } from './lib/node-bandwidth'
 import { nodePrice } from './lib/node-price'
+import { cpuSpec } from './lib/cpu-spec'
 import { Badge, Box, Card, Container, Group, Progress, SimpleGrid, Stack, Text, Title, Tooltip, Select, TextInput } from '@mantine/core'
 import type { UseQueryResult } from '@tanstack/react-query'
 import { IconServer, IconArrowUp, IconArrowDown } from '@tabler/icons-react'
@@ -7,6 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { useEffect, useState } from 'react'
 import { publicShows, bytes, flag, pct, rate, uptime, type Node, type Snapshot } from './lib/api'
 import { Spark } from './components/Spark'
+import { StorageSummary } from './components/StorageSummary'
 import { NodeDetail } from './components/NodeDetail'
 
 // The public status page: one card per node, live values, sparklines and
@@ -59,7 +61,6 @@ function NodeCard({ n, snapshot, onOpen }: { n: Node; snapshot: Snapshot; onOpen
   const h = n.host
   const cpu = !h || h.valid?.cpu === false ? null : h.cpu_percent ?? 0
   const mem = !h || h.valid?.memory === false ? null : pct(h.mem_used, h.mem_total)
-  const disk = !h || h.valid?.disk === false ? null : pct(h.disk_used, h.disk_total)
   const tr = n.traffic
   const trafficPct = tr.limit > 0 ? Math.min(100, Math.round((tr.used / tr.limit) * 100)) : 0
   const carriers = (h?.pings ?? []).filter((p) => p.task_id === 0)
@@ -75,14 +76,13 @@ function NodeCard({ n, snapshot, onOpen }: { n: Node; snapshot: Snapshot; onOpen
         </Group>
         <Badge size="sm" style={{ flexShrink: 0 }} color={n.online ? 'teal' : 'red'} variant={n.online ? 'light' : 'filled'}>{t(n.online ? 'page.online' : 'page.offline')}</Badge>
       </Group>
-      {['cpu', 'memory', 'disk'].some(show) && <SimpleGrid cols={['cpu', 'memory', 'disk'].filter(show).length} spacing="xs" mt="sm">
-        {show('cpu') && <Meter label="CPU" value={cpu} />}
+      {['cpu', 'memory'].some(show) && <SimpleGrid cols={['cpu', 'memory'].filter(show).length} spacing="xs" mt="sm">
+        {show('cpu') && <Meter label="CPU" value={cpu} sub={show('system') ? cpuSpec(h?.info, i18n.language) : undefined} />}
         {show('memory') && <Meter label={t('page.memory')} value={mem} sub={mem == null ? undefined : bytes(h?.mem_total ?? 0)} />}
-        {show('disk') && <Meter label={t('page.disk')} value={disk} sub={disk == null ? undefined : bytes(h?.disk_total ?? 0)} />}
       </SimpleGrid>}
-      {(show('network') || show('system')) && <Group justify="space-between" mt="sm" gap="xs">
+      {show('disk') && <StorageSummary node={n} />}
+      {show('network') && <Group justify="space-between" mt="sm" gap="xs">
         {show('network') && <Text size="xs" c="dimmed"><IconArrowUp size={12} /> {!h || h.valid?.network === false ? '—' : rate(h.net_up ?? 0)} <IconArrowDown size={12} /> {!h || h.valid?.network === false ? '—' : rate(h.net_down ?? 0)}</Text>}
-        <Text size="xs" c="dimmed">{show('system') && <>{t('page.load')} {!h || h.valid?.load === false ? '—' : (h.load1 ?? 0).toFixed(2)}</>}</Text>
       </Group>}
       {show('history') && show('network') && snapshot.layout !== 'compact' && <Spark values={n.recent.flatMap((r, i) => [...(i > 0 && r.t - n.recent[i - 1].t > snapshot.beat_seconds * 2 ? [null] : []), r.valid?.network === false ? null : r.down])} color="#f59e0b" height={28} />}
       {carriers.length > 0 && (
@@ -107,7 +107,7 @@ function Meter({ label, value, sub }: { label: string; value: number | null; sub
     <div>
       <Group justify="space-between" gap={4}><Text size="xs" c="dimmed">{label}</Text><Text size="xs" fw={600}>{value == null ? '—' : `${Math.round(value)}%`}</Text></Group>
       {value != null && <Progress value={value} size="xs" color={value > 90 ? 'red' : value > 70 ? 'orange' : undefined} />}
-      {sub && <Text size="xs" c="dimmed" mt={2}>{sub}</Text>}
+      {sub && <Text size="xs" c="dimmed" mt={2} truncate title={sub}>{sub}</Text>}
     </div>
   )
 }
