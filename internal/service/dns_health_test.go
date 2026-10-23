@@ -336,6 +336,10 @@ func TestDNSPropagationRequiresCurrentSuccessfulWrite(t *testing.T) {
 		change := store.DNSChange{NodeID: &n.ID, Name: n.Domain, Source: "node_address", Wanted: rec}
 		must(st.BeginDNSChange(ctx, &change))
 		must(st.FinishDNSChange(ctx, change.ID, outcome, &rec))
+		// The store timestamps the write with the real clock. Keep the injected
+		// observation clock at or after it even when race instrumentation makes
+		// the write cross a second boundary.
+		at = time.Now()
 	}
 	check := func(want bool) {
 		t.Helper()
