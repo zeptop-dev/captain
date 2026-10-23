@@ -108,6 +108,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/portal/invite/transfer", h.requireUser(h.transferCommission))
 	mux.HandleFunc("POST /api/portal/invite/withdraw", h.requireUser(h.withdraw))
 	mux.HandleFunc("GET /api/portal/invite/withdrawals", h.requireUser(h.withdrawals))
+	h.registerWireGuardDevices(mux)
 	h.registerOps(mux)
 }
 
