@@ -37,7 +37,7 @@ existing filesystem report or root-only summary. The additive filesystem fields
 and mergerfs collection are available with bosun v0.76.0 or newer. Mount paths,
 devices and pool membership stay private. Public root summaries and capacity
 history follow the storage selection, including when root is hidden.
-The built-in update/rollback floor is v1.32.0: older panels ignore this selection
+This change introduced a v1.32.0 update/rollback floor: older panels ignore this selection
 and can expose the root filesystem again. Manual downgrade requires restoring
 the matching pre-upgrade database backup.
 
@@ -61,30 +61,59 @@ bosun v0.76.1 or newer on the monitored server. Explicit NIC selections remain
 unchanged, and historical monitoring totals are not rewritten. No new rollback
 floor is introduced by this change.
 
-### Proxy traffic exit attribution
+## Exit attribution and WireGuard devices (Captain 1.35 / bosun 0.77)
 
-Management server list and detail responses additionally expose optional
-`proxy_traffic`: `today_bytes` is the UTC-day exit-attributed amount, with
-`collected_today_bytes`, `forwarded_today_bytes`, `received_today_bytes` and
-`unattributed_today_bytes` explaining its collection and ownership. `day_start`,
-`day_end` and `attribution_started_at` use Unix seconds; `history_complete`
-distinguishes complete post-migration UTC days from partial historical coverage.
-Existing `traffic_today_bytes`, customer quotas, report receipts and node
-protocol fields keep their old semantics.
+Migration 84 adds immutable server identities and daily collector-to-exit
+traffic records. Management server list/detail responses add `proxy_traffic`:
+`today_bytes`, `collected_today_bytes`, `forwarded_today_bytes`,
+`received_today_bytes`, `unattributed_today_bytes`, `day_start`, `day_end`,
+`history_complete` and `attribution_started_at`. Times are UTC Unix seconds.
+The new display total is collected minus forwarded plus received. The original
+`traffic_today_bytes` field retains its collector-based meaning; old clients
+and the customer's quota ledger are not reinterpreted. Attribution is committed
+with report receipts and billing, then retained independently of later topology
+changes. Attribution follows topology at report acceptance, not a reconstructed packet-time route. Unknown inbound reports stay on their collector. Migration backfill is
+conservative, and coverage metadata does not promise complete old history or
+zero loss from core/host failures.
 
-Migration 84 adds a daily projection and permanent server identities, so deleting
-and reusing a numeric server ID does not transfer historical usage. It copies
-only surviving inbound history outside ambiguous creation-day buckets. New
-attribution commits with the existing customer charge and receipt. Reverse WG
-and VLESS Reverse collection stays on A and is displayed on B; unknown-inbound
-reports stay on the collector rather than guessing a reverse exit. Older bosun
-reports remain accepted, and no bosun upgrade is required for this projection.
-Attribution uses the topology known at report acceptance; it cannot reconstruct
-packet-time routing or historical topology that was already deleted.
+Migration 85 stores independently revocable WireGuard devices. The new
+`/api/portal/me/wireguard-devices` and
+`/api/admin/users/{id}/wireguard-devices` APIs support list/create, and their
+`/{device}` paths support rename/delete. The list contains server-evaluated
+availability, its reason, the WG limit, `remaining`, optional `shared_limit` /
+`shared_used`, device records and eligible entry choices. When HWID registration
+is enabled, WG devices share its capacity; `shared_limit: 0` means unlimited
+shared capacity, while the WG-specific maximum still applies. Admin and operator
+accounts can manage credentials; support can read names and timestamps without
+subscription URLs. Cookie authentication and origin checks remain in force.
 
-An older Captain does not maintain this projection. Do not manually downgrade
-an attribution-enabled database and subsequently treat the missing interval as
-complete; restore a corresponding backup when returning to an older release.
+Each device URL is a WG-only credential, separate from the normal subscription
+token. Its formats are `wireguard`, `clash`, `stash`, `singbox` and `egern`;
+native WG configuration requires a single entry. Client-side dialer chains,
+custom subscription templates and entry extra fields are not used in this
+restricted output. Existing normal subscriptions preserve their previous
+format and credential behavior. Resetting a permanent subscription token also
+revokes its device links immediately and withdraws their peers at the next
+successful server synchronization. Ordinary downloaded credentials and existing
+temporary links retain their previous behavior.
+
+Native device support requires bosun v0.77.0, the supported Xray
+`26.7.28-r2` package selected explicitly, and a current capability report for
+creation. Updating Captain or bosun does not automatically replace the default
+core. The additive `User.wireguard_peers`, `User.wireguard_legacy_disabled` and
+core `wireguard_devices` capability do not change legacy users. Devices have
+independent keys and addresses but share their parent's user identity for
+accounting and limits. Older agents/cores continue to serve compatible existing
+services; they are not silently given device credentials they cannot handle.
+Changing WG peers may restart their shared Xray instance and interrupt its
+other connections.
+
+The built-in Captain update/rollback floor is v1.35.0, superseding earlier
+floors. Older panels can omit registered device peers and lose the new
+attribution semantics. Manual downgrade requires restoring the corresponding
+pre-upgrade database backup, including its older credential state. See
+[device subscriptions](SUBSCRIPTIONS.md#independent-wireguard-devices) and
+[rollback procedures](OPERATIONS.md#rollback).
 
 ## Versioning
 
@@ -203,6 +232,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
+| 1.35.0 | ≥ 0.77.0 and explicitly activated Xray `26.7.28-r2` for native WG devices | Independent WG-only device subscriptions and parent-account limits; migration 85. Managed reverse exit display uses existing traffic reports and migration 84 without requiring a fleet upgrade. Existing fields and ordinary subscriptions remain compatible; Captain rollback floor becomes 1.35.0. |
 | 1.34.0 | Unchanged | Additive public storage history and per-volume detail charts. Absolute filesystem history starts with this panel version; older data-volume percentages are not reconstructed as capacity. No migration or agent protocol change. |
 | 1.32.0 | ≥ 0.76.0 for full CPU topology, asynchronous filesystem sampling and mergerfs | Additive CPU/filesystem fields and private storage selection (migration 83). Old agents retain logical CPU and existing filesystem/root fallbacks; traffic units and card layout need no agent update. |
 | 1.28.0 | ≥ 0.75.0 for core-only split routing, WG prerequisites and managed forwarding | Additive capabilities; migration 78 preserves legacy WG options. Existing agents remain usable for previous features; new combinations require fresh support. |
@@ -240,11 +270,11 @@ features it has never heard of, which the node page shows as an orange
 | | ≥ 0.30 | baseline: pairing, state pull, reports, forwards, certificates |
 
 `min_version` in both `config.yaml` files is the floor a self-update or
-rollback may not go below; set it to the version you have tested. Managed server
-lines and client chains also impose a built-in Captain floor of v1.29.0: older
-panels do not understand line ownership or client dialer references and could
-export a chained node as direct. A higher configured floor still wins. This
-protects the built-in updater, not manual replacement of the executable.
+rollback may not go below; set it to the version you have tested. Captain's
+built-in floor is v1.35.0 for device credentials and exit attribution; this also
+retains the earlier protections for line ownership, client chains, internal
+forwarding and public storage selection. A higher configured floor still wins.
+This protects the built-in updater, not manual replacement of the executable.
 
 ## Database: SQLite only, and what that is good for
 

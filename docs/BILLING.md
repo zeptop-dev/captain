@@ -36,6 +36,20 @@ remaining time, or by remaining traffic for plans without an expiry)
 against the new order. Only one pending order can hold that credit at a
 time.
 
+## Proxy usage and server attribution
+
+Managed reverse WireGuard and VLESS Reverse authenticate and meter users on
+front server A. Captain v1.35 displays those accepted bytes against exit B in
+the server list/detail view, while preserving the same single customer charge
+and the original inbound's plan selection. Interface totals, transfer overhead
+and plain forwarding are separate from user proxy usage. Old attribution history
+may be incomplete; it is not used to charge customers again.
+
+Independent native WireGuard devices have separate peer credentials but share
+their parent's account, quota and limits. Creating another device does not grant
+another allowance or a different plan. See
+[WireGuard device subscriptions](SUBSCRIPTIONS.md#independent-wireguard-devices).
+
 ## Payment gateways
 
 Enable any subset under `payments:` in config.yaml (see
