@@ -9,14 +9,13 @@ import { ProgressThin } from '@/components/ui/progress-thin'
 import { useBox } from '@/hooks/useBox'
 
 const compactPercent = (value: number | null) => value === null ? '—' : `${Math.round(value)}%`
-const shortLabel = (item: StorageItem, items: StorageItem[]) => item.name?.trim() ? item.label : item.kind !== 'system' && items.filter(v => v.kind === item.kind).length === 1 ? t(`storage.${item.kind}`) : item.label.replace(/ ([0-9]+)$/, '$1')
 const status = (percent: number | null) => percent === null ? 'default' : getStatus(percent)
 
 export function StorageVolumes({ items }: { items: StorageItem[] }) {
   return items.length ? <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" data-storage-volumes>
     {items.map(item => <div key={item.id} className="min-w-0 rounded-md bg-slate-500/5 p-3" data-storage-volume={item.id}>
       <div className="flex items-start justify-between gap-3 text-xs">
-        <span className="min-w-0 break-words font-medium">{item.label}</span>
+        <span className="min-w-0 break-words font-medium">{item.detailLabel}</span>
         <span className="shrink-0 tabular-nums">{storagePercent(item.percent)}</span>
       </div>
       <ProgressThin percentage={item.percent ?? 0} status={status(item.percent)} height={4} className="my-2" />
@@ -47,17 +46,20 @@ export default function StorageSummary({ uuid, list = false }: { uuid: string; l
         <ProgressThin percentage={visible[0]?.percent ?? 0} status={status(visible[0]?.percent ?? null)} height={4} />
         {more > 0 && <div className="text-[9px] leading-[9px] text-muted-foreground">{t('storage.more').replace('{count}', String(more))}</div>}
       </div> : items.length === 0 ? <div className="flex h-full flex-col justify-between text-xs text-muted-foreground"><span>{t('storage.title')}</span><span>—</span></div> : <>
-        <span className={`grid ${multi ? 'grid-cols-2 gap-x-2' : 'grid-cols-1'}`}>
-          {visible.map(item => <span key={item.id} data-storage-volume={item.id} className={`flex min-w-0 flex-col ${multi ? 'gap-0.5' : 'gap-1'}`} title={`${item.label}: ${storageCapacity(item)}`}>
-            <span className={`flex min-w-0 justify-between gap-0.5 ${multi ? 'text-[10px] leading-3' : 'text-xs'}`}>
+        <span className={`grid ${multi ? 'grid-cols-2 gap-x-1' : 'grid-cols-1'}`}>
+          {visible.map(item => <span key={item.id} data-storage-volume={item.id} className={`flex min-w-0 flex-col ${multi ? 'gap-0' : 'gap-1'}`} title={`${item.detailLabel}: ${storageCapacity(item)} (${storagePercent(item.percent)})`}>
+            <span className="flex min-w-0 justify-between gap-0.5 text-xs">
               <span className="inline-flex min-w-0 items-center gap-1 text-muted-foreground">
-                {!multi && <Icon icon="tabler:server-2" data-node-metric-icon="disk" width="13" height="13" className="shrink-0 text-orange-500" aria-hidden="true" />}
-                <span className="truncate">{multi ? shortLabel(item, items) : item.label}</span>
+                <Icon icon="tabler:server-2" data-node-metric-icon="disk" width="13" height="13" className="shrink-0 text-orange-500" aria-hidden="true" />
+                <span className="truncate" data-storage-label>{item.label}</span>
               </span>
-              <span className="shrink-0 tabular-nums font-medium">{multi ? compactPercent(item.percent) : storagePercent(item.percent)}</span>
+              {!multi && <span className="shrink-0 tabular-nums font-medium">{storagePercent(item.percent)}</span>}
             </span>
-            <ProgressThin percentage={item.percent ?? 0} status={status(item.percent)} height={4} />
-            <span data-storage-capacity className={`block truncate text-muted-foreground tabular-nums ${multi ? 'text-[9px] leading-[14px] tracking-tight' : 'text-[11px]'}`}>{multi ? storageCapacity(item, true) : storageCapacity(item)}</span>
+            <span className={multi ? 'flex h-3 items-center gap-1' : 'contents'}>
+              <ProgressThin percentage={item.percent ?? 0} status={status(item.percent)} height={4} className={multi ? 'min-w-0 flex-1' : ''} />
+              {multi && <span data-storage-percent className="shrink-0 text-xs leading-3 tabular-nums font-medium">{compactPercent(item.percent)}</span>}
+            </span>
+            <span data-storage-capacity className={`block truncate text-[11px] text-muted-foreground tabular-nums ${multi ? 'tracking-tight' : ''}`}>{storageCapacity(item, multi)}</span>
           </span>)}
         </span>
         {more > 0 && <span className="block text-right text-[9px] leading-[9px] text-muted-foreground">{t('storage.more').replace('{count}', String(more))}</span>}

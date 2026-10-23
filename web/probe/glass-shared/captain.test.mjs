@@ -46,6 +46,8 @@ test('storage values preserve unknowns and format each volume without summing ov
  assert.equal(storageCapacity({used:8.17 * 1024**2,total:14.32 * 1024**4},true),'8M/14.3T')
  assert.deepEqual(volumes.map(v => v.detailLabel), ['storage.dataDisk 1','storage.dataDisk 2','storage.dataDisk 3','storage.dataDisk 4'])
  assert.equal(storageItems({storage:[{id:'only',name:'',kind:'pool',used:1,total:2}]}, key => key)[0].label, 'storage.disk')
+ assert.equal(storageCapacity({used:463 * 1024**3,total:463 * 1024**3},true),'463/463G')
+ assert.equal(storageCapacity({used:1023 * 1024**3,total:1023 * 1024**3},true),'1/1T')
  assert.equal(storagePercent(0),'0.0%')
  assert.equal(storagePercent(null),'—')
  assert.equal(storageItems({host:{valid:{disk:false},disk_used:5,disk_total:10}}, key => key)[0].percent,null)
