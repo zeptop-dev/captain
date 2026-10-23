@@ -117,6 +117,13 @@ func TestWireGuardManagedAPI(t *testing.T) {
 	if err != nil || sub.UsedUpBytes != 524288 || sub.UsedDownBytes != 524288 {
 		t.Fatalf("WireGuard billing: %+v %v", sub, err)
 	}
+	for _, check := range []struct{ nodeID, want int64 }{{r.nodeID, 1048576}, {exit, 0}} {
+		for _, v := range nodeTrafficViews(t, r, check.nodeID) {
+			if v.Proxy != check.want {
+				t.Fatalf("WG server attribution: node=%d got=%d want=%d", check.nodeID, v.Proxy, check.want)
+			}
+		}
+	}
 
 	if err := r.st.SetWireGuardReport(ctx, exit, auth.SHA256Hex("wg-exit-test-token"), nil); err != nil {
 		t.Fatal(err)

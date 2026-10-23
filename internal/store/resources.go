@@ -10,17 +10,19 @@ import (
 var ErrStaleBeat = errors.New("resource sample already recorded")
 
 type networkCounters struct {
-	Filesystems map[string]int64       `json:"filesystems,omitempty"`
-	GPU         gpuCursor              `json:"gpu,omitempty"`
-	Epoch       string                 `json:"epoch"`
-	Sequence    uint64                 `json:"sequence"`
-	Networks    []spec.NetworkResource `json:"networks"`
+	TrafficKnown bool                   `json:"traffic_known,omitempty"`
+	TrafficAt    int64                  `json:"traffic_at,omitempty"` // panel receipt time of the last accepted NIC delta, never an ordinary heartbeat
+	Filesystems  map[string]int64       `json:"filesystems,omitempty"`
+	GPU          gpuCursor              `json:"gpu,omitempty"`
+	Epoch        string                 `json:"epoch"`
+	Sequence     uint64                 `json:"sequence"`
+	Networks     []spec.NetworkResource `json:"networks"`
 }
 
 // A new NIC, sampler, boot or include/exclude selection starts a new baseline.
 // Missing samples also break the baseline: downtime must not become a spike.
-func nextNetworkCounters(old networkCounters, r *spec.Resources) (up, down int64, next networkCounters) {
-	next = networkCounters{Epoch: r.Epoch, Sequence: r.Sequence, Networks: r.Networks, GPU: old.GPU}
+func nextNetworkCounters(old networkCounters, r *spec.Resources) (up, down int64, next networkCounters, measured bool) {
+	next = networkCounters{Epoch: r.Epoch, Sequence: r.Sequence, Networks: r.Networks, GPU: old.GPU, TrafficKnown: old.TrafficKnown, TrafficAt: old.TrafficAt}
 	next.Filesystems = map[string]int64{}
 	for _, f := range r.Filesystems {
 		if len(next.Filesystems) >= 256 {
@@ -73,6 +75,7 @@ func nextNetworkCounters(old networkCounters, r *spec.Resources) (up, down int64
 			continue
 		}
 		du, dd := n.Up-p.Up, n.Down-p.Down
+		measured = true // A measured zero is different from a missing baseline.
 		if du <= uint64(math.MaxInt64-up) {
 			up += int64(du)
 		}

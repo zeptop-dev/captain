@@ -344,8 +344,26 @@ func (s *Store) UpdateNodeProbeWithRegion(ctx context.Context, nodeID int64, hid
 
 // ResetNodeTraffic zeroes the current period by hand.
 func (s *Store) ResetNodeTraffic(ctx context.Context, nodeID int64, at time.Time) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET traffic_used_up = 0, traffic_used_down = 0, traffic_period_start = ?, updated_at = ? WHERE id = ?`, at.Unix(), now(), nodeID)
-	return err
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	p, err := scanNodeProbe(tx.QueryRowContext(ctx, `SELECT `+nodeProbeCols+` FROM nodes WHERE id=?`, nodeID))
+	if err != nil {
+		return err
+	}
+	// Clearing a counter is not a network observation. Keep the NIC baselines,
+	// but wait for a real delta before presenting the new period as measured.
+	p.counters.TrafficKnown, p.counters.TrafficAt = false, 0
+	counters, err := json.Marshal(p.counters)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE nodes SET traffic_used_up = 0, traffic_used_down = 0, traffic_period_start = ?, probe_counters_json=?, updated_at = ? WHERE id = ?`, at.Unix(), string(counters), now(), nodeID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // periodStart returns the start of the billing period containing at.
@@ -407,23 +425,35 @@ func (s *Store) RecordBeat(ctx context.Context, nodeID int64, h spec.SystemStatu
 			prev = p.Billed()
 		}
 		usedUp, usedDown = 0, 0
+		p.counters.TrafficKnown, p.counters.TrafficAt = false, 0
+	} else {
+		// A manual reset starts a partial period. Keep its actual start until
+		// the next scheduled boundary instead of relabeling it on every beat.
+		start = p.PeriodStart
 	}
+	measured := false
 	if h.Resources != nil {
-		deltaUp, deltaDown, counters := nextNetworkCounters(p.counters, h.Resources)
+		deltaUp, deltaDown, counters, validDelta := nextNetworkCounters(p.counters, h.Resources)
 		usedUp += deltaUp
 		usedDown += deltaDown
 		p.counters = counters
+		measured = validDelta
 		// Do not bridge the old aggregate baseline across a change of protocol.
 		p.lastUp, p.lastDown = 0, 0
 	} else if h.NetTotalUp > 0 || h.NetTotalDown > 0 {
 		up, down := int64(h.NetTotalUp), int64(h.NetTotalDown)
 		if p.lastUp > 0 && up >= p.lastUp {
 			usedUp += up - p.lastUp
+			measured = true
 		}
 		if p.lastDown > 0 && down >= p.lastDown {
 			usedDown += down - p.lastDown
+			measured = true
 		}
 		p.lastUp, p.lastDown = up, down
+	}
+	if measured {
+		p.counters.TrafficKnown, p.counters.TrafficAt = true, at.Unix()
 	}
 	counterJSON, _ := json.Marshal(p.counters)
 	if _, err := tx.ExecContext(ctx, `UPDATE nodes SET traffic_period_start = ?, traffic_used_up = ?, traffic_used_down = ?, traffic_last_up = ?, traffic_last_down = ?, traffic_prev_used = ?, probe_counters_json = ?, last_seen_at = ? WHERE id = ?`,
