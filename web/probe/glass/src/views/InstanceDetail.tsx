@@ -507,7 +507,7 @@ export default function InstanceDetail({ ref }: { ref?: Ref<HTMLDivElement> }) {
                         {bandwidth && (
                           <div className="min-w-0 flex flex-col gap-1 rounded-sm bg-slate-500/5 p-2" data-advertised-bandwidth>
                             <div className="flex gap-1 items-center text-muted-foreground">
-                              <Icon icon="tabler:bandwidth" width={14} height={14} className="shrink-0" />
+                              <Icon icon="tabler:arrows-transfer-up-down" width={14} height={14} className="shrink-0" />
                               <span className="text-xs sm:text-sm">{t('标称带宽')}</span>
                             </div>
                             <span className="text-xs sm:text-sm break-words">{bandwidth}</span>

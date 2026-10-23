@@ -293,7 +293,19 @@ The public API receives only display IDs, short names, kinds and capacity values
 Mount paths, devices, pool members and the full resource inventory remain private.
 The global disk visibility setting hides the projection; excluding root from a
 manual selection also hides the old root-only summary and root capacity history.
-Default labels are localized by the frontend.
+Default labels are localized by the frontend: one volume is called Disk;
+multiple volumes use System and Data, with numbering when needed. Custom public
+names take precedence.
+
+Since Captain v1.33.0, Glass details give each selected volume a separate used/total
+capacity chart. CPU, memory and processes occupy the first row; volumes, network
+rates and connections follow, with up to four cards per row on wide screens.
+The public storage-history endpoint applies the same current selection and
+disk/history visibility controls as the snapshot. Absolute filesystem capacity
+is recorded from this version onward, once per successful asynchronous sample.
+Earlier data-volume history has gaps because only usage percentages were stored;
+current totals are never used to reconstruct past capacity. Existing root history
+can still use its actual historical values. No additional agent upgrade is needed.
 
 Capacity belongs to a mounted filesystem, not a physical drive. Separate VPS
 volumes, filesystems on RAID/LVM, shared-space datasets and mergerfs use the same
@@ -765,7 +777,8 @@ Since Captain v1.32.0, Glass node cards place bandwidth below the remaining days
 in the lower-right information box. Both rows keep their height when a value is
 absent, so cards stay aligned. Asymmetric card values use compact receive/send arrows; hover
 for the full RX/TX capacities. The repeated load-average fallback is removed;
-load remains in node details.
+load remains in node details. Since Captain v1.33.0, detail-page advertised bandwidth
+appears inside Network information, alongside traffic allowance and network rates.
 
 The optional `info.bandwidth` object stores `inbound_mbps`, `outbound_mbps`, and
 `public`. Older API clients omitting it (or sending null) preserve the record;

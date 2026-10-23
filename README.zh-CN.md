@@ -53,7 +53,7 @@ mita（mieru）、Hysteria、snell-server 和 realm 作为子进程拉起来。
 
 ## 功能特性
 
-- Captain v1.32 探针卡片展示 CPU 规格和可选存储空间，Glass 卡片将标称带宽放到剩余天数下方。月流量上限可直接选择 MB、GB 或 TB；存储支持自动推荐，或手动选择、命名和排序公开卷，不公开挂载路径。完整 CPU 拓扑及 mergerfs 采集需要 bosun ≥ v0.76.0，旧节点仍然兼容。[探针监控说明](docs/MONITORING.md)。
+- 探针卡片展示 CPU 规格和可选存储空间，Glass 卡片将标称带宽放到剩余天数下方，详情归入网络信息。月流量上限可直接选择 MB、GB 或 TB；存储支持自动推荐，或手动选择、命名和排序公开卷，不公开挂载路径。Captain v1.33 为每个公开卷提供独立容量历史图表。完整 CPU 拓扑及 mergerfs 采集需要 bosun ≥ v0.76.0，旧节点仍然兼容。[探针监控说明](docs/MONITORING.md)。
 - 中转可明确选择服务器资料中已登记的内网 IP，无需重复填写。显示实际目标地址，从前置服务器检查 TCP，并在修改地址时同步更新引用线路；已有路径和订阅连接地址保留原默认行为。[内网中转地址](docs/NODES.md#reusing-a-servers-internal-address)。
 - 在同一页面管理订阅节点与可复用线路：创建直连节点、发布 relay/nft/realm 转发路径，或将两个订阅节点组成受支持的客户端链。服务器详情展示关联配置与实际上报状态。线路支持 TCP 主备及加权候选，并明确传输协议和宿主防火墙的限制。[线路](docs/NODES.md#managed-server-lines) · [客户端链](docs/SUBSCRIPTIONS.md#managed-server-lines-and-client-chains)。
 - 节点域名冲突检查与显式共享／外部 DNS 模式防止误覆盖记录；DNS 健康检查、持续异常告警和自动变更历史帮助定位问题，并按已保存的旧值手动恢复。[DNS 运维说明](docs/MONITORING.md)。
