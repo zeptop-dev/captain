@@ -15,9 +15,10 @@ function configURL(url: string, entry: string) {
   return result.toString()
 }
 
-function clientURL(url: string, client: string) {
+function clientURL(url: string, client: string, entry?: string | null) {
   const result = new URL(url, window.location.origin)
   result.searchParams.set('client', client)
+  if (entry) result.searchParams.set('entry', entry)
   return result.toString()
 }
 
@@ -42,14 +43,15 @@ export function WireGuardDevices({ endpoint, canWrite = true, titleOrder = 4, on
   const [entryID, setEntryID] = useState<string | null>(null)
   const [client, setClient] = useState('clash')
   const sharing = q.data?.devices.find(d => d.id === sharingID)
-  const sharingURL = sharing?.subscription_url ? clientURL(sharing.subscription_url, client) : ''
   const modalOpened = editor !== null || revoking !== null || (canWrite && !!sharing?.subscription_url)
   useEffect(() => {
     onModalChange?.(modalOpened)
     return () => onModalChange?.(false)
   }, [modalOpened, onModalChange])
   const entries = q.data?.entries ?? []
-  const selectedEntry = entries.some(e => String(e.id) === entryID) ? entryID : entries.length === 1 ? String(entries[0].id) : null
+  const selectedEntry = entryID || null
+  const selectedEntryAvailable = !selectedEntry || entries.some(e => String(e.id) === selectedEntry)
+  const sharingURL = sharing?.subscription_url ? clientURL(sharing.subscription_url, client, selectedEntry) : ''
   const invalidate = () => qc.invalidateQueries({ queryKey })
   const save = useMutation({
     mutationFn: ({ id, name: deviceName }: { id?: number; name: string }) => id === undefined
@@ -61,7 +63,11 @@ export function WireGuardDevices({ endpoint, canWrite = true, titleOrder = 4, on
       setName('')
       qc.setQueryData<WireGuardDevicesResponse>(queryKey, current => current ? { ...current, devices: [...current.devices.filter(d => d.id !== device.id), device] } : current)
       await invalidate()
-      if (creating) setSharingID(device.id)
+      if (creating) {
+        const choices = qc.getQueryData<WireGuardDevicesResponse>(queryKey)?.entries ?? []
+        setEntryID(choices.length === 1 ? String(choices[0].id) : '')
+        setSharingID(device.id)
+      }
       toast.ok(t(creating ? 'wgDevices.created' : 'wgDevices.saved'))
     },
     onError: toast.err,
@@ -121,7 +127,7 @@ export function WireGuardDevices({ endpoint, canWrite = true, titleOrder = 4, on
         <Group justify="space-between" align="flex-start">
           <Text fw={600} size="sm" style={{ overflowWrap: 'anywhere', flex: '1 1 140px', minWidth: 0 }}>{device.name}</Text>
           {canWrite && <Group gap={4}>
-            {device.subscription_url && <Button size="compact-xs" variant="light" onClick={() => { setEntryID(null); setSharingID(device.id) }}>{t('wgDevices.subscription')}</Button>}
+            {device.subscription_url && <Button size="compact-xs" variant="light" onClick={() => { setEntryID(entries.length === 1 ? String(entries[0].id) : ''); setSharingID(device.id) }}>{t('wgDevices.subscription')}</Button>}
             <Button size="compact-xs" variant="subtle" onClick={() => { setName(device.name); setEditor(device) }}>{t('wgDevices.rename')}</Button>
             <Button size="compact-xs" variant="subtle" color="red" onClick={() => setRevoking(device)}>{t('wgDevices.revoke')}</Button>
           </Group>}
@@ -146,17 +152,17 @@ export function WireGuardDevices({ endpoint, canWrite = true, titleOrder = 4, on
     <Modal opened={canWrite && !!sharing?.subscription_url} onClose={() => setSharingID(null)} title={sharing?.name} size="lg">
       {sharing?.subscription_url && <Stack>
         <Text size="sm">{t('wgDevices.linkHint')}</Text>
+        <Select label={t('wgDevices.node')} placeholder={t('wgDevices.allNodes')} description={t('wgDevices.selectionHint')} searchable clearable data={[...entries.map(entry => ({ value: String(entry.id), label: entry.name })), ...(!selectedEntryAvailable && selectedEntry ? [{ value: selectedEntry, label: t('wgDevices.selectedNodeUnavailable'), disabled: true }] : [])]} value={selectedEntry} onChange={value => setEntryID(value ?? '')} />
         <Select label={t('wgDevices.clientFormat')} data={[{ value: 'clash', label: 'Clash / mihomo' }, { value: 'stash', label: 'Stash' }, { value: 'singbox', label: 'sing-box' }, { value: 'egern', label: 'Egern' }]} value={client} onChange={value => value && setClient(value)} allowDeselect={false} />
         <Code block style={{ overflowWrap: 'anywhere', whiteSpace: 'pre-wrap' }}>{sharingURL}</Code>
         <Group>
-          <Button onClick={async () => { if (await copyText(sharingURL)) toast.ok(t('wgDevices.copied')) }}>{t('wgDevices.copy')}</Button>
-          <Menu shadow="md"><Menu.Target><Button variant="light" leftSection={<IconDownload size={16} />}>{t('wgDevices.import')}</Button></Menu.Target><Menu.Dropdown>{importLinks(sharing.subscription_url).map(link => <Menu.Item key={link.name} component="a" href={link.href}>{link.name}</Menu.Item>)}</Menu.Dropdown></Menu>
+          <Button disabled={!selectedEntryAvailable} onClick={async () => { if (await copyText(sharingURL)) toast.ok(t('wgDevices.copied')) }}>{t('wgDevices.copy')}</Button>
+          <Menu shadow="md"><Menu.Target><Button disabled={!selectedEntryAvailable} variant="light" leftSection={<IconDownload size={16} />}>{t('wgDevices.import')}</Button></Menu.Target><Menu.Dropdown>{importLinks(sharingURL).map(link => <Menu.Item key={link.name} component="a" href={link.href}>{link.name}</Menu.Item>)}</Menu.Dropdown></Menu>
         </Group>
         <Divider />
         <Text fw={600} size="sm">{t('wgDevices.nativeTitle')}</Text>
         <Text size="xs" c="dimmed">{t('wgDevices.nativeHint')}</Text>
-        <Select label={t('wgDevices.node')} placeholder={t('wgDevices.chooseNode')} searchable data={entries.map(entry => ({ value: String(entry.id), label: entry.name }))} value={selectedEntry} onChange={setEntryID} allowDeselect={false} />
-        <Group justify="flex-end"><Button variant="light" loading={download.isPending} disabled={!selectedEntry} onClick={() => { if (selectedEntry) download.mutate({ url: configURL(sharing.subscription_url!, selectedEntry), filename: sharing.name }) }}>{t('wgDevices.download')}</Button></Group>
+        <Group justify="flex-end"><Button variant="light" loading={download.isPending} disabled={!selectedEntry || !selectedEntryAvailable} onClick={() => { if (selectedEntry) download.mutate({ url: configURL(sharing.subscription_url!, selectedEntry), filename: sharing.name }) }}>{t('wgDevices.download')}</Button></Group>
       </Stack>}
     </Modal>
   </Stack>

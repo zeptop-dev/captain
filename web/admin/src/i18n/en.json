@@ -2907,14 +2907,13 @@
     "cancel": "Cancel",
     "save": "Save",
     "revokeHint": "Revoke WireGuard access and the subscription for “{{name}}”? Its existing WireGuard configurations will stop working after the servers sync. Other devices are unaffected.",
-    "linkHint": "This device-only link contains WireGuard nodes for mihomo/Clash, Stash, sing-box and Egern. Keep using the regular subscription for other protocols. For native WireGuard, select a node below to download its configuration.",
+    "linkHint": "This device-only link contains WireGuard nodes for mihomo/Clash, Stash, sing-box and Egern. Keep using the regular subscription for other protocols. For native WireGuard, select one node before downloading its configuration.",
     "copied": "Device subscription copied",
     "copy": "Copy device subscription",
     "import": "Import to client",
     "nativeTitle": "Native WireGuard configuration",
     "nativeHint": "Select one node, then download and import the file into the WireGuard app. Each file configures this device for that node only.",
     "node": "Node",
-    "chooseNode": "Select a node",
     "download": "Download .conf",
     "serverHint": "To use this WireGuard node on multiple devices at once, create a separate subscription for each device.",
     "manageAtHome": "Manage on Home",
@@ -2929,6 +2928,9 @@
     "sharedHint": "Device slots are shared with other registered clients.",
     "sharedUsage": "Shared slots: {{used}} / {{limit}}",
     "unlimited": "Unlimited",
-    "clientFormat": "Subscription format"
+    "clientFormat": "Subscription format",
+    "allNodes": "All WireGuard nodes",
+    "selectionHint": "Selecting all requires every authorized WireGuard node to be ready. You can also choose one ready node. Native configuration downloads require one node.",
+    "selectedNodeUnavailable": "Selected node is unavailable; select again"
   }
 }
