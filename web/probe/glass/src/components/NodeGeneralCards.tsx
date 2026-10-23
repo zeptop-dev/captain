@@ -1,9 +1,9 @@
 import type { CSSProperties, KeyboardEvent, ReactNode, Ref } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Icon } from '@iconify/react'
+import { snapshot } from '@shared/captain'
+import { useBox } from '@/hooks/useBox'
 import { UI_CONFIG } from '@shared/constants/ui'
-import type { CurrencyCode } from '@shared/utils/financeHelper'
-import * as financeHelper from '@shared/utils/financeHelper'
 import type { GeneralMetricCard } from '@shared/views/generalCards'
 import { buildGeneralCards } from '@shared/views/generalCards'
 import NodeEarthGlobe from '@/components/NodeEarthGlobe'
@@ -57,6 +57,7 @@ function useNow(): Date {
 
 export default function NodeGeneralCards({ nodes, globeNodes, transitionKey, ...attrs }: { nodes?: NodeData[], globeNodes?: NodeData[], transitionKey?: string } & Record<string, unknown>) {
   const app = useApp(a => ({
+    lang: a.lang,
     privateFeaturesAllowed: a.privateFeaturesAllowed,
     hidePriceWhenLoggedOut: a.hidePriceWhenLoggedOut,
     disablePageAnimation: a.disablePageAnimation,
@@ -68,40 +69,24 @@ export default function NodeGeneralCards({ nodes, globeNodes, transitionKey, ...
     hideEarth: a.hideEarth,
     earthRenderer: a.earthRenderer,
   }))
+  const snap = useBox(snapshot)
   const visibleNodes = useNodes(n => n.visibleNodes)
   const showPrice = app.privateFeaturesAllowed || !app.hidePriceWhenLoggedOut
-  const [exchangeRates, setExchangeRates] = useState(financeHelper.DEFAULT_EXCHANGE_RATES)
-  const [financeCurrency, setFinanceCurrency] = useState<CurrencyCode>('CNY')
-  const [excludeFreeNodes, setExcludeFreeNodes] = useState(true)
   const currentTime = useNow()
   const summaryNodes = nodes ?? visibleNodes
   const summaryTransitionKey = transitionKey ?? visibleNodes.length
 
-  useEffect(() => {
-    setFinanceCurrency(financeHelper.getStoredFinanceCurrency())
-    setExcludeFreeNodes(financeHelper.shouldExcludeFreeNodes())
-    let cancelled = false
-    void financeHelper.getDailyExchangeRates().then(({ rates }) => {
-      if (!cancelled)
-        setExchangeRates(financeHelper.applyExchangeRateOverrides(rates))
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   const visibleCards = useMemo(() => buildGeneralCards({
     nodes: summaryNodes,
+    snapshot: snap,
+    lang: app.lang,
     byteDecimals: app.byteDecimals,
     homeHighLoadThreshold: app.homeHighLoadThreshold,
     homeExpiringDays: app.homeExpiringDays,
     homeTrafficWarningThreshold: app.homeTrafficWarningThreshold,
-    excludeFreeNodes,
-    exchangeRates,
-    financeCurrency,
     showPrice,
     now: currentTime,
-  }, app.generalCardOrder), [summaryNodes, app, excludeFreeNodes, exchangeRates, financeCurrency, showPrice, currentTime])
+  }, app.generalCardOrder), [summaryNodes, snap, app, showPrice, currentTime])
 
   const showEarth = !app.hideEarth
   const isTiledEarth = showEarth && app.earthRenderer === 'tiled'
@@ -131,8 +116,8 @@ export default function NodeGeneralCards({ nodes, globeNodes, transitionKey, ...
     return cardPositionClasses[index] ?? 'col-span-4 row-span-1'
   }
 
-  // No card definition sets action: 'financeDetails' (Captain has no billing
-  // data), so the upstream FinanceDetailsDialog can never open and is not ported.
+  // Finance rows are read-only summaries; the upstream exchange-rate dialog
+  // is not used for Captain's original-currency amounts.
   function activateCard(_card: GeneralMetricCard) {}
 
   function handleCardKeydown(event: KeyboardEvent<HTMLDivElement>, card: GeneralMetricCard) {
@@ -164,7 +149,7 @@ export default function NodeGeneralCards({ nodes, globeNodes, transitionKey, ...
                   onClick={() => activateCard(card)}
                   onKeyDown={e => handleCardKeydown(e, card)}
                 >
-                  <div {...s} className="flex h-full flex-col justify-between gap-1">
+                  <div {...s} className="flex h-full min-h-0 flex-col justify-between gap-1">
                     <div {...s} className="flex items-start justify-between gap-2">
                       <span {...s} className="text-xs font-medium tracking-wider text-muted-foreground truncate">{card.label}</span>
                       <Icon {...s} icon={card.icon} width={20} height={20} className="shrink-0 text-slate-500/20 group-hover:text-slate-500 transition-colors" />
@@ -174,10 +159,19 @@ export default function NodeGeneralCards({ nodes, globeNodes, transitionKey, ...
                       as="span"
                       placement="top"
                       content={card.tooltip}
-                      className="min-w-0"
-                      contentClass="whitespace-pre px-2 py-1 left-0 -translate-x-0 leading-normal"
+                      className={card.moneyRows ? "min-h-0 min-w-0 flex-1" : "min-w-0"}
+                      contentClass={card.key === 'remainingValue' ? "whitespace-normal w-64 max-w-[calc(100vw-2rem)] px-2 py-1 left-0 -translate-x-0 leading-normal" : "whitespace-pre px-2 py-1 left-0 -translate-x-0 leading-normal"}
                     >
-                      <Transition {...(app.disablePageAnimation ? { css: false } : { name: 'metric-switch', mode: 'out-in' as const })}>
+                      {card.moneyRows ? (
+                        <div tabIndex={0} role="group" aria-label={card.label} data-finance-rows className="h-full min-w-0 space-y-0.5 overflow-y-auto outline-offset-1 focus-visible:outline focus-visible:outline-ring">
+                          {card.moneyRows.map(money => (
+                            <div key={money.currency} data-finance-currency={money.currency} className="flex min-w-0 items-baseline justify-between gap-1 text-xs leading-4 md:text-base md:leading-5">
+                              <span className="shrink-0 font-medium text-muted-foreground">{money.currency}</span>
+                              <span className="min-w-0 break-all text-right font-semibold tabular-nums">{money.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : <Transition {...(app.disablePageAnimation ? { css: false } : { name: 'metric-switch', mode: 'out-in' as const })}>
                         <MetricValue key={`${card.key}-${summaryTransitionKey}`} style={{ '--metric-switch-delay': `${index * UI_CONFIG.motion.staggerMs}ms` } as CSSProperties}>
                           <span {...s} className="text-md md:text-2xl font-bold leading-none tracking-tight truncate">
                             {card.value}
@@ -188,8 +182,9 @@ export default function NodeGeneralCards({ nodes, globeNodes, transitionKey, ...
                             </span>
                           )}
                         </MetricValue>
-                      </Transition>
+                      </Transition>}
                     </DataTooltip>
+                    {card.note && <span data-finance-coverage className="shrink-0 text-[10px] leading-3 text-muted-foreground md:text-[11px]">{card.note}</span>}
                   </div>
                 </CardX>
               ))}

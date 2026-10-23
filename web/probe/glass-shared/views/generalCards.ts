@@ -1,12 +1,13 @@
 // Pure computations behind the home page overview cards, shared by the Vue
 // and React NodeGeneralCards so both show identical values and tooltips.
 import { t } from '@shared/i18n'
+import type { Snapshot } from '@shared/captain'
+import type { Lang } from '@shared/stores/app-settings'
+import { summarizeNodeCosts, formatCostAmount } from '../../src/lib/node-cost'
 import type { GeneralCardKey } from '@shared/stores/app-settings'
 import type { NodeData } from '@shared/types/node'
 import type { ByteDecimalsConfig } from '@shared/utils/helper'
-import type { CurrencyCode, ExchangeRates } from '@shared/utils/financeHelper'
 import type { TopNodeMetric } from '@shared/utils/nodeMetricsHelper'
-import * as financeHelper from '@shared/utils/financeHelper'
 import { gpuUsageFromStatus } from '@shared/utils/gpuHelper'
 import { formatBytesPerSecondSplit, formatBytesSplit } from '@shared/utils/helper'
 import {
@@ -21,7 +22,6 @@ import {
   isTrafficWarningNode,
 } from '@shared/utils/nodeMetricsHelper'
 import { getRegionDisplayName } from '@shared/utils/regionHelper'
-import { isFreeNode } from '@shared/utils/tagHelper'
 
 export interface GeneralMetricCard {
   key: GeneralCardKey
@@ -30,6 +30,8 @@ export interface GeneralMetricCard {
   value: string
   unit?: string
   tooltip?: string
+  moneyRows?: Array<{ currency: string; value: string }>
+  note?: string
   action?: 'financeDetails'
 }
 
@@ -55,14 +57,13 @@ export interface OnlineStats {
 
 
 export interface GeneralCardsContext {
+  snapshot: Snapshot | null
+  lang: Lang
   nodes: NodeData[]
   byteDecimals: ByteDecimalsConfig
   homeHighLoadThreshold: number
   homeExpiringDays: number
   homeTrafficWarningThreshold: number
-  excludeFreeNodes: boolean
-  exchangeRates: ExchangeRates
-  financeCurrency: CurrencyCode
   showPrice: boolean
   now: Date
 }
@@ -160,21 +161,26 @@ export function buildGeneralCards(ctx: GeneralCardsContext, order: GeneralCardKe
     return `${node.name}: ${days} 天`
   }
 
-  function getNodePeriodCostCNY(node: NodeData, periodDays: number): number {
-    if (ctx.excludeFreeNodes && isFreeNode(node))
-      return 0
+  const priceVisible = ctx.showPrice && Boolean(ctx.snapshot)
+    && (ctx.snapshot?.public_sections == null || ctx.snapshot.public_sections.includes('info'))
+  const currentNodes = new Map(ctx.snapshot?.nodes.map(node => [String(node.id), node]))
+  const costInfos = priceVisible ? ctx.nodes.flatMap(node => {
+    const current = currentNodes.get(node.uuid)
+    return current ? [current.info] : []
+  }) : []
 
-    return financeHelper.calculatePeriodCostCNY(node, ctx.exchangeRates, periodDays)
-  }
-
-  function formatCostCard(amountCNY: number): { value: string, unit?: string } {
-    if (!ctx.showPrice)
-      return { value: '***' }
-
-    const targetRate = ctx.exchangeRates[ctx.financeCurrency] || 1
-    const formatted = financeHelper.formatFinanceAmount(amountCNY * targetRate, ctx.financeCurrency)
+  function costCard(kind: 'monthly' | 'yearly' | 'remaining'): Pick<GeneralMetricCard, 'value' | 'unit' | 'moneyRows' | 'note' | 'tooltip'> {
+    const summary = summarizeNodeCosts(costInfos, kind, ctx.now)
+    const moneyRows = summary.amounts.map(money => ({ currency: money.currency, value: formatCostAmount(money, ctx.lang) }))
+    const first = moneyRows[0]
     return {
-      value: `${formatted.symbol}${formatted.value}`,
+      value: first?.value ?? '—',
+      unit: moneyRows.length === 1 ? first?.currency : undefined,
+      moneyRows: moneyRows.length > 1 ? moneyRows : undefined,
+      note: summary.included < summary.total
+        ? t('finance.included').replace('{included}', String(summary.included)).replace('{total}', String(summary.total))
+        : undefined,
+      tooltip: kind === 'remaining' ? t('finance.estimateHelp') : undefined,
     }
   }
 
@@ -348,8 +354,6 @@ export function buildGeneralCards(ctx: GeneralCardsContext, order: GeneralCardKe
   const regionDistribution = getKnownDistribution(ctx.nodes, node => getRegionDisplayName(node.region))
   const systemDistribution = getDistribution(ctx.nodes, node => node.os)
   const virtualizationDistribution = getDistribution(ctx.nodes, node => node.virtualization)
-  const monthlyCostCNY = ctx.nodes.reduce((sum, node) => sum + getNodePeriodCostCNY(node, 30), 0)
-  const yearlyCostCNY = ctx.nodes.reduce((sum, node) => sum + getNodePeriodCostCNY(node, 365), 0)
 
   const trafficPeakCard = formatTopNodeSpeed(trafficPeak)
   const uploadPeakCard = formatTopNodeSpeed(uploadPeakNode)
@@ -373,8 +377,6 @@ export function buildGeneralCards(ctx: GeneralCardsContext, order: GeneralCardKe
       return t('暂无数据')
     return `${metric.node.name}\nTCP ${formatCount(metric.node.connections || 0)}\nUDP ${formatCount(metric.node.connections_udp || 0)}`
   })()
-  const monthlyCostCard = formatCostCard(monthlyCostCNY)
-  const yearlyCostCard = formatCostCard(yearlyCostCNY)
 
   function getCardDefinition(key: GeneralCardKey): GeneralMetricCard {
     switch (key) {
@@ -405,9 +407,9 @@ export function buildGeneralCards(ctx: GeneralCardsContext, order: GeneralCardKe
       case 'remainingValue':
         return {
           key: 'remainingValue',
-          label: t('剩余价值'),
+          label: t('finance.remainingEstimate'),
           icon: 'tabler:cash',
-          value: '—',
+          ...costCard('remaining'),
         }
       case 'totalTraffic':
         return {
@@ -631,23 +633,21 @@ export function buildGeneralCards(ctx: GeneralCardsContext, order: GeneralCardKe
       case 'monthlyCost':
         return {
           key: 'monthlyCost',
-          label: '月费用估算',
+          label: t('月均支出'),
           icon: 'tabler:calendar-dollar',
-          value: monthlyCostCard.value,
-          unit: monthlyCostCard.unit,
+          ...costCard('monthly'),
         }
       case 'yearlyCost':
         return {
           key: 'yearlyCost',
-          label: '年费用估算',
+          label: t('finance.yearlyCost'),
           icon: 'tabler:receipt-2',
-          value: yearlyCostCard.value,
-          unit: yearlyCostCard.unit,
+          ...costCard('yearly'),
         }
       default:
         return getCardDefinition('memory')
     }
   }
 
-  return order.map(getCardDefinition)
+  return order.filter(key => !['remainingValue', 'monthlyCost', 'yearlyCost'].includes(key) || priceVisible).map(getCardDefinition)
 }

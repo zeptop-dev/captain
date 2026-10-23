@@ -122,5 +122,15 @@
   "storage.data": "Data",
   "storage.systemDisk": "System disk",
   "storage.dataDisk": "Data disk",
-  "storage.historyTruncated": "Some storage history is incomplete."
+  "storage.historyTruncated": "Some storage history is incomplete.",
+  "finance.remainingEstimate": "Remaining value (est.)",
+  "finance.yearlyCost": "Yearly cost",
+  "finance.month": "month",
+  "finance.missingPrice": "No price configured",
+  "finance.legacyPrice": "Text price: calculation unavailable",
+  "finance.missingExpiry": "Expiry date required",
+  "finance.unsupportedCycle": "Custom billing period: estimate unavailable",
+  "finance.invalid": "Cost data unavailable",
+  "finance.included": "Included {included}/{total}",
+  "finance.estimateHelp": "Estimated from the price, expiry date and actual calendar length of the preceding payment period. Amounts stay in their original currencies; this is not a refundable balance."
 }

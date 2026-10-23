@@ -7,8 +7,6 @@ import { shows, snapshot, captainBandwidth, captainStorage } from '@shared/capta
 import { LOAD_RECORD_MAX_COUNT } from '@shared/constants/load'
 import { loadNodeLoadRecords } from '@shared/services/history.service'
 import { getCpuBenchmarkRating, getPassMarkCpuLookupUrl } from '@shared/utils/cpuBenchmark'
-import type { CurrencyCode } from '@shared/utils/financeHelper'
-import * as financeHelper from '@shared/utils/financeHelper'
 import { getOSImage, getOSName } from '@shared/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@shared/utils/regionHelper'
 import { parseTags } from '@shared/utils/tagHelper'
@@ -54,8 +52,6 @@ export default function InstanceDetail({ ref }: { ref?: Ref<HTMLDivElement> }) {
   const visibleNodesByUuid = useNodes(n => n.visibleNodesByUuid)
   const data = visibleNodesByUuid.get(String(route.params.id))
 
-  const [exchangeRates, setExchangeRates] = useState(financeHelper.DEFAULT_EXCHANGE_RATES)
-  const [financeCurrency, setFinanceCurrency] = useState<CurrencyCode>('CNY')
   const [peakNetOut, setPeakNetOut] = useState(0)
   const [peakNetIn, setPeakNetIn] = useState(0)
   const [activeDetailSection, setActiveDetailSection] = useState<'overview' | 'load' | 'ping'>('overview')
@@ -75,15 +71,6 @@ export default function InstanceDetail({ ref }: { ref?: Ref<HTMLDivElement> }) {
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' })
-    setFinanceCurrency(financeHelper.getStoredFinanceCurrency())
-    let cancelled = false
-    void financeHelper.getDailyExchangeRates().then(({ rates }) => {
-      if (!cancelled)
-        setExchangeRates(rates)
-    })
-    return () => {
-      cancelled = true
-    }
   }, [])
 
   // Vue: immediate watcher on the node — resets the section and loads the 24h peak.
@@ -135,8 +122,6 @@ export default function InstanceDetail({ ref }: { ref?: Ref<HTMLDivElement> }) {
     byteDecimals: app.byteDecimals,
     privateFeaturesAllowed: app.privateFeaturesAllowed,
     hidePriceWhenLoggedOut: app.hidePriceWhenLoggedOut,
-    exchangeRates,
-    financeCurrency,
     providerMetadata,
   }
   const { formatBytes, formatBytesPerSecond } = detailFormatters(ctx)
@@ -311,6 +296,7 @@ export default function InstanceDetail({ ref }: { ref?: Ref<HTMLDivElement> }) {
                   {cards.map(item => (
                     <CardX
                       key={item.key}
+                      data-detail-card-key={item.key}
                       hoverable
                       size="small"
                       className="group h-full bg-background/50 border-none hover:bg-background transition-all rounded-md"
@@ -322,10 +308,11 @@ export default function InstanceDetail({ ref }: { ref?: Ref<HTMLDivElement> }) {
                           <Icon icon={item.icon} width={20} height={20} className="text-slate-500/25 transition-colors group-hover:text-slate-500" />
                         </div>
                         <div className="min-w-0 space-y-1">
-                          <div className={`flex min-w-0 items-baseline gap-1 truncate font-semibold leading-none${item.valueClass ? ` ${item.valueClass}` : ''}`}>
-                            <span className="truncate text-base sm:text-2xl">{item.value}</span>
-                            {item.unit && <span className="shrink-0 text-[11px] font-medium text-muted-foreground sm:text-xs">{item.unit}</span>}
+                          <div className={`flex min-w-0 items-baseline gap-1 font-semibold leading-none${item.finance ? ' flex-wrap' : ' truncate'}${item.valueClass ? ` ${item.valueClass}` : ''}`}>
+                            <span className={`${item.finance ? 'break-words [overflow-wrap:anywhere] leading-tight' : 'truncate'} text-base sm:text-2xl`}>{item.value}</span>
+                            {item.unit && <span className={`${item.finance ? 'break-words' : 'shrink-0'} text-[11px] font-medium leading-normal text-muted-foreground sm:text-xs`}>{item.unit}</span>}
                           </div>
+                          {item.note && <p data-finance-note className="text-[11px] leading-snug text-muted-foreground">{item.note}</p>}
                         </div>
                       </div>
                     </CardX>
