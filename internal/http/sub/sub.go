@@ -94,9 +94,26 @@ func Register(mux *http.ServeMux, d Deps) {
 				http.Error(w, "account disabled", http.StatusForbidden)
 				return
 			}
-			published, acct, err = d.Service.PublishedWireGuardDeviceLines(r.Context(), u, device, time.Now(), profile)
+			var entryID int64
+			if value := r.URL.Query().Get("entry"); value != "" {
+				entryID, err = strconv.ParseInt(value, 10, 64)
+				if err != nil || entryID <= 0 {
+					http.Error(w, "invalid entry", 400)
+					return
+				}
+			}
+			published, acct, err = d.Service.PublishedWireGuardDeviceLines(r.Context(), u, device, time.Now(), profile, entryID)
 		}
 
+		if device != nil && errors.Is(err, store.ErrNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+		if errors.Is(err, service.ErrWireGuardDevicesUnavailable) {
+			w.Header().Set("Retry-After", "60")
+			http.Error(w, "WireGuard device service unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		if errors.Is(err, service.ErrDisabled) {
 			// Like Xboard: a banned account gets nothing, not even its usage.
 			http.Error(w, "account disabled", http.StatusForbidden)
@@ -157,23 +174,11 @@ func Register(mux *http.ServeMux, d Deps) {
 		}
 		rd := subscription.Pick(format, r.UserAgent())
 		if device != nil {
-			if value := r.URL.Query().Get("entry"); value != "" {
-				id, e := strconv.ParseInt(value, 10, 64)
-				if e != nil || id <= 0 {
-					http.Error(w, "invalid entry", 400)
-					return
-				}
-				selected := []service.PublishedLine{}
-				for _, line := range published {
-					if line.EntryID == id {
-						selected = append(selected, line)
-					}
-				}
-				if len(selected) != 1 {
-					http.NotFound(w, r)
-					return
-				}
-				published = selected
+			switch rd.Name() {
+			case "wireguard", "clash", "stash", "singbox", "egern":
+			default:
+				http.Error(w, "select a WireGuard-compatible client format", http.StatusBadRequest)
+				return
 			}
 			if rd.Name() == "wireguard" && len(published) > 1 {
 				http.Error(w, "select one entry for a WireGuard configuration", 400)
@@ -188,7 +193,7 @@ func Register(mux *http.ServeMux, d Deps) {
 		var subs service.SubscriptionSettings
 		_ = d.Store.GetSetting(r.Context(), service.SettingSubscription, &subs)
 		service.ApplySubscriptionProfile(&subs, profile)
-		if subs.HWID.Enabled {
+		if subs.HWID.Enabled && device == nil {
 			hwid := strings.TrimSpace(r.Header.Get("x-hwid"))
 			switch {
 			case hwid == "" && subs.HWID.Require:
@@ -222,7 +227,7 @@ func Register(mux *http.ServeMux, d Deps) {
 			}
 		}
 		defer func() { _ = d.Store.RecordSubRequest(context.WithoutCancel(r.Context()), u.ID, req) }()
-		if template == "" && profile != nil {
+		if device == nil && template == "" && profile != nil {
 			if templateID := profile.Templates[rd.Name()]; templateID > 0 {
 				named, e := d.Store.NamedSubTemplate(r.Context(), templateID)
 				if e != nil {
@@ -232,10 +237,15 @@ func Register(mux *http.ServeMux, d Deps) {
 				template = named.Body
 			}
 		}
-		if template == "" {
+		if device == nil && template == "" {
 			template = tpls.get(r.Context(), rd.Name())
 		}
-		pageMode := format == "page" && profile != nil && profile.Settings.Page != nil && profile.Settings.Page.Enabled
+		// Custom templates may contain static ordinary proxies or providers. Device
+		// credentials use only the renderer's built-in template to preserve WG scope.
+		if device != nil {
+			template = ""
+		}
+		pageMode := device == nil && format == "page" && profile != nil && profile.Settings.Page != nil && profile.Settings.Page.Enabled
 		var body []byte
 		if pageMode {
 			req.Response = "page"

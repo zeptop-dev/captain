@@ -241,6 +241,9 @@ func (s *Store) ExecuteUserBulk(ctx context.Context, staffID int64, id string, a
 			q = `UPDATE users SET group_id=?,updated_at=? WHERE id=?`
 			args = []any{nullInt64(req.GroupID), at.Unix(), row.ID}
 		case "rotate_subscription":
+			if _, err = tx.ExecContext(ctx, `DELETE FROM wireguard_devices WHERE user_id=?`, row.ID); err != nil {
+				return nil, err
+			}
 			q = `UPDATE users SET sub_token=?,updated_at=? WHERE id=?`
 			args = []any{auth.Token(24), at.Unix(), row.ID}
 		case "extend":

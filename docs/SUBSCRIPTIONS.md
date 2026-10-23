@@ -211,3 +211,43 @@ core keeps enforcing the limit while the panel is unreachable.
 ## Additions in 1.8.0
 
 Named template libraries, explicit/default user presentation profiles, response-rule precedence, HWID limits and optional subscription pages are described in [administration workflows](ADMIN_WORKFLOWS.md#named-subscription-templates-and-profiles).
+
+
+## Independent WireGuard devices
+
+Native WireGuard subscribers can register a separate named device from the portal
+or an admin/operator's customer drawer. Each registration gets an independent
+key and tunnel address, plus a WG-only subscription URL; ordinary account
+subscriptions retain their legacy single peer. Give each physical device its own
+registration: copying one device configuration to two clients still lets their
+endpoints replace each other. Managed reverse WG remains a server-to-server
+connection and does not use these subscriber device peers.
+
+Registration requires a currently paired full server, bosun v0.77.0 or later,
+and a fresh report advertising the installed Xray binary's WG device capability.
+Existing device subscriptions and desired peer state retain the latest capability
+for the current pairing during a brief disconnect. Re-pairing clears that evidence;
+unknown or incompatible capabilities return 503 instead of an empty subscription.
+An explicit `entry` selection checks only that authorized entry; a full device
+subscription fails as a whole if any of its eligible servers is unconfirmed.
+Disabled accounts get 403; missing access, expired plans, blocked/disabled entries
+or revoked device credentials get 404. Client-chain entries are excluded because
+a WG-only credential must not disclose another protocol's front proxy credentials.
+
+Use an explicit `client=wireguard`, `clash`, `stash`, `singbox` or `egern` format
+on device URLs. Native `.conf` downloads require `entry=<id>` when more than one
+WG entry is eligible. Unsupported formats return 400. Device subscriptions use
+built-in renderer templates and omit arbitrary entry client fields, so custom
+static proxies, providers or credential overrides cannot widen their scope.
+Ordinary subscriptions keep their existing templates, fields and response rules.
+
+The registration limit follows the user's override, subscription profile and plan,
+with a maximum of 16 native WG devices per account. When HWID checking is enabled,
+registered native devices reserve shared device slots alongside existing HWID
+clients. A native device URL authenticates that device directly and does not
+require an `x-hwid` header; changing an HTTP header cannot add another peer.
+Deleting a native device or rotating the account subscription token releases its
+slot and revokes its URL. Both individual and bulk token rotation revoke these
+devices. The agent removes revoked peers when it applies the updated state, so an
+offline server cannot be promised immediate disconnection. Tunnel address slots
+can be reused after deletion, but device IDs and random credentials never are.

@@ -24,22 +24,23 @@ var ErrWireGuardDevicePool = errors.New("WireGuard device address pool exhausted
 
 // Token is a separate WG-only subscription credential, never the user's general token.
 type WireGuardDevice struct {
-	ID         int64      `json:"id"`
-	UserID     int64      `json:"-"`
-	Name       string     `json:"name"`
-	UUID       string     `json:"-"`
-	Token      string     `json:"-"`
-	CreatedAt  time.Time  `json:"created_at"`
-	LastUsedAt *time.Time `json:"last_used_at"`
+	ID          int64      `json:"id"`
+	AddressSlot int64      `json:"-"`
+	UserID      int64      `json:"-"`
+	Name        string     `json:"name"`
+	UUID        string     `json:"-"`
+	Token       string     `json:"-"`
+	CreatedAt   time.Time  `json:"created_at"`
+	LastUsedAt  *time.Time `json:"last_used_at"`
 }
 
-const wgDeviceColumns = `id,user_id,name,uuid,token,created_at,last_used_at`
+const wgDeviceColumns = `id,address_slot,user_id,name,uuid,token,created_at,last_used_at`
 
 func scanWGDevice(row interface{ Scan(...any) error }) (*WireGuardDevice, error) {
 	var d WireGuardDevice
 	var created int64
 	var used sql.NullInt64
-	if err := row.Scan(&d.ID, &d.UserID, &d.Name, &d.UUID, &d.Token, &created, &used); err != nil {
+	if err := row.Scan(&d.ID, &d.AddressSlot, &d.UserID, &d.Name, &d.UUID, &d.Token, &created, &used); err != nil {
 		return nil, wrapNotFound(err)
 	}
 	d.CreatedAt, d.LastUsedAt = unix(created), unixPtr(used)
@@ -72,6 +73,12 @@ func (s *Store) WireGuardDevices(ctx context.Context, userID int64) ([]WireGuard
 }
 
 func (s *Store) CreateWireGuardDevice(ctx context.Context, userID int64, name string, limit int) (*WireGuardDevice, error) {
+	return s.CreateWireGuardDeviceWithHWID(ctx, userID, name, limit, nil)
+}
+
+// sharedLimit includes already registered HWID clients when HWID policy is enabled.
+// Native devices reserve their slot here, not at the first subscription fetch.
+func (s *Store) CreateWireGuardDeviceWithHWID(ctx context.Context, userID int64, name string, limit int, sharedLimit *int) (*WireGuardDevice, error) {
 	name, err := validWGDeviceName(name)
 	if err != nil {
 		return nil, err
@@ -91,6 +98,15 @@ func (s *Store) CreateWireGuardDevice(ctx context.Context, userID int64, name st
 	if count >= limit {
 		return nil, ErrWireGuardDeviceLimit
 	}
+	if sharedLimit != nil && *sharedLimit > 0 {
+		var hwids int
+		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM hwid_devices WHERE user_id=?`, userID).Scan(&hwids); err != nil {
+			return nil, err
+		}
+		if count+hwids >= *sharedLimit {
+			return nil, ErrWireGuardDeviceLimit
+		}
+	}
 	var status string
 	if err = tx.QueryRowContext(ctx, `SELECT status FROM users WHERE id=? AND role='user'`, userID).Scan(&status); err != nil {
 		return nil, wrapNotFound(err)
@@ -99,16 +115,29 @@ func (s *Store) CreateWireGuardDevice(ctx context.Context, userID int64, name st
 		return nil, ErrNotFound
 	}
 	d := &WireGuardDevice{UserID: userID, Name: name, UUID: auth.UUID(), Token: WireGuardDeviceTokenPrefix + auth.Token(32), CreatedAt: time.Unix(now(), 0)}
-	res, err := tx.ExecContext(ctx, `INSERT INTO wireguard_devices(user_id,name,uuid,token,created_at) VALUES(?,?,?,?,?)`, userID, name, d.UUID, d.Token, d.CreatedAt.Unix())
+	// The first free slot is either 1 or follows an occupied slot. Allocation and
+	// insertion share this transaction; deleting a device does not burn a global ID pool.
+	var slot sql.NullInt64
+	err = tx.QueryRowContext(ctx, `SELECT MIN(candidate) FROM (
+ SELECT 1 AS candidate UNION ALL SELECT address_slot+1 FROM wireguard_devices WHERE address_slot<65534
+ ) WHERE NOT EXISTS(SELECT 1 FROM wireguard_devices WHERE address_slot=candidate)`).Scan(&slot)
+	if err != nil {
+		return nil, err
+	}
+	if !slot.Valid {
+		return nil, ErrWireGuardDevicePool
+	}
+	d.AddressSlot = slot.Int64
+	if _, err = wg.DeviceAddress(d.AddressSlot); err != nil {
+		return nil, ErrWireGuardDevicePool
+	}
+	res, err := tx.ExecContext(ctx, `INSERT INTO wireguard_devices(address_slot,user_id,name,uuid,token,created_at) VALUES(?,?,?,?,?,?)`, d.AddressSlot, userID, name, d.UUID, d.Token, d.CreatedAt.Unix())
 	if err != nil {
 		return nil, err
 	}
 	d.ID, err = res.LastInsertId()
 	if err != nil {
 		return nil, err
-	}
-	if _, err = wg.DeviceAddress(d.ID); err != nil {
-		return nil, ErrWireGuardDevicePool
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
@@ -156,7 +185,7 @@ func (s *Store) TouchWireGuardDevice(ctx context.Context, id int64, at time.Time
 
 // WireGuardDevicePeers indexes only active customers by their immutable agent identity.
 func (s *Store) WireGuardDevicePeers(ctx context.Context) (map[int64][]spec.WireGuardPeer, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT u.agent_id,d.id,d.uuid FROM wireguard_devices d JOIN users u ON u.id=d.user_id WHERE u.role='user' AND u.status='active' ORDER BY d.id`)
+	rows, err := s.db.QueryContext(ctx, `SELECT u.agent_id,d.address_slot,d.uuid FROM wireguard_devices d JOIN users u ON u.id=d.user_id WHERE u.role='user' AND u.status='active' ORDER BY d.id`)
 	if err != nil {
 		return nil, err
 	}
@@ -177,24 +206,46 @@ func (s *Store) WireGuardDevicePeers(ctx context.Context) (map[int64][]spec.Wire
 	return out, rows.Err()
 }
 
-// Version alone is insufficient: the selected binary must advertise real WG user support.
-func (s *Store) WireGuardDevicesCapable(ctx context.Context, nodeID int64) bool {
+// WireGuardDevicesCapability distinguishes an unknown/temporarily unavailable
+// capability from a binary that explicitly cannot serve independently keyed devices.
+// Freshness is required when registering new devices. Existing credentials and agent
+// state use the most recent capability for this pairing, surviving brief disconnects.
+func (s *Store) WireGuardDevicesCapability(ctx context.Context, nodeID int64, fresh bool) string {
 	n, err := s.NodeByID(ctx, nodeID)
-	if err != nil || !n.Paired || !NodeProxyAllowed(n) || !lineVersionOK(n, "v0.77.0") || n.LastSeenAt == nil {
-		return false
+	if err != nil || !n.Paired || !NodeProxyAllowed(n) || n.LastSeenAt == nil {
+		return "unavailable"
 	}
-	age := time.Since(*n.LastSeenAt)
-	if age < 0 || age > 3*time.Minute {
-		return false
+	if !lineVersionOK(n, "v0.77.0") {
+		return "upgrade_required"
+	}
+	if fresh {
+		age := time.Since(*n.LastSeenAt)
+		if age < 0 || age > 3*time.Minute {
+			return "unavailable"
+		}
 	}
 	st, err := s.NodeStatus(ctx, nodeID)
 	if err != nil {
-		return false
+		return "unavailable"
 	}
 	var cores map[string]agentproto.CoreStatus
 	if json.Unmarshal(st.Cores, &cores) != nil {
-		return false
+		return "unavailable"
 	}
-	c := cores["xray"]
-	return c.Capabilities != nil && c.Capabilities.WireGuardDevices
+	c, exists := cores["xray"]
+	if !exists || c.Capabilities == nil {
+		return "unavailable"
+	}
+	if !c.Capabilities.WireGuardDevices {
+		return "upgrade_required"
+	}
+	return ""
+}
+
+func (s *Store) WireGuardDevicesCapable(ctx context.Context, nodeID int64) bool {
+	return s.WireGuardDevicesCapability(ctx, nodeID, true) == ""
+}
+
+func (s *Store) WireGuardDevicesSupported(ctx context.Context, nodeID int64) bool {
+	return s.WireGuardDevicesCapability(ctx, nodeID, false) == ""
 }
