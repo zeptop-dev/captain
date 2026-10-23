@@ -93,8 +93,8 @@ func monthlyBoundary(at time.Time, offset, day, after int) time.Time {
 	}
 	return month.AddDate(0, 0, day-1+after)
 }
-func nodePeriodStart(at time.Time, p *NodeProbe) time.Time {
-	day, after := p.ResetDay, 0
+func nodePeriodDay(p *NodeProbe) (day, after int) {
+	day = p.ResetDay
 	if r := p.Info.TrafficReset; r != nil && r.Mode != "manual" {
 		if date, err := time.Parse("2006-01-02", p.Info.ExpiresAt); err == nil {
 			day = date.Day()
@@ -106,9 +106,25 @@ func nodePeriodStart(at time.Time, p *NodeProbe) time.Time {
 	if day < 1 || day > 31 {
 		day = 1
 	}
+	return
+}
+
+func nodePeriodStart(at time.Time, p *NodeProbe) time.Time {
+	day, after := nodePeriodDay(p)
 	start := monthlyBoundary(at, 0, day, after)
 	if start.After(at) {
 		start = monthlyBoundary(at, -1, day, after)
 	}
 	return start
+}
+
+// nodePeriodEnd returns the next scheduled boundary, including after a manual
+// reset inside a period. Adding a month to a clamped February date is incorrect.
+func nodePeriodEnd(start time.Time, p *NodeProbe) time.Time {
+	day, after := nodePeriodDay(p)
+	end := monthlyBoundary(start, 0, day, after)
+	if !end.After(start) {
+		end = monthlyBoundary(start, 1, day, after)
+	}
+	return end
 }
