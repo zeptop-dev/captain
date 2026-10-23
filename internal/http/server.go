@@ -313,7 +313,7 @@ func (s *Server) Handler() http.Handler {
 				defer accounts.RUnlock()
 			}
 		}
-		if r.Method != http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/admin/") && s.state != nil {
+		if r.Method != http.MethodGet && (strings.HasPrefix(r.URL.Path, "/api/admin/") || strings.HasPrefix(r.URL.Path, "/api/portal/me/wireguard-devices")) && s.state != nil {
 			defer s.state.Invalidate()
 		}
 		h.ServeHTTP(w, r)

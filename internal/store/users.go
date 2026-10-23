@@ -309,14 +309,23 @@ func (s *Store) UpdateUser(ctx context.Context, id int64, status string, groupID
 
 // RotateSubToken issues a new subscription token.
 func (s *Store) RotateSubToken(ctx context.Context, id int64, token string) error {
-	res, err := s.db.ExecContext(ctx, `UPDATE users SET sub_token = ?, updated_at = ? WHERE id = ? AND role = 'user'`, token, now(), id)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	res, err := tx.ExecContext(ctx, `UPDATE users SET sub_token = ?, updated_at = ? WHERE id = ? AND role = 'user'`, token, now(), id)
 	if err != nil {
 		return err
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
 		return ErrNotFound
 	}
-	return nil
+	// Resetting subscription access also revokes independently issued WG credentials.
+	if _, err = tx.ExecContext(ctx, `DELETE FROM wireguard_devices WHERE user_id=?`, id); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // ErrUserHasHistory protects orders, commissions and other users' invitations.

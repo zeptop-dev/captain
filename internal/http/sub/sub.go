@@ -78,14 +78,25 @@ func Register(mux *http.ServeMux, d Deps) {
 	// charge is called once the request has passed every refusal (response
 	// rules, HWID) and a document is about to be written; it spends a
 	// temporary link's use. nil for the permanent token route.
-	serve := func(w http.ResponseWriter, r *http.Request, u *domain.User, charge func() error) {
+	serve := func(w http.ResponseWriter, r *http.Request, u *domain.User, charge func() error, device *store.WireGuardDevice) {
 		profile, err := d.Store.SubscriptionProfileForUser(r.Context(), u.ID)
 		if err != nil {
 			d.Log.Error("subscription profile", "err", err)
 			http.Error(w, "internal error", 500)
 			return
 		}
-		published, acct, err := d.Service.PublishedLinesWithProfile(r.Context(), u, time.Now(), profile)
+		var published []service.PublishedLine
+		var acct subscription.Account
+		if device == nil {
+			published, acct, err = d.Service.PublishedLinesWithProfile(r.Context(), u, time.Now(), profile)
+		} else {
+			if u.Status != "active" {
+				http.Error(w, "account disabled", http.StatusForbidden)
+				return
+			}
+			published, acct, err = d.Service.PublishedWireGuardDeviceLines(r.Context(), u, device, time.Now(), profile)
+		}
+
 		if errors.Is(err, service.ErrDisabled) {
 			// Like Xboard: a banned account gets nothing, not even its usage.
 			http.Error(w, "account disabled", http.StatusForbidden)
@@ -145,6 +156,31 @@ func Register(mux *http.ServeMux, d Deps) {
 			ruleHeaders = rule.Headers
 		}
 		rd := subscription.Pick(format, r.UserAgent())
+		if device != nil {
+			if value := r.URL.Query().Get("entry"); value != "" {
+				id, e := strconv.ParseInt(value, 10, 64)
+				if e != nil || id <= 0 {
+					http.Error(w, "invalid entry", 400)
+					return
+				}
+				selected := []service.PublishedLine{}
+				for _, line := range published {
+					if line.EntryID == id {
+						selected = append(selected, line)
+					}
+				}
+				if len(selected) != 1 {
+					http.NotFound(w, r)
+					return
+				}
+				published = selected
+			}
+			if rd.Name() == "wireguard" && len(published) > 1 {
+				http.Error(w, "select one entry for a WireGuard configuration", 400)
+				return
+			}
+		}
+
 		req.Response = rd.Name()
 		// Device limit by HWID: a client that identifies its device gets
 		// counted per device; over the limit it receives an empty document
@@ -260,13 +296,27 @@ func Register(mux *http.ServeMux, d Deps) {
 		for k, v := range ruleHeaders {
 			w.Header().Set(k, v)
 		}
+		if device != nil {
+			_ = d.Store.TouchWireGuardDevice(r.Context(), device.ID, time.Now())
+		}
 		_, _ = w.Write(body)
 	}
 	mux.HandleFunc("GET /sub/{token}", func(w http.ResponseWriter, r *http.Request) {
 		if !allowFetch(w, r, "tok:"+r.PathValue("token")) {
 			return
 		}
-		u, err := d.Store.UserBySubToken(r.Context(), r.PathValue("token"))
+		var device *store.WireGuardDevice
+		var u *domain.User
+		var err error
+		u, err = d.Store.UserBySubToken(r.Context(), r.PathValue("token"))
+		// Existing tokens retain their meaning, even if imported with this prefix.
+		if errors.Is(err, store.ErrNotFound) && strings.HasPrefix(r.PathValue("token"), store.WireGuardDeviceTokenPrefix) {
+			device, err = d.Store.WireGuardDeviceByToken(r.Context(), r.PathValue("token"))
+			if err == nil {
+				u, err = d.Store.UserByID(r.Context(), device.UserID)
+			}
+		}
+
 		if errors.Is(err, store.ErrNotFound) {
 			http.NotFound(w, r)
 			return
@@ -275,7 +325,7 @@ func Register(mux *http.ServeMux, d Deps) {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		serve(w, r, u, nil)
+		serve(w, r, u, nil, device)
 	})
 	// Short and temporary links: /s/<code>, use-counted for temp links.
 	mux.HandleFunc("GET /s/{code}", func(w http.ResponseWriter, r *http.Request) {
@@ -298,7 +348,7 @@ func Register(mux *http.ServeMux, d Deps) {
 			// response rule refuses must not use up a trial link.
 			charge = func() error { return d.Store.ConsumeSubLink(context.WithoutCancel(r.Context()), code) }
 		}
-		serve(w, r, u, charge)
+		serve(w, r, u, charge, nil)
 	})
 }
 
