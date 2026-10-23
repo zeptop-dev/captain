@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { useEffect, useState } from 'react'
 import { publicShows, bytes, flag, pct, rate, uptime, type Node, type Snapshot } from './lib/api'
 import { Spark } from './components/Spark'
+import { StorageSummary } from './components/StorageSummary'
 import { NodeDetail } from './components/NodeDetail'
 
 // The public status page: one card per node, live values, sparklines and
@@ -60,7 +61,6 @@ function NodeCard({ n, snapshot, onOpen }: { n: Node; snapshot: Snapshot; onOpen
   const h = n.host
   const cpu = !h || h.valid?.cpu === false ? null : h.cpu_percent ?? 0
   const mem = !h || h.valid?.memory === false ? null : pct(h.mem_used, h.mem_total)
-  const disk = !h || h.valid?.disk === false ? null : pct(h.disk_used, h.disk_total)
   const tr = n.traffic
   const trafficPct = tr.limit > 0 ? Math.min(100, Math.round((tr.used / tr.limit) * 100)) : 0
   const carriers = (h?.pings ?? []).filter((p) => p.task_id === 0)
@@ -76,11 +76,11 @@ function NodeCard({ n, snapshot, onOpen }: { n: Node; snapshot: Snapshot; onOpen
         </Group>
         <Badge size="sm" style={{ flexShrink: 0 }} color={n.online ? 'teal' : 'red'} variant={n.online ? 'light' : 'filled'}>{t(n.online ? 'page.online' : 'page.offline')}</Badge>
       </Group>
-      {['cpu', 'memory', 'disk'].some(show) && <SimpleGrid cols={['cpu', 'memory', 'disk'].filter(show).length} spacing="xs" mt="sm">
+      {['cpu', 'memory'].some(show) && <SimpleGrid cols={['cpu', 'memory'].filter(show).length} spacing="xs" mt="sm">
         {show('cpu') && <Meter label="CPU" value={cpu} sub={show('system') ? cpuSpec(h?.info, i18n.language) : undefined} />}
         {show('memory') && <Meter label={t('page.memory')} value={mem} sub={mem == null ? undefined : bytes(h?.mem_total ?? 0)} />}
-        {show('disk') && <Meter label={t('page.disk')} value={disk} sub={disk == null ? undefined : bytes(h?.disk_total ?? 0)} />}
       </SimpleGrid>}
+      {show('disk') && <StorageSummary node={n} />}
       {show('network') && <Group justify="space-between" mt="sm" gap="xs">
         {show('network') && <Text size="xs" c="dimmed"><IconArrowUp size={12} /> {!h || h.valid?.network === false ? '—' : rate(h.net_up ?? 0)} <IconArrowDown size={12} /> {!h || h.valid?.network === false ? '—' : rate(h.net_down ?? 0)}</Text>}
       </Group>}

@@ -99,5 +99,15 @@
     "error": "Could not load availability",
     "hint": "Measures node contact with Captain, not proxy or end-to-end service uptime. Availability = online / observed time outside maintenance.",
     "observationHint": "Unknown intervals are excluded from availability and reduce coverage. History starts with this upgrade; panel restarts and observation gaps over two minutes remain unknown."
+  },
+  "storage": {
+    "title": "Storage",
+    "system": "System",
+    "volume": "Volume",
+    "pool": "Pool",
+    "more": "{count} more",
+    "viewAll": "View all storage",
+    "empty": "No public storage volumes",
+    "hint": "Each volume is shown separately. Shared storage is not added together."
   }
 }

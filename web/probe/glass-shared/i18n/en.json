@@ -1,6 +1,6 @@
 {
   "内存用量": "Memory usage",
-  "硬盘用量": "Disk usage",
+  "硬盘用量": "System disk usage",
   "剩余价值": "Remaining value",
   "累计流量": "Current period traffic",
   "实时上行": "Outbound rate",
@@ -111,5 +111,13 @@
   "本周期入站": "Period inbound",
   "周期流量说明": "Current period traffic stored in the database. Retained across restarts; cleared on the reset day or by a manual reset.",
   "汇总周期流量说明": "Outbound plus inbound for each selected node’s current period; reset days may differ.",
-  "标称带宽": "Advertised bandwidth"
+  "标称带宽": "Advertised bandwidth",
+  "storage.title": "Storage",
+  "storage.system": "System",
+  "storage.volume": "Volume",
+  "storage.pool": "Pool",
+  "storage.more": "{count} more",
+  "storage.viewAll": "View all storage",
+  "storage.empty": "No public storage volumes",
+  "storage.hint": "Each volume is shown separately. Shared storage is not added together."
 }

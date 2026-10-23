@@ -13,6 +13,7 @@ export interface Host {
   pings?: Ping[]
 }
 export interface Node {
+  storage?: import('./storage').StorageVolume[]
   ping_tasks?: PublicPingTask[]
   id: number; name: string; group?: string; online: boolean; addr?: string; version?: string; last_seen: string | null
   info: { bandwidth?: import('./node-bandwidth').NodeBandwidth; billing?: import('./node-price').NodeCost; region?: string; provider?: string; provider_url?: string; price?: string; expires_at?: string; note?: string }

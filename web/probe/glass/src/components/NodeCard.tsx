@@ -4,10 +4,11 @@ import { language, t } from '@shared/i18n'
 import { shows, snapshot, captainPrice, captainBandwidth, captainCPUSpec } from '@shared/captain'
 import { selectPings } from '@shared/ping-selection'
 import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, formatNumber, getStatus, getUptimeDays } from '@shared/utils/helper'
-import { getDiskPercentage, getMemoryPercentage, getTrafficUsed, getTrafficUsedPercentage, hasTrafficLimit } from '@shared/utils/nodeMetricsHelper'
+import { getMemoryPercentage, getTrafficUsed, getTrafficUsedPercentage, hasTrafficLimit } from '@shared/utils/nodeMetricsHelper'
 import { getOSImage, getOSName } from '@shared/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@shared/utils/regionHelper'
 import { getDaysUntilExpired, getExpireStatus, parseTags } from '@shared/utils/tagHelper'
+import StorageSummary from '@/components/StorageSummary'
 import ThreeNetworkPing from '@/components/ThreeNetworkPing'
 import { Badge } from '@/components/ui/badge'
 import { CardX } from '@/components/ui/card-x'
@@ -89,8 +90,6 @@ export default function NodeCard({ node, reduceMotion = false, pingEnabled = tru
   const swapUsed = formatBytes(Math.max(0, node.swap ?? 0))
   const swapTotal = Math.max(0, node.swap_total ?? 0)
   const swapTooltip = swapTotal > 0 ? `Swap 已用 ${swapUsed} / 总计 ${formatBytes(swapTotal)}` : `Swap 已用 ${swapUsed}`
-  const diskPercentage = getDiskPercentage(node)
-  const diskStatus = getStatus(diskPercentage)
 
   const threeNetwork = selectPings(snap?.nodes.find(n => String(n.id) === node.uuid), snap?.carrier_ping ?? false).threeNetwork
 
@@ -345,21 +344,7 @@ export default function NodeCard({ node, reduceMotion = false, pingEnabled = tru
                     </div>
                   </div>
                 )}
-                {shows('disk') && (
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="inline-flex min-w-0 items-center gap-1 text-muted-foreground">
-                        <Icon icon={NODE_METRIC_ICONS.disk} data-node-metric-icon="disk" width="13" height="13" className="shrink-0 text-orange-500" aria-hidden="true" />
-                        <span className="truncate">{t('硬盘')}</span>
-                      </span>
-                      <span className="tabular-nums font-medium">{`${formatNumber(diskPercentage)}%`}</span>
-                    </div>
-                    <ProgressThin percentage={diskPercentage} status={diskStatus} height={4} />
-                    <div className="text-[11px] text-muted-foreground truncate">
-                      {`${formatBytes(node.disk ?? 0)} / ${formatBytes(node.disk_total ?? 0)}`}
-                    </div>
-                  </div>
-                )}
+                {shows('disk') && <StorageSummary uuid={node.uuid} />}
                 {shows('traffic') && trafficBlock('13', 'shrink-0 text-violet-500')}
               </div>
             )}
