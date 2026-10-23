@@ -22,7 +22,7 @@ import { useVirtualList } from '@/hooks/useVirtualList'
 import { vclass } from '@/lib/vclass'
 import '@/scoped/node-list.css'
 import { scope } from '@/scoped/scope'
-import { appStore, useApp } from '@/stores/app'
+import { useApp } from '@/stores/app'
 import type { NodeData } from '@/stores/nodes'
 
 const s = scope('node-list')
@@ -285,20 +285,9 @@ export default function NodeList({ nodes, transitionKey, sortResetKey, pingEnabl
             <div {...s} className="flex gap-1.5 items-center text-[13px] font-semibold text-foreground min-w-0">
               {hasRegion(node.region) && <img {...s} src={getFlagSrc(node.region)} alt={getRegionAltText(node.region)} className="size-5 rounded-sm shrink-0" />}
               <span {...s} className="truncate">{node.name}</span>
-              <button
-                {...s}
-                type="button"
-                className={vclass('inline-flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-slate-500/10 hover:text-amber-500', fav && 'text-amber-500')}
-                aria-label={fav ? `取消收藏 ${node.name}` : `收藏 ${node.name}`}
-                title={fav ? '取消收藏' : '收藏节点'}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  appStore.toggleFavoriteNode(node.uuid)
-                }}
-                onKeyDown={e => e.stopPropagation()}
-              >
-                <Icon {...s} icon={fav ? 'tabler:star-filled' : 'tabler:star'} width="13" height="13" />
-              </button>
+              {fav && <span {...s} data-node-favorite role="img" aria-label={t('收藏')} title={t('收藏')} className="inline-flex size-5 shrink-0 items-center justify-center text-amber-500">
+                <Icon {...s} icon="tabler:star-filled" width="13" height="13" aria-hidden="true" />
+              </span>}
               {getNodeMessage(node) && (
                 <DataTooltip {...s} content={getNodeMessageTooltip(node)} placement="top" as="span" className="inline-flex shrink-0 text-amber-500" contentClass="w-56 whitespace-pre-line leading-snug text-left">
                   <Icon {...s} icon="tabler:alert-triangle-filled" width="13" height="13" aria-label="节点消息" />

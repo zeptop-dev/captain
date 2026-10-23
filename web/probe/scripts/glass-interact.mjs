@@ -72,7 +72,12 @@ const steps = [
   ['group-all', async p => { await p.getByRole('tab', { name: /全部节点|All nodes/ }).click() }],
   ['quick-offline', async p => { await p.getByRole('button', { name: /切换到.*离线|offline/i }).first().click() }],
   ['quick-offline-off', async p => { await p.getByRole('button', { name: /切换到.*离线|offline/i }).first().click() }],
-  ['favorite', async p => { await p.getByRole('button', { name: /收藏 Tokyo Edge 01|Favorite Tokyo Edge 01/ }).first().click() }],
+  ['favorite', async p => {
+    await p.getByRole('button', { name: /查看节点 Tokyo Edge 01 详情|View node Tokyo Edge 01/ }).click()
+    await p.getByRole('button', { name: /收藏当前节点|Favorite current node/i }).click()
+    await p.getByRole('button', { name: /返回首页|Back to Home|Back home|Home/i }).click()
+    await p.waitForSelector('.node-card', { timeout: 15000 })
+  }],
   ['quick-favorite', async p => { await p.getByRole('button', { name: /切换到.*收藏|favorite/i }).first().click() }],
   ['quick-favorite-off', async p => { await p.getByRole('button', { name: /切换到.*收藏|favorite/i }).first().click() }],
   ['list-view', async p => { await p.getByRole('button', { name: /列表视图|List view/ }).click() }],

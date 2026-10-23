@@ -19,7 +19,7 @@ import { useNodePingDisplay } from '@/hooks/useNodePingDisplay'
 import { vclass } from '@/lib/vclass'
 import '@/scoped/node-card.css'
 import { scope } from '@/scoped/scope'
-import { appStore, useApp } from '@/stores/app'
+import { useApp } from '@/stores/app'
 import type { NodeData } from '@/stores/nodes'
 
 // The scoped stylesheet only targets .node-card (the CardX root), so the
@@ -245,19 +245,9 @@ export default function NodeCard({ node, reduceMotion = false, pingEnabled = tru
       )}
       headerExtra={(
         <div className="flex gap-1.5 items-center shrink-0">
-          <button
-            type="button"
-            className={vclass('inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-slate-500/10 hover:text-amber-500', isFavorite && 'text-amber-500')}
-            aria-label={isFavorite ? `取消收藏 ${node.name}` : `收藏 ${node.name}`}
-            title={isFavorite ? '取消收藏' : '收藏节点'}
-            onClick={(e) => {
-              e.stopPropagation()
-              appStore.toggleFavoriteNode(node.uuid)
-            }}
-            onKeyDown={e => e.stopPropagation()}
-          >
-            <Icon icon={isFavorite ? 'tabler:star-filled' : 'tabler:star'} width="14" height="14" />
-          </button>
+          {isFavorite && <span data-node-favorite role="img" aria-label={t('收藏')} title={t('收藏')} className="inline-flex size-5 items-center justify-center text-amber-500">
+            <Icon icon="tabler:star-filled" width="14" height="14" aria-hidden="true" />
+          </span>}
           <img src={getOSImage(node.os)} alt={getOSName(node.os)} className="size-4" />
           {hasRegion(node.region) && (
             <img

@@ -163,11 +163,6 @@ export default function HomeView({ ref }: { ref?: Ref<HTMLDivElement> }) {
   ], [nodeGroups])
 
   const quickControlKeys = useMemo<HomeQuickControlKey[]>(() => app.homeQuickControlOrder.filter(key => key !== 'monthlyCost'), [app.homeQuickControlOrder])
-  const quickControls = useMemo(() => {
-    const defs = quickControlDefinitions()
-    return quickControlKeys.map(key => defs[key])
-  }, [quickControlKeys])
-  const showQuickControls = app.homeQuickControlsEnabled && quickControls.length > 0
 
   // Immediate watcher in Vue: clamp during render so the first paint matches.
   const quickOrderKey = `${app.homeQuickControlOrder.join('|')}:${app.homeQuickControlsEnabled}`
@@ -292,6 +287,16 @@ export default function HomeView({ ref }: { ref?: Ref<HTMLDivElement> }) {
     }
     return counts
   }, [groupNodeList, debouncedSearchText, quickControlKeys, app.favoriteNodeIdSet, app.homeHighLoadThreshold, app.homeExpiringDays])
+
+  const quickControls = useMemo(() => {
+    const defs = quickControlDefinitions()
+    return quickControlKeys.filter(key => key !== 'favorite' || quickControlCounts.favorite > 0).map(key => defs[key])
+  }, [quickControlKeys, quickControlCounts])
+  const showQuickControls = app.homeQuickControlsEnabled && quickControls.length > 0
+  // The home view stays mounted during detail navigation. Removing the last
+  // matching favorite must not leave an invisible filter active on return.
+  if (activeQuickControl === 'favorite' && !(quickControlCounts.favorite > 0))
+    setActiveQuickControl(null)
 
   const emptyDescription = debouncedSearchText.trim()
     ? '没有匹配的节点'
@@ -455,6 +460,7 @@ export default function HomeView({ ref }: { ref?: Ref<HTMLDivElement> }) {
                         <button
                           {...s}
                           key={control.key}
+                          data-quick-control={control.key}
                           type="button"
                           className={`inline-flex h-6.5 flex-none shrink-0 items-center gap-1 rounded-sm px-2 text-xs text-muted-foreground transition-colors hover:text-foreground${activeQuickControl === control.key ? ' bg-background text-selection shadow-sm' : ''}`}
                           aria-pressed={activeQuickControl === control.key}

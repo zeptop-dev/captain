@@ -66,6 +66,11 @@ Captain adaptations:
 - Hash routes retain arbitrary status page mounts and dedicated host support.
   The snapshot's additive `appearance_scheme` resolves inherited site colours
   without needing `/api/site` on a dedicated status hostname.
+- Favorites are managed in node details. Home cards and list rows show a filled
+  star only for saved favorites; the marker is not a separate toggle. The home
+  Favorites filter is hidden when the current group/search has no favorites and
+  is cleared if its last matching favorite disappears, including changes from
+  another browser tab. Existing browser-local favorites remain intact.
 - Icons and images are local. `scripts/glass-icons.mjs` rebuilds the icon subset;
   `ICON-LICENSES.json` and `licenses/` record the third-party icon licences.
   The production bundle includes the theme and icon licence texts under `licenses/`.
