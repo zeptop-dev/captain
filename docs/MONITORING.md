@@ -270,9 +270,44 @@ filesystem space and inode usage, per-device disk throughput and IOPS,
 logical CPU usage, and RSS/CPU for bosun and its supervised core/realm
 processes. Process CPU uses 100% per logical CPU and can exceed 100%; RSS
 is resident memory, not a sum of private allocations. Network filesystems
-(NFS, CIFS, SMB, FUSE and automounts) are excluded to avoid blocking a
-heartbeat on an unavailable mount. Disk devices/partitions can overlap;
+(NFS, CIFS, SMB, other FUSE mounts and automounts) are excluded. The new
+filesystem collector also supports mergerfs, with bounded asynchronous reads
+so an unavailable mount cannot block a heartbeat. Disk devices/partitions can overlap;
 the UI deliberately does not sum disk I/O or filesystem capacity.
+
+### Storage on public status pages (unreleased)
+
+Node monitoring settings include automatic or manual storage display. Automatic
+display recommends the root filesystem and one main data filesystem, preferring
+an identified mergerfs pool and excluding boot/EFI partitions. Manual display
+selects up to 32 reported mount points, gives them optional public short names,
+and orders them. The first two appear on home cards; additional selected volumes
+are accessible in the storage dialog and node details. One selected volume uses
+the whole storage area. An empty manual selection hides storage. A missing
+selected mount stays in the list with unknown capacity, rather than falling back
+to another filesystem. Omitted/null storage in older API writes preserves the
+current configuration.
+
+The public API receives only display IDs, short names, kinds and capacity values.
+Mount paths, devices, pool members and the full resource inventory remain private.
+The global disk visibility setting hides the projection; excluding root from a
+manual selection also hides the old root-only summary and root capacity history.
+Default labels are localized by the frontend.
+
+Capacity belongs to a mounted filesystem, not a physical drive. Separate VPS
+volumes, filesystems on RAID/LVM, shared-space datasets and mergerfs use the same
+display model. No cross-volume sum is computed. Pool/member relationships are
+only used when positively identified; equal sizes or device names do not prove
+membership. Physical device I/O remains separate. ZFS/Btrfs pool topology, disk
+model inventory and storage health are not inferred from filesystem capacity.
+
+The new bosun sampler discovers mounts periodically, samples capacity at most
+once per 15 seconds per mount, and reports the successful reading's own timestamp.
+Pending, failed and expired values remain unknown. Captain uses the age relative
+to the agent's resource clock plus receipt age, so clock skew and recent nonmetric
+heartbeats cannot refresh old capacity. Repeated asynchronous readings are counted
+only once in detailed history. Existing agents retain their synchronous filesystem
+data and root summary; mergerfs discovery requires the updated collector.
 
 Node → Monitoring → Include/exclude interfaces selects exact interface
 names for host totals, rates and monthly monitoring traffic. An empty

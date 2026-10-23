@@ -177,11 +177,25 @@ func (h *handlers) getNodeProbe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := map[string]any{"probe": np, "billed": np.Billed(), "region_countries": store.RegionCountries()}
+	var host *spec.SystemStatus
+	var received time.Time
+	monitored, err := h.Store.MonitorNodes(r.Context(), time.Now(), 3*time.Minute, np.NodeID)
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
+	if len(monitored) > 0 && monitored[0].Host != nil {
+		host, received = monitored[0].Host, time.Unix(monitored[0].SampledAt, 0)
+	}
 	if h.Probe != nil {
 		if l, ok := h.Probe.Live(np.NodeID); ok {
 			out["live"] = l
+			if !l.At.Before(received) {
+				host, received = &l.Host, l.At
+			}
 		}
 	}
+	out["storage_candidates"] = store.StorageCandidates(host, received, time.Now())
 	ok(w, out)
 }
 
@@ -194,6 +208,7 @@ func (h *handlers) putNodeProbe(w http.ResponseWriter, r *http.Request) {
 		ResetDay   int
 		Mode       string
 		Resources  *spec.ResourceOptions
+		Storage    *store.NodeStorage
 	}
 	if !readJSON(w, r, &in) {
 		return
@@ -204,8 +219,8 @@ func (h *handlers) putNodeProbe(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if err := h.Store.UpdateNodeProbeWithRegion(r.Context(), idOf(r), in.Hidden, in.Info, in.LimitBytes, in.ResetDay, in.Mode, in.Resources, in.RegionMode); err != nil {
-		if errors.Is(err, store.ErrNodeRegion) || errors.Is(err, store.ErrNodeCost) || errors.Is(err, store.ErrNodeBandwidth) {
+	if err := h.Store.UpdateNodeProbeWithRegion(r.Context(), idOf(r), in.Hidden, in.Info, in.LimitBytes, in.ResetDay, in.Mode, in.Resources, in.RegionMode, in.Storage); err != nil {
+		if errors.Is(err, store.ErrNodeRegion) || errors.Is(err, store.ErrNodeCost) || errors.Is(err, store.ErrNodeBandwidth) || errors.Is(err, store.ErrNodeStorage) {
 			fail(w, 400, err.Error())
 			return
 		}

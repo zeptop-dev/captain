@@ -91,16 +91,17 @@ func (h *handlers) isStaff(r *http.Request) bool {
 
 // nodeView is one server on the page.
 type nodeView struct {
-	PingTasks []pingTaskView      `json:"ping_tasks"`
-	Group     string              `json:"group"`
-	ID        int64               `json:"id"`
-	Name      string              `json:"name"`
-	Online    bool                `json:"online"`
-	Addr      string              `json:"addr,omitempty"`
-	Info      store.NodeProbeInfo `json:"info"`
-	Host      any                 `json:"host"`
-	Version   string              `json:"version,omitempty"`
-	LastSeen  *time.Time          `json:"last_seen"`
+	Storage   []store.PublicStorage `json:"storage"`
+	PingTasks []pingTaskView        `json:"ping_tasks"`
+	Group     string                `json:"group"`
+	ID        int64                 `json:"id"`
+	Name      string                `json:"name"`
+	Online    bool                  `json:"online"`
+	Addr      string                `json:"addr,omitempty"`
+	Info      store.NodeProbeInfo   `json:"info"`
+	Host      any                   `json:"host"`
+	Version   string                `json:"version,omitempty"`
+	LastSeen  *time.Time            `json:"last_seen"`
 	Traffic   struct {
 		Used, Limit, PrevUsed int64  `json:"-"`
 		UsedB                 int64  `json:"used"`
@@ -200,13 +201,15 @@ func (h *handlers) snapshot(w http.ResponseWriter, r *http.Request) {
 		}
 		last := n.LastSeenAt
 		snapshot := snapshots[n.ID]
+		var host *spec.SystemStatus
+		var received time.Time
 		v.Group = n.MonitorGroup
 		if snapshot.Host != nil {
-			v.Host = publicHost(*snapshot.Host, s)
+			host, received = snapshot.Host, time.Unix(snapshot.SampledAt, 0)
 		}
 		if l, ok := h.Probe.Live(n.ID); ok {
 			if l.At.Unix() >= snapshot.SampledAt {
-				v.Host = publicHost(l.Host, s)
+				host, received = &l.Host, l.At
 			}
 			v.Recent = publicSamples(l.Ring, s)
 			if len(v.Recent) > 120 {
@@ -222,6 +225,21 @@ func (h *handlers) snapshot(w http.ResponseWriter, r *http.Request) {
 		}
 		v.LastSeen = last
 		v.Online = last != nil && now.Sub(*last) <= grace
+		var storage store.NodeStorage
+		if np != nil {
+			storage = np.Storage
+		}
+		v.Storage = []store.PublicStorage{}
+		if s.PublicShows("disk") {
+			v.Storage = storage.Public(store.StorageCandidates(host, received, now))
+		}
+		if host != nil {
+			visible := publicHost(*host, s)
+			if !storage.RootVisible() {
+				hideRootDisk(&visible)
+			}
+			v.Host = visible
+		}
 		if np != nil {
 			v.Info = np.Info.PublicInfo()
 			v.Traffic.UsedB, v.Traffic.LimitB, v.Traffic.PrevB, v.Traffic.Mode, v.Traffic.ResetDay = np.Billed(), np.LimitBytes, np.PrevUsed, np.Mode, np.ResetDay
@@ -336,6 +354,11 @@ func (h *handlers) history(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	publicStats(pts, s)
+	if np, err := h.Store.NodeProbe(r.Context(), id); err != nil || !np.Storage.RootVisible() {
+		for i := range pts {
+			pts[i].DiskUsed, pts[i].DiskTotal, pts[i].Valid.Disk = 0, 0, false
+		}
+	}
 	step := 60
 	if res == "h" {
 		step = 3600

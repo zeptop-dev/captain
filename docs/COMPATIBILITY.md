@@ -27,6 +27,17 @@ topology requires the corresponding bosun collector update (not yet released);
 release that shared module and update Captain's dependency before publishing
 this feature. Development uses an isolated two-repository Go workspace.
 
+## Storage on status cards (unreleased)
+
+Migration 83 adds private per-node storage display settings. Existing probe API
+routes and the root-only `disk_total`/`disk_used` meanings remain unchanged;
+the public snapshot adds a separate `storage` array. Old admin clients that omit
+or send null storage preserve the saved selection. Old agents fall back to their
+existing filesystem report or root-only summary. The additive filesystem fields
+`id`, `sampled_at`, `pool` and `member_mounts` require the corresponding bosun
+collector update (not yet released). Release bosun and update Captain's formal
+module dependency before publishing; development uses the isolated task go.work.
+
 ## Versioning
 
 Captain follows semantic versioning from 1.0.0 on:
