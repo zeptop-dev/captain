@@ -34,8 +34,22 @@ export interface HostTraffic {
   valid: boolean; used_up: number; used_down: number
   cycle_start: number | null; cycle_end: number | null; updated_at: number | null
 }
+export interface ProxyTraffic {
+  today_bytes: number; collected_today_bytes: number; forwarded_today_bytes: number
+  received_today_bytes: number; unattributed_today_bytes: number; day_start: number; day_end: number
+  history_complete: boolean; attribution_started_at: number
+}
+export interface WireGuardDevice {
+  id: number; name: string; created_at: string; last_used_at: string | null; subscription_url?: string
+}
+export interface WireGuardDevicesResponse {
+  available: boolean; reason: '' | 'no_wireguard' | 'upgrade_required' | 'unavailable'
+  limit: number; devices: WireGuardDevice[]; legacy_enabled: boolean
+  entries: { id: number; name: string }[]
+}
 export interface Node {
   host_traffic?: HostTraffic
+  proxy_traffic?: ProxyTraffic
   monitor_group?: string
   mode_revision?: number; reported_mode_revision?: number; mode_switch_available?: boolean; mode?: 'full' | 'monitor'; reported_mode?: 'full' | 'monitor' | ''; mode_reported_at?: string; mode_error?: string; proxy_allowed?: boolean;
   id: number; name: string; public_addr: string; internal_addr: string; v6_addr: string; domain: string; domain_shared?: boolean; domain_conflict?: boolean; monitor_url: string; dstatus_sid?: string; decoy_enabled?: boolean; decoy_upstream?: string; user_speed_limit_mbps?: number
