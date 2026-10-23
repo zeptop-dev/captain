@@ -45,6 +45,7 @@ func Register(mux *http.ServeMux, d Deps) *Router {
 	mux.HandleFunc("GET /api/probe/nodes/{id}/availability", h.gate(h.availability))
 	mux.HandleFunc("GET /api/probe", h.gate(h.snapshot))
 	mux.HandleFunc("GET /api/probe/nodes/{id}/history", h.gate(h.history))
+	mux.HandleFunc("GET /api/probe/nodes/{id}/storage-history", h.gate(h.storageHistory))
 	mux.HandleFunc("GET /api/probe/nodes/{id}/pings", h.gate(h.pings))
 	return &Router{h: h}
 }

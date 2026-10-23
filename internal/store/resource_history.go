@@ -89,7 +89,12 @@ func resourceValues(h spec.SystemStatus) resourceBucket {
 		add("network", n.Name, "down", n.DownRate)
 	}
 	for _, f := range r.Filesystems {
-		if f.Used != nil && f.Total != nil && *f.Total > 0 {
+		if f.Used != nil && f.Total != nil && *f.Total > 0 && *f.Used <= *f.Total {
+			// Keep the measured byte pair. A past percentage cannot be converted
+			// using today's capacity when a volume has been resized or replaced.
+			used, total := float64(*f.Used), float64(*f.Total)
+			add("filesystem", f.Mount, "used", &used)
+			add("filesystem", f.Mount, "total", &total)
 			x := 100 * float64(*f.Used) / float64(*f.Total)
 			add("filesystem", f.Mount, "disk", &x)
 		}
@@ -193,6 +198,8 @@ func recordResourceHistory(ctx context.Context, tx *sql.Tx, nodeID int64, h spec
 				old = previous.Filesystems[f.ID]
 			}
 			if !freshFilesystem(f, r, old) {
+				delete(sample.Values, "filesystem:"+url.QueryEscape(f.Mount)+":used")
+				delete(sample.Values, "filesystem:"+url.QueryEscape(f.Mount)+":total")
 				delete(sample.Values, "filesystem:"+url.QueryEscape(f.Mount)+":disk")
 				delete(sample.Values, "filesystem:"+url.QueryEscape(f.Mount)+":inodes")
 			}

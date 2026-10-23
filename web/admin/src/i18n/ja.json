@@ -1655,7 +1655,9 @@
       "vram": "VRAM 使用量",
       "vramPct": "VRAM 使用率",
       "temperature": "温度",
-      "power": "消費電力"
+      "power": "消費電力",
+      "used": "使用済み容量",
+      "total": "合計容量"
     },
     "kinds": {
       "host": "ホスト",

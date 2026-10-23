@@ -1655,7 +1655,9 @@
       "vram": "VRAM 사용량",
       "vramPct": "VRAM 사용률",
       "temperature": "온도",
-      "power": "전력"
+      "power": "전력",
+      "used": "사용 용량",
+      "total": "총 용량"
     },
     "kinds": {
       "host": "호스트",
