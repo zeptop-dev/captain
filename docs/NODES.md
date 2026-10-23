@@ -240,6 +240,29 @@ also reserves `port + 1`).
   TCP on the port and UDP on `port + 1`; links list both and mihomo takes
   TCP.
 
+### Native WireGuard devices
+
+A regular subscription retains one WireGuard identity per customer and inbound.
+Use **WireGuard device subscriptions** on the portal home page or in the user's
+admin detail drawer to give a laptop, phone and router independent peers. Each
+device has its own subscription link; sharing one device's configuration across
+independent clients still shares the same peer. All of a customer's devices
+remain on the same account for usage and limits. This feature is separate from
+the managed A-to-B reverse tunnel below, whose peers represent servers.
+
+Use bosun v0.77.1 or later and the supported Xray `26.7.28-r3` package.
+In **Core management**, download that version and explicitly activate it;
+upgrading the panel or agent does not change the default core package. Wait for
+the node's capability report before creating devices. An unavailable or old
+core is not treated as ready merely because the server is online.
+
+Adding or revoking peers must synchronize to the server and can restart the
+shared Xray process, interrupting other connections served by that instance.
+Revoking a device invalidates its link immediately, but downloaded credentials
+stop working only after successful synchronization. An offline server cannot
+apply the change yet. Renaming a device changes its label without creating a
+new peer. See [device formats, limits and reset behavior](SUBSCRIPTIONS.md#independent-wireguard-devices).
+
 ## Entries
 
 An entry is what a user sees in their client: a display host and port on
@@ -762,6 +785,12 @@ connection to transit A. Both are Captain-managed full bosun nodes. A accepts VL
 subscribers, authenticates them and accounts their upload/download. B initiates
 a kernel WireGuard tunnel to A and provides the exit; tunnel overhead is not
 charged again. The existing VLESS Reverse option remains separate.
+
+Since Captain v1.35, server lists and details display the accepted proxy traffic
+against B while retaining A's collection details. Authentication and the
+customer's single usage charge remain on A. This does not turn B's interface
+counters into per-user billing. Earlier history may be incomplete; see
+[traffic definitions](MONITORING.md#probe-and-status-page).
 
 Both nodes need Linux kernel WireGuard support, `wg`, `ip`, `nft` and `tc`,
 root network-administration privileges and enabled egress protection with

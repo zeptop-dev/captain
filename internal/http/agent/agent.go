@@ -306,9 +306,10 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 			dropped++
 			continue
 		}
-		s := store.TrafficSample{UserID: t.UserID, InboundID: inboundID, Groups: groups, Up: t.Up, Down: t.Down}
+		s := store.TrafficSample{UserID: t.UserID, InboundID: inboundID, Groups: groups, Up: t.Up, Down: t.Down, UnattributedInbound: true}
 		if ib, ok := byTag[t.Inbound]; ok && t.Inbound != "" {
 			s.InboundID, s.Groups = ib.ID, nil
+			s.UnattributedInbound = false
 			if ib.GroupID != nil {
 				s.Groups = []int64{*ib.GroupID}
 			}

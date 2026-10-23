@@ -45,14 +45,33 @@ do not refresh it. Offline servers keep the last observed cycle and totals;
 unavailable readings remain unknown. An interface's cumulative counters in
 resource details instead cover its lifetime or last counter reset.
 
-Proxy traffic belongs to the server hosting the user's authenticated inbound.
-Reverse WireGuard and VLESS Reverse meter users on the front server, without
-charging them again on the exit server. Plain forwarding and system traffic are
-not user proxy traffic. Neither NIC totals nor these user counters reproduce a
-provider's invoice. Historical usage is not retroactively adjusted when the NIC
-selection changes. A manual usage reset preserves its actual partial-cycle start;
-counter deltas spanning that reset or a scheduled boundary still enter the period
-in which the next sample is accepted, rather than being estimated across it.
+Proxy traffic is collected on the server hosting the authenticated inbound.
+For managed reverse WireGuard and VLESS Reverse, the server view attributes
+those bytes to the configured exit B while front A continues authentication
+and customer billing. A retains its collected and forwarded amounts; B includes
+amounts received from every front. Ordinary inbounds remain attributed to their
+own server. This is a display projection: it never charges the customer again.
+The mapping is saved when a report is accepted, in the same transaction as its
+receipt and customer charge. Deleting a connection, inbound or front does not
+move already-attributed bytes or make another server inherit them.
+
+Older reports without a recognized inbound tag remain on their collecting
+server and are explicitly counted as unattributed; an arbitrary billing fallback
+inbound cannot establish which exit was used. Historical migration only carries
+forward known surviving inbound records whose UTC day starts at or after the
+inbound's creation time. Creation-day buckets cannot distinguish an earlier
+deleted inbound with a reused ID, and deleted topology is not reconstructed.
+The UI marks the first collection day and older history as potentially partial
+and exposes the time from which new attribution is recorded. Later complete UTC
+days are marked complete. The legacy management API `traffic_today_bytes` still
+reports usage on the authenticating inbound's server.
+
+Plain forwarding and system traffic are not user proxy traffic. Neither NIC
+totals nor these user counters reproduce a provider's invoice. Historical usage
+is not retroactively adjusted when the NIC selection changes. A manual usage
+reset preserves its actual partial-cycle start; counter deltas spanning that
+reset or a scheduled boundary still enter the period in which the next sample
+is accepted, rather than being estimated across it.
 
 Since Captain v1.32.0, the monthly traffic limit accepts decimals with an MB,
 GB or TB selector.

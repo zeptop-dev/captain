@@ -12,6 +12,7 @@ import { bytes, money, when } from '../lib/format'
 import { toast } from '../lib/notify'
 import { RedeemCard } from '../components/RedeemCard'
 import { TelegramCard } from '../components/TelegramCard'
+import { WireGuardDevices } from '../components/WireGuardDevices'
 
 // Deep links understood by the common clients.
 function importLinks(url: string) {
@@ -145,6 +146,7 @@ export default function HomePage() {
           </Stack>
         </Group>
       </Card>
+      <Card id="wireguard-devices"><WireGuardDevices endpoint="/api/portal/me/wireguard-devices" /></Card>
       <RedeemCard />
       <TelegramCard />
       {(providers.data?.providers ?? []).length > 0 && (

@@ -1,5 +1,6 @@
 import { NodeLayoutEditor } from '../components/NodeLayoutEditor'
 import { HostTrafficSummary } from '../components/HostTrafficSummary'
+import { ProxyTrafficSummary } from '../components/ProxyTrafficSummary'
 import { nodeLayoutQuery } from '../lib/node-layout'
 import { Badge, Button, Card, Code, Group, Modal, Stack, Table, Text, TextInput, Anchor, ActionIcon, Tooltip, Select, Switch } from '@mantine/core'
 import { useForm } from '@mantine/form'
@@ -11,7 +12,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { api, type Node, type SystemUpdate } from '../lib/api'
-import { ago, bytes } from '../lib/format'
+import { ago } from '../lib/format'
 import { dnsToast, toast, type DNSResult } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
 import { Copy } from '../components/Copy'
@@ -94,7 +95,7 @@ export default function NodesPage() {
                   <Table.Td><Code>{n.public_addr || '—'}</Code><Text size="xs" c="dimmed">{n.domain}</Text>{(n.domain_shared || n.domain_conflict) && <Tooltip label={t(n.domain_shared ? 'nodes.domainSharedHint' : 'nodes.domainLegacyHint')}><Badge size="xs" color={n.domain_shared ? 'blue' : 'orange'}>{t(n.domain_shared ? 'nodes.domainExternal' : 'nodes.domainDuplicate')}</Badge></Tooltip>}</Table.Td>
                   <Table.Td>{n.inbounds}</Table.Td>
                   <Table.Td><HostTrafficSummary traffic={n.host_traffic} /></Table.Td>
-                  <Table.Td>{bytes(n.traffic_today_bytes)}</Table.Td>
+                  <Table.Td><ProxyTrafficSummary traffic={n.proxy_traffic} collectedBytes={n.traffic_today_bytes} /></Table.Td>
                   <Table.Td>
                     <Group gap={6} wrap="nowrap">
                       <Text size="sm">{n.version || '—'}</Text>

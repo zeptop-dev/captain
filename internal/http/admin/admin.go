@@ -131,6 +131,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/admin/nodes/upgrade-all", h.requireAdmin(h.upgradeAllNodes))
 	h.registerPasskeys(mux)
 	h.registerUserManagement(mux)
+	h.registerWireGuardDevices(mux)
 	h.registerOps(mux)
 	h.registerDNSHealth(mux)
 	h.registerExternal(mux)

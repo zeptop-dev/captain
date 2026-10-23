@@ -273,6 +273,14 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 	}
 	users := toSpecUsers(all, over, limits, speeds, quotas)
 	byGroup := map[int64][]spec.User{}
+	var wgPeers map[int64][]spec.WireGuardPeer
+	if a.Store.WireGuardDevicesSupported(ctx, n.ID) {
+		wgPeers, err = a.Store.WireGuardDevicePeers(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	ingresses, err := a.Store.IngressesByNode(ctx, n.ID)
 	if err != nil {
 		return nil, err
@@ -311,6 +319,15 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 			}
 			si.ScopedUsers = true
 			si.Users = list
+		}
+		if si.Protocol == spec.WireGuard && len(wgPeers) > 0 {
+			// Add credentials only to WG inbounds; parent names/IDs retain accounting.
+			selected := si.EffectiveUsers(users)
+			si.Users = append([]spec.User(nil), selected...)
+			si.ScopedUsers = true
+			for i := range si.Users {
+				si.Users[i].WireGuardPeers = wgPeers[si.Users[i].ID]
+			}
 		}
 		node.Inbounds = append(node.Inbounds, si)
 	}
