@@ -1,4 +1,5 @@
 import { NodeLayoutEditor } from '../components/NodeLayoutEditor'
+import { HostTrafficSummary } from '../components/HostTrafficSummary'
 import { nodeLayoutQuery } from '../lib/node-layout'
 import { Badge, Button, Card, Code, Group, Modal, Stack, Table, Text, TextInput, Anchor, ActionIcon, Tooltip, Select, Switch } from '@mantine/core'
 import { useForm } from '@mantine/form'
@@ -75,23 +76,24 @@ export default function NodesPage() {
         <Button variant="light" disabled={!layout.data || !q.data || layout.isError || q.isError} loading={layout.isFetching} onClick={() => { void layout.refetch().then(r => { if (r.data && !r.isError) setOrganizing(true); else toast.err(r.error) }) }}>{t('nodeLayout.title')}</Button>
         <Button leftSection={<IconPlus size={16} />} onClick={open}>{t('nodes.create')}</Button>
       </>} />
-      <Group align="flex-end" mb="md"><Select style={{ flex: 1 }} label={t('monitoring.group')} placeholder={t('common.all')} clearable value={nodeGroup} onChange={setNodeGroup} data={[{ value: '', label: t('nodeLayout.ungrouped') }, ...(layout.data?.groups ?? []).map(g => ({ value: g, label: g }))]} />
-      <Select style={{ flex: 1 }} maw={320} label={t('monitoring.status')} value={status} onChange={value => setStatus(value ?? 'all')} allowDeselect={false} data={[{ value: 'all', label: t('common.all') }, { value: 'offline', label: t('nodes.offline') }, { value: 'unpaired', label: t('nodes.unpaired') }, { value: 'doctor', label: t('dashboard.lastCheckFailed') }, { value: 'monitor', label: t('nodeMode.monitor') }]} /></Group>
+      <Group align="flex-end" mb="md"><Select style={{ flex: '1 1 200px', minWidth: 0 }} label={t('monitoring.group')} placeholder={t('common.all')} clearable value={nodeGroup} onChange={setNodeGroup} data={[{ value: '', label: t('nodeLayout.ungrouped') }, ...(layout.data?.groups ?? []).map(g => ({ value: g, label: g }))]} />
+      <Select style={{ flex: '1 1 200px', minWidth: 0 }} maw={320} label={t('monitoring.status')} value={status} onChange={value => setStatus(value ?? 'all')} allowDeselect={false} data={[{ value: 'all', label: t('common.all') }, { value: 'offline', label: t('nodes.offline') }, { value: 'unpaired', label: t('nodes.unpaired') }, { value: 'doctor', label: t('dashboard.lastCheckFailed') }, { value: 'monitor', label: t('nodeMode.monitor') }]} /></Group>
       <Card p={0}>
-        <Table.ScrollContainer minWidth={720}>
+        <Table.ScrollContainer minWidth={1150}>
           <Table>
-            <Table.Thead><Table.Tr>
+            <Table.Thead style={{ whiteSpace: 'nowrap' }}><Table.Tr>
               <Table.Th>{t('nodes.name')}</Table.Th><Table.Th>{t('monitoring.group')}</Table.Th><Table.Th>{t('nodes.status')}</Table.Th><Table.Th>{t('nodes.publicAddr')}</Table.Th>
-              <Table.Th>{t('nodes.inbounds')}</Table.Th><Table.Th>{t('nodes.trafficToday')}</Table.Th><Table.Th>{t('nodes.version')}</Table.Th><Table.Th>{t('nodes.lastSeen')}</Table.Th>
+              <Table.Th>{t('nodes.inbounds')}</Table.Th><Table.Th>{t('nodes.hostTraffic')}</Table.Th><Table.Th>{t('nodes.trafficToday')}</Table.Th><Table.Th>{t('nodes.version')}</Table.Th><Table.Th>{t('nodes.lastSeen')}</Table.Th>
             </Table.Tr></Table.Thead>
             <Table.Tbody>
               {filtered.map((n) => (
                 <Table.Tr key={n.id}>
                   <Table.Td><Anchor component={Link} to={`/nodes/${n.id}`} fw={600}>{n.name}</Anchor>{n.mode === 'monitor' && <Badge ml="xs" size="xs" color="cyan">{t('nodeMode.monitor')}</Badge>}<Text size="xs" c="dimmed">{n.hostname}</Text></Table.Td>
                   <Table.Td><Text size="sm">{n.monitor_group || t('nodeLayout.ungrouped')}</Text></Table.Td>
-                  <Table.Td><Group gap={4}><NodeStatus n={n} />{n.cert_problem && <Badge color="red" size="xs" title={t('nodes.certProblem')}>TLS</Badge>}{n.doctor_fail && <Badge color="red" size="xs" variant="light" title={t('nodes.doctorFailHint')}>{t('nodes.doctor')}</Badge>}</Group></Table.Td>
+                  <Table.Td miw={84}><Group gap={4}><NodeStatus n={n} />{n.cert_problem && <Badge color="red" size="xs" title={t('nodes.certProblem')}>TLS</Badge>}{n.doctor_fail && <Badge color="red" size="xs" variant="light" title={t('nodes.doctorFailHint')}>{t('nodes.doctor')}</Badge>}</Group></Table.Td>
                   <Table.Td><Code>{n.public_addr || '—'}</Code><Text size="xs" c="dimmed">{n.domain}</Text>{(n.domain_shared || n.domain_conflict) && <Tooltip label={t(n.domain_shared ? 'nodes.domainSharedHint' : 'nodes.domainLegacyHint')}><Badge size="xs" color={n.domain_shared ? 'blue' : 'orange'}>{t(n.domain_shared ? 'nodes.domainExternal' : 'nodes.domainDuplicate')}</Badge></Tooltip>}</Table.Td>
                   <Table.Td>{n.inbounds}</Table.Td>
+                  <Table.Td><HostTrafficSummary traffic={n.host_traffic} /></Table.Td>
                   <Table.Td>{bytes(n.traffic_today_bytes)}</Table.Td>
                   <Table.Td>
                     <Group gap={6} wrap="nowrap">
@@ -104,11 +106,13 @@ export default function NodesPage() {
                   <Table.Td>{ago(n.last_seen_at)}</Table.Td>
                 </Table.Tr>
               ))}
-              {q.data && filtered.length === 0 && <Table.Tr><Table.Td colSpan={8}><Text c="dimmed" ta="center" py="lg">{t('common.empty')}</Text></Table.Td></Table.Tr>}
+              {q.data && filtered.length === 0 && <Table.Tr><Table.Td colSpan={9}><Text c="dimmed" ta="center" py="lg">{t('common.empty')}</Text></Table.Td></Table.Tr>}
             </Table.Tbody>
           </Table>
         </Table.ScrollContainer>
       </Card>
+      <Text size="xs" c="dimmed" mt="xs">{t('nodes.hostTrafficHint')}</Text>
+      <Text size="xs" c="dimmed" mt={4}>{t('nodes.proxyTrafficHint')}</Text>
       {organizing && layout.data && <NodeLayoutEditor initial={layout.data} nodes={q.data ?? []} onSaved={() => setNodeGroup(null)} close={() => setOrganizing(false)} />}
       <Modal opened={opened} onClose={() => { close(); setCreated(null) }} title={created ? t('nodes.pairTitle') : t('nodes.create')} size="lg">
         {created ? <PairCodeBox code={created.pair_code ?? ''} mode={created.mode} /> : (

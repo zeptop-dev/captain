@@ -186,7 +186,7 @@
     "unpaired": "미연결",
     "version": "버전",
     "lastSeen": "마지막 보고",
-    "trafficToday": "오늘 트래픽",
+    "trafficToday": "오늘 프록시 트래픽 (UTC)",
     "inbounds": "인바운드",
     "pairTitle": "페어링 코드",
     "pairHint": "서버에서 root로 아래 명령 중 하나를 실행하면 bosun이 설치되고 자동으로 연결됩니다. 코드는 24시간 동안 한 번만 사용할 수 있습니다.",
@@ -255,7 +255,12 @@
     "egressByIngressHint": "다중 IP 호스트: 특정 주소에 바인딩된 인바운드의 트래픽은 같은 주소로 나갑니다(sing-box, xray, hysteria). 각 인바운드에 바인딩 주소를 지정하세요. 모든 주소를 듣는 인바운드는 기본 경로를 쓰며, 기본 랜딩 아웃바운드가 있으면 무시됩니다. bosun 0.44 이상.",
     "proxySettings": "서버 프록시 설정",
     "proxySettingsHint": "이 서버의 주소 매핑, 프록시 라우팅 및 코어 옵션을 설정합니다.",
-    "proxySettingsMoved": "이 설정은 서버 상세 페이지로 이동했습니다. 서버를 선택하세요."
+    "proxySettingsMoved": "이 설정은 서버 상세 페이지로 이동했습니다. 서버를 선택하세요.",
+    "hostTraffic": "서버 주기 트래픽",
+    "hostTrafficPeriod": "{{start}} – {{end}} (UTC)",
+    "hostTrafficHint": "서버 트래픽은 초기화 주기 동안 선택한 인터페이스에서 누적하며 업로드와 다운로드를 별도로 표시합니다. 프록시, 전달 및 시스템 트래픽을 포함하며 사용자 요금제 차감량이나 공급업체 청구량이 아닙니다. 주기 종료 시각은 다음 초기화 경계입니다.",
+    "proxyTrafficHint": "프록시 트래픽은 UTC 기준 오늘 이 서버의 인바운드가 기록한 사용자 트래픽이며 단순 전달 및 시스템 트래픽은 제외합니다. 역방향 WireGuard / VLESS Reverse 사용량은 사용자 인증을 담당하는 앞단 서버에서 집계하며 출구 서버에 중복 집계하지 않습니다.",
+    "hostTrafficUpdated": "통계 갱신: {{date}} (UTC)"
   },
   "inbounds": {
     "title": "인바운드",
@@ -1589,11 +1594,11 @@
     "counted": "합계 포함",
     "upload": "업로드",
     "download": "다운로드",
-    "totalUp": "부팅 후 송신량",
-    "totalDown": "부팅 후 수신량",
+    "totalUp": "인터페이스 누적 송신",
+    "totalDown": "인터페이스 누적 수신",
     "included": "포함",
     "excluded": "제외",
-    "networkHint": "선택한 인터페이스만 합산합니다. 사용자 프록시 트래픽 과금에는 영향을 주지 않습니다.",
+    "networkHint": "선택한 인터페이스만 호스트 합계에 포함됩니다. 인터페이스 누적값은 인터페이스 생성 또는 카운터 초기화 시점부터의 값으로, 서버 주기 트래픽 및 사용자 프록시 과금과 별개입니다.",
     "mount": "마운트 지점",
     "space": "사용량 / 전체",
     "inodes": "Inode",
@@ -1605,7 +1610,7 @@
     "processHint": "CPU 100%는 논리 코어 하나를 의미합니다. RSS는 상주 메모리입니다. bosun과 관리 중인 프로세스만 표시합니다.",
     "includeInterfaces": "포함할 인터페이스",
     "excludeInterfaces": "제외할 인터페이스",
-    "selectionHint": "정확한 이름을 입력합니다. 포함 목록이 비어 있으면 루프백, Docker, 브리지 인터페이스를 자동으로 제외합니다. 제외 목록이 우선하며 새 인터페이스는 다음 샘플부터 집계합니다."
+    "selectionHint": "정확한 인터페이스 이름을 입력합니다. 포함 목록이 비어 있으면 루프백, Docker 및 브리지 인터페이스를 자동으로 제외합니다. bosun v0.76.1부터 자체 관리 WireGuard 및 트래픽 제어 인터페이스도 제외하며 이전 에이전트는 업그레이드해야 합니다. 제외 목록이 우선하며 새로 선택한 인터페이스는 다음 샘플부터 집계합니다."
   },
   "monitoring": {
     "title": "모니터링 작업 공간",
