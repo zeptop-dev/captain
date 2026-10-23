@@ -47,13 +47,63 @@ with the server lines and `{{proxy_names}}` with the comma-joined names.
 Loon and Quantumult X default to a bare node list, because that is what
 their remote subscriptions are.
 
-The same page has a visual designer (bosun's `pkg/subdesign`): proxy groups
-whose members are all servers, servers carrying an entry tag
-(`{{proxy_names:tag=hk}}`), servers whose name matches a region pattern
-(`{{proxy_names:match=HK|香港}}`) or other groups, plus an ordered rule list
-drawn from the [ACL4SSR](https://github.com/ACL4SSR/ACL4SSR) catalogue with
-presets (basic, ACL4SSR standard, standard plus region groups). "Generate &
-apply" writes every format's template at once.
+The visual designer (bosun's `pkg/subdesign`) combines an editable base design
+with optional enhancements. Its single preset selector lists **Basic** first,
+then the cached official ACL4SSR presets, then administrator-saved custom
+presets. Basic routes LAN and Chinese domains/IPs directly and all other
+traffic through the proxy selector; it does not include advertising filters.
+Legacy `acl4ssr` and `acl4ssr-regions` preset API keys remain loadable but are
+not presented as official imports.
+
+**Sync official presets** retrieves all `.ini` files in ACL4SSR's `Clash/config`
+directory at one fixed Git commit. Downloads are bounded and checked against
+their Git blob IDs. A failed sync preserves the old cache; a successful sync
+changes neither the draft nor published templates. Unsupported syntax remains
+listed with a reason and cannot be loaded as a silently simplified design.
+The saved source revision pins the **preset structure**. Rule-list URLs inside
+it retain their upstream update behavior; this does not freeze list contents.
+Imported/adapted configuration data retains its ACL4SSR source and
+[CC BY-SA 4.0 attribution](https://github.com/ACL4SSR/ACL4SSR/blob/master/LICENCE).
+No upstream presets are embedded in the MIT application source.
+
+The current enhancement options are:
+
+- **Supplement regional groups:** reuse explicitly recognized region groups
+  and add missing ones. Turning this off removes only generated additions,
+  never groups already present in the base design. Matching uses final visible
+  node names. A generated dynamic group with no matching nodes rejects traffic
+  instead of implicitly selecting DIRECT.
+- **DNS protection:** Mihomo DNS configuration with proxied encrypted upstream
+  resolution, separate direct/bootstrap/proxy-server resolution and optional
+  Claude DNS policy. It does not force TUN, change the controller/listening
+  ports or disable system IPv6. Client capture, browser DNS and local overrides
+  still determine actual behavior; this is not a successful leak-test result.
+- **Claude enhancement:** explicit service domains routed through a dedicated
+  selection group or a selected existing proxy group. No blanket telemetry
+  keywords, NTP/time-zone claims or availability guarantees. Rules precede the
+  base rules; administrators can inspect the effective result before applying.
+- **WebRTC mitigation:** reject common STUN/TURN UDP ports and known STUN
+  names. This can affect calls and is not complete browser IP protection.
+- **Restrict UDP 443:** a separate advanced option affecting common QUIC
+  connections; it does not block all UDP or every possible QUIC endpoint.
+
+Regional supplementation is available in the designer's seven existing formats.
+Official INI imports and the DNS/Claude/WebRTC/UDP-443 options initially support
+**Mihomo (`clash`)**. Inspection reports unsupported formats explicitly. Apply
+writes only the selected supported global templates, atomically with the saved
+draft; unselected formats keep their existing templates. The existing API's
+omitted `formats` field still requests all seven and fails if any is unsupported.
+Sing-box is not a visual-designer output format.
+
+**Save draft** changes no subscription. **Save as preset** stores a separate
+named copy including the base, enhancements and source attribution. Deleting
+that copy cannot remove an already applied template. All library, synchronization,
+draft, preview and apply endpoints are administrator-only. Users receive the
+administrator-published template through the existing subscription precedence:
+a matching response-rule template, then the selected/default subscription
+profile's template, then the global template, then the built-in renderer.
+Applying a global design does not overwrite named profile/response templates.
+Independent WireGuard device subscriptions continue to ignore custom templates.
 
 ## Entries: what each user sees
 
