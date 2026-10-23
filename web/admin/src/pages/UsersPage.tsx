@@ -64,7 +64,7 @@ export default function UsersPage() {
   const [manualMbps, setManualMbps] = useState<number | string>(10)
   const [manualMin, setManualMin] = useState<number | string>(30)
   const topUp = useMutation({ mutationFn: () => api.post(`/api/admin/users/${sel!.id}/balance`, { DeltaCents: Number(delta) }), onSuccess: () => { toast.ok(t('common.saved')); invalidate(); setSel(null) }, onError: toast.err })
-  const rotate = useMutation({ mutationFn: () => api.post<{ sub_token: string; sub_url: string }>(`/api/admin/users/${sel!.id}/rotate-token`), onSuccess: (r) => { toast.ok(t('common.saved')); setSel({ ...sel!, sub_token: r.sub_token, sub_url: r.sub_url }); invalidate() }, onError: toast.err })
+  const rotate = useMutation({ mutationFn: (userID: number) => api.post<{ sub_token: string; sub_url: string }>(`/api/admin/users/${userID}/rotate-token`), onSuccess: (r, userID) => { toast.ok(t('common.saved')); setSel(current => current?.id === userID ? { ...current, sub_token: r.sub_token, sub_url: r.sub_url } : current); invalidate(); qc.invalidateQueries({ queryKey: ['wireguard-devices', `/api/admin/users/${userID}/wireguard-devices`] }) }, onError: toast.err })
   const del = useMutation({ mutationFn: () => api.del(`/api/admin/users/${sel!.id}`), onSuccess: () => { toast.ok(t('common.deleted')); setSel(null); invalidate() }, onError: (e) => toast.err(e instanceof ApiError && e.status === 409 ? t('users.deleteBlocked') : e) })
 
   const open = (u: UserRow) => { setSel(u); editForm.setValues({ Status: u.status, GroupID: u.group_id ? String(u.group_id) : '', Password: '' }); setGrantPlan(null); setDelta(0) }
@@ -109,7 +109,7 @@ export default function UsersPage() {
             <div>
               <Text size="xs" c="dimmed">{t('users.subUrl')}</Text>
               <Group gap={4} wrap="nowrap"><Code style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{subURL}</Code><Copy value={subURL} /></Group>
-              <Button size="xs" variant="subtle" color="orange" mt={4} onClick={() => modals.openConfirmModal({ title: t('users.rotate'), children: <Text size="sm">{t('users.rotateHint')}</Text>, labels: { confirm: t('common.confirm'), cancel: t('common.cancel') }, onConfirm: () => rotate.mutate() })}>{t('users.rotate')}</Button>
+              <Button size="xs" variant="subtle" color="orange" mt={4} onClick={() => modals.openConfirmModal({ title: t('users.rotate'), children: <Text size="sm">{t('users.rotateHint')}</Text>, labels: { confirm: t('common.confirm'), cancel: t('common.cancel') }, onConfirm: () => rotate.mutate(sel.id) })}>{t('users.rotate')}</Button>
             </div>
             <div>
               <Text size="xs" c="dimmed">{t('users.devices')}</Text>
