@@ -69,8 +69,22 @@ Captain adaptations:
   expanded outside its icon-sized container and could extend beyond the viewport.
 - Core public labels have six-language dictionaries. Language follows Captain's
   saved `i18nextLng` preference, then the browser language.
+- Public storage cards read only the selected `node.storage` projection, never
+  private resource snapshots or mount paths. One volume uses the existing disk
+  cell; two volumes share it; further volumes open in a keyboard-accessible
+  dialog. Empty selections stay empty, and only an absent field on an older
+  server falls back to the root filesystem. Missing values remain unknown.
+  The overview still reports root filesystem usage and is labelled accordingly;
+  selected volumes are never summed because their capacities can overlap.
+  Compact cards shorten units and round values to fit, while the dialog and
+  detail page show each volume separately with IEC units and two decimals.
+  The upstream mini-card continues to omit the disk cell.
 
 Run `pnpm build` from `web/probe`; it tests the adapter and builds both status pages.
+Run `node scripts/storage-browser.mjs` after building to check selected storage,
+empty/missing/legacy values, visibility, expansion and keyboard interactions in
+both themes at desktop, 390px and 320px widths. It uses fictitious public API data
+and writes screenshots to `/tmp/probe-storage-public` by default.
 `pnpm dev:glass` starts this frontend with the existing local API proxy. The
 embedded handler selects this build when `appearance.preset` is `glass`.
 

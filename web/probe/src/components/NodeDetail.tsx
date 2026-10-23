@@ -1,4 +1,5 @@
 import { Alert, Badge, Group, Modal, SegmentedControl, SimpleGrid, Stack, Text } from '@mantine/core'
+import { StorageVolumes } from './StorageSummary'
 import { AvailabilityView } from './AvailabilityView'
 import type { Availability } from '../lib/availability'
 import { NetworkQualityTable } from './NetworkQualityTable'
@@ -48,9 +49,9 @@ export function NodeDetail({ node, snapshot, onClose }: { node: Node | null; sna
     </Group>
     <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
       {show('memory') && <Text size="xs" c="dimmed">{t('page.memory')} {node.host && node.host.valid?.memory !== false ? `${bytes(node.host.mem_used ?? 0)} / ${bytes(node.host.mem_total ?? 0)}` : '—'}</Text>}
-      {show('disk') && <Text size="xs" c="dimmed">{t('page.disk')} {node.host && node.host.valid?.disk !== false ? `${bytes(node.host.disk_used ?? 0)} / ${bytes(node.host.disk_total ?? 0)}` : '—'}</Text>}
       {show('system') && <Text size="xs" c="dimmed">{t('page.load')} {node.host && node.host.valid?.load !== false ? [node.host.load1, node.host.load5, node.host.load15].map((v) => (v ?? 0).toFixed(2)).join(' / ') : '—'}</Text>}
     </SimpleGrid>
+    {show('disk') && <><Text size="sm" fw={600}>{t('storage.title')}</Text><StorageVolumes node={node} /></>}
     {show('history') && show('availability') && <><Text size="sm" fw={600}>{t('availability.title')}</Text>{availability.isError && <Alert color="red">{t('availability.error')}</Alert>}{availability.data && <AvailabilityView data={availability.data} />}</>}
     {show('latency') && <NetworkQualityTable samples={node.host?.pings ?? []} />}
     {show('history') && <>

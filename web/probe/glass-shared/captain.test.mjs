@@ -1,12 +1,54 @@
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { snapshot, clientFor, statusFor, captainCall, clearHistoryCache, pingMetrics, periodTraffic, captainCPUSpec } from './captain.ts'
+import { snapshot, clientFor, statusFor, captainCall, clearHistoryCache, pingMetrics, periodTraffic, captainCPUSpec, captainStorage } from './captain.ts'
 import { cpuSpec } from '../src/lib/cpu-spec.ts'
+import { storageItems, storageCapacity, storageBytes, storagePercent } from '../src/lib/storage.ts'
 import { summarizePings } from './ping-summary.ts'
 import { selectPings, selectedHistory } from './ping-selection.ts'
 const now = Math.floor(Date.now() / 60000) * 60
 const node = {id:1,name:'Example',online:true,last_seen:new Date(now*1000).toISOString(),info:{},host:{valid:{cpu:true,memory:true,disk:true,network:true,load:true,swap:true,connections:true,processes:true},mem_total:1024},traffic:{used:100,limit:1000,mode:'sum'},recent:[]}
 beforeEach(() => { snapshot.value = { nodes:[structuredClone(node)], now }; clearHistoryCache() })
+test('public storage follows selection and disk visibility, without reading private resources', () => {
+ const n = snapshot.value.nodes[0]
+ n.host.disk_total = 1024
+ n.host.disk_used = 0
+ Object.defineProperty(n.host, 'resources', { get() { throw Error('private resources must not be read') } })
+ assert.deepEqual(captainStorage('1', key => key).map(v => [v.id, v.used, v.total, v.percent]), [['legacy-root', 0, 1024, 0]])
+ n.storage = []
+ assert.deepEqual(captainStorage('1', key => key), [])
+ n.storage = [
+  {id:'pool-opaque', name:'Archive', kind:'pool', used:1024, total:4096},
+  {id:'system-opaque', name:'', kind:'system', used:null, total:1024},
+  {id:'volume-opaque', name:'', kind:'volume', used:0, total:null},
+ ]
+ const items = captainStorage('1', key => key)
+ assert.deepEqual(items.map(v => [v.label, v.percent]), [['Archive',25],['storage.system',null],['storage.volume 1',null]])
+ assert.equal(storageCapacity(items[1]), '— / 1K')
+ assert.equal(storageCapacity(items[2]), '0B / —')
+ n.host.disk_used = 999 // Explicit projection is independent of the legacy root summary.
+ assert.deepEqual(captainStorage('1', key => key), items)
+ snapshot.value.public_sections = ['cpu','system']
+ assert.deepEqual(captainStorage('1', key => key), [])
+ assert.deepEqual(captainStorage('999', key => key), [])
+})
+test('storage values preserve unknowns and format each volume without summing overlapping capacity', () => {
+ const volumes = storageItems({storage:[
+  {id:'a',name:'',kind:'pool',used:0,total:1024},
+  {id:'b',name:'',kind:'pool',used:0,total:1024},
+  {id:'c',name:'',kind:'volume',used:NaN,total:Infinity},
+  {id:'d',name:'',kind:'volume',used:-1,total:0},
+ ]}, key => key)
+ assert.deepEqual(volumes.map(v => v.label), ['storage.pool 1','storage.pool 2','storage.volume 1','storage.volume 2'])
+ assert.deepEqual(volumes.map(v => [v.used,v.total,v.percent]), [[0,1024,0],[0,1024,0],[null,null,null],[null,0,null]])
+ assert.deepEqual(volumes.map(v => storageCapacity(v)), ['0B / 1K','0B / 1K','— / —','— / 0B'])
+ assert.equal(storageBytes(1.1 * 1024**4),'1.1T')
+ assert.equal(storageBytes(463 * 1024**3),'463G')
+ assert.equal(storageCapacity({used:8.17 * 1024**2,total:14.32 * 1024**4},true),'8.2M/14.3T')
+ assert.equal(storagePercent(0),'0.0%')
+ assert.equal(storagePercent(null),'—')
+ assert.equal(storageItems({host:{valid:{disk:false},disk_used:5,disk_total:10}}, key => key)[0].percent,null)
+ assert.equal(storageItems({host:null}, key => key)[0].total,null)
+})
 test('CPU specifications distinguish whole-machine topology from virtual CPUs', () => {
  const bare={cpu_cores:16,cpu_physical_cores:8,cpu_sockets:1,virtualization_role:'none'}
  assert.equal(cpuSpec(bare),'8C / 16T')

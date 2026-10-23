@@ -3,7 +3,7 @@ import { asyncComponent } from '@/lib/asyncComponent'
 import type { ChangeEvent, Ref } from 'react'
 import { Icon } from '@iconify/react'
 import { t } from '@shared/i18n'
-import { shows, snapshot, captainBandwidth } from '@shared/captain'
+import { shows, snapshot, captainBandwidth, captainStorage } from '@shared/captain'
 import { LOAD_RECORD_MAX_COUNT } from '@shared/constants/load'
 import { loadNodeLoadRecords } from '@shared/services/history.service'
 import { getCpuBenchmarkRating, getPassMarkCpuLookupUrl } from '@shared/utils/cpuBenchmark'
@@ -14,6 +14,7 @@ import { getRegionCode, getRegionDisplayName } from '@shared/utils/regionHelper'
 import { parseTags } from '@shared/utils/tagHelper'
 import type { DetailContext } from '@shared/views/instanceDetail'
 import { detailFormatters, hardwareSmallItems, metricCards, storageInfo, systemInfo } from '@shared/views/instanceDetail'
+import { StorageVolumes } from '@/components/StorageSummary'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { CardX } from '@/components/ui/card-x'
@@ -422,8 +423,8 @@ export default function InstanceDetail({ ref }: { ref?: Ref<HTMLDivElement> }) {
                       size="small"
                       className="group h-full bg-background/50 border-none hover:bg-background transition-all rounded-md"
                     >
-                      <div className="gap-3 grid grid-cols-3">
-                        {storage.filter(item => shows(item.label === t('硬盘') ? 'disk' : 'memory')).map(item => (
+                      <div className="gap-3 grid grid-cols-2">
+                        {storage.filter(item => item.label !== t('硬盘') && shows('memory')).map(item => (
                           <div key={item.label} className="min-w-0 flex flex-col gap-1 rounded-sm bg-slate-500/5 p-2">
                             <div className="flex gap-1 items-center text-muted-foreground">
                               {item.icon && <Icon icon={item.icon} width={14} height={14} />}
@@ -433,6 +434,7 @@ export default function InstanceDetail({ ref }: { ref?: Ref<HTMLDivElement> }) {
                           </div>
                         ))}
                       </div>
+                      {shows('disk') && <div className={shows('memory') ? 'mt-3' : ''}><StorageVolumes items={captainStorage(data.uuid, t)} /></div>}
                     </CardX>
                   )}
 

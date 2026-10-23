@@ -1,6 +1,7 @@
 import { nodeBandwidth } from '../src/lib/node-bandwidth.ts'
 import { nodePrice } from '../src/lib/node-price.ts'
 import { cpuSpec } from '../src/lib/cpu-spec.ts'
+import { storageItems } from '../src/lib/storage.ts'
 /** Read-only Captain transport for the MIT Glassmorphism public frontend.
  * Only the public probe API is used: no Komari RPC, agent tokens or admin data.
  */
@@ -14,6 +15,9 @@ import type { Client, NodeStatus, StatusRecord, MetricQueryParams, MetricQueryRe
 
 export const snapshot = box<Snapshot | null>(null)
 export const shows = (section: string) => snapshot.value?.public_sections == null || snapshot.value.public_sections.includes(section)
+export function captainStorage(uuid: string, translate: (key: string) => string) {
+  return shows('disk') ? storageItems(snapshot.value?.nodes.find(n => String(n.id) === uuid), translate) : []
+}
 export function captainCPUSpec(uuid: string, locale = 'en'): string {
   if (!shows('system')) return ''
   return cpuSpec(snapshot.value?.nodes.find(n => String(n.id) === uuid)?.host?.info, locale)
