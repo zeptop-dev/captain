@@ -19,6 +19,7 @@ func (h *handlers) registerWireGuardDevices(mux *http.ServeMux) {
 }
 
 func (h *handlers) wireGuardDevices(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	u := userFrom(r)
 	svc := &service.Subscription{Store: h.Store}
 	urlFor := func(token string) string { return h.subURL(r.Context(), token) }
@@ -52,7 +53,7 @@ func (h *handlers) wireGuardDevices(w http.ResponseWriter, r *http.Request) {
 			fail(w, 409, view.Reason)
 			return
 		}
-		d, err = h.Store.CreateWireGuardDevice(r.Context(), u.ID, in.Name, view.Limit)
+		d, err = svc.CreateWireGuardDevice(r.Context(), u, in.Name)
 	} else {
 		id, e := strconv.ParseInt(r.PathValue("device"), 10, 64)
 		if e != nil || id <= 0 {

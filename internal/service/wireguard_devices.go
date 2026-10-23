@@ -26,6 +26,9 @@ type WireGuardDevicesView struct {
 	Available     bool                   `json:"available"`
 	Reason        string                 `json:"reason"`
 	Limit         int                    `json:"limit"`
+	Remaining     int                    `json:"remaining"`
+	SharedLimit   *int                   `json:"shared_limit,omitempty"`
+	SharedUsed    *int                   `json:"shared_used,omitempty"`
 	LegacyEnabled bool                   `json:"legacy_enabled"`
 	Devices       []WireGuardDeviceView  `json:"devices"`
 	Entries       []WireGuardDeviceEntry `json:"entries"`
@@ -33,7 +36,7 @@ type WireGuardDevicesView struct {
 
 // eligibleWireGuardLines keeps all existing plan, group, block and profile checks.
 // Device URLs are WG-only credentials: they never reveal the parent's ordinary proxies.
-func (s *Subscription) eligibleWireGuardLines(ctx context.Context, u *domain.User, at time.Time, profile *store.SubscriptionProfile) ([]PublishedLine, subscription.Account, string, error) {
+func (s *Subscription) eligibleWireGuardLines(ctx context.Context, u *domain.User, at time.Time, profile *store.SubscriptionProfile, fresh bool, entryID int64) ([]PublishedLine, subscription.Account, string, error) {
 	lines, acct, err := s.PublishedLinesWithProfile(ctx, u, at, profile)
 	if errors.Is(err, ErrDisabled) || errors.Is(err, ErrNoAccess) {
 		return nil, acct, "no_wireguard", nil
@@ -43,12 +46,12 @@ func (s *Subscription) eligibleWireGuardLines(ctx context.Context, u *domain.Use
 	}
 	out := []PublishedLine{}
 	reason := "no_wireguard"
-	capable := map[int64]bool{}
+	unavailable := false
+	capable := map[int64]string{}
 	for _, line := range lines {
-		if line.EntryID <= 0 || line.Line.Inbound.Protocol != spec.WireGuard {
+		if line.EntryID <= 0 || line.Line.Inbound.Protocol != spec.WireGuard || (entryID > 0 && line.EntryID != entryID) {
 			continue
 		}
-		reason = "upgrade_required"
 		entry, err := s.Store.EntryByID(ctx, line.EntryID)
 		if err != nil {
 			return nil, acct, "unavailable", err
@@ -57,16 +60,33 @@ func (s *Subscription) eligibleWireGuardLines(ctx context.Context, u *domain.Use
 		if err != nil {
 			return nil, acct, "unavailable", err
 		}
-		ok, seen := capable[ib.NodeID]
+		why, seen := capable[ib.NodeID]
 		if !seen {
-			ok = s.Store.WireGuardDevicesCapable(ctx, ib.NodeID)
-			capable[ib.NodeID] = ok
+			why = s.Store.WireGuardDevicesCapability(ctx, ib.NodeID, fresh)
+			capable[ib.NodeID] = why
 		}
 		// A WG-only credential cannot expose a non-WG dialer credential.
-		if !ok || line.DialerEntryID != 0 {
+		if line.DialerEntryID != 0 {
+			if reason == "no_wireguard" {
+				reason = "client_chain_unsupported"
+			}
 			continue
 		}
+		if why != "" {
+			reason = why
+			unavailable = true
+			continue
+		}
+		// Device links have a deliberately narrow credential scope. Arbitrary
+		// client overlays could replace the protocol, key or dialer, so do not
+		// inherit them into an independently revocable WG credential.
+		line.Extra = nil
 		out = append(out, line)
+	}
+	// Do not let a transiently unconfirmed server silently remove only part
+	// of a previously installed device subscription either.
+	if !fresh && unavailable {
+		return nil, acct, reason, ErrWireGuardDevicesUnavailable
 	}
 	if len(out) > 0 {
 		reason = ""
@@ -79,19 +99,28 @@ func (s *Subscription) WireGuardDevices(ctx context.Context, u *domain.User, url
 	if err != nil {
 		return nil, err
 	}
-	lines, _, reason, err := s.eligibleWireGuardLines(ctx, u, time.Now(), profile)
+	lines, _, reason, err := s.eligibleWireGuardLines(ctx, u, time.Now(), profile, true, 0)
 	if err != nil {
 		return nil, err
 	}
-	limit := s.HWIDLimitWithProfile(ctx, u, store.MaxWireGuardDevices, profile)
-	if limit <= 0 || limit > store.MaxWireGuardDevices {
-		limit = store.MaxWireGuardDevices
-	}
+	limit, shared := s.wireGuardDeviceLimits(ctx, u, profile)
 	rows, err := s.Store.WireGuardDevices(ctx, u.ID)
 	if err != nil {
 		return nil, err
 	}
 	v := &WireGuardDevicesView{Available: len(lines) > 0, Reason: reason, Limit: limit, LegacyEnabled: true, Devices: []WireGuardDeviceView{}, Entries: []WireGuardDeviceEntry{}}
+	v.Remaining = max(0, limit-len(rows))
+	if shared != nil {
+		hwids, err := s.Store.HwidDevices(ctx, u.ID)
+		if err != nil {
+			return nil, err
+		}
+		used := len(hwids) + len(rows)
+		v.SharedLimit, v.SharedUsed = shared, &used
+		if *shared > 0 {
+			v.Remaining = min(v.Remaining, max(0, *shared-used))
+		}
+	}
 	for _, d := range rows {
 		url := ""
 		if urlFor != nil {
@@ -105,20 +134,68 @@ func (s *Subscription) WireGuardDevices(ctx context.Context, u *domain.User, url
 	return v, nil
 }
 
-func (s *Subscription) PublishedWireGuardDeviceLines(ctx context.Context, u *domain.User, d *store.WireGuardDevice, at time.Time, profile *store.SubscriptionProfile) ([]PublishedLine, subscription.Account, error) {
+func (s *Subscription) PublishedWireGuardDeviceLines(ctx context.Context, u *domain.User, d *store.WireGuardDevice, at time.Time, profile *store.SubscriptionProfile, selectedEntry ...int64) ([]PublishedLine, subscription.Account, error) {
+	if u.Role != domain.RoleUser || u.Status != "active" {
+		return nil, subscription.Account{}, ErrDisabled
+	}
 	if d == nil || d.UserID != u.ID {
 		return nil, subscription.Account{}, store.ErrNotFound
 	}
-	lines, acct, _, err := s.eligibleWireGuardLines(ctx, u, at, profile)
+	entryID := int64(0)
+	if len(selectedEntry) > 0 {
+		entryID = selectedEntry[0]
+	}
+	lines, acct, reason, err := s.eligibleWireGuardLines(ctx, u, at, profile, false, entryID)
 	if err != nil {
 		return nil, acct, err
 	}
-	addr, err := wg.DeviceAddress(d.ID)
+	if len(lines) == 0 {
+		if reason == "no_wireguard" || reason == "client_chain_unsupported" {
+			return nil, acct, store.ErrNotFound
+		}
+		return nil, acct, ErrWireGuardDevicesUnavailable
+	}
+	addr, err := wg.DeviceAddress(d.AddressSlot)
 	if err != nil {
 		return nil, acct, err
 	}
 	for i := range lines {
 		lines[i].Line.WireGuardPeer = &spec.WireGuardPeer{UUID: d.UUID, Address: addr}
+		if _, ok := subscription.WGClient(lines[i].Line); !ok {
+			return nil, acct, ErrWireGuardDevicesUnavailable
+		}
 	}
 	return lines, acct, nil
+}
+
+// Unconfirmed or incompatible binary state must not publish an empty subscription,
+// which clients commonly interpret as deleting all previously installed devices.
+var ErrWireGuardDevicesUnavailable = errors.New("WireGuard device service unavailable")
+
+func (s *Subscription) wireGuardDeviceLimits(ctx context.Context, u *domain.User, profile *store.SubscriptionProfile) (int, *int) {
+	var settings SubscriptionSettings
+	_ = s.Store.GetSetting(ctx, SettingSubscription, &settings)
+	ApplySubscriptionProfile(&settings, profile)
+	fallback := store.MaxWireGuardDevices
+	if settings.HWID.Enabled {
+		fallback = settings.HWID.FallbackLimit
+	}
+	shared := s.HWIDLimitWithProfile(ctx, u, fallback, profile)
+	native := shared
+	if native <= 0 || native > store.MaxWireGuardDevices {
+		native = store.MaxWireGuardDevices
+	}
+	if settings.HWID.Enabled {
+		return native, &shared
+	}
+	return native, nil
+}
+
+func (s *Subscription) CreateWireGuardDevice(ctx context.Context, u *domain.User, name string) (*store.WireGuardDevice, error) {
+	profile, err := s.Store.SubscriptionProfileForUser(ctx, u.ID)
+	if err != nil {
+		return nil, err
+	}
+	limit, shared := s.wireGuardDeviceLimits(ctx, u, profile)
+	return s.Store.CreateWireGuardDeviceWithHWID(ctx, u.ID, name, limit, shared)
 }

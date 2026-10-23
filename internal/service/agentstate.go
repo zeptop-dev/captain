@@ -274,7 +274,7 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 	users := toSpecUsers(all, over, limits, speeds, quotas)
 	byGroup := map[int64][]spec.User{}
 	var wgPeers map[int64][]spec.WireGuardPeer
-	if a.Store.WireGuardDevicesCapable(ctx, n.ID) {
+	if a.Store.WireGuardDevicesSupported(ctx, n.ID) {
 		wgPeers, err = a.Store.WireGuardDevicePeers(ctx)
 		if err != nil {
 			return nil, err

@@ -1,7 +1,8 @@
 -- +goose Up
--- Never reuse device IDs: their addresses are credentials already installed on clients.
+-- Identity is permanent; addresses are reusable allocation slots, never authentication.
 CREATE TABLE wireguard_devices (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    address_slot INTEGER NOT NULL UNIQUE CHECK(address_slot BETWEEN 1 AND 65534),
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     uuid TEXT NOT NULL UNIQUE,

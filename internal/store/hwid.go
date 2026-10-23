@@ -32,7 +32,8 @@ const MaxHwidRows = maxHwidRows
 // device is always allowed (its last-seen time moves); a new one is
 // admitted while the user has fewer than limit devices (limit <= 0 =
 // unlimited). It returns whether the device may have the subscription and
-// how many devices the user has afterwards. One transaction, so two
+// how many devices the user has afterwards, including registered native WG
+// devices reserved against the same allowance. One transaction, so two
 // first fetches racing for the last slot cannot both win.
 func (s *Store) ClaimHwidDevice(ctx context.Context, userID int64, dev HwidDevice, limit int, at time.Time) (allowed bool, count int, err error) {
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -47,6 +48,11 @@ func (s *Store) ClaimHwidDevice(ctx context.Context, userID int64, dev HwidDevic
 	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM hwid_devices WHERE user_id = ?`, userID).Scan(&count); err != nil {
 		return false, 0, err
 	}
+	var reserved int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM wireguard_devices WHERE user_id=?`, userID).Scan(&reserved); err != nil {
+		return false, 0, err
+	}
+	count += reserved
 	if known > 0 {
 		_, err = tx.ExecContext(ctx, `UPDATE hwid_devices SET last_seen_at = ?, user_agent = ?, request_ip = ?, platform = CASE WHEN ? = '' THEN platform ELSE ? END, os_version = CASE WHEN ? = '' THEN os_version ELSE ? END, device_model = CASE WHEN ? = '' THEN device_model ELSE ? END WHERE user_id = ? AND hwid = ?`,
 			at.Unix(), dev.UserAgent, dev.RequestIP, dev.Platform, dev.Platform, dev.OSVersion, dev.OSVersion, dev.DeviceModel, dev.DeviceModel, userID, dev.Hwid)
@@ -64,12 +70,12 @@ func (s *Store) ClaimHwidDevice(ctx context.Context, userID int64, dev HwidDevic
 	if limit > ceiling {
 		ceiling = limit
 	}
-	if count >= ceiling {
+	if count-reserved >= ceiling {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM hwid_devices WHERE user_id = ? AND hwid IN (
-			SELECT hwid FROM hwid_devices WHERE user_id = ? ORDER BY last_seen_at ASC LIMIT ?)`, userID, userID, count-ceiling+1); err != nil {
+			SELECT hwid FROM hwid_devices WHERE user_id = ? ORDER BY last_seen_at ASC LIMIT ?)`, userID, userID, count-reserved-ceiling+1); err != nil {
 			return false, 0, err
 		}
-		count = ceiling - 1
+		count = reserved + ceiling - 1
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO hwid_devices (user_id, hwid, platform, os_version, device_model, user_agent, request_ip, first_seen_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		userID, dev.Hwid, dev.Platform, dev.OSVersion, dev.DeviceModel, dev.UserAgent, dev.RequestIP, at.Unix(), at.Unix()); err != nil {
