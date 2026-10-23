@@ -111,5 +111,6 @@
     "data": "資料",
     "systemDisk": "系統碟",
     "dataDisk": "資料碟"
-  }
+  },
+  "storage.historyTruncated": "部分磁碟歷史資料不完整。"
 }

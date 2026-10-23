@@ -3,6 +3,9 @@ import type { HTMLAttributes } from 'react'
 import { Icon } from '@iconify/react'
 import dayjs from 'dayjs'
 import { t } from '@shared/i18n'
+import { captainStorage, shows, snapshot } from '@shared/captain'
+import { storageItems } from '../../../src/lib/storage'
+import { formatMetricCount, latestStoragePoint, type StorageHistoryRange } from '../../../src/lib/storage-history'
 import { createLoadChartModel, LOAD_METRIC_KEYS } from '@shared/charts/load'
 import { LOAD_RECORD_MAX_COUNT } from '@shared/constants/load'
 import { loadMetricDefinitions, loadPublicPingTasks, queryMetrics } from '@shared/services/metrics.service'
@@ -27,6 +30,8 @@ import { loadNodeLoadRecords, useNodeLoadStats } from '@/hooks/useNodeLoadStats'
 import { vclass } from '@/lib/vclass'
 import { useApp } from '@/stores/app'
 import { useNodes } from '@/stores/nodes'
+import { useBox } from '@/hooks/useBox'
+import { useStorageHistory } from '@/hooks/useStorageHistory'
 
 const PING_METRIC_KEYS = ['ping.latency_ms', 'ping.loss'] as const
 const METRIC_HISTORY_MAX_POINTS = 700
@@ -58,6 +63,10 @@ export default function LoadChart({ uuid, className, ...attrs }: { uuid: string 
   }))
   const nodesByUuid = useNodes(n => n.nodesByUuid)
   const nodeInfo = nodesByUuid.get(uuid)
+  const currentSnapshot = useBox(snapshot)
+  const publicNode = currentSnapshot?.nodes.find(node => String(node.id) === uuid)
+  const publicVolumes = captainStorage(uuid, t)
+  const storageSelection = JSON.stringify(publicNode?.storage?.map(({ id, name, kind }) => ({ id, name, kind })) ?? null)
   const maxRecordPreserveTime = app.publicSettings?.record_preserve_time || 720
   const detailLoadStatsHours = app.publicSettings?.record_preserve_time || 720
   const chartColors = useMemo(() => getLoadChartPalette(app.colorVisionFriendly), [app.colorVisionFriendly])
@@ -106,6 +115,7 @@ export default function LoadChart({ uuid, className, ...attrs }: { uuid: string 
   const [rawMetricSeries, setRawMetricSeries] = useState<NormalizedMetricSeries[]>([])
   const [pingTasks, setPingTasks] = useState<PingTaskInfo[]>([])
   const [loading, setLoading] = useState(false)
+  const [storageRange, setStorageRange] = useState<StorageHistoryRange | null>({ range: '1h' })
   const [error, setError] = useState<string | null>(null)
   const availableMetricKeys = useRef<Set<string>>(new Set())
   const isInitialLoad = useRef(true)
@@ -149,6 +159,8 @@ export default function LoadChart({ uuid, className, ...attrs }: { uuid: string 
     gpuChartEnabled: app.gpuChartEnabled,
     chartDashboardTemplate: app.chartDashboardTemplate,
   }), [uuid, app.isDark, remoteData, metricData, rawMetricSeries, pingTasks, effectiveHistoryHours, nodeInfo, chartColors, metricSeriesColors, app.colorVisionFriendly, app.gpuChartEnabled, app.chartDashboardTemplate])
+
+  const storageResult = useStorageHistory(uuid, storageSelection, storageRange, isRealtime, Boolean(publicNode) && shows('history') && model.isChartCardEnabled('disk'))
 
   // Latest values for async fetchers (Vue read refs at call time).
   const live = useRef({ uuid, isRealtime, isCustomRange, customRange, customRangeError, effectiveHistoryHours, chartDashboardTemplate: app.chartDashboardTemplate, model })
@@ -283,6 +295,10 @@ export default function LoadChart({ uuid, className, ...attrs }: { uuid: string 
   }, [])
 
   const fetchData = useCallback(async () => {
+    const current = live.current
+    setStorageRange(current.isRealtime ? { range: '1h' } : current.isCustomRange
+      ? current.customRange ? { from: current.customRange.start.unix(), to: current.customRange.end.unix() } : null
+      : { range: current.effectiveHistoryHours <= 4 ? '4h' : current.effectiveHistoryHours <= 24 ? '24h' : current.effectiveHistoryHours <= 168 ? '7d' : '30d' })
     if (live.current.isRealtime)
       await fetchRecentData()
     else
@@ -340,6 +356,21 @@ export default function LoadChart({ uuid, className, ...attrs }: { uuid: string 
   }, [app.chartDashboardTemplate.cards, refreshRealtimeMetricSeries])
 
   const { latestStatus, chartData } = model
+  // The response owns both labels and data; ordinal public IDs must never join
+  // an old response to a newly reordered snapshot's volume names.
+  const storageResponse = storageResult?.history
+  const historyItems = storageResponse
+    ? storageItems({ host: null, storage: storageResponse.volumes.map(volume => ({ ...volume, used: null, total: null })) }, t)
+    : publicVolumes
+  const storageCharts = model.isChartCardEnabled('disk') ? historyItems.map((item, index) => {
+    const points = storageResponse?.volumes[index]?.points ?? (storageResult?.unsupported && publicNode?.storage === undefined && item.kind === 'system'
+      ? chartData.map(record => ({ ts: dayjs(record.time).unix(), used: record.disk, total: record.disk_total ?? null })) : [])
+    return { item, points, latest: latestStoragePoint(points, storageResponse?.to ?? Date.now() / 1000, storageResponse?.step ?? 60) }
+  }) : []
+  const hasExtraCharts = (['traffic', 'gpu', 'gpuMemory', 'temperature', 'ping', 'pingLoss'] as const).some(key => model.isChartCardEnabled(key))
+  const lowerCount = storageCharts.length + Number(model.isChartCardEnabled('network')) + Number(model.isChartCardEnabled('connections'))
+  const lowerColumns = lowerCount <= 2 ? 'md:grid-cols-2' : lowerCount === 3 ? 'md:grid-cols-2 xl:grid-cols-3' : 'md:grid-cols-2 xl:grid-cols-4'
+
   const cardClass = 'bg-background/50 border-none hover:bg-background transition-all rounded-md'
   const speed = (v: number) => {
     const f = formatBytesSplit(v)
@@ -376,20 +407,20 @@ export default function LoadChart({ uuid, className, ...attrs }: { uuid: string 
       <Spinner show={loading}>
         {error
           ? <div className="text-red-500 py-8 text-center">{error}</div>
-          : chartData.length === 0 && !loading
+          : chartData.length === 0 && storageCharts.length === 0 && !loading
             ? (
                 <div className="py-8">
                   <Empty description="暂无负载数据" />
                 </div>
               )
             : (
-                <div className="gap-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                <div className="space-y-4" data-load-chart-layout>
+                <div className="gap-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3" data-load-chart-row="host">
                   {model.isChartCardEnabled('cpu') && (
                     <CardX
                       size="small"
                       className={cardClass}
                       data-load-chart-card="cpu"
-                      style={model.getChartCardStyle('cpu')}
                       header={(
                         <MetricChartHeader title={t('CPU 与负载')} icon="tabler:cpu" tone="rose">
                           {latestStatus?.cpu != null
@@ -411,7 +442,7 @@ export default function LoadChart({ uuid, className, ...attrs }: { uuid: string 
                     <CardX
                       size="small"
                       className={cardClass}
-                      style={model.getChartCardStyle('memory')}
+                      data-load-chart-card="memory"
                       header={(
                         <MetricChartHeader title={t('内存与 Swap')} icon="tabler:database" tone="violet">
                           <div className="text-xs flex gap-1 items-baseline">
@@ -440,44 +471,50 @@ export default function LoadChart({ uuid, className, ...attrs }: { uuid: string 
                     </CardX>
                   )}
 
-                  {model.isChartCardEnabled('disk') && (
+                  {model.isChartCardEnabled('process') && (
                     <CardX
                       size="small"
                       className={cardClass}
-                      style={model.getChartCardStyle('disk')}
+                      data-load-chart-card="process"
                       header={(
-                        <MetricChartHeader title={t('磁盘')} icon="tabler:device-floppy" tone="emerald" subtitle={diskPredictionSummary}>
-                          <div className="text-xs flex gap-1 items-baseline shrink-0">
-                            {latestStatus?.disk != null
-                              ? (
-                                  <>
-                                    <span>{formatBytesSplit(latestStatus.disk).value}</span>
-                                    <span>{formatBytesSplit(latestStatus.disk).unit}</span>
-                                  </>
-                                )
-                              : <span>-</span>}
+                        <MetricChartHeader title={t('进程')} icon="tabler:activity" tone="slate">
+                          <span className="text-xs">
+                            {formatMetricCount(latestStatus?.process)}
+                          </span>
+                        </MetricChartHeader>
+                      )}
+                    >
+                      <div className="h-48"><EChart option={model.processChartOption} autoresize /></div>
+                    </CardX>
+                  )}
+
+                </div>
+                {storageResponse?.truncated === true && <p role="status" className="text-xs text-muted-foreground" data-storage-history-truncated>{t('storage.historyTruncated')}</p>}
+                <div className={`gap-4 grid grid-cols-1 ${lowerColumns}`} data-load-chart-row="storage-network">
+                  {storageCharts.map(({ item, points, latest }) => (
+                    <CardX key={item.id} size="small" className={cardClass} data-load-chart-card="disk" data-storage-chart={item.id}
+                      header={(
+                        <MetricChartHeader title={item.detailLabel} icon="tabler:device-floppy" tone="emerald" subtitle={item.kind === 'system' ? diskPredictionSummary : ''}>
+                          <div className="text-xs flex flex-wrap justify-end gap-x-1 items-baseline" data-storage-chart-capacity title={latest ? dayjs(latest.ts * 1000).format('YYYY-MM-DD HH:mm') : undefined}>
+                            <span>{latest?.used != null ? `${formatBytesSplit(latest.used).value} ${formatBytesSplit(latest.used).unit}` : '—'}</span>
                             <span>·</span>
-                            {nodeInfo?.disk_total
-                              ? (
-                                  <>
-                                    <span>{formatBytesSplit(nodeInfo.disk_total).value}</span>
-                                    <span>{formatBytesSplit(nodeInfo.disk_total).unit}</span>
-                                  </>
-                                )
-                              : <span>-</span>}
+                            <span>{latest?.total != null ? `${formatBytesSplit(latest.total).value} ${formatBytesSplit(latest.total).unit}` : '—'}</span>
                           </div>
                         </MetricChartHeader>
                       )}
                     >
-                      <div className="h-48"><EChart option={model.diskChartOption} autoresize /></div>
+                      <div className="relative h-48">
+                        <EChart option={model.storageChartOption(points)} autoresize />
+                        {!points.some(point => point.used !== null || point.total !== null) && <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-muted-foreground" data-storage-history-empty>{t(storageResult?.error && !storageResult.unsupported ? '加载失败' : '暂无数据')}</div>}
+                      </div>
                     </CardX>
-                  )}
+                  ))}
 
                   {model.isChartCardEnabled('network') && (
                     <CardX
                       size="small"
                       className={cardClass}
-                      style={model.getChartCardStyle('network')}
+                      data-load-chart-card="network"
                       header={(
                         <MetricChartHeader title={t('实时网络')} icon="tabler:network" tone="sky">
                           <div className="text-xs flex gap-2 items-baseline">
@@ -497,6 +534,27 @@ export default function LoadChart({ uuid, className, ...attrs }: { uuid: string 
                     </CardX>
                   )}
 
+                  {model.isChartCardEnabled('connections') && (
+                    <CardX
+                      size="small"
+                      className={cardClass}
+                      data-load-chart-card="connections"
+                      header={(
+                        <MetricChartHeader title={t('网络连接')} icon="tabler:binary-tree" tone="amber">
+                          <div className="text-xs flex gap-1 items-baseline">
+                            <span>{`TCP: ${formatMetricCount(latestStatus?.connections)}`}</span>
+                            <span>·</span>
+                            <span>{`UDP: ${formatMetricCount(latestStatus?.connections_udp)}`}</span>
+                          </div>
+                        </MetricChartHeader>
+                      )}
+                    >
+                      <div className="h-48"><EChart option={model.connectionsChartOption} autoresize /></div>
+                    </CardX>
+                  )}
+
+                </div>
+                {hasExtraCharts && <div className="gap-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3" data-load-chart-row="extra">
                   {model.isChartCardEnabled('traffic') && <MetricSeriesChartCard title="累计与周期流量" icon="tabler:arrows-transfer-up-down" tone="sky" series={model.trafficChartSeries} order={model.getChartCardOrder('traffic')} />}
 
                   {model.isChartCardEnabled('gpu') && (
@@ -526,44 +584,9 @@ export default function LoadChart({ uuid, className, ...attrs }: { uuid: string 
                   {model.isChartCardEnabled('gpuMemory') && <MetricSeriesChartCard title="GPU 显存" icon="tabler:stack-2" tone="violet" series={model.gpuMemoryChartSeries} order={model.getChartCardOrder('gpuMemory')} />}
                   {model.isChartCardEnabled('temperature') && <MetricSeriesChartCard title="温度" icon="tabler:temperature" tone="orange" series={model.temperatureChartSeries} order={model.getChartCardOrder('temperature')} />}
 
-                  {model.isChartCardEnabled('connections') && (
-                    <CardX
-                      size="small"
-                      className={cardClass}
-                      style={model.getChartCardStyle('connections')}
-                      header={(
-                        <MetricChartHeader title={t('网络连接')} icon="tabler:binary-tree" tone="amber">
-                          <div className="text-xs flex gap-1 items-baseline">
-                            <span>{`TCP: ${latestStatus?.connections ?? '-'}`}</span>
-                            <span>·</span>
-                            <span>{`UDP: ${latestStatus?.connections_udp ?? '-'}`}</span>
-                          </div>
-                        </MetricChartHeader>
-                      )}
-                    >
-                      <div className="h-48"><EChart option={model.connectionsChartOption} autoresize /></div>
-                    </CardX>
-                  )}
-
-                  {model.isChartCardEnabled('process') && (
-                    <CardX
-                      size="small"
-                      className={cardClass}
-                      style={model.getChartCardStyle('process')}
-                      header={(
-                        <MetricChartHeader title={t('进程')} icon="tabler:activity" tone="slate">
-                          <span className="text-xs">
-                            {latestStatus?.process ?? '-'}
-                          </span>
-                        </MetricChartHeader>
-                      )}
-                    >
-                      <div className="h-48"><EChart option={model.processChartOption} autoresize /></div>
-                    </CardX>
-                  )}
-
                   {model.isChartCardEnabled('ping') && <MetricSeriesChartCard title="Ping 延迟" icon="tabler:radar" tone="cyan" series={model.pingChartSeries} order={model.getChartCardOrder('ping')} />}
                   {model.isChartCardEnabled('pingLoss') && <MetricSeriesChartCard title="Ping 丢包" icon="tabler:cloud-exclamation" tone="rose" series={model.pingLossChartSeries} order={model.getChartCardOrder('pingLoss')} percentScale />}
+                </div>}
                 </div>
               )}
       </Spinner>

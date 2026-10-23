@@ -121,5 +121,6 @@
   "storage.disk": "디스크",
   "storage.data": "데이터",
   "storage.systemDisk": "시스템 디스크",
-  "storage.dataDisk": "데이터 디스크"
+  "storage.dataDisk": "데이터 디스크",
+  "storage.historyTruncated": "일부 디스크 기록 데이터가 누락되었습니다."
 }

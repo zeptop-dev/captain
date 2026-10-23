@@ -9,7 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "dev:glass": "vite --config vite.glass.config.ts",
-    "test": "node --test glass-shared/captain.test.mjs",
+    "test": "node --test glass-shared/*.test.mjs",
     "diff:glass": "node scripts/glass-diff.mjs",
     "interact:glass": "node scripts/glass-interact.mjs"
   },

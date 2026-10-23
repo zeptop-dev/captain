@@ -121,5 +121,6 @@
   "storage.disk": "Disk",
   "storage.data": "Data",
   "storage.systemDisk": "System disk",
-  "storage.dataDisk": "Data disk"
+  "storage.dataDisk": "Data disk",
+  "storage.historyTruncated": "Some storage history is incomplete."
 }

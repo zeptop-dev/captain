@@ -121,5 +121,6 @@
   "storage.disk": "ディスク",
   "storage.data": "データ",
   "storage.systemDisk": "システムディスク",
-  "storage.dataDisk": "データディスク"
+  "storage.dataDisk": "データディスク",
+  "storage.historyTruncated": "一部のディスク履歴データが欠けています。"
 }
