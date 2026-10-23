@@ -113,11 +113,13 @@
   "汇总周期流量说明": "所选节点各自当前周期的出站与入站之和；重置日可能不同。",
   "标称带宽": "标称带宽",
   "storage.title": "存储空间",
-  "storage.system": "系统盘",
-  "storage.volume": "数据盘",
-  "storage.pool": "数据池",
+  "storage.system": "系统",
   "storage.more": "另 {count} 个",
   "storage.viewAll": "查看全部存储空间",
   "storage.empty": "没有公开的存储空间",
-  "storage.hint": "各存储空间分别显示，共享容量不重复相加。"
+  "storage.hint": "各存储空间分别显示，共享容量不重复相加。",
+  "storage.disk": "磁盘",
+  "storage.data": "数据",
+  "storage.systemDisk": "系统盘",
+  "storage.dataDisk": "数据盘"
 }

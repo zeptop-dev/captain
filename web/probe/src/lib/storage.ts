@@ -8,7 +8,7 @@ export interface StorageVolume {
   used: number | null
 }
 
-export interface StorageItem extends StorageVolume { label: string; percent: number | null }
+export interface StorageItem extends StorageVolume { label: string; detailLabel: string; percent: number | null }
 
 const count = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null
 
@@ -22,13 +22,19 @@ export function storageVolumes(node?: Pick<Node, 'storage' | 'host'>): StorageVo
 }
 
 export function storageItems(node: Pick<Node, 'storage' | 'host'> | undefined, translate: (key: string) => string): StorageItem[] {
-  const ordinals = { system: 0, volume: 0, pool: 0 }
-  return storageVolumes(node).map(volume => {
+  const volumes = storageVolumes(node)
+  const dataCount = volumes.filter(volume => volume.kind !== 'system').length
+  let dataOrdinal = 0
+  return volumes.map(volume => {
     const kind = volume.kind === 'system' || volume.kind === 'pool' ? volume.kind : 'volume'
-    const ordinal = ++ordinals[kind]
+    if (kind !== 'system') dataOrdinal++
+    const suffix = kind !== 'system' && dataCount > 1 ? ` ${dataOrdinal}` : ''
+    const customName = volume.name?.trim()
+    const label = customName || (volumes.length === 1 ? translate('storage.disk') : translate(kind === 'system' ? 'storage.system' : 'storage.data') + suffix)
+    const detailLabel = customName || (volumes.length === 1 ? translate('storage.disk') : translate(kind === 'system' ? 'storage.systemDisk' : 'storage.dataDisk') + suffix)
     const total = count(volume.total), used = count(volume.used)
     return { ...volume, kind, total, used,
-      label: volume.name?.trim() || `${translate(`storage.${kind}`)}${kind === 'system' ? '' : ` ${ordinal}`}`,
+      label, detailLabel,
       percent: used !== null && total !== null && total > 0 ? Math.min(100, used / total * 100) : null,
     }
   })
@@ -47,7 +53,12 @@ export function storagePercent(value: number | null): string {
 }
 
 export function storageCapacity(volume: Pick<StorageVolume, 'used' | 'total'>, dense = false): string {
-  return `${storageBytes(volume.used, dense)}${dense ? '/' : ' / '}${storageBytes(volume.total, dense)}`
+  const total = storageBytes(volume.total)
+  let used = storageBytes(volume.used, dense)
+  // The total stays consistent with the full-width summary. On narrow paired
+  // meters, round only the used value when necessary to keep the text readable.
+  if (dense && `${used}/${total}`.length > 9) used = used.replace(/^[0-9]+\.[0-9]+/, value => String(Math.round(Number(value))))
+  return `${used}${dense ? '/' : ' / '}${total}`
 }
 
 export function storageFullCapacity(volume: Pick<StorageVolume, 'used' | 'total'>): string {

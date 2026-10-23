@@ -22,7 +22,7 @@ test('public storage follows selection and disk visibility, without reading priv
   {id:'volume-opaque', name:'', kind:'volume', used:0, total:null},
  ]
  const items = captainStorage('1', key => key)
- assert.deepEqual(items.map(v => [v.label, v.percent]), [['Archive',25],['storage.system',null],['storage.volume 1',null]])
+ assert.deepEqual(items.map(v => [v.label, v.percent]), [['Archive',25],['storage.system',null],['storage.data 2',null]])
  assert.equal(storageCapacity(items[1]), '— / 1K')
  assert.equal(storageCapacity(items[2]), '0B / —')
  n.host.disk_used = 999 // Explicit projection is independent of the legacy root summary.
@@ -38,12 +38,14 @@ test('storage values preserve unknowns and format each volume without summing ov
   {id:'c',name:'',kind:'volume',used:NaN,total:Infinity},
   {id:'d',name:'',kind:'volume',used:-1,total:0},
  ]}, key => key)
- assert.deepEqual(volumes.map(v => v.label), ['storage.pool 1','storage.pool 2','storage.volume 1','storage.volume 2'])
+ assert.deepEqual(volumes.map(v => v.label), ['storage.data 1','storage.data 2','storage.data 3','storage.data 4'])
  assert.deepEqual(volumes.map(v => [v.used,v.total,v.percent]), [[0,1024,0],[0,1024,0],[null,null,null],[null,0,null]])
  assert.deepEqual(volumes.map(v => storageCapacity(v)), ['0B / 1K','0B / 1K','— / —','— / 0B'])
  assert.equal(storageBytes(1.1 * 1024**4),'1.1T')
  assert.equal(storageBytes(463 * 1024**3),'463G')
- assert.equal(storageCapacity({used:8.17 * 1024**2,total:14.32 * 1024**4},true),'8.2M/14.3T')
+ assert.equal(storageCapacity({used:8.17 * 1024**2,total:14.32 * 1024**4},true),'8M/14.3T')
+ assert.deepEqual(volumes.map(v => v.detailLabel), ['storage.dataDisk 1','storage.dataDisk 2','storage.dataDisk 3','storage.dataDisk 4'])
+ assert.equal(storageItems({storage:[{id:'only',name:'',kind:'pool',used:1,total:2}]}, key => key)[0].label, 'storage.disk')
  assert.equal(storagePercent(0),'0.0%')
  assert.equal(storagePercent(null),'—')
  assert.equal(storageItems({host:{valid:{disk:false},disk_used:5,disk_total:10}}, key => key)[0].percent,null)
