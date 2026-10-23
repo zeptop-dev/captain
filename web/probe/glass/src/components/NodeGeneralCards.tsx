@@ -2,6 +2,7 @@ import type { CSSProperties, KeyboardEvent, ReactNode, Ref } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Icon } from '@iconify/react'
 import { snapshot } from '@shared/captain'
+import { t } from '@shared/i18n'
 import { useBox } from '@/hooks/useBox'
 import { UI_CONFIG } from '@shared/constants/ui'
 import type { GeneralMetricCard } from '@shared/views/generalCards'
@@ -92,25 +93,26 @@ export default function NodeGeneralCards({ nodes, globeNodes, transitionKey, ...
   const isTiledEarth = showEarth && app.earthRenderer === 'tiled'
   const shouldRenderHeader = showEarth || visibleCards.length > 0
   const hasExtraCards = visibleCards.length > 6
+  const hasMoneyRows = visibleCards.some(card => card.moneyRows)
   const wrapperClass = !showEarth
     ? 'p-4 grid grid-cols-1 gap-2 h-auto'
     : isTiledEarth
       ? 'p-3 sm:p-4 grid grid-cols-12 gap-2 sm:gap-3 h-auto min-h-[40rem] sm:min-h-[30rem] md:min-h-[36rem] lg:min-h-[40rem]'
-      : hasExtraCards ? 'p-4 grid grid-cols-12 gap-2 h-auto md:min-h-58' : 'p-4 grid grid-cols-12 grid-rows-1 gap-2 h-auto md:h-58'
+      : hasExtraCards ? 'p-4 grid grid-cols-12 gap-2 h-auto md:min-h-58' : hasMoneyRows ? 'p-4 grid grid-cols-12 grid-rows-1 gap-2 h-auto md:h-66' : 'p-4 grid grid-cols-12 grid-rows-1 gap-2 h-auto md:h-58'
   const earthClass = isTiledEarth
     ? 'col-span-12 row-start-2 min-h-[18rem] h-[18rem] sm:h-[20rem] md:h-[24rem] lg:h-[28rem]'
     : 'col-span-12 col-start-1 md:col-span-6 md:col-start-7 md:row-start-1'
   const cardGridClass = !showEarth
     ? 'col-span-1 grid grid-cols-3 md:grid-cols-6 gap-2'
     : isTiledEarth
-      ? 'col-span-12 row-start-1 z-9 grid grid-cols-12 auto-rows-[4.75rem] sm:auto-rows-[5rem] md:auto-rows-[5.8rem] gap-2 sm:gap-3'
+      ? hasMoneyRows ? 'col-span-12 row-start-1 z-9 grid grid-cols-12 auto-rows-[6.5rem] gap-2 sm:gap-3' : 'col-span-12 row-start-1 z-9 grid grid-cols-12 auto-rows-[4.75rem] sm:auto-rows-[5rem] md:auto-rows-[5.8rem] gap-2 sm:gap-3'
       : hasExtraCards
-        ? 'h-auto -mt-42 md:mt-0 col-span-12 row-start-3 z-9 md:h-auto md:col-span-6 md:row-start-1 grid grid-cols-12 auto-rows-[5rem] md:auto-rows-[7rem] gap-2'
-        : 'h-42 -mt-42 md:mt-0 col-span-12 row-start-3 z-9 md:h-auto md:col-span-6 md:row-start-1 grid grid-cols-12 grid-rows-2 gap-2'
+        ? hasMoneyRows ? 'h-auto -mt-54 md:mt-0 col-span-12 row-start-3 z-9 md:h-auto md:col-span-6 md:row-start-1 grid grid-cols-12 auto-rows-[6.5rem] md:auto-rows-[7rem] gap-2' : 'h-auto -mt-42 md:mt-0 col-span-12 row-start-3 z-9 md:h-auto md:col-span-6 md:row-start-1 grid grid-cols-12 auto-rows-[5rem] md:auto-rows-[7rem] gap-2'
+        : hasMoneyRows ? 'h-54 -mt-54 md:mt-0 col-span-12 row-start-3 z-9 md:h-auto md:col-span-6 md:row-start-1 grid grid-cols-12 grid-rows-2 gap-2' : 'h-42 -mt-42 md:mt-0 col-span-12 row-start-3 z-9 md:h-auto md:col-span-6 md:row-start-1 grid grid-cols-12 grid-rows-2 gap-2'
 
   function getCardPositionClass(index: number): string {
     if (!showEarth)
-      return 'col-span-1 min-h-18 md:min-h-28'
+      return hasMoneyRows ? 'col-span-1 min-h-26 md:min-h-28' : 'col-span-1 min-h-18 md:min-h-28'
     if (isTiledEarth)
       return tiledCardPositionClasses[index] ?? 'col-span-6 sm:col-span-3 row-span-1'
     return cardPositionClasses[index] ?? 'col-span-4 row-span-1'
@@ -151,7 +153,7 @@ export default function NodeGeneralCards({ nodes, globeNodes, transitionKey, ...
                 >
                   <div {...s} className="flex h-full min-h-0 flex-col justify-between gap-1">
                     <div {...s} className="flex items-start justify-between gap-2">
-                      <span {...s} className="text-xs font-medium tracking-wider text-muted-foreground truncate">{card.label}</span>
+                      <span {...s} title={card.label} className="text-xs font-medium tracking-wider text-muted-foreground truncate">{card.key === 'remainingValue' ? t('finance.remainingShort') : card.label}</span>
                       <Icon {...s} icon={card.icon} width={20} height={20} className="shrink-0 text-slate-500/20 group-hover:text-slate-500 transition-colors" />
                     </div>
                     <DataTooltip
@@ -159,17 +161,22 @@ export default function NodeGeneralCards({ nodes, globeNodes, transitionKey, ...
                       as="span"
                       placement="top"
                       content={card.tooltip}
-                      className={card.moneyRows ? "min-h-0 min-w-0 flex-1" : "min-w-0"}
+                      className={card.moneyRows ? "h-9 min-w-0 shrink-0" : "min-w-0"}
                       contentClass={card.key === 'remainingValue' ? "whitespace-normal w-64 max-w-[calc(100vw-2rem)] px-2 py-1 left-0 -translate-x-0 leading-normal" : "whitespace-pre px-2 py-1 left-0 -translate-x-0 leading-normal"}
                     >
                       {card.moneyRows ? (
                         <div tabIndex={0} role="group" aria-label={card.label} data-finance-rows className="h-full min-w-0 space-y-0.5 overflow-y-auto outline-offset-1 focus-visible:outline focus-visible:outline-ring">
                           {card.moneyRows.map(money => (
-                            <div key={money.currency} data-finance-currency={money.currency} className="flex min-w-0 items-baseline justify-between gap-1 text-xs leading-4 md:text-base md:leading-5">
+                            <div key={money.currency} data-finance-currency={money.currency} className="flex min-w-0 items-baseline justify-between gap-1 text-xs leading-4 md:text-sm">
                               <span className="shrink-0 font-medium text-muted-foreground">{money.currency}</span>
                               <span className="min-w-0 break-all text-right font-semibold tabular-nums">{money.value}</span>
                             </div>
                           ))}
+                        </div>
+                      ) : ['remainingValue', 'monthlyCost', 'yearlyCost'].includes(card.key) ? (
+                        <div data-finance-value title={[card.value, card.unit].filter(Boolean).join(' ')} className="flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-0.5">
+                          <span className={`${card.value.length > 10 ? 'text-xs md:text-lg' : 'text-base md:text-2xl'} min-w-0 break-all font-bold leading-tight tabular-nums`}>{card.value}</span>
+                          {card.unit && <span className="shrink-0 text-[11px] font-medium text-muted-foreground md:text-xs">{card.unit}</span>}
                         </div>
                       ) : <Transition {...(app.disablePageAnimation ? { css: false } : { name: 'metric-switch', mode: 'out-in' as const })}>
                         <MetricValue key={`${card.key}-${summaryTransitionKey}`} style={{ '--metric-switch-delay': `${index * UI_CONFIG.motion.staggerMs}ms` } as CSSProperties}>
