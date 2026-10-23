@@ -250,7 +250,7 @@ independent clients still shares the same peer. All of a customer's devices
 remain on the same account for usage and limits. This feature is separate from
 the managed A-to-B reverse tunnel below, whose peers represent servers.
 
-The server needs bosun v0.77.0 and the supported Xray `26.7.28-r2` package.
+Use bosun v0.77.1 or later and the supported Xray `26.7.28-r3` package.
 In **Core management**, download that version and explicitly activate it;
 upgrading the panel or agent does not change the default core package. Wait for
 the node's capability report before creating devices. An unavailable or old

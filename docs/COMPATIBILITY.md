@@ -97,8 +97,9 @@ revokes its device links immediately and withdraws their peers at the next
 successful server synchronization. Ordinary downloaded credentials and existing
 temporary links retain their previous behavior.
 
-Native device support requires bosun v0.77.0, the supported Xray
-`26.7.28-r2` package selected explicitly, and a current capability report for
+Native device protocol support starts at bosun v0.77.0. Deploy bosun v0.77.1
+or later with the supported Xray `26.7.28-r3` package selected explicitly,
+and a current capability report for
 creation. Updating Captain or bosun does not automatically replace the default
 core. The additive `User.wireguard_peers`, `User.wireguard_legacy_disabled` and
 core `wireguard_devices` capability do not change legacy users. Devices have
@@ -107,6 +108,16 @@ accounting and limits. Older agents/cores continue to serve compatible existing
 services; they are not silently given device credentials they cannot handle.
 Changing WG peers may restart their shared Xray instance and interrupt its
 other connections.
+
+The original Xray `26.7.28-r2` package must be replaced with `-r3`: the newer
+Go 1.27.3 TLS layout is incompatible with that upstream version's Vision path.
+The replacement uses the supported Go 1.26.10 toolchain and the same security
+updates to dependencies. Bosun v0.77.1 also explicitly preserves the previous
+REALITY client-version acceptance, so enabling WG devices does not reject
+existing Mihomo clients. This retains compatibility; it does not upgrade a
+client's TLS fingerprint or change its privacy properties. The default Xray
+package remains unchanged. No Captain protocol or database change is needed
+for this bosun compatibility patch.
 
 The built-in Captain update/rollback floor is v1.35.0, superseding earlier
 floors. Older panels can omit registered device peers and lose the new
@@ -232,7 +243,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
-| 1.35.0 | ≥ 0.77.0 and explicitly activated Xray `26.7.28-r2` for native WG devices | Independent WG-only device subscriptions and parent-account limits; migration 85. Managed reverse exit display uses existing traffic reports and migration 84 without requiring a fleet upgrade. Existing fields and ordinary subscriptions remain compatible; Captain rollback floor becomes 1.35.0. |
+| 1.35.0 | ≥ 0.77.0 and explicitly activated Xray `26.7.28-r3` for native WG devices | Independent WG-only device subscriptions and parent-account limits; migration 85. Managed reverse exit display uses existing traffic reports and migration 84 without requiring a fleet upgrade. Existing fields and ordinary subscriptions remain compatible; Captain rollback floor becomes 1.35.0. |
 | 1.34.0 | Unchanged | Additive public storage history and per-volume detail charts. Absolute filesystem history starts with this panel version; older data-volume percentages are not reconstructed as capacity. No migration or agent protocol change. |
 | 1.32.0 | ≥ 0.76.0 for full CPU topology, asynchronous filesystem sampling and mergerfs | Additive CPU/filesystem fields and private storage selection (migration 83). Old agents retain logical CPU and existing filesystem/root fallbacks; traffic units and card layout need no agent update. |
 | 1.28.0 | ≥ 0.75.0 for core-only split routing, WG prerequisites and managed forwarding | Additive capabilities; migration 78 preserves legacy WG options. Existing agents remain usable for previous features; new combinations require fresh support. |
