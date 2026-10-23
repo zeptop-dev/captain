@@ -1,0 +1,88 @@
+import type { NodeCost } from './node-price.ts'
+
+export interface Money { amount: number; currency: string }
+export interface CostInfo { billing?: NodeCost; price?: string; expires_at?: string }
+export type RemainingCostReason = 'missing-price' | 'legacy-price' | 'missing-expiry' | 'unsupported-cycle' | 'invalid'
+export interface CalculatedNodeCost {
+  monthly: Money | null
+  remaining: Money | null
+  remainingReason: RemainingCostReason | null
+}
+
+const cycleMonths: Record<string, number> = { monthly: 1, quarterly: 3, semiannual: 6, annual: 12 }
+const amountPattern = /^(0|[1-9][0-9]{0,11})(\.[0-9]{1,4})?$/
+const yearsPattern = /^(0|[1-9][0-9]{0,2})(\.[0-9]{1,4})?$/
+
+// Use calendar dates throughout: Date.UTC treats years 0–99 as 1900–1999.
+function utcDate(year: number, month: number, day: number): Date {
+  const date = new Date(0)
+  date.setUTCFullYear(year, month, day)
+  return date
+}
+
+function expiryDate(value: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const [year, month, day] = value.split('-').map(Number) as [number, number, number]
+  const date = utcDate(year, month - 1, day)
+  return year >= 1 && date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day ? date : null
+}
+
+function previousCycle(expiry: Date, months: number): Date {
+  const first = utcDate(expiry.getUTCFullYear(), expiry.getUTCMonth() - months, 1)
+  const lastDay = utcDate(first.getUTCFullYear(), first.getUTCMonth() + 1, 0).getUTCDate()
+  return utcDate(first.getUTCFullYear(), first.getUTCMonth(), Math.min(expiry.getUTCDate(), lastDay))
+}
+
+/** Display estimates only. Never changes saved prices or interprets legacy text.
+ * Remaining value prorates against the actual calendar cycle ending on expiry.
+ * Custom decimal years are valid for monthly averages, but do not define days.
+ */
+export function calculateNodeCost(info: CostInfo, now = new Date()): CalculatedNodeCost {
+  const unknown = (remainingReason: RemainingCostReason): CalculatedNodeCost => ({ monthly: null, remaining: null, remainingReason })
+  const billing = info.billing
+  if (!billing) return unknown(info.price?.trim() ? 'legacy-price' : 'missing-price')
+  if (billing.amount === '') return unknown('missing-price')
+  if (typeof billing.amount !== 'string' || !amountPattern.test(billing.amount)
+    || typeof billing.currency !== 'string' || !/^[A-Z]{3}$/.test(billing.currency)
+    || billing.currency === 'XXX' || billing.currency === 'XTS') return unknown('invalid')
+  const amount = Number(billing.amount)
+  const months = billing.cycle === 'custom'
+    ? typeof billing.years === 'string' && yearsPattern.test(billing.years) ? Number(billing.years) * 12 : 0
+    : cycleMonths[billing.cycle] ?? 0
+  if (!Number.isFinite(months) || months <= 0) return unknown('invalid')
+  const money = (value: number): Money => ({ amount: value, currency: billing.currency })
+  const monthly = money(amount / months)
+  if (amount === 0) return { monthly, remaining: money(0), remainingReason: null }
+  if (!info.expires_at) return { monthly, remaining: null, remainingReason: 'missing-expiry' }
+  const expiry = expiryDate(info.expires_at)
+  if (!expiry || !Number.isFinite(now.getTime())) return { monthly, remaining: null, remainingReason: 'invalid' }
+  if (expiry.getTime() <= now.getTime()) return { monthly, remaining: money(0), remainingReason: null }
+  if (billing.cycle === 'custom') return { monthly, remaining: null, remainingReason: 'unsupported-cycle' }
+  const duration = expiry.getTime() - previousCycle(expiry, months).getTime()
+  const remaining = amount * ((expiry.getTime() - now.getTime()) / duration)
+  return { monthly, remaining: money(remaining), remainingReason: null }
+}
+
+export function formatCostAmount(money: Money, locale = 'en'): string {
+  if (!Number.isFinite(money.amount) || money.amount < 0) return '—'
+  const formatter = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 })
+  // A small positive estimate must not be presented as a free server.
+  return money.amount > 0 && money.amount < 0.01 ? `<${formatter.format(0.01)}` : formatter.format(money.amount)
+}
+
+export function summarizeNodeCosts(infos: CostInfo[], kind: 'monthly' | 'yearly' | 'remaining', now = new Date()): { amounts: Money[]; included: number; total: number } {
+  const totals = new Map<string, number>()
+  let included = 0
+  for (const info of infos) {
+    const cost = calculateNodeCost(info, now)
+    const value = kind === 'remaining' ? cost.remaining : cost.monthly
+    if (!value) continue
+    included++
+    totals.set(value.currency, (totals.get(value.currency) ?? 0) + value.amount * (kind === 'yearly' ? 12 : 1))
+  }
+  return {
+    amounts: [...totals].sort(([a], [b]) => a.localeCompare(b)).map(([currency, amount]) => ({ amount, currency })),
+    included,
+    total: infos.length,
+  }
+}

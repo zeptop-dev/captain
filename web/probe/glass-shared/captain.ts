@@ -47,7 +47,8 @@ export function clientFor(n: Node, weight: number): Client {
     ...(n.addr ? { [n.addr.includes(':') ? 'ipv6' : 'ipv4']: n.addr } : {}),
     mem_total: metric(h, 'memory', 'memory', 'mem_total'), swap_total: metric(h, 'memory', 'swap', 'swap_total'),
     disk_total: metric(h, 'disk', 'disk', 'disk_total'), version: n.version, weight,
-    // Captain's price is free-form text, not a bill amount/currency. Never infer a bill.
+    // Keep the legacy day-based finance model disabled. Cost cards read Captain's
+    // structured calendar billing from the public snapshot; never infer days or FX.
     price: Number.NaN, billing_cycle: 0, auto_renewal: false, currency: '', expired_at: n.info.expires_at ?? '',
     group: n.group ?? '', tags: '', hidden: false, traffic_limit: shows('traffic') ? n.traffic.limit : Number.NaN,
     traffic_limit_type: n.traffic.mode || 'sum', created_at: '', updated_at: n.last_seen ?? '',
