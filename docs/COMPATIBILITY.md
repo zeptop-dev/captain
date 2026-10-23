@@ -37,6 +37,9 @@ existing filesystem report or root-only summary. The additive filesystem fields
 and mergerfs collection are available with bosun v0.76.0 or newer. Mount paths,
 devices and pool membership stay private. Public root summaries and capacity
 history follow the storage selection, including when root is hidden.
+The built-in update/rollback floor is v1.32.0: older panels ignore this selection
+and can expose the root filesystem again. Manual downgrade requires restoring
+the matching pre-upgrade database backup.
 
 ## Versioning
 
@@ -474,6 +477,7 @@ chosen backend's existing requirements. Internal address selection does not
 create a private network or grant proxy access to it. The optional TCP check
 uses existing administrator-only diagnostics (bosun ≥ 0.56).
 
-The built-in Captain update/rollback floor is now v1.31.0: older panels can
+Internal address selection introduced a v1.31.0 update/rollback floor: older panels can
 ignore the saved mode and regenerate a public target on an unrelated edit.
+The current floor is v1.32.0 to also preserve storage visibility choices.
 Manual downgrade requires restoring the matching pre-upgrade database backup.
