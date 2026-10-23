@@ -14,8 +14,18 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
 export const api = {
   get: <T>(url: string) => request<T>('GET', url),
   post: <T>(url: string, body?: unknown) => request<T>('POST', url, body ?? {}),
+  patch: <T>(url: string, body: unknown) => request<T>('PATCH', url, body),
   put: <T>(url: string, body?: unknown) => request<T>('PUT', url, body ?? {}),
   del: <T>(url: string) => request<T>('DELETE', url),
+}
+
+export interface WireGuardDevice {
+  id: number; name: string; created_at: string; last_used_at: string | null; subscription_url?: string
+}
+export interface WireGuardDevicesResponse {
+  available: boolean; reason: '' | 'no_wireguard' | 'upgrade_required' | 'unavailable'
+  limit: number; devices: WireGuardDevice[]; legacy_enabled: boolean
+  entries: { id: number; name: string }[]
 }
 
 export interface Sub { id: number; plan_id: number; plan_name: string; status: 'active' | 'queued'; starts_at: string; expires_at: string | null; reset_at: string | null; quota_bytes: number; used_bytes: number; usable: boolean; period_days: number }

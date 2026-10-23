@@ -1,10 +1,11 @@
-import { ActionIcon, Badge, Card, Group, Stack, Text, Title, Tooltip } from '@mantine/core'
+import { ActionIcon, Anchor, Badge, Card, Group, Stack, Text, Title, Tooltip } from '@mantine/core'
 import { IconCheck, IconCopy } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
 import { copyText } from '../lib/clipboard'
 import { api, type Server } from '../lib/api'
+import { Link } from 'react-router-dom'
 
 export default function ServersPage() {
   const { t } = useTranslation()
@@ -23,6 +24,7 @@ export default function ServersPage() {
             </Group>
           </Group>
           {s.client_chain && <Text size="xs" c="dimmed" mt="xs">{t('servers.clientChain')}</Text>}
+          {s.protocol === 'wireguard' && <Text size="xs" c="dimmed" mt="xs">{t('wgDevices.serverHint')} <Anchor component={Link} to="/" size="xs">{t('wgDevices.manageAtHome')}</Anchor></Text>}
         </Card>
       ))}
     </Stack>

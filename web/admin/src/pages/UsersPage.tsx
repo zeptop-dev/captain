@@ -17,6 +17,7 @@ import { UserSubs, type UserSub } from '../components/UserSubs'
 import { TempLinks } from '../components/TempLinks'
 import { UserEntries } from '../components/UserEntries'
 import { HwidDevices } from '../components/HwidDevices'
+import { WireGuardDevices } from '../components/WireGuardDevices'
 import { UserConnections } from '../components/UserConnections'
 import { UserAudit } from '../components/UserAudit'
 import { UserGroupsPanel } from '../components/UserGroupsPanel'
@@ -35,6 +36,7 @@ export default function UsersPage() {
   const groups = useQuery({ queryKey: ['groups'], queryFn: () => api.get<UGroup[]>('/api/admin/groups'), enabled: canManageGroups })
   const [sel, setSel] = useState<UserRow | null>(null)
   const [creating, setCreating] = useState(false)
+  const [wireGuardModalOpen, setWireGuardModalOpen] = useState(false)
   const [view, setView] = useURLChoice('tab', canManageGroups ? ['list', 'groups', 'renewals'] : ['list'], 'list')
   const invalidate = () => qc.invalidateQueries({ queryKey: ['users'] })
 
@@ -82,7 +84,7 @@ export default function UsersPage() {
         </Stack></form>
       </Modal>
 
-      <Drawer opened={sel !== null} onClose={() => setSel(null)} position="right" size="lg" title={sel?.email}>
+      <Drawer opened={sel !== null} onClose={() => setSel(null)} closeOnEscape={!wireGuardModalOpen} closeOnClickOutside={!wireGuardModalOpen} trapFocus={!wireGuardModalOpen} position="right" size="lg" title={sel?.email}>
         {sel && (
           <Stack gap="lg">
             {me?.role === 'admin' && <AccountIDEditor key={`account-id-${sel.id}`} id={sel.id} endpoint={`/api/admin/users/${sel.id}/id`} onChanged={() => setSel(null)} />}
@@ -131,6 +133,7 @@ export default function UsersPage() {
             </Stack>
             <UserSubs userID={sel.id} subs={detail.data?.subscriptions ?? []} onDone={() => setSel(null)} />
             <UserSubscriptionProfile userID={sel.id} subURL={subURL} />
+            <WireGuardDevices key={`wireguard-${sel.id}`} endpoint={`/api/admin/users/${sel.id}/wireguard-devices`} canWrite={canManageGroups} titleOrder={6} onModalChange={setWireGuardModalOpen} />
             <MetadataEditor endpoint={`/api/admin/users/${sel.id}/metadata`} />
             <UserEntries userID={sel.id} />
             <TempLinks userID={sel.id} />

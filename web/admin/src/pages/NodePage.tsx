@@ -25,6 +25,7 @@ import { dnsToast, toast, type DNSResult } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
 import { InfoGrid, InfoTile, SectionTitle } from '../components/InfoTile'
 import { HostTrafficSummary } from '../components/HostTrafficSummary'
+import { ProxyTrafficSummary } from '../components/ProxyTrafficSummary'
 import { NodeStatus, PairCodeBox } from './NodesPage'
 import { NodeProbeCard } from '../components/NodeProbeCard'
 import { NodeWorkflow } from '../components/NodeWorkflow'
@@ -122,7 +123,7 @@ export default function NodePage() {
           <InfoTile label={t('nodes.nodeDomain')} value={n.domain} mono />
           <InfoTile label={t('nodes.lastSeen')} value={n.last_seen_at ? ago(n.last_seen_at) : undefined} />
           <InfoTile label={t('nodes.hostTraffic')} value={<HostTrafficSummary traffic={n.host_traffic} />} hint={t('nodes.hostTrafficHint')} />
-          <InfoTile label={t('nodes.trafficToday')} value={bytes(n.traffic_today_bytes)} hint={t('nodes.proxyTrafficHint')} />
+          <InfoTile label={t('nodes.trafficToday')} value={<ProxyTrafficSummary traffic={n.proxy_traffic} collectedBytes={n.traffic_today_bytes} />} hint={t('nodes.proxyTrafficHint')} />
           <InfoTile label={t('nodes.cores')} value={Object.keys(d.status?.cores ?? {}).length ? <Group gap={4}>{Object.entries(d.status?.cores ?? {}).map(([name, c]) => <Badge key={name} color={c.running ? 'teal' : 'gray'}>{name}</Badge>)}</Group> : undefined} />
           {n.monitor_url && <InfoTile label={t('nodes.monitor')} value={<a href={n.monitor_url} target="_blank" rel="noreferrer">{t('nodes.open')}</a>} />}
         </InfoGrid>
