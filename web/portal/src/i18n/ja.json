@@ -272,14 +272,13 @@
     "cancel": "キャンセル",
     "save": "保存",
     "revokeHint": "「{{name}}」の WireGuard アクセスとサブスクリプションを無効にしますか？ サーバーの同期後、このデバイスの既存の WireGuard 設定も使えなくなります。他のデバイスには影響しません。",
-    "linkHint": "このデバイス専用リンクには、mihomo/Clash、Stash、sing-box、Egern 用の WireGuard ノードのみが含まれます。他のプロトコルには通常のサブスクリプションを使用してください。WireGuard 公式アプリ用の設定は、下でノードを選んでダウンロードできます。",
+    "linkHint": "このデバイス専用リンクには、mihomo/Clash、Stash、sing-box、Egern 用の WireGuard ノードのみが含まれます。他のプロトコルには通常のサブスクリプションを使用してください。WireGuard 公式アプリ用の設定は、ノードを1つ選んでからダウンロードしてください。",
     "copied": "デバイス用サブスクリプションをコピーしました",
     "copy": "専用サブスクリプションをコピー",
     "import": "クライアントに取り込む",
     "nativeTitle": "WireGuard アプリ用の設定",
     "nativeHint": "ノードを 1 つ選択し、ファイルをダウンロードして WireGuard アプリに取り込んでください。各ファイルは、このデバイスと選択したノードの接続専用です。",
     "node": "ノード",
-    "chooseNode": "ノードを選択",
     "download": ".conf をダウンロード",
     "serverHint": "この WireGuard ノードを複数のデバイスで同時に使う場合は、各デバイスに専用サブスクリプションを作成してください。",
     "manageAtHome": "ホームで管理",
@@ -294,6 +293,9 @@
     "sharedHint": "デバイス枠は他の登録済みクライアントと共有します。",
     "sharedUsage": "共有枠：{{used}} / {{limit}}",
     "unlimited": "無制限",
-    "clientFormat": "サブスクリプション形式"
+    "clientFormat": "サブスクリプション形式",
+    "allNodes": "すべての WireGuard ノード",
+    "selectionHint": "すべてを選ぶには、許可された全 WireGuard ノードの準備が必要です。準備済みのノードを1つだけ選ぶこともできます。公式アプリ用の設定には単一ノードの選択が必要です。",
+    "selectedNodeUnavailable": "選択したノードは利用できません。選び直してください"
   }
 }

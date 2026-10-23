@@ -2907,14 +2907,13 @@
     "cancel": "取消",
     "save": "儲存",
     "revokeHint": "撤銷「{{name}}」的 WireGuard 存取和裝置訂閱？伺服器同步後，該裝置現有的 WireGuard 設定也將失效，其他裝置不受影響。",
-    "linkHint": "此連結僅包含 WireGuard 節點，專供這台裝置使用，支援 mihomo/Clash、Stash、sing-box 和 Egern。其他協定繼續使用一般訂閱；原生 WireGuard 請在下方選擇節點下載設定。",
+    "linkHint": "此連結僅包含 WireGuard 節點，專供這台裝置使用，支援 mihomo/Clash、Stash、sing-box 和 Egern。其他協定繼續使用一般訂閱；原生 WireGuard 請先選擇單一節點，再下載設定。",
     "copied": "已複製裝置訂閱",
     "copy": "複製裝置訂閱",
     "import": "匯入用戶端",
     "nativeTitle": "原生 WireGuard 設定",
     "nativeHint": "選擇一個節點，下載後匯入 WireGuard 應用程式。每份設定僅包含這台裝置在該節點上的連線。",
     "node": "節點",
-    "chooseNode": "請選擇節點",
     "download": "下載 .conf 設定",
     "serverHint": "多台裝置同時使用此 WireGuard 節點時，請為每台裝置建立專屬訂閱。",
     "manageAtHome": "前往首頁管理",
@@ -2929,6 +2928,9 @@
     "sharedHint": "與其他已登記客戶端共用裝置名額。",
     "sharedUsage": "共用名額：{{used}} / {{limit}}",
     "unlimited": "不限",
-    "clientFormat": "訂閱格式"
+    "clientFormat": "訂閱格式",
+    "allNodes": "全部 WireGuard 節點",
+    "selectionHint": "選擇全部需要所有已授權 WireGuard 節點就緒，也可只選擇一個已就緒節點。下載原生設定必須選擇單一節點。",
+    "selectedNodeUnavailable": "所選節點已無法使用，請重新選擇"
   }
 }
