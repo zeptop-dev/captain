@@ -542,9 +542,8 @@ func limitBodies(next http.Handler) http.Handler {
 
 func (s *Server) DNSHealth() *service.DNSHealth { return s.dnsHealth }
 
-// Older panels can expose a root filesystem excluded by the storage settings.
-// Keep rollback above that privacy boundary, and the earlier releases protecting
-// explicit internal forwarding addresses, managed dialers and ownership.
+// Older panels ignore WG devices/revocations and stop maintaining accepted
+// reverse-traffic attribution. Preserve those and earlier privacy/ownership floors.
 func captainUpdateFloor(configured string) string {
 	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.35.0", configured) {
 		return "v1.35.0"
