@@ -37,7 +37,8 @@ of the two period totals. This includes all traffic on those interfaces and is
 independent of proxy-user billing. Existing API mode values `up` and `down`
 continue to mean outbound and inbound respectively.
 
-The monthly traffic limit accepts decimals with an MB, GB or TB selector.
+Since Captain v1.32.0, the monthly traffic limit accepts decimals with an MB,
+GB or TB selector.
 These use the status page's existing 1024-based units: 1 TB = 1024 GB and
 1 GB = 1024 MB. For example, select TB and enter `1.1` for a 1.10 TB
 allowance. Zero remains unlimited. Changing units preserves the allowance;
@@ -270,12 +271,12 @@ filesystem space and inode usage, per-device disk throughput and IOPS,
 logical CPU usage, and RSS/CPU for bosun and its supervised core/realm
 processes. Process CPU uses 100% per logical CPU and can exceed 100%; RSS
 is resident memory, not a sum of private allocations. Network filesystems
-(NFS, CIFS, SMB, other FUSE mounts and automounts) are excluded. The new
-filesystem collector also supports mergerfs, with bounded asynchronous reads
-so an unavailable mount cannot block a heartbeat. Disk devices/partitions can overlap;
-the UI deliberately does not sum disk I/O or filesystem capacity.
+(NFS, CIFS, SMB, other FUSE mounts and automounts) are excluded. The bosun
+v0.76.0+ filesystem collector also supports mergerfs, with bounded asynchronous
+reads so an unavailable mount cannot block a heartbeat. Disk devices/partitions
+can overlap; the UI deliberately does not sum disk I/O or filesystem capacity.
 
-### Storage on public status pages (unreleased)
+### Storage on public status pages (Captain 1.32 / bosun 0.76)
 
 Node monitoring settings include automatic or manual storage display. Automatic
 display recommends the root filesystem and one main data filesystem, preferring
@@ -301,13 +302,13 @@ only used when positively identified; equal sizes or device names do not prove
 membership. Physical device I/O remains separate. ZFS/Btrfs pool topology, disk
 model inventory and storage health are not inferred from filesystem capacity.
 
-The new bosun sampler discovers mounts periodically, samples capacity at most
+The bosun v0.76.0+ sampler discovers mounts periodically, samples capacity at most
 once per 15 seconds per mount, and reports the successful reading's own timestamp.
 Pending, failed and expired values remain unknown. Captain uses the age relative
 to the agent's resource clock plus receipt age, so clock skew and recent nonmetric
 heartbeats cannot refresh old capacity. Repeated asynchronous readings are counted
 only once in detailed history. Existing agents retain their synchronous filesystem
-data and root summary; mergerfs discovery requires the updated collector.
+data and root summary; mergerfs discovery requires bosun v0.76.0 or newer.
 
 Node → Monitoring → Include/exclude interfaces selects exact interface
 names for host totals, rates and monthly monitoring traffic. An empty
@@ -760,9 +761,9 @@ the capacity; asymmetric links label RX and TX separately. The global public
 Information section must also be enabled. Private bandwidth is stripped from
 the public API response, rather than only hidden in the interface.
 
-Glass node cards place bandwidth below the remaining days in the lower-right
-information box. Both rows keep their height when a value is absent, so cards
-stay aligned. Asymmetric card values use compact receive/send arrows; hover
+Since Captain v1.32.0, Glass node cards place bandwidth below the remaining days
+in the lower-right information box. Both rows keep their height when a value is
+absent, so cards stay aligned. Asymmetric card values use compact receive/send arrows; hover
 for the full RX/TX capacities. The repeated load-average fallback is removed;
 load remains in node details.
 
@@ -771,7 +772,7 @@ The optional `info.bandwidth` object stores `inbound_mbps`, `outbound_mbps`, and
 an explicit empty object or two zero rates clears it. It uses the existing node
 metadata storage and requires neither a migration nor a bosun upgrade.
 
-### CPU specifications on status cards
+### CPU specifications on status cards (Captain 1.32 / bosun 0.76)
 
 Home cards show CPU usage above the progress bar and CPU specifications below:
 `8C / 16T` for a single-package physical machine, `2S · 32C / 64T` for two
@@ -779,7 +780,7 @@ populated packages (whole-machine core/thread totals), and `4 vCPU` for a
 detected virtual machine or container. The compact Glass mini cards retain
 their existing usage-only layout. Detail-page load values and charts are unchanged.
 
-Physical topology requires a new bosun report with complete, consistent Linux
+Physical topology requires bosun v0.76.0 or newer, complete, consistent Linux
 CPU topology and a known non-guest virtualization role. No physical core count
 is inferred from a CPU model or assumed SMT ratio. Older agents, unknown
 virtualization roles and incomplete topology show the known logical CPU count;
