@@ -1419,7 +1419,14 @@
     "inlineRule": "Inline match",
     "ruleURL": "Rule source URL",
     "loading": "Loading designer…",
-    "retry": "Retry"
+    "retry": "Retry",
+    "directPolicy": "contains a direct route",
+    "supportImported": "Imported rule sets and inline rules currently require mihomo.",
+    "supportDNS": "DNS protection currently requires mihomo.",
+    "supportClaude": "Claude rule priority currently requires mihomo.",
+    "supportWebRTC": "WebRTC mitigation currently requires mihomo.",
+    "supportQUIC": "UDP 443 restriction currently requires mihomo.",
+    "supportTimeout": "Imported health-check timeouts currently require mihomo."
   },
   "hwid": {
     "title": "Devices (HWID)",

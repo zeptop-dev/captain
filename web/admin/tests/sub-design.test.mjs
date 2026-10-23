@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { designCatalogue, renameDesignGroup, selectedDesignFormats } from '../src/lib/sub-design.ts'
+import { designCatalogue, designPolicyCanDirect, designSupportReasons, renameDesignGroup, selectedDesignFormats } from '../src/lib/sub-design.ts'
 
 test('renaming a policy retains imported semantics and updates enhancement references', () => {
   const design = {
@@ -54,4 +54,27 @@ test('imported and unknown rule keys remain visible without duplicate select opt
   assert.equal(result.find(item => item.key === 'custom-inline').inline, 'GEOIP,CN')
   assert.deepEqual(result.find(item => item.key === 'missing'), { key: 'missing', name: 'missing' })
   assert.equal(catalogue[0].name, 'Ads')
+})
+
+test('DNS and Claude policy choices reject direct routes through nested groups', () => {
+  const design = { groups: [
+    { name: 'direct', type: 'select', members: ['DIRECT'] },
+    { name: 'mixed', type: 'select', members: ['safe', 'direct'] },
+    { name: 'nested', type: 'select', members: ['mixed'] },
+    { name: 'safe', type: 'select', members: ['@all', 'REJECT'] },
+    { name: 'cycle1', type: 'select', members: ['cycle2'] },
+    { name: 'cycle2', type: 'select', members: ['cycle1', 'DIRECT'] },
+  ], rules: [], final: 'safe' }
+  for (const policy of ['DIRECT', 'direct', 'mixed', 'nested', 'cycle1', 'cycle2']) assert.equal(designPolicyCanDirect(design, policy), true)
+  assert.equal(designPolicyCanDirect(design, 'safe'), false)
+})
+
+test('format restrictions are translated and deduplicated without hiding unknown reasons', () => {
+  const support = [
+    { format: 'clash', supported: true, reasons: [] },
+    { format: 'stash', supported: false, reasons: ['DNS requires mihomo', 'New feature requires mihomo'], reason_codes: ['dns_mihomo', 'new_feature'] },
+    { format: 'surge', supported: false, reasons: ['DNS requires mihomo'], reason_codes: ['dns_mihomo'] },
+    { format: 'egern', supported: false, reasons: ['Older API reason'] },
+  ]
+  assert.deepEqual(designSupportReasons(support, { dns_mihomo: 'DNS 保护目前仅支持 mihomo' }), ['DNS 保护目前仅支持 mihomo', 'New feature requires mihomo', 'Older API reason'])
 })

@@ -41,7 +41,7 @@ export interface DesignPreset {
   supported: boolean
   reason?: string
 }
-export interface DesignFormatSupport { format: string; supported: boolean; reasons: string[] }
+export interface DesignFormatSupport { format: string; supported: boolean; reasons: string[]; reason_codes?: string[] }
 export interface DesignInspection { effective_design: SubDesign; formats: DesignFormatSupport[] }
 export interface DesignLibrary { revision: string; synced_at: string | number; count: number }
 export interface SubDesignData {
@@ -76,6 +76,22 @@ export function renameDesignGroup(design: SubDesign, index: number, name: string
 
 export function selectedDesignFormats(support: DesignFormatSupport[], selected: string[] | null): string[] {
   return support.filter(item => item.supported && (selected === null || selected.includes(item.format))).map(item => item.format)
+}
+
+export function designSupportReasons(support: DesignFormatSupport[], labels: Record<string, string>): string[] {
+  return [...new Set(support.filter(item => !item.supported).flatMap(item => {
+    if (!item.reason_codes?.length) return item.reasons
+    return [...item.reason_codes.map((code, index) => labels[code] ?? item.reasons[index] ?? code), ...item.reasons.slice(item.reason_codes.length)]
+  }))]
+}
+
+// Protection policies must not offer a direct route, including through nested
+// groups. A malformed cycle is left to the compiler but cannot loop the editor.
+export function designPolicyCanDirect(design: SubDesign, policy: string, seen = new Set<string>()): boolean {
+  if (policy === 'DIRECT') return true
+  if (seen.has(policy)) return false
+  seen.add(policy)
+  return design.groups.find(group => group.name === policy)?.members.some(member => designPolicyCanDirect(design, member, seen)) ?? false
 }
 
 export function designCatalogue(catalogue: DesignRuleSet[], design: SubDesign): DesignRuleSet[] {
