@@ -51,7 +51,14 @@ Captain adaptations:
   Custom non-carrier labels are not presented as Chinese operators.
 - CPU/resource validity, monthly monitoring traffic, section visibility and
   unavailable financial data follow Captain semantics. An unknown price does
-  not mean free; cost/value cards show a dash. All traffic totals and quota bars
+  not mean free; unavailable cost/value estimates show a dash with an explanation.
+  Cost cards read structured Captain billing directly from the current public
+  snapshot. They show original-currency monthly averages and calendar-based
+  remaining-value estimates; custom decimal years do not become invented days.
+  Overview totals keep currencies separate and disclose partial coverage. They
+  follow the Information publication setting, without activating the upstream
+  day-based finance adapter, static exchange rates or private finance dialog.
+  All traffic totals and quota bars
   use persisted period counters (`traffic.used_up/used_down`), independently of
   live network rates. The overview adds each selected node’s current period;
   nodes may have different reset days. Restarts preserve recorded usage. Missing

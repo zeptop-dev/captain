@@ -757,7 +757,24 @@ positive decimal years (up to four decimal places); amounts are stored as decima
 strings. Blank amounts hide the price, while zero means free. Existing free-text
 prices remain editable until explicitly converted. Both public themes display
 structured prices without interpreting custom years as a fixed number of days;
-this does not enable automatic renewal, currency conversion or remaining-value estimates.
+this does not enable automatic renewal or currency conversion.
+
+Glass details display the saved cycle price and monthly average in the original
+currency. Monthly averages divide by 1, 3, 6 or 12 months, or custom years × 12.
+Remaining value is an estimate: the cycle price is prorated by the time until
+expiry, using the actual calendar length of the payment cycle immediately before
+that expiry (clamping short-month dates). Expiry dates use midnight UTC for this
+estimate. This is not a recorded account balance or a refundable amount: the
+purchase/start date is not known, and prepaid time beyond one cycle is extrapolated
+at the same estimated daily rate. Future custom-year periods are not assigned a
+guessed number of days, so their remaining-value estimate stays unavailable.
+
+The overview groups monetary totals by original ISO currency, with no exchange
+rates or cross-currency sums. Partial summaries show how many selected nodes were
+included. Missing prices, legacy text and missing expiry are not treated as zero;
+explicitly free nodes and already expired paid nodes have zero remaining value.
+All cost cards follow the public **Information** section and current public
+snapshot, independently of hardware/system visibility.
 
 The expiry input is a calendar/date field stored as YYYY-MM-DD, without timezone
 conversion or automatic extension. Monthly NIC traffic may reset on a manually
