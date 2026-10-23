@@ -102,6 +102,7 @@ func TestPublicStorageHistoryMeasuredBytesPrivacyAndGaps(t *testing.T) {
 	}
 	delete(oldBucket.Values, "filesystem:"+url.QueryEscape(fs.Mount)+":used")
 	delete(oldBucket.Values, "filesystem:"+url.QueryEscape(fs.Mount)+":total")
+	oldBucket.Truncated = true
 	oldRaw, err = encodeResourceBucket(oldBucket)
 	if err != nil {
 		t.Fatal(err)
@@ -109,7 +110,11 @@ func TestPublicStorageHistoryMeasuredBytesPrivacyAndGaps(t *testing.T) {
 	if _, err := conn.ExecContext(ctx, `UPDATE node_resource_stats SET data=? WHERE node_id=? AND res='m' AND ts=?`, oldRaw, node.ID, base.Unix()); err != nil {
 		t.Fatal(err)
 	}
-	if p := query().Volumes[1].Points[1]; p.Used != nil || p.Total != nil {
+	oldHistory := query()
+	if !oldHistory.Truncated {
+		t.Fatal("historical truncation was hidden from the public projection")
+	}
+	if p := oldHistory.Volumes[1].Points[1]; p.Used != nil || p.Total != nil {
 		t.Fatalf("invented historical capacity: %+v", p)
 	}
 	set := func(items ...NodeStorageItem) {
@@ -136,7 +141,7 @@ func TestPublicStorageHistoryMeasuredBytesPrivacyAndGaps(t *testing.T) {
 		}
 	}
 	set()
-	if empty := query(); empty.Volumes == nil || len(empty.Volumes) != 0 {
+	if empty := query(); empty.Volumes == nil || len(empty.Volumes) != 0 || empty.Truncated {
 		t.Fatalf("manual empty fell back: %+v", empty)
 	}
 }

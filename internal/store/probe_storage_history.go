@@ -15,11 +15,12 @@ import (
 // PublicStorageHistory never contains filesystem keys, mount paths or device
 // identifiers. Every volume is selected by the current private display policy.
 type PublicStorageHistory struct {
-	Res     string                       `json:"res"`
-	From    int64                        `json:"from"`
-	To      int64                        `json:"to"`
-	Step    int64                        `json:"step"`
-	Volumes []PublicStorageHistoryVolume `json:"volumes"`
+	Res       string                       `json:"res"`
+	From      int64                        `json:"from"`
+	To        int64                        `json:"to"`
+	Step      int64                        `json:"step"`
+	Volumes   []PublicStorageHistoryVolume `json:"volumes"`
+	Truncated bool                         `json:"truncated"`
 }
 
 type PublicStorageHistoryVolume struct {
@@ -127,6 +128,7 @@ func (s *Store) StorageHistory(ctx context.Context, nodeID int64, from, to, now 
 		if bucket, err = decodeResourceBucket(raw); err != nil {
 			break
 		}
+		out.Truncated = out.Truncated || bucket.Truncated
 		index := (ts - out.From) / out.Step
 		if index < 0 || index >= int64(len(out.Volumes[0].Points)) || (ts-out.From)%out.Step != 0 {
 			continue
