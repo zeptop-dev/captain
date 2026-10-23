@@ -45,6 +45,7 @@ export function storageBytes(value: number | null, dense = false): string {
   const units = ['B', 'K', 'M', 'G', 'T', 'P', 'E']
   let unit = 0, size = value
   while (size >= 1024 && unit < units.length - 1) { size /= 1024; unit++ }
+  if (dense && size >= 999.5 && unit < units.length - 1) { size /= 1024; unit++; return `${Number(size.toFixed(2))}${units[unit]}` }
   return `${Number(size.toFixed(size < 10 ? dense ? 1 : 2 : size < 100 ? 1 : 0))}${units[unit]}`
 }
 
@@ -53,10 +54,12 @@ export function storagePercent(value: number | null): string {
 }
 
 export function storageCapacity(volume: Pick<StorageVolume, 'used' | 'total'>, dense = false): string {
-  const total = storageBytes(volume.total)
+  let total = storageBytes(volume.total)
   let used = storageBytes(volume.used, dense)
-  // The total stays consistent with the full-width summary. On narrow paired
-  // meters, round only the used value when necessary to keep the text readable.
+  // Avoid a four-digit unit on paired meters (1023G becomes 1T), preserving
+  // the usual total precision otherwise. Matching units need only one suffix.
+  if (dense && /^\d{4}/.test(total)) total = storageBytes(volume.total, true)
+  if (dense && used !== '—' && used.at(-1) === total.at(-1)) used = used.slice(0, -1)
   if (dense && `${used}/${total}`.length > 9) used = used.replace(/^[0-9]+\.[0-9]+/, value => String(Math.round(Number(value))))
   return `${used}${dense ? '/' : ' / '}${total}`
 }
