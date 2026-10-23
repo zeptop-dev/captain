@@ -122,5 +122,15 @@
   "storage.data": "Данные",
   "storage.systemDisk": "Системный диск",
   "storage.dataDisk": "Диск данных",
-  "storage.historyTruncated": "Часть истории дисков недоступна."
+  "storage.historyTruncated": "Часть истории дисков недоступна.",
+  "finance.remainingEstimate": "Остаточная стоимость (оценка)",
+  "finance.yearlyCost": "Средняя стоимость за год",
+  "finance.month": "мес.",
+  "finance.missingPrice": "Цена не указана",
+  "finance.legacyPrice": "Текстовую цену нельзя рассчитать",
+  "finance.missingExpiry": "Нужна дата окончания",
+  "finance.unsupportedCycle": "Произвольный период: оценка недоступна",
+  "finance.invalid": "Данные о стоимости недоступны",
+  "finance.included": "Учтено {included}/{total}",
+  "finance.estimateHelp": "Оценка по цене, дате окончания и календарной длительности предыдущего платёжного периода. Валюты показаны отдельно; это не сумма возврата."
 }

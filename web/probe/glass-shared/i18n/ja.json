@@ -122,5 +122,15 @@
   "storage.data": "データ",
   "storage.systemDisk": "システムディスク",
   "storage.dataDisk": "データディスク",
-  "storage.historyTruncated": "一部のディスク履歴データが欠けています。"
+  "storage.historyTruncated": "一部のディスク履歴データが欠けています。",
+  "finance.remainingEstimate": "残存価値（概算）",
+  "finance.yearlyCost": "年間平均費用",
+  "finance.month": "月",
+  "finance.missingPrice": "価格が未設定です",
+  "finance.legacyPrice": "自由記述の価格は計算できません",
+  "finance.missingExpiry": "有効期限が必要です",
+  "finance.unsupportedCycle": "カスタム支払期間は概算対象外です",
+  "finance.invalid": "費用データを利用できません",
+  "finance.included": "集計対象 {included}/{total}",
+  "finance.estimateHelp": "価格、有効期限、直前の支払期間の実際の暦日数による概算です。通貨ごとに表示し、返金可能額を示すものではありません。"
 }

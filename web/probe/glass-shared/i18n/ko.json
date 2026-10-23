@@ -122,5 +122,15 @@
   "storage.data": "데이터",
   "storage.systemDisk": "시스템 디스크",
   "storage.dataDisk": "데이터 디스크",
-  "storage.historyTruncated": "일부 디스크 기록 데이터가 누락되었습니다."
+  "storage.historyTruncated": "일부 디스크 기록 데이터가 누락되었습니다.",
+  "finance.remainingEstimate": "잔여 가치 (추정)",
+  "finance.yearlyCost": "연평균 비용",
+  "finance.month": "월",
+  "finance.missingPrice": "가격이 설정되지 않았습니다",
+  "finance.legacyPrice": "텍스트 가격은 계산할 수 없습니다",
+  "finance.missingExpiry": "만료일이 필요합니다",
+  "finance.unsupportedCycle": "사용자 지정 결제 주기는 추정하지 않습니다",
+  "finance.invalid": "비용 데이터를 사용할 수 없습니다",
+  "finance.included": "집계 {included}/{total}",
+  "finance.estimateHelp": "가격, 만료일 및 직전 결제 기간의 실제 달력 길이를 기준으로 추정합니다. 통화별로 표시하며 환불 가능한 잔액이 아닙니다."
 }

@@ -122,5 +122,15 @@
   "storage.data": "資料",
   "storage.systemDisk": "系統碟",
   "storage.dataDisk": "資料碟",
-  "storage.historyTruncated": "部分磁碟歷史資料不完整。"
+  "storage.historyTruncated": "部分磁碟歷史資料不完整。",
+  "finance.remainingEstimate": "剩餘價值（估算）",
+  "finance.yearlyCost": "年均支出",
+  "finance.month": "月",
+  "finance.missingPrice": "未填寫價格",
+  "finance.legacyPrice": "文字價格，無法計算",
+  "finance.missingExpiry": "需填寫到期日",
+  "finance.unsupportedCycle": "自訂付款週期，暫不估算",
+  "finance.invalid": "費用資料無法使用",
+  "finance.included": "已計入 {included}/{total}",
+  "finance.estimateHelp": "依價格、到期日及前一個付款週期的實際日曆長度估算。各幣別分別顯示，不代表可退款餘額。"
 }

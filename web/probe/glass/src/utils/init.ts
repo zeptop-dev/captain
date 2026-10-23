@@ -32,8 +32,8 @@ async function refresh(): Promise<boolean> {
         dataUpdateInterval: s.beat_seconds, visitorInfoEnabled: false, hideEarth: !s.show_globe || !shows('system'),
         defaultViewMode: s.layout === 'compact' ? 'list' : 'card',
         hidePriceWhenLoggedOut: !shows('info'),
-        // No billing/currency inference from Captain's free-form price strings.
-        generalCardKeys: [...(shows('memory') ? ['memory'] : []), ...(shows('disk') ? ['disk'] : []), ...(shows('system') ? ['remainingValue'] : ['onlineNodes']), ...(shows('traffic') ? ['totalTraffic'] : []), ...(shows('network') ? ['uploadSpeed', 'downloadSpeed'] : [])].join(','),
+        // Costs use public structured billing; legacy price text is display-only.
+        generalCardKeys: [...(shows('memory') ? ['memory'] : []), ...(shows('disk') ? ['disk'] : []), ...(shows('info') ? ['remainingValue'] : ['onlineNodes']), ...(shows('traffic') ? ['totalTraffic'] : []), ...(shows('network') ? ['uploadSpeed', 'downloadSpeed'] : [])].join(','),
       },
     } as PublicSettings)
     nodesStore.updateNodeClients(Object.fromEntries(s.nodes.map((n, i) => [String(n.id), clientFor(n, i)])))

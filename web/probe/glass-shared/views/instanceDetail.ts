@@ -1,17 +1,17 @@
 // Pure view logic of the glass instance detail page, shared by the Vue and
 // React views so both compute identical card values, labels and classes.
 import { t } from '@shared/i18n'
-import { captainPrice, type Snapshot } from '@shared/captain'
+import type { Snapshot } from '@shared/captain'
+import { nodePrice } from '../../src/lib/node-price'
+import { calculateNodeCost, formatCostAmount } from '../../src/lib/node-cost'
 import type { NodeProviderMetadata } from '@shared/services/provider.service'
 import type { DetailMetricCardKey, Lang } from '@shared/stores/app-settings'
 import type { NodeData } from '@shared/types/node'
 import type { ByteDecimalsConfig } from '@shared/utils/helper'
-import type { CurrencyCode, ExchangeRates } from '@shared/utils/financeHelper'
 import { formatCityNameZh } from '@shared/utils/cityNameHelper'
-import * as financeHelper from '@shared/utils/financeHelper'
 import { gpuUsageFromStatus } from '@shared/utils/gpuHelper'
 import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatNumber, formatUptimeWithFormat } from '@shared/utils/helper'
-import { formatPrice, getExpireStatus, getExpireText, isFreePrice } from '@shared/utils/tagHelper'
+import { getExpireStatus, getExpireText } from '@shared/utils/tagHelper'
 
 /** Inputs the Vue view reads from its stores and refs. */
 export interface DetailContext {
@@ -21,8 +21,6 @@ export interface DetailContext {
   byteDecimals: ByteDecimalsConfig
   privateFeaturesAllowed: boolean
   hidePriceWhenLoggedOut: boolean
-  exchangeRates: ExchangeRates
-  financeCurrency: CurrencyCode
   providerMetadata: NodeProviderMetadata | null
 }
 
@@ -40,28 +38,29 @@ export interface MetricCard {
   icon: string
   valueClass?: string
   tooltip?: string
+  note?: string
+  finance?: boolean
 }
 
-const MONTH_DAYS = 30
 const EXPIRES_IN_SUFFIX_REGEX = /^(\d+)\s*(天|days?)$/i
 const CURRENCY_SUFFIX_REGEX = /^(\S.*\S)\s+([A-Z]{3})$/
 
-function formatNodeAmount(ctx: DetailContext, amount: number, currency: string): string {
-  if (!Number.isFinite(amount) || amount <= 0)
-    return formatPrice(0, currency, ctx.lang)
-  const fractionDigits = Math.abs(amount) >= 100 ? 0 : 2
-  const normalizedAmount = Number(amount.toFixed(fractionDigits))
-  return formatPrice(normalizedAmount, currency, ctx.lang)
+function publicCostInfo(ctx: DetailContext) {
+  if (!ctx.snapshot || (ctx.snapshot.public_sections != null && !ctx.snapshot.public_sections.includes('info'))
+    || (!ctx.privateFeaturesAllowed && ctx.hidePriceWhenLoggedOut))
+    return undefined
+  return ctx.snapshot.nodes.find(node => String(node.id) === ctx.data?.uuid)?.info
 }
 
-function calculateMonthlyAverageCost(price: number, billingCycle: number): number | null {
-  const normalizedPrice = Number(price)
-  const normalizedCycle = Number(billingCycle)
-  if (!Number.isFinite(normalizedPrice) || normalizedPrice <= 0)
-    return 0
-  if (!Number.isFinite(normalizedCycle) || normalizedCycle <= 0)
-    return null
-  return normalizedPrice / normalizedCycle * MONTH_DAYS
+function costReasonText(reason: ReturnType<typeof calculateNodeCost>['remainingReason']): string {
+  const keys = {
+    'missing-price': 'finance.missingPrice',
+    'legacy-price': 'finance.legacyPrice',
+    'missing-expiry': 'finance.missingExpiry',
+    'unsupported-cycle': 'finance.unsupportedCycle',
+    invalid: 'finance.invalid',
+  }
+  return reason ? t(keys[reason]) : ''
 }
 
 function splitMetricValue(value: string): { value: string, unit?: string } {
@@ -86,43 +85,32 @@ export function detailFormatters(ctx: DetailContext) {
 }
 
 export function nodePriceText(ctx: DetailContext): string {
-  if (!ctx.data)
-    return '-'
-  return captainPrice(ctx.data.uuid, ctx.lang) || '-'
+  const info = publicCostInfo(ctx)
+  return info ? nodePrice(info, ctx.lang) || '—' : '—'
 }
 
 export function monthlyAverageCostText(ctx: DetailContext): string {
-  if (!ctx.data)
-    return '-'
-  if (isFreePrice(ctx.data.price))
-    return formatPrice(ctx.data.price, ctx.data.currency, ctx.lang)
-  const monthlyAverageCost = calculateMonthlyAverageCost(ctx.data.price, ctx.data.billing_cycle)
-  if (monthlyAverageCost === null)
-    return ctx.lang === 'zh-CN' ? '不适用' : 'N/A'
-  return `${formatNodeAmount(ctx, monthlyAverageCost, ctx.data.currency)} / 月`
+  const info = publicCostInfo(ctx)
+  const money = info ? calculateNodeCost(info).monthly : null
+  return money ? `${formatCostAmount(money, ctx.lang)} ${money.currency} / ${t('finance.month')}` : '—'
 }
 
 export function remainingTimeText(ctx: DetailContext): string {
-  if (!ctx.data?.expired_at)
-    return '-'
-  return getExpireText(ctx.data.expired_at, ctx.lang)
+  const expires = publicCostInfo(ctx)?.expires_at
+  return expires ? getExpireText(expires, ctx.lang) : '—'
 }
 
 export function remainingValueText(ctx: DetailContext): string {
-  if (!ctx.data)
-    return '-'
-  if (isFreePrice(ctx.data.price))
-    return ctx.lang === 'zh-CN' ? t('无') : 'N/A'
-  const remainingValueCNY = financeHelper.calculateRemainingValueCNY(ctx.data, ctx.exchangeRates)
-  const targetRate = ctx.exchangeRates[ctx.financeCurrency] || 1
-  const formattedValue = financeHelper.formatFinanceAmount(remainingValueCNY * targetRate, ctx.financeCurrency)
-  return `${formattedValue.symbol}${formattedValue.value}`
+  const info = publicCostInfo(ctx)
+  const money = info ? calculateNodeCost(info).remaining : null
+  return money ? `${formatCostAmount(money, ctx.lang)} ${money.currency}` : '—'
 }
 
 export function remainingTimeValueClass(ctx: DetailContext): string {
-  if (!ctx.data?.expired_at)
+  const expires = publicCostInfo(ctx)?.expires_at
+  if (!expires)
     return ''
-  const status = getExpireStatus(ctx.data.expired_at)
+  const status = getExpireStatus(expires)
   if (status === 'expired' || status === 'critical')
     return 'text-destructive'
   if (status === 'warning')
@@ -164,13 +152,22 @@ export function getDetailMetricCard(ctx: DetailContext, key: DetailMetricCardKey
 
   switch (key) {
     case 'nodePrice':
-      return { key, label: t('节点价格'), value: '—', icon: 'tabler:cash' }
-    case 'monthlyCost':
-      return { key, label: t('月均支出'), value: '—', icon: 'tabler:receipt-2' }
+      return { key, label: t('节点价格'), ...splitMetricValue(nodePriceText(ctx)), icon: 'tabler:cash', finance: true }
+    case 'monthlyCost': {
+      const info = publicCostInfo(ctx)
+      const cost = info ? calculateNodeCost(info) : null
+      return { key, label: t('月均支出'), ...splitMetricValue(monthlyAverageCostText(ctx)), icon: 'tabler:receipt-2', finance: true,
+        note: info && !cost?.monthly ? costReasonText(cost?.remainingReason ?? 'missing-price') : undefined }
+    }
     case 'remainingTime':
       return { key, label: t('剩余时间'), value: remainingTime.value, unit: remainingTime.unit, icon: 'tabler:calendar-dollar', valueClass: remainingTimeValueClass(ctx) }
-    case 'remainingValue':
-      return { key, label: t('剩余价值'), value: '—', icon: 'tabler:coins' }
+    case 'remainingValue': {
+      const info = publicCostInfo(ctx)
+      const cost = info ? calculateNodeCost(info) : null
+      return { key, label: t('finance.remainingEstimate'), ...splitMetricValue(remainingValueText(ctx)), icon: 'tabler:coins', finance: true,
+        tooltip: cost?.remaining ? t('finance.estimateHelp') : undefined,
+        note: info && !cost?.remaining ? costReasonText(cost?.remainingReason ?? 'missing-price') : undefined }
+    }
     case 'cpuUsage':
       return { key, label: 'CPU 使用率', value: formatNumber(node?.cpu ?? Number.NaN, 1), unit: '%', icon: 'tabler:cpu' }
     case 'gpuUsage': {
@@ -278,5 +275,5 @@ export function storageInfo(ctx: DetailContext): InfoItem[] {
 }
 
 export function metricCards(ctx: DetailContext, order: DetailMetricCardKey[], shows: (section: string) => boolean): MetricCard[] {
-  return order.filter(key => shows(({cpuUsage:'cpu',memoryUsage:'memory',swapUsage:'memory',diskUsage:'disk',uploadSpeed:'network',downloadSpeed:'network',totalTraffic:'traffic',trafficQuota:'traffic',connections:'system',processes:'system',uptime:'system',load:'system',remainingTime:'system',nodePrice:'system',monthlyCost:'system',remainingValue:'system'} as Record<string,string>)[key] ?? 'system')).map(key => getDetailMetricCard(ctx, key))
+  return order.filter(key => shows(({cpuUsage:'cpu',memoryUsage:'memory',swapUsage:'memory',diskUsage:'disk',uploadSpeed:'network',downloadSpeed:'network',totalTraffic:'traffic',trafficQuota:'traffic',connections:'system',processes:'system',uptime:'system',load:'system',remainingTime:'info',nodePrice:'info',monthlyCost:'info',remainingValue:'info'} as Record<string,string>)[key] ?? 'system')).map(key => getDetailMetricCard(ctx, key))
 }
