@@ -102,12 +102,14 @@
   },
   "storage": {
     "title": "存储空间",
-    "system": "系统盘",
-    "volume": "数据盘",
-    "pool": "数据池",
+    "system": "系统",
     "more": "另 {count} 个",
     "viewAll": "查看全部存储空间",
     "empty": "没有公开的存储空间",
-    "hint": "各存储空间分别显示，共享容量不重复相加。"
+    "hint": "各存储空间分别显示，共享容量不重复相加。",
+    "disk": "磁盘",
+    "data": "数据",
+    "systemDisk": "系统盘",
+    "dataDisk": "数据盘"
   }
 }

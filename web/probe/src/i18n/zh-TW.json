@@ -102,12 +102,14 @@
   },
   "storage": {
     "title": "儲存空間",
-    "system": "系統碟",
-    "volume": "資料碟",
-    "pool": "資料池",
+    "system": "系統",
     "more": "另 {count} 個",
     "viewAll": "查看全部儲存空間",
     "empty": "沒有公開的儲存空間",
-    "hint": "各儲存空間分別顯示，共享容量不重複相加。"
+    "hint": "各儲存空間分別顯示，共享容量不重複相加。",
+    "disk": "磁碟",
+    "data": "資料",
+    "systemDisk": "系統碟",
+    "dataDisk": "資料碟"
   }
 }

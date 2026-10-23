@@ -114,10 +114,12 @@
   "标称带宽": "公称帯域幅",
   "storage.title": "ストレージ",
   "storage.system": "システム",
-  "storage.volume": "ボリューム",
-  "storage.pool": "プール",
   "storage.more": "ほか {count} 件",
   "storage.viewAll": "すべてのストレージを表示",
   "storage.empty": "公開ストレージはありません",
-  "storage.hint": "各ボリュームを個別に表示します。共有容量は合算しません。"
+  "storage.hint": "各ボリュームを個別に表示します。共有容量は合算しません。",
+  "storage.disk": "ディスク",
+  "storage.data": "データ",
+  "storage.systemDisk": "システムディスク",
+  "storage.dataDisk": "データディスク"
 }

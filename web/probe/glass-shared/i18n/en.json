@@ -114,10 +114,12 @@
   "标称带宽": "Advertised bandwidth",
   "storage.title": "Storage",
   "storage.system": "System",
-  "storage.volume": "Volume",
-  "storage.pool": "Pool",
   "storage.more": "{count} more",
   "storage.viewAll": "View all storage",
   "storage.empty": "No public storage volumes",
-  "storage.hint": "Each volume is shown separately. Shared storage is not added together."
+  "storage.hint": "Each volume is shown separately. Shared storage is not added together.",
+  "storage.disk": "Disk",
+  "storage.data": "Data",
+  "storage.systemDisk": "System disk",
+  "storage.dataDisk": "Data disk"
 }

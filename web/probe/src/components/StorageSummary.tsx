@@ -7,7 +7,7 @@ import { storageCapacity, storageFullCapacity, storageItems, storagePercent, typ
 function StorageMeter({ item, full = false }: { item: StorageItem; full?: boolean }) {
   return <Box style={{ minWidth: 0 }} data-storage-volume={item.id}>
     <Group justify="space-between" gap={4} wrap="nowrap">
-      <Text size="xs" c="dimmed" truncate={!full} style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{item.label}</Text>
+      <Text size="xs" c="dimmed" truncate={!full} style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{full ? item.detailLabel : item.label}</Text>
       <Text size="xs" fw={600} style={{ flexShrink: 0 }}>{storagePercent(item.percent)}</Text>
     </Group>
     <Progress value={item.percent ?? 0} size="xs" color={item.percent !== null && item.percent > 90 ? 'red' : item.percent !== null && item.percent > 70 ? 'orange' : undefined} />
