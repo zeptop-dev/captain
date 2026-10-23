@@ -15,12 +15,16 @@ function configURL(url: string, entry: string) {
   return result.toString()
 }
 
+function clientURL(url: string, client: string) {
+  const result = new URL(url, window.location.origin)
+  result.searchParams.set('client', client)
+  return result.toString()
+}
+
 function importLinks(url: string) {
-  const enc = encodeURIComponent(url)
   return [
-    { name: 'Clash / mihomo', href: `clash://install-config?url=${enc}` },
-    { name: 'sing-box', href: `sing-box://import-remote-profile?url=${enc}` },
-    { name: 'Surge', href: `surge:///install-config?url=${enc}` },
+    { name: 'Clash / mihomo', href: `clash://install-config?url=${encodeURIComponent(clientURL(url, 'clash'))}` },
+    { name: 'sing-box', href: `sing-box://import-remote-profile?url=${encodeURIComponent(clientURL(url, 'singbox'))}` },
   ]
 }
 
@@ -36,7 +40,9 @@ export function WireGuardDevices({ endpoint, canWrite = true, titleOrder = 4, on
   const [revoking, setRevoking] = useState<WireGuardDevice | null>(null)
   const [sharingID, setSharingID] = useState<number | null>(null)
   const [entryID, setEntryID] = useState<string | null>(null)
+  const [client, setClient] = useState('clash')
   const sharing = q.data?.devices.find(d => d.id === sharingID)
+  const sharingURL = sharing?.subscription_url ? clientURL(sharing.subscription_url, client) : ''
   const modalOpened = editor !== null || revoking !== null || (canWrite && !!sharing?.subscription_url)
   useEffect(() => {
     onModalChange?.(modalOpened)
@@ -93,7 +99,7 @@ export function WireGuardDevices({ endpoint, canWrite = true, titleOrder = 4, on
   })
 
   const devices = q.data?.devices ?? []
-  const atLimit = !!q.data && q.data.limit > 0 && devices.length >= q.data.limit
+  const atLimit = !!q.data && (q.data.remaining !== undefined ? q.data.remaining <= 0 : q.data.limit > 0 && devices.length >= q.data.limit)
   const reason = q.data?.reason || 'unavailable'
   return <Stack gap="sm">
     <Group justify="space-between" align="flex-start">
@@ -107,7 +113,8 @@ export function WireGuardDevices({ endpoint, canWrite = true, titleOrder = 4, on
     {q.isError && <Alert color="red">{t('wgDevices.loadError')} <Button size="compact-xs" variant="subtle" onClick={() => q.refetch()}>{t('wgDevices.retry')}</Button></Alert>}
     {q.data && <>
       {!q.data.available && <Alert color="gray">{t(`wgDevices.reasons.${reason}`, { defaultValue: t('wgDevices.reasons.unavailable') })}</Alert>}
-      <Text size="xs" c={atLimit ? 'orange' : 'dimmed'}>{t('wgDevices.count', { count: devices.length, limit: q.data.limit })}{atLimit ? ` · ${t('wgDevices.limitReached')}` : ''}</Text>
+      <Text size="xs" c={atLimit ? 'orange' : 'dimmed'}>{t('wgDevices.count', { count: devices.length, limit: q.data.limit })}{q.data.remaining !== undefined ? ` · ${t('wgDevices.remaining', { count: q.data.remaining })}` : ''}{atLimit ? ` · ${t('wgDevices.limitReached')}` : ''}</Text>
+      {q.data.shared_limit !== undefined && <Text size="xs" c="dimmed">{t('wgDevices.sharedHint')} {t('wgDevices.sharedUsage', { used: q.data.shared_used ?? 0, limit: q.data.shared_limit > 0 ? q.data.shared_limit : t('wgDevices.unlimited') })}</Text>}
       {q.data.legacy_enabled && <Text size="xs" c="dimmed">{t('wgDevices.legacyHint')}</Text>}
       {devices.length === 0 && <Text size="sm" c="dimmed">{t('wgDevices.empty')}</Text>}
       {devices.map(device => <Stack key={device.id} gap={5} p="sm" style={{ border: '1px solid var(--mantine-color-default-border)', borderRadius: 'var(--mantine-radius-md)' }}>
@@ -139,9 +146,10 @@ export function WireGuardDevices({ endpoint, canWrite = true, titleOrder = 4, on
     <Modal opened={canWrite && !!sharing?.subscription_url} onClose={() => setSharingID(null)} title={sharing?.name} size="lg">
       {sharing?.subscription_url && <Stack>
         <Text size="sm">{t('wgDevices.linkHint')}</Text>
-        <Code block style={{ overflowWrap: 'anywhere', whiteSpace: 'pre-wrap' }}>{sharing.subscription_url}</Code>
+        <Select label={t('wgDevices.clientFormat')} data={[{ value: 'clash', label: 'Clash / mihomo' }, { value: 'stash', label: 'Stash' }, { value: 'singbox', label: 'sing-box' }, { value: 'egern', label: 'Egern' }]} value={client} onChange={value => value && setClient(value)} allowDeselect={false} />
+        <Code block style={{ overflowWrap: 'anywhere', whiteSpace: 'pre-wrap' }}>{sharingURL}</Code>
         <Group>
-          <Button onClick={async () => { if (await copyText(sharing.subscription_url!)) toast.ok(t('wgDevices.copied')) }}>{t('wgDevices.copy')}</Button>
+          <Button onClick={async () => { if (await copyText(sharingURL)) toast.ok(t('wgDevices.copied')) }}>{t('wgDevices.copy')}</Button>
           <Menu shadow="md"><Menu.Target><Button variant="light" leftSection={<IconDownload size={16} />}>{t('wgDevices.import')}</Button></Menu.Target><Menu.Dropdown>{importLinks(sharing.subscription_url).map(link => <Menu.Item key={link.name} component="a" href={link.href}>{link.name}</Menu.Item>)}</Menu.Dropdown></Menu>
         </Group>
         <Divider />

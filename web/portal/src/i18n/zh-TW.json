@@ -272,7 +272,7 @@
     "cancel": "取消",
     "save": "儲存",
     "revokeHint": "撤銷「{{name}}」的 WireGuard 存取和裝置訂閱？伺服器同步後，該裝置現有的 WireGuard 設定也將失效，其他裝置不受影響。",
-    "linkHint": "此連結僅包含 WireGuard 節點，專供這台裝置使用。其他協定繼續使用一般訂閱。",
+    "linkHint": "此連結僅包含 WireGuard 節點，專供這台裝置使用，支援 mihomo/Clash、Stash、sing-box 和 Egern。其他協定繼續使用一般訂閱；原生 WireGuard 請在下方選擇節點下載設定。",
     "copied": "已複製裝置訂閱",
     "copy": "複製裝置訂閱",
     "import": "匯入用戶端",
@@ -286,8 +286,14 @@
     "configUnavailable": "暫時無法取得有效的 WireGuard 設定，請重新整理後重試。",
     "reasons": {
       "no_wireguard": "目前帳號沒有可用的 WireGuard 節點。",
-      "upgrade_required": "伺服器需要升級後才能提供 WireGuard 裝置訂閱，請聯絡管理員。",
-      "unavailable": "WireGuard 裝置訂閱暫時無法使用，請稍後重試。"
-    }
+      "upgrade_required": "伺服器和代理核心需要升級後才能提供 WireGuard 裝置訂閱，請聯絡管理員。既有裝置記錄會保留。",
+      "unavailable": "目前無法確認 WireGuard 服務是否就緒，請稍後重試。既有裝置記錄會保留。",
+      "client_chain_unsupported": "含有客戶端前置鏈的 WireGuard 節點暫不支援裝置訂閱。"
+    },
+    "remaining": "可新增 {{count}} 台",
+    "sharedHint": "與其他已登記客戶端共用裝置名額。",
+    "sharedUsage": "共用名額：{{used}} / {{limit}}",
+    "unlimited": "不限",
+    "clientFormat": "訂閱格式"
   }
 }

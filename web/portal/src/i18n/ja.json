@@ -272,7 +272,7 @@
     "cancel": "キャンセル",
     "save": "保存",
     "revokeHint": "「{{name}}」の WireGuard アクセスとサブスクリプションを無効にしますか？ サーバーの同期後、このデバイスの既存の WireGuard 設定も使えなくなります。他のデバイスには影響しません。",
-    "linkHint": "このリンクには WireGuard ノードのみが含まれ、このデバイス専用です。他のプロトコルは通常のサブスクリプションを使用してください。",
+    "linkHint": "このデバイス専用リンクには、mihomo/Clash、Stash、sing-box、Egern 用の WireGuard ノードのみが含まれます。他のプロトコルには通常のサブスクリプションを使用してください。WireGuard 公式アプリ用の設定は、下でノードを選んでダウンロードできます。",
     "copied": "デバイス用サブスクリプションをコピーしました",
     "copy": "専用サブスクリプションをコピー",
     "import": "クライアントに取り込む",
@@ -286,8 +286,14 @@
     "configUnavailable": "有効な WireGuard 設定を現在取得できません。更新して再試行してください。",
     "reasons": {
       "no_wireguard": "このアカウントには利用可能な WireGuard ノードがありません。",
-      "upgrade_required": "デバイス別サブスクリプションにはサーバーの更新が必要です。管理者にお問い合わせください。",
-      "unavailable": "WireGuard デバイス別サブスクリプションは現在利用できません。後でもう一度お試しください。"
-    }
+      "upgrade_required": "WireGuard デバイスサブスクリプションにはサーバーとプロキシコアの更新が必要です。管理者に連絡してください。既存のデバイス記録は保持されます。",
+      "unavailable": "現在、WireGuard サービスの準備状態を確認できません。後でもう一度お試しください。既存のデバイス記録は保持されます。",
+      "client_chain_unsupported": "クライアント側の前段チェーンを持つ WireGuard ノードは、デバイスサブスクリプションにまだ対応していません。"
+    },
+    "remaining": "あと {{count}} 台追加可能",
+    "sharedHint": "デバイス枠は他の登録済みクライアントと共有します。",
+    "sharedUsage": "共有枠：{{used}} / {{limit}}",
+    "unlimited": "無制限",
+    "clientFormat": "サブスクリプション形式"
   }
 }
