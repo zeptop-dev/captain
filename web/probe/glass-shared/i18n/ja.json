@@ -132,5 +132,6 @@
   "finance.unsupportedCycle": "カスタム支払期間は概算対象外です",
   "finance.invalid": "費用データを利用できません",
   "finance.included": "集計対象 {included}/{total}",
-  "finance.estimateHelp": "価格、有効期限、直前の支払期間の実際の暦日数による概算です。通貨ごとに表示し、返金可能額を示すものではありません。"
+  "finance.estimateHelp": "価格、有効期限、直前の支払期間の実際の暦日数による概算です。通貨ごとに表示し、返金可能額を示すものではありません。",
+  "finance.remainingShort": "残価概算"
 }
