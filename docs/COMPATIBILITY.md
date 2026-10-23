@@ -17,26 +17,26 @@ A configured monitor node cannot be paired to a mode-unaware agent. After using
 mode switching, missing support or a pending acknowledgement blocks new proxy
 configuration until the matching full-mode report arrives.
 
-## CPU topology on status cards (unreleased)
+## CPU topology on status cards (Captain 1.32 / bosun 0.76)
 
 CPU topology on status cards adds optional `HostInfo.cpu_physical_cores`,
 `cpu_sockets` and `virtualization_role` fields. `cpu_cores` retains its logical
 CPU meaning. No migration or existing API change is required; old reports
 fall back to a logical CPU count and do not invent physical topology. Full
-topology requires the corresponding bosun collector update (not yet released);
-release that shared module and update Captain's dependency before publishing
-this feature. Development uses an isolated two-repository Go workspace.
+topology requires bosun v0.76.0 or newer and complete Linux topology with a
+confirmed non-guest virtualization role. Detail-page load metrics are unchanged.
 
-## Storage on status cards (unreleased)
+## Storage on status cards (Captain 1.32 / bosun 0.76)
 
 Migration 83 adds private per-node storage display settings. Existing probe API
 routes and the root-only `disk_total`/`disk_used` meanings remain unchanged;
 the public snapshot adds a separate `storage` array. Old admin clients that omit
 or send null storage preserve the saved selection. Old agents fall back to their
 existing filesystem report or root-only summary. The additive filesystem fields
-`id`, `sampled_at`, `pool` and `member_mounts` require the corresponding bosun
-collector update (not yet released). Release bosun and update Captain's formal
-module dependency before publishing; development uses the isolated task go.work.
+`id`, `sampled_at`, `pool` and `member_mounts`, asynchronous capacity sampling
+and mergerfs collection are available with bosun v0.76.0 or newer. Mount paths,
+devices and pool membership stay private. Public root summaries and capacity
+history follow the storage selection, including when root is hidden.
 
 ## Versioning
 
@@ -155,6 +155,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
+| 1.32.0 | ≥ 0.76.0 for full CPU topology, asynchronous filesystem sampling and mergerfs | Additive CPU/filesystem fields and private storage selection (migration 83). Old agents retain logical CPU and existing filesystem/root fallbacks; traffic units and card layout need no agent update. |
 | 1.28.0 | ≥ 0.75.0 for core-only split routing, WG prerequisites and managed forwarding | Additive capabilities; migration 78 preserves legacy WG options. Existing agents remain usable for previous features; new combinations require fresh support. |
 | 1.27.0 | ≥ 0.74.0 for automatic private access and prerequisite checks | Scoped policy features are independent of nft runtime status; core-only authorization needs administrator acknowledgement and supported direct sing-box/Extended. Existing policies/older agents retain prior behavior. No migration. |
 | 1.26.0 | ≥ 0.73.0 for live hostname updates | Older agents retain their last paired hostname. Node cost and reset settings need no agent update. |
