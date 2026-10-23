@@ -1,12 +1,16 @@
 import { Accordion, Alert, Badge, Checkbox, Group, Select, SimpleGrid, Stack, Text, Title } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import type { SubDesign } from '../lib/sub-design'
+import { designPolicyCanDirect } from '../lib/sub-design'
 
 export function SubDesignEnhancements({ design, onChange }: { design: SubDesign; onChange: (next: SubDesign) => void }) {
   const { t } = useTranslation()
   const options = design.enhancements ?? {}
   const set = (key: string, value: boolean | string | undefined) => onChange({ ...design, enhancements: { ...options, [key]: value } })
-  const policies = [...new Set(design.groups.map(group => group.name).filter(Boolean))]
+  const policies = [...new Set(design.groups.map(group => group.name).filter(Boolean))].map(name => {
+    const direct = designPolicyCanDirect(design, name)
+    return { value: name, label: direct ? `${name} · ${t('subDesign.directPolicy')}` : name, disabled: direct }
+  })
   const hasRegions = design.groups.some(group => !!group.region)
   return <Stack gap="sm">
     <Title order={6}>{t('subDesign.enhancements')}</Title>

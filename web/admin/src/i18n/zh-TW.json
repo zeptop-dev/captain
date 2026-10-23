@@ -1047,7 +1047,14 @@
     "inlineRule": "內嵌比對",
     "ruleURL": "規則來源位址",
     "loading": "正在載入設計器…",
-    "retry": "重試"
+    "retry": "重試",
+    "directPolicy": "包含直連路徑",
+    "supportImported": "匯入規則集與內嵌規則目前僅支援 mihomo。",
+    "supportDNS": "DNS 保護目前僅支援 mihomo。",
+    "supportClaude": "Claude 增強的規則優先順序目前僅支援 mihomo。",
+    "supportWebRTC": "WebRTC 洩漏緩解目前僅支援 mihomo。",
+    "supportQUIC": "UDP 443 限制目前僅支援 mihomo。",
+    "supportTimeout": "匯入的健康檢查逾時參數目前僅支援 mihomo。"
   },
   "forwards": {
     "backendRealm": "Realm（獨立行程）",

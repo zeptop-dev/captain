@@ -1419,7 +1419,14 @@
     "inlineRule": "内联匹配",
     "ruleURL": "规则来源地址",
     "loading": "正在加载设计器…",
-    "retry": "重试"
+    "retry": "重试",
+    "directPolicy": "包含直连路径",
+    "supportImported": "导入规则集和内联规则目前仅支持 mihomo。",
+    "supportDNS": "DNS 保护目前仅支持 mihomo。",
+    "supportClaude": "Claude 增强的规则优先级目前仅支持 mihomo。",
+    "supportWebRTC": "WebRTC 泄露缓解目前仅支持 mihomo。",
+    "supportQUIC": "UDP 443 限制目前仅支持 mihomo。",
+    "supportTimeout": "导入的健康检查超时参数目前仅支持 mihomo。"
   },
   "hwid": {
     "title": "设备（HWID）",

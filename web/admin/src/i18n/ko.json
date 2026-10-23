@@ -1047,7 +1047,14 @@
     "inlineRule": "인라인 조건",
     "ruleURL": "규칙 출처 URL",
     "loading": "디자이너 불러오는 중…",
-    "retry": "다시 시도"
+    "retry": "다시 시도",
+    "directPolicy": "직접 연결 경로 포함",
+    "supportImported": "가져온 규칙 세트와 인라인 규칙은 현재 mihomo에서만 지원됩니다.",
+    "supportDNS": "DNS 보호는 현재 mihomo에서만 지원됩니다.",
+    "supportClaude": "Claude 보강 규칙의 우선순위는 현재 mihomo에서만 지원됩니다.",
+    "supportWebRTC": "WebRTC 유출 완화는 현재 mihomo에서만 지원됩니다.",
+    "supportQUIC": "UDP 443 제한은 현재 mihomo에서만 지원됩니다.",
+    "supportTimeout": "가져온 상태 검사 시간 제한은 현재 mihomo에서만 지원됩니다."
   },
   "forwards": {
     "backendRealm": "Realm(별도 프로세스)",

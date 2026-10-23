@@ -1,4 +1,4 @@
-import { Accordion, ActionIcon, Alert, Anchor, Badge, Button, Card, Checkbox, Code, Divider, Group, Loader, Modal, MultiSelect, NumberInput, Select, SimpleGrid, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core'
+import { Accordion, ActionIcon, Alert, Anchor, Badge, Button, Card, Checkbox, Code, Divider, Group, List, Loader, Modal, MultiSelect, NumberInput, Select, SimpleGrid, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core'
 import { useDebouncedValue } from '@mantine/hooks'
 import { modals } from '@mantine/modals'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -7,8 +7,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
 import { toast } from '../lib/notify'
-import { useSettingsDirty } from '../lib/settings-draft'
-import { designCatalogue, designFormatLabels, moveDesignItem, renameDesignGroup, selectedDesignFormats } from '../lib/sub-design'
+import { SettingsDraftBoundary, useSettingsDirty } from '../lib/settings-draft'
+import { designCatalogue, designFormatLabels, designSupportReasons, moveDesignItem, renameDesignGroup, selectedDesignFormats } from '../lib/sub-design'
 import type { DesignInspection, DesignPreset, SubDesign, SubDesignData } from '../lib/sub-design'
 import { SubDesignEnhancements } from './SubDesignEnhancements'
 
@@ -22,6 +22,10 @@ type Preview = { format: string; text: string }
 // The editable document is the base plus options. Inspection produces a separate
 // effective design; checking an option never appends generated groups to the draft.
 export function SubDesigner() {
+  return <SettingsDraftBoundary><Designer /></SettingsDraftBoundary>
+}
+
+function Designer() {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const q = useQuery({ queryKey: ['sub-design'], queryFn: ({ signal }) => api.get<SubDesignData>(endpoint, signal) })
@@ -64,6 +68,14 @@ export function SubDesigner() {
   const support = inspectionCurrent ? inspection.data.formats : []
   const selectedFormats = selectedDesignFormats(support, formatSelection)
   const unsupported = support.filter(item => !item.supported)
+  const supportReasons = designSupportReasons(support, {
+    imported_rules_mihomo: t('subDesign.supportImported'),
+    dns_mihomo: t('subDesign.supportDNS'),
+    claude_mihomo: t('subDesign.supportClaude'),
+    webrtc_mihomo: t('subDesign.supportWebRTC'),
+    quic_mihomo: t('subDesign.supportQUIC'),
+    timeout_mihomo: t('subDesign.supportTimeout'),
+  })
 
   const loadPreset = useMutation({
     mutationFn: async ({ key }: { key: string; epoch: number }) => {
@@ -165,7 +177,7 @@ export function SubDesigner() {
         <Text size="xs" c="dimmed">{t('subDesign.syncHint')}</Text>
         {syncTime ? <Text size="xs" c="dimmed">{t('subDesign.lastSync', { time: syncTime, count: q.data.library?.count ?? 0 })} · <Code>{q.data.library?.revision.slice(0, 10)}</Code></Text> : <Text size="xs" c="dimmed">{t('subDesign.notSynced')}</Text>}
         {d.source && <Group gap="xs" wrap="wrap"><Text size="xs" style={{ overflowWrap: 'anywhere' }}>{d.source.url?.startsWith('https://') ? <Anchor size="xs" href={d.source.url} target="_blank" rel="noopener noreferrer">{t('subDesign.loadedSource', { name: d.source.name })}</Anchor> : t('subDesign.loadedSource', { name: d.source.name })}</Text>{d.source.revision && <Code>{d.source.revision.slice(0, 10)}</Code>}{local !== null && <Badge variant="light" color="yellow">{t('subDesign.draft')}</Badge>}</Group>}
-        <Text size="xs" c="dimmed">{t('subDesign.sourceCredit')} <Anchor size="xs" href="https://github.com/ACL4SSR/ACL4SSR" target="_blank" rel="noopener noreferrer">ACL4SSR</Anchor> · <Anchor size="xs" href="https://github.com/ACL4SSR/ACL4SSR/blob/master/LICENSE" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</Anchor></Text>
+        <Text size="xs" c="dimmed">{t('subDesign.sourceCredit')} <Anchor size="xs" href="https://github.com/ACL4SSR/ACL4SSR" target="_blank" rel="noopener noreferrer">ACL4SSR</Anchor> · <Anchor size="xs" href="https://github.com/ACL4SSR/ACL4SSR/blob/master/LICENCE" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</Anchor></Text>
         <Divider />
         <SubDesignEnhancements design={d} onChange={edit} />
       </Stack>
@@ -226,10 +238,9 @@ export function SubDesigner() {
           {support.map(item => <Stack key={item.format} gap={4}>
             <Checkbox label={designFormatLabels[item.format] ?? item.format} checked={selectedFormats.includes(item.format)} disabled={!item.supported} onChange={event => setFormatSelection(event.currentTarget.checked ? [...selectedFormats, item.format] : selectedFormats.filter(format => format !== item.format))} />
             <Text size="xs" c={item.supported ? 'teal' : 'orange'}>{item.supported ? t('subDesign.supported') : t('subDesign.unsupported')}</Text>
-            {item.reasons.map((reason, index) => <Text key={index} size="xs" c="dimmed">{reason}</Text>)}
           </Stack>)}
         </SimpleGrid>}
-        {!!unsupported.length && <Alert color="yellow"><Text size="xs">{t('subDesign.unchangedFormats', { formats: unsupported.map(item => designFormatLabels[item.format] ?? item.format).join(', ') })}</Text></Alert>}
+        {!!unsupported.length && <Alert color="yellow"><Text size="xs">{t('subDesign.unchangedFormats', { formats: unsupported.map(item => designFormatLabels[item.format] ?? item.format).join(', ') })}</Text><List size="xs" spacing={4} mt="xs">{supportReasons.map(reason => <List.Item key={reason}>{reason}</List.Item>)}</List></Alert>}
         {inspectionCurrent && <Text size="xs" c="dimmed">{t('subDesign.effectiveCount', { groups: inspection.data.effective_design.groups.length, rules: inspection.data.effective_design.rules.length })}</Text>}
         <Group justify="space-between" wrap="wrap" align="flex-end">
           <Group gap="xs" align="flex-end">
