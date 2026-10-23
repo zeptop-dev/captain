@@ -114,10 +114,12 @@
   "标称带宽": "Заявленная пропускная способность",
   "storage.title": "Хранилище",
   "storage.system": "Система",
-  "storage.volume": "Том",
-  "storage.pool": "Пул",
   "storage.more": "Ещё {count}",
   "storage.viewAll": "Все хранилища",
   "storage.empty": "Нет общедоступных томов",
-  "storage.hint": "Каждый том показан отдельно. Общая ёмкость не суммируется повторно."
+  "storage.hint": "Каждый том показан отдельно. Общая ёмкость не суммируется повторно.",
+  "storage.disk": "Диск",
+  "storage.data": "Данные",
+  "storage.systemDisk": "Системный диск",
+  "storage.dataDisk": "Диск данных"
 }

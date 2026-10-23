@@ -113,11 +113,13 @@
   "汇总周期流量说明": "所選節點各自目前週期的出站與入站總和；重設日可能不同。",
   "标称带宽": "標稱頻寬",
   "storage.title": "儲存空間",
-  "storage.system": "系統碟",
-  "storage.volume": "資料碟",
-  "storage.pool": "資料池",
+  "storage.system": "系統",
   "storage.more": "另 {count} 個",
   "storage.viewAll": "查看全部儲存空間",
   "storage.empty": "沒有公開的儲存空間",
-  "storage.hint": "各儲存空間分別顯示，共享容量不重複相加。"
+  "storage.hint": "各儲存空間分別顯示，共享容量不重複相加。",
+  "storage.disk": "磁碟",
+  "storage.data": "資料",
+  "storage.systemDisk": "系統碟",
+  "storage.dataDisk": "資料碟"
 }

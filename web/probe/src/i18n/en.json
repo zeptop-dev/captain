@@ -103,11 +103,13 @@
   "storage": {
     "title": "Storage",
     "system": "System",
-    "volume": "Volume",
-    "pool": "Pool",
     "more": "{count} more",
     "viewAll": "View all storage",
     "empty": "No public storage volumes",
-    "hint": "Each volume is shown separately. Shared storage is not added together."
+    "hint": "Each volume is shown separately. Shared storage is not added together.",
+    "disk": "Disk",
+    "data": "Data",
+    "systemDisk": "System disk",
+    "dataDisk": "Data disk"
   }
 }
