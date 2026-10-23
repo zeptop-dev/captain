@@ -10,17 +10,34 @@ import (
 var ErrStaleBeat = errors.New("resource sample already recorded")
 
 type networkCounters struct {
-	Filesystems map[string]int64       `json:"filesystems,omitempty"`
-	GPU         gpuCursor              `json:"gpu,omitempty"`
-	Epoch       string                 `json:"epoch"`
-	Sequence    uint64                 `json:"sequence"`
-	Networks    []spec.NetworkResource `json:"networks"`
+	RootSampleClock bool                   `json:"root_sample_clock,omitempty"`
+	Filesystems     map[string]int64       `json:"filesystems,omitempty"`
+	GPU             gpuCursor              `json:"gpu,omitempty"`
+	Epoch           string                 `json:"epoch"`
+	Sequence        uint64                 `json:"sequence"`
+	Networks        []spec.NetworkResource `json:"networks"`
+}
+
+// A transiently absent root must not switch a sampler back to the legacy
+// summary clock. Explicit legacy roots and different sampler epochs can still
+// use their synchronous root summaries.
+func rootUsesSampleClock(r *spec.Resources, previous networkCounters) bool {
+	if r == nil {
+		return false
+	}
+	for _, f := range r.Filesystems {
+		if f.Mount == "/" {
+			return f.ID != "" || f.SampledAt != 0
+		}
+	}
+	return r.Epoch != "" && r.Epoch == previous.Epoch && previous.RootSampleClock
 }
 
 // A new NIC, sampler, boot or include/exclude selection starts a new baseline.
 // Missing samples also break the baseline: downtime must not become a spike.
 func nextNetworkCounters(old networkCounters, r *spec.Resources) (up, down int64, next networkCounters) {
 	next = networkCounters{Epoch: r.Epoch, Sequence: r.Sequence, Networks: r.Networks, GPU: old.GPU}
+	next.RootSampleClock = rootUsesSampleClock(r, old)
 	next.Filesystems = map[string]int64{}
 	for _, f := range r.Filesystems {
 		if len(next.Filesystems) >= 256 {

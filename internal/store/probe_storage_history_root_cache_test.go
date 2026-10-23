@@ -42,6 +42,10 @@ func TestPublicStorageHistoryRootCacheKeepsGapsAndLegacyBytes(t *testing.T) {
 	// Before byte-pair history existed, a data volume had only a percentage.
 	// Its old bytes remain unknown even though today's capacity is available.
 	dataMount := "/example/data"
+	policy := NodeStorage{Mode: "manual", Items: []NodeStorageItem{{Mount: "/"}, {Mount: dataMount}}}
+	if err := s.UpdateNodeProbeWithRegion(ctx, node.ID, false, NodeProbeInfo{}, 0, 0, "sum", nil, nil, &policy); err != nil {
+		t.Fatal(err)
+	}
 	var oldRaw []byte
 	if err := conn.QueryRowContext(ctx, `SELECT data FROM node_resource_stats WHERE node_id=? AND res='m' AND ts=?`, node.ID, legacyAt.Unix()).Scan(&oldRaw); err != nil {
 		t.Fatal(err)
@@ -73,6 +77,13 @@ func TestPublicStorageHistoryRootCacheKeepsGapsAndLegacyBytes(t *testing.T) {
 	host.Resources.At = cachedAt.UnixMilli()
 	host.Resources.Sequence++
 	if err := s.RecordBeat(ctx, node.ID, host, cachedAt); err != nil {
+		t.Fatal(err)
+	}
+	// A later synchronous/legacy observation in the same bucket must not
+	// clear the modern-clock marker and resurrect that bucket's cached point.
+	legacyBeat := host
+	legacyBeat.Resources = nil
+	if err := s.RecordBeat(ctx, node.ID, legacyBeat, cachedAt.Add(10*time.Second)); err != nil {
 		t.Fatal(err)
 	}
 	now := cachedAt.Add(30 * time.Second)
@@ -122,5 +133,95 @@ func TestPublicStorageHistoryRootCacheKeepsGapsAndLegacyBytes(t *testing.T) {
 		if cached.Used != nil || cached.Total != nil {
 			t.Errorf("cached volume %d was restored by compatibility fallback: %+v", i, cached)
 		}
+	}
+	// Persist the clock classification across a store restart and a missing
+	// root entry. Its reappearance with the old success timestamp remains stale.
+	filesystems := host.Resources.Filesystems
+	for index, offset := range []time.Duration{2 * time.Minute, 3 * time.Minute, 4 * time.Minute} {
+		s = New(conn)
+		host.Resources.At = base.Add(offset).UnixMilli()
+		host.Resources.Sequence++
+		switch index {
+		case 0:
+			host.Resources.Filesystems = nil
+		case 1:
+			host.Resources.Filesystems = filesystems
+		case 2:
+			host.Resources.Filesystems[0].SampledAt = -1
+		}
+		if err := s.RecordBeat(ctx, node.ID, host, base.Add(offset)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	now = base.Add(4*time.Minute + 30*time.Second)
+	history, err = New(conn).StorageHistory(ctx, node.ID, legacyAt, now, now, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, offset := range []time.Duration{2 * time.Minute, 3 * time.Minute, 4 * time.Minute} {
+		if p := pointAt(0, base.Add(offset)); p.Used != nil || p.Total != nil {
+			t.Fatalf("missing/stale/invalid root was refilled: %+v", p)
+		}
+	}
+	// All three rollups preserve the marker even when the bucket also contains
+	// a legacy sample. Older serialized buckets without it still decode false.
+	for _, rollup := range []struct {
+		res  string
+		step time.Duration
+	}{{"m", time.Minute}, {"h", time.Hour}, {"d", 24 * time.Hour}} {
+		var raw []byte
+		if err := conn.QueryRowContext(ctx, `SELECT data FROM node_resource_stats WHERE node_id=? AND res=? AND ts=?`, node.ID, rollup.res, cachedAt.Truncate(rollup.step).Unix()).Scan(&raw); err != nil {
+			t.Fatal(err)
+		}
+		bucket, err := decodeResourceBucket(raw)
+		if err != nil || !bucket.RootSampleClock {
+			t.Fatalf("%s lost the sampling clock: %+v %v", rollup.res, bucket, err)
+		}
+	}
+	// A different sampler that has only synchronous legacy root values does
+	// not inherit the previous epoch's classification.
+	host.Resources = &spec.Resources{Epoch: "legacy-run", Sequence: 1, At: base.Add(5 * time.Minute).UnixMilli()}
+	host.DiskUsed = 200
+	if err := s.RecordBeat(ctx, node.ID, host, base.Add(5*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	now = base.Add(5*time.Minute + 30*time.Second)
+	history, err = s.StorageHistory(ctx, node.ID, legacyAt, now, now, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p := pointAt(0, base.Add(5*time.Minute)); p.Used == nil || *p.Used != 200 || p.Total == nil || *p.Total != 1000 {
+		t.Fatalf("new legacy epoch inherited an unrelated async clock: %+v", p)
+	}
+	// Explicit legacy root metadata also resets the classification within an
+	// epoch; unrelated network-interface changes do not participate in it.
+	host.Resources.Epoch = "run"
+	host.Resources.Sequence = 20
+	host.Resources.Filesystems = []spec.FilesystemResource{{ID: "root-modern", Mount: "/", Total: storageUint(1000), Used: storageUint(300), SampledAt: base.Add(6 * time.Minute).UnixMilli()}}
+	host.Resources.At = base.Add(6 * time.Minute).UnixMilli()
+	if err := s.RecordBeat(ctx, node.ID, host, base.Add(6*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	host.Resources.Filesystems[0].ID = ""
+	host.Resources.Filesystems[0].SampledAt = 0
+	host.Resources.Sequence++
+	host.Resources.At = base.Add(7 * time.Minute).UnixMilli()
+	if err := s.RecordBeat(ctx, node.ID, host, base.Add(7*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	host.Resources.Filesystems = nil
+	host.Resources.Sequence++
+	host.Resources.At = base.Add(8 * time.Minute).UnixMilli()
+	host.DiskUsed = 350
+	if err := s.RecordBeat(ctx, node.ID, host, base.Add(8*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	now = base.Add(8*time.Minute + 30*time.Second)
+	history, err = s.StorageHistory(ctx, node.ID, legacyAt, now, now, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p := pointAt(0, base.Add(8*time.Minute)); p.Used == nil || *p.Used != 350 {
+		t.Fatalf("explicit legacy root clock was not retained: %+v", p)
 	}
 }

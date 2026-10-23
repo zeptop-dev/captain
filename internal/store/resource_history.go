@@ -31,6 +31,9 @@ type resourceAggregate struct {
 type resourceBucket struct {
 	Values    map[string]resourceAggregate `json:"v"`
 	Truncated bool                         `json:"truncated,omitempty"`
+	// Missing capacity pairs in this bucket are asynchronous sampling gaps,
+	// not an invitation to reuse the legacy summary on every heartbeat.
+	RootSampleClock bool `json:"root_sample_clock,omitempty"`
 }
 
 func resourceValues(h spec.SystemStatus) resourceBucket {
@@ -191,6 +194,7 @@ func encodeResourceBucket(b resourceBucket) ([]byte, error) {
 // receiver timestamp is used for all resolutions; agent clock skew is ignored.
 func recordResourceHistory(ctx context.Context, tx *sql.Tx, nodeID int64, h spec.SystemStatus, at time.Time, previous networkCounters) error {
 	sample := resourceValues(h)
+	sample.RootSampleClock = rootUsesSampleClock(h.Resources, previous)
 	if r := h.Resources; r != nil {
 		for _, f := range r.Filesystems {
 			old := int64(0)
@@ -238,6 +242,7 @@ func recordResourceHistory(ctx context.Context, tx *sql.Tx, nodeID int64, h spec
 			return err
 		}
 		b.Truncated = b.Truncated || sample.Truncated
+		b.RootSampleClock = b.RootSampleClock || sample.RootSampleClock
 		devices := 0
 		for k := range b.Values {
 			if !strings.HasPrefix(k, "host:") {

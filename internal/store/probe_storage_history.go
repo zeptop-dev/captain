@@ -118,6 +118,7 @@ func (s *Store) StorageHistory(ctx context.Context, nodeID int64, from, to, now 
 	if err != nil {
 		return out, err
 	}
+	rootSampleClock := make(map[int64]bool)
 	for rows.Next() {
 		var ts int64
 		var raw []byte
@@ -129,6 +130,9 @@ func (s *Store) StorageHistory(ctx context.Context, nodeID int64, from, to, now 
 			break
 		}
 		out.Truncated = out.Truncated || bucket.Truncated
+		if bucket.RootSampleClock {
+			rootSampleClock[ts] = true
+		}
 		index := (ts - out.From) / out.Step
 		if index < 0 || index >= int64(len(out.Volumes[0].Points)) || (ts-out.From)%out.Step != 0 {
 			continue
@@ -154,7 +158,8 @@ func (s *Store) StorageHistory(ctx context.Context, nodeID int64, from, to, now 
 		return out, err
 	}
 	// Old agents and pre-upgrade root history already have measured byte
-	// values in node_stats. This fallback is only reachable for a selected root.
+	// values in node_stats. Only buckets without an asynchronous root sampling
+	// clock can use this fallback; cached/invalid samples must remain gaps.
 	if root >= 0 {
 		rows, err = tx.QueryContext(ctx, `SELECT ts,disk_used,disk_total,disk_n FROM node_stats WHERE node_id=? AND res=? AND ts>=? AND ts<=? ORDER BY ts`, nodeID, res, out.From, out.To)
 		if err != nil {
@@ -168,7 +173,7 @@ func (s *Store) StorageHistory(ctx context.Context, nodeID int64, from, to, now 
 				break
 			}
 			index := (ts - out.From) / out.Step
-			if samples <= 0 || index < 0 || index >= int64(len(out.Volumes[root].Points)) || (ts-out.From)%out.Step != 0 {
+			if rootSampleClock[ts] || samples <= 0 || index < 0 || index >= int64(len(out.Volumes[root].Points)) || (ts-out.From)%out.Step != 0 {
 				continue
 			}
 			used /= float64(samples)
