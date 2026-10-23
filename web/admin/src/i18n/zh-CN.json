@@ -2907,7 +2907,7 @@
     "cancel": "取消",
     "save": "保存",
     "revokeHint": "撤销“{{name}}”的 WireGuard 访问和设备订阅？服务器同步后，该设备现有的 WireGuard 配置也将失效，其他设备不受影响。",
-    "linkHint": "此链接仅包含 WireGuard 节点，专供这台设备使用。其他协议继续使用普通订阅。",
+    "linkHint": "此链接仅包含 WireGuard 节点，专供这台设备使用，支持 mihomo/Clash、Stash、sing-box 和 Egern。其他协议继续使用普通订阅；原生 WireGuard 请在下方选择节点下载配置。",
     "copied": "已复制设备订阅",
     "copy": "复制设备订阅",
     "import": "导入客户端",
@@ -2921,8 +2921,14 @@
     "configUnavailable": "暂时无法获取有效的 WireGuard 配置，请刷新后重试。",
     "reasons": {
       "no_wireguard": "当前账号没有可用的 WireGuard 节点。",
-      "upgrade_required": "服务器需要升级后才能提供 WireGuard 设备订阅，请联系管理员。",
-      "unavailable": "WireGuard 设备订阅暂不可用，请稍后重试。"
-    }
+      "upgrade_required": "服务器和代理内核需要升级后才能提供 WireGuard 设备订阅，请联系管理员。已有设备记录会保留。",
+      "unavailable": "当前无法确认 WireGuard 服务是否就绪，请稍后重试。已有设备记录会保留。",
+      "client_chain_unsupported": "带有客户端前置链的 WireGuard 节点暂不支持设备订阅。"
+    },
+    "remaining": "可新增 {{count}} 台",
+    "sharedHint": "与其他已登记客户端共用设备名额。",
+    "sharedUsage": "共用名额：{{used}} / {{limit}}",
+    "unlimited": "不限",
+    "clientFormat": "订阅格式"
   }
 }
