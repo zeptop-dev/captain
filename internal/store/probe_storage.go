@@ -199,7 +199,7 @@ type PublicStorage struct {
 	Used  *uint64 `json:"used"`
 }
 
-func (s NodeStorage) Public(candidates []StorageCandidate) []PublicStorage {
+func (s NodeStorage) selectedItems(candidates []StorageCandidate) []NodeStorageItem {
 	items := s.Items
 	if s.Mode != "manual" {
 		items = nil
@@ -209,6 +209,11 @@ func (s NodeStorage) Public(candidates []StorageCandidate) []PublicStorage {
 			}
 		}
 	}
+	return items
+}
+
+func (s NodeStorage) Public(candidates []StorageCandidate) []PublicStorage {
+	items := s.selectedItems(candidates)
 	out := make([]PublicStorage, 0, len(items))
 	for i, item := range items {
 		v := PublicStorage{ID: "storage-" + strconv.Itoa(i+1), Name: item.Name, Kind: "volume"}

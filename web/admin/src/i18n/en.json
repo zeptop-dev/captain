@@ -1655,7 +1655,9 @@
       "vram": "VRAM used",
       "vramPct": "VRAM utilization",
       "temperature": "Temperature",
-      "power": "Power"
+      "power": "Power",
+      "used": "Used capacity",
+      "total": "Total capacity"
     },
     "kinds": {
       "host": "Host",
