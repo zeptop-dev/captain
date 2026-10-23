@@ -62,6 +62,9 @@ type TrafficSample struct {
 	InboundID int64
 	Groups    []int64
 	Up, Down  int64
+	// UnattributedInbound means InboundID is only a legacy billing fallback.
+	// Do not infer a reverse exit from a node's arbitrary first inbound.
+	UnattributedInbound bool
 }
 
 // AddTrafficSamples records a report's deltas in one transaction and
@@ -79,6 +82,9 @@ func (s *Store) AddTrafficSamples(ctx context.Context, samples []TrafficSample, 
 	defer tx.Rollback()
 	first, err := addTrafficSamplesTx(ctx, tx, samples, at)
 	if err != nil {
+		return nil, err
+	}
+	if err := addProxyTrafficTx(ctx, tx, 0, samples, at); err != nil {
 		return nil, err
 	}
 	return first, tx.Commit()

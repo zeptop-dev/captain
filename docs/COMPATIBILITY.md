@@ -61,6 +61,31 @@ bosun v0.76.1 or newer on the monitored server. Explicit NIC selections remain
 unchanged, and historical monitoring totals are not rewritten. No new rollback
 floor is introduced by this change.
 
+### Proxy traffic exit attribution
+
+Management server list and detail responses additionally expose optional
+`proxy_traffic`: `today_bytes` is the UTC-day exit-attributed amount, with
+`collected_today_bytes`, `forwarded_today_bytes`, `received_today_bytes` and
+`unattributed_today_bytes` explaining its collection and ownership. `day_start`,
+`day_end` and `attribution_started_at` use Unix seconds; `history_complete`
+distinguishes complete post-migration UTC days from partial historical coverage.
+Existing `traffic_today_bytes`, customer quotas, report receipts and node
+protocol fields keep their old semantics.
+
+Migration 84 adds a daily projection and permanent server identities, so deleting
+and reusing a numeric server ID does not transfer historical usage. It copies
+only surviving inbound history outside ambiguous creation-day buckets. New
+attribution commits with the existing customer charge and receipt. Reverse WG
+and VLESS Reverse collection stays on A and is displayed on B; unknown-inbound
+reports stay on the collector rather than guessing a reverse exit. Older bosun
+reports remain accepted, and no bosun upgrade is required for this projection.
+Attribution uses the topology known at report acceptance; it cannot reconstruct
+packet-time routing or historical topology that was already deleted.
+
+An older Captain does not maintain this projection. Do not manually downgrade
+an attribution-enabled database and subsequently treat the missing interval as
+complete; restore a corresponding backup when returning to an older release.
+
 ## Versioning
 
 Captain follows semantic versioning from 1.0.0 on:

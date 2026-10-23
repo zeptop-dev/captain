@@ -129,6 +129,7 @@ func (s *Store) PruneHistory(ctx context.Context, at time.Time, keepDays int) (i
 		`DELETE FROM traffic_daily WHERE day < ?`,
 		`DELETE FROM inbound_traffic_daily WHERE day < ?`,
 		`DELETE FROM outbound_traffic_daily WHERE day < ?`,
+		`DELETE FROM node_proxy_traffic_daily WHERE day < ?`,
 	} {
 		res, err := s.db.ExecContext(ctx, q, day)
 		if err != nil {
