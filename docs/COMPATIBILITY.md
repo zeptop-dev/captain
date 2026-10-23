@@ -41,6 +41,26 @@ The built-in update/rollback floor is v1.32.0: older panels ignore this selectio
 and can expose the root filesystem again. Manual downgrade requires restoring
 the matching pre-upgrade database backup.
 
+## Server and proxy traffic (Captain 1.33 / bosun 0.76.1)
+
+Server list and detail responses add optional `host_traffic` with separate
+`used_up` / `used_down`, `valid`, and nullable Unix-second `cycle_start`,
+`cycle_end` and `updated_at` fields. Existing `traffic_today_bytes` keeps its
+UTC-day customer proxy meaning, attributed to the authenticating inbound's
+server. Reverse exits do not repeat the front server's customer bill.
+
+No migration, agent protocol or configuration-key change is required. NIC
+observation metadata is stored in existing monitoring JSON; older panels may
+discard that metadata without changing customer usage. Old positive monitoring
+usage remains available with an unknown update time; missing baselines are not
+reported as measured zero. Host traffic is independent of the allowance's
+counting mode and retains its actual saved period while the server is offline.
+
+Automatic exclusion of managed reverse-WireGuard and shaping interfaces requires
+bosun v0.76.1 or newer on the monitored server. Explicit NIC selections remain
+unchanged, and historical monitoring totals are not rewritten. No new rollback
+floor is introduced by this change.
+
 ## Versioning
 
 Captain follows semantic versioning from 1.0.0 on:
