@@ -162,6 +162,7 @@ export default function InstanceDetail({ ref }: { ref?: Ref<HTMLDivElement> }) {
   const hardware = hardwareSmallItems(ctx)
   const system = systemInfo(ctx)
   const storage = storageInfo(ctx)
+  const bandwidth = data ? captainBandwidth(data.uuid, app.lang) : ''
 
   function navigateDetailNode(offset: number): void {
     if (detailNodes.length < 2 || detailNodeIndex < 0)
@@ -334,7 +335,6 @@ export default function InstanceDetail({ ref }: { ref?: Ref<HTMLDivElement> }) {
 
               {overview && (
                 <div className="px-4 gap-4 grid grid-cols-1 lg:grid-cols-2">
-                  {captainBandwidth(data.uuid, app.lang) && <CardX title={t('标称带宽')} className="col-span-full"><p className="px-4 pb-4 text-sm break-words">{captainBandwidth(data.uuid, app.lang)}</p></CardX>}
                   {shows('system') && (
                     <CardX
                       title={t('硬件信息')}
@@ -438,14 +438,14 @@ export default function InstanceDetail({ ref }: { ref?: Ref<HTMLDivElement> }) {
                     </CardX>
                   )}
 
-                  {(shows('network') || shows('traffic')) && (
+                  {(shows('network') || shows('traffic') || bandwidth) && (
                     <CardX
                       title={t('网络信息')}
                       size="small"
                       className="group h-full bg-background/50 border-none hover:bg-background transition-all rounded-md"
                       contentClass="pt-0"
                     >
-                      <div className="gap-3 grid grid-cols-2">
+                      <div className="gap-3 grid grid-cols-2" data-network-info>
                         {shows('traffic') && (
                           <div title={t('周期流量说明')} className="relative min-w-0 overflow-hidden rounded-sm bg-slate-500/5 p-2">
                             {hasTrafficLimit && (
@@ -502,6 +502,15 @@ export default function InstanceDetail({ ref }: { ref?: Ref<HTMLDivElement> }) {
                               <Icon icon="tabler:chevron-down" width="12" height="12" />
                               {` ${formatBytesPerSecond(data?.net_in ?? 0)}`}
                             </span>
+                          </div>
+                        )}
+                        {bandwidth && (
+                          <div className="min-w-0 flex flex-col gap-1 rounded-sm bg-slate-500/5 p-2" data-advertised-bandwidth>
+                            <div className="flex gap-1 items-center text-muted-foreground">
+                              <Icon icon="tabler:bandwidth" width={14} height={14} className="shrink-0" />
+                              <span className="text-xs sm:text-sm">{t('标称带宽')}</span>
+                            </div>
+                            <span className="text-xs sm:text-sm break-words">{bandwidth}</span>
                           </div>
                         )}
                       </div>
