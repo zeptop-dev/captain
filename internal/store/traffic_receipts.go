@@ -63,6 +63,9 @@ func (s *Store) AcceptNodeTraffic(ctx context.Context, nodeID int64, epoch strin
 	if err != nil {
 		return nil, false, err
 	}
+	if err := addProxyTrafficTx(ctx, tx, nodeID, samples, at); err != nil {
+		return nil, false, err
+	}
 	day := at.UTC().Truncate(24 * time.Hour).Unix()
 	for id, t := range in {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO inbound_traffic_daily (inbound_id, day, up_bytes, down_bytes) VALUES (?, ?, ?, ?)

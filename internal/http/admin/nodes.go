@@ -20,44 +20,45 @@ import (
 )
 
 type nodeView struct {
-	MonitorGroup         string                 `json:"monitor_group"`
-	ModeRevision         uint64                 `json:"mode_revision"`
-	ReportedModeRevision uint64                 `json:"reported_mode_revision"`
-	ModeSwitchAvailable  bool                   `json:"mode_switch_available"`
-	ProxyAllowed         bool                   `json:"proxy_allowed"`
-	Mode                 spec.NodeMode          `json:"mode"`
-	ReportedMode         spec.NodeMode          `json:"reported_mode"`
-	ModeReportedAt       *time.Time             `json:"mode_reported_at,omitempty"`
-	ModeError            string                 `json:"mode_error,omitempty"`
-	ID                   int64                  `json:"id"`
-	Name                 string                 `json:"name"`
-	PublicAddr           string                 `json:"public_addr"`
-	InternalAddr         string                 `json:"internal_addr"`
-	V6Addr               string                 `json:"v6_addr"`
-	Domain               string                 `json:"domain"`
-	DomainShared         bool                   `json:"domain_shared"`
-	DomainConflict       bool                   `json:"domain_conflict"`
-	MonitorURL           string                 `json:"monitor_url"`
-	DecoyEnabled         bool                   `json:"decoy_enabled"`
-	DecoyUpstream        string                 `json:"decoy_upstream"`
-	UserSpeedLimitMbps   int                    `json:"user_speed_limit_mbps"`
-	MitaQuotas           bool                   `json:"mita_quotas"`
-	EgressByIngress      bool                   `json:"egress_by_ingress"`
-	DStatusSID           string                 `json:"dstatus_sid"`
-	Version              string                 `json:"version"`
-	Platform             string                 `json:"platform"`
-	Hostname             string                 `json:"hostname"`
-	LastSeenAt           *time.Time             `json:"last_seen_at"`
-	Online               bool                   `json:"online"`
-	Paired               bool                   `json:"paired"`
-	PairCode             string                 `json:"pair_code,omitempty"`
-	TrafficToday         int64                  `json:"traffic_today_bytes"`
-	HostTraffic          *store.NodeHostTraffic `json:"host_traffic,omitempty"`
-	Inbounds             int                    `json:"inbounds"`
-	UpgradeTo            string                 `json:"upgrade_to,omitempty"` // pending upgrade request
-	Outdated             bool                   `json:"outdated"`             // reported version older than the latest bosun release
-	CertProblem          bool                   `json:"cert_problem"`         // an automatic certificate failed or expires soon
-	DoctorFail           bool                   `json:"doctor_fail"`          // the node's last self-check had failures
+	MonitorGroup         string                  `json:"monitor_group"`
+	ModeRevision         uint64                  `json:"mode_revision"`
+	ReportedModeRevision uint64                  `json:"reported_mode_revision"`
+	ModeSwitchAvailable  bool                    `json:"mode_switch_available"`
+	ProxyAllowed         bool                    `json:"proxy_allowed"`
+	Mode                 spec.NodeMode           `json:"mode"`
+	ReportedMode         spec.NodeMode           `json:"reported_mode"`
+	ModeReportedAt       *time.Time              `json:"mode_reported_at,omitempty"`
+	ModeError            string                  `json:"mode_error,omitempty"`
+	ID                   int64                   `json:"id"`
+	Name                 string                  `json:"name"`
+	PublicAddr           string                  `json:"public_addr"`
+	InternalAddr         string                  `json:"internal_addr"`
+	V6Addr               string                  `json:"v6_addr"`
+	Domain               string                  `json:"domain"`
+	DomainShared         bool                    `json:"domain_shared"`
+	DomainConflict       bool                    `json:"domain_conflict"`
+	MonitorURL           string                  `json:"monitor_url"`
+	DecoyEnabled         bool                    `json:"decoy_enabled"`
+	DecoyUpstream        string                  `json:"decoy_upstream"`
+	UserSpeedLimitMbps   int                     `json:"user_speed_limit_mbps"`
+	MitaQuotas           bool                    `json:"mita_quotas"`
+	EgressByIngress      bool                    `json:"egress_by_ingress"`
+	DStatusSID           string                  `json:"dstatus_sid"`
+	Version              string                  `json:"version"`
+	Platform             string                  `json:"platform"`
+	Hostname             string                  `json:"hostname"`
+	LastSeenAt           *time.Time              `json:"last_seen_at"`
+	Online               bool                    `json:"online"`
+	Paired               bool                    `json:"paired"`
+	PairCode             string                  `json:"pair_code,omitempty"`
+	TrafficToday         int64                   `json:"traffic_today_bytes"`
+	HostTraffic          *store.NodeHostTraffic  `json:"host_traffic,omitempty"`
+	ProxyTraffic         *store.NodeProxyTraffic `json:"proxy_traffic,omitempty"`
+	Inbounds             int                     `json:"inbounds"`
+	UpgradeTo            string                  `json:"upgrade_to,omitempty"` // pending upgrade request
+	Outdated             bool                    `json:"outdated"`             // reported version older than the latest bosun release
+	CertProblem          bool                    `json:"cert_problem"`         // an automatic certificate failed or expires soon
+	DoctorFail           bool                    `json:"doctor_fail"`          // the node's last self-check had failures
 }
 
 func toNodeView(n *domain.Node, at time.Time) nodeView {
@@ -98,6 +99,11 @@ func (h *handlers) listNodes(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
+	proxyTraffic, err := h.Store.NodeProxyTrafficViews(r.Context(), 0, now)
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
 	latest := h.bosunLatest(r.Context())
 	certProblems, _ := h.Store.CertProblems(r.Context(), now)
 	doctorFails, _ := h.Store.DoctorFails(r.Context())
@@ -114,6 +120,7 @@ func (h *handlers) listNodes(w http.ResponseWriter, r *http.Request) {
 		v.PairCode = "" // only shown on create/repair
 		v.TrafficToday = traffic[n.ID]
 		v.HostTraffic = hostTraffic[n.ID]
+		v.ProxyTraffic = proxyTraffic[n.ID]
 		v.Outdated = latest != "" && n.Version != "" && selfupdate.Newer(latest, n.Version)
 		v.CertProblem = certProblems[n.ID]
 		v.DoctorFail = doctorFails[n.ID]
@@ -211,6 +218,12 @@ func (h *handlers) getNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	v.TrafficToday, v.HostTraffic = proxyTraffic[id], hostTraffic[id]
+	attribution, err := h.Store.NodeProxyTrafficViews(r.Context(), id, now)
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
+	v.ProxyTraffic = attribution[id]
 	uses, err := h.Store.NodeDomainUses(r.Context(), n.Domain, n.ID)
 	if err != nil {
 		serverErr(w, err)
