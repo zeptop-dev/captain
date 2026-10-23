@@ -45,11 +45,25 @@ do not refresh it. Offline servers keep the last observed cycle and totals;
 unavailable readings remain unknown. An interface's cumulative counters in
 resource details instead cover its lifetime or last counter reset.
 
-Proxy traffic belongs to the server hosting the user's authenticated inbound.
-Reverse WireGuard and VLESS Reverse meter users on the front server, without
-charging them again on the exit server. Plain forwarding and system traffic are
-not user proxy traffic. Neither NIC totals nor these user counters reproduce a
-provider's invoice. Historical usage is not retroactively adjusted when the NIC
+Since Captain v1.35, proxy traffic is displayed against its actual managed exit.
+Reverse WireGuard and VLESS Reverse are still measured on authenticating front
+server A, but their accepted bytes are attributed to exit B. A shows its
+collected amount and the part attributed elsewhere; B shows the part collected
+by front servers. Ordinary inbound traffic stays on its own server. Customer
+quota and billing are charged only once, through the original inbound.
+
+Attribution is saved with the accepted report, so later deletion or recreation
+of a line does not move historical totals. Old reports whose inbound cannot be
+identified remain on their collector and are marked as having an unknown exit.
+The migration imports only history that can be identified safely. The UI shows
+when complete recording began and warns that earlier history may be incomplete;
+it does not reconstruct missing or ambiguous past exit traffic. The existing
+`traffic_today_bytes` API field keeps its collector meaning; `proxy_traffic`
+provides the new view, with UTC day boundaries and coverage information.
+
+Plain forwarding and system traffic are not user proxy traffic. Neither NIC
+totals nor these user counters reproduce a provider's invoice. Historical
+monitoring usage is not retroactively adjusted when the NIC
 selection changes. A manual usage reset preserves its actual partial-cycle start;
 counter deltas spanning that reset or a scheduled boundary still enter the period
 in which the next sample is accepted, rather than being estimated across it.

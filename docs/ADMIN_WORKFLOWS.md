@@ -50,8 +50,12 @@ Select up to 200 explicit user IDs, choose an operation, review the server's
 preview, then apply. Ban/unban, group changes, permanent URL rotation, expiry
 extension, usage reset and deletion return per-user outcomes. Extension and
 usage reset require a specific plan; queued subscriptions are not changed.
-URL rotation changes the permanent subscription URL, not cached proxy
-credentials or previously created temporary links.
+URL rotation changes the permanent subscription URL. Previously created
+temporary links and credentials downloaded from ordinary subscriptions retain
+their previous behavior. Since Captain v1.35, both individual and bulk rotation
+also revoke all WireGuard device links immediately; downloaded device
+configurations stop working after the servers synchronize. The confirmation
+explains this additional impact before applying the operation.
 
 Previews expire after ten minutes and belong to the employee who made them.
 Execution checks immutable user identity and relevant account/subscription
