@@ -85,7 +85,7 @@ func TestMonthlyCountersFollowDeviceIdentity(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			up, down, next := nextNetworkCounters(old, &spec.Resources{Epoch: tc.epoch, Sequence: 2, Networks: tc.nets})
+			up, down, next, _ := nextNetworkCounters(old, &spec.Resources{Epoch: tc.epoch, Sequence: 2, Networks: tc.nets})
 			if up != tc.want || down != tc.want || next.Sequence != 2 {
 				t.Fatalf("delta %d/%d next=%+v", up, down, next)
 			}

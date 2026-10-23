@@ -41,6 +41,26 @@ The built-in update/rollback floor is v1.32.0: older panels ignore this selectio
 and can expose the root filesystem again. Manual downgrade requires restoring
 the matching pre-upgrade database backup.
 
+## Server and proxy traffic (Captain 1.33 / bosun 0.76.1)
+
+Server list and detail responses add optional `host_traffic` with separate
+`used_up` / `used_down`, `valid`, and nullable Unix-second `cycle_start`,
+`cycle_end` and `updated_at` fields. Existing `traffic_today_bytes` keeps its
+UTC-day customer proxy meaning, attributed to the authenticating inbound's
+server. Reverse exits do not repeat the front server's customer bill.
+
+No migration, agent protocol or configuration-key change is required. NIC
+observation metadata is stored in existing monitoring JSON; older panels may
+discard that metadata without changing customer usage. Old positive monitoring
+usage remains available with an unknown update time; missing baselines are not
+reported as measured zero. Host traffic is independent of the allowance's
+counting mode and retains its actual saved period while the server is offline.
+
+Automatic exclusion of managed reverse-WireGuard and shaping interfaces requires
+bosun v0.76.1 or newer on the monitored server. Explicit NIC selections remain
+unchanged, and historical monitoring totals are not rewritten. No new rollback
+floor is introduced by this change.
+
 ## Versioning
 
 Captain follows semantic versioning from 1.0.0 on:
@@ -158,7 +178,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
-| 1.33.0 | Unchanged | Additive public storage history and per-volume detail charts. Absolute filesystem history starts with this panel version; older data-volume percentages are not reconstructed as capacity. No migration or agent protocol change. |
+| 1.34.0 | Unchanged | Additive public storage history and per-volume detail charts. Absolute filesystem history starts with this panel version; older data-volume percentages are not reconstructed as capacity. No migration or agent protocol change. |
 | 1.32.0 | ≥ 0.76.0 for full CPU topology, asynchronous filesystem sampling and mergerfs | Additive CPU/filesystem fields and private storage selection (migration 83). Old agents retain logical CPU and existing filesystem/root fallbacks; traffic units and card layout need no agent update. |
 | 1.28.0 | ≥ 0.75.0 for core-only split routing, WG prerequisites and managed forwarding | Additive capabilities; migration 78 preserves legacy WG options. Existing agents remain usable for previous features; new combinations require fresh support. |
 | 1.27.0 | ≥ 0.74.0 for automatic private access and prerequisite checks | Scoped policy features are independent of nft runtime status; core-only authorization needs administrator acknowledgement and supported direct sing-box/Extended. Existing policies/older agents retain prior behavior. No migration. |

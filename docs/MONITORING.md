@@ -37,6 +37,23 @@ of the two period totals. This includes all traffic on those interfaces and is
 independent of proxy-user billing. Existing API mode values `up` and `down`
 continue to mean outbound and inbound respectively.
 
+The server list and details show **server traffic by cycle** separately from
+**proxy traffic today (UTC)**. Server traffic shows both selected-NIC directions
+and the saved cycle boundaries, independently of the allowance's counting mode.
+Its update time is the last accepted network-counter delta; ordinary heartbeats
+do not refresh it. Offline servers keep the last observed cycle and totals;
+unavailable readings remain unknown. An interface's cumulative counters in
+resource details instead cover its lifetime or last counter reset.
+
+Proxy traffic belongs to the server hosting the user's authenticated inbound.
+Reverse WireGuard and VLESS Reverse meter users on the front server, without
+charging them again on the exit server. Plain forwarding and system traffic are
+not user proxy traffic. Neither NIC totals nor these user counters reproduce a
+provider's invoice. Historical usage is not retroactively adjusted when the NIC
+selection changes. A manual usage reset preserves its actual partial-cycle start;
+counter deltas spanning that reset or a scheduled boundary still enter the period
+in which the next sample is accepted, rather than being estimated across it.
+
 Since Captain v1.32.0, the monthly traffic limit accepts decimals with an MB,
 GB or TB selector.
 These use the status page's existing 1024-based units: 1 TB = 1024 GB and
@@ -297,7 +314,7 @@ Default labels are localized by the frontend: one volume is called Disk;
 multiple volumes use System and Data, with numbering when needed. Custom public
 names take precedence.
 
-Since Captain v1.33.0, Glass details give each selected volume a separate used/total
+Since Captain v1.34.0, Glass details give each selected volume a separate used/total
 capacity chart. CPU, memory and processes occupy the first row; volumes, network
 rates and connections follow, with up to four cards per row on wide screens.
 The public storage-history endpoint applies the same current selection and
@@ -325,7 +342,11 @@ data and root summary; mergerfs discovery requires bosun v0.76.0 or newer.
 Node → Monitoring → Include/exclude interfaces selects exact interface
 names for host totals, rates and monthly monitoring traffic. An empty
 include list excludes loopback, Docker, veth and bridge interfaces by
-default. Explicit includes override defaults; explicit exclusions win.
+default. Since bosun v0.76.1 it also excludes its managed reverse WireGuard
+interfaces (`bwg1`–`bwg16383`) and shaping devices (`ifb-bosun`,
+`ifb-bosun-up`), whose packets are already counted on the uplink. Older agents
+need an upgrade for this default; other VPN interface names are unchanged.
+Explicit includes override defaults; explicit exclusions win.
 All discovered interfaces remain visible with their inclusion status.
 This setting never changes proxy-user billing. A newly included/recreated
 NIC, reboot or agent restart establishes a new monthly counter baseline;
@@ -777,7 +798,7 @@ Since Captain v1.32.0, Glass node cards place bandwidth below the remaining days
 in the lower-right information box. Both rows keep their height when a value is
 absent, so cards stay aligned. Asymmetric card values use compact receive/send arrows; hover
 for the full RX/TX capacities. The repeated load-average fallback is removed;
-load remains in node details. Since Captain v1.33.0, detail-page advertised bandwidth
+load remains in node details. Since Captain v1.34.0, detail-page advertised bandwidth
 appears inside Network information, alongside traffic allowance and network rates.
 
 The optional `info.bandwidth` object stores `inbound_mbps`, `outbound_mbps`, and

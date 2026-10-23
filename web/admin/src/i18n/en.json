@@ -186,7 +186,7 @@
     "unpaired": "Unpaired",
     "version": "Version",
     "lastSeen": "Last seen",
-    "trafficToday": "Traffic today",
+    "trafficToday": "Proxy traffic today (UTC)",
     "inbounds": "Inbounds",
     "pairTitle": "Pairing code",
     "pairHint": "Run either command as root on the server: it installs bosun and pairs it. The code is valid for 24h, single use.",
@@ -255,7 +255,12 @@
     "egressByIngressHint": "Multi-IP host: an inbound bound to a specific address sends its traffic out from that address (sing-box, xray, hysteria). Set each inbound's bind address; any-address inbounds keep the default route; ignored when a default landing outbound is set. Needs bosun ≥ 0.44.",
     "proxySettings": "Server proxy settings",
     "proxySettingsHint": "Configure this server’s address mappings, proxy routing and core options.",
-    "proxySettingsMoved": "These settings are now in server details. Select a server to continue."
+    "proxySettingsMoved": "These settings are now in server details. Select a server to continue.",
+    "hostTraffic": "Server traffic by cycle",
+    "hostTrafficPeriod": "{{start}} – {{end}} (UTC)",
+    "hostTrafficHint": "Server traffic counts selected interfaces over the reset cycle, with upload and download shown separately. It includes proxy, forwarding and system traffic; it is not user-plan billing or the provider’s invoice. The cycle ends at the next reset boundary.",
+    "proxyTrafficHint": "Proxy traffic is user traffic recorded by this server’s inbounds today in UTC, excluding plain forwarding and system traffic. Reverse WireGuard / VLESS Reverse usage is metered on the front server that authenticates users, without counting it again on the exit server.",
+    "hostTrafficUpdated": "Usage updated: {{date}} (UTC)"
   },
   "inbounds": {
     "title": "Inbounds",
@@ -1589,11 +1594,11 @@
     "counted": "In totals",
     "upload": "Upload",
     "download": "Download",
-    "totalUp": "Sent since boot",
-    "totalDown": "Received since boot",
+    "totalUp": "Interface bytes sent",
+    "totalDown": "Interface bytes received",
     "included": "Included",
     "excluded": "Excluded",
-    "networkHint": "Totals include only selected interfaces. This does not change proxy traffic billing.",
+    "networkHint": "Only selected interfaces contribute to host totals. Interface counters start at interface creation or counter reset; they are separate from server cycle traffic and user proxy billing.",
     "mount": "Mount point",
     "space": "Used / total",
     "inodes": "Inodes",
@@ -1605,7 +1610,7 @@
     "processHint": "CPU: 100% equals one logical CPU. RSS is resident memory; only bosun and its supervised processes are shown.",
     "includeInterfaces": "Include interfaces",
     "excludeInterfaces": "Exclude interfaces",
-    "selectionHint": "Exact names. Empty include list uses automatic filtering of loopback, Docker and bridge interfaces. Exclusions take precedence. New selections start a traffic baseline."
+    "selectionHint": "Use exact interface names. An empty include list automatically filters loopback, Docker and bridge interfaces. From v0.76.1, bosun also excludes its managed WireGuard and traffic-shaping interfaces; older agents need an upgrade. Exclusions take precedence. Newly selected interfaces start counting from the next sample."
   },
   "monitoring": {
     "title": "Monitoring",
