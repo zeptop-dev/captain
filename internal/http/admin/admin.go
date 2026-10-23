@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/zeptop-dev/captain/internal/http/origin"
@@ -26,6 +27,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/auth"
 	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/subpreset"
 )
 
 // SessionStore is the cookie session backend.
@@ -39,6 +41,11 @@ type SessionStore interface {
 
 // Deps are the handlers' dependencies.
 type Deps struct {
+	// SubPresets only fetches the fixed official preset source. Nil uses the
+	// production downloader; injected implementations are useful for tests.
+	SubPresets interface {
+		Fetch(context.Context) (subpreset.Snapshot, error)
+	}
 	NodeRegions *service.NodeRegions
 	Store       *store.Store
 	// State is the node desired-state builder; every non-GET admin request
@@ -95,10 +102,14 @@ const cookieName = "captain_session"
 type handlers struct {
 	Deps
 	passkeyStarts ratelimit.Limiter
+	subPresetSync sync.Mutex
 }
 
 // Register mounts the admin routes.
 func Register(mux *http.ServeMux, d Deps) {
+	if d.SubPresets == nil {
+		d.SubPresets = subpreset.NewClient()
+	}
 	h := &handlers{Deps: d, passkeyStarts: ratelimit.Limiter{Max: 20, Window: time.Minute, Lock: time.Minute}}
 	mux.HandleFunc("POST /api/admin/login", h.sameOrigin(h.login))
 	mux.HandleFunc("POST /api/admin/logout", h.logout)
@@ -363,13 +374,14 @@ func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 			fail(w, http.StatusForbidden, "your role cannot do that")
 			return
 		}
-		if h.State != nil && r.Method != http.MethodGet {
+		authOnly, _ := r.Context().Value(subPresetAuthOnlyKey{}).(bool)
+		if !authOnly && h.State != nil && r.Method != http.MethodGet {
 			defer h.State.Invalidate()
 		}
 		// Every write is recorded: staff accounts exist, so "who did this"
 		// has to be answerable. Reads are not logged — they would bury the
 		// changes and the console polls constantly.
-		if r.Method != http.MethodGet {
+		if !authOnly && r.Method != http.MethodGet {
 			rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 			w = rec
 			defer func() {

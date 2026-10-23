@@ -50,6 +50,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/payment/stripe"
 	"github.com/zeptop-dev/captain/internal/service"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/subpreset"
 	"github.com/zeptop-dev/captain/web"
 )
 
@@ -76,6 +77,10 @@ type Server struct {
 
 // Options carries wiring the config alone cannot express (test gateways).
 type Options struct {
+	// SubPresets overrides the fixed upstream fetcher in isolated tests.
+	SubPresets interface {
+		Fetch(context.Context) (subpreset.Snapshot, error)
+	}
 	Gateways map[string]payment.Gateway // overrides config-built gateways when set
 	// CertIssuer replaces the Let's Encrypt issuer (tests).
 	CertIssuer certs.Issuer
@@ -93,10 +98,16 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	gateways := buildGateways(cfg, log)
 	var certIssuer certs.Issuer
 	var dnsBase string
+	var presetFetcher interface {
+		Fetch(context.Context) (subpreset.Snapshot, error)
+	}
 	if cfg.DataDir != "" {
 		certIssuer = &certs.ACMEIssuer{Dir: filepath.Join(cfg.DataDir, "certs-issued"), Staging: cfg.TLS.Staging}
 	}
 	for _, o := range opts {
+		if o.SubPresets != nil {
+			presetFetcher = o.SubPresets
+		}
 		if o.Gateways != nil {
 			gateways = o.Gateways
 		}
@@ -174,7 +185,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	s.certs = &service.Certs{Store: st, Issuer: certIssuer, Log: log, Notify: notifier}
 	s.probe = probe.Register(s.mux, probe.Deps{Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe(), GlassPage: web.ProbeGlass()})
 	dyn := &service.DynLimit{Store: st, State: s.state, Notify: notifier, Hooks: s.hooks, Log: log, PushSeconds: cfg.Agent.PushSeconds}
-	admin.Register(s.mux, admin.Deps{NodeRegions: s.nodeRegions, Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, DNSHealth: s.dnsHealth, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external, Allow: allow, Heartbeat: s.heartbeat,
+	admin.Register(s.mux, admin.Deps{SubPresets: presetFetcher, NodeRegions: s.nodeRegions, Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, DNSHealth: s.dnsHealth, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external, Allow: allow, Heartbeat: s.heartbeat,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version, MinVersion: captainUpdateFloor(cfg.MinVersion)},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 		Registration:  cfg.Portal.Registration,
@@ -301,7 +312,10 @@ func (s *Server) Handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Long polling only builds an immutable agent identity snapshot. Holding
 		// the read lock across its wait would needlessly stall ID edits.
-		if r.URL.Path != "/api/agent/state" {
+		// Official preset synchronization authenticates under a short read
+		// lock, fetches without it, then re-authenticates before committing.
+		presetSync := r.Method == http.MethodPost && r.URL.Path == "/api/admin/settings/sub-design/presets/sync"
+		if r.URL.Path != "/api/agent/state" && !presetSync {
 			accounts := &s.state.Store.Accounts
 			renumber := r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, "/id") && (strings.HasPrefix(r.URL.Path, "/api/admin/users/") || strings.HasPrefix(r.URL.Path, "/api/admin/admins/"))
 			reset := r.Method == http.MethodPost && r.URL.Path == "/api/admin/system/reset"
