@@ -1655,7 +1655,9 @@
       "vram": "已用顯存",
       "vramPct": "顯存使用率",
       "temperature": "溫度",
-      "power": "功耗"
+      "power": "功耗",
+      "used": "已用容量",
+      "total": "總容量"
     },
     "kinds": {
       "host": "主機",
