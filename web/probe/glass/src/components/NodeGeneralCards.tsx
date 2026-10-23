@@ -93,26 +93,27 @@ export default function NodeGeneralCards({ nodes, globeNodes, transitionKey, ...
   const isTiledEarth = showEarth && app.earthRenderer === 'tiled'
   const shouldRenderHeader = showEarth || visibleCards.length > 0
   const hasExtraCards = visibleCards.length > 6
-  const hasMoneyRows = visibleCards.some(card => card.moneyRows)
+  const hasTallCostCards = visibleCards.some(card => card.moneyRows
+    || (['remainingValue', 'monthlyCost', 'yearlyCost'].includes(card.key) && card.value.length > 10))
   const wrapperClass = !showEarth
     ? 'p-4 grid grid-cols-1 gap-2 h-auto'
     : isTiledEarth
       ? 'p-3 sm:p-4 grid grid-cols-12 gap-2 sm:gap-3 h-auto min-h-[40rem] sm:min-h-[30rem] md:min-h-[36rem] lg:min-h-[40rem]'
-      : hasExtraCards ? 'p-4 grid grid-cols-12 gap-2 h-auto md:min-h-58' : hasMoneyRows ? 'p-4 grid grid-cols-12 grid-rows-1 gap-2 h-auto md:h-66' : 'p-4 grid grid-cols-12 grid-rows-1 gap-2 h-auto md:h-58'
+      : hasExtraCards ? 'p-4 grid grid-cols-12 gap-2 h-auto md:min-h-58' : hasTallCostCards ? 'p-4 grid grid-cols-12 grid-rows-1 gap-2 h-auto md:h-66' : 'p-4 grid grid-cols-12 grid-rows-1 gap-2 h-auto md:h-58'
   const earthClass = isTiledEarth
     ? 'col-span-12 row-start-2 min-h-[18rem] h-[18rem] sm:h-[20rem] md:h-[24rem] lg:h-[28rem]'
     : 'col-span-12 col-start-1 md:col-span-6 md:col-start-7 md:row-start-1'
   const cardGridClass = !showEarth
     ? 'col-span-1 grid grid-cols-3 md:grid-cols-6 gap-2'
     : isTiledEarth
-      ? hasMoneyRows ? 'col-span-12 row-start-1 z-9 grid grid-cols-12 auto-rows-[6.5rem] gap-2 sm:gap-3' : 'col-span-12 row-start-1 z-9 grid grid-cols-12 auto-rows-[4.75rem] sm:auto-rows-[5rem] md:auto-rows-[5.8rem] gap-2 sm:gap-3'
+      ? hasTallCostCards ? 'col-span-12 row-start-1 z-9 grid grid-cols-12 auto-rows-[6.5rem] gap-2 sm:gap-3' : 'col-span-12 row-start-1 z-9 grid grid-cols-12 auto-rows-[4.75rem] sm:auto-rows-[5rem] md:auto-rows-[5.8rem] gap-2 sm:gap-3'
       : hasExtraCards
-        ? hasMoneyRows ? 'h-auto -mt-54 md:mt-0 col-span-12 row-start-3 z-9 md:h-auto md:col-span-6 md:row-start-1 grid grid-cols-12 auto-rows-[6.5rem] md:auto-rows-[7rem] gap-2' : 'h-auto -mt-42 md:mt-0 col-span-12 row-start-3 z-9 md:h-auto md:col-span-6 md:row-start-1 grid grid-cols-12 auto-rows-[5rem] md:auto-rows-[7rem] gap-2'
-        : hasMoneyRows ? 'h-54 -mt-54 md:mt-0 col-span-12 row-start-3 z-9 md:h-auto md:col-span-6 md:row-start-1 grid grid-cols-12 grid-rows-2 gap-2' : 'h-42 -mt-42 md:mt-0 col-span-12 row-start-3 z-9 md:h-auto md:col-span-6 md:row-start-1 grid grid-cols-12 grid-rows-2 gap-2'
+        ? hasTallCostCards ? 'h-auto -mt-54 md:mt-0 col-span-12 row-start-3 z-9 md:h-auto md:col-span-6 md:row-start-1 grid grid-cols-12 auto-rows-[6.5rem] md:auto-rows-[7rem] gap-2' : 'h-auto -mt-42 md:mt-0 col-span-12 row-start-3 z-9 md:h-auto md:col-span-6 md:row-start-1 grid grid-cols-12 auto-rows-[5rem] md:auto-rows-[7rem] gap-2'
+        : hasTallCostCards ? 'h-54 -mt-54 md:mt-0 col-span-12 row-start-3 z-9 md:h-auto md:col-span-6 md:row-start-1 grid grid-cols-12 grid-rows-2 gap-2' : 'h-42 -mt-42 md:mt-0 col-span-12 row-start-3 z-9 md:h-auto md:col-span-6 md:row-start-1 grid grid-cols-12 grid-rows-2 gap-2'
 
   function getCardPositionClass(index: number): string {
     if (!showEarth)
-      return hasMoneyRows ? 'col-span-1 min-h-26 md:min-h-28' : 'col-span-1 min-h-18 md:min-h-28'
+      return hasTallCostCards ? 'col-span-1 min-h-26 md:min-h-28' : 'col-span-1 min-h-18 md:min-h-28'
     if (isTiledEarth)
       return tiledCardPositionClasses[index] ?? 'col-span-6 sm:col-span-3 row-span-1'
     return cardPositionClasses[index] ?? 'col-span-4 row-span-1'
