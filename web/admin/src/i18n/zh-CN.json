@@ -186,7 +186,7 @@
     "unpaired": "未配对",
     "version": "版本",
     "lastSeen": "最后上报",
-    "trafficToday": "今日流量",
+    "trafficToday": "今日代理流量（UTC）",
     "inbounds": "入站",
     "pairTitle": "配对码",
     "pairHint": "在服务器上以 root 执行下面任意一条命令，它会安装 bosun 并自动配对。配对码 24 小时内有效，只能用一次。",
@@ -255,7 +255,12 @@
     "egressByIngressHint": "多 IP 机器：绑定了具体地址的入站，其流量从同一个地址出去（sing-box、xray、hysteria）。需要给各入站填绑定地址；监听全部地址的入站走默认路由；设置了默认落地出站时忽略。需要 bosun ≥ 0.44。",
     "proxySettings": "服务器代理设置",
     "proxySettingsHint": "配置这台服务器的地址映射、代理分流和内核选项。",
-    "proxySettingsMoved": "这些设置已移至服务器详情，请选择服务器继续。"
+    "proxySettingsMoved": "这些设置已移至服务器详情，请选择服务器继续。",
+    "hostTraffic": "服务器周期流量",
+    "hostTrafficPeriod": "{{start}} – {{end}}（UTC）",
+    "hostTrafficHint": "服务器流量按所选网卡在重置周期内累计，分别显示上传与下载，包含代理、转发及系统流量；不代表用户套餐扣费或供应商账单。周期结束时间为下次重置边界。",
+    "proxyTrafficHint": "代理流量是 UTC 当日本机入站记录的用户流量，不含纯转发及系统流量。反向 WireGuard / VLESS Reverse 在鉴权前置服务器计量，不会重复记在落地服务器。",
+    "hostTrafficUpdated": "统计更新：{{date}}（UTC）"
   },
   "inbounds": {
     "title": "入站",
@@ -1589,11 +1594,11 @@
     "counted": "计入汇总",
     "upload": "上传",
     "download": "下载",
-    "totalUp": "启动后累计发送",
-    "totalDown": "启动后累计接收",
+    "totalUp": "接口累计发送",
+    "totalDown": "接口累计接收",
     "included": "计入",
     "excluded": "排除",
-    "networkHint": "仅选中的网卡计入汇总，不影响用户代理流量计费。",
+    "networkHint": "仅选中的网卡计入主机汇总。接口累计值从该接口创建或计数器重置时开始，与服务器本周期流量、用户代理流量计费不同。",
     "mount": "挂载点",
     "space": "已用 / 总量",
     "inodes": "Inode",
@@ -1605,7 +1610,7 @@
     "processHint": "CPU 100% 表示占满一个逻辑核心。RSS 为驻留内存；这里只显示 bosun 及其管理的进程。",
     "includeInterfaces": "包含网卡",
     "excludeInterfaces": "排除网卡",
-    "selectionHint": "填写完整网卡名。包含列表留空时自动过滤回环、Docker 和桥接网卡；排除列表优先。新选中的网卡从下一次采样开始累计。"
+    "selectionHint": "填写完整网卡名。包含列表留空时自动过滤回环、Docker 和桥接网卡；bosun v0.76.1 起还会排除自身管理的 WireGuard 和整形网卡，旧节点需升级。排除列表优先。新选中的网卡从下一次采样开始累计。"
   },
   "monitoring": {
     "title": "监控工作台",

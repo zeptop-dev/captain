@@ -34,7 +34,7 @@ export function ResourcesCard({ host }: { host?: ResourceHost | null }) {
   return <Card mb="lg">
     <Group justify="space-between" align="flex-start" mb="sm">
       <div><Title order={5}>{t('resources.title')}</Title><Text c="dimmed" size="xs">{t('resources.hint')}</Text></div>
-      {r && <Text c="dimmed" size="xs">{t('resources.sampled')}: {new Date(r.at).toLocaleString()}{renderedAt - r.at > 90_000 && <Badge ml="xs" color="orange">{t('resources.stale')}</Badge>}</Text>}
+      {r && <Text c="dimmed" size="xs">{t('resources.sampled')}: {new Date(r.at).toLocaleString()}{renderedAt - r.at > 90_000 && <Badge component="span" ml="xs" color="orange">{t('resources.stale')}</Badge>}</Text>}
     </Group>
     <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} mb="md">{summary.map((s) => <div key={s.label}><Text size="xs" c="dimmed">{s.label}</Text><Text size="sm" fw={500}>{s.value}</Text></div>)}</SimpleGrid>
     {!r ? <Text size="sm" c="dimmed">{t('resources.legacy')}</Text> : <Tabs defaultValue="network" keepMounted={false}>

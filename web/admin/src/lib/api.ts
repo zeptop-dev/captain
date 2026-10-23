@@ -30,7 +30,12 @@ export const api = {
 }
 
 export interface Me { id: number; email: string; role: string; version?: string; totp?: boolean }
+export interface HostTraffic {
+  valid: boolean; used_up: number; used_down: number
+  cycle_start: number | null; cycle_end: number | null; updated_at: number | null
+}
 export interface Node {
+  host_traffic?: HostTraffic
   monitor_group?: string
   mode_revision?: number; reported_mode_revision?: number; mode_switch_available?: boolean; mode?: 'full' | 'monitor'; reported_mode?: 'full' | 'monitor' | ''; mode_reported_at?: string; mode_error?: string; proxy_allowed?: boolean;
   id: number; name: string; public_addr: string; internal_addr: string; v6_addr: string; domain: string; domain_shared?: boolean; domain_conflict?: boolean; monitor_url: string; dstatus_sid?: string; decoy_enabled?: boolean; decoy_upstream?: string; user_speed_limit_mbps?: number

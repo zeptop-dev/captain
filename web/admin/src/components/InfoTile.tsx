@@ -8,7 +8,7 @@ export function InfoTile({ label, value, mono, hint }: { label: ReactNode; value
   return (
     <Paper p="md" radius="md">
       <Text size="xs" c="dimmed" mb={4}>{label}</Text>
-      <Text size="sm" fw={600} ff={mono ? 'monospace' : undefined} style={{ wordBreak: 'break-all' }}>{value === undefined || value === null || value === '' ? '—' : value}</Text>
+      <Text component="div" size="sm" fw={600} ff={mono ? 'monospace' : undefined} style={{ overflowWrap: 'anywhere' }}>{value === undefined || value === null || value === '' ? '—' : value}</Text>
       {hint && <Text size="xs" c="dimmed" mt={2}>{hint}</Text>}
     </Paper>
   )

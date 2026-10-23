@@ -186,7 +186,7 @@
     "unpaired": "未配對",
     "version": "版本",
     "lastSeen": "最後回報",
-    "trafficToday": "今日流量",
+    "trafficToday": "今日代理流量（UTC）",
     "inbounds": "入站",
     "pairTitle": "配對碼",
     "pairHint": "在伺服器上以 root 執行下面任一指令，它會安裝 bosun 並自動配對。配對碼 24 小時內有效，只能用一次。",
@@ -255,7 +255,12 @@
     "egressByIngressHint": "多 IP 主機：綁定了特定位址的入站，其流量從同一位址出去（sing-box、xray、hysteria）。需為各入站填寫綁定位址；監聽全部位址的入站走預設路由；設定了預設落地出站時忽略。需要 bosun ≥ 0.44。",
     "proxySettings": "伺服器代理設定",
     "proxySettingsHint": "設定這台伺服器的位址映射、代理分流和核心選項。",
-    "proxySettingsMoved": "這些設定已移至伺服器詳情，請選擇伺服器繼續。"
+    "proxySettingsMoved": "這些設定已移至伺服器詳情，請選擇伺服器繼續。",
+    "hostTraffic": "伺服器週期流量",
+    "hostTrafficPeriod": "{{start}} – {{end}}（UTC）",
+    "hostTrafficHint": "伺服器流量按所選網路介面在重置週期內累計，分別顯示上傳與下載，包含代理、轉發及系統流量；不代表使用者方案扣費或供應商帳單。週期結束時間為下次重置邊界。",
+    "proxyTrafficHint": "代理流量是 UTC 當日本機入站記錄的使用者流量，不含純轉發及系統流量。反向 WireGuard / VLESS Reverse 在驗證使用者的前置伺服器計量，不會重複記在落地伺服器。",
+    "hostTrafficUpdated": "統計更新：{{date}}（UTC）"
   },
   "inbounds": {
     "title": "入站",
@@ -1589,11 +1594,11 @@
     "counted": "計入彙總",
     "upload": "上傳",
     "download": "下載",
-    "totalUp": "啟動後累計傳送",
-    "totalDown": "啟動後累計接收",
+    "totalUp": "介面累計傳送",
+    "totalDown": "介面累計接收",
     "included": "計入",
     "excluded": "排除",
-    "networkHint": "僅選取的網路介面計入彙總，不影響使用者代理流量計費。",
+    "networkHint": "僅選取的網路介面計入主機彙總。介面累計值從該介面建立或計數器重置時開始，與伺服器本週期流量、使用者代理流量計費不同。",
     "mount": "掛載點",
     "space": "已用 / 總量",
     "inodes": "Inode",
@@ -1605,7 +1610,7 @@
     "processHint": "CPU 100% 表示占滿一個邏輯核心。RSS 為常駐記憶體；僅顯示 bosun 及其管理的處理程序。",
     "includeInterfaces": "包含介面",
     "excludeInterfaces": "排除介面",
-    "selectionHint": "填寫完整介面名稱。包含清單留空時自動過濾回環、Docker 和橋接介面；排除清單優先。新選取的介面從下次取樣開始累計。"
+    "selectionHint": "填寫完整介面名稱。包含清單留空時自動過濾回環、Docker 和橋接介面；bosun v0.76.1 起還會排除自身管理的 WireGuard 和流量整形介面，舊節點需升級。排除清單優先。新選取的介面從下次取樣開始累計。"
   },
   "monitoring": {
     "title": "監控工作台",
