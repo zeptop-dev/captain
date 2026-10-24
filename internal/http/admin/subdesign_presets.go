@@ -24,17 +24,22 @@ type subLibraryInfo struct {
 }
 
 type subPresetInfo struct {
-	Key       string `json:"key"`
-	Name      string `json:"name"`
-	Source    string `json:"source"`
-	Revision  string `json:"revision,omitempty"`
-	URL       string `json:"url,omitempty"`
-	Supported bool   `json:"supported"`
-	Reason    string `json:"reason,omitempty"`
+	Key           string `json:"key"`
+	Name          string `json:"name"`
+	Source        string `json:"source"`
+	Revision      string `json:"revision,omitempty"`
+	URL           string `json:"url,omitempty"`
+	Supported     bool   `json:"supported"`
+	Reason        string `json:"reason,omitempty"`
+	OfficialNotes string `json:"official_notes,omitempty"`
 }
 
 func presetInfo(p store.SubDesignPreset) subPresetInfo {
-	return subPresetInfo{Key: p.Key, Name: p.Name, Source: p.Source, Revision: p.Revision, URL: p.URL, Supported: p.Supported, Reason: p.Reason}
+	info := subPresetInfo{Key: p.Key, Name: p.Name, Source: p.Source, Revision: p.Revision, URL: p.URL, Supported: p.Supported, Reason: p.Reason}
+	if p.Source == "acl4ssr" {
+		info.OfficialNotes = subpreset.OfficialNotes(p.Content)
+	}
+	return info
 }
 
 func (h *handlers) subPresetCatalogue(ctx context.Context) (subLibraryInfo, []subPresetInfo, error) {
