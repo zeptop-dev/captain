@@ -1,4 +1,4 @@
-import { Alert, Button, Code, Divider, Group, Loader, Menu, Modal, Select, Stack, Text, TextInput, Title } from '@mantine/core'
+import { Alert, Button, Card, Code, Divider, Group, Menu, Modal, Select, Stack, Text, TextInput, Title } from '@mantine/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { IconDownload, IconPlus } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
@@ -107,7 +107,10 @@ export function WireGuardDevices({ endpoint, canWrite = true, titleOrder = 4, on
   const devices = q.data?.devices ?? []
   const atLimit = !!q.data && (q.data.remaining !== undefined ? q.data.remaining <= 0 : q.data.limit > 0 && devices.length >= q.data.limit)
   const reason = q.data?.reason || 'unavailable'
-  return <Stack gap="sm">
+  // Keep polling while hidden so newly available nodes can reveal the card.
+  // Fetch errors and open editors must remain visible instead of looking empty.
+  if (q.isPending || (q.isSuccess && !q.data.available && devices.length === 0 && !modalOpened)) return null
+  return <Card id="wireguard-devices"><Stack gap="sm">
     <Group justify="space-between" align="flex-start">
       <div style={{ flex: '1 1 220px', minWidth: 0 }}>
         <Title order={titleOrder}>{t('wgDevices.title')}</Title>
@@ -115,7 +118,6 @@ export function WireGuardDevices({ endpoint, canWrite = true, titleOrder = 4, on
       </div>
       {canWrite && <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} disabled={!q.data?.available || atLimit} onClick={() => { setName(''); setEditor('new') }}>{t('wgDevices.create')}</Button>}
     </Group>
-    {q.isPending && <Loader size="sm" />}
     {q.isError && <Alert color="red">{t('wgDevices.loadError')} <Button size="compact-xs" variant="subtle" onClick={() => q.refetch()}>{t('wgDevices.retry')}</Button></Alert>}
     {q.data && <>
       {!q.data.available && <Alert color="gray">{t(`wgDevices.reasons.${reason}`, { defaultValue: t('wgDevices.reasons.unavailable') })}</Alert>}
@@ -165,5 +167,5 @@ export function WireGuardDevices({ endpoint, canWrite = true, titleOrder = 4, on
         <Group justify="flex-end"><Button variant="light" loading={download.isPending} disabled={!selectedEntry || !selectedEntryAvailable} onClick={() => { if (selectedEntry) download.mutate({ url: configURL(sharing.subscription_url!, selectedEntry), filename: sharing.name }) }}>{t('wgDevices.download')}</Button></Group>
       </Stack>}
     </Modal>
-  </Stack>
+  </Stack></Card>
 }

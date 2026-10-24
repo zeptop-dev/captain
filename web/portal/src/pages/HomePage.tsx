@@ -146,7 +146,7 @@ export default function HomePage() {
           </Stack>
         </Group>
       </Card>
-      <Card id="wireguard-devices"><WireGuardDevices endpoint="/api/portal/me/wireguard-devices" /></Card>
+      <WireGuardDevices endpoint="/api/portal/me/wireguard-devices" />
       <RedeemCard />
       <TelegramCard />
       {(providers.data?.providers ?? []).length > 0 && (
