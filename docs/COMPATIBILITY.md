@@ -147,7 +147,8 @@ without it retain the original built-in rules. The cached library, saved draft
 and published global Mihomo template are independent settings. Applying the
 design saves its publication metadata and rendered template atomically.
 No migration or agent-protocol change is required, and the compiler runs in
-Captain rather than on the servers.
+Captain rather than on the servers. Captain v1.39.0 uses the bosun v0.79.0
+library for this feature; existing servers do not need an upgrade for it.
 
 An older Captain can continue serving the already-rendered text templates, but
 its designer does not understand the snapshot: saving or applying from that

@@ -53,9 +53,9 @@ mita（mieru）、Hysteria、snell-server 和 realm 作为子进程拉起来。
 
 ## 功能特性
 
-- 用户门户将各套餐余量、到期时间和连接入口放在总览，连接、账单、帮助和账户各有独立入口，手机使用底部导航。下载、支持的订阅导入、二维码和可搜索节点集中在连接页；支付回跳以真实订单状态为准。[用户门户](docs/BILLING.md#the-portal)。
+- 用户门户将各套餐余量、到期时间和连接入口放在总览，连接、账单、帮助和账户各有独立入口，手机使用底部导航。登录、注册和找回密码统一使用站点品牌、主题与语言切换。下载、支持的订阅导入、二维码和可搜索节点集中在连接页；支付回跳以真实订单状态为准。[用户门户](docs/BILLING.md#the-portal)。
 - Glass 费用汇总支持统一币种，服务端每日缓存汇率，服务器详情仍保留原价。缺少报价和旧缓存明确提示，不向汇率服务发送服务器资料。[费用估值](docs/MONITORING.md#probe-and-status-page)。
-- 管理员订阅预设统一提供基础、同步的 ACL4SSR 官方配置和另存设计；可选地区分组、DNS 防护、Claude 增强与 WebRTC 缓解，预览后仅应用支持的格式。官方导入和防护选项当前适配 Mihomo；载入前可查看缓存的上游说明及来源版本，同步目录不会修改已发布模板。[预设流程与边界](docs/SUBSCRIPTIONS.md#templates-and-the-designer)。
+- 管理员订阅预设统一提供基础、同步的 ACL4SSR 官方配置和另存设计；可选地区分组、DNS 防护、Claude 增强与 WebRTC 缓解，预览后仅应用支持的格式。官方导入和防护选项当前适配 Mihomo；载入前可查看缓存的上游说明及来源版本。Claude 规则可更新为固定版本的社区快照并先查看差异；同步任一规则库都不会修改草稿或已发布模板。[预设流程与边界](docs/SUBSCRIPTIONS.md#templates-and-the-designer)。
 - 服务器列表与详情分别展示网卡周期流量和今日用户代理流量（UTC）。托管反向 WireGuard / VLESS Reverse 由前置 A 采集、归属落地 B 展示，保留采集来源和历史不完整提示，用户账本仍只计一次。bosun v0.76.1 起默认避免将托管 WireGuard、整形网卡重复计入主机汇总。[流量统计说明](docs/MONITORING.md#probe-and-status-page)。
 - 在用户门户或用户详情中为每台设备建立独立 WireGuard 身份，复制仅含 WG 的设备订阅，或下载单节点配置。各设备共用所属用户的用量和限制，可单独撤销。请使用 bosun v0.77.1 或更新版本，并明确激活受支持的 Xray `26.7.28-r3` 包；默认内核版本不会自动更换。[设备订阅与限制](docs/SUBSCRIPTIONS.md#independent-wireguard-devices)。
 - 探针卡片展示 CPU 规格和可选存储空间，Glass 卡片将标称带宽放到剩余天数下方，详情归入网络信息。月流量上限可直接选择 MB、GB 或 TB；存储支持自动推荐，或手动选择、命名和排序公开卷，不公开挂载路径。Captain v1.34 为每个公开卷提供独立容量历史图表。完整 CPU 拓扑及 mergerfs 采集需要 bosun ≥ v0.76.0，旧节点仍然兼容。[探针监控说明](docs/MONITORING.md)。
