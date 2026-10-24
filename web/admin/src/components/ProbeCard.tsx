@@ -9,9 +9,11 @@ import { useTranslation } from 'react-i18next'
 import { api, type Node } from '../lib/api'
 import { ProbeAppearanceFields } from './ProbeAppearanceFields'
 import { toast } from '../lib/notify'
+import { currencyOptions } from '../lib/currency-options'
 
 interface ProbeSettings {
   appearance?: { preset: string; scheme: string }
+  finance_currency?: string
   enabled: boolean; page_enabled?: boolean; public_sections?: string[]; layout?: string; beat_seconds: number; carrier_ping: boolean; carriers?: { name: string; addr: string }[]; path: string; hosts: string[]; visibility: string; title: string; logo: string; show_globe: boolean; show_ip: boolean
   alerts: { offline_seconds: number; cpu_pct: number; mem_pct: number; disk_pct: number; window_minutes: number; traffic: boolean }
 }
@@ -20,11 +22,11 @@ interface PingTask { id: number; name: string; type: string; target: string; int
 // Status page (probe) settings: master switch, address (path and/or
 // dedicated hosts), visibility, appearance, alert thresholds, ping tasks.
 export function ProbeCard() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const qc = useQueryClient()
   const q = useQuery({ queryKey: ['probe-settings'], queryFn: () => api.get<ProbeSettings>('/api/admin/settings/probe') })
-  const form = useForm<ProbeSettings & { hostsText: string; carriersText: string }>({ initialValues: { appearance: { preset: 'inherit', scheme: 'inherit' }, enabled: false, page_enabled: true, public_sections: ['cpu', 'memory', 'disk', 'network', 'system', 'info', 'traffic', 'latency', 'history', 'availability'], layout: 'grid', beat_seconds: 10, carrier_ping: true, carriersText: '', path: '/status', hosts: [], hostsText: '', visibility: 'public', title: '', logo: '', show_globe: false, show_ip: false, alerts: { offline_seconds: 180, cpu_pct: 0, mem_pct: 0, disk_pct: 0, window_minutes: 5, traffic: true } } })
-  useEffect(() => { if (q.data) form.hydrate({ ...q.data, appearance: q.data.appearance ?? { preset: 'inherit', scheme: 'inherit' }, public_sections: q.data.public_sections ?? ['cpu', 'memory', 'disk', 'network', 'system', 'info', 'traffic', 'latency', 'history', 'availability'], layout: q.data.layout || 'grid', page_enabled: q.data.page_enabled ?? true, hostsText: (q.data.hosts ?? []).join(', '), carriersText: (q.data.carriers ?? []).map((c) => `${c.name} ${c.addr}`).join('\n') }) }, [q.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  const form = useForm<ProbeSettings & { hostsText: string; carriersText: string }>({ initialValues: { finance_currency: 'CNY', appearance: { preset: 'inherit', scheme: 'inherit' }, enabled: false, page_enabled: true, public_sections: ['cpu', 'memory', 'disk', 'network', 'system', 'info', 'traffic', 'latency', 'history', 'availability'], layout: 'grid', beat_seconds: 10, carrier_ping: true, carriersText: '', path: '/status', hosts: [], hostsText: '', visibility: 'public', title: '', logo: '', show_globe: false, show_ip: false, alerts: { offline_seconds: 180, cpu_pct: 0, mem_pct: 0, disk_pct: 0, window_minutes: 5, traffic: true } } })
+  useEffect(() => { if (q.data) form.hydrate({ ...q.data, finance_currency: q.data.finance_currency ?? 'CNY', appearance: q.data.appearance ?? { preset: 'inherit', scheme: 'inherit' }, public_sections: q.data.public_sections ?? ['cpu', 'memory', 'disk', 'network', 'system', 'info', 'traffic', 'latency', 'history', 'availability'], layout: q.data.layout || 'grid', page_enabled: q.data.page_enabled ?? true, hostsText: (q.data.hosts ?? []).join(', '), carriersText: (q.data.carriers ?? []).map((c) => `${c.name} ${c.addr}`).join('\n') }) }, [q.data]) // eslint-disable-line react-hooks/exhaustive-deps
   const parseCarriers = (text: string) => text.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => { const [name, ...rest] = l.split(/[\s,=]+/); return { name, addr: rest.join('') } })
   const save = useMutation({ mutationFn: (v: ProbeSettings & { hostsText: string; carriersText: string }) => api.put('/api/admin/settings/probe', { ...v, hosts: v.hostsText.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean), carriers: parseCarriers(v.carriersText) }), onSuccess: () => { form.resetDirty(); toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['probe-settings'] }) }, onError: toast.err })
   const v = form.values
@@ -57,7 +59,10 @@ export function ProbeCard() {
           <TextInput label={t('probe.logo')} placeholder="https://…/logo.png" {...form.getInputProps('logo')} />
         </SettingsFields>
         <MultiSelect label={t('monitoring.publicSections')} description={t('monitoring.publicHint')} data={['cpu', 'memory', 'disk', 'network', 'system', 'info', 'traffic', 'latency', 'history', 'availability'].map((value) => ({ value, label: t(`monitoring.sections.${value}`) }))} {...form.getInputProps('public_sections')} />
-        <Select label={t('monitoring.layout')} data={['grid', 'compact'].map((value) => ({ value, label: t(`monitoring.layouts.${value}`) }))} allowDeselect={false} {...form.getInputProps('layout')} />
+        <SettingsFields>
+          <Select label={t('monitoring.layout')} data={['grid', 'compact'].map((value) => ({ value, label: t(`monitoring.layouts.${value}`) }))} allowDeselect={false} {...form.getInputProps('layout')} />
+          <Select label={t('probe.financeCurrency')} description={t('probe.financeCurrencyHint')} searchable allowDeselect={false} data={currencyOptions(i18n.language, v.finance_currency)} {...form.getInputProps('finance_currency')} />
+        </SettingsFields>
         <ProbeAppearanceFields value={v.appearance} onChange={(a) => form.setFieldValue('appearance', a)} />
         <Text size="sm" fw={600} mt="xs">{t('probe.alerts')}</Text>
         <SettingsFields>

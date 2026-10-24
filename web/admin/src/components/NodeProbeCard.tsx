@@ -20,9 +20,9 @@ import { bytes } from '../lib/format'
 import { trafficLimitBytes, trafficLimitFactors, trafficLimitInput, validTrafficLimit, type TrafficLimitUnit } from '../lib/traffic-limit'
 import { toast } from '../lib/notify'
 import { renewalPeriodMonths, renewalUnavailable, type NodeAutoRenewal } from '../lib/node-renewal'
+import { currencyOptions } from '../lib/currency-options'
 
 type Cost = { amount: string; currency: string; cycle: string; years?: string }
-const currencies = ["USD", "CNY", "EUR", "GBP", "JPY", "HKD", "TWD", "SGD", "AUD", "CAD", "CHF", "KRW", "INR", "RUB", "TRY", "BRL", "CZK", "PLN", "SEK", "NOK", "DKK", "NZD", "ZAR", "MXN", "THB", "IDR", "MYR", "VND", "AED", "SAR", "PHP", "UAH"]
 interface NodeProbe {
   storage_candidates?: ProbeStorageCandidate[]
   region_countries: string[]
@@ -112,7 +112,7 @@ function NodeProbeForm({ nodeID, reportedHost }: { nodeID: number; reportedHost?
         {form.values.costMode === 'legacy' ? <Stack gap="xs"><TextInput label={t('nodeProbe.price')} {...form.getInputProps('price')} /><Group><Text size="xs" c="dimmed">{t('nodeCost.legacyHint')}</Text><Button variant="light" size="xs" onClick={() => form.setFieldValue('costMode', 'structured')}>{t('nodeCost.convert')}</Button></Group></Stack> : <>
         <SimpleGrid cols={{ base: 1, sm: 3 }}>
           <NumberInput label={t('nodeCost.amount')} description={t('nodeCost.amountHint')} min={0} max={999999999999} decimalScale={4} allowNegative={false} {...form.getInputProps('amount')} />
-          <Select label={t('nodeCost.currency')} searchable allowDeselect={false} data={[...new Set([...currencies, form.values.currency])].map(value => ({ value, label: `${value} · ${new Intl.DisplayNames([i18n.language], { type: 'currency' }).of(value) ?? value}` }))} {...form.getInputProps('currency')} />
+          <Select label={t('nodeCost.currency')} searchable allowDeselect={false} data={currencyOptions(i18n.language, form.values.currency)} {...form.getInputProps('currency')} />
           <Select label={t('nodeCost.cycle')} allowDeselect={false} data={['monthly','quarterly','semiannual','annual','custom'].map(value => ({ value, label: t(`nodeCost.${value}`) }))} {...form.getInputProps('cycle')} />
         </SimpleGrid>
         {form.values.cycle === 'custom' && <NumberInput label={t('nodeCost.years')} description={t('nodeCost.yearsHint')} min={0.0001} max={999} decimalScale={4} allowNegative={false} {...form.getInputProps('years')} />}

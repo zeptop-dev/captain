@@ -1213,7 +1213,9 @@
     "carriersHint": "한 줄에 하나: 이름 호스트:포트. 비우면 기본 전신/연통/이동 측정점(cloudcpp)을 쓰고, 입력하면 전체를 대체합니다. 서버는 TCP 연결 시간을 재며 연결 거부도 한 번의 왕복으로 칩니다.",
     "collection": "모니터링 데이터 수집",
     "pageEnabled": "상태 페이지 활성화",
-    "pageEnabledHint": "페이지를 꺼도 데이터 수집과 알림은 계속 작동합니다."
+    "pageEnabledHint": "페이지를 꺼도 데이터 수집과 알림은 계속 작동합니다.",
+    "financeCurrency": "비용 합계 통화",
+    "financeCurrencyHint": "홈의 비용 합계를 참고 환율로 환산합니다. 서버 가격과 상세 페이지에는 원래 통화를 유지합니다."
   },
   "nodeProbe": {
     "title": "모니터링과 월간 트래픽",
