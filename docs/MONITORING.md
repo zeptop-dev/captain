@@ -789,8 +789,8 @@ at the same estimated daily rate. Future custom-year periods are not assigned a
 guessed number of days, so their remaining-value estimate stays unavailable.
 
 The overview groups monetary totals by original ISO currency, with no exchange
-rates or cross-currency sums. Partial summaries show how many selected nodes were
-included. Missing prices, legacy text and missing expiry are not treated as zero;
+rates or cross-currency sums. The overview shows amounts without a node-coverage
+count. Missing prices, legacy text and missing expiry are not treated as zero;
 explicitly free nodes and already expired paid nodes have zero remaining value.
 All cost cards follow the public **Information** section and current public
 snapshot, independently of hardware/system visibility.

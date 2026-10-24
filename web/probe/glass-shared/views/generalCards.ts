@@ -31,7 +31,6 @@ export interface GeneralMetricCard {
   unit?: string
   tooltip?: string
   moneyRows?: Array<{ currency: string; value: string }>
-  note?: string
   action?: 'financeDetails'
 }
 
@@ -169,7 +168,7 @@ export function buildGeneralCards(ctx: GeneralCardsContext, order: GeneralCardKe
     return current ? [current.info] : []
   }) : []
 
-  function costCard(kind: 'monthly' | 'yearly' | 'remaining'): Pick<GeneralMetricCard, 'value' | 'unit' | 'moneyRows' | 'note' | 'tooltip'> {
+  function costCard(kind: 'monthly' | 'yearly' | 'remaining'): Pick<GeneralMetricCard, 'value' | 'unit' | 'moneyRows' | 'tooltip'> {
     const summary = summarizeNodeCosts(costInfos, kind, ctx.now)
     const moneyRows = summary.amounts.map(money => ({ currency: money.currency, value: formatCostAmount(money, ctx.lang) }))
     const first = moneyRows[0]
@@ -177,9 +176,6 @@ export function buildGeneralCards(ctx: GeneralCardsContext, order: GeneralCardKe
       value: first?.value ?? '—',
       unit: moneyRows.length === 1 ? first?.currency : undefined,
       moneyRows: moneyRows.length > 1 ? moneyRows : undefined,
-      note: summary.included < summary.total
-        ? t('finance.included').replace('{included}', String(summary.included)).replace('{total}', String(summary.total))
-        : undefined,
       tooltip: kind === 'remaining' ? t('finance.estimateHelp') : undefined,
     }
   }

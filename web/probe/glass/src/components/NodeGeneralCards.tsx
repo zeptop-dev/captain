@@ -192,7 +192,6 @@ export default function NodeGeneralCards({ nodes, globeNodes, transitionKey, ...
                         </MetricValue>
                       </Transition>}
                     </DataTooltip>
-                    {card.note && <span data-finance-coverage className="shrink-0 text-[10px] leading-3 text-muted-foreground md:text-[11px]">{card.note}</span>}
                   </div>
                 </CardX>
               ))}
