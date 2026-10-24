@@ -2678,7 +2678,7 @@
     "custom": "Custom",
     "years": "Cycle (years)",
     "yearsHint": "Positive decimals allowed, e.g. 1.5 years.",
-    "expiryHint": "Select or enter a date; changing the cycle does not extend it.",
+    "expiryHint": "Expiry date in UTC. Changing the payment cycle does not immediately extend it.",
     "legacyHint": "Legacy price text is preserved. Check the amount and currency when converting.",
     "convert": "Use amount and cycle",
     "reset_expiry": "Follow expiry day (automatic)",
@@ -2686,7 +2686,14 @@
     "reset_manual": "Manual",
     "dateRequired": "Enter an expiry date or choose a manual traffic reset day.",
     "resetHint": "Resets on day {{day}} each month, clamped to month end.",
-    "resetNextHint": "Resets one day after day {{day}} each month, after clamping to month end."
+    "resetNextHint": "Resets one day after day {{day}} each month, after clamping to month end.",
+    "autoRenewal": "Online auto-renewal",
+    "autoRenewalHint": "After expiry, a new valid report extends the date by the payment cycle. This only updates the date; it does not pay for renewal.",
+    "renewalDateRequired": "Enter a valid expiry date first.",
+    "renewalCycleRequired": "Switch to amount and cycle, then set a payment cycle.",
+    "renewalWholeMonths": "Auto-renewal requires whole months, such as 0.5 or 1.5 years. This cycle cannot be converted exactly.",
+    "renewalConflict": "The expiry date has changed. Your draft has not been saved. Load the latest expiry date, then review your changes before saving.",
+    "reloadExpiry": "Load latest expiry date"
   },
   "privateReady": {
     "title": "Private access prerequisites",
