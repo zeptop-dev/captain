@@ -1,9 +1,12 @@
-import { Anchor, Button, Card, Center, Group, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core'
+import { Alert, Anchor, Button, PasswordInput, TextInput } from '@mantine/core'
 import { useForm } from '@mantine/form'
+import { IconArrowLeft, IconArrowRight, IconLock, IconMail } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
+import { AuthLayout } from '../components/AuthLayout'
+import styles from '../components/AuthLayout.module.css'
 
 // Password reset by emailed code: request, then code + new password.
 export default function ForgotPage() {
@@ -11,6 +14,7 @@ export default function ForgotPage() {
   const nav = useNavigate()
   const [sent, setSent] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [passwordVisible, setPasswordVisible] = useState(false)
   const [error, setError] = useState('')
   const form = useForm({ initialValues: { Email: '', Code: '', Password: '' } })
   const send = async () => {
@@ -22,24 +26,19 @@ export default function ForgotPage() {
     try { await api.post('/api/portal/password/reset', v); nav('/login') } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setBusy(false) }
   })
   return (
-    <Center mih="100vh" p="md" bg="var(--mantine-color-gray-0)">
-      <Card w={400}>
-        <form onSubmit={reset}><Stack>
-          <Title order={2}>{t('auth.forgotTitle')}</Title>
-          <Text size="sm" c="dimmed">{t('auth.forgotHint')}</Text>
-          <Group align="flex-end" wrap="nowrap">
-            <TextInput flex={1} label={t('auth.email')} type="email" size="md" required {...form.getInputProps('Email')} />
-            <Button variant="default" size="md" loading={busy && !sent} disabled={!form.values.Email.includes('@')} onClick={send}>{sent ? t('auth.resend') : t('auth.sendCode')}</Button>
-          </Group>
-          {sent && <>
-            <TextInput label={t('auth.code')} size="md" required placeholder="000000" {...form.getInputProps('Code')} />
-            <PasswordInput label={t('auth.newPassword')} size="md" required minLength={8} {...form.getInputProps('Password')} />
-            <Button type="submit" size="md" loading={busy}>{t('auth.resetSubmit')}</Button>
-          </>}
-          {error && <Text c="red" size="sm">{error}</Text>}
-          <Text size="sm" ta="center"><Anchor component={Link} to="/login">{t('auth.toLogin')}</Anchor></Text>
-        </Stack></form>
-      </Card>
-    </Center>
+    <AuthLayout title={t('auth.forgotTitle')} description={t('auth.forgotHint')} footer={<Anchor component={Link} to="/login"><IconArrowLeft size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} aria-hidden />{t('auth.backToLogin')}</Anchor>}>
+      <form onSubmit={sent ? reset : (e) => { e.preventDefault(); void send() }} className={styles.form}>
+        <TextInput className={styles.field} label={t('auth.email')} placeholder={t('auth.emailPlaceholder')} leftSection={<IconMail size={18} aria-hidden />} type="email" autoComplete="username" size="md" required {...form.getInputProps('Email')} />
+        {sent && <>
+          <div className={styles.codeRow}>
+            <TextInput className={`${styles.field} ${styles.codeField}`} label={t('auth.code')} size="md" required placeholder="000000" inputMode="numeric" autoComplete="one-time-code" {...form.getInputProps('Code')} />
+            <Button type="button" variant="default" size="md" className={styles.codeButton} loading={busy} disabled={!form.values.Email.includes('@')} onClick={send}>{t('auth.resend')}</Button>
+          </div>
+          <PasswordInput inputWrapperOrder={['label', 'input', 'description', 'error']} className={styles.field} label={t('auth.newPassword')} placeholder={t('auth.passwordCreatePlaceholder')} leftSection={<IconLock size={18} aria-hidden />} size="md" required minLength={8} autoComplete="new-password" visible={passwordVisible} onVisibilityChange={setPasswordVisible} visibilityToggleButtonProps={{ tabIndex: 0, 'aria-hidden': false, 'aria-label': t(passwordVisible ? 'auth.hidePassword' : 'auth.showPassword') }} description={t('auth.passwordHint')} {...form.getInputProps('Password')} />
+        </>}
+        {error && <Alert color="red" className={styles.feedback}>{error}</Alert>}
+        <Button type="submit" size="md" autoContrast className={styles.submit} loading={busy} rightSection={<IconArrowRight size={18} aria-hidden />}>{t(sent ? 'auth.resetSubmit' : 'auth.sendCode')}</Button>
+      </form>
+    </AuthLayout>
   )
 }

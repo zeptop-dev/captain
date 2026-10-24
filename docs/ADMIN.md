@@ -188,6 +188,11 @@ scheme for the portal and the landing page, portal title, font, and raw HTML
 injected before `</head>` and `</body>` on every portal and landing page
 (analytics, chat widgets). The console keeps its own look.
 
+Portal sign-in, registration and password reset share this branding, including
+the portal title, colour scheme, primary colour, font and corner radius. Visitors
+can switch language before signing in. Authentication methods and registration
+links follow the configured providers and registration policy.
+
 ## Event webhooks
 
 Settings → Notifications and integrations → Event webhooks: Captain POSTs JSON to your URLs with
