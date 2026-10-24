@@ -1,11 +1,11 @@
 import { Accordion, Alert, Anchor, Badge, Button, Card, Center, Divider, Group, Modal, Select, Skeleton, Stack, Text, Title, UnstyledButton } from '@mantine/core'
 import { IconArrowUpRight, IconBook2, IconBrandAndroid, IconBrandApple, IconBrandWindows, IconCheck, IconCopy, IconDeviceDesktop, IconDeviceMobile, IconDownload, IconNetwork, IconQrcode, IconWorld } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
-import { api } from '../lib/api'
+import { api, type Server, type WireGuardDevicesResponse } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { copyText } from '../lib/clipboard'
 import { detectDevicePlatform, downloadURL, importClients, subscriptionImportURL, type ClientDownload, type DevicePlatform, type ImportClient } from '../lib/connection'
@@ -28,6 +28,11 @@ export default function ConnectionPage() {
   const [client, setClient] = useState<ImportClient>(() => platform === 'ios' ? 'shadowrocket' : platform === 'other' ? 'manual' : 'clash')
   const [qrOpened, setQrOpened] = useState(false)
   const downloads = useQuery({ queryKey: ['clients'], queryFn: () => api.get<ClientDownload[]>('/api/portal/clients'), meta: { handlesError: true } })
+  // Observe the children’s initial requests without starting another fetch.
+  // Their final heights must be present before positioning a deep link.
+  const nodes = useQuery({ queryKey: ['servers'], queryFn: () => api.get<Server[]>('/api/portal/servers'), enabled: false })
+  const wireguard = useQuery({ queryKey: ['wireguard-devices', '/api/portal/me/wireguard-devices'], queryFn: () => api.get<WireGuardDevicesResponse>('/api/portal/me/wireguard-devices'), enabled: false })
+  const positionedNavigation = useRef<string | null>(null)
   const selectedDownloads = (downloads.data ?? []).filter(download => download.platform === platform)
   const clients = importClients.filter(choice => choice.platforms.includes(platform))
   const selectedClient = importClients.find(choice => choice.value === client)
@@ -39,9 +44,16 @@ export default function ConnectionPage() {
   }
   const copy = async () => { if (await copyText(subscriptionURL)) toast.ok(t('home.copied')) }
   useEffect(() => {
-    if (location.hash === '#nodes') document.getElementById('nodes')?.scrollIntoView({ block: 'start' })
-    if (location.hash === '#wireguard' || location.hash === '#wireguard-devices') document.getElementById('wireguard')?.scrollIntoView({ block: 'start' })
-  }, [location.hash])
+    const target = location.hash === '#nodes' ? 'nodes' : (location.hash === '#wireguard' || location.hash === '#wireguard-devices') ? 'wireguard' : null
+    if (!target || downloads.isPending || nodes.isPending || (target === 'wireguard' && wireguard.isPending)) return
+    const navigation = `${location.key}:${location.hash}`
+    if (positionedNavigation.current === navigation) return
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(target)?.scrollIntoView({ block: 'start' })
+      positionedNavigation.current = navigation
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [location.hash, location.key, downloads.isPending, nodes.isPending, wireguard.isPending])
 
   return <Stack gap="xl">
     <Group justify="space-between" align="flex-start">
