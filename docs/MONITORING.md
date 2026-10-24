@@ -844,6 +844,14 @@ required. Modern sampler identities and sequences let the backend reject repeat
 samples; legacy agents without sampling metadata use newly received nonempty host
 reports as their liveness evidence.
 
+For timestamped samples, collection must be after expiry and no more than five
+minutes behind, or thirty seconds ahead of, server receipt time. Clock-skewed
+samples still follow normal reporting paths but cannot advance the expiry. The
+renewal cursor is private, tied to the current pairing identity and bounded to
+eight sampler epochs per node (migration 86); re-pairing clears it. A rejected or
+replayed report cannot renew, and an audit-write failure rolls the date change
+back with its cursor so a retry remains possible.
+
 `info.auto_renewal` contains `enabled` and the server-managed `anchor_date`.
 Omitting it or sending null preserves the saved policy. Clients must not generate
 their own anchor. The admin editor sends its loaded expiry as `ExpectedExpiresAt`
