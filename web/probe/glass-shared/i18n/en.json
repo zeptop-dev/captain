@@ -131,6 +131,9 @@
   "finance.missingExpiry": "Expiry date required",
   "finance.unsupportedCycle": "Custom billing period: estimate unavailable",
   "finance.invalid": "Cost data unavailable",
-  "finance.estimateHelp": "Estimated from the price, expiry date and actual calendar length of the preceding payment period. Amounts stay in their original currencies; this is not a refundable balance.",
-  "finance.remainingShort": "Est. value"
+  "finance.estimateHelp": "Estimated from the price, expiry date and actual calendar length of the preceding payment period. This is not a refundable balance.",
+  "finance.remainingShort": "Est. value",
+  "finance.fxUnavailable": "Exchange rates unavailable: {currencies}. The total is not shown to avoid an incomplete estimate.",
+  "finance.fxSource": "Reference rates: Frankfurter · {date} (earliest quote used)",
+  "finance.fxStale": "Using older cached rates; the estimate may differ from current rates."
 }

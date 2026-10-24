@@ -15,6 +15,11 @@ const fixture = JSON.parse(await readFile(path.join(root, 'scripts/glass-fixture
 const now = Date.parse('2026-10-23T00:00:00Z')
 const allSections = ['cpu', 'memory', 'disk', 'network', 'traffic', 'system', 'history', 'info']
 let sections = allSections, scheme = 'light', doubled = false, allMissing = false, extreme = false
+let currency, missingRates = false, staleRates = false
+const exchangeRates = () => ({ base: 'USD', source: 'Frankfurter', fetched_at: now / 1000, stale: staleRates,
+  rates: { USD: 1, EUR: 2, AUD: 4, CNY: 8 },
+  dates: { USD: '2026-10-23', EUR: '2026-10-22', AUD: '2026-10-23', CNY: '2026-10-23' },
+})
 const infos = () => [
   { billing: { amount: extreme ? '999999999999.9999' : doubled ? '240' : '120', currency: 'USD', cycle: 'annual' }, expires_at: '2027-10-23' },
   { billing: { amount: '30', currency: 'EUR', cycle: 'quarterly' }, expires_at: '2027-01-23' },
@@ -24,6 +29,7 @@ const infos = () => [
   { billing: { amount: '36', currency: 'USD', cycle: 'custom', years: '1.5' }, expires_at: '2027-10-23' },
 ]
 const snapshot = () => ({ ...fixture.snapshot, now: now / 1000, beat_seconds: 5, show_globe: true,
+  finance_currency: currency, exchange_rates: missingRates ? undefined : exchangeRates(),
   public_sections: sections, appearance: { preset: 'glass', scheme }, appearance_scheme: scheme,
   // Leave info in hidden-section fixtures to additionally exercise UI gating.
   nodes: infos().map((info, i) => ({ ...structuredClone(fixture.snapshot.nodes[0]), id: i + 1,
@@ -70,25 +76,13 @@ async function noPageOverflow(page) {
 async function snapshotShot(page, name) {
   await page.screenshot({ path: path.join(out, name + '.png'), fullPage: true, animations: 'disabled' })
 }
-async function twoCurrencyRowsVisible(page) {
-  assert(await homeCard(page).locator('[data-finance-rows]').evaluate(list => {
-    const bounds = list.getBoundingClientRect()
-    return [...list.children].slice(0, 2).every(row => {
-      const rect = row.getBoundingClientRect()
-      return rect.top >= bounds.top - 1 && rect.bottom <= bounds.bottom + 1
-    })
-  }), 'two complete currency rows must be visible')
-}
 try {
   for (scheme of ['light', 'dark']) for (const width of [1440, 390, 320]) {
     const { context, page, errors, external } = await open(width)
-    await homeCard(page).locator('[data-finance-currency="USD"]').waitFor()
-    for (const [currency, amount] of [['USD', '120'], ['EUR', '30'], ['AUD', '10']]) {
-      assert.match(await homeCard(page).locator(`[data-finance-currency="${currency}"]`).innerText(), new RegExp(amount))
-    }
-    assert.equal(await homeCard(page).locator('[data-finance-coverage]').count(), 0)
-    assert(!/9999|CNY/.test(await homeCard(page).innerText()), 'legacy price or invented conversion included')
-    await twoCurrencyRowsVisible(page)
+    await homeCard(page).locator('[data-finance-value]').waitFor()
+    assert.match(await homeCard(page).innerText(), /1,100\s*CNY/)
+    assert.equal(await homeCard(page).locator('[data-finance-coverage], [data-finance-rows]').count(), 0)
+    assert(!/9999|USD|EUR|AUD/.test(await homeCard(page).innerText()), 'unconverted or legacy amount included')
     await noPageOverflow(page)
     await snapshotShot(page, `home-${width}-${scheme}`)
     await page.goto(`${origin}/glass/#/instance/1`)
@@ -105,19 +99,46 @@ try {
   scheme = 'light'
   {
     const { context, page } = await open(390)
-    await homeCard(page).locator('[data-finance-rows]').waitFor()
-    await homeCard(page).locator('[data-finance-rows]').focus()
-    await page.keyboard.press('End')
-    await page.waitForFunction(() => (document.querySelector('[data-finance-rows]')?.scrollTop ?? 0) > 0)
+    await homeCard(page).locator('[data-finance-value]').waitFor()
     await page.getByRole('tab', { name: 'Cost A', exact: true }).click()
     await page.waitForFunction(() => {
       const card = document.querySelector('[data-general-card-key="remainingValue"]')
-      return card && !card.querySelector('[data-finance-rows]') && /USD/.test(card.textContent)
+      return card && !card.querySelector('[data-finance-rows]') && /960\s*CNY/.test(card.textContent)
     })
-    assert.match(await homeCard(page).innerText(), /120/)
+    assert.match(await homeCard(page).innerText(), /960/)
     assert(!/EUR|AUD/.test(await homeCard(page).innerText()), 'group total includes other groups')
     await context.close()
   }
+  // Currency and cached rates refresh without navigation; missing quotes must
+  // never silently turn a mixed-currency total into a partial sum.
+  {
+    const { context, page } = await open(390)
+    await homeCard(page).locator('[data-finance-value]').waitFor()
+    currency = 'USD'
+    await page.waitForFunction(() => /137.5\s*USD/.test(document.querySelector('[data-general-card-key="remainingValue"]')?.textContent || ''))
+    missingRates = true
+    await page.waitForFunction(() => /—/.test(document.querySelector('[data-general-card-key="remainingValue"]')?.textContent || ''))
+    await homeCard(page).locator('[data-slot="data-tooltip"]').focus()
+    await homeCard(page).getByRole('tooltip').filter({ hasText: '暂缺 AUD, EUR, USD 的汇率' }).waitFor({ state: 'visible' })
+    await page.getByRole('tab', { name: 'Cost A', exact: true }).click()
+    await page.waitForFunction(() => /120\s*USD/.test(document.querySelector('[data-general-card-key="remainingValue"]')?.textContent || ''))
+    await context.close(); currency = undefined; missingRates = false
+  }
+  staleRates = true
+  {
+    const { context, page } = await open(1440)
+    await homeCard(page).locator('[data-finance-value]').waitFor()
+    assert.match(await homeCard(page).innerText(), /1,100\s*CNY/)
+    await homeCard(page).locator('[data-slot="data-tooltip"]').focus()
+    await page.getByText(/正在使用较早的缓存汇率/).waitFor({ state: 'visible' })
+    assert.match(await page.locator('body').innerText(), /Frankfurter · 2026-10-22/)
+    await snapshotShot(page, 'home-cached-rates-tooltip')
+    assert(await homeCard(page).getByRole('tooltip').evaluate(el => {
+      const r = el.getBoundingClientRect(); return r.top >= 0 && r.left >= 0 && r.right <= innerWidth
+    }), 'full rates tooltip must fit the viewport')
+    await context.close()
+  }
+  staleRates = false
   {
     const { context, page } = await open(390, '/instance/4')
     await detail(page, 'nodePrice').waitFor()
@@ -173,7 +194,7 @@ try {
       const card = document.querySelector('[data-general-card-key="remainingValue"]')
       return card && !card.querySelector('[data-finance-rows]')
     })
-    assert.match(await homeCard(page).innerText(), /USD/)
+    assert.match(await homeCard(page).innerText(), /CNY/)
     await noPageOverflow(page)
     await snapshotShot(page, 'home-320-large-amount')
     assert(await homeCard(page).evaluate(card => {
@@ -192,7 +213,7 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
   }
-  console.log('Cost cards: six layouts, amounts without coverage text, original currencies, unknown/free/custom prices, snapshot refresh, info privacy and six locales passed')
+  console.log('Cost cards: six layouts, converted totals, currency/rate refresh, cached/missing rates, original detail currencies, unknown/free/custom prices, privacy and six locales passed')
 } finally {
   await browser.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve))
 }

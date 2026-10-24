@@ -131,6 +131,9 @@
   "finance.missingExpiry": "需填写到期日",
   "finance.unsupportedCycle": "自定义付款周期，暂不估算",
   "finance.invalid": "费用数据不可用",
-  "finance.estimateHelp": "按价格、到期日及前一个付款周期的实际日历长度估算。各币种分别显示，不代表可退款余额。",
-  "finance.remainingShort": "剩余估值"
+  "finance.estimateHelp": "按价格、到期日及前一个付款周期的实际日历长度估算，不代表可退款余额。",
+  "finance.remainingShort": "剩余估值",
+  "finance.fxUnavailable": "暂缺 {currencies} 的汇率，无法完整折算，暂不显示合计。",
+  "finance.fxSource": "参考汇率：Frankfurter · {date}（所用报价的最早日期）",
+  "finance.fxStale": "正在使用较早的缓存汇率，估值可能与当前汇率有差异。"
 }

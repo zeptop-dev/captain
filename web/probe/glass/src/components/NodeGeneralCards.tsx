@@ -93,8 +93,7 @@ export default function NodeGeneralCards({ nodes, globeNodes, transitionKey, ...
   const isTiledEarth = showEarth && app.earthRenderer === 'tiled'
   const shouldRenderHeader = showEarth || visibleCards.length > 0
   const hasExtraCards = visibleCards.length > 6
-  const hasTallCostCards = visibleCards.some(card => card.moneyRows
-    || (['remainingValue', 'monthlyCost', 'yearlyCost'].includes(card.key) && card.value.length > 10))
+  const hasTallCostCards = visibleCards.some(card => ['remainingValue', 'monthlyCost', 'yearlyCost'].includes(card.key) && card.value.length > 10)
   const wrapperClass = !showEarth
     ? 'p-4 grid grid-cols-1 gap-2 h-auto'
     : isTiledEarth
@@ -119,8 +118,7 @@ export default function NodeGeneralCards({ nodes, globeNodes, transitionKey, ...
     return cardPositionClasses[index] ?? 'col-span-4 row-span-1'
   }
 
-  // Finance rows are read-only summaries; the upstream exchange-rate dialog
-  // is not used for Captain's original-currency amounts.
+  // Captain's converted summaries remain read-only; no upstream finance dialog.
   function activateCard(_card: GeneralMetricCard) {}
 
   function handleCardKeydown(event: KeyboardEvent<HTMLDivElement>, card: GeneralMetricCard) {
@@ -144,7 +142,7 @@ export default function NodeGeneralCards({ nodes, globeNodes, transitionKey, ...
                   key={card.key}
                   data-general-card-key={card.key}
                   hoverable
-                  className={vclass([cardClass, getCardPositionClass(index), card.action && 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'])}
+                  className={vclass([cardClass, getCardPositionClass(index), ['remainingValue', 'monthlyCost', 'yearlyCost'].includes(card.key) && 'hover:z-20 focus-within:z-20', card.action && 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'])}
                   contentClass="h-full !p-3"
                   role={card.action ? 'button' : undefined}
                   tabIndex={card.action ? 0 : undefined}
@@ -160,21 +158,13 @@ export default function NodeGeneralCards({ nodes, globeNodes, transitionKey, ...
                     <DataTooltip
                       {...s}
                       as="span"
-                      placement="top"
+                      placement={['remainingValue', 'monthlyCost', 'yearlyCost'].includes(card.key) ? 'bottom' : 'top'}
                       content={card.tooltip}
-                      className={card.moneyRows ? "h-9 min-w-0 shrink-0" : "min-w-0"}
-                      contentClass={card.key === 'remainingValue' ? "whitespace-normal w-64 max-w-[calc(100vw-2rem)] px-2 py-1 left-0 -translate-x-0 leading-normal" : "whitespace-pre px-2 py-1 left-0 -translate-x-0 leading-normal"}
+                      tabIndex={card.tooltip && ['remainingValue', 'monthlyCost', 'yearlyCost'].includes(card.key) ? 0 : undefined}
+                      className="min-w-0"
+                      contentClass={['remainingValue', 'monthlyCost', 'yearlyCost'].includes(card.key) ? "whitespace-pre-line w-64 max-w-[calc(100vw-2rem)] px-2 py-1 leading-normal" : "whitespace-pre px-2 py-1 left-0 -translate-x-0 leading-normal"}
                     >
-                      {card.moneyRows ? (
-                        <div tabIndex={0} role="group" aria-label={card.label} data-finance-rows className="h-full min-w-0 space-y-0.5 overflow-y-auto outline-offset-1 focus-visible:outline focus-visible:outline-ring">
-                          {card.moneyRows.map(money => (
-                            <div key={money.currency} data-finance-currency={money.currency} className="flex min-w-0 items-baseline justify-between gap-1 text-xs leading-4 md:text-sm">
-                              <span className="shrink-0 font-medium text-muted-foreground">{money.currency}</span>
-                              <span className="min-w-0 break-all text-right font-semibold tabular-nums">{money.value}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : ['remainingValue', 'monthlyCost', 'yearlyCost'].includes(card.key) ? (
+                      {['remainingValue', 'monthlyCost', 'yearlyCost'].includes(card.key) ? (
                         <div data-finance-value title={[card.value, card.unit].filter(Boolean).join(' ')} className="flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-0.5">
                           <span className={`${card.value.length > 10 ? 'text-xs md:text-lg' : 'text-base md:text-2xl'} min-w-0 break-all font-bold leading-tight tabular-nums`}>{card.value}</span>
                           {card.unit && <span className="shrink-0 text-[11px] font-medium text-muted-foreground md:text-xs">{card.unit}</span>}

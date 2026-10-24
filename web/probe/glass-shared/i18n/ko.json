@@ -131,6 +131,9 @@
   "finance.missingExpiry": "만료일이 필요합니다",
   "finance.unsupportedCycle": "사용자 지정 결제 주기는 추정하지 않습니다",
   "finance.invalid": "비용 데이터를 사용할 수 없습니다",
-  "finance.estimateHelp": "가격, 만료일 및 직전 결제 기간의 실제 달력 길이를 기준으로 추정합니다. 통화별로 표시하며 환불 가능한 잔액이 아닙니다.",
-  "finance.remainingShort": "잔여 추정"
+  "finance.estimateHelp": "가격, 만료일, 이전 결제 주기의 실제 일수를 기준으로 추정합니다. 환불 가능한 잔액이 아닙니다.",
+  "finance.remainingShort": "잔여 추정",
+  "finance.fxUnavailable": "{currencies} 환율이 없어 전체 환산이 불가능하므로 합계를 표시하지 않습니다.",
+  "finance.fxSource": "참고 환율: Frankfurter · {date} (사용한 환율 중 가장 오래된 날짜)",
+  "finance.fxStale": "이전 캐시 환율을 사용 중이므로 현재 환율과 차이가 있을 수 있습니다."
 }

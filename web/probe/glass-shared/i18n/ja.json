@@ -131,6 +131,9 @@
   "finance.missingExpiry": "有効期限が必要です",
   "finance.unsupportedCycle": "カスタム支払期間は概算対象外です",
   "finance.invalid": "費用データを利用できません",
-  "finance.estimateHelp": "価格、有効期限、直前の支払期間の実際の暦日数による概算です。通貨ごとに表示し、返金可能額を示すものではありません。",
-  "finance.remainingShort": "残価概算"
+  "finance.estimateHelp": "価格、有効期限、直前の支払期間の実際の日数から推定します。返金可能な残高ではありません。",
+  "finance.remainingShort": "残価概算",
+  "finance.fxUnavailable": "{currencies} の為替レートがありません。不完全な見積もりを避けるため、合計は表示しません。",
+  "finance.fxSource": "参考為替レート：Frankfurter · {date}（使用したレートの最も古い日付）",
+  "finance.fxStale": "古いキャッシュの為替レートを使用しています。現在のレートとは異なる場合があります。"
 }

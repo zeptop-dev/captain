@@ -55,7 +55,10 @@ Captain adaptations:
   Cost cards read structured Captain billing directly from the current public
   snapshot. They show original-currency monthly averages and calendar-based
   remaining-value estimates; custom decimal years do not become invented days.
-  Overview totals keep currencies separate and show amounts without a coverage count. They
+  Overview totals use the configured summary currency (default CNY) and Captain's
+  cached Frankfurter reference rates, without a coverage count. Missing rates
+  suppress incomplete totals; tooltips identify quote dates and older caches.
+  Detail amounts stay in their original currencies. These cards
   follow the Information publication setting, without activating the upstream
   day-based finance adapter, static exchange rates or private finance dialog.
   All traffic totals and quota bars

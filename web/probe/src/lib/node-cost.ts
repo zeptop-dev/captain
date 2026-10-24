@@ -1,6 +1,15 @@
 import type { NodeCost } from './node-price.ts'
 
 export interface Money { amount: number; currency: string }
+/** A server-cached Frankfurter snapshot. Quote dates may differ by currency. */
+export interface ExchangeRates {
+  base: string
+  rates: Record<string, number>
+  dates: Record<string, string>
+  fetched_at: number
+  stale: boolean
+  source: 'Frankfurter'
+}
 export interface NodeAutoRenewal { enabled: boolean; anchor_date?: string }
 export interface CostInfo { billing?: NodeCost; price?: string; expires_at?: string; auto_renewal?: NodeAutoRenewal }
 export type RemainingCostReason = 'missing-price' | 'legacy-price' | 'missing-expiry' | 'unsupported-cycle' | 'invalid'
@@ -99,4 +108,59 @@ export function summarizeNodeCosts(infos: CostInfo[], kind: 'monthly' | 'yearly'
     included,
     total: infos.length,
   }
+}
+
+export interface ConvertedCostSummary {
+  money: Money | null
+  missingCurrencies: string[]
+  rateDate?: string
+  stale: boolean
+}
+
+/** Convert only display estimates, at full precision until final formatting.
+ * Unknown prices remain unknown. A missing quote must never produce a partial
+ * total that appears complete; zero amounts and same-currency sums need no FX.
+ */
+export function summarizeConvertedNodeCosts(
+  infos: CostInfo[], kind: 'monthly' | 'yearly' | 'remaining', currency: string,
+  exchange: ExchangeRates | null | undefined, now = new Date(),
+): ConvertedCostSummary {
+  const result: ConvertedCostSummary = { money: null, missingCurrencies: [], stale: false }
+  const summary = summarizeNodeCosts(infos, kind, now)
+  if (!summary.amounts.length || !/^[A-Z]{3}$/.test(currency) || ['XXX', 'XTS'].includes(currency)) return result
+  let total = 0
+  const dates: string[] = []
+  const missing = new Set<string>()
+  function quote(code: string): number | null {
+    const rate = exchange?.rates[code]
+    const date = exchange?.dates[code]
+    const parsed = date ? expiryDate(date) : null
+    if (exchange?.base !== 'USD' || exchange.source !== 'Frankfurter'
+      || typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0
+      || !parsed || parsed.getTime() > now.getTime() + 2 * 86400_000) {
+      missing.add(code)
+      return null
+    }
+    dates.push(date!)
+    return rate
+  }
+  for (const money of summary.amounts) {
+    if (money.amount === 0 || money.currency === currency) {
+      total += money.amount
+      continue
+    }
+    const source = quote(money.currency), target = quote(currency)
+    if (source !== null && target !== null) total += money.amount * (target / source)
+  }
+  if (missing.size) return { ...result, missingCurrencies: [...missing].sort() }
+  if (!Number.isFinite(total) || total < 0) return result
+  result.money = { amount: total, currency }
+  if (dates.length) {
+    result.rateDate = dates.sort()[0]
+    result.stale = Boolean(exchange?.stale)
+      || !Number.isFinite(exchange?.fetched_at)
+      || now.getTime() - (exchange?.fetched_at ?? 0) * 1000 >= 2 * 86400_000
+      || now.getTime() - expiryDate(result.rateDate!)!.getTime() >= 7 * 86400_000
+  }
+  return result
 }

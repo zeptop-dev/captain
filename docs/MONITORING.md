@@ -776,7 +776,7 @@ positive decimal years (up to four decimal places); amounts are stored as decima
 strings. Blank amounts hide the price, while zero means free. Existing free-text
 prices remain editable until explicitly converted. Both public themes display
 structured prices without interpreting custom years as a fixed number of days;
-this does not enable automatic renewal or currency conversion.
+this does not by itself enable automatic renewal.
 
 Glass details display the saved cycle price and monthly average in the original
 currency. Monthly averages divide by 1, 3, 6 or 12 months, or custom years × 12.
@@ -790,9 +790,24 @@ day when a short month clamps an expiry. Custom-year periods have an estimate on
 when they convert exactly to whole months and have a saved renewal anchor; other
 custom periods are not assigned a guessed number of days.
 
-The overview groups monetary totals by original ISO currency, with no exchange
-rates or cross-currency sums. The overview shows amounts without a node-coverage
-count. Missing prices, legacy text and missing expiry are not treated as zero;
+The Glass overview converts remaining value, monthly cost and yearly cost into
+the probe's **Cost summary currency** (default CNY). Server details keep original
+currencies. Captain fetches daily blended reference rates from
+[Frankfurter](https://frankfurter.dev/) in the background and persists the last
+successful snapshot. Browsers make no external rate requests, and server names,
+prices and expiry dates are never sent to the rate provider. Rates are fetched
+only while monitoring and the public Information section are enabled.
+
+Conversion uses full precision until formatting. The tooltip shows the oldest
+quote date actually used; different currencies can have different quote dates.
+Fetch failures retain cached rates, marked as older in the tooltip after 48 hours
+without a successful fetch or when a used quotation is at least seven days old.
+If any required currency rate is missing, the whole estimate stays unavailable
+instead of silently showing a partial total. Same-currency and zero amounts need
+no exchange rate. These are reference estimates, not payment or refund rates.
+
+The overview shows amounts without a node-coverage count.
+Missing prices, legacy text and missing expiry are not treated as zero;
 explicitly free nodes and already expired paid nodes have zero remaining value.
 All cost cards follow the public **Information** section and current public
 snapshot, independently of hardware/system visibility.

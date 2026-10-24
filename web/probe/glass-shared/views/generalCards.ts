@@ -3,7 +3,7 @@
 import { t } from '@shared/i18n'
 import type { Snapshot } from '@shared/captain'
 import type { Lang } from '@shared/stores/app-settings'
-import { summarizeNodeCosts, formatCostAmount } from '../../src/lib/node-cost'
+import { summarizeConvertedNodeCosts, formatCostAmount } from '../../src/lib/node-cost'
 import type { GeneralCardKey } from '@shared/stores/app-settings'
 import type { NodeData } from '@shared/types/node'
 import type { ByteDecimalsConfig } from '@shared/utils/helper'
@@ -30,7 +30,6 @@ export interface GeneralMetricCard {
   value: string
   unit?: string
   tooltip?: string
-  moneyRows?: Array<{ currency: string; value: string }>
   action?: 'financeDetails'
 }
 
@@ -168,15 +167,17 @@ export function buildGeneralCards(ctx: GeneralCardsContext, order: GeneralCardKe
     return current ? [current.info] : []
   }) : []
 
-  function costCard(kind: 'monthly' | 'yearly' | 'remaining'): Pick<GeneralMetricCard, 'value' | 'unit' | 'moneyRows' | 'tooltip'> {
-    const summary = summarizeNodeCosts(costInfos, kind, ctx.now)
-    const moneyRows = summary.amounts.map(money => ({ currency: money.currency, value: formatCostAmount(money, ctx.lang) }))
-    const first = moneyRows[0]
+  function costCard(kind: 'monthly' | 'yearly' | 'remaining'): Pick<GeneralMetricCard, 'value' | 'unit' | 'tooltip'> {
+    const summary = summarizeConvertedNodeCosts(costInfos, kind,
+      ctx.snapshot?.finance_currency ?? 'CNY', ctx.snapshot?.exchange_rates, ctx.now)
+    const help = kind === 'remaining' ? [t('finance.estimateHelp')] : []
+    if (summary.missingCurrencies.length) help.push(t('finance.fxUnavailable').replace('{currencies}', summary.missingCurrencies.join(', ')))
+    if (summary.rateDate) help.push(t('finance.fxSource').replace('{date}', summary.rateDate))
+    if (summary.stale) help.push(t('finance.fxStale'))
     return {
-      value: first?.value ?? '—',
-      unit: moneyRows.length === 1 ? first?.currency : undefined,
-      moneyRows: moneyRows.length > 1 ? moneyRows : undefined,
-      tooltip: kind === 'remaining' ? t('finance.estimateHelp') : undefined,
+      value: summary.money ? formatCostAmount(summary.money, ctx.lang) : '—',
+      unit: summary.money?.currency,
+      tooltip: help.join('\n') || undefined,
     }
   }
 
