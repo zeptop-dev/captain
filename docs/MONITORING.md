@@ -848,8 +848,10 @@ For timestamped samples, collection must be after expiry and no more than five
 minutes behind, or thirty seconds ahead of, server receipt time. Clock-skewed
 samples still follow normal reporting paths but cannot advance the expiry. The
 renewal cursor is private, tied to the current pairing identity and bounded to
-eight sampler epochs per node (migration 86); re-pairing clears it. A rejected or
-replayed report cannot renew, and an audit-write failure rolls the date change
+eight sampler epochs per node (migration 86); re-pairing clears it. A report
+rejected as invalid or recognized as a replay cannot renew. Legacy reports without
+sampling metadata or traffic receipts cannot distinguish replayed source samples
+from fresh ones. An audit-write failure rolls the date change
 back with its cursor so a retry remains possible.
 
 `info.auto_renewal` contains `enabled` and the server-managed `anchor_date`.
