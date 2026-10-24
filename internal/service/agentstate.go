@@ -342,6 +342,10 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 			node.Certificates = append(node.Certificates, spec.Certificate{Domain: c.Domain, CertPEM: c.CertPEM, KeyPEM: c.KeyPEM})
 		}
 	}
+	// Scoped listeners already carry their permitted subscribers. Do not also
+	// send unrelated customers' reusable credentials in the node-level fallback.
+	// Use the final, capability-filtered listeners, not the stored topology.
+	users = usersForDeliveredInbounds(node.Inbounds, users)
 	st := &agentproto.State{Node: node, Users: users, Forwards: []spec.Forward{}, PullSeconds: a.PullSeconds, PushSeconds: a.PushSeconds}
 	if fwds, err := a.Store.NodeForwards(ctx, n.ID); err == nil {
 		for _, f := range fwds {
@@ -360,6 +364,24 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 		}
 	}
 	return a.finishState(ctx, n, st)
+}
+
+func usersForDeliveredInbounds(inbounds []spec.Inbound, users []spec.User) []spec.User {
+	allowed := make(map[int64]bool)
+	for _, ib := range inbounds {
+		for _, u := range ib.EffectiveUsers(users) {
+			allowed[u.ID] = true
+		}
+	}
+	filtered := make([]spec.User, 0, len(allowed))
+	for _, u := range users {
+		if allowed[u.ID] {
+			// Keep the parent record. Inbound-only WG device keys and other
+			// scoped fields must not be promoted into the global fallback.
+			filtered = append(filtered, u)
+		}
+	}
+	return filtered
 }
 
 func (a *AgentState) finishState(ctx context.Context, n *domain.Node, st *agentproto.State) (*agentproto.State, error) {
