@@ -158,7 +158,7 @@ func (h *handlers) updateStaff(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
-	if hash != "" {
+	if hash != "" || status != "active" {
 		_ = h.Store.DeleteStaffSessions(r.Context(), target.ID)
 	}
 	h.listStaff(w, r)
