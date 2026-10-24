@@ -2678,7 +2678,7 @@
     "custom": "自訂",
     "years": "週期（年）",
     "yearsHint": "允許正小數，例如 1.5 年。",
-    "expiryHint": "選擇或輸入日期；不隨付款週期自動延長。",
+    "expiryHint": "按 UTC 日期到期；變更付款週期不會立即延長到期日。",
     "legacyHint": "原價格文字保持不變，轉換後請核對金額和幣別。",
     "convert": "改用金額和週期",
     "reset_expiry": "跟隨到期日（自動）",
@@ -2686,7 +2686,14 @@
     "reset_manual": "手動指定",
     "dateRequired": "請填寫到期日，或手動指定流量重置日。",
     "resetHint": "每月 {{day}} 日重置，短月份取月底。",
-    "resetNextHint": "每月 {{day}} 日的次日重置；先按短月份月底調整，再順延一天。"
+    "resetNextHint": "每月 {{day}} 日的次日重置；先按短月份月底調整，再順延一天。",
+    "autoRenewal": "線上自動續期",
+    "autoRenewalHint": "到期後收到新的有效回報時，按付款週期順延；僅更新到期日，不代付續費。",
+    "renewalDateRequired": "請先填寫有效的到期日。",
+    "renewalCycleRequired": "請先改用金額和週期，設定付款週期。",
+    "renewalWholeMonths": "自動續期需要完整月數，例如 0.5 年或 1.5 年；目前週期無法精確換算。",
+    "renewalConflict": "到期日已更新，目前草稿尚未儲存。請載入最新到期日，再確認修改並儲存。",
+    "reloadExpiry": "載入最新到期日"
   },
   "privateReady": {
     "title": "私網存取就緒檢查",

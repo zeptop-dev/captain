@@ -2678,7 +2678,7 @@
     "custom": "自定义",
     "years": "周期（年）",
     "yearsHint": "允许正小数，例如 1.5 年。",
-    "expiryHint": "选择或输入日期；不随付款周期自动延长。",
+    "expiryHint": "按 UTC 日期到期；更改付款周期不会立即延长到期日。",
     "legacyHint": "原价格文本保持不变，转换后请核对金额和币种。",
     "convert": "改用金额和周期",
     "reset_expiry": "跟随到期日（自动）",
@@ -2686,7 +2686,14 @@
     "reset_manual": "手动指定",
     "dateRequired": "请填写到期日，或手动指定流量重置日。",
     "resetHint": "每月 {{day}} 日重置，短月份取月底。",
-    "resetNextHint": "每月 {{day}} 日的次日重置；先按短月份月底调整，再顺延一天。"
+    "resetNextHint": "每月 {{day}} 日的次日重置；先按短月份月底调整，再顺延一天。",
+    "autoRenewal": "在线自动续期",
+    "autoRenewalHint": "到期后收到新的有效上报时，按付款周期顺延；仅更新到期日，不代付续费。",
+    "renewalDateRequired": "请先填写有效的到期日。",
+    "renewalCycleRequired": "请先改用金额和周期，设置付款周期。",
+    "renewalWholeMonths": "自动续期要求完整月数，如 0.5 年或 1.5 年；当前周期无法精确换算。",
+    "renewalConflict": "到期日已更新，当前草稿尚未保存。请载入最新到期日，再确认修改并保存。",
+    "reloadExpiry": "载入最新到期日"
   },
   "privateReady": {
     "title": "私网访问就绪检查",
