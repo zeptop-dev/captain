@@ -1,14 +1,16 @@
-import { Alert, Anchor, Button, Card, Center, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core'
+import { Alert, Anchor, Button, Divider, Loader, PasswordInput, Text, TextInput } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Divider, Group } from '@mantine/core'
+import { IconArrowRight, IconKey, IconLock, IconMail, IconTicket } from '@tabler/icons-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { loginReturn } from '../lib/login-return'
 import { Captcha } from '../components/Captcha'
+import { AuthLayout } from '../components/AuthLayout'
+import styles from '../components/AuthLayout.module.css'
 
 export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const { t } = useTranslation()
@@ -16,62 +18,61 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const next = loginReturn(window.location.search)
   const { refresh } = useAuth()
   const [busy, setBusy] = useState(false)
+  const [passwordVisible, setPasswordVisible] = useState(false)
   const [error, setError] = useState(() => new URLSearchParams(window.location.search).get('error') ?? '')
-  const oauth = useQuery({ queryKey: ['oauth-providers'], queryFn: () => api.get<{ providers: { id: string; name: string }[]; password_login: boolean }>('/api/oauth/providers') })
+  const oauth = useQuery({ queryKey: ['oauth-providers'], meta: { handlesError: true }, queryFn: () => api.get<{ providers: { id: string; name: string }[]; password_login: boolean }>('/api/oauth/providers') })
   const providers = oauth.data?.providers ?? []
-  const policy = useQuery({ queryKey: ['register-policy'], refetchInterval: 30_000, queryFn: () => api.get<{ open: boolean; verify: boolean; reset: boolean; invite_only: boolean; email_suffixes: string[]; captcha?: { provider: string; site_key: string } }>('/api/portal/register/policy') })
+  const policy = useQuery({ queryKey: ['register-policy'], meta: { handlesError: true }, refetchInterval: 30_000, queryFn: () => api.get<{ open: boolean; verify: boolean; reset: boolean; invite_only: boolean; email_suffixes: string[]; captcha?: { provider: string; site_key: string } }>('/api/portal/register/policy') })
   const registering = mode === 'register'
   const registrationOpen = policy.data?.open === true && !policy.isError
   const [captcha, setCaptcha] = useState('')
   const [codeSent, setCodeSent] = useState(false)
   const [sending, setSending] = useState(false)
+  const passwordLogin = oauth.data?.password_login ?? !oauth.isPending
+  const showMethods = !registering || registrationOpen
+  const showPasswordForm = passwordLogin && showMethods
+  const loading = oauth.isPending || (registering && policy.isPending)
+  const form = useForm({ initialValues: { Email: '', Password: '', Code: '', Invite: new URLSearchParams(window.location.search).get('ref') ?? '', Captcha: '' } })
   const sendCode = async () => {
     setSending(true); setError('')
     try { await api.post('/api/portal/verify/send', { Email: form.values.Email, Purpose: 'register' }); setCodeSent(true) } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setSending(false) }
   }
-  const passwordLogin = oauth.data?.password_login ?? true
-  const showPasswordForm = passwordLogin && (!registering || registrationOpen)
-  const form = useForm({ initialValues: { Email: '', Password: '', Code: '', Invite: new URLSearchParams(window.location.search).get('ref') ?? '', Captcha: '' } })
   const submit = form.onSubmit(async (v) => {
     setBusy(true); setError('')
     try { await api.post(`/api/portal/${mode}`, { ...v, Captcha: captcha }); await refresh(); nav(next.slice('/portal'.length) || '/') } catch (e) {
       setError(e instanceof ApiError && e.status === 403 ? t('auth.closed') : e instanceof ApiError && e.status !== 401 ? e.message : t('auth.failed'))
     } finally { setBusy(false) }
   })
+  const footer = (registering || registrationOpen) && <Anchor component={Link} to={`${registering ? '/login' : '/register'}?next=${encodeURIComponent(next)}`}>{t(registering ? 'auth.toLogin' : 'auth.toRegister')}</Anchor>
   return (
-    <Center mih="100vh" p="md" bg="var(--mantine-color-gray-0)">
-      <Card w={400}>
-        <form onSubmit={submit}><Stack>
-          <Title order={2}>{t(`auth.${mode}`)}</Title>
-          {registering && policy.isError && <Alert color="red">{t('auth.policyFailed')} <Anchor component="button" type="button" onClick={() => policy.refetch()}>{t('auth.retry')}</Anchor></Alert>}
-          {registering && !policy.isError && policy.data && !registrationOpen && <Alert>{t('auth.closed')}</Alert>}
-          {providers.length > 0 && (!registering || registrationOpen) && (
-            <Stack gap="xs">
-              {providers.map((p) => <Button key={p.id} component="a" href={`/api/oauth/${p.id}/start?next=${encodeURIComponent(next)}`} variant="default" size="md">{t('auth.with', { name: p.name })}</Button>)}
-              {passwordLogin && <Divider label={t('auth.or')} labelPosition="center" />}
-            </Stack>
-          )}
-          {!passwordLogin && error && <Text c="red" size="sm">{error}</Text>}
-          {showPasswordForm && (<>
-          <TextInput label={t('auth.email')} type="email" size="md" required autoFocus {...form.getInputProps('Email')} />
-          <PasswordInput label={t('auth.password')} size="md" required minLength={8} description={mode === 'register' ? t('auth.passwordHint') : undefined} {...form.getInputProps('Password')} />
-          {mode === 'register' && policy.data?.verify && (
-            <Group align="flex-end" wrap="nowrap">
-              <TextInput flex={1} label={t('auth.code')} size="md" required placeholder="000000" {...form.getInputProps('Code')} />
-              <Button variant="default" size="md" loading={sending} disabled={!form.values.Email.includes('@')} onClick={sendCode}>{codeSent ? t('auth.resend') : t('auth.sendCode')}</Button>
-            </Group>
-          )}
-          {mode === 'register' && (policy.data?.email_suffixes ?? []).length > 0 && <Text size="xs" c="dimmed">{t('auth.suffixes', { list: policy.data!.email_suffixes.join(', ') })}</Text>}
-          {mode === 'register' && <TextInput label={policy.data?.invite_only ? t('auth.inviteRequired') : t('auth.invite')} placeholder={t('auth.inviteHint')} required={policy.data?.invite_only} {...form.getInputProps('Invite')} />}
-          {mode === 'register' && policy.data?.captcha && <Captcha provider={policy.data.captcha.provider} siteKey={policy.data.captcha.site_key} onToken={setCaptcha} />}
-          {mode === 'login' && policy.data?.reset && <Text size="sm" ta="right"><Anchor component={Link} to="/forgot">{t('auth.forgot')}</Anchor></Text>}
-          {error && <Text c="red" size="sm">{error}</Text>}
-          <Button type="submit" size="md" loading={busy}>{t(`auth.${mode}`)}</Button>
-          </>)}
-          {(registering || registrationOpen) && <Text size="sm" ta="center"><Anchor component={Link} to={`${registering ? '/login' : '/register'}?next=${encodeURIComponent(next)}`}>{t(registering ? 'auth.toLogin' : 'auth.toRegister')}</Anchor></Text>}
-          <Group justify="center"><Anchor href="/" size="xs" c="dimmed">{t('auth.home')}</Anchor></Group>
-        </Stack></form>
-      </Card>
-    </Center>
+    <AuthLayout title={t(registering ? 'auth.registerTitle' : 'auth.loginTitle')} description={t(registering ? 'auth.registerHint' : 'auth.loginHint')} footer={footer}>
+      <form onSubmit={submit} className={styles.form}>
+        {loading && <div className={styles.loading} role="status"><Loader size="sm" /><span>{t('auth.loading')}</span></div>}
+        {registering && policy.isError && <Alert color="red" className={styles.feedback}>{t('auth.policyFailed')} <Anchor component="button" type="button" onClick={() => policy.refetch()}>{t('auth.retry')}</Anchor></Alert>}
+        {registering && !policy.isError && policy.data && !registrationOpen && <Alert color="gray" className={styles.feedback}>{t('auth.closed')}</Alert>}
+        {oauth.isError && showMethods && <Alert color="red" className={styles.feedback}>{t('auth.providersFailed')} <Anchor component="button" type="button" onClick={() => oauth.refetch()}>{t('auth.retry')}</Anchor></Alert>}
+        {providers.length > 0 && showMethods && <>
+          <div className={styles.providers} data-stacked={providers.length === 1 || providers.some((p) => t('auth.with', { name: p.name }).length > 32) || undefined}>
+            {providers.map((p) => <Button key={p.id} component="a" href={`/api/oauth/${p.id}/start?next=${encodeURIComponent(next)}`} variant="default" className={styles.provider} leftSection={<IconKey size={18} aria-hidden />}>{t('auth.with', { name: p.name })}</Button>)}
+          </div>
+          {passwordLogin && <Divider label={t('auth.emailAlternative')} labelPosition="center" className={styles.divider} />}
+        </>}
+        {!loading && oauth.data && showMethods && !passwordLogin && providers.length === 0 && <Alert color="gray" className={styles.feedback}>{t('auth.loginUnavailable')}</Alert>}
+        {showPasswordForm && <>
+          <TextInput className={styles.field} label={t('auth.email')} placeholder={t('auth.emailPlaceholder')} leftSection={<IconMail size={18} aria-hidden />} type="email" autoComplete="username" size="md" required {...form.getInputProps('Email')} />
+          <PasswordInput inputWrapperOrder={['label', 'input', 'description', 'error']} className={styles.field} label={t('auth.password')} placeholder={t(registering ? 'auth.passwordCreatePlaceholder' : 'auth.passwordPlaceholder')} leftSection={<IconLock size={18} aria-hidden />} autoComplete={registering ? 'new-password' : 'current-password'} size="md" required minLength={8} visible={passwordVisible} onVisibilityChange={setPasswordVisible} visibilityToggleButtonProps={{ tabIndex: 0, 'aria-hidden': false, 'aria-label': t(passwordVisible ? 'auth.hidePassword' : 'auth.showPassword') }} description={registering ? t('auth.passwordHint') : undefined} {...form.getInputProps('Password')} />
+          {registering && policy.data?.verify && <div className={styles.codeRow}>
+            <TextInput className={`${styles.field} ${styles.codeField}`} label={t('auth.code')} size="md" required placeholder="000000" autoComplete="one-time-code" inputMode="numeric" {...form.getInputProps('Code')} />
+            <Button type="button" variant="default" size="md" className={styles.codeButton} loading={sending} disabled={!form.values.Email.includes('@')} onClick={sendCode}>{codeSent ? t('auth.resend') : t('auth.sendCode')}</Button>
+          </div>}
+          {registering && (policy.data?.email_suffixes ?? []).length > 0 && <Text size="xs" c="dimmed" className={styles.feedback}>{t('auth.suffixes', { list: policy.data!.email_suffixes.join(', ') })}</Text>}
+          {registering && <TextInput className={styles.field} leftSection={<IconTicket size={18} aria-hidden />} label={policy.data?.invite_only ? t('auth.inviteRequired') : t('auth.invite')} placeholder={t('auth.inviteHint')} required={policy.data?.invite_only} {...form.getInputProps('Invite')} />}
+          {registering && policy.data?.captcha && <div className={styles.captcha}><Captcha provider={policy.data.captcha.provider} siteKey={policy.data.captcha.site_key} onToken={setCaptcha} size="compact" /></div>}
+          {!registering && policy.data?.reset && <div className={styles.forgot}><Anchor component={Link} to="/forgot">{t('auth.forgot')}</Anchor></div>}
+        </>}
+        {error && <Alert color="red" className={styles.feedback}>{error}</Alert>}
+        {showPasswordForm && <Button type="submit" size="md" autoContrast className={styles.submit} loading={busy} rightSection={<IconArrowRight size={18} aria-hidden />}>{t(`auth.${mode}`)}</Button>}
+      </form>
+    </AuthLayout>
   )
 }

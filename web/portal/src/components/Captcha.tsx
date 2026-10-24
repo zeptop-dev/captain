@@ -4,9 +4,9 @@ import { useEffect, useRef } from 'react'
 // loaded once per provider; each provider exposes an explicit render call.
 declare global {
   interface Window {
-    turnstile?: { render: (el: HTMLElement, opts: { sitekey: string; callback: (t: string) => void; 'expired-callback'?: () => void; theme?: string }) => string }
-    grecaptcha?: { render: (el: HTMLElement, opts: { sitekey: string; callback: (t: string) => void; 'expired-callback'?: () => void }) => number; ready?: (cb: () => void) => void }
-    hcaptcha?: { render: (el: HTMLElement, opts: { sitekey: string; callback: (t: string) => void; 'expired-callback'?: () => void }) => string }
+    turnstile?: { render: (el: HTMLElement, opts: { sitekey: string; callback: (t: string) => void; 'expired-callback'?: () => void; theme?: string; size?: 'normal' | 'compact' }) => string }
+    grecaptcha?: { render: (el: HTMLElement, opts: { sitekey: string; callback: (t: string) => void; 'expired-callback'?: () => void; size?: 'normal' | 'compact' }) => number; ready?: (cb: () => void) => void }
+    hcaptcha?: { render: (el: HTMLElement, opts: { sitekey: string; callback: (t: string) => void; 'expired-callback'?: () => void; size?: 'normal' | 'compact' }) => string }
   }
 }
 
@@ -26,7 +26,7 @@ function load(src: string): Promise<void> {
   })
 }
 
-export function Captcha({ provider, siteKey, onToken }: { provider: string; siteKey: string; onToken: (t: string) => void }) {
+export function Captcha({ provider, siteKey, onToken, size = 'normal' }: { provider: string; siteKey: string; onToken: (t: string) => void; size?: 'normal' | 'compact' }) {
   const ref = useRef<HTMLDivElement>(null)
   const rendered = useRef(false)
   useEffect(() => {
@@ -37,12 +37,12 @@ export function Captcha({ provider, siteKey, onToken }: { provider: string; site
       const poll = () => {
         const api = provider === 'turnstile' ? window.turnstile : provider === 'recaptcha' ? window.grecaptcha : window.hcaptcha
         if (!api) { setTimeout(poll, 100); return }
-        const opts = { sitekey: siteKey, callback: onToken, 'expired-callback': () => onToken('') }
+        const opts = { sitekey: siteKey, callback: onToken, 'expired-callback': () => onToken(''), size }
         if (provider === 'recaptcha' && window.grecaptcha?.ready) window.grecaptcha.ready(() => window.grecaptcha!.render(el, opts))
         else api.render(el, opts as never)
       }
       poll()
     }).catch(() => {})
-  }, [provider, siteKey, onToken])
+  }, [provider, siteKey, onToken, size])
   return <div ref={ref} />
 }
