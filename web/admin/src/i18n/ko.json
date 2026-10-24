@@ -1072,7 +1072,7 @@
     "claudeRulesV2fly": "v2fly + Captain 보완 규칙",
     "claudeRulesCount": "규칙 {{count}}개",
     "claudeRulesNotSynced": "아직 동기화하지 않아 내장 규칙 사용",
-    "claudeRulesDraftLatest": "라이브러리와 동일하며 미리 보기와 적용 필요",
+    "claudeRulesDraftLatest": "라이브러리 버전과 동일",
     "claudeRulesDraftPinned": "다른 버전을 반영할 때까지 현재 버전 유지",
     "claudeRulesAppliedUnknown": "버전 알 수 없음: 현재 템플릿과 일치하는 적용 기록 없음",
     "claudeRulesAppliedDisabled": "Claude 전용 라우팅 비활성화",

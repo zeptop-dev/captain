@@ -1072,7 +1072,7 @@
     "claudeRulesV2fly": "v2fly + дополнения Captain",
     "claudeRulesCount": "Правил: {{count}}",
     "claudeRulesNotSynced": "Ещё не синхронизировано; используются встроенные правила",
-    "claudeRulesDraftLatest": "Совпадает с библиотекой; требуется просмотр и применение",
+    "claudeRulesDraftLatest": "Совпадает с версией библиотеки",
     "claudeRulesDraftPinned": "Сохранит текущую версию до выбора другой",
     "claudeRulesAppliedUnknown": "Версия неизвестна: нет записи, соответствующей текущему шаблону",
     "claudeRulesAppliedDisabled": "Отдельная маршрутизация Claude отключена",

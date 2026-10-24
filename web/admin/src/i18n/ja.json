@@ -1072,7 +1072,7 @@
     "claudeRulesV2fly": "v2fly + Captain 補足ルール",
     "claudeRulesCount": "{{count}} 件のルール",
     "claudeRulesNotSynced": "未同期のため内蔵ルールを使用",
-    "claudeRulesDraftLatest": "ライブラリと一致。プレビューと適用が必要です",
+    "claudeRulesDraftLatest": "ライブラリのバージョンと一致",
     "claudeRulesDraftPinned": "別のバージョンを採用するまで現在のものを保持",
     "claudeRulesAppliedUnknown": "バージョン不明：現在のテンプレートに一致する適用記録がありません",
     "claudeRulesAppliedDisabled": "Claude 専用ルーティングは無効です",
