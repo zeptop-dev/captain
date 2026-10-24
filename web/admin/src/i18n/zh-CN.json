@@ -1446,7 +1446,7 @@
     "claudeRulesV2fly": "v2fly + Captain 补充规则",
     "claudeRulesCount": "{{count}} 条规则",
     "claudeRulesNotSynced": "尚未同步，使用内置规则",
-    "claudeRulesDraftLatest": "与规则库一致，仍需预览并应用",
+    "claudeRulesDraftLatest": "与规则库版本一致",
     "claudeRulesDraftPinned": "保留当前版本，采用后才会更新",
     "claudeRulesAppliedUnknown": "版本未知：当前模板没有匹配的应用记录",
     "claudeRulesAppliedDisabled": "未启用 Claude 专用分流",

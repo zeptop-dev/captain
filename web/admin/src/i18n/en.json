@@ -1446,7 +1446,7 @@
     "claudeRulesV2fly": "v2fly + Captain additions",
     "claudeRulesCount": "{{count}} rules",
     "claudeRulesNotSynced": "Using built-in rules; not synced yet",
-    "claudeRulesDraftLatest": "Matches the library; still requires preview and apply",
+    "claudeRulesDraftLatest": "Matches the library version",
     "claudeRulesDraftPinned": "Retains its selected version until you adopt another",
     "claudeRulesAppliedUnknown": "Version unknown: no matching record for the current template",
     "claudeRulesAppliedDisabled": "Claude dedicated routing is disabled",
