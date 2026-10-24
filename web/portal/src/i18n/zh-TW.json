@@ -32,7 +32,20 @@
     "suffixes": "僅接受這些信箱：{{list}}",
     "inviteRequired": "邀請碼（必填）",
     "policyFailed": "暫時無法取得註冊狀態，請重試。",
-    "retry": "重試"
+    "retry": "重試",
+    "portalLabel": "使用者中心",
+    "loginTitle": "歡迎回來",
+    "loginHint": "登入以管理你的方案、訂閱與裝置。",
+    "registerTitle": "建立帳號",
+    "registerHint": "在這裡管理你的訂閱與連線。",
+    "emailPlaceholder": "請輸入電子郵件地址",
+    "passwordPlaceholder": "請輸入密碼",
+    "passwordCreatePlaceholder": "設定至少 8 位密碼",
+    "providersFailed": "暫時無法載入登入方式，請重試。",
+    "loginUnavailable": "暫時沒有可用的登入方式，請稍後再試。",
+    "loading": "正在載入…",
+    "emailAlternative": "或使用電子郵件繼續",
+    "backToLogin": "返回登入"
   },
   "home": {
     "noPlanHint": "選一個方案開始使用。",

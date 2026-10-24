@@ -32,7 +32,20 @@
     "suffixes": "利用できるメールドメイン：{{list}}",
     "inviteRequired": "招待コード（必須）",
     "policyFailed": "登録設定を取得できませんでした。もう一度お試しください。",
-    "retry": "再試行"
+    "retry": "再試行",
+    "portalLabel": "ユーザーポータル",
+    "loginTitle": "おかえりなさい",
+    "loginHint": "ログインしてプラン、サブスクリプション、デバイスを管理できます。",
+    "registerTitle": "アカウントを作成",
+    "registerHint": "サブスクリプションと接続をここで管理できます。",
+    "emailPlaceholder": "メールアドレスを入力",
+    "passwordPlaceholder": "パスワードを入力",
+    "passwordCreatePlaceholder": "8文字以上のパスワードを設定",
+    "providersFailed": "ログイン方法を読み込めませんでした。もう一度お試しください。",
+    "loginUnavailable": "現在利用できるログイン方法がありません。しばらくしてからお試しください。",
+    "loading": "読み込み中…",
+    "emailAlternative": "またはメールアドレスで続行",
+    "backToLogin": "ログインに戻る"
   },
   "home": {
     "noPlanHint": "プランを選んで始めましょう。",

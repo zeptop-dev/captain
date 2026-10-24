@@ -32,7 +32,20 @@
     "suffixes": "仅接受这些邮箱：{{list}}",
     "inviteRequired": "邀请码（必填）",
     "policyFailed": "暂时无法获取注册状态，请重试。",
-    "retry": "重试"
+    "retry": "重试",
+    "portalLabel": "用户中心",
+    "loginTitle": "欢迎回来",
+    "loginHint": "登录以管理你的套餐、订阅与设备。",
+    "registerTitle": "创建账号",
+    "registerHint": "在这里管理你的订阅与连接。",
+    "emailPlaceholder": "请输入邮箱地址",
+    "passwordPlaceholder": "请输入密码",
+    "passwordCreatePlaceholder": "设置至少 8 位密码",
+    "providersFailed": "暂时无法加载登录方式，请重试。",
+    "loginUnavailable": "暂时没有可用的登录方式，请稍后再试。",
+    "loading": "正在加载…",
+    "emailAlternative": "或使用邮箱继续",
+    "backToLogin": "返回登录"
   },
   "home": {
     "noPlanHint": "选一个套餐开始使用。",

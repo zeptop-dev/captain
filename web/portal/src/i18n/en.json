@@ -32,7 +32,20 @@
     "suffixes": "Accepted email domains: {{list}}",
     "inviteRequired": "Invite code (required)",
     "policyFailed": "Unable to load the registration policy. Please try again.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "portalLabel": "Customer portal",
+    "loginTitle": "Welcome back",
+    "loginHint": "Sign in to manage your plans, subscriptions and devices.",
+    "registerTitle": "Create an account",
+    "registerHint": "Manage your subscriptions and connections in one place.",
+    "emailPlaceholder": "Enter your email address",
+    "passwordPlaceholder": "Enter your password",
+    "passwordCreatePlaceholder": "Use at least 8 characters",
+    "providersFailed": "Unable to load sign-in methods. Please try again.",
+    "loginUnavailable": "No sign-in methods are available right now. Please try again later.",
+    "loading": "Loading…",
+    "emailAlternative": "or continue with email",
+    "backToLogin": "Back to sign in"
   },
   "home": {
     "noPlanHint": "Pick a plan to get started.",
