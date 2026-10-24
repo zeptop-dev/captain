@@ -46,6 +46,13 @@ func TestNodeAutoRenewalCalendarAndNormalization(t *testing.T) {
 			t.Fatalf("%s years: %d months", tc.years, got)
 		}
 	}
+	for _, tc := range []struct{ at, want string }{{"2027-02-28", "2027-02-01"}, {"2027-03-01", "2027-03-01"}, {"2027-04-01", "2027-04-01"}} {
+		at, _ := time.Parse("2006-01-02", tc.at)
+		p := NodeProbe{ResetDay: 1, Info: NodeProbeInfo{ExpiresAt: "2027-02-28", AutoRenewal: &NodeAutoRenewal{Enabled: false, AnchorDate: "2027-01-31"}, TrafficReset: &NodeTrafficReset{Mode: "expiry_next"}}}
+		if got := nodePeriodStart(at, &p).Format("2006-01-02"); got != tc.want {
+			t.Fatalf("expiry_next anchor at %s: got %s, want %s", tc.at, got, tc.want)
+		}
+	}
 	info := NodeProbeInfo{ExpiresAt: "2027-01-31", Billing: &NodeCost{Amount: "", Currency: "USD", Cycle: "monthly"}, AutoRenewal: &NodeAutoRenewal{Enabled: true, AnchorDate: "2000-01-01"}}
 	if err := normalizeNodeCost(&info, NodeProbeInfo{}); err != nil || info.AutoRenewal.AnchorDate != "2027-01-31" {
 		t.Fatal("server must establish anchor, including with unknown price", info, err)
@@ -275,6 +282,8 @@ func TestNodeAutoRenewalBoundedCursorAndAuditRollback(t *testing.T) {
 	if err := json.Unmarshal([]byte(raw), &cursor); err != nil || len(cursor.Epochs) != 8 {
 		t.Fatal("unbounded epochs", raw, err)
 	}
+	// A new Store has no in-memory receipt state to accidentally rely on.
+	s = New(s.DB())
 	due := start.Add(2 * time.Minute)
 	// The evicted old epoch remains stale because its sample timestamp is old.
 	if changed, err := s.RecordNodeReport(ctx, id, "current-token-hash", agentproto.Report{Host: renewalHost(start, "0", 1)}, true, due); changed || err != nil {
@@ -296,5 +305,55 @@ func TestNodeAutoRenewalBoundedCursorAndAuditRollback(t *testing.T) {
 	}
 	if changed, err := s.RecordNodeReport(ctx, id, "current-token-hash", agentproto.Report{Host: h}, true, due); !changed || err != nil {
 		t.Fatal("rollback consumed cursor", changed, err)
+	}
+}
+
+func TestNodeAutoRenewalLegacyAndDisabled(t *testing.T) {
+	s, id := nodeRenewalRig(t)
+	ctx := context.Background()
+	due := time.Date(2027, 1, 31, 0, 0, 0, 0, time.UTC)
+	legacy := agentproto.Report{Host: spec.SystemStatus{MemTotal: 1024}}
+	if changed, err := s.RecordNodeReport(ctx, id, "current-token-hash", legacy, false, due); changed || err != nil {
+		t.Fatal("legacy traffic replay renewed", changed, err)
+	}
+	if changed, err := s.RecordNodeReport(ctx, id, "current-token-hash", legacy, true, due); !changed || err != nil {
+		t.Fatal("fresh legacy resources failed", changed, err)
+	}
+	p, err := s.NodeProbe(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Info.AutoRenewal.Enabled = false
+	if err := s.UpdateNodeProbe(ctx, id, false, p.Info, 10000, 1, "sum"); err != nil {
+		t.Fatal(err)
+	}
+	var cursorBefore, cursorAfter string
+	if err := s.db.QueryRowContext(ctx, `SELECT probe_renewal_json FROM nodes WHERE id=?`, id).Scan(&cursorBefore); err != nil {
+		t.Fatal(err)
+	}
+	next := time.Date(2027, 2, 28, 0, 0, 0, 0, time.UTC)
+	if changed, err := s.RecordNodeReport(ctx, id, "current-token-hash", agentproto.Report{Host: renewalHost(next, "disabled", 1)}, true, next); changed || err != nil {
+		t.Fatal("disabled renewal", changed, err)
+	}
+	p, err = s.NodeProbe(ctx, id)
+	if err != nil || p.Info.ExpiresAt != "2027-02-28" || p.Info.AutoRenewal.Enabled || p.Info.AutoRenewal.AnchorDate != "2027-01-31" {
+		t.Fatal("disabled state changed", p, err)
+	}
+	if err := s.db.QueryRowContext(ctx, `SELECT probe_renewal_json FROM nodes WHERE id=?`, id).Scan(&cursorAfter); err != nil || cursorBefore != cursorAfter {
+		t.Fatal("disabled node maintained unnecessary cursors", cursorBefore, cursorAfter, err)
+	}
+	if end := nodePeriodEnd(next, p).Format("2006-01-02"); end != "2027-03-31" {
+		t.Fatal("disabled anchor drifted", end)
+	}
+	p.Info.AutoRenewal.Enabled = true
+	if err := s.UpdateNodeProbe(ctx, id, false, p.Info, 10000, 1, "sum"); err != nil {
+		t.Fatal(err)
+	}
+	if changed, err := s.RecordNodeReport(ctx, id, "current-token-hash", legacy, true, next); !changed || err != nil {
+		t.Fatal("re-enabled legacy renewal", changed, err)
+	}
+	p, err = s.NodeProbe(ctx, id)
+	if err != nil || p.Info.ExpiresAt != "2027-03-31" || p.Info.AutoRenewal.AnchorDate != "2027-01-31" {
+		t.Fatal("re-enabled anchor drifted", p, err)
 	}
 }
