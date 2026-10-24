@@ -44,7 +44,9 @@
     "loginUnavailable": "暫時沒有可用的登入方式，請稍後再試。",
     "loading": "正在載入…",
     "emailAlternative": "或使用電子郵件繼續",
-    "backToLogin": "返回登入"
+    "backToLogin": "返回登入",
+    "showPassword": "顯示密碼",
+    "hidePassword": "隱藏密碼"
   },
   "home": {
     "noPlanHint": "選一個方案開始使用。",

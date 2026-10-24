@@ -44,7 +44,9 @@
     "loginUnavailable": "No sign-in methods are available right now. Please try again later.",
     "loading": "Loading…",
     "emailAlternative": "or continue with email",
-    "backToLogin": "Back to sign in"
+    "backToLogin": "Back to sign in",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   },
   "home": {
     "noPlanHint": "Pick a plan to get started.",
