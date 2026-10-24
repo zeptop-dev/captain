@@ -281,7 +281,7 @@ The portal then shows "Continue with …". Accounts are matched by the
 provider's subject, linked to an existing account with the same verified
 email, or created when registration allows it. Before the runtime master switch
 is set, a provider's `auto_register` can permit signup despite a closed deployment
-default; an explicitly closed master switch takes precedence. Users link and unlink logins from the portal home page, and
+default; an explicitly closed master switch takes precedence. Users link and unlink logins from the portal's Account page, and
 password login can be switched off entirely.
 
 Casdoor example: issuer `https://door.example.com`, default scopes

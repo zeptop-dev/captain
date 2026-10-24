@@ -12,6 +12,8 @@ import ServersPage from './pages/ServersPage'
 import InvitePage from './pages/InvitePage'
 import TicketsPage from './pages/TicketsPage'
 import HelpPage from './pages/HelpPage'
+import ConnectionPage from './pages/ConnectionPage'
+import AccountPage from './pages/AccountPage'
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { me, loading } = useAuth()
@@ -30,6 +32,8 @@ export default function App() {
         <Route path="/forgot" element={<ForgotPage />} />
         <Route element={<Protected><Layout /></Protected>}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/connect" element={<ConnectionPage />} />
+          <Route path="/account" element={<AccountPage />} />
           <Route path="/plans" element={<PlansPage />} />
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/servers" element={<ServersPage />} />

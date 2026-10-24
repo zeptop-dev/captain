@@ -243,7 +243,7 @@ also reserves `port + 1`).
 ### Native WireGuard devices
 
 A regular subscription retains one WireGuard identity per customer and inbound.
-Use **WireGuard device subscriptions** on the portal home page or in the user's
+Use **WireGuard device subscriptions** on the portal's Connect page or in the user's
 admin detail drawer to give a laptop, phone and router independent peers. Each
 device has its own subscription link; sharing one device's configuration across
 independent clients still shares the same peer. All of a customer's devices

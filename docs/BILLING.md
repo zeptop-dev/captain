@@ -85,7 +85,7 @@ is cancelled.
 **Gift / redeem codes** (Admin → Gift codes) are generated in batches,
 single-use, with an optional expiry: balance top-up, a plan for N days,
 extra traffic, or extra days on the active plan. Users redeem them on the
-portal home page.
+portal's Account page (`/portal/account`).
 
 ## Invites and commissions
 
@@ -125,11 +125,18 @@ users can reset their own password. See [ADMIN.md](ADMIN.md#mail).
 
 ## The portal
 
-`/portal/` (the site root redirects there): sign up and sign in, usage,
-expiry and balance, the subscription link with copy button, QR code and
-one-tap import for Clash, sing-box, Shadowrocket and Surge, the plan list
-paid by balance or any enabled gateway, order history, the server list with
-per-server share links, devices, tickets, knowledge base and redeem codes.
+`/portal/` shows each plan's remaining traffic, reset and expiry separately,
+with quick connection actions and announcements. The main sections are Overview,
+Connect, Plans and billing, Help, and Account; narrow screens use bottom navigation.
+Connect (`/portal/connect`) groups configured client downloads by device platform,
+subscription copy/QR/import actions, searchable nodes and WireGuard devices.
+Account (`/portal/account`) holds registered HWID devices, redeem codes, Telegram
+preferences and linked logins. Existing plan, order, server, help, ticket and invite
+URLs remain available.
+
+Plans can be paid by balance or an enabled gateway. Returning from a payment page
+does not establish success: order badges use the server's status, and pending
+orders refresh while the customer waits.
 
 `/` is a public landing page — hero with a rotating globe of your node
 locations, feature cards, plans and an FAQ — edited under Admin → Landing

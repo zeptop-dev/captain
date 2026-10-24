@@ -1,172 +1,100 @@
-import { Alert, Badge, Button, Card, Group, Progress, SimpleGrid, Stack, Text, Title, Menu } from '@mantine/core'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api } from '../lib/api'
-import { IconCheck, IconCopy, IconDownload } from '@tabler/icons-react'
-import { QRCodeSVG } from 'qrcode.react'
+import { Alert, Anchor, Badge, Button, Card, Group, Progress, Skeleton, Stack, Text, ThemeIcon, Title } from '@mantine/core'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { IconArrowRight, IconArrowUpRight, IconBook2, IconCalendar, IconCheck, IconChevronDown, IconChevronUp, IconCopy, IconDownload, IconHeadset, IconLayersSubtract, IconNetwork, IconRefresh, IconSpeakerphone, IconWallet, IconWorld } from '@tabler/icons-react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { api, type Sub } from '../lib/api'
 import { copyText } from '../lib/clipboard'
 import { useAuth } from '../lib/auth'
-import { bytes, money, when } from '../lib/format'
+import { bytes, money } from '../lib/format'
 import { toast } from '../lib/notify'
-import { RedeemCard } from '../components/RedeemCard'
-import { TelegramCard } from '../components/TelegramCard'
-import { WireGuardDevices } from '../components/WireGuardDevices'
+import classes from './HomePage.module.css'
 
-// Deep links understood by the common clients.
-function importLinks(url: string) {
-  const enc = encodeURIComponent(url)
-  return [
-    { name: 'Clash / mihomo', href: `clash://install-config?url=${enc}` },
-    { name: 'sing-box', href: `sing-box://import-remote-profile?url=${enc}` },
-    { name: 'Shadowrocket', href: `shadowrocket://add/sub://${btoa(url)}?remark=Captain` },
-    { name: 'Surge', href: `surge:///install-config?url=${enc}` },
-  ]
+function PlanUsage({ subscription: s, now }: { subscription: Sub; now: number }) {
+  const { t, i18n } = useTranslation()
+  const expiry = s.expires_at ? new Date(s.expires_at).getTime() : null
+  const expired = expiry !== null && expiry <= now
+  const exhausted = s.quota_bytes > 0 && s.used_bytes >= s.quota_bytes
+  const usable = s.usable && !expired && !exhausted
+  const days = expiry === null ? null : Math.max(0, Math.ceil((expiry - now) / 86400000))
+  const expiring = usable && days !== null && days <= 7
+  const color = !usable || expiring ? 'orange' : 'teal'
+  const status = expired ? t('overview.expired') : exhausted ? t('overview.exhausted') : usable ? t('home.statusActive') : t('overview.unavailable')
+  const date = (value: string) => new Date(value).toLocaleDateString(i18n.language, { year: 'numeric', month: 'short', day: 'numeric' })
+  return (
+    <article className={classes.plan}>
+      <Group justify="space-between" align="flex-start" gap="sm">
+        <Text fw={650} size="lg" className={classes.planName}>{s.plan_name}</Text>
+        <Badge variant="light" color={color}>{status}</Badge>
+      </Group>
+      <div className={classes.usage}>
+        <Text size="sm" c="dimmed">{t('overview.remaining')}</Text>
+        <Text className={classes.amount}>{s.quota_bytes > 0 ? bytes(Math.max(0, s.quota_bytes - s.used_bytes)) : t('home.unlimited')}</Text>
+        <Group justify="space-between" gap={4} mb={10}>
+          <Text size="sm" c="dimmed">{s.quota_bytes > 0 ? t('overview.usedOf', { used: bytes(s.used_bytes), total: bytes(s.quota_bytes) }) : t('overview.usedUnlimited', { used: bytes(s.used_bytes) })}</Text>
+          {s.quota_bytes > 0 && <Text size="sm" fw={600} c={exhausted ? 'orange' : 'dimmed'}>{Math.min(100, Math.max(0, s.used_bytes / s.quota_bytes * 100)).toFixed(0)}%</Text>}
+        </Group>
+        {s.quota_bytes > 0 && <Progress value={Math.min(100, Math.max(0, s.used_bytes / s.quota_bytes * 100))} color={exhausted ? 'orange' : undefined} size={7} radius="xl" aria-label={t('home.usage')} />}
+      </div>
+      <div className={classes.planDetails}>
+        <div>
+          <Group gap={6} c="dimmed" mb={5}><IconRefresh size={15} stroke={1.7} /><Text size="xs">{t('overview.reset')}</Text></Group>
+          <Text size="sm" fw={550}>{s.reset_at ? date(s.reset_at) : t('overview.noReset')}</Text>
+        </div>
+        <div>
+          <Group gap={6} c="dimmed" mb={5}><IconCalendar size={15} stroke={1.7} /><Text size="xs">{t('home.expires')}</Text></Group>
+          <Group gap={6}><Text size="sm" fw={550}>{s.expires_at ? date(s.expires_at) : t('home.never')}</Text>{usable && days !== null && <Text size="xs" c={expiring ? 'orange' : 'dimmed'}>{t('home.daysLeft', { count: days })}</Text>}</Group>
+        </div>
+      </div>
+      {(!usable || expiring) && <Group justify="space-between" gap="xs" className={classes.renewRow}><Text size="sm" c="dimmed">{expired ? t('overview.expiredHint') : exhausted ? t('overview.exhaustedHint') : expiring ? t('overview.expiringHint') : t('overview.unavailableHint')}</Text><Button component={Link} to="/plans" variant="light" size="xs" color="orange">{t('home.renew')}</Button></Group>}
+    </article>
+  )
 }
 
 export default function HomePage() {
   const { t } = useTranslation()
-  // One clock read per mount keeps render pure; data refetches refresh it.
-  const [renderedAt] = useState(() => Date.now())
-  const [copied, setCopied] = useState(false)
-  const qc = useQueryClient()
-  const notice = useQuery({ queryKey: ['notice'], queryFn: () => api.get<{ enabled: boolean; title?: string; body?: string }>('/api/portal/notice') })
-  const providers = useQuery({ queryKey: ['oauth-providers'], queryFn: () => api.get<{ providers: { id: string; name: string }[] }>('/api/oauth/providers') })
-  const identities = useQuery({ queryKey: ['identities'], queryFn: () => api.get<{ provider: string; email: string }[]>('/api/oauth/identities') })
-  const unlink = useMutation({ mutationFn: (p: string) => api.del(`/api/oauth/identities/${p}`), onSuccess: () => qc.invalidateQueries({ queryKey: ['identities'] }) })
   const { me, refresh } = useAuth()
+  const [now, setNow] = useState(() => Date.now())
+  const [copied, setCopied] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 60_000); return () => window.clearInterval(timer) }, [])
+  useEffect(() => { if (!copied) return; const timer = window.setTimeout(() => setCopied(false), 1800); return () => window.clearTimeout(timer) }, [copied])
+  const notice = useQuery({ queryKey: ['notice'], queryFn: () => api.get<{ enabled: boolean; title?: string; body?: string }>('/api/portal/notice'), meta: { handlesError: true } })
   const cancelQueued = useMutation({ mutationFn: (id: number) => api.del(`/api/portal/subscriptions/${id}`), onSuccess: () => refresh(), onError: toast.err })
-  const removeDevice = useMutation({ mutationFn: (hwid: string) => api.del(`/api/portal/me/hwid-devices/${encodeURIComponent(hwid)}`), onSuccess: () => refresh(), onError: toast.err })
   if (!me) return null
   const subs = me.subscriptions ?? []
-  const sub = me.subscription
-  const anyUsable = subs.some((s) => s.usable)
-  const daysOf = (iso: string | null) => (iso ? Math.max(0, Math.ceil((new Date(iso).getTime() - renderedAt) / 86400000)) : null)
+  const active = subs.filter((s) => s.status !== 'queued')
+  const queued = subs.filter((s) => s.status === 'queued')
+  const anyUsable = active.some((s) => s.usable && (!s.expires_at || new Date(s.expires_at).getTime() > now) && (s.quota_bytes <= 0 || s.used_bytes < s.quota_bytes))
+  const showNotice = notice.isPending || notice.isError || notice.data?.enabled
   return (
-    <Stack gap="lg">
-      {notice.data?.enabled && <Alert color="blue" title={notice.data.title}><Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{notice.data.body}</Text></Alert>}
-      <Title order={2}>{t('home.hello', { email: me.email })}</Title>
-
-      {!sub && (
-        <Card>
-          <Title order={4}>{t('home.noPlan')}</Title>
-          <Text c="dimmed" mb="md">{t('home.noPlanHint')}</Text>
-          <Button component={Link} to="/plans">{t('home.browsePlans')}</Button>
+    <Stack gap={24}>
+      <Group justify="space-between" align="center" gap="md" className={classes.welcome}>
+        <div><Title order={1} className={classes.heading}>{t('overview.greeting')}</Title><Text size="sm" c="dimmed" mt={5}>{t('overview.intro')}</Text></div>
+        <Anchor component={Link} to="/account" className={classes.balance} underline="never"><IconWallet size={19} stroke={1.7} /><span>{t('home.balance')}</span><Text span fw={650}>{money(me.balance_cents)}</Text><IconArrowUpRight size={15} /></Anchor>
+      </Group>
+      <div className={`${classes.mainGrid} ${active.length > 1 || queued.length > 0 ? classes.multiplePlans : ''}`}>
+        <Card className={classes.plansCard}>
+          <Group justify="space-between" gap="xs" mb={22}><Group gap={10}><ThemeIcon variant="light" size={34} radius="md"><IconLayersSubtract size={19} stroke={1.7} /></ThemeIcon><Title order={2} size="h4">{t('plans.mine')}</Title></Group><Anchor component={Link} to="/plans" size="sm" underline="hover">{t('overview.managePlans')} <IconArrowUpRight size={14} style={{ verticalAlign: 'middle' }} /></Anchor></Group>
+          {active.length > 0 ? <Stack gap={0}>{active.map((s) => <PlanUsage key={s.id} subscription={s} now={now} />)}</Stack> : <div className={classes.emptyPlan}><ThemeIcon variant="light" size={54} radius="xl"><IconWorld size={28} stroke={1.5} /></ThemeIcon><Title order={3} size="h3" mt="lg">{queued.length ? t('overview.queueOnly') : t('overview.emptyTitle')}</Title><Text c="dimmed" size="sm" mt="xs" mb="lg">{queued.length ? t('overview.queueOnlyHint') : t('home.noPlanHint')}</Text><Button component={Link} to="/plans" rightSection={<IconArrowRight size={16} />}>{t('home.browsePlans')}</Button></div>}
+          {queued.length > 0 && <div className={classes.queued}><Text size="sm" fw={650} mb="sm">{t('overview.queued')}</Text><Stack gap="sm">{queued.map((s) => <div key={s.id} className={classes.queueItem}><Group justify="space-between" gap="xs"><Text fw={600} size="sm">{s.plan_name}</Text><Badge variant="light" color="gray" size="sm">{t('home.statusQueued')}</Badge></Group><Text size="xs" c="dimmed" mt={6}>{s.period_days ? t('home.queuedHint', { days: s.period_days }) : t('home.queuedHintForever')}</Text><Group justify="space-between" gap="xs" mt={6}><Text size="xs" c="dimmed">{s.quota_bytes ? t('home.queuedQuota', { quota: bytes(s.quota_bytes) }) : t('home.unlimited')}</Text><Button size="compact-xs" variant="subtle" color="gray" disabled={cancelQueued.isPending} loading={cancelQueued.isPending && cancelQueued.variables === s.id} onClick={() => cancelQueued.mutate(s.id)}>{t('home.cancelQueued')}</Button></Group></div>)}</Stack></div>}
         </Card>
-      )}
-      {sub && !anyUsable && (
-        <Card style={{ borderColor: 'var(--mantine-color-orange-4)' }}>
-          <Group justify="space-between"><div><Title order={4}>{t('home.expired')}</Title><Text c="dimmed">{t('home.expiredHint')}</Text></div><Button component={Link} to="/plans" color="orange">{t('home.renew')}</Button></Group>
-        </Card>
-      )}
-      {subs.length > 0 && (
-        <SimpleGrid cols={{ base: 1, xs: 2 }}>
-          {subs.map((s) => {
-            const days = daysOf(s.expires_at)
-            const queued = s.status === 'queued'
-            return (
-              <Card key={s.id} style={queued ? { borderStyle: 'dashed' } : undefined}>
-                <Group justify="space-between" align="flex-start" mb="xs">
-                  <Text fw={700}>{s.plan_name}</Text>
-                  <Badge variant="light" color={queued ? 'gray' : s.usable ? 'teal' : 'orange'}>{queued ? t('home.statusQueued') : s.usable ? t('home.statusActive') : t('home.statusLapsed')}</Badge>
-                </Group>
-                {queued ? (
-                  <>
-                    <Text size="sm" c="dimmed">{s.period_days ? t('home.queuedHint', { days: s.period_days }) : t('home.queuedHintForever')}</Text>
-                    <Text size="sm" c="dimmed">{s.quota_bytes ? t('home.queuedQuota', { quota: bytes(s.quota_bytes) }) : t('home.unlimited')}</Text>
-                    <Group justify="flex-end" mt="sm"><Button size="xs" variant="subtle" color="gray" loading={cancelQueued.isPending} onClick={() => cancelQueued.mutate(s.id)}>{t('home.cancelQueued')}</Button></Group>
-                  </>
-                ) : (
-                  <>
-                    <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.usage')}</Text>
-                    <Text fz="lg" fw={700}>{bytes(s.used_bytes)}{s.quota_bytes ? <Text span c="dimmed" fz="sm"> / {bytes(s.quota_bytes)}</Text> : null}</Text>
-                    {s.quota_bytes ? <Progress value={Math.min(100, (s.used_bytes / s.quota_bytes) * 100)} mt={4} /> : <Text size="sm" c="dimmed">{t('home.unlimited')}</Text>}
-                    {s.reset_at && <Text size="xs" c="dimmed" mt={4}>{t('home.resetsOn', { date: when(s.reset_at).split(',')[0] })}</Text>}
-                    <Group gap="xs" mt="sm" align="center">
-                      <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.expires')}</Text>
-                      <Text size="sm" fw={600}>{s.expires_at ? when(s.expires_at).split(',')[0] : t('home.never')}</Text>
-                      {days !== null && <Badge size="sm" color={days > 7 ? 'teal' : 'orange'}>{t('home.daysLeft', { count: days })}</Badge>}
-                    </Group>
-                  </>
-                )}
-              </Card>
-            )
-          })}
-        </SimpleGrid>
-      )}
-      {me.hwid_enabled && (
-        <Card>
-          <Group justify="space-between" align="flex-start">
-            <div><Title order={4}>{t('home.devices')}</Title><Text c="dimmed" size="sm">{me.hwid_limit > 0 ? t('home.devicesHint', { n: me.hwid_devices.length, limit: me.hwid_limit }) : t('home.devicesUnlimited', { n: me.hwid_devices.length })}</Text></div>
-          </Group>
-          {me.hwid_devices.length === 0 ? <Text size="sm" c="dimmed" mt="sm">{t('home.noDevices')}</Text> : (
-            <Stack gap={6} mt="sm">
-              {me.hwid_devices.map((d) => (
-                <Group key={d.hwid} justify="space-between" wrap="nowrap">
-                  <div>
-                    <Text size="sm">{[d.platform, d.os_version].filter(Boolean).join(' ') || (d.user_agent ?? '').split(' ')[0] || d.hwid.slice(0, 8)}{d.device_model ? ' · ' + d.device_model : ''}</Text>
-                    <Text size="xs" c="dimmed">{t('home.lastSeen')} {when(d.last_seen_at)}</Text>
-                  </div>
-                  <Button size="compact-xs" variant="subtle" color="red" loading={removeDevice.isPending} onClick={() => removeDevice.mutate(d.hwid)}>{t('home.removeDevice')}</Button>
-                </Group>
-              ))}
-            </Stack>
-          )}
-        </Card>
-      )}
-      <SimpleGrid cols={{ base: 2 }}>
-        <Card>
-          <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.balance')}</Text>
-          <Text fz="xl" fw={700} mt={4}>{money(me.balance_cents)}</Text>
-        </Card>
-        <Card>
-          <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.online')}</Text>
-          <Text fz="xl" fw={700} mt={4}>{me.online_devices ?? sub?.online_devices ?? 0}</Text>
-        </Card>
-      </SimpleGrid>
-
-      <Card>
-        <Title order={4}>{t('home.subscribe')}</Title>
-        <Text c="dimmed" size="sm" mb="md">{t('home.subscribeHint')}</Text>
-        <Group align="flex-start" wrap="nowrap" gap="lg">
-          <Stack flex={1} gap="sm">
-            <Text size="sm" style={{ wordBreak: 'break-all' }} ff="monospace" p="sm" bg="var(--mantine-color-gray-1)">{me.subscription_url}</Text>
-            <Group>
-              <Button leftSection={copied ? <IconCheck size={16} /> : <IconCopy size={16} />} color={copied ? 'teal' : undefined} onClick={async () => { if (await copyText(me.subscription_url)) { setCopied(true); window.setTimeout(() => setCopied(false), 1500) } }}>{copied ? t('home.copied') : t('home.copy')}</Button>
-              <Menu shadow="md" width={200}>
-                <Menu.Target><Button variant="light" leftSection={<IconDownload size={16} />}>{t('home.import')}</Button></Menu.Target>
-                <Menu.Dropdown>{importLinks(me.subscription_url).map((l) => <Menu.Item key={l.name} component="a" href={l.href}>{l.name}</Menu.Item>)}</Menu.Dropdown>
-              </Menu>
-            </Group>
+        <Card className={classes.connectCard}>
+          <div className={classes.connectTop}><ThemeIcon size={48} radius="lg" variant="light"><IconNetwork size={27} stroke={1.5} /></ThemeIcon><Title order={2} size="h3">{t('overview.connect')}</Title><Text c="dimmed" size="sm">{t('overview.connectHint')}</Text></div>
+          <Stack gap={10} mt={20}>
+            <Button component={Link} to="/connect" size="md" fullWidth rightSection={<IconArrowRight size={17} />}>{t('overview.configure')}</Button>
+            <Button size="md" variant="default" fullWidth disabled={!me.subscription_url} leftSection={copied ? <IconCheck size={17} /> : <IconCopy size={17} />} onClick={async () => { if (await copyText(me.subscription_url)) setCopied(true) }}>{copied ? t('home.copied') : t('overview.copySubscription')}</Button>
           </Stack>
-          <Stack align="center" gap={4} visibleFrom="xs">
-            <QRCodeSVG value={me.subscription_url} size={112} />
-            <Text size="xs" c="dimmed">{t('home.qr')}</Text>
-          </Stack>
-        </Group>
-      </Card>
-      <WireGuardDevices endpoint="/api/portal/me/wireguard-devices" />
-      <RedeemCard />
-      <TelegramCard />
-      {(providers.data?.providers ?? []).length > 0 && (
-        <Card mt="lg">
-          <Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('home.logins')}</Text>
-          <Stack gap="xs" mt="sm">
-            {providers.data!.providers.map((p) => {
-              const linked = identities.data?.find((i) => i.provider === p.id)
-              return (
-                <Group key={p.id} justify="space-between">
-                  <Text size="sm">{p.name}{linked && <Text span c="dimmed"> · {linked.email}</Text>}</Text>
-                  {linked
-                    ? <Button size="xs" variant="subtle" color="red" onClick={() => unlink.mutate(p.id)}>{t('home.unlink')}</Button>
-                    : <Button size="xs" variant="light" component="a" href={`/api/oauth/${p.id}/start?link=1&next=/portal/`}>{t('home.link')}</Button>}
-                </Group>
-              )
-            })}
-          </Stack>
+          {!anyUsable && <Text size="xs" c="dimmed" mt="sm">{t('overview.connectInactive')}</Text>}
+          <div className={classes.connectLinks}><Anchor component={Link} to="/connect" className={classes.connectLink} underline="never"><Group gap={8}><IconDownload size={17} stroke={1.7} /><Text span size="sm">{t('overview.clientDownloads')}</Text></Group><IconArrowUpRight size={15} /></Anchor><Anchor component={Link} to="/connect#nodes" className={classes.connectLink} underline="never"><Group gap={8}><IconWorld size={17} stroke={1.7} /><Text span size="sm">{t('overview.browseNodes')}</Text></Group><IconArrowUpRight size={15} /></Anchor></div>
+          <Text size="xs" c="dimmed" className={classes.recent}>{t('overview.onlineRecent', { count: me.online_devices ?? me.subscription?.online_devices ?? 0 })}</Text>
         </Card>
-      )}
+      </div>
+      <div className={`${classes.secondaryGrid} ${!showNotice ? classes.secondarySolo : ''}`}>
+        {showNotice && <Card className={classes.noticeCard}><Group gap={9} mb="md"><IconSpeakerphone size={19} stroke={1.7} /><Title order={2} size="h4">{t('overview.notice')}</Title></Group>{notice.isPending ? <Stack gap="xs"><Skeleton height={18} width="65%" /><Skeleton height={14} /><Skeleton height={14} width="82%" /></Stack> : notice.isError ? <Alert color="orange"><Text size="sm">{t('overview.noticeError')}</Text><Button variant="subtle" size="compact-sm" mt={6} onClick={() => notice.refetch()}>{t('auth.retry')}</Button></Alert> : <><Text fw={600} size="sm" mb={8}>{notice.data?.title}</Text><Text size="sm" c="dimmed" lineClamp={expanded ? undefined : 3} style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{notice.data?.body}</Text>{notice.data?.body && <Button variant="subtle" size="compact-sm" mt="md" px={0} rightSection={expanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />} aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>{t(expanded ? 'overview.noticeCollapse' : 'overview.noticeRead')}</Button>}</>}</Card>}
+        <Card className={classes.helpCard}><Title order={2} size="h4" mb="md">{t('overview.help')}</Title><Anchor component={Link} to="/help" className={classes.helpLink} underline="never"><ThemeIcon variant="light" color="gray" size={38} radius="md"><IconBook2 size={20} stroke={1.7} /></ThemeIcon><div><Text fw={600} size="sm">{t('overview.tutorial')}</Text><Text size="xs" c="dimmed" mt={3}>{t('overview.helpHint')}</Text></div><IconArrowUpRight size={16} /></Anchor><Anchor component={Link} to="/tickets" className={classes.helpLink} underline="never"><ThemeIcon variant="light" color="gray" size={38} radius="md"><IconHeadset size={20} stroke={1.7} /></ThemeIcon><div><Text fw={600} size="sm">{t('overview.support')}</Text><Text size="xs" c="dimmed" mt={3}>{t('overview.supportHint')}</Text></div><IconArrowUpRight size={16} /></Anchor></Card>
+      </div>
     </Stack>
   )
 }

@@ -273,7 +273,7 @@ Named template libraries, explicit/default user presentation profiles, response-
 
 ## Independent WireGuard devices
 
-Native WireGuard subscribers can register a separate named device from the portal
+Native WireGuard subscribers can register a separate named device from the portal's Connect page
 or an admin/operator's customer drawer. Each registration gets an independent
 key and tunnel address, plus a WG-only subscription URL; ordinary account
 subscriptions retain their legacy single peer. Give each physical device its own
