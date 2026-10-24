@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { designCatalogue, designPolicyCanDirect, designSupportReasons, renameDesignGroup, selectedDesignFormats } from '../src/lib/sub-design.ts'
+import { adoptClaudeRules, designCatalogue, designPolicyCanDirect, designSupportReasons, diffClaudeRules, draftClaudeRules, renameDesignGroup, selectedDesignFormats, setClaudeEnabled } from '../src/lib/sub-design.ts'
 
 test('renaming a policy retains imported semantics and updates enhancement references', () => {
   const design = {
@@ -77,4 +77,46 @@ test('format restrictions are translated and deduplicated without hiding unknown
     { format: 'egern', supported: false, reasons: ['Older API reason'] },
   ]
   assert.deepEqual(designSupportReasons(support, { dns_mihomo: 'DNS 保护目前仅支持 mihomo' }), ['DNS 保护目前仅支持 mihomo', 'New feature requires mihomo', 'Older API reason'])
+})
+
+const builtinClaude = { source: 'builtin', revision: 'captain-v1', rules: [{ type: 'domain', value: 'example.com' }] }
+const updatedClaude = { source: 'v2fly', revision: 'a'.repeat(40), rules: [{ type: 'domain', value: 'example.com' }, { type: 'full', value: 'service.example.net' }] }
+
+test('legacy Claude drafts remain pinned when the library is fetched or the option is toggled', () => {
+  const legacy = { groups: [], rules: [], final: '', enhancements: { claude: true, claude_policy: 'Existing', future_option: true } }
+  assert.deepEqual(draftClaudeRules(legacy, builtinClaude), builtinClaude)
+  assert.equal(legacy.enhancements.claude_rules, undefined)
+  const off = setClaudeEnabled(legacy, false, updatedClaude, builtinClaude)
+  const on = setClaudeEnabled(off, true, updatedClaude, builtinClaude)
+  assert.deepEqual(on.enhancements.claude_rules, builtinClaude)
+  assert.equal(on.enhancements.claude_policy, 'Existing')
+  assert.equal(on.enhancements.future_option, true)
+  assert.equal(legacy.enhancements.claude_rules, undefined)
+  const fresh = setClaudeEnabled({ ...legacy, enhancements: { claude: false } }, true, updatedClaude, builtinClaude)
+  assert.deepEqual(fresh.enhancements.claude_rules, updatedClaude)
+  fresh.enhancements.claude_rules.rules.push({ type: 'full', value: 'draft.example.org' })
+  assert.equal(updatedClaude.rules.length, 2)
+})
+
+test('Claude review distinguishes exact and suffix matches, deduplicates and ignores order', () => {
+  const before = { ...builtinClaude, rules: [{ type: 'domain', value: 'example.com' }, { type: 'full', value: 'example.net' }] }
+  const after = { ...updatedClaude, rules: [{ type: 'full', value: 'example.net' }, { type: 'full', value: 'example.com' }, { type: 'full', value: 'example.com' }] }
+  assert.deepEqual(diffClaudeRules(before, after), { added: [{ type: 'full', value: 'example.com' }], removed: [{ type: 'domain', value: 'example.com' }] })
+  assert.deepEqual(diffClaudeRules(before, { ...before, rules: [...before.rules].reverse() }), { added: [], removed: [] })
+})
+
+test('adopting a reviewed Claude version preserves draft fields and rejects a stale review', () => {
+  const draft = { groups: [{ name: 'Proxy', type: 'select', members: ['@all'] }], rules: [], final: 'Proxy', source: { key: 'custom', name: 'Custom' }, enhancements: { claude: true, dns_protection: true } }
+  const expected = JSON.stringify(draft)
+  const adopted = adoptClaudeRules(draft, expected, updatedClaude)
+  assert.deepEqual(adopted.enhancements.claude_rules, updatedClaude)
+  assert.equal(adopted.enhancements.dns_protection, true)
+  assert.deepEqual(adopted.groups, draft.groups)
+  assert.deepEqual(adopted.source, draft.source)
+  assert.equal(draft.enhancements.claude_rules, undefined)
+  adopted.enhancements.claude_rules.rules.pop()
+  assert.equal(updatedClaude.rules.length, 2)
+  assert.equal(adoptClaudeRules({ ...draft, final: 'Another' }, expected, updatedClaude), null)
+  const disabled = { ...draft, enhancements: { claude: false } }
+  assert.equal(adoptClaudeRules(disabled, JSON.stringify(disabled), updatedClaude), null)
 })

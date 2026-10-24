@@ -14,6 +14,28 @@ export interface DesignGroup {
 export interface DesignRule { set: string; policy: string; [field: string]: unknown }
 export interface DesignRuleSet { key: string; name: string; url?: string; inline?: string; [field: string]: unknown }
 export interface DesignSource { key: string; name: string; revision?: string; url?: string; [field: string]: unknown }
+export interface ClaudeRule { type: 'domain' | 'full'; value: string }
+export interface ClaudeRuleSnapshot { source: 'builtin' | 'v2fly'; revision: string; rules: ClaudeRule[] }
+export interface ClaudeRuleLibrary {
+  snapshot: ClaudeRuleSnapshot
+  synced_at: number
+  count: number
+  url: string
+  license_url: string
+}
+export interface ClaudeRulesData {
+  library: ClaudeRuleLibrary
+  builtin: ClaudeRuleSnapshot
+  applied: { status: 'unknown' | 'applied' | 'disabled'; snapshot?: ClaudeRuleSnapshot; applied_at?: number }
+}
+export interface ClaudeRulesSyncResult {
+  library: ClaudeRuleLibrary
+  added: ClaudeRule[]
+  removed: ClaudeRule[]
+  previous_revision: string
+}
+export const claudeRulesEndpoint = '/api/admin/settings/sub-design/claude-rules'
+export const claudeRulesQueryKey = ['sub-design-claude-rules'] as const
 export interface DesignEnhancements {
   regions?: boolean
   dns_protection?: boolean
@@ -21,8 +43,43 @@ export interface DesignEnhancements {
   webrtc?: boolean
   quic?: boolean
   claude_policy?: string
+  claude_rules?: ClaudeRuleSnapshot
   dns_policy?: string
   [field: string]: unknown
+}
+
+// Missing snapshots in existing drafts retain the original built-in rules. Merely
+// fetching a newer library must never change what that draft will publish.
+export function draftClaudeRules(design: SubDesign, builtin: ClaudeRuleSnapshot): ClaudeRuleSnapshot {
+  return design.enhancements?.claude_rules ?? builtin
+}
+
+export function diffClaudeRules(before: ClaudeRuleSnapshot, after: ClaudeRuleSnapshot): { added: ClaudeRule[]; removed: ClaudeRule[] } {
+  const key = (rule: ClaudeRule) => `${rule.type}:${rule.value}`
+  const oldRules = new Map(before.rules.map(rule => [key(rule), rule]))
+  const newRules = new Map(after.rules.map(rule => [key(rule), rule]))
+  return {
+    added: [...newRules].filter(([id]) => !oldRules.has(id)).map(([, rule]) => rule),
+    removed: [...oldRules].filter(([id]) => !newRules.has(id)).map(([, rule]) => rule),
+  }
+}
+
+export function setClaudeEnabled(design: SubDesign, enabled: boolean, library?: ClaudeRuleSnapshot, builtin?: ClaudeRuleSnapshot): SubDesign {
+  const next = structuredClone(design)
+  next.enhancements = { ...next.enhancements, claude: enabled }
+  if (design.enhancements?.claude && !next.enhancements.claude_rules && builtin) {
+    next.enhancements.claude_rules = structuredClone(builtin)
+  } else if (enabled && !design.enhancements?.claude && !next.enhancements.claude_rules && library) {
+    next.enhancements.claude_rules = structuredClone(library)
+  }
+  return next
+}
+
+// A review applies to one draft. If a preset or another edit replaced it while
+// the dialog was open, require a fresh comparison instead of overwriting it.
+export function adoptClaudeRules(design: SubDesign, expectedDraft: string, snapshot: ClaudeRuleSnapshot): SubDesign | null {
+  if (!design.enhancements?.claude || JSON.stringify(design) !== expectedDraft) return null
+  return { ...structuredClone(design), enhancements: { ...structuredClone(design.enhancements), claude_rules: structuredClone(snapshot) } }
 }
 export interface SubDesign {
   groups: DesignGroup[]
