@@ -131,7 +131,6 @@
   "finance.missingExpiry": "Нужна дата окончания",
   "finance.unsupportedCycle": "Произвольный период: оценка недоступна",
   "finance.invalid": "Данные о стоимости недоступны",
-  "finance.included": "Учтено {included}/{total}",
   "finance.estimateHelp": "Оценка по цене, дате окончания и календарной длительности предыдущего платёжного периода. Валюты показаны отдельно; это не сумма возврата.",
   "finance.remainingShort": "Оценка"
 }

@@ -86,7 +86,7 @@ try {
     for (const [currency, amount] of [['USD', '120'], ['EUR', '30'], ['AUD', '10']]) {
       assert.match(await homeCard(page).locator(`[data-finance-currency="${currency}"]`).innerText(), new RegExp(amount))
     }
-    assert.match(await homeCard(page).locator('[data-finance-coverage]').innerText(), /4\s*\/\s*6/)
+    assert.equal(await homeCard(page).locator('[data-finance-coverage]').count(), 0)
     assert(!/9999|CNY/.test(await homeCard(page).innerText()), 'legacy price or invented conversion included')
     await twoCurrencyRowsVisible(page)
     await noPageOverflow(page)
@@ -192,7 +192,7 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
   }
-  console.log('Cost cards: six layouts, original currencies, unknown/free/custom prices, snapshot refresh, info privacy and six locales passed')
+  console.log('Cost cards: six layouts, amounts without coverage text, original currencies, unknown/free/custom prices, snapshot refresh, info privacy and six locales passed')
 } finally {
   await browser.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve))
 }

@@ -131,7 +131,6 @@
   "finance.missingExpiry": "需填写到期日",
   "finance.unsupportedCycle": "自定义付款周期，暂不估算",
   "finance.invalid": "费用数据不可用",
-  "finance.included": "已计入 {included}/{total}",
   "finance.estimateHelp": "按价格、到期日及前一个付款周期的实际日历长度估算。各币种分别显示，不代表可退款余额。",
   "finance.remainingShort": "剩余估值"
 }

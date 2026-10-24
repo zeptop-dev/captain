@@ -131,7 +131,6 @@
   "finance.missingExpiry": "需填寫到期日",
   "finance.unsupportedCycle": "自訂付款週期，暫不估算",
   "finance.invalid": "費用資料無法使用",
-  "finance.included": "已計入 {included}/{total}",
   "finance.estimateHelp": "依價格、到期日及前一個付款週期的實際日曆長度估算。各幣別分別顯示，不代表可退款餘額。",
   "finance.remainingShort": "剩餘估值"
 }

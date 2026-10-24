@@ -55,7 +55,7 @@ Captain adaptations:
   Cost cards read structured Captain billing directly from the current public
   snapshot. They show original-currency monthly averages and calendar-based
   remaining-value estimates; custom decimal years do not become invented days.
-  Overview totals keep currencies separate and disclose partial coverage. They
+  Overview totals keep currencies separate and show amounts without a coverage count. They
   follow the Information publication setting, without activating the upstream
   day-based finance adapter, static exchange rates or private finance dialog.
   All traffic totals and quota bars
