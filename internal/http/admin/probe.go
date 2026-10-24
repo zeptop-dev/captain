@@ -201,14 +201,15 @@ func (h *handlers) getNodeProbe(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) putNodeProbe(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		RegionMode *string
-		Hidden     bool
-		Info       store.NodeProbeInfo
-		LimitBytes int64
-		ResetDay   int
-		Mode       string
-		Resources  *spec.ResourceOptions
-		Storage    *store.NodeStorage
+		ExpectedExpiresAt *string
+		RegionMode        *string
+		Hidden            bool
+		Info              store.NodeProbeInfo
+		LimitBytes        int64
+		ResetDay          int
+		Mode              string
+		Resources         *spec.ResourceOptions
+		Storage           *store.NodeStorage
 	}
 	if !readJSON(w, r, &in) {
 		return
@@ -219,7 +220,11 @@ func (h *handlers) putNodeProbe(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if err := h.Store.UpdateNodeProbeWithRegion(r.Context(), idOf(r), in.Hidden, in.Info, in.LimitBytes, in.ResetDay, in.Mode, in.Resources, in.RegionMode, in.Storage); err != nil {
+	if err := h.Store.UpdateNodeProbeWithExpiryGuard(r.Context(), idOf(r), in.Hidden, in.Info, in.LimitBytes, in.ResetDay, in.Mode, in.Resources, in.RegionMode, in.ExpectedExpiresAt, in.Storage); err != nil {
+		if errors.Is(err, store.ErrNodeExpiryConflict) {
+			fail(w, http.StatusConflict, err.Error())
+			return
+		}
 		if errors.Is(err, store.ErrNodeRegion) || errors.Is(err, store.ErrNodeCost) || errors.Is(err, store.ErrNodeBandwidth) || errors.Is(err, store.ErrNodeStorage) {
 			fail(w, 400, err.Error())
 			return

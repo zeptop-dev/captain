@@ -178,6 +178,7 @@ type NodeProbe struct {
 
 // NodeProbeInfo is what the public page may show about a server.
 type NodeProbeInfo struct {
+	AutoRenewal  *NodeAutoRenewal  `json:"auto_renewal,omitempty"`
 	Bandwidth    *NodeBandwidth    `json:"bandwidth,omitempty"`
 	Billing      *NodeCost         `json:"billing,omitempty"`
 	TrafficReset *NodeTrafficReset `json:"traffic_reset,omitempty"`
@@ -264,6 +265,12 @@ func (s *Store) UpdateNodeProbe(ctx context.Context, nodeID int64, hidden bool, 
 // Omitted mode preserves auto when a legacy client echoes the effective region.
 // A changed country from an old client remains an explicit manual/off choice.
 func (s *Store) UpdateNodeProbeWithRegion(ctx context.Context, nodeID int64, hidden bool, info NodeProbeInfo, limit int64, resetDay int, mode string, resources *spec.ResourceOptions, requested *string, storage ...*NodeStorage) error {
+	return s.UpdateNodeProbeWithExpiryGuard(ctx, nodeID, hidden, info, limit, resetDay, mode, resources, requested, nil, storage...)
+}
+
+// Expected expiry distinguishes an unchanged form echo from an intentional
+// date edit when an automatic renewal happened while the form was open.
+func (s *Store) UpdateNodeProbeWithExpiryGuard(ctx context.Context, nodeID int64, hidden bool, info NodeProbeInfo, limit int64, resetDay int, mode string, resources *spec.ResourceOptions, requested, expectedExpiry *string, storage ...*NodeStorage) error {
 	if resetDay < 1 || resetDay > 31 {
 		resetDay = 1
 	}
@@ -299,6 +306,12 @@ func (s *Store) UpdateNodeProbeWithRegion(ctx context.Context, nodeID int64, hid
 	old, err := scanNodeProbe(tx.QueryRowContext(ctx, `SELECT `+nodeProbeCols+` FROM nodes WHERE id=?`, nodeID))
 	if err != nil {
 		return err
+	}
+	if expectedExpiry != nil && old.Info.ExpiresAt != *expectedExpiry {
+		if info.ExpiresAt != *expectedExpiry {
+			return ErrNodeExpiryConflict
+		}
+		info.ExpiresAt = old.Info.ExpiresAt
 	}
 	if err := normalizeNodeBandwidth(&info, old.Info); err != nil {
 		return err
@@ -378,20 +391,46 @@ func periodStart(at time.Time, resetDay int) time.Time {
 // node's monthly NIC traffic. Counter deltas are reset-aware: a counter
 // that went backwards (agent restart, reboot) contributes nothing.
 func (s *Store) RecordBeat(ctx context.Context, nodeID int64, h spec.SystemStatus, at time.Time) error {
+	_, err := s.recordBeat(ctx, nodeID, h, at, "")
+	return err
+}
+
+// RecordNodeBeat requires the current pairing identity and may maintain expiry.
+// The legacy internal entry point remains available to import/test samples.
+func (s *Store) RecordNodeBeat(ctx context.Context, nodeID int64, tokenHash string, h spec.SystemStatus, at time.Time) (bool, error) {
+	if tokenHash == "" {
+		return false, ErrNotFound
+	}
+	return s.recordBeat(ctx, nodeID, h, at, tokenHash)
+}
+
+func (s *Store) recordBeat(ctx context.Context, nodeID int64, h spec.SystemStatus, at time.Time, tokenHash string) (bool, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer tx.Rollback()
+	if tokenHash != "" {
+		if err := requireNodeTokenTx(ctx, tx, nodeID, tokenHash); err != nil {
+			return false, err
+		}
+	}
 	p, err := scanNodeProbe(tx.QueryRowContext(ctx, `SELECT `+nodeProbeCols+` FROM nodes WHERE id = ?`, nodeID))
 	if err != nil {
-		return err
+		return false, err
 	}
 	if r := h.Resources; r != nil && r.Epoch != "" && r.Epoch == p.counters.Epoch && r.Sequence <= p.counters.Sequence {
-		return ErrStaleBeat
+		return false, ErrStaleBeat
+	}
+	renewed := false
+	if tokenHash != "" {
+		renewed, err = renewNodeExpiryTx(ctx, tx, p, tokenHash, h, at, true)
+		if err != nil {
+			return false, err
+		}
 	}
 	if err := recordResourceHistory(ctx, tx, nodeID, h, at, p.counters); err != nil {
-		return err
+		return false, err
 	}
 	valid := h.Validity()
 	h = validHost(h)
@@ -410,11 +449,11 @@ func (s *Store) RecordBeat(ctx context.Context, nodeID int64, h spec.SystemStatu
 			swap_used = swap_used + excluded.swap_used, disk_used = disk_used + excluded.disk_used, disk_total = CASE WHEN excluded.disk_n > 0 THEN excluded.disk_total ELSE disk_total END, net_up = net_up + excluded.net_up, net_down = net_down + excluded.net_down,
 			load1 = load1 + excluded.load1, tcp = tcp + excluded.tcp, udp = udp + excluded.udp, procs = procs + excluded.procs, cpu_n = cpu_n + excluded.cpu_n, mem_n = mem_n + excluded.mem_n, swap_n = swap_n + excluded.swap_n, disk_n = disk_n + excluded.disk_n, net_n = net_n + excluded.net_n, load_n = load_n + excluded.load_n, connections_n = connections_n + excluded.connections_n, procs_n = procs_n + excluded.procs_n`,
 			nodeID, b.res, ts, h.CPUPercent, float64(h.MemUsed), h.MemTotal, float64(h.SwapUsed), float64(h.DiskUsed), h.DiskTotal, float64(h.NetUp), float64(h.NetDown), h.Load1, h.TCP, h.UDP, h.Processes, boolInt(valid.CPU), boolInt(valid.Memory), boolInt(valid.Swap), boolInt(valid.Disk), boolInt(valid.Network), boolInt(valid.Load), boolInt(valid.Connections), boolInt(valid.Processes)); err != nil {
-			return err
+			return false, err
 		}
 	}
 	if err := recordPingHistory(ctx, tx, nodeID, h, at); err != nil {
-		return err
+		return false, err
 	}
 
 	// Monthly NIC traffic.
@@ -458,9 +497,12 @@ func (s *Store) RecordBeat(ctx context.Context, nodeID int64, h spec.SystemStatu
 	counterJSON, _ := json.Marshal(p.counters)
 	if _, err := tx.ExecContext(ctx, `UPDATE nodes SET traffic_period_start = ?, traffic_used_up = ?, traffic_used_down = ?, traffic_last_up = ?, traffic_last_down = ?, traffic_prev_used = ?, probe_counters_json = ?, last_seen_at = ? WHERE id = ?`,
 		start.Unix(), usedUp, usedDown, p.lastUp, p.lastDown, prev, string(counterJSON), at.Unix(), nodeID); err != nil {
-		return err
+		return false, err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return false, err
+	}
+	return renewed, nil
 }
 
 // StatPoint is one averaged bucket.
