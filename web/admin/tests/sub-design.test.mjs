@@ -86,15 +86,20 @@ test('legacy Claude drafts remain pinned when the library is fetched or the opti
   const legacy = { groups: [], rules: [], final: '', enhancements: { claude: true, claude_policy: 'Existing', future_option: true } }
   assert.deepEqual(draftClaudeRules(legacy, builtinClaude), builtinClaude)
   assert.equal(legacy.enhancements.claude_rules, undefined)
-  const off = setClaudeEnabled(legacy, false, updatedClaude, builtinClaude)
-  const on = setClaudeEnabled(off, true, updatedClaude, builtinClaude)
-  assert.deepEqual(on.enhancements.claude_rules, builtinClaude)
+  // Turn off before the GET completes, then back on after a newer library is
+  // available. Async library availability must not select rules for this draft.
+  const off = setClaudeEnabled(legacy, false)
+  assert.deepEqual(draftClaudeRules(off, builtinClaude), builtinClaude)
+  const on = setClaudeEnabled(off, true)
+  assert.equal(on.enhancements.claude_rules, undefined)
+  assert.deepEqual(draftClaudeRules(on, builtinClaude), builtinClaude)
   assert.equal(on.enhancements.claude_policy, 'Existing')
   assert.equal(on.enhancements.future_option, true)
   assert.equal(legacy.enhancements.claude_rules, undefined)
-  const fresh = setClaudeEnabled({ ...legacy, enhancements: { claude: false } }, true, updatedClaude, builtinClaude)
-  assert.deepEqual(fresh.enhancements.claude_rules, updatedClaude)
-  fresh.enhancements.claude_rules.rules.push({ type: 'full', value: 'draft.example.org' })
+  const fresh = setClaudeEnabled({ ...legacy, enhancements: { claude: false } }, true)
+  assert.equal(fresh.enhancements.claude_rules, undefined)
+  const pinned = setClaudeEnabled({ ...legacy, enhancements: { claude: false, claude_rules: updatedClaude } }, true)
+  pinned.enhancements.claude_rules.rules.push({ type: 'full', value: 'draft.example.org' })
   assert.equal(updatedClaude.rules.length, 2)
 })
 
@@ -103,6 +108,7 @@ test('Claude review distinguishes exact and suffix matches, deduplicates and ign
   const after = { ...updatedClaude, rules: [{ type: 'full', value: 'example.net' }, { type: 'full', value: 'example.com' }, { type: 'full', value: 'example.com' }] }
   assert.deepEqual(diffClaudeRules(before, after), { added: [{ type: 'full', value: 'example.com' }], removed: [{ type: 'domain', value: 'example.com' }] })
   assert.deepEqual(diffClaudeRules(before, { ...before, rules: [...before.rules].reverse() }), { added: [], removed: [] })
+  assert.deepEqual(diffClaudeRules(before, { ...before, rules: before.rules.map(rule => ({ ...rule, value: rule.value.toUpperCase() })) }), { added: [], removed: [] })
 })
 
 test('adopting a reviewed Claude version preserves draft fields and rejects a stale review', () => {
