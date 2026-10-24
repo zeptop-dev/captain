@@ -55,7 +55,7 @@ export function draftClaudeRules(design: SubDesign, builtin: ClaudeRuleSnapshot)
 }
 
 export function diffClaudeRules(before: ClaudeRuleSnapshot, after: ClaudeRuleSnapshot): { added: ClaudeRule[]; removed: ClaudeRule[] } {
-  const key = (rule: ClaudeRule) => `${rule.type}:${rule.value}`
+  const key = (rule: ClaudeRule) => `${rule.type}:${rule.value.toLowerCase()}`
   const oldRules = new Map(before.rules.map(rule => [key(rule), rule]))
   const newRules = new Map(after.rules.map(rule => [key(rule), rule]))
   return {
@@ -64,14 +64,11 @@ export function diffClaudeRules(before: ClaudeRuleSnapshot, after: ClaudeRuleSna
   }
 }
 
-export function setClaudeEnabled(design: SubDesign, enabled: boolean, library?: ClaudeRuleSnapshot, builtin?: ClaudeRuleSnapshot): SubDesign {
+export function setClaudeEnabled(design: SubDesign, enabled: boolean): SubDesign {
   const next = structuredClone(design)
   next.enhancements = { ...next.enhancements, claude: enabled }
-  if (design.enhancements?.claude && !next.enhancements.claude_rules && builtin) {
-    next.enhancements.claude_rules = structuredClone(builtin)
-  } else if (enabled && !design.enhancements?.claude && !next.enhancements.claude_rules && library) {
-    next.enhancements.claude_rules = structuredClone(library)
-  }
+  // Even when the library GET is pending, toggling cannot reinterpret a legacy
+  // draft. Only the explicit review/adopt action selects another rule version.
   return next
 }
 

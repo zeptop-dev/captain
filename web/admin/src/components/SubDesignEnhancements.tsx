@@ -30,7 +30,7 @@ export function SubDesignEnhancements({ design, onChange }: { design: SubDesign;
         {options.dns_protection && <Select size="xs" label={t('subDesign.dnsPolicy')} placeholder={t('subDesign.autoDNSPolicy')} data={policies} value={options.dns_policy || null} onChange={value => set('dns_policy', value || undefined)} clearable searchable />}
       </Stack>
       <Stack gap={4}>
-        <Checkbox label={t('subDesign.claudeOption')} checked={!!options.claude} onChange={event => onChange(setClaudeEnabled(design, event.currentTarget.checked, claudeRules.data?.library.snapshot, claudeRules.data?.builtin))} />
+        <Checkbox label={t('subDesign.claudeOption')} checked={!!options.claude} onChange={event => onChange(setClaudeEnabled(design, event.currentTarget.checked))} />
         <Text size="xs" c="dimmed">{t('subDesign.claudeHint')}</Text>
         {options.claude && <Select size="xs" label={t('subDesign.claudePolicy')} placeholder={t('subDesign.autoClaudePolicy')} data={policies} value={options.claude_policy || null} onChange={value => set('claude_policy', value || undefined)} clearable searchable />}
       </Stack>
