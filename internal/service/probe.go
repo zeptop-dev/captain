@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,9 +24,10 @@ import (
 // Probe keeps the live view of every node (latest beat plus a short ring
 // for sparklines), folds beats into the store and raises alerts.
 type Probe struct {
-	Store  *store.Store
-	Notify *notify.Notifier
-	Log    *slog.Logger
+	exchangeRateClient *http.Client // internal test transport; production is fixed HTTPS
+	Store              *store.Store
+	Notify             *notify.Notifier
+	Log                *slog.Logger
 	// AlertWindow batches the operator notices raised within it into one
 	// Telegram message (a panel-side blip takes every node offline at
 	// once); 0 = 30 s, negative = send each one immediately. Webhook

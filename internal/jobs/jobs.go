@@ -116,6 +116,9 @@ func (r *Runner) Tick(ctx context.Context) {
 	}
 	if r.Probe != nil {
 		r.Probe.CheckOffline(ctx, now)
+		if err := r.Probe.RefreshExchangeRates(ctx, now); err != nil {
+			log.Warn("probe exchange rate refresh failed", "err", err)
+		}
 	}
 	// Tell the outside world the panel is still alive. After the
 	// housekeeping on purpose: a beat means "this process completed a

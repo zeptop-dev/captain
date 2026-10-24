@@ -66,6 +66,17 @@ func (h *handlers) putProbe(w http.ResponseWriter, r *http.Request) {
 	v.Carriers = carriers
 	var old store.ProbeSettings
 	_ = h.Store.GetSetting(r.Context(), store.SettingProbe, &old)
+	if v.FinanceCurrency == nil {
+		v.FinanceCurrency = old.FinanceCurrency
+	}
+	if v.FinanceCurrency != nil {
+		normalized := strings.ToUpper(*v.FinanceCurrency)
+		if !store.ValidCurrency(normalized) {
+			fail(w, http.StatusBadRequest, "invalid finance currency")
+			return
+		}
+		v.FinanceCurrency = &normalized
+	}
 	if v.Appearance == nil {
 		v.Appearance = old.Appearance
 	}

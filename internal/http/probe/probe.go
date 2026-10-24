@@ -296,6 +296,12 @@ func (h *handlers) snapshot(w http.ResponseWriter, r *http.Request) {
 		"appearance_scheme": scheme,
 		"visibility":        s.Visibility, "carrier_ping": s.CarrierPing, "now": now.Unix(), "nodes": out, "staff": staff,
 	}
+	if s.PublicShows("info") {
+		doc["finance_currency"] = s.FinanceCurrency
+		if rates := h.Store.ProbeExchangeRates(r.Context(), now); rates != nil {
+			doc["exchange_rates"] = rates
+		}
+	}
 	b, _ := json.Marshal(doc)
 	if !staff {
 		h.mu.Lock()
