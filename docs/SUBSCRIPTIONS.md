@@ -66,6 +66,14 @@ Imported/adapted configuration data retains its ACL4SSR source and
 [CC BY-SA 4.0 attribution](https://github.com/ACL4SSR/ACL4SSR/blob/master/LICENCE).
 No upstream presets are embedded in the MIT application source.
 
+The selector also shows **Official file notes**, extracted from introductory
+comments in each cached INI file. Full notes and a link to that exact upstream
+revision appear before loading and beside the selected preset. Existing caches
+already contain the comments, so displaying them does not require another sync.
+These are upstream comments, not a complete feature comparison; missing notes
+are identified explicitly. If the library is refreshed while an older draft
+is open, the notes identify the library version without changing the draft.
+
 The current enhancement options are:
 
 - **Supplement regional groups:** reuse explicitly recognized region groups

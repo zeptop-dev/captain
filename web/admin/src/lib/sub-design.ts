@@ -38,6 +38,8 @@ export interface DesignPreset {
   name: string
   source: 'builtin' | 'acl4ssr' | 'custom'
   revision?: string
+  url?: string
+  official_notes?: string
   supported: boolean
   reason?: string
 }

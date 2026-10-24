@@ -1,4 +1,4 @@
-import { Accordion, ActionIcon, Alert, Anchor, Badge, Button, Card, Checkbox, Code, Divider, Group, List, Loader, Modal, MultiSelect, NumberInput, Select, SimpleGrid, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core'
+import { Accordion, ActionIcon, Alert, Anchor, Badge, Button, Card, Checkbox, Code, Divider, Group, List, Loader, Modal, MultiSelect, NumberInput, Paper, Select, SimpleGrid, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core'
 import { useDebouncedValue } from '@mantine/hooks'
 import { modals } from '@mantine/modals'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -18,6 +18,21 @@ const groupTypes = ['select', 'url-test', 'fallback', 'load-balance']
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error)
 type Snapshot = { design: SubDesign; epoch: number }
 type Preview = { format: string; text: string }
+
+function OfficialPresetNotes({ preset, draftRevision }: { preset?: DesignPreset; draftRevision?: string }) {
+  const { t } = useTranslation()
+  if (preset?.source !== 'acl4ssr') return null
+  return <Paper withBorder p="sm" radius="md">
+    <Stack gap="xs">
+      <Group gap="xs" wrap="wrap"><Text size="sm" fw={600}>{t('subDesign.officialNotes')}</Text>{preset.revision && <Code>{preset.revision.slice(0, 10)}</Code>}</Group>
+      <Text size="sm" style={{ overflowWrap: 'anywhere' }}>{preset.name}</Text>
+      {draftRevision && draftRevision !== preset.revision && <Text size="xs" c="orange">{t('subDesign.officialNotesDifferentRevision')}</Text>}
+      <Text size="sm" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{preset.official_notes || t('subDesign.officialNotesEmpty')}</Text>
+      <Text size="xs" c="dimmed">{t('subDesign.officialNotesHint')}</Text>
+      {preset.url?.startsWith('https://') && <Anchor size="xs" href={preset.url} target="_blank" rel="noopener noreferrer">{t('subDesign.officialNotesSource')}</Anchor>}
+    </Stack>
+  </Paper>
+}
 
 // The editable document is the base plus options. Inspection produces a separate
 // effective design; checking an option never appends generated groups to the draft.
@@ -166,10 +181,17 @@ function Designer() {
       <Stack gap="md">
         <div><Title order={5}>{t('subDesign.title')}</Title><Text size="sm" c="dimmed" mt={4}>{t('subDesign.hint')}</Text></div>
         <Group align="flex-end" wrap="wrap">
-          <Select label={t('subDesign.presetLabel')} placeholder={t('subDesign.loadPreset')} data={presetGroups} searchable clearable={false} value={activePreset?.key ?? null} style={{ flex: '1 1 300px', minWidth: 0 }}
+          <Select label={t('subDesign.presetLabel')} placeholder={t('subDesign.loadPreset')} data={presetGroups} searchable clearable={false} value={activePreset?.key ?? null} style={{ flex: '1 1 300px', minWidth: 0 }} maxDropdownHeight={360}
             nothingFoundMessage={t('subDesign.noPresetMatch')}
-            renderOption={({ option }) => <Stack gap={2} style={{ overflowWrap: 'anywhere' }}><Text size="sm">{option.label}</Text>{presets.find(item => item.key === option.value)?.reason && <Text size="xs" c="dimmed">{presets.find(item => item.key === option.value)?.reason}</Text>}</Stack>}
-            onChange={key => key && modals.openConfirmModal({ title: t('subDesign.loadPreset'), children: <Text size="sm">{t('subDesign.presetConfirm')}</Text>, labels: { confirm: t('common.confirm'), cancel: t('common.cancel') }, onConfirm: () => { epoch.current++; loadPreset.mutate({ key, epoch: epoch.current }) } })} />
+            renderOption={({ option }) => {
+              const preset = presets.find(item => item.key === option.value)
+              return <Stack gap={2} style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+                <Text size="sm">{option.label}</Text>
+                {preset?.source === 'acl4ssr' && <Text size="xs" c="dimmed" lineClamp={2}>{preset.official_notes?.replace(/\n/g, ' · ') || t('subDesign.officialNotesEmpty')}</Text>}
+                {preset?.reason && <Text size="xs" c="dimmed">{preset.reason}</Text>}
+              </Stack>
+            }}
+            onChange={key => key && modals.openConfirmModal({ title: t('subDesign.loadPreset'), children: <Stack gap="sm"><OfficialPresetNotes preset={presets.find(item => item.key === key)} /><Text size="sm">{t('subDesign.presetConfirm')}</Text></Stack>, labels: { confirm: t('common.confirm'), cancel: t('common.cancel') }, onConfirm: () => { epoch.current++; loadPreset.mutate({ key, epoch: epoch.current }) } })} />
           <Button variant="light" leftSection={<IconRefresh size={16} />} loading={sync.isPending} onClick={() => sync.mutate()}>{t('subDesign.syncPresets')}</Button>
           <Button variant="default" leftSection={<IconDeviceFloppy size={16} />} disabled={!d.groups.length} onClick={() => setSaveAsOpen(true)}>{t('subDesign.saveAs')}</Button>
           {activePreset?.source === 'custom' && <ActionIcon size="lg" variant="light" color="red" aria-label={t('subDesign.deletePreset')} onClick={() => modals.openConfirmModal({ title: t('subDesign.deletePreset'), children: <Text size="sm">{t('subDesign.deletePresetConfirm', { name: activePreset.name })}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => removePreset.mutate(activePreset.key) })}><IconTrash size={18} /></ActionIcon>}
@@ -177,6 +199,7 @@ function Designer() {
         <Text size="xs" c="dimmed">{t('subDesign.syncHint')}</Text>
         {syncTime ? <Text size="xs" c="dimmed">{t('subDesign.lastSync', { time: syncTime, count: q.data.library?.count ?? 0 })} · <Code>{q.data.library?.revision.slice(0, 10)}</Code></Text> : <Text size="xs" c="dimmed">{t('subDesign.notSynced')}</Text>}
         {d.source && <Group gap="xs" wrap="wrap"><Text size="xs" style={{ overflowWrap: 'anywhere' }}>{d.source.url?.startsWith('https://') ? <Anchor size="xs" href={d.source.url} target="_blank" rel="noopener noreferrer">{t('subDesign.loadedSource', { name: d.source.name })}</Anchor> : t('subDesign.loadedSource', { name: d.source.name })}</Text>{d.source.revision && <Code>{d.source.revision.slice(0, 10)}</Code>}{local !== null && <Badge variant="light" color="yellow">{t('subDesign.draft')}</Badge>}</Group>}
+        <OfficialPresetNotes preset={activePreset} draftRevision={d.source?.revision} />
         <Text size="xs" c="dimmed">{t('subDesign.sourceCredit')} <Anchor size="xs" href="https://github.com/ACL4SSR/ACL4SSR" target="_blank" rel="noopener noreferrer">ACL4SSR</Anchor> · <Anchor size="xs" href="https://github.com/ACL4SSR/ACL4SSR/blob/master/LICENCE" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</Anchor></Text>
         <Divider />
         <SubDesignEnhancements design={d} onChange={edit} />
