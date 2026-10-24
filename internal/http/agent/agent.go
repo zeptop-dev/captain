@@ -224,9 +224,6 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 	metrics.NodeReports.Inc(nil)
 	ctx := r.Context()
 	now := time.Now()
-	if err := h.Store.TouchNode(ctx, n.ID, rep.Version, rep.Revision, rep.Host, rep.Cores, rep.Certs); err != nil {
-		h.Log.Error("touch node", "err", err)
-	}
 	if err := h.Store.SetWireGuardReport(ctx, n.ID, tokenHash, rep.WireGuard); err != nil {
 		h.Log.Error("save WireGuard report", "err", err)
 		fail(w, 500, "internal error")
@@ -367,6 +364,19 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 	for _, f := range rep.Forwards {
 		_ = h.Store.UpsertForwardStatus(ctx, n.ID, f)
 	}
+	renewed, err := h.Store.RecordNodeReport(ctx, n.ID, tokenHash, rep, !seen, now)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			fail(w, http.StatusUnauthorized, "node identity changed")
+		} else {
+			h.Log.Error("record node report", "err", err)
+			fail(w, http.StatusInternalServerError, "internal error")
+		}
+		return
+	}
+	if renewed && h.Probe != nil {
+		h.Probe.Invalidate()
+	}
 	// The report just wrote traffic and client addresses: rebuild fresh
 	// so device-limit changes show up in this very answer.
 	h.State.Invalidate()
@@ -436,7 +446,12 @@ func (h *handlers) beat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.Probe != nil {
-		if err := h.Probe.Record(r.Context(), nodeFrom(r), b.Version, b.Host, time.Now()); err != nil {
+		tokenHash := auth.SHA256Hex(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+		if err := h.Probe.Record(r.Context(), nodeFrom(r), b.Version, b.Host, time.Now(), tokenHash); err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				fail(w, http.StatusUnauthorized, "node identity changed")
+				return
+			}
 			h.Log.Error("record beat", "node", nodeFrom(r).ID, "err", err)
 			// Success acknowledges the node's pending measurement batch. A failed
 			// transaction must remain retryable, including its sample cursors.

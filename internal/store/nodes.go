@@ -95,7 +95,7 @@ func (s *Store) NodeByTokenHash(ctx context.Context, hash string) (*domain.Node,
 // the code, records agent details. Returns the node or ErrNotFound.
 func (s *Store) RedeemPairCode(ctx context.Context, code, tokenHash, hostname, version, platform string) (*domain.Node, error) {
 	res, err := s.db.ExecContext(ctx, `UPDATE nodes SET token_hash = ?, pair_code = NULL, pair_code_expires_at = NULL,
-		address_json = '{}', address_dns_pending = 0, wireguard_json = 'null', wireguard_reported_at = NULL, hostname = ?, version = ?, platform = ?, last_seen_at = ?, updated_at = ?
+		address_json = '{}', address_dns_pending = 0, wireguard_json = 'null', wireguard_reported_at = NULL, probe_renewal_json = '{}', hostname = ?, version = ?, platform = ?, last_seen_at = ?, updated_at = ?
 		WHERE pair_code = ? AND pair_code_expires_at > ? AND token_hash IS NULL`,
 		tokenHash, hostname, version, platform, now(), now(), code, now())
 	if err != nil {
@@ -257,7 +257,7 @@ func (s *Store) UpdateNode(ctx context.Context, n *domain.Node) error {
 // ResetPairCode issues a fresh pairing code and revokes the current token.
 // ResetPairCode must be called under Topology when serving requests.
 func (s *Store) ResetPairCode(ctx context.Context, id int64, code string, ttl time.Duration) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET pair_code = ?, pair_code_expires_at = ?, token_hash = NULL, cores_json = 'null', address_json = '{}', address_dns_pending = 0, wireguard_json = 'null', wireguard_reported_at = NULL, reported_mode = '', mode_reported_at = 0, reported_mode_revision = 0, mode_error = '', updated_at = ? WHERE id = ?`,
+	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET pair_code = ?, pair_code_expires_at = ?, token_hash = NULL, cores_json = 'null', address_json = '{}', address_dns_pending = 0, wireguard_json = 'null', wireguard_reported_at = NULL, probe_renewal_json = '{}', reported_mode = '', mode_reported_at = 0, reported_mode_revision = 0, mode_error = '', updated_at = ? WHERE id = ?`,
 		code, time.Now().Add(ttl).Unix(), now(), id)
 	return err
 }

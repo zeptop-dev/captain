@@ -172,18 +172,29 @@ func (p *Probe) AgentConfig(ctx context.Context, nodeID int64) *spec.Probe {
 }
 
 // Record takes one beat from a node.
-func (p *Probe) Record(ctx context.Context, n *domain.Node, version string, host spec.SystemStatus, at time.Time) error {
+func (p *Probe) Record(ctx context.Context, n *domain.Node, version string, host spec.SystemStatus, at time.Time, tokenHash ...string) error {
 	s := p.Settings(ctx)
 	if !s.Enabled {
 		return nil
 	}
 	p.mu.Lock()
-	if err := p.Store.RecordBeat(ctx, n.ID, host, at); err != nil {
+	var err error
+	renewed := false
+	if len(tokenHash) > 0 {
+		renewed, err = p.Store.RecordNodeBeat(ctx, n.ID, tokenHash[0], host, at)
+	} else {
+		err = p.Store.RecordBeat(ctx, n.ID, host, at)
+	}
+	if err != nil {
 		p.mu.Unlock()
 		if errors.Is(err, store.ErrStaleBeat) {
 			return nil
 		}
 		return err
+	}
+	if renewed {
+		p.gen++
+		p.fetched = time.Time{}
 	}
 	if p.live == nil {
 		p.live = map[int64]*Live{}

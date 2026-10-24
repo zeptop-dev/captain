@@ -72,7 +72,7 @@ func normalizeNodeCost(info *NodeProbeInfo, old NodeProbeInfo) error {
 			return ErrNodeCost
 		}
 	}
-	return nil
+	return normalizeNodeAutoRenewal(info, old)
 }
 func (b NodeCost) Display() string {
 	if b.Amount == "" {
@@ -96,7 +96,11 @@ func monthlyBoundary(at time.Time, offset, day, after int) time.Time {
 func nodePeriodDay(p *NodeProbe) (day, after int) {
 	day = p.ResetDay
 	if r := p.Info.TrafficReset; r != nil && r.Mode != "manual" {
-		if date, err := time.Parse("2006-01-02", p.Info.ExpiresAt); err == nil {
+		anchor := p.Info.ExpiresAt
+		if renewal := p.Info.AutoRenewal; renewal != nil && renewal.AnchorDate != "" {
+			anchor = renewal.AnchorDate
+		}
+		if date, err := time.Parse("2006-01-02", anchor); err == nil {
 			day = date.Day()
 			if r.Mode == "expiry_next" {
 				after = 1
