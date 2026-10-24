@@ -81,6 +81,11 @@ func cleanNote(line string) string {
 }
 
 func noteIsConfiguration(line string) bool {
+	// Omit the identical boilerplate so short previews show the preset's own
+	// notes. Match the generic title exactly: suffixes can describe routing.
+	if line == "不要随意改变关键字，否则会导致出错" || strings.EqualFold(line, "acl4SSR规则") {
+		return true
+	}
 	if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
 		return true
 	}
@@ -97,7 +102,7 @@ func noteIsConfiguration(line string) bool {
 			return true
 		}
 	}
-	if strings.Contains(line, "设置规则标志位") {
+	if strings.Contains(line, "设置规则标志位") || strings.Contains(line, "设置分组标志位") {
 		return true
 	}
 	// Decorative separators are not descriptions.

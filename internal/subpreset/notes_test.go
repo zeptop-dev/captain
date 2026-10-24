@@ -16,6 +16,8 @@ func TestOfficialNotesHeader(t *testing.T) {
 		{"before and after custom section", "\ufeff; A routing example\r\n\r\n[custom]\r\n# Return traffic through the selected country.\r\n; Service groups: enabled\r\nruleset=Proxy,[]FINAL\r\n; Later implementation comment\r\n", "A routing example\nReturn traffic through the selected country.\nService groups: enabled"},
 		{"configuration comments excluded", "[custom]\n;----\n;[custom]\n;ruleset = DIRECT,[]FINAL\n#custom_proxy_group=Hidden`select`.*\n;enable_rule_generator=true\n;overwrite_original_rules = true\n;unknown_setting=value\n; Keep this explanatory sentence.\nenable_rule_generator=true\n", "Keep this explanatory sentence."},
 		{"rule marker excluded", "[custom]\n; Header\n;设置规则标志位\nruleset=Proxy,[]FINAL\n", "Header"},
+		{"shared boilerplate and group marker excluded", "[custom]\n;不要随意改变关键字，否则会导致出错\n;ACL4ssr规则\n; Example-specific note\n;设置分组标志位\ncustom_proxy_group=Proxy`select`.*\n", "Example-specific note"},
+		{"routing suffix retained", "[custom]\n;acl4SSR规则（流量回国）\n; Example-specific routing note\nruleset=Proxy,[]FINAL\n", "acl4SSR规则（流量回国）\nExample-specific routing note"},
 		{"first directive ends notes", "[custom]\nenable_rule_generator=true\n; This is not opening documentation\n", ""},
 		{"unknown directive ends notes", "; Opening note\nscript=unsupported\n; Not a description\n", "Opening note"},
 		{"unknown section ends notes", "; Opening note\n[other]\n; Another section's documentation\n", "Opening note"},
