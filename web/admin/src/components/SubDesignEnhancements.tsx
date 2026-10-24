@@ -1,10 +1,14 @@
 import { Accordion, Alert, Badge, Checkbox, Group, Select, SimpleGrid, Stack, Text, Title } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
-import type { SubDesign } from '../lib/sub-design'
-import { designPolicyCanDirect } from '../lib/sub-design'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '../lib/api'
+import type { ClaudeRulesData, SubDesign } from '../lib/sub-design'
+import { claudeRulesEndpoint, claudeRulesQueryKey, designPolicyCanDirect, setClaudeEnabled } from '../lib/sub-design'
+import { SubDesignClaudeRules } from './SubDesignClaudeRules'
 
 export function SubDesignEnhancements({ design, onChange }: { design: SubDesign; onChange: (next: SubDesign) => void }) {
   const { t } = useTranslation()
+  const claudeRules = useQuery({ queryKey: claudeRulesQueryKey, queryFn: ({ signal }) => api.get<ClaudeRulesData>(claudeRulesEndpoint, signal), retry: false })
   const options = design.enhancements ?? {}
   const set = (key: string, value: boolean | string | undefined) => onChange({ ...design, enhancements: { ...options, [key]: value } })
   const policies = [...new Set(design.groups.map(group => group.name).filter(Boolean))].map(name => {
@@ -26,7 +30,7 @@ export function SubDesignEnhancements({ design, onChange }: { design: SubDesign;
         {options.dns_protection && <Select size="xs" label={t('subDesign.dnsPolicy')} placeholder={t('subDesign.autoDNSPolicy')} data={policies} value={options.dns_policy || null} onChange={value => set('dns_policy', value || undefined)} clearable searchable />}
       </Stack>
       <Stack gap={4}>
-        <Checkbox label={t('subDesign.claudeOption')} checked={!!options.claude} onChange={event => set('claude', event.currentTarget.checked)} />
+        <Checkbox label={t('subDesign.claudeOption')} checked={!!options.claude} onChange={event => onChange(setClaudeEnabled(design, event.currentTarget.checked, claudeRules.data?.library.snapshot, claudeRules.data?.builtin))} />
         <Text size="xs" c="dimmed">{t('subDesign.claudeHint')}</Text>
         {options.claude && <Select size="xs" label={t('subDesign.claudePolicy')} placeholder={t('subDesign.autoClaudePolicy')} data={policies} value={options.claude_policy || null} onChange={value => set('claude_policy', value || undefined)} clearable searchable />}
       </Stack>
@@ -35,6 +39,7 @@ export function SubDesignEnhancements({ design, onChange }: { design: SubDesign;
         <Text size="xs" c="dimmed">{t('subDesign.webrtcHint')}</Text>
       </Stack>
     </SimpleGrid>
+    {options.claude && <SubDesignClaudeRules design={design} onChange={onChange} data={claudeRules.data} loading={claudeRules.isPending} error={claudeRules.error} onRetry={() => { void claudeRules.refetch() }} />}
     <Accordion variant="contained">
       <Accordion.Item value="advanced">
         <Accordion.Control>{t('subDesign.advancedOptions')}</Accordion.Control>

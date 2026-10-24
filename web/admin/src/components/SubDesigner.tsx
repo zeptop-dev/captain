@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
 import { toast } from '../lib/notify'
 import { SettingsDraftBoundary, useSettingsDirty } from '../lib/settings-draft'
-import { designCatalogue, designFormatLabels, designSupportReasons, moveDesignItem, renameDesignGroup, selectedDesignFormats } from '../lib/sub-design'
+import { claudeRulesQueryKey, designCatalogue, designFormatLabels, designSupportReasons, moveDesignItem, renameDesignGroup, selectedDesignFormats } from '../lib/sub-design'
 import type { DesignInspection, DesignPreset, SubDesign, SubDesignData } from '../lib/sub-design'
 import { SubDesignEnhancements } from './SubDesignEnhancements'
 
@@ -119,7 +119,7 @@ function Designer() {
   })
   const apply = useMutation({
     mutationFn: (submitted: Snapshot & { formats: string[] }) => api.post(`${endpoint}/apply`, { design: submitted.design, formats: submitted.formats }),
-    onSuccess: (_, submitted) => { toast.ok(t('subDesign.applied')); saved(submitted); void qc.invalidateQueries({ queryKey: ['sub-templates'] }) },
+    onSuccess: (_, submitted) => { toast.ok(t('subDesign.applied')); saved(submitted); void qc.invalidateQueries({ queryKey: ['sub-templates'] }); void qc.invalidateQueries({ queryKey: claudeRulesQueryKey, exact: true }) },
     onError: toast.err,
   })
   const doPreview = useMutation({
