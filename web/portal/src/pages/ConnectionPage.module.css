@@ -1,0 +1,30 @@
+.heading { letter-spacing: -0.035em; }
+.setup { overflow: visible; }
+.platforms { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.platform {
+  display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 9px;
+  min-height: 82px; padding: 12px 8px; border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-md); color: var(--mantine-color-dimmed);
+  transition: background-color 150ms, border-color 150ms;
+}
+.platform:hover { background: var(--mantine-color-default-hover); }
+.platform[aria-pressed='true'] {
+  color: var(--mantine-primary-color-filled); background: var(--mantine-primary-color-light);
+  border-color: var(--mantine-primary-color-filled);
+}
+.setupColumns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; }
+.importPanel { padding-left: 32px; border-left: 1px solid var(--mantine-color-default-border); min-width: 0; }
+.stepLabel { color: var(--mantine-primary-color-filled); font-variant-numeric: tabular-nums; font-size: var(--mantine-font-size-sm); font-weight: 700; }
+.downloadRow { padding: 14px 0; border-bottom: 1px solid var(--mantine-color-default-border); }
+.downloadRow:last-child { border-bottom: 0; }
+.finish { padding: 16px 20px; border-radius: var(--mantine-radius-md); background: var(--mantine-primary-color-light); color: var(--mantine-primary-color-light-color); }
+.manual { border-top: 1px solid var(--mantine-color-default-border); margin-top: 24px; padding-top: 8px; }
+.subscription { overflow-wrap: anywhere; white-space: pre-wrap; padding: 12px; border-radius: var(--mantine-radius-sm); background: var(--mantine-color-default-hover); font-size: var(--mantine-font-size-xs); }
+.qr { display: inline-flex; padding: 12px; background: #fff; border-radius: 12px; }
+.nodes { scroll-margin-top: 100px; }
+@media (max-width: 48em) {
+  .platforms { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .setupColumns { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .importPanel { padding: 24px 0 0; border-left: 0; border-top: 1px solid var(--mantine-color-default-border); }
+}
+@media (prefers-reduced-motion: reduce) { .platform { transition: none; } }
