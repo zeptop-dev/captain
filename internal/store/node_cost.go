@@ -5,8 +5,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	"golang.org/x/text/currency"
 )
 
 var ErrNodeCost = errors.New("invalid node cost, expiry date or traffic reset policy")
@@ -42,8 +40,7 @@ func normalizeNodeCost(info *NodeProbeInfo, old NodeProbeInfo) error {
 	}
 	if b := info.Billing; b != nil {
 		b.Currency = strings.ToUpper(b.Currency)
-		unit, err := currency.ParseISO(b.Currency)
-		if err != nil || unit.String() != b.Currency || b.Currency == "XXX" || b.Currency == "XTS" {
+		if !ValidCurrency(b.Currency) {
 			return ErrNodeCost
 		}
 		if b.Amount != "" && !costAmount.MatchString(b.Amount) {

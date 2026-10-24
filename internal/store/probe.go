@@ -13,9 +13,10 @@ import (
 
 // ProbeSettings is the admin-edited monitoring configuration.
 type ProbeSettings struct {
-	Appearance     *ProbeAppearance `json:"appearance,omitempty"`
-	PublicSections *[]string        `json:"public_sections,omitempty"`
-	Layout         string           `json:"layout,omitempty"` // grid | compact
+	FinanceCurrency *string          `json:"finance_currency,omitempty"`
+	Appearance      *ProbeAppearance `json:"appearance,omitempty"`
+	PublicSections  *[]string        `json:"public_sections,omitempty"`
+	Layout          string           `json:"layout,omitempty"` // grid | compact
 
 	PageEnabled *bool `json:"page_enabled,omitempty"` // nil preserves the pre-v1.7 enabled-page behavior
 	Enabled     bool  `json:"enabled"`
@@ -81,6 +82,10 @@ const SettingProbe = "probe"
 
 // Normalize fills defaults.
 func (p *ProbeSettings) Normalize() {
+	if p.FinanceCurrency == nil {
+		currency := "CNY"
+		p.FinanceCurrency = &currency
+	}
 	if p.BeatSeconds < 3 || p.BeatSeconds > 300 {
 		p.BeatSeconds = 10
 	}
