@@ -27,6 +27,11 @@ func (f subPresetFetchFunc) Fetch(ctx context.Context) (subpreset.Snapshot, erro
 
 func newSubPresetRig(t *testing.T, fetch subPresetFetchFunc) (*store.Store, *client, int64, int64) {
 	t.Helper()
+	return newSubDesignRig(t, Options{SubPresets: fetch})
+}
+
+func newSubDesignRig(t *testing.T, options Options) (*store.Store, *client, int64, int64) {
+	t.Helper()
 	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "captain.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -46,7 +51,7 @@ func newSubPresetRig(t *testing.T, fetch subPresetFetchFunc) (*store.Store, *cli
 	}
 	cfg := config.Default()
 	cfg.BaseURL = "http://example.com"
-	srv := httptest.NewServer(New(cfg, st, slog.New(slog.NewTextHandler(io.Discard, nil)), Options{SubPresets: fetch}).Handler())
+	srv := httptest.NewServer(New(cfg, st, slog.New(slog.NewTextHandler(io.Discard, nil)), options).Handler())
 	t.Cleanup(srv.Close)
 	return st, &client{t: t, srv: srv, token: token}, u.ID, info.ID
 }

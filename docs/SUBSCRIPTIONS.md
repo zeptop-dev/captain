@@ -86,7 +86,7 @@ The current enhancement options are:
   Claude DNS policy. It does not force TUN, change the controller/listening
   ports or disable system IPv6. Client capture, browser DNS and local overrides
   still determine actual behavior; this is not a successful leak-test result.
-- **Claude enhancement:** explicit service domains routed through a dedicated
+- **Claude dedicated routing:** explicit service domains routed through a dedicated
   selection group or a selected existing proxy group. No blanket telemetry
   keywords, NTP/time-zone claims or availability guarantees. Rules precede the
   base rules; administrators can inspect the effective result before applying.
@@ -94,6 +94,32 @@ The current enhancement options are:
   names. This can affect calls and is not complete browser IP protection.
 - **Restrict UDP 443:** a separate advanced option affecting common QUIC
   connections; it does not block all UDP or every possible QUIC endpoint.
+
+**Update Claude rules** is a separate administrator action. It retrieves the
+community-maintained [v2fly Anthropic list](https://github.com/v2fly/domain-list-community/blob/master/data/anthropic)
+at one verified Git revision, then adds Captain's two exact-host supplements
+(`anthropic.auth0.com` and `anthropic.com.cdn.cloudflare.net`). This is a
+community classification, not a list maintained or endorsed by Anthropic.
+Only suffix (`domain`) and exact-host (`full`) entries are supported; unsupported
+syntax rejects the whole update and preserves the previous library.
+
+The designer shows **library**, **draft**, and **applied global Mihomo template**
+versions separately. Updating the library displays additions/removals and does
+not edit the draft or published subscriptions. Review the library-to-draft diff
+and choose **Use in draft**, then preview and apply to publish it. Saved designs
+and custom presets keep their selected rule contents, so later source updates
+cannot change their rendering. Older designs without a snapshot retain the
+original ten built-in rules until explicitly changed; disabling the option
+keeps the saved version for later reuse. With DNS protection enabled, the same
+snapshot controls Claude DNS policy, preserving exact versus suffix matches.
+
+Applied-version status refers only to the global Mihomo template. Existing
+publications from older versions and manual text edits have unknown provenance;
+subscription profiles, response rules and client overrides can use different
+content. The panel does not claim that updating the cache publishes to clients.
+The domain list and its upstream MIT attribution are preserved in generated
+Mihomo output. No remote scripts are executed and no node configuration is
+changed by this feature.
 
 Regional supplementation is available in the designer's seven existing formats.
 Official INI imports and the DNS/Claude/WebRTC/UDP-443 options initially support

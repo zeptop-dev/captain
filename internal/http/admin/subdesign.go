@@ -9,6 +9,9 @@ import (
 )
 
 func (h *handlers) registerSubDesign(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/admin/settings/sub-design/claude-rules", h.requireAdmin(h.getClaudeRules))
+	// Sync handles its own account locks around remote I/O.
+	mux.HandleFunc("POST /api/admin/settings/sub-design/claude-rules/sync", h.syncClaudeRules)
 	mux.HandleFunc("GET /api/admin/settings/sub-design", h.requireAdmin(h.getSubDesign))
 	mux.HandleFunc("PUT /api/admin/settings/sub-design", h.requireAdmin(h.putSubDesign))
 	mux.HandleFunc("POST /api/admin/settings/sub-design/inspect", h.requireAdmin(h.inspectSubDesign))

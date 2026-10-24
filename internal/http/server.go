@@ -21,6 +21,7 @@ import (
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
 	"github.com/zeptop-dev/captain/internal/backup"
 	"github.com/zeptop-dev/captain/internal/certs"
+	"github.com/zeptop-dev/captain/internal/clauderules"
 	"github.com/zeptop-dev/captain/internal/http/loginprovider"
 	"github.com/zeptop-dev/captain/internal/http/mcp"
 	"github.com/zeptop-dev/captain/internal/http/oauth"
@@ -77,6 +78,9 @@ type Server struct {
 
 // Options carries wiring the config alone cannot express (test gateways).
 type Options struct {
+	ClaudeRules interface {
+		Fetch(context.Context) (clauderules.Snapshot, error)
+	}
 	// SubPresets overrides the fixed upstream fetcher in isolated tests.
 	SubPresets interface {
 		Fetch(context.Context) (subpreset.Snapshot, error)
@@ -98,6 +102,9 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	gateways := buildGateways(cfg, log)
 	var certIssuer certs.Issuer
 	var dnsBase string
+	var claudeFetcher interface {
+		Fetch(context.Context) (clauderules.Snapshot, error)
+	}
 	var presetFetcher interface {
 		Fetch(context.Context) (subpreset.Snapshot, error)
 	}
@@ -105,6 +112,9 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 		certIssuer = &certs.ACMEIssuer{Dir: filepath.Join(cfg.DataDir, "certs-issued"), Staging: cfg.TLS.Staging}
 	}
 	for _, o := range opts {
+		if o.ClaudeRules != nil {
+			claudeFetcher = o.ClaudeRules
+		}
 		if o.SubPresets != nil {
 			presetFetcher = o.SubPresets
 		}
@@ -185,7 +195,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	s.certs = &service.Certs{Store: st, Issuer: certIssuer, Log: log, Notify: notifier}
 	s.probe = probe.Register(s.mux, probe.Deps{Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe(), GlassPage: web.ProbeGlass()})
 	dyn := &service.DynLimit{Store: st, State: s.state, Notify: notifier, Hooks: s.hooks, Log: log, PushSeconds: cfg.Agent.PushSeconds}
-	admin.Register(s.mux, admin.Deps{SubPresets: presetFetcher, NodeRegions: s.nodeRegions, Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, DNSHealth: s.dnsHealth, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external, Allow: allow, Heartbeat: s.heartbeat,
+	admin.Register(s.mux, admin.Deps{ClaudeRules: claudeFetcher, SubPresets: presetFetcher, NodeRegions: s.nodeRegions, Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, DNSHealth: s.dnsHealth, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external, Allow: allow, Heartbeat: s.heartbeat,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version, MinVersion: captainUpdateFloor(cfg.MinVersion)},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 		Registration:  cfg.Portal.Registration,
@@ -314,7 +324,7 @@ func (s *Server) Handler() http.Handler {
 		// the read lock across its wait would needlessly stall ID edits.
 		// Official preset synchronization authenticates under a short read
 		// lock, fetches without it, then re-authenticates before committing.
-		presetSync := r.Method == http.MethodPost && r.URL.Path == "/api/admin/settings/sub-design/presets/sync"
+		presetSync := r.Method == http.MethodPost && (r.URL.Path == "/api/admin/settings/sub-design/presets/sync" || r.URL.Path == "/api/admin/settings/sub-design/claude-rules/sync")
 		if r.URL.Path != "/api/agent/state" && !presetSync {
 			accounts := &s.state.Store.Accounts
 			renumber := r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, "/id") && (strings.HasPrefix(r.URL.Path, "/api/admin/users/") || strings.HasPrefix(r.URL.Path, "/api/admin/admins/"))

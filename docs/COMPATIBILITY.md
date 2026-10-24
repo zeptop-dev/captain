@@ -139,6 +139,22 @@ pre-upgrade database backup, including its older credential state. See
 [device subscriptions](SUBSCRIPTIONS.md#independent-wireguard-devices) and
 [rollback procedures](OPERATIONS.md#rollback).
 
+## Pinned Claude routing rules
+
+The designer optionally stores `enhancements.claude_rules` containing the
+selected domain rules and their source revision. This is additive; designs
+without it retain the original built-in rules. The cached library, saved draft
+and published global Mihomo template are independent settings. Applying the
+design saves its publication metadata and rendered template atomically.
+No migration or agent-protocol change is required, and the compiler runs in
+Captain rather than on the servers.
+
+An older Captain can continue serving the already-rendered text templates, but
+its designer does not understand the snapshot: saving or applying from that
+older designer can discard the selected version and return to its built-in
+list. Keep a backup before downgrading and avoid editing such designs on older
+versions. The existing global rollback floor is unchanged.
+
 ## Versioning
 
 Captain follows semantic versioning from 1.0.0 on:

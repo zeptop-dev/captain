@@ -17,6 +17,7 @@ import (
 
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
 	"github.com/zeptop-dev/captain/internal/backup"
+	"github.com/zeptop-dev/captain/internal/clauderules"
 	"github.com/zeptop-dev/captain/internal/http/ratelimit"
 	"github.com/zeptop-dev/captain/internal/mail"
 	"github.com/zeptop-dev/captain/internal/notify"
@@ -41,6 +42,10 @@ type SessionStore interface {
 
 // Deps are the handlers' dependencies.
 type Deps struct {
+	// ClaudeRules fetches only the fixed community Anthropic rule source.
+	ClaudeRules interface {
+		Fetch(context.Context) (clauderules.Snapshot, error)
+	}
 	// SubPresets only fetches the fixed official preset source. Nil uses the
 	// production downloader; injected implementations are useful for tests.
 	SubPresets interface {
@@ -101,12 +106,16 @@ const cookieName = "captain_session"
 
 type handlers struct {
 	Deps
-	passkeyStarts ratelimit.Limiter
-	subPresetSync sync.Mutex
+	passkeyStarts  ratelimit.Limiter
+	subPresetSync  sync.Mutex
+	claudeRuleSync sync.Mutex
 }
 
 // Register mounts the admin routes.
 func Register(mux *http.ServeMux, d Deps) {
+	if d.ClaudeRules == nil {
+		d.ClaudeRules = clauderules.NewClient()
+	}
 	if d.SubPresets == nil {
 		d.SubPresets = subpreset.NewClient()
 	}

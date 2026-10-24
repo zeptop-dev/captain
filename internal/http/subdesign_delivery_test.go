@@ -188,6 +188,8 @@ func TestSubDesignDeliveryPortalCannotManagePresets(t *testing.T) {
 		body         any
 	}{
 		{"GET", "/api/admin/settings/sub-design", nil},
+		{"GET", "/api/admin/settings/sub-design/claude-rules", nil},
+		{"POST", "/api/admin/settings/sub-design/claude-rules/sync", nil},
 		{"GET", "/api/admin/settings/sub-design/presets/basic", nil},
 		{"GET", "/api/admin/settings/sub-design/presets/" + p.Key, nil},
 		{"POST", "/api/admin/settings/sub-design/presets/sync", nil},
