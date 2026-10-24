@@ -1213,7 +1213,9 @@
     "carriersHint": "每行一個：名稱 位址:連接埠。留空用預設的電信/聯通/移動探測點（cloudcpp）；填了就整體取代。伺服器做 TCP 連線測延遲，連線被拒絕也算一次有效往返。",
     "collection": "收集監控資料",
     "pageEnabled": "啟用狀態頁",
-    "pageEnabledHint": "關閉狀態頁後仍可繼續收集資料並傳送警報。"
+    "pageEnabledHint": "關閉狀態頁後仍可繼續收集資料並傳送警報。",
+    "financeCurrency": "費用彙總幣別",
+    "financeCurrencyHint": "首頁費用彙總按參考匯率換算為所選幣別；伺服器原價和詳情中的幣別保持不變。"
   },
   "nodeProbe": {
     "title": "探針與月流量",

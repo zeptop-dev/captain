@@ -916,7 +916,9 @@
     "carriersHint": "One per line: name host:port. Blank = the default CT/CU/CM points (cloudcpp); anything here replaces the whole set. Servers measure TCP connect time; a refused connection still counts as a round trip.",
     "collection": "Collect monitoring data",
     "pageEnabled": "Enable status page",
-    "pageEnabledHint": "Turning off the page keeps data collection and alerts running."
+    "pageEnabledHint": "Turning off the page keeps data collection and alerts running.",
+    "financeCurrency": "Summary currency",
+    "financeCurrencyHint": "Convert homepage cost totals using reference exchange rates. Server prices and detail pages keep their original currencies."
   },
   "nodeProbe": {
     "title": "Probe & monthly traffic",

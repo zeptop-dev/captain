@@ -916,7 +916,9 @@
     "carriersHint": "每行一个：名称 地址:端口。留空用默认的电信/联通/移动探测点（cloudcpp）；填了就整体替换。服务器做 TCP 连接测延迟，连接被拒绝也算一次有效往返。",
     "collection": "采集监控数据",
     "pageEnabled": "启用状态页",
-    "pageEnabledHint": "关闭状态页后仍可继续采集数据和发送告警。"
+    "pageEnabledHint": "关闭状态页后仍可继续采集数据和发送告警。",
+    "financeCurrency": "费用汇总币种",
+    "financeCurrencyHint": "首页费用汇总按参考汇率折算为所选币种；服务器原价和详情中的币种保持不变。"
   },
   "nodeProbe": {
     "title": "探针与月流量",
