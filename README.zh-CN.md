@@ -317,7 +317,7 @@ MIT —— 见 [LICENSE](LICENSE)。
 
 Captain 节点详情提供实际状态、单项修改及操作记录。原生 root Debian/Ubuntu systemd 节点支持受控管理；SSH、DNS、防火墙变更带本地超时恢复。其他环境只读，缺少的系统软件不会自动安装。
 
-节点探针支持金额、币种与付款周期分开填写，日历选择到期日，以及流量按到期日同日／次日每月重置。旧价格文本和手动重置设置保持兼容，详见[监控文档](docs/MONITORING.md#node-cost-and-expiry-linked-traffic-reset)。
+节点探针支持金额、币种与付款周期分开填写，日历选择到期日，以及流量按到期日同日／次日每月重置。可选“在线自动续期”：到期后收到新的资源上报，按账期顺延，并在短月份保留原账单日；仅维护探针记录，不代付服务商账单。旧价格文本和手动重置设置保持兼容，详见[监控文档](docs/MONITORING.md#node-cost-and-expiry-linked-traffic-reset)。
 
 Captain v1.28 / bosun v0.75 增加 WG 两端依赖检查与管理员确认后的系统包安装，加快首次 IP 与 DNS 同步。明确确认的仅内核私网授权可保留 WARP、代理和负载均衡分流；双层防护仍只支持直连出站。
 

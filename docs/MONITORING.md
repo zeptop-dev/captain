@@ -785,8 +785,10 @@ expiry, using the actual calendar length of the payment cycle immediately before
 that expiry (clamping short-month dates). Expiry dates use midnight UTC for this
 estimate. This is not a recorded account balance or a refundable amount: the
 purchase/start date is not known, and prepaid time beyond one cycle is extrapolated
-at the same estimated daily rate. Future custom-year periods are not assigned a
-guessed number of days, so their remaining-value estimate stays unavailable.
+at the same estimated daily rate. Automatic renewal retains the original calendar
+day when a short month clamps an expiry. Custom-year periods have an estimate only
+when they convert exactly to whole months and have a saved renewal anchor; other
+custom periods are not assigned a guessed number of days.
 
 The overview groups monetary totals by original ISO currency, with no exchange
 rates or cross-currency sums. The overview shows amounts without a node-coverage
@@ -796,7 +798,7 @@ All cost cards follow the public **Information** section and current public
 snapshot, independently of hardware/system visibility.
 
 The expiry input is a calendar/date field stored as YYYY-MM-DD, without timezone
-conversion or automatic extension. Monthly NIC traffic may reset on a manually
+conversion. Monthly NIC traffic may reset on a manually
 chosen day (1–31), the expiry day-of-month, or its following day. A short month
 clamps the anniversary to its last day before applying the optional one-day offset.
 For example, an expiry on the 31st with the next-day option resets on March 1 after
@@ -811,9 +813,42 @@ label may change to the newly selected boundary. Existing server-local time sema
 for the monthly boundary are unchanged.
 
 The additive `info.billing` and `info.traffic_reset` objects live in the existing
-probe-info JSON; no database migration or bosun update is needed for this feature.
+probe-info JSON; these cost and traffic settings require no bosun update.
 Legacy clients that omit these objects preserve them when echoing the price.
 An explicit change to the legacy price returns that price to free-text mode.
+
+### Online automatic renewal
+
+In a server's probe settings, **Online automatic renewal** can maintain its expiry
+date from newly received resource reports. It is off by default and requires a
+valid expiry and a structured payment cycle: monthly, quarterly, semiannual,
+annual, or custom years that convert exactly to a whole number of months. A price
+amount is optional; free servers can also use it. This maintains the probe's
+record only and does not pay or verify payment with a hosting provider.
+
+The expiry boundary is midnight UTC on the saved date, consistent with remaining
+value calculations. Once that boundary is reached, a new accepted resource report
+can move the expiry to the next future cycle. Offline nodes do not renew. When a
+node returns after several cycles, the next date is calculated from its original
+calendar anchor rather than from its reconnection date. For example, monthly
+renewal on January 31 proceeds to February 28 (29 in a leap year), then March 31.
+Expiry-linked monthly traffic resets retain the same original day, including the
+next-day option; automatic renewal does not clear or relabel traffic usage itself.
+
+The backend saves the updated date so that the homepage, detail page and remaining
+value use the same record. Changes are logged with the previous and new date.
+Disabling renewal stops future automatic changes while retaining the calendar
+anchor for the current period. Manually changing the date or payment period
+establishes a new anchor. Existing node reports are sufficient; no bosun upgrade is
+required. Modern sampler identities and sequences let the backend reject repeat
+samples; legacy agents without sampling metadata use newly received nonempty host
+reports as their liveness evidence.
+
+`info.auto_renewal` contains `enabled` and the server-managed `anchor_date`.
+Omitting it or sending null preserves the saved policy. Clients must not generate
+their own anchor. The admin editor sends its loaded expiry as `ExpectedExpiresAt`
+so that a delayed save cannot silently undo an automatic extension; an explicit
+date edit that conflicts with a newer expiry requires a reload.
 
 ### Advertised server bandwidth
 

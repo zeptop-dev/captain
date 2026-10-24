@@ -1,7 +1,8 @@
 import type { NodeCost } from './node-price.ts'
 
 export interface Money { amount: number; currency: string }
-export interface CostInfo { billing?: NodeCost; price?: string; expires_at?: string }
+export interface NodeAutoRenewal { enabled: boolean; anchor_date?: string }
+export interface CostInfo { billing?: NodeCost; price?: string; expires_at?: string; auto_renewal?: NodeAutoRenewal }
 export type RemainingCostReason = 'missing-price' | 'legacy-price' | 'missing-expiry' | 'unsupported-cycle' | 'invalid'
 export interface CalculatedNodeCost {
   monthly: Money | null
@@ -27,15 +28,27 @@ function expiryDate(value: string): Date | null {
   return year >= 1 && date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day ? date : null
 }
 
-function previousCycle(expiry: Date, months: number): Date {
+function previousCycle(expiry: Date, months: number, day = expiry.getUTCDate()): Date {
   const first = utcDate(expiry.getUTCFullYear(), expiry.getUTCMonth() - months, 1)
   const lastDay = utcDate(first.getUTCFullYear(), first.getUTCMonth() + 1, 0).getUTCDate()
-  return utcDate(first.getUTCFullYear(), first.getUTCMonth(), Math.min(expiry.getUTCDate(), lastDay))
+  return utcDate(first.getUTCFullYear(), first.getUTCMonth(), Math.min(day, lastDay))
+}
+
+// A persisted renewal anchor defines the original calendar day even after a
+// short-month expiry. Ignore inconsistent metadata instead of guessing a cycle.
+function renewalDay(info: CostInfo, expiry: Date, months: number): number | null {
+  const value = info.auto_renewal?.anchor_date
+  if (!value || !Number.isInteger(months)) return null
+  const anchor = expiryDate(value)
+  if (!anchor || anchor > expiry) return null
+  const delta = (expiry.getUTCFullYear() - anchor.getUTCFullYear()) * 12 + expiry.getUTCMonth() - anchor.getUTCMonth()
+  const last = utcDate(expiry.getUTCFullYear(), expiry.getUTCMonth() + 1, 0).getUTCDate()
+  return delta % months === 0 && expiry.getUTCDate() === Math.min(anchor.getUTCDate(), last) ? anchor.getUTCDate() : null
 }
 
 /** Display estimates only. Never changes saved prices or interprets legacy text.
  * Remaining value prorates against the actual calendar cycle ending on expiry.
- * Custom decimal years are valid for monthly averages, but do not define days.
+ * Custom years define calendar periods only when saved with a renewal anchor.
  */
 export function calculateNodeCost(info: CostInfo, now = new Date()): CalculatedNodeCost {
   const unknown = (remainingReason: RemainingCostReason): CalculatedNodeCost => ({ monthly: null, remaining: null, remainingReason })
@@ -57,8 +70,9 @@ export function calculateNodeCost(info: CostInfo, now = new Date()): CalculatedN
   const expiry = expiryDate(info.expires_at)
   if (!expiry || !Number.isFinite(now.getTime())) return { monthly, remaining: null, remainingReason: 'invalid' }
   if (expiry.getTime() <= now.getTime()) return { monthly, remaining: money(0), remainingReason: null }
-  if (billing.cycle === 'custom') return { monthly, remaining: null, remainingReason: 'unsupported-cycle' }
-  const duration = expiry.getTime() - previousCycle(expiry, months).getTime()
+  const anchorDay = renewalDay(info, expiry, months)
+  if (billing.cycle === 'custom' && anchorDay === null) return { monthly, remaining: null, remainingReason: 'unsupported-cycle' }
+  const duration = expiry.getTime() - previousCycle(expiry, months, anchorDay ?? expiry.getUTCDate()).getTime()
   const remaining = amount * ((expiry.getTime() - now.getTime()) / duration)
   return { monthly, remaining: money(remaining), remainingReason: null }
 }

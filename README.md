@@ -331,7 +331,7 @@ Automatic listener firewall rules show their sources and synchronization state; 
 
 Captain node details expose observed host state, individual changes and operation history. Native root Debian/Ubuntu systemd nodes support bounded management jobs with independent local recovery for access/network changes. Other environments are read-only; missing system packages are not installed automatically.
 
-Node probe settings support structured amounts/currencies/payment cycles, calendar expiry dates, and monthly traffic resets linked to the expiry day or following day. Legacy price text and manual reset settings are preserved; see [Monitoring](docs/MONITORING.md#node-cost-and-expiry-linked-traffic-reset).
+Node probe settings support structured amounts/currencies/payment cycles, calendar expiry dates, and monthly traffic resets linked to the expiry day or following day. Optional online automatic renewal advances expiry after a new resource report, preserving the original calendar day through short months. It maintains the probe record without making hosting payments. Legacy price text and manual reset settings are preserved; see [Monitoring](docs/MONITORING.md#node-cost-and-expiry-linked-traffic-reset).
 
 Node probe settings also record advertised Mbps/Gbps capacity, optionally separated into server RX/TX, with opt-in display in both status-page themes. This is metadata only, not shaping or a speed test; see [Advertised bandwidth](docs/MONITORING.md#advertised-server-bandwidth).
 

@@ -80,6 +80,34 @@ test('remaining value retains sub-day precision and does not cap prepaid time to
     new Date('2026-01-01T00:00:00Z')).remaining, 730)
 })
 
+test('renewed estimates retain the original calendar day after short months and leap years', () => {
+  for (const enabled of [true, false]) {
+    const auto_renewal = { enabled, anchor_date: '2026-01-31' }
+    const february = info('28', 'monthly', 'USD', { expires_at: '2026-02-28', auto_renewal })
+    money(calculateNodeCost(february, new Date('2026-02-01T00:00:00Z')).remaining, 27)
+    const march = { ...february, expires_at: '2026-03-31' }
+    money(calculateNodeCost(march, new Date('2026-03-01T00:00:00Z')).remaining, 28 * 30 / 31)
+    const annual = info('365', 'annual', 'USD', {
+      expires_at: '2025-02-28', auto_renewal: { enabled, anchor_date: '2024-02-29' },
+    })
+    money(calculateNodeCost(annual, new Date('2025-02-01T00:00:00Z')).remaining, 27)
+  }
+})
+
+test('custom renewal estimates require a valid persisted calendar anchor', () => {
+  const value = info('18', 'custom', 'EUR', {
+    expires_at: '2027-07-31', auto_renewal: { enabled: true, anchor_date: '2026-01-31' },
+  })
+  value.billing.years = '1.5'
+  money(calculateNodeCost(value, new Date('2026-01-31T00:00:00Z')).remaining, 18, 'EUR')
+  for (const anchor_date of ['invalid', '2026-02-30', '2028-01-31', '2026-02-28', '2026-01-30']) {
+    const invalid = { ...value, auto_renewal: { enabled: true, anchor_date } }
+    assert.equal(calculateNodeCost(invalid, now).remainingReason, 'unsupported-cycle', anchor_date)
+  }
+  value.billing.years = '0.1'
+  assert.equal(calculateNodeCost(value, now).remainingReason, 'unsupported-cycle')
+})
+
 test('expiry boundaries are UTC dates and expired prices have a known zero remaining value', () => {
   const value = info('120', 'annual', 'USD', { expires_at: '2026-10-23' })
   money(calculateNodeCost(value, now).remaining, 0)
