@@ -32,7 +32,20 @@
     "suffixes": "허용되는 이메일 도메인: {{list}}",
     "inviteRequired": "초대 코드(필수)",
     "policyFailed": "가입 설정을 불러오지 못했습니다. 다시 시도해 주세요.",
-    "retry": "다시 시도"
+    "retry": "다시 시도",
+    "portalLabel": "사용자 포털",
+    "loginTitle": "다시 오신 것을 환영합니다",
+    "loginHint": "요금제, 구독 및 기기를 관리하려면 로그인하세요.",
+    "registerTitle": "계정 만들기",
+    "registerHint": "여기서 구독과 연결을 관리하세요.",
+    "emailPlaceholder": "이메일 주소를 입력하세요",
+    "passwordPlaceholder": "비밀번호를 입력하세요",
+    "passwordCreatePlaceholder": "8자 이상의 비밀번호를 설정하세요",
+    "providersFailed": "로그인 방식을 불러오지 못했습니다. 다시 시도해 주세요.",
+    "loginUnavailable": "현재 사용 가능한 로그인 방식이 없습니다. 나중에 다시 시도해 주세요.",
+    "loading": "불러오는 중…",
+    "emailAlternative": "또는 이메일로 계속",
+    "backToLogin": "로그인으로 돌아가기"
   },
   "home": {
     "noPlanHint": "요금제를 선택해 시작하세요.",
