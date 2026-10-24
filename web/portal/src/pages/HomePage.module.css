@@ -1,0 +1,29 @@
+.welcome { padding-block: 4px 6px; }
+.heading { font-size: clamp(1.5rem, 2.5vw, 1.875rem); letter-spacing: -0.035em; font-weight: 700; }
+.balance { display: inline-flex; align-items: center; gap: 9px; color: var(--mantine-color-text); font-size: var(--mantine-font-size-sm); padding: 10px 14px; border: 1px solid var(--mantine-color-default-border); border-radius: 12px; background: var(--mantine-color-body); }
+.balance:hover { background: var(--mantine-color-default-hover); }
+.mainGrid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.plansCard, .connectCard, .noticeCard, .helpCard { min-width: 0; border-radius: 18px; padding: 26px; box-shadow: 0 3px 14px light-dark(rgb(24 45 65 / 3%), rgb(0 0 0 / 8%)); }
+.plan + .plan { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--mantine-color-default-border); }
+.planName { overflow-wrap: anywhere; flex: 1; min-width: 100px; }
+.usage { padding-block: 22px; }
+.amount { font-size: clamp(1.75rem, 3.6vw, 2.5rem); font-weight: 700; letter-spacing: -0.04em; line-height: 1.25; margin-block: 6px 12px; font-variant-numeric: tabular-nums; }
+.planDetails { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; padding-top: 18px; border-top: 1px solid var(--mantine-color-default-border); }
+.renewRow { padding-top: 18px; }
+.renewRow > :first-child { flex: 1; min-width: 160px; }
+.emptyPlan { padding: 22px 0 20px; max-width: 430px; }
+.queued { margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--mantine-color-default-border); }
+.queueItem { overflow-wrap: anywhere; border-radius: 12px; padding: 14px; background: var(--mantine-color-default-hover); }
+.connectCard { background: linear-gradient(145deg, var(--mantine-primary-color-light), transparent 75%), var(--mantine-color-body); }
+.connectTop { max-width: 28rem; }
+.connectLinks { margin-top: 24px; border-top: 1px solid var(--mantine-color-default-border); padding-top: 10px; }
+.connectLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 11px; color: var(--mantine-color-text); }
+.connectLink:hover, .helpLink:hover { color: var(--mantine-primary-color-filled); }
+.recent { padding-top: 14px; margin-top: 6px; border-top: 1px solid var(--mantine-color-default-border); }
+.secondaryGrid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr); gap: 24px; align-items: stretch; }
+.secondarySolo { grid-template-columns: 1fr; }
+.helpLink { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding-block: 12px; color: var(--mantine-color-text); }
+.helpLink + .helpLink { border-top: 1px solid var(--mantine-color-default-border); }
+@media (max-width: 62em) { .mainGrid, .secondaryGrid { gap: 18px; } .plansCard, .connectCard, .noticeCard, .helpCard { padding: 22px; } }
+@media (max-width: 48em) { .mainGrid, .secondaryGrid { grid-template-columns: minmax(0, 1fr); gap: 18px; } .plansCard, .connectCard, .noticeCard, .helpCard { padding: 20px; border-radius: 16px; } .connectCard { grid-row: 1; } .connectTop { display: grid; grid-template-columns: auto 1fr; column-gap: 14px; align-items: center; } .connectTop > :first-child { grid-row: span 2; } .connectTop > :nth-child(2) { margin-top: 0; } .connectTop > :nth-child(3) { margin-top: 4px; } .connectLinks { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; padding-top: 8px; } .recent { margin-top: 3px; padding-top: 12px; } }
+@media (max-width: 23em) { .planDetails { grid-template-columns: 1fr; gap: 14px; } .connectLinks { grid-template-columns: 1fr; gap: 0; } .balance { padding: 8px 12px; } }
