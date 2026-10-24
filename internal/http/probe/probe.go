@@ -57,14 +57,17 @@ func (h *handlers) allowed(r *http.Request, s store.ProbeSettings) (bool, int) {
 	}
 	switch s.Visibility {
 	case "users":
-		if h.Resolve == nil || h.Resolve(r) == nil {
+		if h.Resolve == nil {
+			return false, http.StatusUnauthorized
+		}
+		if u := h.Resolve(r); u == nil || u.Status != "active" {
 			return false, http.StatusUnauthorized
 		}
 	case "admins":
 		if h.Resolve == nil {
 			return false, http.StatusForbidden
 		}
-		if u := h.Resolve(r); u == nil || !u.IsStaff() {
+		if u := h.Resolve(r); u == nil || u.Status != "active" || !u.IsStaff() {
 			return false, http.StatusForbidden
 		}
 	}
@@ -87,7 +90,7 @@ func (h *handlers) isStaff(r *http.Request) bool {
 		return false
 	}
 	u := h.Resolve(r)
-	return u != nil && u.IsStaff()
+	return u != nil && u.Status == "active" && u.IsStaff()
 }
 
 // nodeView is one server on the page.
