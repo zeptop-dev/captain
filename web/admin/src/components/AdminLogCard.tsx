@@ -38,7 +38,10 @@ export function AdminLogCard() {
                     </Group>
                     <Text size="xs" c="dimmed">{e.ip}</Text>
                   </Table.Td>
-                  <Table.Td><Text size="xs" ff="monospace">{e.method} {e.path}</Text></Table.Td>
+                  <Table.Td>
+                    <Text size="xs" ff="monospace">{e.method} {e.path}</Text>
+                    {e.via === 'probe_auto_renewal' && e.target && <Text size="xs">{t('nodeCost.autoRenewal')}: {e.target}</Text>}
+                  </Table.Td>
                   <Table.Td><Badge size="xs" color={e.status >= 400 ? 'red' : 'green'}>{e.status}</Badge></Table.Td>
                 </Table.Tr>
               ))}
