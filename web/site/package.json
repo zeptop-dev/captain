@@ -15,7 +15,7 @@
     "@mantine/hooks": "8",
     "@mantine/notifications": "8",
     "@tabler/icons-react": "^3.49.0",
-    "@tanstack/react-query": "^5.104.3",
+    "@tanstack/react-query": "^5.104.5",
     "globe.gl": "^2.44.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -28,11 +28,11 @@
     "@types/react-dom": "^19.2.7",
     "@types/topojson-client": "^3.1.5",
     "@vitejs/plugin-react": "^6.1.2",
-    "oxlint": "^1.88.0",
-    "postcss": "^8.5.30",
+    "oxlint": "^1.89.0",
+    "postcss": "^8.5.31",
     "postcss-preset-mantine": "^1.18.0",
     "postcss-simple-vars": "^7.0.1",
     "typescript": "~6.0.2",
-    "vite": "^8.3.4"
+    "vite": "^8.3.5"
   }
 }
