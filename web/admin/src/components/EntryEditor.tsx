@@ -76,7 +76,7 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
   }
   return <>
     <Modal opened onClose={close} closeOnClickOutside={false} closeOnEscape={!save.isPending} withCloseButton={!save.isPending} title={entry ? t('entryFlow.editNode') : t('entryFlow.createNode')} size="lg">
-      <form onSubmit={form.onSubmit(v => save.mutate(v))}>
+      <form onSubmit={form.onSubmit(v => { if (!save.isPending && !loading && !(v.mode === 'line' && canManageLines && !endpoint?.host.trim())) save.mutate(v) })}>
         <Stack>
           {loadError && <Alert color="yellow"><Text size="sm">{t('entryFlow.partialLoad')}</Text><Button size="xs" variant="subtle" onClick={onReload}>{t('entryFlow.retry')}</Button></Alert>}
           {save.isError && <Alert color="red">{save.error.message}</Alert>}
@@ -112,7 +112,7 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
             <Select label={t('entries.region')} searchable clearable data={REGIONS.map(r => ({ value: r.code, label: `${flag(r.code)} ${r.code} ${r.name}` }))} disabled={save.isPending} value={form.values.Region || null} onChange={v => form.setFieldValue('Region', v ?? '')} />
             <NumberInput label={t('entries.rate')} min={0} step={0.1} decimalScale={2} disabled={save.isPending} {...form.getInputProps('Rate')} />
           </SimpleGrid>
-          <Select label={t('entryCategories.label')} description={t('entryCategories.hint')} searchable allowDeselect={false} data={[{ value: '0', label: t('entryCategories.unclassified') }, ...categories.map(category => ({ value: String(category.ID), label: category.Name }))]} disabled={save.isPending} {...form.getInputProps('CategoryID')} />
+          <Select label={t('entryCategories.label')} description={t('entryCategories.hint')} searchable allowDeselect={false} data={[{ value: '0', label: t('entryCategories.unclassified') }, ...categories.map(category => ({ value: String(category.ID), label: category.Name }))]} disabled={save.isPending || loading || loadError} {...form.getInputProps('CategoryID')} />
           <TagsInput label={t('entries.tags')} data={tags} disabled={save.isPending} {...form.getInputProps('Tags')} />
           <JsonInput label={t('entries.clientExtra')} description={lineExtraReadOnly ? t('entryFlow.lineExtraAdminOnly') : t('entries.clientExtraHint')} autosize minRows={2} maxRows={8} formatOnBlur validationError={t('overrides.invalid')} disabled={save.isPending || lineExtraReadOnly} {...form.getInputProps('ClientExtra')} />
           <Switch label={t('entries.enabled')} disabled={save.isPending} {...form.getInputProps('Enabled', { type: 'checkbox' })} />

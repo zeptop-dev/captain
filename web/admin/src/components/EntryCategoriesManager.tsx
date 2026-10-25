@@ -57,7 +57,7 @@ export function EntryCategoriesManager({ onClose }: { onClose: () => void }) {
         </Group>
       </Card>)}
       {editing === null ? <Button variant="light" leftSection={<IconPlus size={16} />} disabled={busy || q.isLoading || q.isError} onClick={() => edit('new')}>{t('entryCategories.create')}</Button> : <Card withBorder>
-        <form onSubmit={event => { event.preventDefault(); if (name.trim() && !busy) save.mutate() }}><Stack>
+        <form onSubmit={event => { event.preventDefault(); if (name.trim() && !busy && !q.isLoading && !q.isError) save.mutate() }}><Stack>
           <Text fw={600}>{t(editing === 'new' ? 'entryCategories.create' : 'entryCategories.edit')}</Text>
           <TextInput label={t('entryCategories.name')} required maxLength={80} value={name} disabled={busy} onChange={event => setName(event.currentTarget.value)} autoFocus />
           <Textarea label={t('entryCategories.description')} maxLength={500} minRows={2} maxRows={5} autosize value={description} disabled={busy} onChange={event => setDescription(event.currentTarget.value)} />
