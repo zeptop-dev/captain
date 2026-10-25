@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { adoptClaudeRules, designCatalogue, designPolicyCanDirect, designSupportReasons, diffClaudeRules, draftClaudeRules, renameDesignGroup, selectedDesignFormats, setClaudeEnabled } from '../src/lib/sub-design.ts'
+import { adoptClaudeRules, claudeAppliedFormats, designCatalogue, designPolicyCanDirect, designSupportReasons, designSupportWarnings, diffClaudeRules, draftClaudeRules, renameDesignGroup, selectedDesignFormats, setClaudeEnabled } from '../src/lib/sub-design.ts'
 
 test('renaming a policy retains imported semantics and updates enhancement references', () => {
   const design = {
@@ -79,8 +79,44 @@ test('format restrictions are translated and deduplicated without hiding unknown
   assert.deepEqual(designSupportReasons(support, { dns_mihomo: 'DNS 保护目前仅支持 mihomo' }), ['DNS 保护目前仅支持 mihomo', 'New feature requires mihomo', 'Older API reason'])
 })
 
+test('localized restrictions preserve dynamic rule and group validation details', () => {
+  const support = [{ format: 'surge', supported: false, reasons: ['group Regional uses timeout 17', 'inline custom-2: unknown matcher'], reason_codes: ['group_timeout_unsupported', 'inline_rule_unsupported'] }]
+  assert.deepEqual(designSupportReasons(support, {
+    group_timeout_unsupported: detail => `超时参数不支持：${detail}`,
+    inline_rule_unsupported: detail => `规则不支持：${detail}`,
+  }), ['超时参数不支持：group Regional uses timeout 17', '规则不支持：inline custom-2: unknown matcher'])
+})
+
 const builtinClaude = { source: 'builtin', revision: 'captain-v1', rules: [{ type: 'domain', value: 'example.com' }] }
 const updatedClaude = { source: 'v2fly', revision: 'a'.repeat(40), rules: [{ type: 'domain', value: 'example.com' }, { type: 'full', value: 'service.example.net' }] }
+
+test('client warnings retain their scope and translate independently of blocking reasons', () => {
+  const support = [
+    { format: 'clash', supported: true, reasons: [] },
+    { format: 'stash', supported: true, reasons: [], warnings: ['DNS differs', 'Future caveat'], warning_codes: ['dns_difference', 'future'] },
+    { format: 'surge', supported: true, reasons: [], warnings: ['DNS differs'], warning_codes: ['dns_difference'] },
+    { format: 'qx', supported: false, reasons: ['Cannot render this design'], warnings: ['Do not describe as supported'] },
+  ]
+  assert.deepEqual(designSupportWarnings(support, { dns_difference: 'DNS 行为差异' }), [
+    { format: 'stash', messages: ['DNS 行为差异', 'Future caveat'] },
+    { format: 'surge', messages: ['DNS 行为差异'] },
+  ])
+  assert.deepEqual(selectedDesignFormats(support, null), ['clash', 'stash', 'surge'])
+})
+
+test('applied Claude revisions remain per format with a Mihomo-only legacy fallback', () => {
+  const legacy = { applied: { status: 'applied', snapshot: builtinClaude, applied_at: 1 } }
+  const oldFormats = claudeAppliedFormats(legacy)
+  assert.equal(oldFormats.length, 7)
+  assert.deepEqual(oldFormats.find(item => item.format === 'clash').applied, legacy.applied)
+  for (const item of oldFormats.filter(item => item.format !== 'clash')) assert.deepEqual(item.applied, { status: 'unknown' })
+  const data = { ...legacy, applied_formats: { clash: { status: 'unknown' }, surge: { status: 'applied', snapshot: updatedClaude, applied_at: 2 }, qx: { status: 'disabled', applied_at: 3 } } }
+  const formats = claudeAppliedFormats(data)
+  assert.deepEqual(formats.find(item => item.format === 'clash').applied, { status: 'unknown' })
+  assert.deepEqual(formats.find(item => item.format === 'surge').applied, data.applied_formats.surge)
+  assert.deepEqual(formats.find(item => item.format === 'qx').applied, data.applied_formats.qx)
+  assert.deepEqual(formats.find(item => item.format === 'stash').applied, { status: 'unknown' })
+})
 
 test('legacy Claude drafts remain pinned when the library is fetched or the option is toggled', () => {
   const legacy = { groups: [], rules: [], final: '', enhancements: { claude: true, claude_policy: 'Existing', future_option: true } }
