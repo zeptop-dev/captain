@@ -1107,7 +1107,8 @@
     "warningLoonRuleVersion": "UDP 포트 제한에는 Loon 3.1.7 이상이 필요합니다.",
     "warningQXUDPTunnel": "Quantumult X의 UDP 포트 제한은 터널이 캡처한 트래픽에만 적용됩니다.",
     "supportDNSLoonPolicy": "Loon의 공개된 프로필 설정으로는 선택한 DNS 프록시 정책의 사용을 보장할 수 없습니다. 암호화된 DNS에서 일반 DNS로의 전환을 끄려면 앱 내 설정도 필요합니다.",
-    "supportDNSQXPolicy": "Quantumult X의 공개된 DNS 설정은 로컬 암호화 DNS 쿼리를 선택한 프록시 정책에 바인딩할 수 없습니다. 프록시 대상은 원격 이름 확인을 사용합니다."
+    "supportDNSQXPolicy": "Quantumult X의 공개된 DNS 설정은 로컬 암호화 DNS 쿼리를 선택한 프록시 정책에 바인딩할 수 없습니다. 프록시 대상은 원격 이름 확인을 사용합니다.",
+    "supportRemoteRules": "이 원격 규칙 소스에는 클라이언트가 동일하게 표현할 수 없는 규칙이 포함되어 있습니다: {{detail}}"
   },
   "forwards": {
     "backendRealm": "Realm(별도 프로세스)",

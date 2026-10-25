@@ -1107,7 +1107,8 @@
     "warningLoonRuleVersion": "UDP 連接埠限制需要 Loon 3.1.7 或更新版本。",
     "warningQXUDPTunnel": "Quantumult X 的 UDP 連接埠限制僅對隧道接管的流量生效。",
     "supportDNSLoonPolicy": "Loon 已公開的設定項目無法保證使用選取的 DNS 代理策略；禁止加密 DNS 回退至明文還需要在用戶端內設定。",
-    "supportDNSQXPolicy": "Quantumult X 已公開的 DNS 設定無法將本機加密 DNS 查詢綁定至選取的代理策略；代理目標使用遠端解析。"
+    "supportDNSQXPolicy": "Quantumult X 已公開的 DNS 設定無法將本機加密 DNS 查詢綁定至選取的代理策略；代理目標使用遠端解析。",
+    "supportRemoteRules": "此遠端規則來源包含用戶端無法等價表達的規則：{{detail}}"
   },
   "forwards": {
     "backendRealm": "Realm（獨立行程）",

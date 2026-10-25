@@ -95,6 +95,7 @@ function Designer() {
     'dns-qx-policy-unavailable': t('subDesign.supportDNSQXPolicy'),
     invalid_design: detail => t('subDesign.supportInvalidDesign', { detail }),
     inline_rule_unsupported: detail => t('subDesign.supportInlineRule', { detail }),
+    remote_rules_unsupported: detail => t('subDesign.supportRemoteRules', { detail }),
     udp_rule_order_unsupported: t('subDesign.supportUDPRuleOrder'),
     group_timeout_unsupported: detail => t('subDesign.supportGroupTimeout', { detail }),
     group_test_url_unsupported: detail => t('subDesign.supportGroupTestURL', { detail }),
