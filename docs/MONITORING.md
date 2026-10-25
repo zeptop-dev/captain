@@ -71,8 +71,15 @@ Captain folds the beats into minute, hour and day buckets (48 h / 60 d /
 page:
 
 - **Address** — a path on the main domain (`/status` by default) and/or
-  dedicated hostnames (`status.example.com`) that serve only the page; both
-  are covered by the built-in certificates.
+  dedicated hostnames (`status.example.com`) bound to the probe page. Saving
+  a hostname configures Captain's HTTP routing only: it does not create DNS
+  records, configure a reverse proxy/CDN/tunnel, or verify reachability. The
+  displayed URLs are a preview of the current form, including unsaved edits.
+  Point each dedicated hostname at the deployment's public endpoint and, if
+  using a proxy or tunnel, route it to Captain while preserving the original
+  Host header. HTTPS must also cover that hostname. A working DNS record or
+  TLS handshake alone does not prove the proxy can reach Captain. The main
+  domain path reuses the panel's existing DNS and HTTPS setup.
 - **Visibility** — public, signed-in users, or staff only; per-node "hide";
   node addresses hidden unless allowed; title and logo so the page can be
   de-branded.

@@ -909,9 +909,9 @@
     "carrier": "Carrier latency (CT/CU/CM)",
     "path": "Path on the main domain",
     "pathHint": "Blank = not served on the main domain, e.g. /status",
-    "hosts": "Dedicated hosts",
-    "hostsHint": "Comma separated; these hosts serve only the status page, everything else 404s",
-    "urls": "URLs",
+    "hosts": "Bind dedicated domains",
+    "hostsHint": "Comma separated; binds domains to the probe page only. Does not create DNS records or configure a reverse proxy. Route each domain to Captain and configure HTTPS separately.",
+    "urls": "Address preview (reachability not verified)",
     "visibility": "Visibility",
     "vis": {
       "public": "Public",
