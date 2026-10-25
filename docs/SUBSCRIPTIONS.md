@@ -139,17 +139,22 @@ Client-specific limits:
 
 | Client | DNS protection | Other requirements and limits |
 |---|---|---|
-| Mihomo | Proxied encrypted DNS; independent direct bootstrap | Existing behavior retained |
+| Mihomo | Proxied encrypted DNS; independent direct bootstrap | Existing remote-list behavior retained; a warning identifies unsupported URL-REGEX in ProxyMedia |
 | Stash | Proxied encrypted DNS with `follow-rule` | Independent proxy-hostname DNS requires iOS/tvOS 3.6+ or macOS 4.3+; geosite data may need its first download |
 | Surge | Proxied encrypted DNS, with IP-address proxy endpoints | A protected subscription containing hostname candidates or external proxy providers is rejected to prevent DIRECT fallback; only `.cn` gets the domestic resolver |
-| Surfboard | The requested DNS proxy policy cannot be expressed | Its encrypted DNS is always direct; other enhancements remain available with DNS protection off |
+| Surfboard | The requested DNS proxy policy cannot be expressed | Its encrypted DNS is always direct; ProxyMedia's URL-REGEX cannot be represented |
 | Loon | The requested DNS policy cannot be guaranteed by the documented profile | Disabling plain-DNS fallback needs an app setting; UDP logical rules require 3.1.7+; native domain-first matching remains |
 | Quantumult X | Local DNS cannot be bound to the selected DNS proxy policy | UDP restrictions apply to captured tunnel traffic; process/URL rules in ACL4SSR `ProxyMedia.list` cannot be represented |
-| Egern | Default DNS follows selected proxy policies | Its separate proxy-DNS path remains encrypted/direct; only `.cn` gets the domestic resolver |
+| Egern | Default DNS follows selected proxy policies | Its separate proxy-DNS path remains encrypted/direct; only `.cn` gets the domestic resolver; ProxyMedia's process rules cannot be represented |
 
 Explicit group timeouts or differing per-group test URLs are rejected where
 the target cannot preserve their meaning. These checks do not guarantee an
 arbitrary future upstream list will remain compatible.
+Process rules in Stash, Surge and Loon also have a macOS-only native scope;
+the designer reports that limitation instead of promising equivalent mobile
+behavior. Mihomo's established remote-list delivery remains available with an
+explicit warning for the known unsupported URL rule, rather than claiming the
+entire list is faithfully implemented.
 
 Loon and Quantumult X use credential-free, bounded inline-rule resources hosted
 by the panel to keep inline rules in their original position among remote lists.
