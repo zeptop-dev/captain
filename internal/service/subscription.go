@@ -91,6 +91,7 @@ func (s *Subscription) PublishedLinesWithProfile(ctx context.Context, u *domain.
 	for _, r := range rows {
 		line := PublishedLine{EntryID: r.Entry.ID, Line: subscription.Line{
 			Name: vars.Expand(prefix + subscription.WithFlag(r.Entry.Name, r.Entry.DisplayHost, r.Entry.Region, ss.AutoFlags)), Host: r.Entry.DisplayHost, Port: r.Entry.DisplayPort,
+			Region: r.Entry.Region, RegionName: r.Entry.Name,
 			Inbound: r.Inbound.Spec(), UUID: u.UUID, UserID: u.AgentID, Password: u.UUID, Tags: r.Entry.Tags, Extra: r.Entry.ClientExtra,
 		}}
 		if r.Entry.ClientDialerEntryID != nil {
@@ -113,6 +114,9 @@ func (s *Subscription) PublishedLinesWithProfile(ctx context.Context, u *domain.
 			continue
 		}
 		l.Name = vars.Expand(prefix + subscription.WithFlag(n.Name, l.Host, "", ss.AutoFlags))
+		// Group by the undecorated label, not a flag inferred from an ingress
+		// hostname or a profile prefix that happens to contain a region name.
+		l.RegionName = n.Name
 		lines = append(lines, PublishedLine{Line: l})
 	}
 	return lines, acct, nil
