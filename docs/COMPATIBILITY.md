@@ -20,6 +20,13 @@ only those supported global templates. Existing drafts, named profile templates,
 response-rule templates and independent WireGuard subscriptions keep their
 separate scopes. See [subscription templates](SUBSCRIPTIONS.md#templates-and-the-designer).
 
+Captain 1.40 bundles shared bosun package 0.80 for these seven-format adapters
+and regional automatic/manual selectors. This is a panel library requirement,
+not a minimum managed agent version. Existing published templates remain in use
+until the administrator reapplies the design. Custom groups and legacy name
+filters retain their behavior; registered exit regions take precedence only for
+the new region selectors.
+
 Docker web upgrades add optional `host_update` metadata to existing update
 responses; API paths and existing fields remain intact. Docker-managed node
 upgrades require the new bosun host-updater support (v0.65.0+) and one-time
