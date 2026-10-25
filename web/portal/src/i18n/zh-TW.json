@@ -140,7 +140,10 @@
     "title": "節點",
     "empty": "目前沒有可用節點",
     "copyLink": "複製節點連結",
-    "clientChain": "用戶端鏈式節點：請匯入完整的 mihomo、Stash 或 sing-box 訂閱，不提供單獨分享連結。"
+    "clientChain": "用戶端鏈式節點：請匯入完整的 mihomo、Stash 或 sing-box 訂閱，不提供單獨分享連結。",
+    "category": "節點分類",
+    "allCategories": "全部分類",
+    "uncategorized": "未分類"
   },
   "invite": {
     "title": "邀請好友",

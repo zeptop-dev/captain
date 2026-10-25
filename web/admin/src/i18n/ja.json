@@ -415,6 +415,32 @@
       }
     }
   },
+  "entryCategories": {
+    "label": "ノードカテゴリ",
+    "manage": "カテゴリ管理",
+    "unclassified": "未分類",
+    "all": "すべてのカテゴリ",
+    "hint": "表示専用です。アクセス権、課金、タグ、購読内の順序は変更しません。",
+    "managerHint": "各購読ノードに表示カテゴリを1つ設定できます。カテゴリ順とノード順は独立しており、アクセス権や課金には影響しません。",
+    "empty": "カテゴリがありません。既存のノードは未分類のままです。",
+    "create": "カテゴリを作成",
+    "edit": "カテゴリを編集",
+    "name": "カテゴリ名",
+    "description": "説明",
+    "deleteHint": "「{{name}}」を削除しますか？ノードは削除せず、未分類に戻します。",
+    "moveUp": "{{name}} を上へ",
+    "moveDown": "{{name}} を下へ",
+    "selected": "{{count}} ノードを選択中",
+    "assign": "カテゴリを設定",
+    "pick": "カテゴリを選択",
+    "apply": "選択したノードに適用",
+    "clearSelection": "選択を解除",
+    "selectVisible": "表示中のノードを選択",
+    "selectNode": "{{name}} を選択",
+    "loadError": "ノードカテゴリを読み込めませんでした。",
+    "batchLimit": "一度に選択できるノードは10,000件までです。",
+    "close": "閉じる"
+  },
   "entries": {
     "title": "サブスクリプションノード",
     "create": "ノードを追加",

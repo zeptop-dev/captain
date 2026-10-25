@@ -128,9 +128,11 @@ export interface OnlineDevice { via_relay?: boolean; ip: string; node_id: number
 export interface HwidDevice { hwid: string; platform?: string; os_version?: string; device_model?: string; user_agent?: string; request_ip?: string; first_seen_at: string; last_seen_at: string }
 export interface SubRequest { id: number; at: string; request_ip: string; user_agent: string; hwid?: string; rule?: string; response: string }
 
+export interface EntryCategory { ID: number; Name: string; Description: string; Sort: number }
+
 export interface Entry {
   ID: number; Name: string; InboundID: number; ChainID: number | null; DisplayHost: string; DisplayPort: number
-  LineID?: number | null; LineMemberID?: string; ClientDialerEntryID?: number | null
+  LineID?: number | null; LineMemberID?: string; ClientDialerEntryID?: number | null; CategoryID?: number | null
   ManagedConnection?: { type: 'wireguard' | 'reverse'; exit_node_id: number }
   Rate: number; Sort: number; Enabled: boolean; Tags?: string[]; Region?: string; ClientExtra?: Record<string, unknown> | null }
 export type ForwardAddressMode = 'default' | 'internal'

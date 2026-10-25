@@ -195,6 +195,37 @@ appears for that group. Admin → Nodes can drag subscription nodes into the ord
 clients see, give them free-form tags (shown in the portal, usable as a
 filter and in the designer) and a region.
 
+**Nodes & lines → Subscription nodes → Manage categories** manages display
+categories with a name, a short plain-text description and an order. Each
+subscription node can belong to one category; edit a node or select several
+visible rows to assign them together. Managed reverse-connection nodes can also
+be categorized through the batch action. Deleting a category leaves its nodes
+intact and makes them uncategorized. Existing and automatically created nodes
+start uncategorized.
+
+Categories are separate from tags, regions, server monitoring groups and access
+groups. They do not grant access, change billing or routing, add subscription
+tags, or reorder the subscription. Category ordering controls category selectors;
+nodes keep their existing order. Clear all list filters before dragging nodes
+to change that global order. The customer portal shows category labels and a
+category filter derived only from nodes the customer can access; empty or
+inaccessible categories are not exposed. The same category data can support
+future site and service-status presentation without defining publication policy.
+
+The admin API adds `/api/admin/entry-categories` (list/create), `/{id}`
+(update/delete), `/order` (complete ordered `IDs`), and
+`PUT /api/admin/entries/category` (`IDs`, `CategoryID`) for atomic bulk assignment.
+`Entry.CategoryID` is nullable. On ordinary entry PATCH, omitting it or sending
+null preserves the current category; send `0` to clear it. Bulk assignment
+requires an explicit category ID, including `0` for uncategorized. The portal's
+existing server array adds an optional `category` object
+(`id`, `name`, `description`, `sort`); no global category catalogue is public.
+The portal rank is relative to the caller's visible categories. Category CRUD
+uses the separate `entry-categories` API-token resource; assigning a node's
+category uses `entries`. Both operations retain the existing administrator and
+operator role restrictions. Migration 87 stores this display metadata; it adds
+no bosun protocol fields and requires no node-agent upgrade.
+
 Settings → Subscription → *Auto flags* prefixes names that lack a flag
 emoji with their region flag: the explicit region if set, otherwise
 detected from the name (`Tokyo`, `HK-02`, `香港`, `jp1.example.com` …).

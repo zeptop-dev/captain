@@ -415,6 +415,32 @@
       }
     }
   },
+  "entryCategories": {
+    "label": "Node category",
+    "manage": "Manage categories",
+    "unclassified": "Unclassified",
+    "all": "All categories",
+    "hint": "For display only; does not change access, billing, tags or subscription order.",
+    "managerHint": "Give each subscription node one display category. Category order is separate from node order. Categories do not change permissions or billing.",
+    "empty": "No categories yet. Existing nodes remain unclassified.",
+    "create": "Create category",
+    "edit": "Edit category",
+    "name": "Category name",
+    "description": "Description",
+    "deleteHint": "Delete “{{name}}”? Its nodes will remain and become unclassified.",
+    "moveUp": "Move {{name}} up",
+    "moveDown": "Move {{name}} down",
+    "selected": "{{count}} nodes selected",
+    "assign": "Assign category",
+    "pick": "Choose a category",
+    "apply": "Apply to selected",
+    "clearSelection": "Clear selection",
+    "selectVisible": "Select visible nodes",
+    "selectNode": "Select {{name}}",
+    "loadError": "Could not load node categories.",
+    "batchLimit": "Select no more than 10,000 nodes at a time.",
+    "close": "Close"
+  },
   "entries": {
     "title": "Subscription nodes",
     "create": "Add node",

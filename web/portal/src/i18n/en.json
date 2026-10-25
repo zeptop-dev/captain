@@ -140,7 +140,10 @@
     "title": "Servers",
     "empty": "No servers available",
     "copyLink": "Copy server link",
-    "clientChain": "Client proxy chain. Import the complete mihomo, Stash or sing-box subscription; this node has no standalone share link."
+    "clientChain": "Client proxy chain. Import the complete mihomo, Stash or sing-box subscription; this node has no standalone share link.",
+    "category": "Category",
+    "allCategories": "All categories",
+    "uncategorized": "Uncategorized"
   },
   "invite": {
     "title": "Invite friends",

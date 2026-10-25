@@ -221,12 +221,22 @@ type Entry struct {
 	Enabled      bool
 	Tags         []string // free-form labels shown to users and used for filtering
 	Region       string   // ISO 3166-1 alpha-2; "" = detect from the name when auto flags are on
+	CategoryID   *int64   // optional display category; independent of access, tags and billing
 	// ClientExtra is merged into this entry's proxy in the map-shaped
 	// client formats (mihomo/Clash, Stash, sing-box): tfo, smux, dialer-proxy…
 	ClientExtra map[string]any
 	// ClientDialerEntryID selects an authorized subscription entry by stable
 	// identity. Renderers resolve its current name; it is never a server route.
 	ClientDialerEntryID *int64
+}
+
+// EntryCategory groups subscription nodes for presentation. It grants no access
+// and never changes subscription ordering or routing.
+type EntryCategory struct {
+	ID          int64
+	Name        string
+	Description string
+	Sort        int
 }
 
 // Order is a purchase of a plan. Status moves pending -> paid or cancelled;

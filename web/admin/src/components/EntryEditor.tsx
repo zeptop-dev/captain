@@ -4,7 +4,7 @@ import { modals } from '@mantine/modals'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { api, type Entry, type Line, type Node } from '../lib/api'
+import { api, type Entry, type EntryCategory, type Line, type Node } from '../lib/api'
 import { canDialThrough, changeEntryInbound, entryEndpoint, type InboundChoice } from '../lib/entry-flow'
 import { hostPort } from '../lib/ingress'
 import { flag, REGIONS } from '../lib/regions'
@@ -15,11 +15,11 @@ import { EntryInboundCreator } from './EntryInboundCreator'
 type Mode = 'direct' | 'line' | 'client'
 interface Values {
   Name: string; InboundID: string; DisplayHost: string; DisplayPort: number; Rate: number; Sort: number; Enabled: boolean; Tags: string[]; Region: string; ClientExtra: string
-  mode: Mode; LineID: string; LineMemberID: string; ClientDialerEntryID: string
+  CategoryID: string; mode: Mode; LineID: string; LineMemberID: string; ClientDialerEntryID: string
 }
 
-export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, initialInboundID, initialLineID, initialServerID, canManageLines, loading, loadError, onReload, onClose }: {
-  entry?: Entry; nodes: Node[]; inbounds: InboundChoice[]; entries: Entry[]; lines: Line[]; tags: string[]
+export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, categories, initialInboundID, initialLineID, initialServerID, canManageLines, loading, loadError, onReload, onClose }: {
+  entry?: Entry; nodes: Node[]; inbounds: InboundChoice[]; entries: Entry[]; lines: Line[]; tags: string[]; categories: EntryCategory[]
   initialInboundID?: number; initialLineID?: number; initialServerID?: number; canManageLines: boolean; loading: boolean; loadError: boolean; onReload: () => void; onClose: () => void
 }) {
   const { t } = useTranslation()
@@ -31,7 +31,7 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, init
     Name: entry?.Name ?? initialInbound?.ib.Tag ?? initialLine?.name ?? '', InboundID: String(entry?.InboundID || initialLine?.target_inbound_id || initialInboundID || ''),
     ...entryEndpoint(initialInbound), ...(entry ? { DisplayHost: entry.DisplayHost, DisplayPort: entry.DisplayPort } : {}),
     Rate: entry?.Rate ?? 1, Sort: entry?.Sort ?? 0, Enabled: entry?.Enabled ?? true, Tags: entry?.Tags ?? [], Region: entry?.Region ?? '', ClientExtra: entry?.ClientExtra ? JSON.stringify(entry.ClientExtra, null, 2) : '',
-    mode: entry?.LineID || initialLineID ? 'line' : entry?.ClientDialerEntryID ? 'client' : 'direct', LineID: String(entry?.LineID || initialLineID || ''), LineMemberID: entry?.LineMemberID || initialLine?.endpoints.find(e => e.host.trim())?.member_id || '', ClientDialerEntryID: String(entry?.ClientDialerEntryID || ''),
+    CategoryID: String(entry?.CategoryID || 0), mode: entry?.LineID || initialLineID ? 'line' : entry?.ClientDialerEntryID ? 'client' : 'direct', LineID: String(entry?.LineID || initialLineID || ''), LineMemberID: entry?.LineMemberID || initialLine?.endpoints.find(e => e.host.trim())?.member_id || '', ClientDialerEntryID: String(entry?.ClientDialerEntryID || ''),
   }
   const form = useForm<Values>({ initialValues: initial, validate: {
     Name: value => value.trim() ? null : t('entryFlow.required'),
@@ -52,7 +52,7 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, init
   const save = useMutation({
     mutationFn: (v: Values) => {
       const extra = JSON.parse(v.ClientExtra || '{}')
-      const payload = { Name: v.Name.trim(), InboundID: v.mode === 'line' ? line?.target_inbound_id ?? Number(v.InboundID) : Number(v.InboundID), DisplayHost: v.mode === 'line' ? !canManageLines && entry ? entry.DisplayHost : '' : v.DisplayHost.trim(), DisplayPort: v.mode === 'line' ? !canManageLines && entry ? entry.DisplayPort : 0 : v.DisplayPort, Rate: v.Rate, Sort: v.Sort, Enabled: v.Enabled, Tags: v.Tags, Region: v.Region, ClientExtra: lineExtraReadOnly ? entry?.ClientExtra ?? null : Object.keys(extra).length ? extra : null,
+      const payload = { Name: v.Name.trim(), InboundID: v.mode === 'line' ? line?.target_inbound_id ?? Number(v.InboundID) : Number(v.InboundID), DisplayHost: v.mode === 'line' ? !canManageLines && entry ? entry.DisplayHost : '' : v.DisplayHost.trim(), DisplayPort: v.mode === 'line' ? !canManageLines && entry ? entry.DisplayPort : 0 : v.DisplayPort, Rate: v.Rate, Sort: v.Sort, Enabled: v.Enabled, Tags: v.Tags, Region: v.Region, CategoryID: Number(v.CategoryID), ClientExtra: lineExtraReadOnly ? entry?.ClientExtra ?? null : Object.keys(extra).length ? extra : null,
         LineID: v.mode === 'line' ? Number(v.LineID) : null, LineMemberID: v.mode === 'line' ? v.LineMemberID : '', ClientDialerEntryID: v.mode === 'client' ? Number(v.ClientDialerEntryID) : null }
       return entry ? api.patch<Entry>(`/api/admin/entries/${entry.ID}`, payload) : api.post<Entry>('/api/admin/entries', payload)
     },
@@ -76,7 +76,7 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, init
   }
   return <>
     <Modal opened onClose={close} closeOnClickOutside={false} closeOnEscape={!save.isPending} withCloseButton={!save.isPending} title={entry ? t('entryFlow.editNode') : t('entryFlow.createNode')} size="lg">
-      <form onSubmit={form.onSubmit(v => save.mutate(v))}>
+      <form onSubmit={form.onSubmit(v => { if (!save.isPending && !loading && !(v.mode === 'line' && canManageLines && !endpoint?.host.trim())) save.mutate(v) })}>
         <Stack>
           {loadError && <Alert color="yellow"><Text size="sm">{t('entryFlow.partialLoad')}</Text><Button size="xs" variant="subtle" onClick={onReload}>{t('entryFlow.retry')}</Button></Alert>}
           {save.isError && <Alert color="red">{save.error.message}</Alert>}
@@ -112,6 +112,7 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, init
             <Select label={t('entries.region')} searchable clearable data={REGIONS.map(r => ({ value: r.code, label: `${flag(r.code)} ${r.code} ${r.name}` }))} disabled={save.isPending} value={form.values.Region || null} onChange={v => form.setFieldValue('Region', v ?? '')} />
             <NumberInput label={t('entries.rate')} min={0} step={0.1} decimalScale={2} disabled={save.isPending} {...form.getInputProps('Rate')} />
           </SimpleGrid>
+          <Select label={t('entryCategories.label')} description={t('entryCategories.hint')} searchable allowDeselect={false} data={[{ value: '0', label: t('entryCategories.unclassified') }, ...categories.map(category => ({ value: String(category.ID), label: category.Name }))]} disabled={save.isPending || loading || loadError} {...form.getInputProps('CategoryID')} />
           <TagsInput label={t('entries.tags')} data={tags} disabled={save.isPending} {...form.getInputProps('Tags')} />
           <JsonInput label={t('entries.clientExtra')} description={lineExtraReadOnly ? t('entryFlow.lineExtraAdminOnly') : t('entries.clientExtraHint')} autosize minRows={2} maxRows={8} formatOnBlur validationError={t('overrides.invalid')} disabled={save.isPending || lineExtraReadOnly} {...form.getInputProps('ClientExtra')} />
           <Switch label={t('entries.enabled')} disabled={save.isPending} {...form.getInputProps('Enabled', { type: 'checkbox' })} />

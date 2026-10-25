@@ -325,8 +325,32 @@ func (h *handlers) servers(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	out := make([]map[string]any, 0, len(lines))
-	for _, l := range service.AvailablePublications(lines) {
+	available := service.AvailablePublications(lines)
+	// Resolve display metadata only for publications the caller can use. Never
+	// return the global category catalogue or counts of inaccessible entries.
+	categories := make(map[int64]map[string]any)
+	for _, l := range available {
+		if l.CategoryID != 0 {
+			categories[l.CategoryID] = nil
+		}
+	}
+	if len(categories) > 0 {
+		list, err := h.Store.ListEntryCategories(r.Context())
+		if err != nil {
+			fail(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+		position := 0
+		for _, c := range list {
+			if _, used := categories[c.ID]; used {
+				// Keep relative order without revealing gaps occupied by hidden categories.
+				categories[c.ID] = map[string]any{"id": c.ID, "name": c.Name, "description": c.Description, "sort": position}
+				position++
+			}
+		}
+	}
+	out := make([]map[string]any, 0, len(available))
+	for _, l := range available {
 		tags := l.Tags
 		if tags == nil {
 			tags = []string{}
@@ -335,7 +359,7 @@ func (h *handlers) servers(w http.ResponseWriter, r *http.Request) {
 		if l.DialerEntryID != 0 {
 			uri = ""
 		}
-		out = append(out, map[string]any{"name": l.Name, "host": l.Host, "port": l.Port, "protocol": l.Inbound.Protocol, "uri": uri, "tags": tags, "client_chain": l.DialerEntryID != 0})
+		out = append(out, map[string]any{"name": l.Name, "host": l.Host, "port": l.Port, "protocol": l.Inbound.Protocol, "uri": uri, "tags": tags, "client_chain": l.DialerEntryID != 0, "category": categories[l.CategoryID]})
 	}
 	ok(w, out)
 }

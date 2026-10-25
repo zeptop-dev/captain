@@ -140,7 +140,10 @@
     "title": "节点",
     "empty": "当前没有可用节点",
     "copyLink": "复制节点链接",
-    "clientChain": "客户端链式节点：请导入完整的 mihomo、Stash 或 sing-box 订阅，不提供单独分享链接。"
+    "clientChain": "客户端链式节点：请导入完整的 mihomo、Stash 或 sing-box 订阅，不提供单独分享链接。",
+    "category": "节点分类",
+    "allCategories": "全部分类",
+    "uncategorized": "未分类"
   },
   "invite": {
     "title": "邀请好友",

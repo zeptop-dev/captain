@@ -97,6 +97,9 @@ func (s *Subscription) PublishedLinesWithProfile(ctx context.Context, u *domain.
 		if r.Entry.ClientDialerEntryID != nil {
 			line.DialerEntryID = *r.Entry.ClientDialerEntryID
 		}
+		if r.Entry.CategoryID != nil {
+			line.CategoryID = *r.Entry.CategoryID
+		}
 		lines = append(lines, line)
 	}
 	// External nodes (imported share links) follow the panel's own entries.
