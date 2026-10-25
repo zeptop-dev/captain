@@ -61,3 +61,37 @@ func TestSubDesignResourcesDeliveredWithoutAccountTokens(t *testing.T) {
 		t.Fatal("public resources must not make invalid subscription tokens usable")
 	}
 }
+
+func TestProtectedSurgeDeliveryRejectsHostnameCandidates(t *testing.T) {
+	r := newRig(t)
+	_, path, _ := profileSetup(t, r)
+	if code, body, _ := r.c.do("POST", "/api/admin/nodes/"+itoa(r.nodeID)+"/inbounds", map[string]any{"Tag": "surge-vmess", "Protocol": "vmess", "Port": 8443}, nil); code != 200 {
+		t.Fatalf("create supported inbound: %d %s", code, body)
+	}
+	inbounds, err := r.st.InboundsByNode(context.Background(), r.nodeID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var inboundID int64
+	for _, inbound := range inbounds {
+		if inbound.Tag == "surge-vmess" {
+			inboundID = inbound.ID
+		}
+	}
+	if inboundID == 0 {
+		t.Fatal("supported inbound missing")
+	}
+	if code, body, _ := r.c.do("POST", "/api/admin/entries", map[string]any{"Name": "Surge candidate", "InboundID": inboundID, "DisplayHost": "proxy.example.com", "DisplayPort": 8443}, nil); code != 200 {
+		t.Fatalf("create candidate: %d %s", code, body)
+	}
+	design, _ := subdesign.Preset("basic")
+	design.Enhancements.DNSProtection = true
+	if code, body, _ := r.c.do("POST", "/api/admin/settings/sub-design/apply", map[string]any{"design": design, "formats": []string{"surge"}}, nil); code != 200 {
+		t.Fatalf("apply protected template: %d %s", code, body)
+	}
+	visitor := &client{t: t, srv: r.srv}
+	code, body, _ := visitor.do("GET", path+"?client=surge", nil, nil)
+	if code != 422 || string(body) != "Surge DNS protection requires IP-address proxy endpoints\n" {
+		t.Fatalf("hostname candidate was delivered or exposed in error: %d %s", code, body)
+	}
+}
