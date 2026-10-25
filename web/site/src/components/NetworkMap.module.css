@@ -1,18 +1,18 @@
 .map { position: relative; width: 100%; overflow: hidden; background: #090b0d; border-top: 1px solid #ffffff06; border-bottom: 1px solid #ffffff06; }
-.map svg { display: block; width: 100%; height: auto; aspect-ratio: 1150 / 320; }
-.ring { fill: none; stroke: #68d9b1; stroke-width: .7; transform-origin: center; transform-box: fill-box; animation: ripple 3.4s ease-out infinite; }
+.map svg { display: block; width: 100%; height: 100%; aspect-ratio: 1150 / 320; }
+.ring { fill: none; stroke: #cfe879; stroke-width: .7; transform-origin: center; transform-box: fill-box; animation: ripple 3.4s ease-out infinite; }
 .arc { animation: flow 12s linear infinite; }
 .location { outline: none; cursor: default; }
 .location:focus-visible > circle { stroke: #fff; stroke-width: 1.5; }
 .label { opacity: 0; pointer-events: none; transition: opacity .15s; }
 .location:hover .label, .location:focus .label { opacity: 1; }
-.legend { position: absolute; left: 20px; bottom: 12px; display: flex; align-items: center; gap: 7px; font: 10px/1.4 ui-monospace, monospace; color: #66746e; }
-.legend i { width: 4px; height: 4px; border-radius: 50%; background: #8ee2bb; }
-.control { position: absolute; right: 17px; bottom: 8px; padding: 5px 8px; border: 1px solid #ffffff0d; border-radius: 4px; color: #77827c; background: #090b0dbf; cursor: pointer; font: 10px/1.4 ui-monospace, monospace; }
+.legend { position: absolute; left: 20px; top: 20px; display: flex; align-items: center; gap: 7px; font: 10px/1.4 ui-monospace, monospace; color: #66746e; }
+.legend i { width: 4px; height: 4px; border-radius: 50%; background: #cfe879; }
+.control { position: absolute; right: 17px; top: 15px; padding: 5px 8px; border: 1px solid #ffffff0d; border-radius: 4px; color: #77827c; background: #090b0dbf; cursor: pointer; font: 10px/1.4 ui-monospace, monospace; }
 .control:hover { color: #d9eee2; }
 .control:focus-visible { outline: 2px solid #b0e7c9; outline-offset: 2px; }
 .map[data-paused='true'] .ring, .map[data-paused='true'] .arc { animation-play-state: paused; }
 @keyframes ripple { 0% { transform: scale(.3); opacity: .7; } 90%, 100% { transform: scale(1.3); opacity: 0; } }
 @keyframes flow { to { stroke-dashoffset: -70; } }
 @media (prefers-reduced-motion: reduce) { .ring, .arc { animation: none; } .ring { opacity: .3; } .control { display: none; } }
-@media (max-width: 600px) { .map svg { min-height: 190px; } .legend { font-size: 9px; left: 12px; } }
+@media (max-width: 600px) { .legend { font-size: 9px; left: 12px; } }

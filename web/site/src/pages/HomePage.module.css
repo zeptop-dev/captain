@@ -135,7 +135,7 @@
   .hero h1 { font-size: clamp(42px, 9.5vw, 60px); }
   .heroAside > p { font-size: 16px; }
   .actions { margin-top: 22px; }
-  .map { height: 250px; }
+  .map { height: 190px; }
   .coverageNote { display: block; margin-bottom: 29px; }
   .coverageNote p { text-align: left; margin-top: 4px; }
   .shortcuts { grid-template-columns: 1fr; }

@@ -31,7 +31,7 @@ export function NodeGlobe({ locations, hub, variant = 'home' }: Props) {
     let visible = true
 
     const render = () => {
-      const center = width / 2, radius = width * 0.424
+      const center = width / 2, radius = width * 0.488
       context.clearRect(0, 0, width, width)
       const ocean = context.createRadialGradient(center - radius * 0.28, center - radius * 0.32, radius * 0.12, center, center, radius)
       ocean.addColorStop(0, '#101216'); ocean.addColorStop(0.75, '#0b0d10'); ocean.addColorStop(1, '#080a0d')
@@ -47,7 +47,7 @@ export function NodeGlobe({ locations, hub, variant = 'home' }: Props) {
         const point = project(lng, lat)
         if (point.z <= 0.015) continue
         context.beginPath(); context.arc(point.x, point.y, Math.max(0.55, width / 470 * (0.65 + point.z * 0.55)), 0, Math.PI * 2)
-        context.fillStyle = `rgba(209, 216, 226, ${0.18 + Math.pow(point.z, 0.65) * 0.63})`; context.fill()
+        context.fillStyle = `rgba(225, 230, 236, ${0.2 + Math.pow(point.z, 0.45) * 0.78})`; context.fill()
       }
       const occupied: { x: number; y: number; width: number }[] = []
       for (const location of points) {
@@ -79,7 +79,7 @@ export function NodeGlobe({ locations, hub, variant = 'home' }: Props) {
     const tick = (now: number) => {
       frame = 0
       if (!shouldAnimate()) return
-      if (last) longitude += Math.min(now - last, 80) * 0.0024
+      if (last) longitude += Math.min(now - last, 80) * 0.0008
       render()
       last = now
       frame = window.requestAnimationFrame(tick)

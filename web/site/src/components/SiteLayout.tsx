@@ -61,7 +61,7 @@ export function SiteLayout({ site, children }: { site?: Site; children: ReactNod
         <nav id="site-navigation" className={`site-navigation${mobile ? ' is-open' : ''}`} aria-label="主导航">
           {groups.map(group => <div className="site-nav-group" key={group.label}>
             <button type="button" className="site-nav-button" aria-expanded={open === group.label} aria-controls={`site-nav-${group.label}`} onClick={() => setOpen(open === group.label ? null : group.label)}>{group.label}<IconChevronDown size={12} aria-hidden /></button>
-            {open === group.label && <div id={`site-nav-${group.label}`} className="site-nav-dropdown">{group.links.map(link => <a key={link.href} href={link.href} onClick={() => { setOpen(null); setMobile(false) }}>{link.label}<IconArrowUpRight size={13} aria-hidden /></a>)}</div>}
+            {open === group.label && <div id={`site-nav-${group.label}`} className="site-nav-dropdown">{group.links.map(link => <a key={`${link.label}:${link.href}`} href={link.href} onClick={() => { setOpen(null); setMobile(false) }}>{link.label}<IconArrowUpRight size={13} aria-hidden /></a>)}</div>}
           </div>)}
           <a className="site-account-link" href="/portal/">用户中心</a>
         </nav>
@@ -71,7 +71,7 @@ export function SiteLayout({ site, children }: { site?: Site; children: ReactNod
     <footer className="site-footer">
       <div className="site-container">
         <a className="site-footer-brand" href="/">{name}<IconArrowUpRight size={32} stroke={1.5} aria-hidden /></a>
-        <div className="site-footer-columns">{groups.map(group => <div key={group.label}><h2>{group.label}</h2><ul>{group.links.map(link => <li key={link.href}><a href={link.href}>{link.label}</a></li>)}</ul></div>)}</div>
+        <div className="site-footer-columns">{groups.map(group => <div key={group.label}><h2>{group.label}</h2><ul>{group.links.map(link => <li key={`${link.label}:${link.href}`}><a href={link.href}>{link.label}</a></li>)}</ul></div>)}</div>
       </div>
       <div className="site-footer-bottom"><div className="site-container"><small>© {new Date().getFullYear()} {name}. All rights reserved.</small><a href="#top">返回顶部 <IconArrowUp size={14} aria-hidden /></a></div></div>
     </footer>
