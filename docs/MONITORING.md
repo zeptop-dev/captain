@@ -38,7 +38,7 @@ cannot observe them. The details list the available evidence without disclosing
 infrastructure. No history or uptime percentage is inferred from current reports.
 
 Runtime freshness is independent of resource heartbeats. A received configuration
-revision is not an application acknowledgement. The companion bosun update adds
+revision is not an application acknowledgement. bosun v0.81.0 adds
 a separate successful-application confirmation; old nodes keep serving proxies
 but show unknown service status until upgraded. Repeated report receipts
 and page reads cannot confirm an additional failure; a first negative observation

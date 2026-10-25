@@ -3,7 +3,7 @@
 What an operator can rely on across releases, which bosun a Captain works
 with, what the database is good for, and what is deliberately not there.
 
-## Customer service status (pending release)
+## Customer service status (Captain 1.41 / bosun 0.81)
 
 Migration 88 adds private coherent runtime-report snapshots and service-status
 publication/maintenance settings. Existing rows start without observations and
@@ -13,8 +13,12 @@ a successfully applied state from the existing `revision` (last received state).
 The old field keeps its meaning. Nodes without this confirmation continue proxying
 normally but have unknown service status; upgrade bosun to obtain confirmed runtime
 status. Missing capabilities remain unknown rather than being interpreted as a
-failure. Release bosun first and pin its formal module version before releasing
-Captain; development uses an isolated two-repository Go workspace.
+failure. Captain 1.41 uses the formal bosun v0.81.0 shared module. Managed nodes
+need bosun v0.81.0 or newer for this confirmation; upgrading the panel alone does
+not make old agents' runtime evidence complete. No default core version changes.
+
+Migration 87 adds optional subscription-node display categories. These do not
+change access groups, billing, tags, regions or subscription output order.
 
 New admin, portal and public service-status APIs are additive. Existing probe
 routes, visibility, server monitoring, subscription outputs and customer billing

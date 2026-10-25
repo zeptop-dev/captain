@@ -188,6 +188,12 @@ scheme for the portal and the landing page, portal title, font, and raw HTML
 injected before `</head>` and `</body>` on every portal and landing page
 (analytics, chat widgets). The console keeps its own look.
 
+The built-in homepage and public service-status page share the landing-page
+theme. Their geographic visuals are rendered locally from configured locations;
+markers and illustrative connections are not live health or traffic. Operator
+features, FAQ, registration policy, downloads and published plan data remain
+the content source. Custom homepage files continue using their own appearance.
+
 Portal sign-in, registration and password reset share this branding, including
 the portal title, colour scheme, primary colour, font and corner radius. Visitors
 can switch language before signing in. Authentication methods and registration
