@@ -70,19 +70,9 @@ func (s *ServiceStatusCatalog) Public(ctx context.Context, at time.Time) (Servic
 	if !cfg.PublicEnabled {
 		return ServiceStatusView{}, ErrServiceStatusPrivate
 	}
-	allowed := map[int64]bool{}
-	for _, id := range cfg.PublicEntryIDs {
-		allowed[id] = true
-	}
-	entries, err := s.enabledEntries(ctx)
+	visible, err := s.Store.ServiceStatusEntries(ctx, cfg.PublicEntryIDs, true)
 	if err != nil {
 		return ServiceStatusView{}, err
-	}
-	visible := entries[:0]
-	for _, e := range entries {
-		if allowed[e.ID] {
-			visible = append(visible, e)
-		}
 	}
 	// A client-chain node is meaningful only when its client-side prerequisites
 	// are published too. Internal server-side dependencies are never exposed.
@@ -96,7 +86,7 @@ func (s *ServiceStatusCatalog) Admin(ctx context.Context, at time.Time) (Service
 	if err != nil {
 		return ServiceStatusView{}, err
 	}
-	entries, err := s.enabledEntries(ctx)
+	entries, err := s.Store.ServiceStatusEntries(ctx, nil, false)
 	if err != nil {
 		return ServiceStatusView{}, err
 	}
@@ -131,27 +121,6 @@ func (s *ServiceStatusCatalog) Portal(ctx context.Context, u *domain.User, at ti
 		names[e.ID] = l.Name
 	}
 	return s.build(ctx, entries, names, cfg, at)
-}
-
-func (s *ServiceStatusCatalog) enabledEntries(ctx context.Context) ([]*domain.Entry, error) {
-	list, err := s.Store.ListEntries(ctx)
-	if err != nil {
-		return nil, err
-	}
-	out := []*domain.Entry{}
-	for _, e := range list {
-		if !e.Enabled {
-			continue
-		}
-		ib, err := s.Store.InboundByID(ctx, e.InboundID)
-		if err != nil {
-			return nil, err
-		}
-		if ib.Enabled {
-			out = append(out, e)
-		}
-	}
-	return out, nil
 }
 
 func availableStatusEntries(entries []*domain.Entry) []*domain.Entry {

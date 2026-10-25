@@ -4,6 +4,59 @@ The probe, the alerts, and the three features that watch what users do.
 Version notes name the bosun release a feature needs; Captain 1.0 ships
 against bosun 0.47.
 
+## Customer service status
+
+The customer service status page describes **subscription nodes (Entries)**,
+separately from the server-resource probe. Customers open **Help → Service
+status** at `/portal/status`; the list follows their active access, hidden-node
+rules and available client-chain dependencies. It uses subscription-node display
+categories and does not expose server names, addresses, credentials or raw errors.
+
+Administrators configure **Subscription → Service status**. The optional public
+page at `/service-status` is off by default and publishes only explicitly selected
+subscription nodes. New nodes are not automatically included by category; deleting
+a selected node removes its publication and maintenance references. The existing
+server probe keeps its own path, visibility and data. Captain rejects enabling
+both pages on the same path. Custom homepages can link to `/service-status` and
+continue using their own assets.
+
+The page refreshes every 60 seconds and reports five states:
+
+| State | Meaning |
+| --- | --- |
+| Healthy | Current applied configuration and required runtime components report normal operation. |
+| Degraded | A known usable candidate path exists, but an alternative has failed or is unknown. |
+| Down | Two distinct fresh accepted reports have confirmed a required component/path failure, with no known usable alternative. |
+| Maintenance | The administrator set an active display-only maintenance window for this subscription node. |
+| Unknown | Data is absent, older than three minutes, configuration is pending, or the path cannot be evaluated with available evidence. |
+
+A running inbound, next-hop TCP check or reverse-tunnel connection is **not an
+end-to-end client test**, and does not promise UDP, DNS, destination reachability,
+streaming access or a particular latency. Empty traffic counters do not indicate
+failure. Externally managed NAT/forwarding paths remain unknown when Captain
+cannot observe them. The details list the available evidence without disclosing
+infrastructure. No history or uptime percentage is inferred from current reports.
+
+Runtime freshness is independent of resource heartbeats. A received configuration
+revision is not an application acknowledgement. The companion bosun update adds
+a separate successful-application confirmation; old nodes keep serving proxies
+but show unknown service status until upgraded. Repeated report receipts
+and page reads cannot confirm an additional failure; a first negative observation
+immediately stops claiming healthy while awaiting another report. Restarting the
+panel clears this in-memory confirmation. WireGuard checks both sides' applied
+reports, the front's peer handshake and any enabled automatic forwarding result;
+the forwarding result must also be recent. Active WireGuard reconcilers refresh
+that result periodically; it still cannot prove a request will reach its destination.
+VLESS Reverse requires an observed connection on the front, rather than treating
+an exit configuration as a connected tunnel.
+
+Maintenance windows are per subscription node and last at most 30 days. Their
+plain-text notes are visible wherever that node is published, so they must not
+contain private infrastructure details. Maintenance never stops proxies, modifies
+routing, billing or subscriptions, or automatically applies to other nodes on the
+same server. Saving publication settings uses a revision check to prevent another
+administrator's changes from being overwritten.
+
 ## Probe and status page
 
 Monitoring → Collection and status page → Probe. Off by default — nothing extra runs on the nodes until it

@@ -3,6 +3,25 @@
 What an operator can rely on across releases, which bosun a Captain works
 with, what the database is good for, and what is deliberately not there.
 
+## Customer service status (pending release)
+
+Migration 88 adds private coherent runtime-report snapshots and service-status
+publication/maintenance settings. Existing rows start without observations and
+remain unknown until an accepted full agent report arrives; resource-only beats
+cannot populate or refresh these observations. The companion bosun change adds optional `Report.applied_revision` to distinguish
+a successfully applied state from the existing `revision` (last received state).
+The old field keeps its meaning. Nodes without this confirmation continue proxying
+normally but have unknown service status; upgrade bosun to obtain confirmed runtime
+status. Missing capabilities remain unknown rather than being interpreted as a
+failure. Release bosun first and pin its formal module version before releasing
+Captain; development uses an isolated two-repository Go workspace.
+
+New admin, portal and public service-status APIs are additive. Existing probe
+routes, visibility, server monitoring, subscription outputs and customer billing
+remain unchanged. Public publication is explicitly opt-in; maintenance is metadata,
+not a proxy operation. Older Captain versions ignore this new page and its private
+report columns; schema changes remain forward-only.
+
 ## Subscription presets (Captain 1.36 / shared bosun package 0.78)
 
 Captain uses bosun's shared subscription compiler for administrator
