@@ -20,15 +20,15 @@ export function NetworkMap({ locations, hub }: { locations: Location[]; hub: Loc
     <svg viewBox="0 0 1150 320" role="img" aria-labelledby={`${id}-title ${id}-description`}>
       <title id={`${id}-title`}>网络地理位置</title>
       <desc id={`${id}-description`}>{displayPoints.length ? `已配置位置：${displayPoints.map((point) => point.name).join('、')}。` : '尚无已配置位置。'}标记与连线只表示地理布局，不表示节点健康或实际流量。</desc>
-      <defs><pattern id={`${id}-grid`} width="46" height="40" patternUnits="userSpaceOnUse"><path d="M46 0H0V40" fill="none" stroke="#dae4ee" strokeOpacity=".035" strokeWidth=".6" /></pattern><clipPath id={`${id}-clip`}><rect x="40" y="12" width="1070" height="290" /></clipPath></defs>
+      <defs><pattern id={`${id}-grid`} width="46" height="40" patternUnits="userSpaceOnUse"><path d="M46 0H0V40" fill="none" stroke="var(--map-grid)" strokeOpacity=".035" strokeWidth=".6" /></pattern><clipPath id={`${id}-clip`}><rect x="40" y="12" width="1070" height="290" /></clipPath></defs>
       <rect width="1150" height="320" fill={`url(#${id}-grid)`} />
-      <g clipPath={`url(#${id}-clip)`}><path d={flatLandPath} fill="#333a3e" fillOpacity=".67" stroke="#929a9e" strokeOpacity=".08" strokeWidth=".6" fillRule="evenodd" />
-        <g fill="none" stroke="#cfe879" strokeWidth=".9" strokeOpacity=".45" strokeDasharray="2 5">{arcs.map((arc, index) => <path key={index} d={arc} className={styles.arc} />)}</g>
+      <g clipPath={`url(#${id}-clip)`}><path d={flatLandPath} fill="var(--map-land)" fillOpacity=".67" stroke="var(--map-outline)" strokeOpacity=".08" strokeWidth=".6" fillRule="evenodd" />
+        <g fill="none" stroke="var(--map-accent)" strokeWidth=".9" strokeOpacity=".45" strokeDasharray="2 5">{arcs.map((arc, index) => <path key={index} d={arc} className={styles.arc} />)}</g>
         {displayPoints.map((point, index) => {
           const [x, y] = projectFlat(point.lng, point.lat)
           return <g key={`${point.name}-${index}`} transform={`translate(${x},${y})`} className={styles.location} tabIndex={0} role="img" aria-label={`${point.name}，地理位置`}>
-            <title>{point.name}</title><circle r="15" className={styles.ring} style={{ animationDelay: `${index % 5 * -0.65}s` }} /><circle r="6" fill="#cfe879" fillOpacity=".09" stroke="#cfe879" strokeOpacity=".5" strokeWidth=".7" /><circle r="2.4" fill="#e3f7a4" />
-            <g className={styles.label} transform={`translate(${x > 950 ? -12 : 12},-9)`}><rect x={x > 950 ? -132 : 0} y="-12" width="132" height="25" rx="4" fill="#0c1113" stroke="#273b35" /><text x={x > 950 ? -124 : 8} y="4" fill="#d5e7df" fontSize="11" fontFamily="ui-monospace, monospace">{locationLabel(point).slice(0, 18)}</text></g>
+            <title>{point.name}</title><circle r="15" className={styles.ring} style={{ animationDelay: `${index % 5 * -0.65}s` }} /><circle r="6" fill="var(--map-accent)" fillOpacity=".09" stroke="var(--map-accent)" strokeOpacity=".5" strokeWidth=".7" /><circle r="2.4" fill="var(--map-marker)" />
+            <g className={styles.label} transform={`translate(${x > 950 ? -12 : 12},-9)`}><rect x={x > 950 ? -132 : 0} y="-12" width="132" height="25" rx="4" fill="var(--map-label-bg)" stroke="var(--map-label-line)" /><text x={x > 950 ? -124 : 8} y="4" fill="var(--map-label-text)" fontSize="11" fontFamily="ui-monospace, monospace">{locationLabel(point).slice(0, 18)}</text></g>
           </g>
         })}
       </g>

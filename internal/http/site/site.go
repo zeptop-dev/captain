@@ -137,6 +137,7 @@ func Register(mux *http.ServeMux, d Deps) {
 		}
 		out := map[string]any{
 			"service_status_url": statusURL,
+			"theme":              s.Theme,
 			"name":               s.Name, "tagline": s.Tagline, "description": s.Description, "features": s.Features, "locations": s.Locations,
 			"hub": s.Hub, "faq": s.FAQ, "links": s.Links, "show_plans": s.ShowPlans, "registration": reg.PasswordOpen(d.Registration), "probe_url": probeURL(d, r),
 			"stats": stats(r.Context(), d.Store, len(s.Locations)),

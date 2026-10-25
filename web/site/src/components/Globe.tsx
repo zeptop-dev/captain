@@ -1,12 +1,15 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useComputedColorScheme } from '@mantine/core'
 import type { Location } from '../lib/site'
 import { landDots, locationLabel, validLocations } from './geography'
+import { globePalette } from './geography-theme'
 import styles from './Globe.module.css'
 
 interface Props { locations: Location[]; hub: Location | null; variant?: 'status' | 'home' }
 const radians = Math.PI / 180
 
 export function NodeGlobe({ locations, hub, variant = 'home' }: Props) {
+  const scheme = useComputedColorScheme('dark')
   const canvas = useRef<HTMLCanvasElement>(null)
   const host = useRef<HTMLDivElement>(null)
   const pausedRef = useRef(false)
@@ -22,6 +25,7 @@ export function NodeGlobe({ locations, hub, variant = 'home' }: Props) {
     if (!element || !surface) return
     const context = surface.getContext('2d')
     if (!context) { setAvailable(false); return }
+    const palette = globePalette(scheme)
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)')
     let reduced = motion.matches
     const origin = hub && validLocations([hub])[0] || points[0]
@@ -34,10 +38,10 @@ export function NodeGlobe({ locations, hub, variant = 'home' }: Props) {
       const center = width / 2, radius = width * 0.488
       context.clearRect(0, 0, width, width)
       const ocean = context.createRadialGradient(center - radius * 0.28, center - radius * 0.32, radius * 0.12, center, center, radius)
-      ocean.addColorStop(0, '#101216'); ocean.addColorStop(0.75, '#0b0d10'); ocean.addColorStop(1, '#080a0d')
+      ocean.addColorStop(0, palette.ocean[0]); ocean.addColorStop(0.75, palette.ocean[1]); ocean.addColorStop(1, palette.ocean[2])
       context.beginPath(); context.arc(center, center, radius, 0, Math.PI * 2)
       context.fillStyle = ocean; context.fill()
-      context.strokeStyle = 'rgba(182, 192, 205, 0.10)'; context.lineWidth = 1; context.stroke()
+      context.strokeStyle = palette.border; context.lineWidth = 1; context.stroke()
       const project = (lng: number, lat: number) => {
         const angle = (lng - longitude) * radians, phi = lat * radians
         const cos = Math.cos(phi), z = sinLat * Math.sin(phi) + cosLat * cos * Math.cos(angle)
@@ -47,16 +51,16 @@ export function NodeGlobe({ locations, hub, variant = 'home' }: Props) {
         const point = project(lng, lat)
         if (point.z <= 0.015) continue
         context.beginPath(); context.arc(point.x, point.y, Math.max(0.55, width / 470 * (0.65 + point.z * 0.55)), 0, Math.PI * 2)
-        context.fillStyle = `rgba(225, 230, 236, ${0.2 + Math.pow(point.z, 0.45) * 0.78})`; context.fill()
+        context.fillStyle = `rgba(${palette.land}, ${0.2 + Math.pow(point.z, 0.45) * 0.78})`; context.fill()
       }
       const occupied: { x: number; y: number; width: number }[] = []
       for (const location of points) {
         const point = project(location.lng, location.lat)
         if (point.z <= 0.12) continue
-        const accent = variant === 'status' ? '#dce3e9' : '#62d7b0'
+        const accent = variant === 'status' ? palette.marker : palette.homeMarker
         context.beginPath(); context.arc(point.x, point.y, 3.1, 0, Math.PI * 2)
         context.fillStyle = accent; context.fill()
-        context.strokeStyle = variant === 'status' ? 'rgba(220,227,233,.2)' : 'rgba(98,215,176,.22)'
+        context.strokeStyle = variant === 'status' ? palette.markerRing : palette.homeRing
         context.beginPath(); context.arc(point.x, point.y, 6, 0, Math.PI * 2); context.stroke()
         const label = locationLabel(location).slice(0, 22)
         context.font = `${Math.max(9, width / 470 * 10)}px ui-monospace, SFMono-Regular, monospace`
@@ -64,9 +68,9 @@ export function NodeGlobe({ locations, hub, variant = 'home' }: Props) {
         const x = Math.min(width - textWidth - 4, point.x + 9), y = point.y - 17
         if (occupied.some((previous) => Math.abs(previous.y - y) < 21 && x < previous.x + previous.width + 5 && x + textWidth > previous.x - 5)) continue
         occupied.push({ x, y, width: textWidth })
-        context.fillStyle = 'rgba(10,12,15,.86)'; context.strokeStyle = 'rgba(178,188,201,.18)'
+        context.fillStyle = palette.labelBackground; context.strokeStyle = palette.labelBorder
         context.beginPath(); context.roundRect(x, y, textWidth, 20, 10); context.fill(); context.stroke()
-        context.fillStyle = '#c9d0d8'; context.fillText(label, x + 6, y + 13.4)
+        context.fillStyle = palette.label; context.fillText(label, x + 6, y + 13.4)
       }
     }
     const resize = () => {
@@ -100,7 +104,7 @@ export function NodeGlobe({ locations, hub, variant = 'home' }: Props) {
     document.addEventListener('visibilitychange', sync)
     resize(); sync()
     return () => { syncAnimation.current = null; window.cancelAnimationFrame(frame); observer.disconnect(); intersection.disconnect(); motion.removeEventListener('change', onMotion); document.removeEventListener('visibilitychange', sync) }
-  }, [points, hub, variant])
+  }, [points, hub, variant, scheme])
 
   return <div ref={host} className={styles.globe} data-variant={variant}>
     <canvas ref={canvas} role="img" aria-label="节点地理位置示意" aria-describedby={description} />
