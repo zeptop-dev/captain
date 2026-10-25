@@ -1482,7 +1482,9 @@
     "warningQXUDPTunnel": "Quantumult X 的 UDP 端口限制仅对隧道接管的流量生效。",
     "supportDNSLoonPolicy": "Loon 已公开的配置项无法保证使用选定的 DNS 代理策略；禁止加密 DNS 回退到明文还需要在客户端内设置。",
     "supportDNSQXPolicy": "Quantumult X 已公开的 DNS 配置无法将本地加密 DNS 查询绑定到选定的代理策略；代理目标使用远程解析。",
-    "supportRemoteRules": "此远程规则源包含客户端无法等价表达的规则：{{detail}}"
+    "supportRemoteRules": "此远程规则源包含客户端无法等价表达的规则：{{detail}}",
+    "warningRemoteProcessMacOS": "此规则源包含仅在 macOS 生效的进程规则，iOS/tvOS 会忽略这些规则。",
+    "warningRemoteNativeUnsupported": "为保持兼容，保留原有 Mihomo 远程规则源；但该源含有 Mihomo 不支持的 URL-REGEX，不能保证完整等价。"
   },
   "hwid": {
     "title": "设备（HWID）",
