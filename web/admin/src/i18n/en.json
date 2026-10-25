@@ -1339,7 +1339,7 @@
     "presetConfirm": "Loading a preset replaces the groups and rules being edited (unapplied changes are lost).",
     "groups": "Proxy groups",
     "addGroup": "Add group",
-    "groupsHint": "Members: all servers, servers with a tag, servers whose name matches a region, or other groups. url-test picks the lowest latency, fallback the first working one, load-balance rotates.",
+    "groupsHint": "Members can be all servers, a tag, a region, or another group. select is manual, url-test chooses by measured latency, fallback uses the first available server, and load-balance distributes traffic.",
     "groupName": "Group name",
     "members": "Members",
     "noGroups": "No groups yet; load a preset to start.",
@@ -1354,7 +1354,7 @@
     "finalHint": "Where unmatched traffic goes",
     "preview": "Preview",
     "save": "Save design only",
-    "saveHint": "Store the design without touching templates",
+    "saveHint": "Saving a draft does not update published subscriptions. Generate and apply again to publish changes.",
     "apply": "Generate & apply",
     "applyConfirm": "Generate and replace the global templates for: {{formats}}. Other formats remain unchanged.",
     "applied": "Templates generated and applied",
@@ -1389,7 +1389,7 @@
     "enhancements": "Optional enhancements",
     "enhancementsHint": "Options are saved separately from the base. Preview shows the combined output and each format’s support.",
     "regionsOption": "Add regional groups",
-    "regionsHint": "Reuse known regional groups and add missing ones. Turning this off keeps groups already in the preset. Empty regional matches reject traffic instead of connecting directly.",
+    "regionsHint": "Add missing region selectors with an automatic option and every server in that region. Empty generated region groups are hidden unless a rule or default policy explicitly uses them; then they remain and reject connections. Existing custom groups are preserved.",
     "regionsIncluded": "Preset already contains regional groups",
     "dnsOption": "DNS protection",
     "dnsHint": "Generate proxied encrypted DNS and separate resolver settings for direct traffic and proxy-server names. Does not force TUN on.",
@@ -1484,7 +1484,9 @@
     "supportDNSQXPolicy": "Quantumult X’s documented DNS settings cannot bind local encrypted DNS queries to the selected proxy policy. Proxied destinations use remote resolution.",
     "supportRemoteRules": "This remote source contains rules the client cannot represent equivalently: {{detail}}",
     "warningRemoteProcessMacOS": "This rule resource includes process rules that only work on macOS; iOS/tvOS ignore them.",
-    "warningRemoteNativeUnsupported": "The existing Mihomo rule resource is retained for compatibility, but it contains URL-REGEX, which Mihomo does not support; this resource is not fully equivalent."
+    "warningRemoteNativeUnsupported": "The existing Mihomo rule resource is retained for compatibility, but it contains URL-REGEX, which Mihomo does not support; this resource is not fully equivalent.",
+    "regionMembersHint": "Region matching uses the subscription node’s registered region first, or its name when no region is set. Existing name-pattern conditions keep their original behavior.",
+    "nameMatchRegion": "{{region}} · name match"
   },
   "hwid": {
     "title": "Devices (HWID)",

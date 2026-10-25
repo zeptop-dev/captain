@@ -177,12 +177,15 @@ function Designer() {
     const servers = [
       { value: '@all', label: t('subDesign.allServers') },
       ...(q.data?.tags ?? []).map(tag => ({ value: `@tag:${tag}`, label: t('subDesign.tag', { tag }) })),
-      ...(q.data?.regions ?? []).map(region => ({ value: `@match:${region.match}`, label: region.name })),
+      ...(q.data?.regions ?? []).map(region => ({ value: region.code ? `@region:${region.code}` : `@match:${region.match}`, label: region.name })),
     ]
     const serverKeys = new Set(servers.map(item => item.value))
     const groups = [...new Set([...names.filter(name => name !== group.name), 'DIRECT', 'REJECT'])].filter(value => !serverKeys.has(value)).map(value => ({ value, label: value }))
     const known = new Set([...servers, ...groups].map(item => item.value))
-    const retained = group.members.filter(value => !known.has(value)).map(value => ({ value, label: value }))
+    const retained = [...new Set(group.members)].filter(value => !known.has(value)).map(value => {
+      const legacyRegion = q.data?.regions.find(region => value === `@match:${region.match}`)
+      return { value, label: legacyRegion ? t('subDesign.nameMatchRegion', { region: legacyRegion.name }) : value }
+    })
     return [{ group: t('subDesign.memberServers'), items: servers }, { group: t('subDesign.memberGroups'), items: groups }, ...(retained.length ? [{ group: t('subDesign.customMembers'), items: retained }] : [])]
   }
   const moveButtons = (kind: 'groups' | 'rules', index: number, length: number) => <Group gap={2} wrap="nowrap">
@@ -230,6 +233,7 @@ function Designer() {
     <Card>
       <Group justify="space-between" mb="sm"><Title order={6}>{t('subDesign.groups')}</Title><Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => edit(current => ({ ...current, groups: [...current.groups, { name: '', type: 'select', members: ['@all'] }] }))}>{t('subDesign.addGroup')}</Button></Group>
       <Text size="xs" c="dimmed" mb="sm">{t('subDesign.groupsHint')}</Text>
+      <Text size="xs" c="dimmed" mb="sm">{t('subDesign.regionMembersHint')}</Text>
       <Stack gap="sm">
         {d.groups.map((group, index) => <Card key={index} withBorder p="sm">
           <Stack gap="xs">

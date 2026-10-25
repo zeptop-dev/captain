@@ -107,7 +107,7 @@ export interface SubDesignData {
   catalogue: DesignRuleSet[]
   presets: DesignPreset[]
   library?: DesignLibrary
-  regions: { name: string; match: string }[]
+  regions: { code?: string; name: string; match: string }[]
   tags: string[]
   formats: string[]
 }
