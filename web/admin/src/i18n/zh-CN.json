@@ -1468,7 +1468,7 @@
     "supportDNSDirectOnly": "Surfboard 直接发送加密 DNS 请求，无法使用选定的 DNS 代理策略。",
     "warningDNSStashVersion": "DNS 保护需要 Stash iOS/tvOS 3.6+ 或 macOS 4.3+，以独立解析代理服务器域名。",
     "supportedWithNotes": "支持 · 请查看客户端差异说明",
-    "warningDNSSurgeIPProxies": "Surge DNS 保护要求订阅节点使用 IP 地址。域名地址的节点不会下发，以免 DNS 回退直连。",
+    "warningDNSSurgeIPProxies": "Surge DNS 保护要求所有订阅节点使用 IP 地址。存在域名地址节点时拒绝生成该订阅，以免 DNS 回退直连。",
     "warningDNSDomesticSuffix": "仅 .cn 域名使用直连的国内 DNS，其他国内域名使用选定的代理 DNS。",
     "warningDNSEgernProxyDirect": "Egern 默认 DNS 使用选定的代理策略；独立的代理 DNS 路径仍为加密直连，不经过按域名配置的 Forward 分配。",
     "supportInvalidDesign": "设计校验未通过：{{detail}}",
@@ -1479,7 +1479,9 @@
     "supportHTTPTestURL": "Surfboard 的健康检查 URL 仅支持 HTTP。",
     "warningNativeRulePriority": "Loon 使用原生规则优先级：域名匹配先于 IP 匹配，本地规则先于远程规则。",
     "warningLoonRuleVersion": "UDP 端口限制需要 Loon 3.1.7 或更新版本。",
-    "warningQXUDPTunnel": "Quantumult X 的 UDP 端口限制仅对隧道接管的流量生效。"
+    "warningQXUDPTunnel": "Quantumult X 的 UDP 端口限制仅对隧道接管的流量生效。",
+    "supportDNSLoonPolicy": "Loon 已公开的配置项无法保证使用选定的 DNS 代理策略；禁止加密 DNS 回退到明文还需要在客户端内设置。",
+    "supportDNSQXPolicy": "Quantumult X 已公开的 DNS 配置无法将本地加密 DNS 查询绑定到选定的代理策略；代理目标使用远程解析。"
   },
   "hwid": {
     "title": "设备（HWID）",

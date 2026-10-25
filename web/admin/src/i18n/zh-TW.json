@@ -1094,7 +1094,7 @@
     "supportDNSDirectOnly": "Surfboard 直接傳送加密 DNS 請求，無法使用選取的 DNS 代理策略。",
     "warningDNSStashVersion": "DNS 保護需要 Stash iOS/tvOS 3.6+ 或 macOS 4.3+，以獨立解析代理伺服器網域名稱。",
     "supportedWithNotes": "支援 · 請查看用戶端差異說明",
-    "warningDNSSurgeIPProxies": "Surge DNS 保護要求訂閱節點使用 IP 位址。使用網域名稱的節點不會下發，以免 DNS 回退為直連。",
+    "warningDNSSurgeIPProxies": "Surge DNS 保護要求所有訂閱節點使用 IP 位址。存在使用網域名稱的節點時會拒絕產生該訂閱，以免 DNS 回退為直連。",
     "warningDNSDomesticSuffix": "僅 .cn 網域使用直連的國內 DNS，其他國內網域使用選取的代理 DNS。",
     "warningDNSEgernProxyDirect": "Egern 預設 DNS 使用選取的代理策略；獨立的代理 DNS 路徑仍為加密直連，不經過依網域設定的 Forward 分配。",
     "supportInvalidDesign": "設計驗證未通過：{{detail}}",
@@ -1105,7 +1105,9 @@
     "supportHTTPTestURL": "Surfboard 的健康檢查 URL 僅支援 HTTP。",
     "warningNativeRulePriority": "Loon 使用原生規則優先順序：網域比對先於 IP 比對，本機規則先於遠端規則。",
     "warningLoonRuleVersion": "UDP 連接埠限制需要 Loon 3.1.7 或更新版本。",
-    "warningQXUDPTunnel": "Quantumult X 的 UDP 連接埠限制僅對隧道接管的流量生效。"
+    "warningQXUDPTunnel": "Quantumult X 的 UDP 連接埠限制僅對隧道接管的流量生效。",
+    "supportDNSLoonPolicy": "Loon 已公開的設定項目無法保證使用選取的 DNS 代理策略；禁止加密 DNS 回退至明文還需要在用戶端內設定。",
+    "supportDNSQXPolicy": "Quantumult X 已公開的 DNS 設定無法將本機加密 DNS 查詢綁定至選取的代理策略；代理目標使用遠端解析。"
   },
   "forwards": {
     "backendRealm": "Realm（獨立行程）",

@@ -1468,7 +1468,7 @@
     "supportDNSDirectOnly": "Surfboard sends encrypted DNS directly and cannot apply the selected DNS proxy policy.",
     "warningDNSStashVersion": "DNS protection requires Stash iOS/tvOS 3.6+ or macOS 4.3+ for independent proxy hostname resolution.",
     "supportedWithNotes": "Supported · review client notes",
-    "warningDNSSurgeIPProxies": "Surge DNS protection requires proxy endpoints with IP addresses. Nodes using hostnames are omitted from the subscription to prevent DNS from falling back to a direct connection.",
+    "warningDNSSurgeIPProxies": "Surge DNS protection requires all subscription proxy endpoints to use IP addresses. The subscription is rejected if it contains hostname endpoints, to prevent DNS from falling back to a direct connection.",
     "warningDNSDomesticSuffix": "Only .cn domains use the direct domestic resolver. Other domestic domains use the selected proxied DNS resolver.",
     "warningDNSEgernProxyDirect": "Egern’s default DNS uses the selected proxy policy. Its separate proxy DNS path remains encrypted and direct, bypassing per-domain Forward assignments.",
     "supportInvalidDesign": "The design is invalid: {{detail}}",
@@ -1479,7 +1479,9 @@
     "supportHTTPTestURL": "Surfboard supports only HTTP health-check URLs.",
     "warningNativeRulePriority": "Loon applies its native rule priority: domain matches before IP matches, and local rules before remote rules.",
     "warningLoonRuleVersion": "UDP port restrictions require Loon 3.1.7 or later.",
-    "warningQXUDPTunnel": "Quantumult X UDP port restrictions apply only to traffic captured by its tunnel."
+    "warningQXUDPTunnel": "Quantumult X UDP port restrictions apply only to traffic captured by its tunnel.",
+    "supportDNSLoonPolicy": "Loon’s documented profile settings cannot guarantee the selected DNS proxy policy. Disabling fallback from encrypted to plain DNS also requires an app setting.",
+    "supportDNSQXPolicy": "Quantumult X’s documented DNS settings cannot bind local encrypted DNS queries to the selected proxy policy. Proxied destinations use remote resolution."
   },
   "hwid": {
     "title": "Devices (HWID)",
