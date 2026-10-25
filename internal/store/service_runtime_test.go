@@ -16,7 +16,7 @@ func TestNodeRuntimeUsesCoherentAcceptedReport(t *testing.T) {
 	s, id := nodeRenewalRig(t)
 	ctx := context.Background()
 	at := time.Now().UTC().Truncate(time.Second)
-	rep := agentproto.Report{Version: "v0.80.0", Revision: "applied", TrafficEpoch: "journal-one", TrafficSeq: 1, Cores: map[string]agentproto.CoreStatus{"xray": {Running: true, Inbounds: []string{"inbound"}}}, Forwards: []agentproto.ForwardStatus{{Tag: "rule", Health: "up", ProbeProtocol: "tcp"}}, WireGuard: &agentproto.WireGuardReport{Available: true, Applied: true}}
+	rep := agentproto.Report{Version: "v0.80.0", Revision: "fetched", AppliedRevision: "applied", TrafficEpoch: "journal-one", TrafficSeq: 1, Cores: map[string]agentproto.CoreStatus{"xray": {Running: true, Inbounds: []string{"inbound"}}}, Forwards: []agentproto.ForwardStatus{{Tag: "rule", Health: "up", ProbeProtocol: "tcp"}}, WireGuard: &agentproto.WireGuardReport{Available: true, Applied: true}}
 	if _, err := s.RecordNodeReport(ctx, id, "current-token-hash", rep, true, at); err != nil {
 		t.Fatal(err)
 	}
@@ -24,7 +24,7 @@ func TestNodeRuntimeUsesCoherentAcceptedReport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if original == nil || original.Sequence != 1 || !original.ObservedAt.Equal(at) || original.Revision != "applied" || !original.Cores["xray"].Running {
+	if original == nil || original.Sequence != 1 || !original.ObservedAt.Equal(at) || original.Revision != "fetched" || original.AppliedRevision != "applied" || !original.Cores["xray"].Running {
 		t.Fatalf("missing coherent runtime: %#v", original)
 	}
 	// A resource-only heartbeat refreshes ordinary liveness, not runtime.
@@ -34,6 +34,7 @@ func TestNodeRuntimeUsesCoherentAcceptedReport(t *testing.T) {
 	// Retried/delayed receipts may carry changed runtime metadata. They cannot
 	// extend or rewrite the last independent observation.
 	rep.Revision = "retry"
+	rep.AppliedRevision = ""
 	rep.Cores = nil
 	rep.Forwards = nil
 	rep.WireGuard = nil
@@ -57,7 +58,7 @@ func TestNodeRuntimeUsesCoherentAcceptedReport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cleared.Sequence != 2 || cleared.Cores != nil || cleared.Forwards != nil || cleared.WireGuard != nil {
+	if cleared.Sequence != 2 || cleared.Cores != nil || cleared.Forwards != nil || cleared.WireGuard != nil || cleared.AppliedRevision != "" {
 		t.Fatal("omitted runtime fields inherited prior evidence")
 	}
 	encoded, err := json.Marshal(cleared)

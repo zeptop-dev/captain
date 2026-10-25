@@ -157,6 +157,16 @@ func (e *runtimeEvaluation) node(id int64) *runtimeNode {
 	if n.report.Revision == "" || n.report.Revision != n.desired.Revision {
 		return n
 	}
+	// Revision records what the driver fetched, not what apply completed.
+	// A failed early apply can leave old inbounds running under the same tags.
+	// Only the independent completed-apply confirmation proves this revision.
+	if n.report.AppliedRevision == "" {
+		n.status = observedStatus("unknown", "unsupported", n.report.ObservedAt)
+		return n
+	}
+	if n.report.AppliedRevision != n.desired.Revision {
+		return n
+	}
 	n.status = observedStatus("healthy", "healthy", n.report.ObservedAt)
 	return n
 }
@@ -169,7 +179,7 @@ func (e *runtimeEvaluation) negative(key string, n *runtimeNode, reason string, 
 		e.clear(key)
 		return out
 	}
-	identity := n.report.Identity + "/" + n.report.Epoch + "/" + n.report.Revision
+	identity := n.report.Identity + "/" + n.report.Epoch + "/" + n.report.AppliedRevision
 	old := e.service.failures[key]
 	if old.identity != identity || !freshRuntime(old.observed, e.at) || n.report.Sequence < old.sequence {
 		old = runtimeFailure{identity: identity, nodeID: n.node.ID}
@@ -343,9 +353,18 @@ func (e *runtimeEvaluation) coreInbound(ib *domain.Inbound) EntryRuntimeStatus {
 			break
 		}
 	}
-	if _, err := spec.SelectCore(desired, candidates); err != nil {
+	selected, err := spec.SelectCore(desired, candidates)
+	if err != nil {
 		e.clear(key)
 		return observedStatus("unknown", "unsupported", n.report.ObservedAt, "inbound")
+	}
+	// These authenticated cores deliberately leave an empty listener idle.
+	// Match bosun's apply-time condition and the final scoped user list;
+	// absence of an authorized user is not a failed listener.
+	waitsForUsers := selected == "mita" || selected == "singbox-extended" && (desired.Protocol == spec.Mieru || desired.Protocol == spec.SSH)
+	if waitsForUsers && len(desired.EffectiveUsers(n.desired.Users)) == 0 {
+		e.clear(key)
+		return observedStatus("unknown", "config_pending", n.report.ObservedAt, "inbound")
 	}
 	return e.negative(key, n, "component_failure", "inbound")
 }

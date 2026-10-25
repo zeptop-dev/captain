@@ -14,22 +14,23 @@ import (
 // Identity is for private cache invalidation only; never serialize this object
 // into a customer response.
 type NodeRuntime struct {
-	Identity   string                           `json:"-"`
-	ObservedAt time.Time                        `json:"-"`
-	Sequence   int64                            `json:"-"`
-	Epoch      string                           `json:"epoch"`
-	Version    string                           `json:"version"`
-	Revision   string                           `json:"revision"`
-	Cores      map[string]agentproto.CoreStatus `json:"cores"`
-	Forwards   []agentproto.ForwardStatus       `json:"forwards"`
-	WireGuard  *agentproto.WireGuardReport      `json:"wireguard"`
+	Identity        string                           `json:"-"`
+	ObservedAt      time.Time                        `json:"-"`
+	Sequence        int64                            `json:"-"`
+	Epoch           string                           `json:"epoch"`
+	Version         string                           `json:"version"`
+	Revision        string                           `json:"revision"`
+	AppliedRevision string                           `json:"applied_revision"`
+	Cores           map[string]agentproto.CoreStatus `json:"cores"`
+	Forwards        []agentproto.ForwardStatus       `json:"forwards"`
+	WireGuard       *agentproto.WireGuardReport      `json:"wireguard"`
 }
 
 func recordNodeRuntime(ctx context.Context, tx *sql.Tx, nodeID int64, rep agentproto.Report, fresh bool, at time.Time) error {
 	if !fresh {
 		return nil
 	}
-	runtime := NodeRuntime{Epoch: rep.TrafficEpoch, Version: rep.Version, Revision: rep.Revision, Cores: rep.Cores, Forwards: rep.Forwards, WireGuard: rep.WireGuard}
+	runtime := NodeRuntime{Epoch: rep.TrafficEpoch, Version: rep.Version, Revision: rep.Revision, AppliedRevision: rep.AppliedRevision, Cores: rep.Cores, Forwards: rep.Forwards, WireGuard: rep.WireGuard}
 	raw, err := json.Marshal(runtime)
 	if err != nil {
 		return err

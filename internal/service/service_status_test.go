@@ -90,7 +90,7 @@ func (r *runtimeRig) report(n *domain.Node, edit func(*agentproto.Report)) agent
 	}
 	caps := spec.CapabilitiesForCore("xray")
 	r.seq[n.ID]++
-	rep := agentproto.Report{Version: "v0.80.0", Revision: desired.Revision, TrafficEpoch: "runtime-epoch", TrafficSeq: r.seq[n.ID], Cores: map[string]agentproto.CoreStatus{"xray": {Running: true, Capabilities: &caps, Inbounds: tags}}}
+	rep := agentproto.Report{Version: "v0.80.0", Revision: desired.Revision, AppliedRevision: desired.Revision, TrafficEpoch: "runtime-epoch", TrafficSeq: r.seq[n.ID], Cores: map[string]agentproto.CoreStatus{"xray": {Running: true, Capabilities: &caps, Inbounds: tags}}}
 	fs, err := r.store.NodeForwards(r.ctx, n.ID)
 	if err != nil {
 		r.t.Fatal(err)
@@ -198,6 +198,43 @@ func TestServiceStatusUnsupportedPendingAndExternal(t *testing.T) {
 	entry.DisplayHost = n.PublicAddr
 	entry.DisplayPort = 8443
 	assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "external_path")
+}
+
+func TestServiceStatusRequiresIndependentAppliedRevision(t *testing.T) {
+	r := newRuntimeRig(t)
+	n := r.node("changed-listener", "192.0.2.10")
+	ib := r.inbound(n, "same-tag")
+	entry := r.entry(n, ib)
+	before := r.report(n, nil)
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "healthy", "healthy")
+	// The next fetched configuration changes a listener without changing its
+	// tag. Early apply failure can leave the previous same-tag core running.
+	ib.Port = 8443
+	entry.DisplayPort = ib.Port
+	if err := r.store.UpdateInbound(r.ctx, ib); err != nil {
+		t.Fatal(err)
+	}
+	r.at = r.at.Add(time.Second)
+	current := r.report(n, func(rep *agentproto.Report) { rep.AppliedRevision = before.Revision })
+	if current.Revision == before.Revision {
+		t.Fatal("test failed to change desired revision")
+	}
+	for range 3 {
+		assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "config_pending")
+	}
+	// An old agent only has the fetched revision. Even a running tag cannot
+	// prove it is running the new listener configuration.
+	r.report(n, func(rep *agentproto.Report) { rep.AppliedRevision = "" })
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "unsupported")
+	r.report(n, nil)
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "healthy", "healthy")
+	// Dropping apply confirmation also discards a pending failure sample.
+	r.report(n, stopCore)
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "component_failure")
+	r.report(n, func(rep *agentproto.Report) { stopCore(rep); rep.AppliedRevision = "" })
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "unsupported")
+	r.report(n, stopCore)
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "component_failure")
 }
 
 func TestServiceStatusGroupedLineFollowsCompletePathsAndFixedEntry(t *testing.T) {
@@ -331,6 +368,31 @@ func TestServiceStatusNoRequestsOrUserTrafficAreRequired(t *testing.T) {
 	assertRuntime(t, got, "healthy", "healthy")
 	if got.ObservedAt == nil || *got.ObservedAt != r.at.Unix() {
 		t.Fatal(fmt.Sprintf("observation not report time: %+v", got))
+	}
+}
+
+func TestServiceStatusEmptyAuthenticatedListenersWaitForUsers(t *testing.T) {
+	for _, tc := range []struct {
+		core     string
+		protocol spec.Protocol
+	}{{"mita", spec.Mieru}, {"singbox-extended", spec.Mieru}, {"singbox-extended", spec.SSH}} {
+		t.Run(tc.core+"/"+string(tc.protocol), func(t *testing.T) {
+			r := newRuntimeRig(t)
+			n := r.node("empty", "192.0.2.10")
+			ib := &domain.Inbound{NodeID: n.ID, Tag: "waiting", Protocol: tc.protocol, Port: 443, Core: tc.core, Enabled: true}
+			if err := r.store.CreateInbound(r.ctx, ib); err != nil {
+				t.Fatal(err)
+			}
+			entry := r.entry(n, ib)
+			caps := spec.CapabilitiesForCore(tc.core)
+			for range 3 {
+				r.at = r.at.Add(time.Second)
+				r.report(n, func(rep *agentproto.Report) {
+					rep.Cores = map[string]agentproto.CoreStatus{tc.core: {Capabilities: &caps}}
+				})
+				assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "config_pending")
+			}
+		})
 	}
 }
 
