@@ -245,6 +245,12 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("DELETE /api/admin/entries/{id}", h.requireAdmin(h.deleteEntry))
 	mux.HandleFunc("PUT /api/admin/entries/order", h.requireAdmin(h.reorderEntries))
 	mux.HandleFunc("GET /api/admin/entries/tags", h.requireAdmin(h.entryTags))
+	mux.HandleFunc("PUT /api/admin/entries/category", h.requireAdmin(h.assignEntryCategory))
+	mux.HandleFunc("GET /api/admin/entry-categories", h.requireAdmin(h.listEntryCategories))
+	mux.HandleFunc("POST /api/admin/entry-categories", h.requireAdmin(h.createEntryCategory))
+	mux.HandleFunc("PATCH /api/admin/entry-categories/{id}", h.requireAdmin(h.updateEntryCategory))
+	mux.HandleFunc("DELETE /api/admin/entry-categories/{id}", h.requireAdmin(h.deleteEntryCategory))
+	mux.HandleFunc("PUT /api/admin/entry-categories/order", h.requireAdmin(h.reorderEntryCategories))
 
 	mux.HandleFunc("GET /api/admin/orders", h.requireAdmin(h.listOrders))
 }

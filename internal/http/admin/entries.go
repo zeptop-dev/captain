@@ -130,7 +130,7 @@ func (h *handlers) createEntry(w http.ResponseWriter, r *http.Request) {
 	}
 	e.Enabled = true
 	if err := h.Store.CreateEntry(r.Context(), &e); err != nil {
-		if entryClientChainError(w, err) {
+		if entryClientChainError(w, err) || entryCategoryError(w, err) {
 			return
 		}
 		serverErr(w, err)
@@ -163,6 +163,11 @@ func (h *handlers) updateEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	e := input.Entry
+	// Omission and null from older editors preserve the display category.
+	// CategoryID: 0 is the explicit request to make an entry unclassified.
+	if e.CategoryID == nil {
+		e.CategoryID = cur.CategoryID
+	}
 	if len(input.ClientExtra) > 0 {
 		e.ClientExtra = nil
 		if err := json.Unmarshal(input.ClientExtra, &e.ClientExtra); err != nil {
@@ -187,7 +192,7 @@ func (h *handlers) updateEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.UpdateEntry(r.Context(), &e); err != nil {
-		if entryClientChainError(w, err) {
+		if entryClientChainError(w, err) || entryCategoryError(w, err) {
 			return
 		}
 		serverErr(w, err)
