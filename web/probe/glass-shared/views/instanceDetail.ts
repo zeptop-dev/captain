@@ -97,7 +97,7 @@ export function monthlyAverageCostText(ctx: DetailContext): string {
 
 export function remainingTimeText(ctx: DetailContext): string {
   const expires = publicCostInfo(ctx)?.expires_at
-  return expires ? getExpireText(expires, ctx.lang) : '—'
+  return expires ? getExpireText(expires) : '—'
 }
 
 export function remainingValueText(ctx: DetailContext): string {

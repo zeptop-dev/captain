@@ -137,5 +137,8 @@
   "finance.fxSource": "Reference rates: Frankfurter · {date} (earliest quote used)",
   "finance.fxStale": "Using older cached rates; the estimate may differ from current rates.",
   "language.label": "Language",
-  "language.saveError": "Could not save the language preference. Allow site storage and try again."
+  "language.saveError": "Could not save the language preference. Allow site storage and try again.",
+  "expiry.days": "{days} days",
+  "expiry.remainingDay": "1 day left",
+  "expiry.remainingDays": "{days} days left"
 }

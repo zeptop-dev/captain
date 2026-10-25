@@ -1,4 +1,5 @@
 import { t } from '@shared/i18n'
+import { expiryLabel } from '@shared/expiry-label'
 import dayjs from 'dayjs'
 
 /** 计费周期类型 */
@@ -254,29 +255,13 @@ export function getExpireStatusHexColor(status: ExpireStatus): string {
 /**
  * 获取过期时间的显示文本
  * @param expiredAt 过期时间
- * @param lang 语言
+ * @param remaining 是否显示“剩余”说明
  * @returns 显示文本
  */
-export function getExpireText(expiredAt: string | number | undefined, lang: string = 'zh-CN'): string {
+export function getExpireText(expiredAt: string | number | undefined, remaining = false): string {
   const days = getDaysUntilExpired(expiredAt)
   const status = getExpireStatus(expiredAt)
-
-  if (status === 'unknown') {
-    return '-'
-  }
-
-  if (status === 'expired') {
-    return lang === 'zh-CN' ? t('已过期') : 'Expired'
-  }
-
-  if (status === 'long_term') {
-    return lang === 'zh-CN' ? t('长期') : 'Long-term'
-  }
-
-  if (lang === 'zh-CN') {
-    return `${days} 天`
-  }
-  return `${days} days`
+  return expiryLabel(status, days, t, remaining)
 }
 
 /**

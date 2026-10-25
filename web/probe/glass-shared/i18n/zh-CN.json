@@ -137,5 +137,8 @@
   "finance.fxSource": "参考汇率：Frankfurter · {date}（所用报价的最早日期）",
   "finance.fxStale": "正在使用较早的缓存汇率，估值可能与当前汇率有差异。",
   "language.label": "语言",
-  "language.saveError": "无法保存语言偏好，请允许网站存储后重试。"
+  "language.saveError": "无法保存语言偏好，请允许网站存储后重试。",
+  "expiry.days": "{days} 天",
+  "expiry.remainingDay": "剩余 1 天",
+  "expiry.remainingDays": "剩余 {days} 天"
 }

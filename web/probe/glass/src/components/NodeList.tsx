@@ -9,7 +9,7 @@ import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, 
 import { getRealtimeTotalSpeed, getTrafficUsed, getTrafficUsedPercentage, hasTrafficLimit } from '@shared/utils/nodeMetricsHelper'
 import { getOSImage, getOSName } from '@shared/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@shared/utils/regionHelper'
-import { getDaysUntilExpired, getExpireStatus, parseTags } from '@shared/utils/tagHelper'
+import { getExpireText, parseTags } from '@shared/utils/tagHelper'
 import StorageSummary from '@/components/StorageSummary'
 import NodePingListCell from '@/components/NodePingListCell'
 import TrafficProgress from '@/components/TrafficProgress'
@@ -185,13 +185,7 @@ export default function NodeList({ nodes, transitionKey, sortResetKey, pingEnabl
     const tags: string[] = []
     const lang = app.lang
     if (node.price !== 0) {
-      const days = getDaysUntilExpired(node.expired_at)
-      const status = getExpireStatus(node.expired_at)
-      if (status === 'expired')
-        tags.push(lang === 'zh-CN' ? t('已过期') : 'Expired')
-      else if (status === 'long_term')
-        tags.push(lang === 'zh-CN' ? t('长期') : 'Long-term')
-      else tags.push(lang === 'zh-CN' ? `剩余 ${days} 天` : `${days} days left`)
+      tags.push(getExpireText(node.expired_at, true))
       const price = captainPrice(node.uuid, lang)
       if (price) tags.push(price)
     }
