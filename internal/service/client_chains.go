@@ -17,6 +17,8 @@ type PublishedLine struct {
 	subscription.Line
 	EntryID       int64
 	DialerEntryID int64
+	// CategoryID is catalogue metadata, never a subscription tag or access group.
+	CategoryID int64
 }
 
 // AvailablePublications is used for the portal's format-neutral catalogue.

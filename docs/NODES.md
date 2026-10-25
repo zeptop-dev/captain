@@ -6,6 +6,11 @@ out of it. Version notes name the bosun release a feature needs; Captain
 
 ## Groups and display order
 
+These groups organize **servers** for monitoring. To categorize the subscription
+nodes customers select, use **Nodes & lines → Subscription nodes → Manage
+categories** instead (see [subscription categories](SUBSCRIPTIONS.md#entries-what-each-user-sees)).
+The two kinds of grouping are independent and neither grants subscription access.
+
 Use **Servers → Groups and order** to create, rename, delete and reorder monitoring
 groups. Drag a handle, use the up/down buttons, or focus a handle and use
 Space plus arrow keys. Select a group to reorder its nodes; select several

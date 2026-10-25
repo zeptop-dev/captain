@@ -140,7 +140,10 @@
     "title": "서버",
     "empty": "현재 사용 가능한 서버가 없습니다",
     "copyLink": "서버 링크 복사",
-    "clientChain": "클라이언트 프록시 체인입니다. mihomo, Stash 또는 sing-box의 전체 구독을 가져오세요. 개별 공유 링크는 제공되지 않습니다."
+    "clientChain": "클라이언트 프록시 체인입니다. mihomo, Stash 또는 sing-box의 전체 구독을 가져오세요. 개별 공유 링크는 제공되지 않습니다.",
+    "category": "분류",
+    "allCategories": "모든 분류",
+    "uncategorized": "미분류"
   },
   "invite": {
     "title": "친구 초대",

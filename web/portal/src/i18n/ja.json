@@ -140,7 +140,10 @@
     "title": "ノード",
     "empty": "現在利用できるノードはありません",
     "copyLink": "ノードのリンクをコピー",
-    "clientChain": "クライアント側のプロキシチェーンです。mihomo、Stash、sing-box の完全な購読設定を読み込んでください。単独の共有リンクはありません。"
+    "clientChain": "クライアント側のプロキシチェーンです。mihomo、Stash、sing-box の完全な購読設定を読み込んでください。単独の共有リンクはありません。",
+    "category": "カテゴリー",
+    "allCategories": "すべてのカテゴリー",
+    "uncategorized": "未分類"
   },
   "invite": {
     "title": "友達を招待",
