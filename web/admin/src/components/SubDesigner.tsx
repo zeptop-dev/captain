@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
 import { toast } from '../lib/notify'
 import { SettingsDraftBoundary, useSettingsDirty } from '../lib/settings-draft'
-import { claudeRulesQueryKey, designCatalogue, designFormatLabels, designSupportReasons, moveDesignItem, renameDesignGroup, selectedDesignFormats } from '../lib/sub-design'
+import { claudeRulesQueryKey, designCatalogue, designFormatLabels, designSupportReasons, designSupportWarnings, moveDesignItem, renameDesignGroup, selectedDesignFormats } from '../lib/sub-design'
 import type { DesignInspection, DesignPreset, SubDesign, SubDesignData } from '../lib/sub-design'
 import { SubDesignEnhancements } from './SubDesignEnhancements'
 
@@ -90,6 +90,22 @@ function Designer() {
     webrtc_mihomo: t('subDesign.supportWebRTC'),
     quic_mihomo: t('subDesign.supportQUIC'),
     timeout_mihomo: t('subDesign.supportTimeout'),
+    'dns-direct-only': t('subDesign.supportDNSDirectOnly'),
+    invalid_design: detail => t('subDesign.supportInvalidDesign', { detail }),
+    inline_rule_unsupported: detail => t('subDesign.supportInlineRule', { detail }),
+    udp_rule_order_unsupported: t('subDesign.supportUDPRuleOrder'),
+    group_timeout_unsupported: detail => t('subDesign.supportGroupTimeout', { detail }),
+    group_test_url_unsupported: detail => t('subDesign.supportGroupTestURL', { detail }),
+    group_test_url_http: t('subDesign.supportHTTPTestURL'),
+  })
+  const supportWarnings = designSupportWarnings(support, {
+    'dns-stash-version': t('subDesign.warningDNSStashVersion'),
+    'dns-surge-ip-proxies': t('subDesign.warningDNSSurgeIPProxies'),
+    'dns-domestic-suffix-only': t('subDesign.warningDNSDomesticSuffix'),
+    'dns-egern-proxy-direct': t('subDesign.warningDNSEgernProxyDirect'),
+    native_rule_priority: t('subDesign.warningNativeRulePriority'),
+    loon_rule_version: t('subDesign.warningLoonRuleVersion'),
+    qx_udp_tunnel: t('subDesign.warningQXUDPTunnel'),
   })
 
   const loadPreset = useMutation({
@@ -260,10 +276,11 @@ function Designer() {
         {support.length > 0 && <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
           {support.map(item => <Stack key={item.format} gap={4}>
             <Checkbox label={designFormatLabels[item.format] ?? item.format} checked={selectedFormats.includes(item.format)} disabled={!item.supported} onChange={event => setFormatSelection(event.currentTarget.checked ? [...selectedFormats, item.format] : selectedFormats.filter(format => format !== item.format))} />
-            <Text size="xs" c={item.supported ? 'teal' : 'orange'}>{item.supported ? t('subDesign.supported') : t('subDesign.unsupported')}</Text>
+            <Text size="xs" c={item.supported ? ((item.warnings?.length || item.warning_codes?.length) ? 'blue' : 'teal') : 'orange'}>{item.supported ? t((item.warnings?.length || item.warning_codes?.length) ? 'subDesign.supportedWithNotes' : 'subDesign.supported') : t('subDesign.unsupported')}</Text>
           </Stack>)}
         </SimpleGrid>}
         {!!unsupported.length && <Alert color="yellow"><Text size="xs">{t('subDesign.unchangedFormats', { formats: unsupported.map(item => designFormatLabels[item.format] ?? item.format).join(', ') })}</Text><List size="xs" spacing={4} mt="xs">{supportReasons.map(reason => <List.Item key={reason}>{reason}</List.Item>)}</List></Alert>}
+        {!!supportWarnings.length && <Alert color="blue" title={t('subDesign.clientDifferences')}><Stack gap="xs">{supportWarnings.map(item => <div key={item.format}><Text size="xs" fw={600}>{designFormatLabels[item.format] ?? item.format}</Text><List size="xs">{item.messages.map(message => <List.Item key={message}>{message}</List.Item>)}</List></div>)}</Stack></Alert>}
         {inspectionCurrent && <Text size="xs" c="dimmed">{t('subDesign.effectiveCount', { groups: inspection.data.effective_design.groups.length, rules: inspection.data.effective_design.rules.length })}</Text>}
         <Group justify="space-between" wrap="wrap" align="flex-end">
           <Group gap="xs" align="flex-end">

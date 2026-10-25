@@ -4,7 +4,7 @@ import { IconRefresh } from '@tabler/icons-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
-import { adoptClaudeRules, claudeRulesEndpoint, claudeRulesQueryKey, diffClaudeRules, draftClaudeRules } from '../lib/sub-design'
+import { adoptClaudeRules, claudeAppliedFormats, claudeRulesEndpoint, claudeRulesQueryKey, designFormatLabels, diffClaudeRules, draftClaudeRules } from '../lib/sub-design'
 import type { ClaudeRule, ClaudeRuleLibrary, ClaudeRulesData, ClaudeRuleSnapshot, ClaudeRulesSyncResult, SubDesign } from '../lib/sub-design'
 
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error)
@@ -103,10 +103,13 @@ export function SubDesignClaudeRules({ design, onChange, data, loading, error, o
       {!!error && <Alert color="red"><Stack gap="xs"><Text size="xs">{errorText(error)}</Text><Button size="xs" variant="light" onClick={onRetry}>{t('subDesign.retry')}</Button></Stack></Alert>}
       {sync.isError && <Alert color="red"><Text size="xs">{t('subDesign.claudeRulesSyncFailed')}</Text><Text size="xs" style={{ overflowWrap: 'anywhere' }}>{errorText(sync.error)}</Text></Alert>}
       {data && <>
-        <SimpleGrid cols={{ base: 1, md: 3 }} spacing="xs">
+        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xs">
           <RuleVersion title={t('subDesign.claudeRulesLibrary')} snapshot={data.library.snapshot} at={data.library.synced_at} status={!data.library.synced_at ? t('subDesign.claudeRulesNotSynced') : undefined} />
           <RuleVersion title={t('subDesign.claudeRulesDraft')} snapshot={draft} status={t(sameVersion ? 'subDesign.claudeRulesDraftLatest' : 'subDesign.claudeRulesDraftPinned')} />
-          <RuleVersion title={t('subDesign.claudeRulesApplied')} snapshot={data.applied.status === 'applied' ? (data.applied.snapshot ?? data.builtin) : undefined} at={data.applied.applied_at} status={data.applied.status === 'unknown' ? t('subDesign.claudeRulesAppliedUnknown') : data.applied.status === 'disabled' ? t('subDesign.claudeRulesAppliedDisabled') : undefined} />
+        </SimpleGrid>
+        <Text size="sm" fw={500}>{t('subDesign.claudeRulesApplied')}</Text>
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="xs">
+          {claudeAppliedFormats(data).map(({ format, applied }) => <RuleVersion key={format} title={designFormatLabels[format]} snapshot={applied.status === 'applied' ? applied.snapshot : undefined} at={applied.applied_at} status={applied.status === 'disabled' ? t('subDesign.claudeRulesAppliedDisabled') : applied.status === 'unknown' || !applied.snapshot ? t('subDesign.claudeRulesAppliedUnknown') : undefined} />)}
         </SimpleGrid>
         <Text size="xs" c="dimmed">{t('subDesign.claudeRulesAppliedHint')}</Text>
         <Group gap="xs" wrap="wrap">

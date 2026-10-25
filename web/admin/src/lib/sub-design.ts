@@ -23,10 +23,12 @@ export interface ClaudeRuleLibrary {
   url: string
   license_url: string
 }
+export interface ClaudeRuleApplied { status: 'unknown' | 'applied' | 'disabled'; snapshot?: ClaudeRuleSnapshot; applied_at?: number }
 export interface ClaudeRulesData {
   library: ClaudeRuleLibrary
   builtin: ClaudeRuleSnapshot
-  applied: { status: 'unknown' | 'applied' | 'disabled'; snapshot?: ClaudeRuleSnapshot; applied_at?: number }
+  applied: ClaudeRuleApplied
+  applied_formats?: Record<string, ClaudeRuleApplied>
 }
 export interface ClaudeRulesSyncResult {
   library: ClaudeRuleLibrary
@@ -97,7 +99,7 @@ export interface DesignPreset {
   supported: boolean
   reason?: string
 }
-export interface DesignFormatSupport { format: string; supported: boolean; reasons: string[]; reason_codes?: string[] }
+export interface DesignFormatSupport { format: string; supported: boolean; reasons: string[]; reason_codes?: string[]; warnings?: string[]; warning_codes?: string[] }
 export interface DesignInspection { effective_design: SubDesign; formats: DesignFormatSupport[] }
 export interface DesignLibrary { revision: string; synced_at: string | number; count: number }
 export interface SubDesignData {
@@ -113,6 +115,15 @@ export interface SubDesignData {
 export const designFormatLabels: Record<string, string> = {
   clash: 'mihomo / Clash Meta', stash: 'Stash', surge: 'Surge', surfboard: 'Surfboard',
   loon: 'Loon', qx: 'Quantumult X', egern: 'Egern',
+}
+
+// Old responses report only Mihomo. Never present that revision as the version
+// published for another client, or infer a missing record from the draft.
+export function claudeAppliedFormats(data: ClaudeRulesData): { format: string; applied: ClaudeRuleApplied }[] {
+  return Object.keys(designFormatLabels).map(format => ({
+    format,
+    applied: data.applied_formats?.[format] ?? (format === 'clash' ? data.applied : { status: 'unknown' }),
+  }))
 }
 
 // Renaming a policy keeps references, provenance and fields understood by newer
@@ -134,11 +145,23 @@ export function selectedDesignFormats(support: DesignFormatSupport[], selected: 
   return support.filter(item => item.supported && (selected === null || selected.includes(item.format))).map(item => item.format)
 }
 
-export function designSupportReasons(support: DesignFormatSupport[], labels: Record<string, string>): string[] {
+export function designSupportReasons(support: DesignFormatSupport[], labels: Record<string, string | ((detail: string) => string)>): string[] {
   return [...new Set(support.filter(item => !item.supported).flatMap(item => {
     if (!item.reason_codes?.length) return item.reasons
-    return [...item.reason_codes.map((code, index) => labels[code] ?? item.reasons[index] ?? code), ...item.reasons.slice(item.reason_codes.length)]
+    return [...item.reason_codes.map((code, index) => {
+      const label = labels[code]
+      const detail = item.reasons[index] ?? code
+      return typeof label === 'function' ? label(detail) : label ?? detail
+    }), ...item.reasons.slice(item.reason_codes.length)]
   }))]
+}
+
+export function designSupportWarnings(support: DesignFormatSupport[], labels: Record<string, string>): { format: string; messages: string[] }[] {
+  return support.filter(item => item.supported).map(item => {
+    const warnings = item.warnings ?? []
+    const codes = item.warning_codes ?? []
+    return { format: item.format, messages: [...new Set([...codes.map((code, index) => labels[code] ?? warnings[index] ?? code), ...warnings.slice(codes.length)])] }
+  }).filter(item => item.messages.length > 0)
 }
 
 // Protection policies must not offer a direct route, including through nested
