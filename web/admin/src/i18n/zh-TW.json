@@ -965,7 +965,7 @@
     "presetConfirm": "載入預設會取代目前編輯的策略組和規則（尚未套用的改動會遺失）。",
     "groups": "策略組",
     "addGroup": "新增策略組",
-    "groupsHint": "成員可以是全部節點、帶某個標籤的節點、名稱符合某個地區的節點，或其他策略組。url-test 自動選延遲最低的，fallback 按順序選可用的，load-balance 輪流用。",
+    "groupsHint": "成員可選全部節點、標籤、地區或其他策略組。select 手動選擇，url-test 按測速延遲自動選擇，fallback 按順序選擇可用節點，load-balance 負載平衡。",
     "groupName": "組名",
     "members": "成員",
     "noGroups": "還沒有策略組，可以先載入一個預設。",
@@ -980,7 +980,7 @@
     "finalHint": "沒有規則命中時走哪裡",
     "preview": "預覽",
     "save": "僅儲存設計",
-    "saveHint": "儲存設計但不改動範本",
+    "saveHint": "儲存草稿不會更新已發佈訂閱；修改後需重新產生並套用。",
     "apply": "產生並套用",
     "applyConfirm": "將產生並替換以下格式的全域範本：{{formats}}。其他格式保持不變。",
     "applied": "範本已產生並套用",
@@ -1015,7 +1015,7 @@
     "enhancements": "增強選項",
     "enhancementsHint": "選項與基礎設計分別儲存，預覽顯示組合結果及各格式的支援情況。",
     "regionsOption": "補充地區分組",
-    "regionsHint": "重用已識別的地區群組，補充缺少的群組。取消時保留預設自帶群組；地區沒有符合節點時拒絕連線，不回退直連。",
+    "regionsHint": "為缺少的地區補充選擇組，組內包含自動選擇和全部地區節點。自動產生的空地區組預設隱藏；被規則或預設策略明確指定時保留並拒絕連線。保留已有自訂組。",
     "regionsIncluded": "此預設已包含地區分組",
     "dnsOption": "DNS 保護",
     "dnsHint": "產生經代理存取的加密 DNS，分別處理直連流量與代理伺服器網域解析；不會強制開啟 TUN。",
@@ -1110,7 +1110,9 @@
     "supportDNSQXPolicy": "Quantumult X 已公開的 DNS 設定無法將本機加密 DNS 查詢綁定至選取的代理策略；代理目標使用遠端解析。",
     "supportRemoteRules": "此遠端規則來源包含用戶端無法等價表達的規則：{{detail}}",
     "warningRemoteProcessMacOS": "此規則來源包含僅在 macOS 生效的程序規則，iOS/tvOS 會忽略這些規則。",
-    "warningRemoteNativeUnsupported": "為保持相容，保留原有 Mihomo 遠端規則來源；但該來源含有 Mihomo 不支援的 URL-REGEX，不能保證完整等價。"
+    "warningRemoteNativeUnsupported": "為保持相容，保留原有 Mihomo 遠端規則來源；但該來源含有 Mihomo 不支援的 URL-REGEX，不能保證完整等價。",
+    "regionMembersHint": "地區條件優先使用訂閱節點登記的地區，未登記時按節點名稱識別；原有名稱比對條件保持不變。",
+    "nameMatchRegion": "{{region}} · 名稱比對"
   },
   "forwards": {
     "backendRealm": "Realm（獨立行程）",
