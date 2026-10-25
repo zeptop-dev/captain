@@ -118,10 +118,8 @@ func (s *Store) ApplySubDesign(ctx context.Context, d *subdesign.Design, rendere
 	if err := writeSettingTx(ctx, tx, SettingSubDesign, d); err != nil {
 		return err
 	}
-	if body, selected := rendered["clash"]; selected {
-		if err := writeClaudeAppliedTx(ctx, tx, d, body); err != nil {
-			return err
-		}
+	if err := writeClaudeAppliedTx(ctx, tx, d, rendered); err != nil {
+		return err
 	}
 	if err := writeSettingTx(ctx, tx, SettingSubTemplates, current); err != nil {
 		return err

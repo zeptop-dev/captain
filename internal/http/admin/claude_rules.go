@@ -27,12 +27,12 @@ func claudeLibrary(library store.ClaudeRuleLibrary) claudeLibraryInfo {
 }
 
 func (h *handlers) getClaudeRules(w http.ResponseWriter, r *http.Request) {
-	library, applied, err := h.Store.ClaudeRulesState(r.Context())
+	library, applied, err := h.Store.ClaudeRulesFormatsState(r.Context())
 	if err != nil {
 		serverErr(w, err)
 		return
 	}
-	ok(w, map[string]any{"library": claudeLibrary(library), "builtin": subdesign.BuiltinClaudeRules(), "applied": applied})
+	ok(w, map[string]any{"library": claudeLibrary(library), "builtin": subdesign.BuiltinClaudeRules(), "applied": applied["clash"], "applied_formats": applied})
 }
 
 func (h *handlers) syncClaudeRules(w http.ResponseWriter, r *http.Request) {

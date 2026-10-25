@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -24,10 +25,61 @@ func testClaudeSnapshot(revision string) clauderules.Snapshot {
 }
 
 type claudeStateResponse struct {
-	Library store.ClaudeRuleLibrary `json:"library"`
-	Applied store.ClaudeRuleApplied `json:"applied"`
-	Added   []subdesign.ClaudeRule  `json:"added"`
-	Removed []subdesign.ClaudeRule  `json:"removed"`
+	Library        store.ClaudeRuleLibrary            `json:"library"`
+	Applied        store.ClaudeRuleApplied            `json:"applied"`
+	AppliedFormats map[string]store.ClaudeRuleApplied `json:"applied_formats"`
+	Added          []subdesign.ClaudeRule             `json:"added"`
+	Removed        []subdesign.ClaudeRule             `json:"removed"`
+}
+
+func TestClaudePublicationAPITracksEachSelectedFormat(t *testing.T) {
+	st, c, _, _ := newSubDesignRig(t, Options{})
+	ctx := context.Background()
+	d, _ := subdesign.Preset("basic")
+	// Omitting formats must still mean all formats for legacy API clients.
+	if status, body, _ := c.do("POST", "/api/admin/settings/sub-design/apply", map[string]any{"design": d}, nil); status != 200 {
+		t.Fatalf("legacy apply: %d %s", status, body)
+	}
+	state := getClaudeState(t, c)
+	if len(state.AppliedFormats) != len(subdesign.Formats) {
+		t.Fatal("missing clients", state)
+	}
+	for _, format := range subdesign.Formats {
+		if state.AppliedFormats[format].Status != "disabled" {
+			t.Fatal("unreported legacy publication", format, state)
+		}
+	}
+	if !reflect.DeepEqual(state.Applied, state.AppliedFormats["clash"]) {
+		t.Fatal("legacy applied response changed", state)
+	}
+	d.Enhancements.Claude = true
+	d.Enhancements.ClaudeRules = &subdesign.ClaudeRuleSnapshot{Source: "v2fly", Revision: strings.Repeat("c", 40), Rules: []subdesign.ClaudeRule{{Type: "domain", Value: "example.com"}}}
+	if err := st.ApplySubDesign(ctx, &d, map[string]string{"surge": "new-surge", "qx": "new-qx"}); err != nil {
+		t.Fatal(err)
+	}
+	next := getClaudeState(t, c)
+	for _, format := range []string{"surge", "qx"} {
+		if next.AppliedFormats[format].Status != "applied" || !reflect.DeepEqual(next.AppliedFormats[format].Snapshot, d.Enhancements.ClaudeRules) {
+			t.Fatal("per-format revision missing", format, next)
+		}
+	}
+	for _, format := range []string{"clash", "stash", "surfboard", "loon", "egern"} {
+		if !reflect.DeepEqual(next.AppliedFormats[format], state.AppliedFormats[format]) {
+			t.Fatal("unselected client changed", format)
+		}
+	}
+	var templates store.SubTemplates
+	if err := st.GetSetting(ctx, store.SettingSubTemplates, &templates); err != nil {
+		t.Fatal(err)
+	}
+	templates["surge"] = "manual-surge"
+	if err := st.SetSetting(ctx, store.SettingSubTemplates, templates); err != nil {
+		t.Fatal(err)
+	}
+	final := getClaudeState(t, c)
+	if final.AppliedFormats["surge"].Status != "unknown" || final.AppliedFormats["surge"].Snapshot != nil || !reflect.DeepEqual(final.AppliedFormats["qx"], next.AppliedFormats["qx"]) || !reflect.DeepEqual(final.Applied, state.Applied) {
+		t.Fatal("manual edit scope", final)
+	}
 }
 
 func getClaudeState(t *testing.T, c *client) claudeStateResponse {
