@@ -4,6 +4,7 @@ import { IconBolt, IconShieldLock, IconWorld, IconDevices, IconRefresh, IconHead
 import { NodeGlobe } from './components/Globe'
 import { getJSON, type Plan, type Site } from './lib/site'
 import { bytes, money } from './lib/format'
+import ServiceStatusPage from './pages/ServiceStatusPage'
 
 const icons = { bolt: IconBolt, shield: IconShieldLock, world: IconWorld, devices: IconDevices, refresh: IconRefresh, headset: IconHeadset }
 
@@ -11,6 +12,7 @@ export default function App() {
   const site = useQuery({ queryKey: ['site'], queryFn: () => getJSON<Site>('/api/site') })
   const plans = useQuery({ queryKey: ['plans'], queryFn: () => getJSON<Plan[]>('/api/portal/plans'), enabled: !!site.data?.show_plans })
   const s = site.data
+  if (window.location.pathname.replace(/\/+$/, '') === '/service-status') return <ServiceStatusPage site={s} />
   if (!s) return null
   return (
     <Box pos="relative" style={{ zIndex: 1 }}>
@@ -19,7 +21,8 @@ export default function App() {
         <Group justify="space-between">
           <Group gap="xs"><Text fw={800} fz="xl" className="gradient-text">{s.name}</Text></Group>
           <Group gap="sm">
-            {s.probe_url && <Anchor href={s.probe_url} c="dimmed" size="sm">服务状态</Anchor>}
+            {s.service_status_url && <Anchor href={s.service_status_url} c="dimmed" size="sm">服务状态</Anchor>}
+            {s.probe_url && <Anchor href={s.probe_url} c="dimmed" size="sm">服务器监控</Anchor>}
             {s.links.telegram && <Anchor href={s.links.telegram} c="dimmed" size="sm" target="_blank"><Group gap={4}><IconBrandTelegram size={16} />Telegram</Group></Anchor>}
             <Button component="a" href="/portal/login" variant="default" size="sm">登录</Button>
             {s.registration && <Button component="a" href="/portal/register" size="sm">注册</Button>}
@@ -92,6 +95,7 @@ export default function App() {
         <Group justify="space-between">
           <Text size="sm" c="dimmed">© {new Date().getFullYear()} {s.name}</Text>
           <Group gap="md">
+            {s.service_status_url && <Anchor href={s.service_status_url} size="sm" c="dimmed">服务状态</Anchor>}
             {s.links.tos && <Anchor href={s.links.tos} size="sm" c="dimmed">服务条款</Anchor>}
             {s.links.download && <Anchor href={s.links.download} size="sm" c="dimmed">客户端下载</Anchor>}
             <Anchor href="/portal/" size="sm" c="dimmed">用户中心</Anchor>

@@ -396,5 +396,61 @@
     "manageWG": "WG 기기 관리",
     "back": "연결로 돌아가기",
     "planNeeded": "현재 사용 가능한 요금제가 없습니다. 클라이언트를 먼저 설치하고 요금제 활성화 후 연결할 수 있습니다."
+  },
+  "serviceStatus": {
+    "title": "서비스 상태",
+    "serverMonitoring": "서버 모니터링",
+    "scope": "현재 사용할 수 있는 구독 노드와 접속 경로의 작동 상태입니다.",
+    "refresh": "새로 고침",
+    "all": "전체",
+    "unavailable": "현재 상태를 가져올 수 없습니다",
+    "fetchError": "업데이트에 실패하여 이전 상태를 숨겼습니다. 다시 시도하세요.",
+    "offline": "오프라인 상태이므로 이전 상태를 숨겼습니다. 연결이 복구되면 다시 가져옵니다.",
+    "expired": "상태 보고서가 만료되었습니다. 새 데이터가 도착할 때까지 모든 노드를 알 수 없음으로 표시합니다.",
+    "never": "기록 없음",
+    "overview": "노드 상태 개요",
+    "allHealthy": "모든 노드 정상 작동",
+    "issues": "일부 노드에 문제 발생",
+    "allDown": "현재 노드 장애",
+    "maintaining": "유지 보수 진행 중",
+    "awaiting": "상태 확인 중",
+    "emptyTitle": "표시할 노드가 없습니다",
+    "updated": "최근 업데이트: {{time}}",
+    "autoRefresh": "60초마다 새로 고침",
+    "empty": "현재 사용할 수 있는 구독 노드가 없습니다. 요금제 페이지에서 서비스를 확인하세요.",
+    "nodes": "노드 상태",
+    "categories": "노드 분류",
+    "categoryHint": "분류 숫자는 정상 노드 수 / 전체 수입니다. 노드를 열어 판단 근거를 확인하세요.",
+    "observed": "최근 관측: {{time}}",
+    "noEndToEnd": "종단 간 접속: 검사하지 않음",
+    "limitations": "상태는 최근 인바운드, 전달 및 터널 작동 신호에 기반합니다. 클라이언트에서 대상 웹사이트까지의 접속을 보장하지 않습니다. 트래픽이 없다는 이유로 장애로 판단하지 않습니다.",
+    "states": {
+      "healthy": "정상 작동",
+      "degraded": "일부 이상",
+      "down": "장애",
+      "maintenance": "유지 보수",
+      "unknown": "알 수 없음"
+    },
+    "reasons": {
+      "healthy": "필수 구성 요소가 정상 작동을 보고했습니다.",
+      "no_data": "아직 충분한 작동 데이터가 없습니다.",
+      "stale": "보고서가 만료되어 새 관측을 기다리고 있습니다.",
+      "config_pending": "설정 적용 대기 중이므로 작동 상태를 확인할 수 없습니다.",
+      "component_failure": "필수 구성 요소가 장애를 보고했습니다.",
+      "no_route": "현재 사용할 수 있는 접속 경로가 없습니다.",
+      "partial_failure": "사용 가능한 경로가 있지만 일부 후보 또는 예비 경로에 장애가 있습니다.",
+      "partial_unknown": "사용 가능한 경로가 있지만 일부 후보 경로의 상태를 알 수 없습니다.",
+      "unsupported": "현재 데이터나 기능으로 상태를 확인할 수 없습니다.",
+      "external_path": "관리되지 않는 전달 경로가 포함되어 전체 경로를 확인할 수 없습니다.",
+      "maintenance": "관리자가 이 노드를 유지 보수하고 있습니다."
+    },
+    "evidence": {
+      "inbound": "인바운드 작동",
+      "forward_tcp": "다음 홉 TCP 검사",
+      "wireguard": "WireGuard 터널",
+      "vless_reverse": "VLESS 역방향 연결",
+      "client_chain": "클라이언트 체인 의존성"
+    },
+    "evidenceLabel": "판단 근거"
   }
 }

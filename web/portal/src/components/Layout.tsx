@@ -13,7 +13,7 @@ const sections = [
   { to: '/', key: 'overview', icon: IconHome, paths: ['/'] },
   { to: '/connect', key: 'connect', icon: IconPlugConnected, paths: ['/connect', '/servers'] },
   { to: '/plans', key: 'billing', icon: IconCreditCard, paths: ['/plans', '/orders'] },
-  { to: '/help', key: 'help', icon: IconHelpCircle, paths: ['/help', '/tickets'] },
+  { to: '/help', key: 'help', icon: IconHelpCircle, paths: ['/help', '/tickets', '/status'] },
   { to: '/account', key: 'account', icon: IconUser, paths: ['/account', '/invite'] },
 ]
 
@@ -28,7 +28,7 @@ export function Layout() {
   const secondary = active?.key === 'billing'
     ? [{ to: '/plans', label: t('portalNav.plans') }, { to: '/orders', label: t('nav.orders') }]
     : active?.key === 'help'
-      ? [{ to: '/help', label: t('help.title') }, { to: '/tickets', label: t('nav.tickets') }]
+      ? [{ to: '/help', label: t('help.title') }, { to: '/tickets', label: t('nav.tickets') }, { to: '/status', label: t('serviceStatus.title') }]
       : active?.key === 'account'
         ? [{ to: '/account', label: t('portalNav.account') }, { to: '/invite', label: t('nav.invite') }]
         : []
@@ -60,7 +60,7 @@ export function Layout() {
           </Link>
           <nav className={styles.desktopNav} aria-label={t('portalNav.navigation')}>{links}</nav>
           <Group gap={6} wrap="nowrap">
-            {site.data?.probe_url && <ActionIcon className={styles.statusLink} variant="subtle" color="gray" component="a" href={site.data.probe_url} target="_blank" rel="noreferrer" aria-label={t('nav.status')}><IconActivity size={20} /></ActionIcon>}
+            {site.data?.probe_url && <ActionIcon className={styles.statusLink} variant="subtle" color="gray" component="a" href={site.data.probe_url} target="_blank" rel="noreferrer" aria-label={t('serviceStatus.serverMonitoring')}><IconActivity size={20} /></ActionIcon>}
             <Menu shadow="md" position="bottom-end">
               <Menu.Target><ActionIcon variant="subtle" color="gray" size="lg" aria-label={t('portalNav.language')}><IconLanguage size={20} /></ActionIcon></Menu.Target>
               <Menu.Dropdown>{LANGS.map(([code, label]) => <Menu.Item key={code} onClick={() => pickLanguage(code)}>{label}</Menu.Item>)}</Menu.Dropdown>
@@ -70,7 +70,8 @@ export function Layout() {
               <Menu.Dropdown>
                 <Menu.Label style={{ overflowWrap: 'anywhere' }}>{me?.email}</Menu.Label>
                 <Menu.Item component={Link} to="/account" leftSection={<IconUser size={16} />}>{t('portalNav.account')}</Menu.Item>
-                {site.data?.probe_url && <Menu.Item component="a" href={site.data.probe_url} target="_blank" rel="noreferrer" leftSection={<IconActivity size={16} />} rightSection={<IconArrowUpRight size={14} />}>{t('nav.status')}</Menu.Item>}
+                {site.data?.probe_url && <Menu.Item component="a" href={site.data.probe_url} target="_blank" rel="noreferrer" leftSection={<IconActivity size={16} />} rightSection={<IconArrowUpRight size={14} />}>{t('serviceStatus.serverMonitoring')}</Menu.Item>}
+                <Menu.Item component={Link} to="/status" leftSection={<IconActivity size={16} />}>{t('serviceStatus.title')}</Menu.Item>
                 <Menu.Divider />
                 <Menu.Item color="red" leftSection={<IconLogout size={16} />} onClick={async () => { await logout(); nav('/login') }}>{t('nav.logout')}</Menu.Item>
               </Menu.Dropdown>
