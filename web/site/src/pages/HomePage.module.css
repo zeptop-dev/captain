@@ -11,7 +11,7 @@
 .hero h1 span + span { margin-top: 8px; color: var(--site-accent); }
 .heroAside > p { font-size: 18px; line-height: 1.85; }
 .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
-.primaryAction, .secondaryAction { display: inline-flex; align-items: center; justify-content: center; gap: 22px; min-height: 48px; padding: 12px 20px; border-radius: 3px; font-size: 13px; line-height: 1.6; font-weight: 500; cursor: pointer; transition: background .15s, border-color .15s; }
+.primaryAction, .secondaryAction { display: inline-flex; align-items: center; justify-content: center; gap: 22px; min-height: 48px; padding: 12px 20px; border-radius: var(--site-radius); font-size: 13px; line-height: 1.6; font-weight: 500; cursor: pointer; transition: background .15s, border-color .15s; }
 .primaryAction { background: var(--site-accent); border: 1px solid var(--site-accent); color: var(--site-accent-ink) !important; }
 .primaryAction:hover { background: color-mix(in srgb, var(--site-accent) 85%, var(--site-text)); }
 .secondaryAction { background: transparent; border: 1px solid var(--site-line); color: var(--site-text); }

@@ -13,7 +13,7 @@ const messages = {
     "overview": "节点运行概况",
     "allHealthy": "运行正常",
     "issues": "部分异常",
-    "allDown": "服务中断",
+    "allDown": "节点故障",
     "maintaining": "维护中",
     "awaiting": "状态待确认",
     "emptyTitle": "暂无公开节点",
@@ -25,7 +25,7 @@ const messages = {
     "categoryHint": "分类数字为运行正常数 / 总数；点击节点查看检测依据。",
     "observed": "最近观测：{{time}}",
     "noEndToEnd": "端到端访问：尚未检测",
-    "limitations": "状态汇总基于新鲜的入站、转发与隧道运行信号，不保证客户端到目标网站的完整访问。没有流量不视为故障。",
+    "limitations": "仅汇总已公开节点的入站、转发与隧道运行信号，不保证客户端到目标网站的完整访问。没有流量不视为故障。",
     "states": {
       "healthy": "运行正常",
       "degraded": "部分异常",

@@ -20,7 +20,13 @@ function Themed({ children }: { children: ReactNode }) {
   const site = useQuery({ queryKey: ['site'], queryFn: async () => (await fetch('/api/site')).json() as Promise<{ theme?: { primary?: string; radius?: string; site_scheme?: string; font_family?: string } }> })
   const t = site.data?.theme
   const scheme = t?.site_scheme === 'light' || t?.site_scheme === 'auto' ? t.site_scheme : 'dark'
-  return <MantineProvider theme={buildTheme(t?.primary || 'cyan', t?.radius || 'lg', t?.font_family)} forceColorScheme={scheme === 'auto' ? undefined : scheme} defaultColorScheme={scheme}>{children}</MantineProvider>
+  return <MantineProvider theme={buildTheme(t?.primary || 'cyan', t?.radius || 'lg', t?.font_family)} cssVariablesResolver={() => ({
+    variables: {
+      '--site-configured-accent': t?.primary ? 'var(--mantine-primary-color-filled)' : 'initial',
+      '--site-configured-ink': t?.primary ? 'var(--mantine-color-white)' : 'initial',
+      '--site-configured-radius': t?.radius ? 'var(--mantine-radius-default)' : 'initial',
+    }, light: {}, dark: {},
+  })} forceColorScheme={scheme === 'auto' ? undefined : scheme} defaultColorScheme={scheme}>{children}</MantineProvider>
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
