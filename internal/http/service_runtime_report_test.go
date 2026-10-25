@@ -34,10 +34,10 @@ func TestServiceRuntimeHTTPReportRetriesAndBeats(t *testing.T) {
 		return v
 	}
 	caps := spec.CapabilitiesForCore("xray")
-	rep := agentproto.Report{Version: "v0.80.0", Revision: "applied-runtime", TrafficEpoch: "0123456789abcdef0123456789abcdef", TrafficSeq: 1, Cores: map[string]agentproto.CoreStatus{"xray": {Running: true, Capabilities: &caps, Inbounds: []string{"in"}}}, Forwards: []agentproto.ForwardStatus{{Tag: "runtime-rule", Health: "up", ProbeProtocol: "tcp"}}, WireGuard: &agentproto.WireGuardReport{Available: true, Applied: true, Links: []agentproto.WireGuardLinkStatus{{Slot: 1, Connected: true, Handshake: time.Now().Unix()}}}}
+	rep := agentproto.Report{Version: "v0.80.0", Revision: "fetched-runtime", AppliedRevision: "applied-runtime", TrafficEpoch: "0123456789abcdef0123456789abcdef", TrafficSeq: 1, Cores: map[string]agentproto.CoreStatus{"xray": {Running: true, Capabilities: &caps, Inbounds: []string{"in"}}}, Forwards: []agentproto.ForwardStatus{{Tag: "runtime-rule", Health: "up", ProbeProtocol: "tcp"}}, WireGuard: &agentproto.WireGuardReport{Available: true, Applied: true, Links: []agentproto.WireGuardLinkStatus{{Slot: 1, Connected: true, Handshake: time.Now().Unix()}}}}
 	call("/api/agent/report", rep, 200)
 	initial := read()
-	if initial == nil || initial.Sequence != 1 || initial.Cores["xray"].Inbounds[0] != "in" || len(initial.Forwards) != 1 || initial.WireGuard == nil {
+	if initial == nil || initial.Sequence != 1 || initial.Cores["xray"].Inbounds[0] != "in" || len(initial.Forwards) != 1 || initial.WireGuard == nil || initial.AppliedRevision != "applied-runtime" {
 		t.Fatal("accepted report omitted runtime evidence")
 	}
 	// Age the genuine report clock without waiting. A fast resource heartbeat
@@ -54,6 +54,7 @@ func TestServiceRuntimeHTTPReportRetriesAndBeats(t *testing.T) {
 	// These metadata changes are intentional: the old receipt must not replace
 	// the coherent snapshot even when the legacy status columns are updated.
 	rep.Revision = "retry-revision"
+	rep.AppliedRevision = ""
 	rep.Cores = nil
 	rep.Forwards = nil
 	rep.WireGuard = nil
@@ -75,7 +76,7 @@ func TestServiceRuntimeHTTPReportRetriesAndBeats(t *testing.T) {
 	rep.TrafficSeq = 2
 	call("/api/agent/report", rep, 200)
 	next := read()
-	if next.Sequence != 2 || !next.ObservedAt.After(aged.ObservedAt) || next.Cores != nil || next.Forwards != nil || next.WireGuard != nil {
+	if next.Sequence != 2 || !next.ObservedAt.After(aged.ObservedAt) || next.Cores != nil || next.Forwards != nil || next.WireGuard != nil || next.AppliedRevision != "" {
 		t.Fatal("new complete report borrowed earlier evidence")
 	}
 	// The pairing token revocation happens before any later request can restore
