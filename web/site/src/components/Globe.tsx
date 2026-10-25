@@ -1,50 +1,111 @@
-import { useEffect, useRef } from 'react'
-import Globe from 'globe.gl'
-import { feature } from 'topojson-client'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { Location } from '../lib/site'
+import { landDots, locationLabel, validLocations } from './geography'
+import styles from './Globe.module.css'
 
-// A dotted dark globe with the node locations and arcs from the hub.
-// Textures would need a CDN, so land is drawn from the bundled 110m atlas.
-export function NodeGlobe({ locations, hub }: { locations: Location[]; hub: { name: string; lat: number; lng: number } | null }) {
-  const ref = useRef<HTMLDivElement>(null)
+interface Props { locations: Location[]; hub: Location | null; variant?: 'status' | 'home' }
+const radians = Math.PI / 180
+
+export function NodeGlobe({ locations, hub, variant = 'home' }: Props) {
+  const canvas = useRef<HTMLCanvasElement>(null)
+  const host = useRef<HTMLDivElement>(null)
+  const pausedRef = useRef(false)
+  const syncAnimation = useRef<(() => void) | null>(null)
+  const [paused, setPaused] = useState(false)
+  const [available, setAvailable] = useState(true)
+  const description = useId()
+  const points = useMemo(() => validLocations(hub ? [...locations, hub] : locations).filter((point, index, all) => all.findIndex((other) => other.lat === point.lat && other.lng === point.lng && other.name === point.name) === index), [locations, hub])
+
+  useEffect(() => { pausedRef.current = paused; syncAnimation.current?.() }, [paused])
   useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const size = el.clientWidth
-    const globe = new Globe(el, { animateIn: true })
-      .width(size).height(size)
-      .backgroundColor('rgba(0,0,0,0)')
-      .showAtmosphere(true).atmosphereColor('#22d3ee').atmosphereAltitude(0.18)
-      .globeMaterial(Object.assign(globe_material(), {}))
-    globe.controls().autoRotate = true
-    globe.controls().autoRotateSpeed = 0.6
-    globe.controls().enableZoom = false
-    import('world-atlas/countries-110m.json').then((mod) => {
-      const atlas = (mod as { default?: unknown }).default ?? mod
-      const topo = atlas as unknown as { objects: { countries: never } }
-      const countries = feature(topo as never, topo.objects.countries) as unknown as { features: object[] }
-      // h3 chokes on the polar polygon; nobody has a node there anyway.
-      globe.hexPolygonsData(countries.features.filter((f) => (f as { properties?: { name?: string } }).properties?.name !== 'Antarctica')).hexPolygonResolution(3).hexPolygonMargin(0.55).hexPolygonUseDots(true).hexPolygonColor(() => 'rgba(148, 163, 184, 0.55)')
-    })
-    const points = locations.map((l) => ({ ...l, size: 0.35 }))
-    globe.pointsData(points).pointAltitude(0.02).pointRadius(0.45).pointColor(() => '#67e8f9').pointLabel((d) => `<b>${(d as Location).name}</b>`)
-    globe.ringsData(points).ringColor(() => (t: number) => `rgba(103, 232, 249, ${1 - t})`).ringMaxRadius(3).ringPropagationSpeed(1.2).ringRepeatPeriod(1400)
-    if (hub && locations.length) {
-      const arcs = locations.map((l) => ({ startLat: hub.lat, startLng: hub.lng, endLat: l.lat, endLng: l.lng }))
-      globe.arcsData(arcs).arcColor(() => ['rgba(165,180,252,0.1)', '#67e8f9']).arcAltitudeAutoScale(0.35).arcStroke(0.5).arcDashLength(0.5).arcDashGap(0.6).arcDashAnimateTime(2400)
-    }
-    const first = hub ?? locations[0]
-    if (first) globe.pointOfView({ lat: first.lat + 10, lng: first.lng, altitude: 2.1 }, 0)
-    const onResize = () => { const s = el.clientWidth; globe.width(s).height(s) }
-    window.addEventListener('resize', onResize)
-    return () => { window.removeEventListener('resize', onResize); globe._destructor() }
-  }, [locations, hub])
-  return <div className="globe-wrap"><div className="globe-glow" /><div ref={ref} /></div>
-}
+    const element = host.current, surface = canvas.current
+    if (!element || !surface) return
+    const context = surface.getContext('2d')
+    if (!context) { setAvailable(false); return }
+    const motion = window.matchMedia('(prefers-reduced-motion: reduce)')
+    let reduced = motion.matches
+    const origin = hub && validLocations([hub])[0] || points[0]
+    let width = 470, frame = 0, last = 0, longitude = origin?.lng ?? 100
+    const latitude = Math.max(-35, Math.min(45, origin?.lat ?? 22)) * radians
+    const sinLat = Math.sin(latitude), cosLat = Math.cos(latitude)
+    let visible = true
 
-// Dark ocean without a texture.
-function globe_material() {
-  // globe.gl exposes three's MeshPhongMaterial through globeMaterial(); a
-  // plain object with the fields we want is merged into it.
-  return { color: { r: 0.03, g: 0.05, b: 0.1, isColor: true } as unknown as never, emissive: { r: 0.02, g: 0.06, b: 0.1, isColor: true } as unknown as never, shininess: 4 } as unknown as never
+    const render = () => {
+      const center = width / 2, radius = width * 0.424
+      context.clearRect(0, 0, width, width)
+      const ocean = context.createRadialGradient(center - radius * 0.28, center - radius * 0.32, radius * 0.12, center, center, radius)
+      ocean.addColorStop(0, '#101216'); ocean.addColorStop(0.75, '#0b0d10'); ocean.addColorStop(1, '#080a0d')
+      context.beginPath(); context.arc(center, center, radius, 0, Math.PI * 2)
+      context.fillStyle = ocean; context.fill()
+      context.strokeStyle = 'rgba(182, 192, 205, 0.10)'; context.lineWidth = 1; context.stroke()
+      const project = (lng: number, lat: number) => {
+        const angle = (lng - longitude) * radians, phi = lat * radians
+        const cos = Math.cos(phi), z = sinLat * Math.sin(phi) + cosLat * cos * Math.cos(angle)
+        return { x: center + radius * cos * Math.sin(angle), y: center - radius * (cosLat * Math.sin(phi) - sinLat * cos * Math.cos(angle)), z }
+      }
+      for (const [lng, lat] of landDots) {
+        const point = project(lng, lat)
+        if (point.z <= 0.015) continue
+        context.beginPath(); context.arc(point.x, point.y, Math.max(0.55, width / 470 * (0.65 + point.z * 0.55)), 0, Math.PI * 2)
+        context.fillStyle = `rgba(209, 216, 226, ${0.18 + Math.pow(point.z, 0.65) * 0.63})`; context.fill()
+      }
+      const occupied: { x: number; y: number; width: number }[] = []
+      for (const location of points) {
+        const point = project(location.lng, location.lat)
+        if (point.z <= 0.12) continue
+        const accent = variant === 'status' ? '#dce3e9' : '#62d7b0'
+        context.beginPath(); context.arc(point.x, point.y, 3.1, 0, Math.PI * 2)
+        context.fillStyle = accent; context.fill()
+        context.strokeStyle = variant === 'status' ? 'rgba(220,227,233,.2)' : 'rgba(98,215,176,.22)'
+        context.beginPath(); context.arc(point.x, point.y, 6, 0, Math.PI * 2); context.stroke()
+        const label = locationLabel(location).slice(0, 22)
+        context.font = `${Math.max(9, width / 470 * 10)}px ui-monospace, SFMono-Regular, monospace`
+        const textWidth = context.measureText(label).width + 13
+        const x = Math.min(width - textWidth - 4, point.x + 9), y = point.y - 17
+        if (occupied.some((previous) => Math.abs(previous.y - y) < 21 && x < previous.x + previous.width + 5 && x + textWidth > previous.x - 5)) continue
+        occupied.push({ x, y, width: textWidth })
+        context.fillStyle = 'rgba(10,12,15,.86)'; context.strokeStyle = 'rgba(178,188,201,.18)'
+        context.beginPath(); context.roundRect(x, y, textWidth, 20, 10); context.fill(); context.stroke()
+        context.fillStyle = '#c9d0d8'; context.fillText(label, x + 6, y + 13.4)
+      }
+    }
+    const resize = () => {
+      width = Math.max(1, element.clientWidth)
+      const ratio = Math.min(window.devicePixelRatio || 1, 2)
+      surface.width = Math.round(width * ratio); surface.height = Math.round(width * ratio)
+      context.setTransform(ratio, 0, 0, ratio, 0, 0)
+      render()
+    }
+    const tick = (now: number) => {
+      frame = 0
+      if (!shouldAnimate()) return
+      if (last) longitude += Math.min(now - last, 80) * 0.0024
+      render()
+      last = now
+      frame = window.requestAnimationFrame(tick)
+    }
+    const shouldAnimate = () => !document.hidden && visible && !reduced && !pausedRef.current
+    const sync = () => {
+      last = 0
+      if (shouldAnimate()) { if (!frame) frame = window.requestAnimationFrame(tick) }
+      else { window.cancelAnimationFrame(frame); frame = 0 }
+    }
+    syncAnimation.current = sync
+    const onMotion = () => { reduced = motion.matches; render(); sync() }
+    const observer = new ResizeObserver(resize)
+    observer.observe(element)
+    const intersection = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; sync() })
+    intersection.observe(element)
+    motion.addEventListener('change', onMotion)
+    document.addEventListener('visibilitychange', sync)
+    resize(); sync()
+    return () => { syncAnimation.current = null; window.cancelAnimationFrame(frame); observer.disconnect(); intersection.disconnect(); motion.removeEventListener('change', onMotion); document.removeEventListener('visibilitychange', sync) }
+  }, [points, hub, variant])
+
+  return <div ref={host} className={styles.globe} data-variant={variant}>
+    <canvas ref={canvas} role="img" aria-label="节点地理位置示意" aria-describedby={description} />
+    {!available && <div className={styles.fallback}>地理位置示意暂不可用</div>}
+    <p id={description} className={styles.srOnly}>{points.length ? `已配置位置：${points.map((point) => point.name).join('、')}。标记仅表示地理位置，不代表节点运行状态。` : '世界地理示意，尚无已配置位置；不表示节点运行状态。'}</p>
+    <button type="button" className={styles.control} onClick={() => setPaused((value) => !value)} aria-pressed={paused} aria-label={paused ? '继续地球动画' : '暂停地球动画'}>{paused ? '播放' : '暂停'}<span aria-hidden="true">{paused ? ' ▷' : ' Ⅱ'}</span></button>
+  </div>
 }
