@@ -82,8 +82,13 @@ Captain adaptations:
 - The search container expands along with its focused input, so the toolbar
   reserves its full width and wraps on narrow screens. Upstream's absolute input
   expanded outside its icon-sized container and could extend beyond the viewport.
-- Core public labels have six-language dictionaries. Language follows Captain's
-  saved `i18nextLng` preference, then the browser language.
+- Core public labels have six-language dictionaries. The header language selector
+  saves the current origin's `i18nextLng` preference and reloads the current URL,
+  so module-initialized labels and chart options use the same language. The hash
+  detail route, theme, group and favorites remain stored. Without a saved choice,
+  language follows the browser; separate domains have separate preferences. The
+  app locale for prices and locale-aware formatting follows the same selection;
+  this does not translate every existing theme label or date format.
 - Public storage cards read only the selected `node.storage` projection, never
   private resource snapshots or mount paths. One volume uses the existing disk
   cell; two volumes share it; further volumes open in a keyboard-accessible

@@ -2,6 +2,7 @@
 // shared deriveAppSettings() so both builds compute identical values; the
 // localStorage keys and formats match the Vue build's useStorageAsync.
 import { useMemo } from 'react'
+import { language } from '@shared/i18n'
 import type { AuthStatus, PermissionKey, VerifyLoginOptions } from '@shared/services/auth.service'
 import { getAuthSession, requirePermission, setAuthSessionFromLogin, verifyLogin } from '@shared/services/auth.service'
 import {
@@ -66,7 +67,7 @@ const session = getAuthSession()
 const raw = createStore<AppRawState>({
   loading: true,
   themeMode: readStored<ThemeMode>(KEY_THEME_MODE, 'auto', 'string'),
-  lang: 'zh-CN',
+  lang: language,
   publicSettings: undefined,
   nodeSelectedGroup: readStored<string>(KEY_GROUP, 'all', 'string'),
   favoriteNodeIds: readStored<string[]>(KEY_FAVORITES, [], 'json'),

@@ -10,6 +10,7 @@ import { useBox } from '@/hooks/useBox'
 import { useVisitorAudit } from '@/hooks/useVisitorAudit'
 import { useRoute, useRouter } from '@/lib/router'
 import { appStore, useApp } from '@/stores/app'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 // VisitorInfo is not rendered: Captain sets visitorInfoEnabled to false and
 // the status page must not run the original theme's visitor IP lookup.
@@ -114,6 +115,7 @@ export default function Header() {
         </div>
         <TooltipProvider delayDuration={200}>
           <div className="flex items-center gap-2">
+            <LanguageSwitcher />
             {buttons.map(button => (
               <Tooltip key={button.action}>
                 <TooltipTrigger asChild>

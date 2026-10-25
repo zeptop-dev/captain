@@ -135,5 +135,7 @@
   "finance.remainingShort": "剩餘估值",
   "finance.fxUnavailable": "暫缺 {currencies} 的匯率，無法完整換算，暫不顯示合計。",
   "finance.fxSource": "參考匯率：Frankfurter · {date}（所用報價的最早日期）",
-  "finance.fxStale": "正在使用較早的快取匯率，估值可能與目前匯率有差異。"
+  "finance.fxStale": "正在使用較早的快取匯率，估值可能與目前匯率有差異。",
+  "language.label": "語言",
+  "language.saveError": "無法儲存語言偏好，請允許網站儲存後重試。"
 }

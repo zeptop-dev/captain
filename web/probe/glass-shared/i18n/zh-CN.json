@@ -135,5 +135,7 @@
   "finance.remainingShort": "剩余估值",
   "finance.fxUnavailable": "暂缺 {currencies} 的汇率，无法完整折算，暂不显示合计。",
   "finance.fxSource": "参考汇率：Frankfurter · {date}（所用报价的最早日期）",
-  "finance.fxStale": "正在使用较早的缓存汇率，估值可能与当前汇率有差异。"
+  "finance.fxStale": "正在使用较早的缓存汇率，估值可能与当前汇率有差异。",
+  "language.label": "语言",
+  "language.saveError": "无法保存语言偏好，请允许网站存储后重试。"
 }

@@ -135,5 +135,7 @@
   "finance.remainingShort": "残価概算",
   "finance.fxUnavailable": "{currencies} の為替レートがありません。不完全な見積もりを避けるため、合計は表示しません。",
   "finance.fxSource": "参考為替レート：Frankfurter · {date}（使用したレートの最も古い日付）",
-  "finance.fxStale": "古いキャッシュの為替レートを使用しています。現在のレートとは異なる場合があります。"
+  "finance.fxStale": "古いキャッシュの為替レートを使用しています。現在のレートとは異なる場合があります。",
+  "language.label": "言語",
+  "language.saveError": "言語設定を保存できません。サイトのストレージを許可して再試行してください。"
 }

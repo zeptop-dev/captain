@@ -135,5 +135,7 @@
   "finance.remainingShort": "Est. value",
   "finance.fxUnavailable": "Exchange rates unavailable: {currencies}. The total is not shown to avoid an incomplete estimate.",
   "finance.fxSource": "Reference rates: Frankfurter · {date} (earliest quote used)",
-  "finance.fxStale": "Using older cached rates; the estimate may differ from current rates."
+  "finance.fxStale": "Using older cached rates; the estimate may differ from current rates.",
+  "language.label": "Language",
+  "language.saveError": "Could not save the language preference. Allow site storage and try again."
 }

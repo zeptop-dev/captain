@@ -257,7 +257,7 @@ export function getExpireStatusHexColor(status: ExpireStatus): string {
  * @param lang 语言
  * @returns 显示文本
  */
-export function getExpireText(expiredAt: string | number | undefined, lang: 'zh-CN' | 'en-US' = 'zh-CN'): string {
+export function getExpireText(expiredAt: string | number | undefined, lang: string = 'zh-CN'): string {
   const days = getDaysUntilExpired(expiredAt)
   const status = getExpireStatus(expiredAt)
 
