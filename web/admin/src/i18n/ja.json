@@ -1107,7 +1107,8 @@
     "warningLoonRuleVersion": "UDP ポート制限には Loon 3.1.7 以降が必要です。",
     "warningQXUDPTunnel": "Quantumult X の UDP ポート制限は、トンネルが取り込むトラフィックにのみ適用されます。",
     "supportDNSLoonPolicy": "Loon の公開されているプロファイル設定では、選択した DNS プロキシポリシーの使用を保証できません。暗号化 DNS から平文 DNS へのフォールバックを無効にするには、アプリ内の設定も必要です。",
-    "supportDNSQXPolicy": "Quantumult X の公開されている DNS 設定では、ローカルの暗号化 DNS クエリを選択したプロキシポリシーに割り当てられません。プロキシ経由の接続先にはリモート名前解決が使われます。"
+    "supportDNSQXPolicy": "Quantumult X の公開されている DNS 設定では、ローカルの暗号化 DNS クエリを選択したプロキシポリシーに割り当てられません。プロキシ経由の接続先にはリモート名前解決が使われます。",
+    "supportRemoteRules": "このリモートルールソースには、クライアントで同等に表現できないルールが含まれています：{{detail}}"
   },
   "forwards": {
     "backendRealm": "Realm（別プロセス）",
