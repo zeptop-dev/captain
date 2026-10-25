@@ -26,7 +26,7 @@ const icons = {
   '/entries': IconLink, '/sub-templates': IconTemplate, '/sub-templates?mode=profiles': IconAdjustments, '/sub-templates?mode=rules': IconFilter, '/external': IconWorld,
   '/monitoring': IconGauge, '/monitoring?tab=alerts': IconBell, '/speedtest': IconGauge,
   '/plans': IconReceipt, '/orders': IconReceipt, '/tickets': IconMessage, '/business/marketing': IconTag, '/business/content': IconFileText,
-  '/settings/area/users': IconSettings, '/settings/area/nodes': IconCertificate, '/settings/subscription': IconSettings, '/settings/clients': IconFileText, '/settings/area/monitoring': IconSettings, '/settings/area/business': IconSettings,
+  '/settings/area/users': IconSettings, '/settings/area/nodes': IconCertificate, '/settings/service-status': IconGauge, '/settings/subscription': IconSettings, '/settings/clients': IconFileText, '/settings/area/monitoring': IconSettings, '/settings/area/business': IconSettings,
 }
 
 export function Brand({ name, size = 'md' }: { name: string; size?: 'md' | 'lg' }) {

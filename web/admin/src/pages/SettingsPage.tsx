@@ -9,6 +9,7 @@ import { SettingsDraftBoundary } from '../lib/settings-draft'
 import { PageHeader } from '../components/PageHeader'
 
 const editors: Record<string, ComponentType> = {
+  'service-status': lazy(() => import('../components/settings/ServiceStatusCard')),
   subscription: lazy(() => import('../components/settings/GeneralCards').then(m => ({ default: m.SubscriptionCard }))),
   acme: lazy(() => import('../components/settings/GeneralCards').then(m => ({ default: m.ACMECard }))),
   notice: lazy(() => import('../components/settings/GeneralCards').then(m => ({ default: m.NoticeCard }))),

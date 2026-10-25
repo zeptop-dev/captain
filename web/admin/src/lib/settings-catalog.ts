@@ -11,6 +11,7 @@ export const settingsCatalog: SettingsEntry[] = [
   { id: 'connections', area: 'nodes', titleKey: 'connlog.title', hintKey: 'connlog.hint', keywords: 'connection log 连接记录' },
   { id: 'audit', area: 'nodes', titleKey: 'audit.title', hintKey: 'audit.hint', keywords: 'traffic rules audit 审计' },
   { id: 'limits', area: 'nodes', titleKey: 'dynlimit.title', hintKey: 'dynlimit.hint', keywords: 'speed throttle 限速' },
+  { id: 'service-status', area: 'subscription', titleKey: 'serviceStatus.title', hintKey: 'serviceStatus.hint', keywords: 'service status public maintenance node health 服务状态 维护 节点健康' },
   { id: 'subscription', area: 'subscription', titleKey: 'settings.subUrls', hintKey: 'settings.subUrlsHint', keywords: 'single plan purchase HWID devices URLs short links 设备 短链接' },
   { id: 'clients', area: 'subscription', titleKey: 'clients.title', hintKey: 'clients.hint', keywords: 'client import 客户端' },
   { id: 'probe', area: 'monitoring', titleKey: 'probe.title', hintKey: 'probe.hint', keywords: 'status page appearance theme 采集 状态页 主题' },
