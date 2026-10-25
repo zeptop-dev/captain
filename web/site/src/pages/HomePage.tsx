@@ -7,6 +7,16 @@ import styles from './HomePage.module.css'
 
 const featureIcons = { bolt: IconBolt, shield: IconShieldLock, world: IconWorld, devices: IconDevices, refresh: IconRefresh, headset: IconHeadset }
 
+function heroLines(text: string): string[] {
+  const value = text.trim()
+  const newline = value.indexOf('\n')
+  if (newline >= 0) return [value.slice(0, newline).trim(), value.slice(newline + 1).trim()].filter(Boolean)
+  const boundaries = [...value.matchAll(/[，、,]/gu)].map(match => match.index + 1).filter(index => index < value.length)
+  if (!boundaries.length) return [value]
+  const split = boundaries.reduce((best, index) => Math.abs(index - value.length / 2) < Math.abs(best - value.length / 2) ? index : best)
+  return [value.slice(0, split).trim(), value.slice(split).trim()]
+}
+
 function SectionLabel({ number, label }: { number: string; label: string }) {
   return <div className={styles.sectionLabel}><span>{number}</span><span>{label}</span></div>
 }
@@ -63,6 +73,7 @@ export default function HomePage({ site: s }: { site: Site }) {
   const FeaturedIcon = featureIcons[(featured?.icon as keyof typeof featureIcons) ?? 'world'] ?? IconWorld
   const startURL = s.registration ? '/portal/register' : '/portal/login'
   const startText = s.registration ? '立即开始' : '登录用户中心'
+  const headingLines = heroLines(s.tagline.trim() || s.name)
   const shortcuts = [
     { href: '#platform', title: '多端接入', detail: '在你的设备上开始使用' },
     s.features.length ? { href: '#features', title: '服务特性', detail: '了解我们的服务' } : { href: '#coverage', title: '网络覆盖', detail: '查看配置的覆盖地区' },
@@ -72,7 +83,7 @@ export default function HomePage({ site: s }: { site: Site }) {
     <section className={`${styles.hero} site-container`} aria-labelledby="home-heading">
       <div className={styles.eyebrow}><span />{s.name} / 订阅与连接</div>
       <div className={styles.heroCopy}>
-        <h1 id="home-heading"><span>{s.name}</span>{s.tagline && <span>{s.tagline}</span>}</h1>
+        <h1 id="home-heading">{headingLines.map((line, index) => <span key={index}>{line}</span>)}</h1>
         <div className={styles.heroAside}>
           {s.description && <p>{s.description}</p>}
           <div className={styles.actions}>
