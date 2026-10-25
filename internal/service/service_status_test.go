@@ -224,6 +224,18 @@ func TestServiceStatusGroupedLineFollowsCompletePathsAndFixedEntry(t *testing.T)
 		r.report(n, nil)
 	}
 	assertRuntime(t, r.evaluate(entry)[entry.ID], "healthy", "healthy")
+	// A stale alternative must not age the still-usable complete path.
+	r.at = r.at.Add(4 * time.Minute)
+	for _, n := range []*domain.Node{a, other, c, d} {
+		r.report(n, nil)
+	}
+	partial := r.evaluate(entry)[entry.ID]
+	assertRuntime(t, partial, "degraded", "partial_unknown")
+	if partial.ObservedAt == nil || *partial.ObservedAt != r.at.Unix() {
+		t.Fatalf("stale branch replaced usable path observation: %+v", partial)
+	}
+	r.report(b, nil)
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "healthy", "healthy")
 	// One reachable intermediate whose own route is broken is not a complete
 	// healthy path. The other complete branch keeps the entry degraded.
 	fail := func(rep *agentproto.Report) { rep.Forwards[0].Health = "down"; rep.Forwards[0].Up = false }
@@ -245,6 +257,24 @@ func TestServiceStatusGroupedLineFollowsCompletePathsAndFixedEntry(t *testing.T)
 	r.at = r.at.Add(time.Second)
 	r.report(a, disconnectHealthy)
 	assertRuntime(t, r.evaluate(entry)[entry.ID], "down", "no_route")
+	// Fresh confirmed failed edges are enough to break the path even when
+	// downstream reports have expired. Preserve the failure observation time.
+	r.at = r.at.Add(4 * time.Minute)
+	allEdgesDown := func(rep *agentproto.Report) {
+		for i := range rep.Forwards[0].Targets {
+			rep.Forwards[0].Targets[i].Health = "down"
+			rep.Forwards[0].Targets[i].Up = false
+		}
+	}
+	r.report(a, allEdgesDown)
+	r.evaluate(entry)
+	r.at = r.at.Add(time.Second)
+	r.report(a, allEdgesDown)
+	broken := r.evaluate(entry)[entry.ID]
+	assertRuntime(t, broken, "down", "no_route")
+	if broken.ObservedAt == nil || *broken.ObservedAt != r.at.Unix() {
+		t.Fatalf("stale downstream replaced confirmed failure observation: %+v", broken)
+	}
 	// Another healthy first-group member never rescues this fixed entry.
 	r.at = r.at.Add(4 * time.Minute)
 	for _, n := range []*domain.Node{other, b, c, d} {
@@ -321,13 +351,27 @@ func TestServiceStatusWireGuardChecksBothEndpointsAndHandshake(t *testing.T) {
 	}
 	healthy := func(rep *agentproto.Report) {
 		copy := *base
+		copy.Forwarding = &agentproto.WireGuardForwardingStatus{State: "synced", CheckedAt: r.at.Unix()}
 		copy.Links = []agentproto.WireGuardLinkStatus{{Slot: w.Link.Slot, Connected: true, Handshake: r.at.Unix()}}
 		rep.WireGuard = &copy
 	}
 	r.report(a, healthy)
 	r.report(b, healthy)
 	assertRuntime(t, r.evaluate(&w.Entry)[w.Entry.ID], "healthy", "healthy")
-	// A newly reported Connected flag with an old handshake is not proof.
+	if observed := r.evaluate(&w.Entry)[w.Entry.ID].ObservedAt; observed == nil || *observed != r.at.Unix() {
+		t.Fatal("observation does not reflect the live report and firewall checks")
+	}
+	// Active links recheck forwarding every 15 seconds. A fresh report must
+	// not lend its timestamp to an expired firewall check.
+	r.at = r.at.Add(time.Second)
+	r.report(b, func(rep *agentproto.Report) {
+		healthy(rep)
+		rep.WireGuard.Forwarding.CheckedAt = r.at.Add(-4 * time.Minute).Unix()
+	})
+	assertRuntime(t, r.evaluate(&w.Entry)[w.Entry.ID], "unknown", "stale")
+	r.report(b, healthy)
+	assertRuntime(t, r.evaluate(&w.Entry)[w.Entry.ID], "healthy", "healthy")
+	// An explicitly disconnected fresh observation can confirm a failure.
 	expired := func(rep *agentproto.Report) {
 		healthy(rep)
 		rep.WireGuard.Links[0].Handshake = r.at.Add(-4 * time.Minute).Unix()
@@ -395,4 +439,47 @@ func TestServiceStatusReverseSamplingUnknownAndExitFailure(t *testing.T) {
 	r.at = r.at.Add(time.Second)
 	r.report(b, stopCore)
 	assertRuntime(t, r.evaluate(entry)[entry.ID], "down", "component_failure")
+}
+
+func TestServiceStatusFailureConfirmationAllowsSkippedReportsAndResetsUnknown(t *testing.T) {
+	r := newRuntimeRig(t)
+	n := r.node("polling", "192.0.2.10")
+	ib := r.inbound(n, "polling-inbound")
+	entry := r.entry(n, ib)
+	send := func(edit func(*agentproto.Report)) { r.at = r.at.Add(time.Second); r.report(n, edit) }
+	send(stopCore)
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "component_failure")
+	// The browser missed an intermediate full report; a second distinct fresh
+	// negative observation still confirms failure without requiring clock lockstep.
+	send(stopCore)
+	send(stopCore)
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "down", "component_failure")
+	send(nil)
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "healthy", "healthy")
+	send(stopCore)
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "component_failure")
+	send(func(rep *agentproto.Report) { rep.Cores = nil })
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "unsupported")
+	send(stopCore)
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "component_failure")
+	send(stopCore)
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "down", "component_failure")
+	send(func(rep *agentproto.Report) { stopCore(rep); rep.Revision = "older-revision" })
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "config_pending")
+	send(stopCore)
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "component_failure")
+	send(stopCore)
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "down", "component_failure")
+	nextEpoch := func(rep *agentproto.Report) { stopCore(rep); rep.TrafficEpoch = "replacement-journal" }
+	send(nextEpoch)
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "component_failure")
+	for range 3 {
+		assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "component_failure")
+	}
+	send(nextEpoch)
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "down", "component_failure")
+	r.at = r.at.Add(4 * time.Minute)
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "stale")
+	send(nextEpoch)
+	assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "component_failure")
 }
