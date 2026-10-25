@@ -396,5 +396,61 @@
     "manageWG": "Manage WG devices",
     "back": "Back to connection",
     "planNeeded": "No plan is currently usable. You can install a client now and connect once your plan is active."
+  },
+  "serviceStatus": {
+    "title": "Service status",
+    "serverMonitoring": "Server monitoring",
+    "scope": "Runtime status of the subscription nodes and access paths available to your account.",
+    "refresh": "Refresh",
+    "all": "All",
+    "unavailable": "Current status unavailable",
+    "fetchError": "The update failed. Previous status is hidden. Please try again.",
+    "offline": "You are offline. Previous status is hidden; we will refresh when the connection returns.",
+    "expired": "The status report has expired. All nodes are shown as unknown until new data arrives.",
+    "never": "No record yet",
+    "overview": "Node overview",
+    "allHealthy": "All nodes operational",
+    "issues": "Some nodes have issues",
+    "allDown": "Nodes currently unavailable",
+    "maintaining": "Maintenance in progress",
+    "awaiting": "Awaiting status confirmation",
+    "emptyTitle": "No nodes to display",
+    "updated": "Updated: {{time}}",
+    "autoRefresh": "Refreshes every 60 seconds",
+    "empty": "No subscription nodes are currently available. Visit Plans to check your service.",
+    "nodes": "Node status",
+    "categories": "Node categories",
+    "categoryHint": "Category counts show operational / total. Open a node to see the evidence.",
+    "observed": "Last observed: {{time}}",
+    "noEndToEnd": "End-to-end access: not tested",
+    "limitations": "Status uses recent inbound, forwarding and tunnel signals. It does not guarantee access from your client to a destination website. No traffic does not mean a failure.",
+    "states": {
+      "healthy": "Operational",
+      "degraded": "Degraded",
+      "down": "Failure",
+      "maintenance": "Maintenance",
+      "unknown": "Unknown"
+    },
+    "reasons": {
+      "healthy": "Required components report normal operation.",
+      "no_data": "Not enough runtime data has arrived yet.",
+      "stale": "Reports have expired; awaiting new observations.",
+      "config_pending": "Configuration is awaiting application; runtime status is not confirmed.",
+      "component_failure": "A required component reports a failure.",
+      "no_route": "No usable access path is currently available.",
+      "partial_failure": "A usable path remains, but some candidate or backup paths have failed.",
+      "partial_unknown": "A usable path remains, but some candidate paths have unknown status.",
+      "unsupported": "Available data or capabilities cannot confirm the status.",
+      "external_path": "The path includes unmanaged forwarding; its full status cannot be confirmed.",
+      "maintenance": "The administrator is maintaining this node."
+    },
+    "evidence": {
+      "inbound": "Inbound runtime",
+      "forward_tcp": "Next-hop TCP probe",
+      "wireguard": "WireGuard tunnel",
+      "vless_reverse": "VLESS reverse connection",
+      "client_chain": "Client chain dependencies"
+    },
+    "evidenceLabel": "Status evidence"
   }
 }

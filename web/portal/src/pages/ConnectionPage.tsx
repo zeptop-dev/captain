@@ -61,7 +61,7 @@ export default function ConnectionPage() {
         <Title order={1} fz={30} className={classes.heading}>{t('connection.title')}</Title>
         <Text c="dimmed" mt={6}>{t('connection.subtitle')}</Text>
       </div>
-      <Button variant="default" component={Link} to="/help" leftSection={<IconBook2 size={17} />}>{t('connection.guide')}</Button>
+      <Group gap="xs"><Button variant="subtle" component={Link} to="/status">{t('serviceStatus.title')}</Button><Button variant="default" component={Link} to="/help" leftSection={<IconBook2 size={17} />}>{t('connection.guide')}</Button></Group>
     </Group>
 
     {me && !(me.subscriptions ?? []).some(subscription => subscription.usable) && <Alert color="orange"><Group justify="space-between" gap="sm"><Text size="sm" style={{ flex: '1 1 240px' }}>{t('connection.planNeeded')}</Text><Button component={Link} to="/plans" variant="light" size="xs" color="orange">{t('home.browsePlans')}</Button></Group></Alert>}

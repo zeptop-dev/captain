@@ -14,6 +14,7 @@ import TicketsPage from './pages/TicketsPage'
 import HelpPage from './pages/HelpPage'
 import ConnectionPage from './pages/ConnectionPage'
 import AccountPage from './pages/AccountPage'
+import ServiceStatusPage from './pages/ServiceStatusPage'
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { me, loading } = useAuth()
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="/invite" element={<InvitePage />} />
           <Route path="/tickets" element={<TicketsPage />} />
           <Route path="/help" element={<HelpPage />} />
+          <Route path="/status" element={<ServiceStatusPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

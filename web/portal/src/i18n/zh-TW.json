@@ -396,5 +396,61 @@
     "manageWG": "管理 WG 裝置",
     "back": "返回連線",
     "planNeeded": "目前沒有可用方案。你可以先安裝用戶端，方案生效後再連線。"
+  },
+  "serviceStatus": {
+    "title": "服務狀態",
+    "serverMonitoring": "伺服器監控",
+    "scope": "查看你目前可用的訂閱節點及其連線路徑運行狀態。",
+    "refresh": "重新整理",
+    "all": "全部",
+    "unavailable": "暫時無法取得目前狀態",
+    "fetchError": "更新失敗，已隱藏舊狀態。請稍後重試。",
+    "offline": "目前網路已中斷，已隱藏舊狀態。恢復連線後將重新取得。",
+    "expired": "狀態報告已超過有效期，所有節點暫以狀態未知顯示。",
+    "never": "尚無記錄",
+    "overview": "節點運行概況",
+    "allHealthy": "全部運行正常",
+    "issues": "部分節點異常",
+    "allDown": "節點目前故障",
+    "maintaining": "維護進行中",
+    "awaiting": "狀態有待確認",
+    "emptyTitle": "暫無可顯示節點",
+    "updated": "最近更新：{{time}}",
+    "autoRefresh": "每 60 秒更新",
+    "empty": "目前沒有可用的訂閱節點。可前往方案頁面查看你的服務。",
+    "nodes": "節點狀態",
+    "categories": "節點分類",
+    "categoryHint": "分類數字為運行正常數 / 總數；點選節點查看偵測依據。",
+    "observed": "最近觀測：{{time}}",
+    "noEndToEnd": "端到端存取：尚未偵測",
+    "limitations": "狀態彙整根據近期的入站、轉發與隧道運行訊號，不保證用戶端到目標網站的完整存取。沒有流量不視為故障。",
+    "states": {
+      "healthy": "運行正常",
+      "degraded": "部分異常",
+      "down": "故障",
+      "maintenance": "維護中",
+      "unknown": "狀態未知"
+    },
+    "reasons": {
+      "healthy": "必要元件的運行訊號正常。",
+      "no_data": "尚未收到足夠的運行資料。",
+      "stale": "回報已過期，等待新的觀測。",
+      "config_pending": "設定等待套用，暫時無法確認運行狀態。",
+      "component_failure": "必要元件回報故障。",
+      "no_route": "目前沒有可用的連線路徑。",
+      "partial_failure": "仍有可用路徑，部分候選或備用路徑故障。",
+      "partial_unknown": "仍有可用路徑，部分候選路徑狀態未知。",
+      "unsupported": "目前資料或能力不足以判斷狀態。",
+      "external_path": "路徑包含未託管的轉發，暫時無法確認整條路徑。",
+      "maintenance": "管理員正在維護此節點。"
+    },
+    "evidence": {
+      "inbound": "入站運行",
+      "forward_tcp": "下一跳 TCP 偵測",
+      "wireguard": "WireGuard 隧道",
+      "vless_reverse": "VLESS 反向連線",
+      "client_chain": "用戶端鏈依賴"
+    },
+    "evidenceLabel": "偵測依據"
   }
 }
