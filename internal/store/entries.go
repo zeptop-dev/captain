@@ -11,19 +11,20 @@ import (
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-const entryCols = "e.id, e.name, e.inbound_id, e.chain_id, e.display_host, e.display_port, e.rate, e.sort, e.enabled, e.tags, e.region, e.client_extra, e.line_id, e.line_member_id, e.client_dialer_entry_id"
+const entryCols = "e.id, e.name, e.inbound_id, e.chain_id, e.display_host, e.display_port, e.rate, e.sort, e.enabled, e.tags, e.region, e.client_extra, e.line_id, e.line_member_id, e.client_dialer_entry_id, e.category_id"
 
 func scanEntry(row interface{ Scan(...any) error }) (*domain.Entry, error) {
 	var e domain.Entry
-	var chain, line, dialer sql.NullInt64
+	var chain, line, dialer, category sql.NullInt64
 	var enabled int
 	var tags, extra string
-	if err := row.Scan(&e.ID, &e.Name, &e.InboundID, &chain, &e.DisplayHost, &e.DisplayPort, &e.Rate, &e.Sort, &enabled, &tags, &e.Region, &extra, &line, &e.LineMemberID, &dialer); err != nil {
+	if err := row.Scan(&e.ID, &e.Name, &e.InboundID, &chain, &e.DisplayHost, &e.DisplayPort, &e.Rate, &e.Sort, &enabled, &tags, &e.Region, &extra, &line, &e.LineMemberID, &dialer, &category); err != nil {
 		return nil, wrapNotFound(err)
 	}
 	e.ChainID = int64Ptr(chain)
 	e.LineID = int64Ptr(line)
 	e.ClientDialerEntryID = int64Ptr(dialer)
+	e.CategoryID = int64Ptr(category)
 	e.Enabled = enabled == 1
 	e.Tags = splitTags(tags)
 	e.ClientExtra = parseExtra(extra)
@@ -40,15 +41,23 @@ func (s *Store) CreateEntry(ctx context.Context, e *domain.Entry) error {
 	if e.Rate == 0 {
 		e.Rate = 1
 	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := validateEntryCategory(ctx, tx, e); err != nil {
+		return err
+	}
 	ts := now()
-	res, err := s.db.ExecContext(ctx, `INSERT INTO entries (name, inbound_id, chain_id, display_host, display_port, rate, sort, enabled, tags, region, client_extra, line_id, line_member_id, client_dialer_entry_id, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		e.Name, e.InboundID, nullInt64(e.ChainID), e.DisplayHost, e.DisplayPort, e.Rate, e.Sort, boolInt(e.Enabled), joinTags(e.Tags), strings.ToUpper(e.Region), encodeExtra(e.ClientExtra), nullInt64(e.LineID), e.LineMemberID, nullInt64(e.ClientDialerEntryID), ts, ts)
+	res, err := tx.ExecContext(ctx, `INSERT INTO entries (name, inbound_id, chain_id, display_host, display_port, rate, sort, enabled, tags, region, client_extra, line_id, line_member_id, client_dialer_entry_id, category_id, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		e.Name, e.InboundID, nullInt64(e.ChainID), e.DisplayHost, e.DisplayPort, e.Rate, e.Sort, boolInt(e.Enabled), joinTags(e.Tags), strings.ToUpper(e.Region), encodeExtra(e.ClientExtra), nullInt64(e.LineID), e.LineMemberID, nullInt64(e.ClientDialerEntryID), nullInt64(e.CategoryID), ts, ts)
 	if err != nil {
 		return err
 	}
 	e.ID, _ = res.LastInsertId()
-	return nil
+	return tx.Commit()
 }
 
 func (s *Store) EntryByID(ctx context.Context, id int64) (*domain.Entry, error) {
@@ -115,10 +124,10 @@ func (s *Store) entriesForUser(ctx context.Context, u *domain.User, withBlocked 
 	var out []EntryLine
 	for rows.Next() {
 		var l EntryLine
-		var chain, group, ingress, line, dialer sql.NullInt64
+		var chain, group, ingress, line, dialer, category sql.NullInt64
 		var eEnabled, iEnabled int
 		var settings, tags, extra string
-		if err := rows.Scan(&l.Entry.ID, &l.Entry.Name, &l.Entry.InboundID, &chain, &l.Entry.DisplayHost, &l.Entry.DisplayPort, &l.Entry.Rate, &l.Entry.Sort, &eEnabled, &tags, &l.Entry.Region, &extra, &line, &l.Entry.LineMemberID, &dialer,
+		if err := rows.Scan(&l.Entry.ID, &l.Entry.Name, &l.Entry.InboundID, &chain, &l.Entry.DisplayHost, &l.Entry.DisplayPort, &l.Entry.Rate, &l.Entry.Sort, &eEnabled, &tags, &l.Entry.Region, &extra, &line, &l.Entry.LineMemberID, &dialer, &category,
 			&l.Inbound.ID, &l.Inbound.NodeID, &l.Inbound.Tag, &l.Inbound.Protocol, &l.Inbound.Listen, &l.Inbound.Port, &l.Inbound.Core, &settings, &group, &iEnabled, &l.Inbound.Sort, &ingress); err != nil {
 			return nil, err
 		}
@@ -131,6 +140,7 @@ func (s *Store) entriesForUser(ctx context.Context, u *domain.User, withBlocked 
 		l.Entry.Tags = splitTags(tags)
 		l.Entry.ClientExtra = parseExtra(extra)
 		l.Entry.ClientDialerEntryID = int64Ptr(dialer)
+		l.Entry.CategoryID = int64Ptr(category)
 		out = append(out, l)
 	}
 	return out, rows.Err()
@@ -161,9 +171,20 @@ func (s *Store) UpdateEntry(ctx context.Context, e *domain.Entry) error {
 	if err := s.ValidateClientChain(ctx, e); err != nil {
 		return err
 	}
-	_, err := s.db.ExecContext(ctx, `UPDATE entries SET name = ?, inbound_id = ?, chain_id = ?, display_host = ?, display_port = ?, rate = ?, sort = ?, enabled = ?, tags = ?, region = ?, client_extra = ?, line_id = ?, line_member_id = ?, client_dialer_entry_id = ?, updated_at = ? WHERE id = ?`,
-		e.Name, e.InboundID, nullInt64(e.ChainID), e.DisplayHost, e.DisplayPort, e.Rate, e.Sort, boolInt(e.Enabled), joinTags(e.Tags), strings.ToUpper(e.Region), encodeExtra(e.ClientExtra), nullInt64(e.LineID), e.LineMemberID, nullInt64(e.ClientDialerEntryID), now(), e.ID)
-	return err
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := validateEntryCategory(ctx, tx, e); err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, `UPDATE entries SET name = ?, inbound_id = ?, chain_id = ?, display_host = ?, display_port = ?, rate = ?, sort = ?, enabled = ?, tags = ?, region = ?, client_extra = ?, line_id = ?, line_member_id = ?, client_dialer_entry_id = ?, category_id = ?, updated_at = ? WHERE id = ?`,
+		e.Name, e.InboundID, nullInt64(e.ChainID), e.DisplayHost, e.DisplayPort, e.Rate, e.Sort, boolInt(e.Enabled), joinTags(e.Tags), strings.ToUpper(e.Region), encodeExtra(e.ClientExtra), nullInt64(e.LineID), e.LineMemberID, nullInt64(e.ClientDialerEntryID), nullInt64(e.CategoryID), now(), e.ID)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // ReorderEntries sets sort by position for the given ids (drag-and-drop).
