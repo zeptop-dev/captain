@@ -39,6 +39,7 @@ type ServiceStatus struct {
 	failures map[string]runtimeFailure
 }
 type runtimeFailure struct {
+	nodeID   int64
 	sequence int64
 	count    int
 	observed time.Time
@@ -117,6 +118,15 @@ func (e *runtimeEvaluation) node(id int64) *runtimeNode {
 	}
 	n := &runtimeNode{status: runtimeStatus("unknown", "no_data")}
 	e.nodes[id] = n
+	defer func() {
+		if n.status.State != "healthy" {
+			for key, failure := range e.service.failures {
+				if failure.nodeID == id {
+					delete(e.service.failures, key)
+				}
+			}
+		}
+	}()
 	var err error
 	n.node, err = e.service.store.NodeByID(e.ctx, id)
 	if err != nil {
@@ -162,14 +172,13 @@ func (e *runtimeEvaluation) negative(key string, n *runtimeNode, reason string, 
 	identity := n.report.Identity + "/" + n.report.Epoch + "/" + n.report.Revision
 	old := e.service.failures[key]
 	if old.identity != identity || !freshRuntime(old.observed, e.at) || n.report.Sequence < old.sequence {
-		old = runtimeFailure{identity: identity}
+		old = runtimeFailure{identity: identity, nodeID: n.node.ID}
 	}
 	if n.report.Sequence != old.sequence {
-		if old.sequence > 0 && n.report.Sequence == old.sequence+1 {
-			old.count++
-		} else {
-			old.count = 1
-		}
+		// Two distinct negative observations within the fresh window suffice.
+		// Page polling may skip reports; this is not a claim of consecutive
+		// failures or of the duration of an outage between observations.
+		old.count++
 		old.sequence = n.report.Sequence
 		old.observed = n.report.ObservedAt
 	}
@@ -184,6 +193,13 @@ func (e *runtimeEvaluation) positive(key string, n *runtimeNode, evidence ...str
 	return observedStatus("healthy", "healthy", n.report.ObservedAt, evidence...)
 }
 func (e *runtimeEvaluation) clear(key string) { delete(e.service.failures, key) }
+func (e *runtimeEvaluation) clearPrefix(prefix string) {
+	for key := range e.service.failures {
+		if strings.HasPrefix(key, prefix) {
+			delete(e.service.failures, key)
+		}
+	}
+}
 func (e *runtimeEvaluation) entry(entry *domain.Entry, depth int) EntryRuntimeStatus {
 	if result, ok := e.entries[entry.ID]; ok {
 		return result
@@ -340,25 +356,30 @@ func (e *runtimeEvaluation) wireguard(link store.WireGuardLink) EntryRuntimeStat
 	prerequisite.Evidence = []string{"wireguard"}
 	key := fmt.Sprintf("wg/%s", link.ID)
 	if prerequisite.State != "healthy" {
-		e.clear(key)
+		e.clearPrefix(key)
 		return prerequisite
 	}
 	ar, br := a.report.WireGuard, b.report.WireGuard
 	if ar == nil || br == nil || !ar.Available || !br.Available {
-		e.clear(key)
+		e.clearPrefix(key)
 		return runtimeSeries(prerequisite, runtimeStatus("unknown", "unsupported", "wireguard"))
 	}
 	if !ar.Applied || !br.Applied {
-		e.clear(key)
+		e.clearPrefix(key)
 		return runtimeSeries(prerequisite, runtimeStatus("unknown", "config_pending", "wireguard"))
 	}
 	if link.AutoForwarding {
 		f := br.Forwarding
 		if !br.ForwardingSupported || f == nil {
+			e.clearPrefix(key)
 			return runtimeSeries(prerequisite, runtimeStatus("unknown", "unsupported", "wireguard"))
 		}
+		// Active WG links are reconciled every 15 seconds, including the
+		// host forwarding check. A fresh report cannot renew an old check
+		// when reconciliation has stopped progressing.
 		checked := time.Unix(f.CheckedAt, 0)
 		if !freshRuntime(checked, e.at) {
+			e.clearPrefix(key)
 			return runtimeSeries(prerequisite, observedStatus("unknown", "stale", checked, "wireguard"))
 		}
 		prerequisite = runtimeSeries(prerequisite, observedStatus("healthy", "healthy", checked, "wireguard"))
@@ -369,6 +390,7 @@ func (e *runtimeEvaluation) wireguard(link store.WireGuardLink) EntryRuntimeStat
 		case "synced", "external", "not_required":
 			e.clear(firewallKey)
 		default:
+			e.clearPrefix(key)
 			return runtimeSeries(prerequisite, runtimeStatus("unknown", "unsupported", "wireguard"))
 		}
 	}
@@ -400,7 +422,7 @@ func (e *runtimeEvaluation) reverse(link store.ReverseLink) EntryRuntimeStatus {
 	prerequisite.Evidence = []string{"vless_reverse"}
 	key := fmt.Sprintf("reverse/%s", link.ID)
 	if prerequisite.State != "healthy" {
-		e.clear(key)
+		e.clearPrefix(key)
 		return prerequisite
 	}
 	receiver, err := e.service.store.InboundByID(e.ctx, link.ReceiverInboundID)
@@ -409,12 +431,12 @@ func (e *runtimeEvaluation) reverse(link store.ReverseLink) EntryRuntimeStatus {
 	}
 	prerequisite = runtimeSeries(prerequisite, e.coreInbound(receiver))
 	if prerequisite.State != "healthy" {
-		e.clear(key)
+		e.clearPrefix(key)
 		return prerequisite
 	}
 	bc, ok := b.report.Cores["xray"]
 	if !ok || bc.Capabilities == nil || !bc.Capabilities.VLESSReverse {
-		e.clear(key)
+		e.clearPrefix(key)
 		return runtimeSeries(prerequisite, runtimeStatus("unknown", "unsupported", "vless_reverse"))
 	}
 	if !bc.Running {
@@ -422,6 +444,7 @@ func (e *runtimeEvaluation) reverse(link store.ReverseLink) EntryRuntimeStatus {
 	}
 	e.clear(key + "/exit")
 	if _, ok := bc.Reverse[link.ID]; !ok {
+		e.clear(key)
 		return runtimeSeries(prerequisite, runtimeStatus("unknown", "config_pending", "vless_reverse"))
 	}
 	connected := a.report.Cores["xray"].Reverse[link.ID]
@@ -457,6 +480,7 @@ func (e *runtimeEvaluation) line(line *store.ForwardLine, first string, landing 
 				}
 			}
 			if compiled == nil {
+				e.clearPrefix(fmt.Sprintf("forward/%d/line-%d-%s-", member.NodeID, line.ID, member.ID))
 				current[member.ID] = runtimeStatus("unknown", "config_pending")
 				continue
 			}
@@ -468,6 +492,7 @@ func (e *runtimeEvaluation) line(line *store.ForwardLine, first string, landing 
 				}
 			}
 			if reported == nil {
+				e.clearPrefix(fmt.Sprintf("forward/%d/%s/", member.NodeID, compiled.Tag))
 				current[member.ID] = observedStatus("unknown", "no_data", n.report.ObservedAt, "forward_tcp")
 				continue
 			}
@@ -560,6 +585,16 @@ func runtimeSeries(parts ...EntryRuntimeStatus) EntryRuntimeStatus {
 		}
 		runtimeMetadata(&out, part)
 	}
+	if out.State == "down" {
+		// One confirmed failed component is sufficient to break a series
+		// path. Unobserved/stale siblings do not age that failure evidence.
+		out.ObservedAt = nil
+		for _, part := range parts {
+			if part.State == "down" {
+				runtimeMetadata(&out, part)
+			}
+		}
+	}
 	return out
 }
 func runtimeAlternatives(parts []EntryRuntimeStatus) EntryRuntimeStatus {
@@ -586,6 +621,15 @@ func runtimeAlternatives(parts []EntryRuntimeStatus) EntryRuntimeStatus {
 		}
 	}
 	if healthy > 0 {
+		// Partial availability is supported by the still-usable paths.
+		// An old unavailable alternative must not make a live degraded
+		// result look like an entirely stale cached observation.
+		out.ObservedAt = nil
+		for _, part := range parts {
+			if part.State == "healthy" || part.State == "degraded" {
+				runtimeMetadata(&out, part)
+			}
+		}
 		if failed > 0 {
 			out.State, out.Reason = "degraded", "partial_failure"
 		} else if unknown > 0 {
