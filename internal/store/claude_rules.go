@@ -12,6 +12,7 @@ import (
 
 const SettingClaudeRuleLibrary = "sub_claude_rule_library"
 const SettingClaudeRuleApplied = "sub_claude_rule_applied"
+const SettingClaudeRuleAppliedFormats = "sub_claude_rule_applied_formats"
 
 // ClaudeRuleLibrary is independent of saved designs and published templates.
 type ClaudeRuleLibrary struct {
@@ -32,24 +33,53 @@ type claudeAppliedRecord struct {
 
 func templateHash(body string) string { return fmt.Sprintf("%x", sha256.Sum256([]byte(body))) }
 
-func writeClaudeAppliedTx(ctx context.Context, tx *sql.Tx, d *subdesign.Design, body string) error {
-	record := claudeAppliedRecord{ClaudeRuleApplied: ClaudeRuleApplied{Status: "disabled", AppliedAt: time.Now().Unix()}, TemplateHash: templateHash(body)}
-	if d.Enhancements.Claude {
-		record.Status = "applied"
-		record.Snapshot = d.Enhancements.ClaudeRules
-		if record.Snapshot == nil {
-			record.Snapshot = subdesign.BuiltinClaudeRules()
+func writeClaudeAppliedTx(ctx context.Context, tx *sql.Tx, d *subdesign.Design, rendered map[string]string) error {
+	records := map[string]claudeAppliedRecord{}
+	if err := readSettingTx(ctx, tx, SettingClaudeRuleAppliedFormats, &records); err != nil {
+		return err
+	}
+	if records == nil {
+		records = map[string]claudeAppliedRecord{}
+	}
+	// A publication may intentionally update only some clients. Keep the other
+	// clients' provenance tied to their existing templates, not the new draft.
+	appliedAt := time.Now().Unix()
+	for format, body := range rendered {
+		record := claudeAppliedRecord{ClaudeRuleApplied: ClaudeRuleApplied{Status: "disabled", AppliedAt: appliedAt}, TemplateHash: templateHash(body)}
+		if d.Enhancements.Claude {
+			record.Status = "applied"
+			record.Snapshot = d.Enhancements.ClaudeRules
+			if record.Snapshot == nil {
+				record.Snapshot = subdesign.BuiltinClaudeRules()
+			}
+		}
+		records[format] = record
+		if format == "clash" {
+			// Keep the original setting valid for older Captain versions.
+			if err := writeSettingTx(ctx, tx, SettingClaudeRuleApplied, record); err != nil {
+				return err
+			}
 		}
 	}
-	return writeSettingTx(ctx, tx, SettingClaudeRuleApplied, record)
+	return writeSettingTx(ctx, tx, SettingClaudeRuleAppliedFormats, records)
 }
 
 // ClaudeRulesState reads the cache and the global Mihomo publication together.
 // Older publications or text edits have unknown provenance; never infer it
 // from the current draft, which can differ from the published template.
 func (s *Store) ClaudeRulesState(ctx context.Context) (ClaudeRuleLibrary, ClaudeRuleApplied, error) {
+	library, applied, err := s.ClaudeRulesFormatsState(ctx)
+	return library, applied["clash"], err
+}
+
+// ClaudeRulesFormatsState reads all global template publications in the same
+// snapshot. It does not describe subscription profiles or response overrides.
+func (s *Store) ClaudeRulesFormatsState(ctx context.Context) (ClaudeRuleLibrary, map[string]ClaudeRuleApplied, error) {
 	library := ClaudeRuleLibrary{Snapshot: subdesign.BuiltinClaudeRules()}
-	applied := ClaudeRuleApplied{Status: "unknown"}
+	applied := map[string]ClaudeRuleApplied{}
+	for _, format := range subdesign.Formats {
+		applied[format] = ClaudeRuleApplied{Status: "unknown"}
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return library, applied, err
@@ -61,16 +91,29 @@ func (s *Store) ClaudeRulesState(ctx context.Context) (ClaudeRuleLibrary, Claude
 	if library.Snapshot == nil {
 		library.Snapshot = subdesign.BuiltinClaudeRules()
 	}
-	var record claudeAppliedRecord
-	if err = readSettingTx(ctx, tx, SettingClaudeRuleApplied, &record); err != nil {
+	var records map[string]claudeAppliedRecord
+	if err = readSettingTx(ctx, tx, SettingClaudeRuleAppliedFormats, &records); err != nil {
 		return library, applied, err
+	}
+	if records == nil {
+		records = map[string]claudeAppliedRecord{}
+	}
+	if _, exists := records["clash"]; !exists {
+		var legacy claudeAppliedRecord
+		if err = readSettingTx(ctx, tx, SettingClaudeRuleApplied, &legacy); err != nil {
+			return library, applied, err
+		}
+		records["clash"] = legacy
 	}
 	var templates SubTemplates
 	if err = readSettingTx(ctx, tx, SettingSubTemplates, &templates); err != nil {
 		return library, applied, err
 	}
-	if body, exists := templates["clash"]; exists && record.TemplateHash == templateHash(body) {
-		applied = record.ClaudeRuleApplied
+	for format := range applied {
+		record := records[format]
+		if body, exists := templates[format]; exists && record.TemplateHash == templateHash(body) {
+			applied[format] = record.ClaudeRuleApplied
+		}
 	}
 	return library, applied, tx.Commit()
 }
