@@ -1108,7 +1108,9 @@
     "warningQXUDPTunnel": "Quantumult X の UDP ポート制限は、トンネルが取り込むトラフィックにのみ適用されます。",
     "supportDNSLoonPolicy": "Loon の公開されているプロファイル設定では、選択した DNS プロキシポリシーの使用を保証できません。暗号化 DNS から平文 DNS へのフォールバックを無効にするには、アプリ内の設定も必要です。",
     "supportDNSQXPolicy": "Quantumult X の公開されている DNS 設定では、ローカルの暗号化 DNS クエリを選択したプロキシポリシーに割り当てられません。プロキシ経由の接続先にはリモート名前解決が使われます。",
-    "supportRemoteRules": "このリモートルールソースには、クライアントで同等に表現できないルールが含まれています：{{detail}}"
+    "supportRemoteRules": "このリモートルールソースには、クライアントで同等に表現できないルールが含まれています：{{detail}}",
+    "warningRemoteProcessMacOS": "このルールソースには macOS でのみ機能するプロセスルールが含まれています。iOS/tvOS では無視されます。",
+    "warningRemoteNativeUnsupported": "互換性のため既存の Mihomo リモートルールソースを保持します。ただし、Mihomo が対応していない URL-REGEX が含まれるため、完全に同等の動作は保証できません。"
   },
   "forwards": {
     "backendRealm": "Realm（別プロセス）",

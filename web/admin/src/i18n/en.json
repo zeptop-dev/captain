@@ -1482,7 +1482,9 @@
     "warningQXUDPTunnel": "Quantumult X UDP port restrictions apply only to traffic captured by its tunnel.",
     "supportDNSLoonPolicy": "Loon’s documented profile settings cannot guarantee the selected DNS proxy policy. Disabling fallback from encrypted to plain DNS also requires an app setting.",
     "supportDNSQXPolicy": "Quantumult X’s documented DNS settings cannot bind local encrypted DNS queries to the selected proxy policy. Proxied destinations use remote resolution.",
-    "supportRemoteRules": "This remote source contains rules the client cannot represent equivalently: {{detail}}"
+    "supportRemoteRules": "This remote source contains rules the client cannot represent equivalently: {{detail}}",
+    "warningRemoteProcessMacOS": "This rule resource includes process rules that only work on macOS; iOS/tvOS ignore them.",
+    "warningRemoteNativeUnsupported": "The existing Mihomo rule resource is retained for compatibility, but it contains URL-REGEX, which Mihomo does not support; this resource is not fully equivalent."
   },
   "hwid": {
     "title": "Devices (HWID)",

@@ -109,6 +109,8 @@ function Designer() {
     native_rule_priority: t('subDesign.warningNativeRulePriority'),
     loon_rule_version: t('subDesign.warningLoonRuleVersion'),
     qx_udp_tunnel: t('subDesign.warningQXUDPTunnel'),
+    remote_process_macos: t('subDesign.warningRemoteProcessMacOS'),
+    remote_native_unsupported: t('subDesign.warningRemoteNativeUnsupported'),
   })
 
   const loadPreset = useMutation({
