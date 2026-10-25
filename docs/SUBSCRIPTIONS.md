@@ -76,11 +76,24 @@ is open, the notes identify the library version without changing the draft.
 
 The current enhancement options are:
 
-- **Supplement regional groups:** reuse explicitly recognized region groups
-  and add missing ones. Turning this off removes only generated additions,
-  never groups already present in the base design. Matching uses final visible
-  node names. A generated dynamic group with no matching nodes rejects traffic
-  instead of implicitly selecting DIRECT.
+- **Supplement regional groups:** add missing Hong Kong, Taiwan, Japan,
+  Singapore, US and Korea selectors. Each new region has an automatic latency
+  group first, followed by all matching nodes for manual selection. Automatic
+  checks use a 300-second interval and a 50-ms switch tolerance where the client
+  supports it. Explicit entry regions take priority; otherwise grouping uses
+  the original node name, before profile prefixes or automatic display flags.
+  Ingress hostnames and IP geolocation do not establish the exit region.
+  Generated empty regional groups are omitted after access and client-protocol
+  filtering; groups explicitly used by a rule, final or DNS policy remain as
+  REJECT. Other empty generated groups still reject traffic. Existing custom
+  or imported name-match groups keep their behavior, and disabling the
+  enhancement leaves the editable base unchanged. Save and apply the design
+  again to update published templates; saving a draft alone does not publish.
+
+  The member picker uses `@region:HK` (template `{{proxy_names:region=HK}}`)
+  for region selection. Existing `@match:` / `match=` expressions retain their
+  name-matching semantics. A node with no identifiable region remains available
+  in all-node selectors rather than being assigned an arbitrary country.
 - **DNS protection:** native Mihomo, Stash, Surge and Egern DNS configurations
   with encrypted upstreams and optional Claude DNS policy. The constraints below
   distinguish application DNS from client bootstrap/proxy resolution.

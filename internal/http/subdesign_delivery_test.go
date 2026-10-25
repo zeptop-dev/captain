@@ -128,13 +128,15 @@ func TestSubDesignDeliveryEnhancementsAndClientChain(t *testing.T) {
 	if claudeAt < 0 || chinaAt <= claudeAt || matchAt != len(doc.Rules)-1 || !webRTC || !quic {
 		t.Fatalf("enhancement priority lost: Claude=%d China=%d Match=%d WebRTC=%t QUIC=%t", claudeAt, chinaAt, matchAt, webRTC, quic)
 	}
-	jp, hk, claude := false, false, false
+	jp, jpAuto, hk, claude := false, false, false, false
 	for _, g := range doc.Groups {
 		switch g.Name {
 		case "🇯🇵 日本":
-			jp = len(g.Proxies) == 1 && g.Proxies[0] == "JP Chained"
+			jp = g.Type == "select" && len(g.Proxies) == 2 && g.Proxies[0] == "🇯🇵 日本 · 自动" && g.Proxies[1] == "JP Chained"
+		case "🇯🇵 日本 · 自动":
+			jpAuto = g.Type == "url-test" && len(g.Proxies) == 1 && g.Proxies[0] == "JP Chained"
 		case "🇭🇰 香港":
-			hk = g.Type == "select" && len(g.Proxies) == 1 && g.Proxies[0] == "REJECT"
+			hk = true
 		case "🤖 Claude":
 			claude = len(g.Proxies) == 2
 			for _, p := range g.Proxies {
@@ -144,8 +146,8 @@ func TestSubDesignDeliveryEnhancementsAndClientChain(t *testing.T) {
 			}
 		}
 	}
-	if !jp || !hk || !claude {
-		t.Fatalf("regional/Claude group expansion failed: Japan=%t emptyHK=%t Claude=%t", jp, hk, claude)
+	if !jp || !jpAuto || hk || !claude {
+		t.Fatalf("regional/Claude group expansion failed: Japan=%t autoJapan=%t emptyHK=%t Claude=%t", jp, jpAuto, hk, claude)
 	}
 	// Removing access to the front must still remove its dependent chain. The
 	// generated DNS/AI selectors must remain loadable without becoming DIRECT.
