@@ -415,6 +415,32 @@
       }
     }
   },
+  "entryCategories": {
+    "label": "節點分類",
+    "manage": "管理分類",
+    "unclassified": "未分類",
+    "all": "全部分類",
+    "hint": "僅用於顯示，不改變存取權限、計費、標籤和訂閱順序。",
+    "managerHint": "每個訂閱節點可以選擇一個顯示分類。分類順序與節點順序獨立，不改變存取權限和計費。",
+    "empty": "尚無分類，現有節點維持未分類。",
+    "create": "建立分類",
+    "edit": "編輯分類",
+    "name": "分類名稱",
+    "description": "分類說明",
+    "deleteHint": "刪除「{{name}}」？其中的節點會保留，並移到未分類。",
+    "moveUp": "上移 {{name}}",
+    "moveDown": "下移 {{name}}",
+    "selected": "已選擇 {{count}} 個節點",
+    "assign": "設定分類",
+    "pick": "選擇分類",
+    "apply": "套用至所選節點",
+    "clearSelection": "取消選擇",
+    "selectVisible": "選擇目前顯示的節點",
+    "selectNode": "選擇 {{name}}",
+    "loadError": "節點分類載入失敗。",
+    "batchLimit": "每次最多選擇 10,000 個節點。",
+    "close": "關閉"
+  },
   "entries": {
     "title": "訂閱節點",
     "create": "新增節點",

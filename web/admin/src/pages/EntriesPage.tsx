@@ -1,4 +1,4 @@
-import { ActionIcon, Alert, Badge, Button, Card, Code, Group, Loader, Menu, Select, Stack, Table, Tabs, Text } from '@mantine/core'
+import { ActionIcon, Alert, Badge, Button, Card, Checkbox, Code, Group, Loader, Menu, Select, Stack, Table, Tabs, Text } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { IconChevronDown, IconGripVertical, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react'
@@ -8,7 +8,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom'
-import { api, type Entry, type Line, type Node } from '../lib/api'
+import { api, type Entry, type EntryCategory, type Line, type Node } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { type EntryNodeDetail, isSubscriberInbound } from '../lib/entry-flow'
 import { hostPort } from '../lib/ingress'
@@ -17,6 +17,8 @@ import { flag } from '../lib/regions'
 import { SettingsDraftBoundary } from '../lib/settings-draft'
 import { PageHeader } from '../components/PageHeader'
 import { EntryEditor } from '../components/EntryEditor'
+import { EntryCategoriesManager } from '../components/EntryCategoriesManager'
+import { matchesEntryCategory, visibleEntrySelection } from '../lib/entry-categories'
 import { LineEditor, LinesPanel } from '../components/LinesPanel'
 import { LinesConnections, ServerSelector } from '../components/LinesConnections'
 import { isServerSettingsSection } from '../lib/navigation'
@@ -53,6 +55,7 @@ function EntriesWorkspace() {
   const nodeFilter = params.get('node') ?? ''
   const serverID = Number(params.get('server')) || undefined
   const q = useQuery({ queryKey: ['entries'], queryFn: () => api.get<Entry[]>('/api/admin/entries') })
+  const categories = useQuery({ queryKey: ['entry-categories'], queryFn: () => api.get<EntryCategory[]>('/api/admin/entry-categories') })
   const tags = useQuery({ queryKey: ['entry-tags'], queryFn: () => api.get<string[]>('/api/admin/entries/tags') })
   const nodes = useQuery({ queryKey: ['nodes'], queryFn: () => api.get<Node[]>('/api/admin/nodes') })
   const detailQueries = useQueries({ queries: (nodes.data ?? []).map(n => ({ queryKey: ['node', String(n.id)], queryFn: () => api.get<EntryNodeDetail>(`/api/admin/nodes/${n.id}`) })) })
@@ -94,9 +97,17 @@ function EntriesWorkspace() {
   const [connectionRequest, setConnectionRequest] = useState(0)
   const connectionSerial = useRef(0)
   const [filter, setFilter] = useState<string | null>(null)
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
+  // A deleted category must not leave a phantom filter that hides every row.
+  const activeCategoryFilter = categoryFilter === '0' || categories.data?.some(category => String(category.ID) === categoryFilter) ? categoryFilter : null
+  const [selected, setSelected] = useState<number[]>([])
+  const [assignCategory, setAssignCategory] = useState<string | null>(null)
+  const [managingCategories, setManagingCategories] = useState(false)
+  const categoryOptions = [{ value: '0', label: t('entryCategories.unclassified') }, ...(categories.data ?? []).map(category => ({ value: String(category.ID), label: category.Name }))]
   const invalidate = () => { qc.invalidateQueries({ queryKey: ['entries'] }); qc.invalidateQueries({ queryKey: ['entry-tags'] }) }
   const del = useMutation({ mutationFn: (id: number) => api.del(`/api/admin/entries/${id}`), onSuccess: () => { toast.ok(t('common.deleted')); invalidate() }, onError: toast.err })
   const reorder = useMutation({ mutationFn: (ids: number[]) => api.put('/api/admin/entries/order', { IDs: ids }), onSuccess: invalidate, onError: (error: Error) => { toast.err(error); invalidate() } })
+  const assign = useMutation({ mutationFn: (IDs: number[]) => api.put('/api/admin/entries/category', { IDs, CategoryID: Number(assignCategory) }), onSuccess: () => { setSelected([]); setAssignCategory(null); invalidate(); toast.ok(t('common.saved')) }, onError: toast.err })
   const label = (id: number) => { const choice = inbounds.find(c => c.ib.ID === id); return choice ? `${choice.node.name} / ${choice.ib.Tag} (${choice.ib.Protocol}:${choice.ib.Port})` : `#${id}` }
   const managedType = (entry: Entry): 'wireguard' | 'reverse' | undefined => {
     if (entry.ManagedConnection) return entry.ManagedConnection.type
@@ -115,7 +126,7 @@ function EntriesWorkspace() {
   const [dragged, setDragged] = useState<{ base: Entry[] | undefined; rows: Entry[] } | null>(null)
   const rows = dragged && dragged.base === q.data ? dragged.rows : q.data ?? []
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }))
-  const draggable = canWrite && !filter && !nodeFilter && !reorder.isPending && !q.isError
+  const draggable = canWrite && !filter && !nodeFilter && !activeCategoryFilter && !reorder.isPending && !q.isError
   const onDragEnd = (event: DragEndEvent) => {
     if (!draggable || !event.over || event.active.id === event.over.id) return
     const from = rows.findIndex(row => row.ID === event.active.id), to = rows.findIndex(row => row.ID === event.over!.id)
@@ -123,7 +134,10 @@ function EntriesWorkspace() {
     const next = arrayMove(rows, from, to)
     setDragged({ base: q.data, rows: next }); reorder.mutate(next.map(row => row.ID))
   }
-  const visible = rows.filter(row => (!filter || row.Tags?.includes(filter)) && (!nodeFilter || inbounds.some(c => c.ib.ID === row.InboundID && String(c.ib.NodeID) === nodeFilter)))
+  const visible = rows.filter(row => matchesEntryCategory(row, activeCategoryFilter) && (!filter || row.Tags?.includes(filter)) && (!nodeFilter || inbounds.some(c => c.ib.ID === row.InboundID && String(c.ib.NodeID) === nodeFilter)))
+  const selectedVisible = visibleEntrySelection(selected, visible)
+  const selectedSet = new Set(selectedVisible)
+  const assignable = assignCategory !== null && categoryOptions.some(option => option.value === assignCategory)
   return <>
     <PageHeader title={t('entryFlow.title')} subtitle={t('entryFlow.subtitle')} actions={<Group gap="xs">
       {canWrite && <Button leftSection={<IconPlus size={16} />} onClick={() => createNode()} disabled={q.isLoading || q.isError || sourcesLoading}>{t('entryFlow.createNode')}</Button>}
@@ -141,8 +155,10 @@ function EntriesWorkspace() {
           <InboundsManager serverID={serverID} onServerChange={id => updateParams({ server: id ? String(id) : null, inbound: null })} canWrite={canWrite} editInboundID={params.get('inbound') === 'new' ? 'new' : Number(params.get('inbound')) || undefined} onEditorClose={() => updateParams({ inbound: null })} />
         </Stack> : <>
           <Group mb="md" align="flex-end">
-            <Select label={t('entryFlow.targetServer')} placeholder={t('entryFlow.allServers')} clearable searchable data={(nodes.data ?? []).map(n => ({ value: String(n.id), label: n.name }))} value={nodeFilter || null} onChange={value => updateParams({ node: value, inbound: null })} />
-            {(tags.data?.length ?? 0) > 0 && <Select label={t('entries.tags')} clearable placeholder={t('entries.filterTag')} data={tags.data ?? []} value={filter} onChange={setFilter} />}
+            <Select label={t('entryFlow.targetServer')} placeholder={t('entryFlow.allServers')} clearable searchable data={(nodes.data ?? []).map(n => ({ value: String(n.id), label: n.name }))} value={nodeFilter || null} onChange={value => { setSelected([]); updateParams({ node: value, inbound: null }) }} />
+            {(tags.data?.length ?? 0) > 0 && <Select label={t('entries.tags')} clearable placeholder={t('entries.filterTag')} data={tags.data ?? []} value={filter} onChange={value => { setSelected([]); setFilter(value) }} />}
+            <Select label={t('entryCategories.label')} placeholder={t('entryCategories.all')} clearable searchable data={categoryOptions} value={activeCategoryFilter} onChange={value => { setSelected([]); setCategoryFilter(value) }} disabled={categories.isLoading || categories.isError} />
+            {canWrite && <Button variant="light" onClick={() => { setSelected([]); setManagingCategories(true) }}>{t('entryCategories.manage')}</Button>}
             <Button variant="subtle" onClick={() => updateParams({ section: 'inbounds', server: nodeFilter || null, inbound: null })}>{t('entryFlow.manageInbounds')}</Button>
             {nodeFilter && <Button component={Link} variant="subtle" to={`/nodes/${nodeFilter}`}>{t('entryFlow.serverDetails')}</Button>}
           </Group>
@@ -151,12 +167,20 @@ function EntriesWorkspace() {
           {createRequest && !sourcesLoading && !requestedInbound && <Alert color="red" mb="md">{t('entryFlow.targetInbound')} #{requestedInboundID}: {t('entryFlow.loadError')}</Alert>}
           {q.isError && <Alert color="red" mb="md"><Text size="sm">{t('entryFlow.loadError')}</Text><Button variant="subtle" size="xs" onClick={() => q.refetch()}>{t('entryFlow.retry')}</Button></Alert>}
           {sourcesError && <Alert color="yellow" mb="md"><Text size="sm">{t('entryFlow.partialLoad')}</Text><Button variant="subtle" size="xs" onClick={reloadSources}>{t('entryFlow.retry')}</Button></Alert>}
+          {categories.isError && <Alert color="yellow" mb="md"><Text size="sm">{t('entryCategories.loadError')}</Text><Button variant="subtle" size="xs" onClick={() => categories.refetch()}>{t('entryFlow.retry')}</Button></Alert>}
+          {canWrite && selectedVisible.length > 0 && <Group mb="md" align="flex-end">
+            <Text size="sm" pb={6}>{t('entryCategories.selected', { count: selectedVisible.length })}</Text>
+            <Select label={t('entryCategories.assign')} placeholder={t('entryCategories.pick')} data={categoryOptions} searchable value={assignCategory} onChange={setAssignCategory} disabled={assign.isPending || categories.isLoading || categories.isError} />
+            <Button onClick={() => assign.mutate(selectedVisible)} loading={assign.isPending} disabled={!assignable || q.isError || categories.isLoading || categories.isError || selectedVisible.length > 10000}>{t('entryCategories.apply')}</Button>
+            <Button variant="subtle" disabled={assign.isPending} onClick={() => setSelected([])}>{t('entryCategories.clearSelection')}</Button>
+          </Group>}
+          {selectedVisible.length > 10000 && <Alert color="yellow" mb="md">{t('entryCategories.batchLimit')}</Alert>}
           <Card p={0}>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}><SortableContext items={visible.map(row => row.ID)} strategy={verticalListSortingStrategy}>
-              <Table.ScrollContainer minWidth={780}><Table verticalSpacing="sm">
-                <Table.Thead><Table.Tr><Table.Th w={32} /><Table.Th>{t('entries.name')}</Table.Th><Table.Th>{t('entryFlow.path')}</Table.Th><Table.Th>{t('entryFlow.publishedAddress')}</Table.Th><Table.Th>{t('entries.rate')}</Table.Th><Table.Th>{t('entries.enabled')}</Table.Th><Table.Th /></Table.Tr></Table.Thead>
-                <Table.Tbody>{visible.map(entry => <EntryRow key={entry.ID} entry={entry} inboundLabel={label(entry.InboundID)} inboundKnown={inbounds.some(c => c.ib.ID === entry.InboundID)} managed={managedType(entry)} lineName={lines.data?.find(line => line.id === entry.LineID)?.name} dialerName={q.data?.find(item => item.ID === entry.ClientDialerEntryID)?.Name} draggable={draggable} canWrite={canWrite && (!managedType(entry) || admin)} busy={del.isPending} onEdit={() => editEntry(entry)} onDelete={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text size="sm">{t('entryFlow.deleteHint')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => del.mutate(entry.ID) })} />)}
-                  {!q.isLoading && !q.isError && visible.length === 0 && <Table.Tr><Table.Td colSpan={7}><Text c="dimmed" ta="center" py="lg">{t('common.empty')}</Text></Table.Td></Table.Tr>}
+              <Table.ScrollContainer minWidth={940}><Table verticalSpacing="sm">
+                <Table.Thead><Table.Tr><Table.Th w={32} />{canWrite && <Table.Th w={36}><Checkbox aria-label={t('entryCategories.selectVisible')} checked={visible.length > 0 && selectedVisible.length === visible.length} indeterminate={selectedVisible.length > 0 && selectedVisible.length < visible.length} disabled={q.isLoading || q.isError || assign.isPending || !visible.length} onChange={event => setSelected(event.currentTarget.checked ? visible.map(entry => entry.ID) : [])} /></Table.Th>}<Table.Th>{t('entries.name')}</Table.Th><Table.Th>{t('entryCategories.label')}</Table.Th><Table.Th>{t('entryFlow.path')}</Table.Th><Table.Th>{t('entryFlow.publishedAddress')}</Table.Th><Table.Th>{t('entries.rate')}</Table.Th><Table.Th>{t('entries.enabled')}</Table.Th><Table.Th /></Table.Tr></Table.Thead>
+                <Table.Tbody>{visible.map(entry => <EntryRow key={entry.ID} entry={entry} categoryName={categories.data?.find(category => category.ID === entry.CategoryID)?.Name} categoryKnown={!categories.isLoading && !categories.isError} selectable={canWrite} selected={selectedSet.has(entry.ID)} onSelect={checked => setSelected(checked ? [...selectedVisible, entry.ID] : selectedVisible.filter(id => id !== entry.ID))} selectionBusy={assign.isPending || q.isError} inboundLabel={label(entry.InboundID)} inboundKnown={inbounds.some(c => c.ib.ID === entry.InboundID)} managed={managedType(entry)} lineName={lines.data?.find(line => line.id === entry.LineID)?.name} dialerName={q.data?.find(item => item.ID === entry.ClientDialerEntryID)?.Name} draggable={draggable} canWrite={canWrite && (!managedType(entry) || admin)} busy={del.isPending} onEdit={() => editEntry(entry)} onDelete={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text size="sm">{t('entryFlow.deleteHint')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => del.mutate(entry.ID) })} />)}
+                  {!q.isLoading && !q.isError && visible.length === 0 && <Table.Tr><Table.Td colSpan={canWrite ? 9 : 8}><Text c="dimmed" ta="center" py="lg">{t('common.empty')}</Text></Table.Td></Table.Tr>}
                 </Table.Tbody>
               </Table></Table.ScrollContainer>
             </SortableContext></DndContext>
@@ -175,19 +199,22 @@ function EntriesWorkspace() {
         </Stack>
       </Tabs.Panel>
     </Tabs>
-    {editing !== null && <SettingsDraftBoundary><EntryEditor key={editing === 'new' ? `new-${initialLineID ?? ''}` : editing.ID} entry={editing === 'new' ? undefined : editing} nodes={nodes.data ?? []} inbounds={inbounds} entries={q.data ?? []} lines={lines.data ?? []} tags={tags.data ?? []} initialInboundID={Number(params.get('inbound')) || undefined} initialLineID={initialLineID} initialServerID={Number(nodeFilter) || serverID} canManageLines={admin} loading={sourcesLoading || admin && lines.isLoading} loadError={sourcesError || admin && lines.isError} onReload={reloadSources} onClose={() => setEditing(null)} /></SettingsDraftBoundary>}
+    {editing !== null && <SettingsDraftBoundary><EntryEditor key={editing === 'new' ? `new-${initialLineID ?? ''}` : editing.ID} entry={editing === 'new' ? undefined : editing} nodes={nodes.data ?? []} inbounds={inbounds} entries={q.data ?? []} lines={lines.data ?? []} tags={tags.data ?? []} categories={categories.data ?? []} initialInboundID={Number(params.get('inbound')) || undefined} initialLineID={initialLineID} initialServerID={Number(nodeFilter) || serverID} canManageLines={admin} loading={sourcesLoading || categories.isLoading || categories.isError || admin && lines.isLoading} loadError={sourcesError || categories.isError || admin && lines.isError} onReload={() => { reloadSources(); categories.refetch() }} onClose={() => setEditing(null)} /></SettingsDraftBoundary>}
+    {managingCategories && <SettingsDraftBoundary><EntryCategoriesManager onClose={() => setManagingCategories(false)} /></SettingsDraftBoundary>}
     {editingLine !== null && <SettingsDraftBoundary><LineEditor key={editingLine === 'new' ? 'new' : editingLine.id} line={editingLine === 'new' ? undefined : editingLine} nodes={nodes.data ?? []} details={details} inbounds={inbounds} loading={sourcesLoading} loadError={sourcesError} onReload={reloadSources} onClose={() => setEditingLine(null)} /></SettingsDraftBoundary>}
   </>
 }
 
-function EntryRow({ entry, inboundLabel, inboundKnown, managed, lineName, dialerName, draggable, canWrite, busy, onEdit, onDelete }: {
-  entry: Entry; inboundLabel: string; inboundKnown: boolean; managed?: 'wireguard' | 'reverse'; lineName?: string; dialerName?: string; draggable: boolean; canWrite: boolean; busy: boolean; onEdit: () => void; onDelete: () => void
+function EntryRow({ entry, categoryName, categoryKnown, selectable, selected, onSelect, selectionBusy, inboundLabel, inboundKnown, managed, lineName, dialerName, draggable, canWrite, busy, onEdit, onDelete }: {
+  entry: Entry; categoryName?: string; categoryKnown: boolean; selectable: boolean; selected: boolean; onSelect: (checked: boolean) => void; selectionBusy: boolean; inboundLabel: string; inboundKnown: boolean; managed?: 'wireguard' | 'reverse'; lineName?: string; dialerName?: string; draggable: boolean; canWrite: boolean; busy: boolean; onEdit: () => void; onDelete: () => void
 }) {
   const { t } = useTranslation()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entry.ID, disabled: !draggable })
   return <Table.Tr ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1, position: 'relative', zIndex: isDragging ? 1 : undefined }}>
     <Table.Td><ActionIcon variant="subtle" color="gray" size="sm" disabled={!draggable} aria-label={t('entryFlow.reorder')} style={{ cursor: draggable ? 'grab' : 'default', touchAction: 'none' }} {...attributes} {...listeners}><IconGripVertical size={14} /></ActionIcon></Table.Td>
+    {selectable && <Table.Td><Checkbox aria-label={t('entryCategories.selectNode', { name: entry.Name })} checked={selected} onChange={event => onSelect(event.currentTarget.checked)} disabled={selectionBusy} /></Table.Td>}
     <Table.Td><Stack gap={4}><Text fw={600}>{entry.Region ? `${flag(entry.Region)} ` : ''}{entry.Name}</Text><Group gap={4}>{entry.Tags?.map(tag => <Badge key={tag} size="xs" variant="light" color="grape">{tag}</Badge>)}</Group></Stack></Table.Td>
+    <Table.Td><Text size="sm" c={categoryName ? undefined : 'dimmed'}>{categoryName ?? (entry.CategoryID ? `#${entry.CategoryID}` : categoryKnown ? t('entryCategories.unclassified') : '—')}</Text></Table.Td>
     <Table.Td><Stack gap={4}><Badge size="xs" variant="light" color={managed || entry.LineID ? 'indigo' : entry.ClientDialerEntryID ? 'grape' : 'gray'}>{managed ? t(`lines.sections.${managed}`) : entry.ClientDialerEntryID ? t('entryFlow.clientChain') : entry.LineID ? t('entryFlow.viaLine') : inboundKnown ? t('entryFlow.direct') : t('entryFlow.pathUnknown')}</Badge><Text size="xs">{entry.ClientDialerEntryID ? `${dialerName ?? `#${entry.ClientDialerEntryID}`} → ` : entry.LineID ? `${lineName ?? `#${entry.LineID}`} → ` : ''}{inboundLabel}</Text></Stack></Table.Td>
     <Table.Td><Code>{hostPort(entry.DisplayHost, entry.DisplayPort)}</Code></Table.Td><Table.Td>×{entry.Rate}</Table.Td>
     <Table.Td><Badge color={entry.Enabled ? 'teal' : 'gray'}>{t(entry.Enabled ? 'common.enabled' : 'common.disabled')}</Badge></Table.Td>
