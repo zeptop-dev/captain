@@ -1094,7 +1094,7 @@
     "supportDNSDirectOnly": "Surfboard は暗号化 DNS を直接送信するため、選択した DNS プロキシポリシーを適用できません。",
     "warningDNSStashVersion": "DNS 保護でプロキシサーバーのホスト名を個別に解決するには、Stash iOS/tvOS 3.6+ または macOS 4.3+ が必要です。",
     "supportedWithNotes": "対応 · クライアントの注意事項を確認",
-    "warningDNSSurgeIPProxies": "Surge の DNS 保護には IP アドレスのプロキシ接続先が必要です。DNS の直接接続へのフォールバックを防ぐため、ホスト名を使うノードはサブスクリプションから除外されます。",
+    "warningDNSSurgeIPProxies": "Surge の DNS 保護では、すべてのサブスクリプションノードに IP アドレスが必要です。DNS の直接接続へのフォールバックを防ぐため、ホスト名のノードが含まれるサブスクリプションは生成されません。",
     "warningDNSDomesticSuffix": ".cn ドメインのみ中国国内の DNS に直接問い合わせます。その他の中国国内ドメインは、選択したプロキシ経由の DNS を使用します。",
     "warningDNSEgernProxyDirect": "Egern の標準 DNS は選択したプロキシポリシーを使用します。独立したプロキシ DNS の経路は暗号化された直接接続のままで、ドメインごとの Forward 割り当てを経由しません。",
     "supportInvalidDesign": "設計の検証に失敗しました：{{detail}}",
@@ -1105,7 +1105,9 @@
     "supportHTTPTestURL": "Surfboard のヘルスチェック URL は HTTP のみ対応しています。",
     "warningNativeRulePriority": "Loon は標準のルール優先順位を使います。ドメインの一致が IP の一致より先、ローカルルールがリモートルールより先に評価されます。",
     "warningLoonRuleVersion": "UDP ポート制限には Loon 3.1.7 以降が必要です。",
-    "warningQXUDPTunnel": "Quantumult X の UDP ポート制限は、トンネルが取り込むトラフィックにのみ適用されます。"
+    "warningQXUDPTunnel": "Quantumult X の UDP ポート制限は、トンネルが取り込むトラフィックにのみ適用されます。",
+    "supportDNSLoonPolicy": "Loon の公開されているプロファイル設定では、選択した DNS プロキシポリシーの使用を保証できません。暗号化 DNS から平文 DNS へのフォールバックを無効にするには、アプリ内の設定も必要です。",
+    "supportDNSQXPolicy": "Quantumult X の公開されている DNS 設定では、ローカルの暗号化 DNS クエリを選択したプロキシポリシーに割り当てられません。プロキシ経由の接続先にはリモート名前解決が使われます。"
   },
   "forwards": {
     "backendRealm": "Realm（別プロセス）",

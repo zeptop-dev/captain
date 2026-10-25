@@ -91,6 +91,8 @@ function Designer() {
     quic_mihomo: t('subDesign.supportQUIC'),
     timeout_mihomo: t('subDesign.supportTimeout'),
     'dns-direct-only': t('subDesign.supportDNSDirectOnly'),
+    'dns-loon-policy-unverified': t('subDesign.supportDNSLoonPolicy'),
+    'dns-qx-policy-unavailable': t('subDesign.supportDNSQXPolicy'),
     invalid_design: detail => t('subDesign.supportInvalidDesign', { detail }),
     inline_rule_unsupported: detail => t('subDesign.supportInlineRule', { detail }),
     udp_rule_order_unsupported: t('subDesign.supportUDPRuleOrder'),
