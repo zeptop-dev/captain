@@ -1,16 +1,18 @@
-.map { position: relative; width: 100%; overflow: hidden; background: #090b0d; border-top: 1px solid #ffffff06; border-bottom: 1px solid #ffffff06; }
+.map { --map-bg: #090b0d; --map-grid: #dae4ee; --map-land: #333a3e; --map-outline: #929a9e; --map-accent: #cfe879; --map-marker: #e3f7a4; --map-muted: #9da99d; --map-label-bg: #0c1113; --map-label-line: #43534a; --map-label-text: #d5e7df; }
+:global(html[data-mantine-color-scheme='light']) .map { --map-bg: #edf1e7; --map-grid: #35462a; --map-land: #b2bea5; --map-outline: #52644b; --map-accent: #486c1d; --map-marker: #34541c; --map-muted: #536447; --map-label-bg: #f9fbf5; --map-label-line: #a2b595; --map-label-text: #33472b; }
+.map { position: relative; width: 100%; overflow: hidden; background: var(--map-bg); border-top: 1px solid #ffffff06; border-bottom: 1px solid #ffffff06; }
 .map svg { display: block; width: 100%; height: 100%; aspect-ratio: 1150 / 320; }
-.ring { fill: none; stroke: #cfe879; stroke-width: .7; transform-origin: center; transform-box: fill-box; animation: ripple 3.4s ease-out infinite; }
+.ring { fill: none; stroke: var(--map-accent); stroke-width: .7; transform-origin: center; transform-box: fill-box; animation: ripple 3.4s ease-out infinite; }
 .arc { animation: flow 12s linear infinite; }
 .location { outline: none; cursor: default; }
-.location:focus-visible > circle { stroke: #fff; stroke-width: 1.5; }
+.location:focus-visible > circle { stroke: var(--map-marker); stroke-width: 1.5; }
 .label { opacity: 0; pointer-events: none; transition: opacity .15s; }
 .location:hover .label, .location:focus .label { opacity: 1; }
-.legend { position: absolute; left: 20px; top: 20px; display: flex; align-items: center; gap: 7px; font: 10px/1.4 ui-monospace, monospace; color: #66746e; }
-.legend i { width: 4px; height: 4px; border-radius: 50%; background: #cfe879; }
-.control { position: absolute; right: 17px; top: 15px; padding: 5px 8px; border: 1px solid #ffffff0d; border-radius: 4px; color: #77827c; background: #090b0dbf; cursor: pointer; font: 10px/1.4 ui-monospace, monospace; }
-.control:hover { color: #d9eee2; }
-.control:focus-visible { outline: 2px solid #b0e7c9; outline-offset: 2px; }
+.legend { position: absolute; left: 20px; top: 20px; display: flex; align-items: center; gap: 7px; font: 10px/1.4 ui-monospace, monospace; color: var(--map-muted); }
+.legend i { width: 4px; height: 4px; border-radius: 50%; background: var(--map-accent); }
+.control { position: absolute; right: 17px; top: 15px; padding: 5px 8px; border: 1px solid var(--map-label-line); border-radius: 4px; color: var(--map-muted); background: var(--map-bg); cursor: pointer; font: 10px/1.4 ui-monospace, monospace; }
+.control:hover { color: var(--map-label-text); }
+.control:focus-visible { outline: 2px solid var(--map-accent); outline-offset: 2px; }
 .map[data-paused='true'] .ring, .map[data-paused='true'] .arc { animation-play-state: paused; }
 @keyframes ripple { 0% { transform: scale(.3); opacity: .7; } 90%, 100% { transform: scale(1.3); opacity: 0; } }
 @keyframes flow { to { stroke-dashoffset: -70; } }

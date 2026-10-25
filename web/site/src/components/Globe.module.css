@@ -6,4 +6,8 @@
 .control:focus-visible { outline: 2px solid #a4e5c5; outline-offset: 3px; }
 .fallback { position: absolute; inset: 15%; display: grid; place-items: center; border: 1px solid #ccd4e117; border-radius: 50%; color: #939ba6; font-size: 12px; background: radial-gradient(circle at 35% 30%, #171b20, #090b0e 72%); }
 .srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+:global(html[data-mantine-color-scheme='light']) .control { background: #f5f8f0ed; border-color: #b8c3b1; color: #52624a; }
+:global(html[data-mantine-color-scheme='light']) .control:hover { color: #263822; border-color: #7c8d71; }
+:global(html[data-mantine-color-scheme='light']) .control:focus-visible { outline-color: #4c6d16; }
+:global(html[data-mantine-color-scheme='light']) .fallback { background: radial-gradient(circle at 35% 30%, #f7f9f2, #d9e1d0 72%); color: #52624a; border-color: #b8c3b1; }
 @media (prefers-reduced-motion: reduce) { .control { display: none; } }
