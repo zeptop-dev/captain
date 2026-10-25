@@ -25,7 +25,7 @@ body { margin: 0; background: var(--site-bg); color: var(--site-text); }
 *, *::before, *::after { box-sizing: border-box; }
 .site-shell { min-height: 100vh; background: var(--site-bg); color: var(--site-text); font-family: var(--mantine-font-family, var(--site-font)); font-size: 15px; font-weight: 400; line-height: 1.65; }
 .site-shell a { text-decoration: none; color: inherit; }
-.site-shell button, .site-shell input { font: inherit; }
+:where(.site-shell button, .site-shell input) { font: inherit; }
 .site-shell button { -webkit-tap-highlight-color: transparent; }
 .site-shell :focus-visible { outline: 2px solid var(--site-accent); outline-offset: 5px; }
 .site-container { width: min(1150px, calc(100% - 48px)); margin-inline: auto; }
