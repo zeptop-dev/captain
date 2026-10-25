@@ -121,6 +121,9 @@ func TestServiceStatusPublicationAndPortalIsolation(t *testing.T) {
 	if after := call(customer, "GET", "/sub/"+u.SubToken+"?client=clash", nil, 200); !bytes.Equal(before, after) {
 		t.Fatal("service status changed subscription")
 	}
+	// Deletion invalidates any draft that may have selected the retired identity.
+	call(p.admin, "PUT", "/api/admin/settings/service-status", cfg, 409)
+	cfg = mustJSON[store.ServiceStatusConfig](t, call(p.admin, "GET", "/api/admin/settings/service-status", nil, 200))
 	cfg.PublicEnabled = false
 	call(p.admin, "PUT", "/api/admin/settings/service-status", cfg, 200)
 	call(visitor, "GET", "/api/site/service-status", nil, 404)
