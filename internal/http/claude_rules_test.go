@@ -82,6 +82,43 @@ func TestClaudePublicationAPITracksEachSelectedFormat(t *testing.T) {
 	}
 }
 
+func TestClaudePublicationAPIKeepsClientRevisionsIndependent(t *testing.T) {
+	_, c, _, _ := newSubDesignRig(t, Options{})
+	d, _ := subdesign.Preset("basic")
+	d.Enhancements.Claude = true
+	// The real HTTP publication path must render all seven clients, including
+	// the legacy request that omits formats. No metadata can precede rendering.
+	if status, body, _ := c.do("POST", "/api/admin/settings/sub-design/apply", map[string]any{"design": d}, nil); status != 200 {
+		t.Fatalf("all-client Claude apply: %d %s", status, body)
+	}
+	before := getClaudeState(t, c)
+	for _, format := range subdesign.Formats {
+		applied := before.AppliedFormats[format]
+		if applied.Status != "applied" || applied.Snapshot == nil || applied.Snapshot.Revision != "captain-v1" {
+			t.Fatal("missing rendered builtin version", format, applied)
+		}
+	}
+	d.Enhancements.ClaudeRules = &subdesign.ClaudeRuleSnapshot{Source: "v2fly", Revision: strings.Repeat("d", 40), Rules: []subdesign.ClaudeRule{{Type: "full", Value: "exact.example.com"}}}
+	selected := []string{"stash", "surge", "qx"}
+	if status, body, _ := c.do("POST", "/api/admin/settings/sub-design/apply", map[string]any{"design": d, "formats": selected}, nil); status != 200 {
+		t.Fatalf("selected-client Claude apply: %d %s", status, body)
+	}
+	after := getClaudeState(t, c)
+	for _, format := range selected {
+		if after.AppliedFormats[format].Status != "applied" || !reflect.DeepEqual(after.AppliedFormats[format].Snapshot, d.Enhancements.ClaudeRules) {
+			t.Fatal("selected revision not applied", format, after)
+		}
+	}
+	for _, format := range []string{"clash", "surfboard", "loon", "egern"} {
+		if !reflect.DeepEqual(after.AppliedFormats[format], before.AppliedFormats[format]) {
+			t.Fatal("partial apply advanced another client", format, after)
+		}
+	}
+	if !reflect.DeepEqual(after.Applied, before.Applied) {
+		t.Fatal("partial apply changed legacy clash state")
+	}
+}
+
 func getClaudeState(t *testing.T, c *client) claudeStateResponse {
 	t.Helper()
 	status, body, _ := c.do("GET", claudeRulesPath, nil, nil)
