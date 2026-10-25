@@ -162,6 +162,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	s.dnsHealth = &service.DNSHealth{Store: st, Probe: s.probeSvc, Log: log}
 	s.state = &service.AgentState{Store: st, PullSeconds: cfg.Agent.PullSeconds, PushSeconds: cfg.Agent.PushSeconds, EnforceDevices: cfg.EnforceDevices(), Probe: s.probeSvc}
 	s.nodeAddresses = &service.NodeAddresses{Health: s.dnsHealth, Store: st, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, State: s.state, Log: log}
+	serviceStatus := &service.ServiceStatusCatalog{Store: st, Runtime: service.NewServiceStatus(st, s.state), Subscription: subSvc}
 
 	resolve := func(r *http.Request) *domain.User {
 		c, err := r.Cookie("captain_session")
@@ -195,7 +196,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	s.certs = &service.Certs{Store: st, Issuer: certIssuer, Log: log, Notify: notifier}
 	s.probe = probe.Register(s.mux, probe.Deps{Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe(), GlassPage: web.ProbeGlass()})
 	dyn := &service.DynLimit{Store: st, State: s.state, Notify: notifier, Hooks: s.hooks, Log: log, PushSeconds: cfg.Agent.PushSeconds}
-	admin.Register(s.mux, admin.Deps{ClaudeRules: claudeFetcher, SubPresets: presetFetcher, NodeRegions: s.nodeRegions, Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, DNSHealth: s.dnsHealth, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external, Allow: allow, Heartbeat: s.heartbeat,
+	admin.Register(s.mux, admin.Deps{ServiceStatus: serviceStatus, ClaudeRules: claudeFetcher, SubPresets: presetFetcher, NodeRegions: s.nodeRegions, Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, DNSHealth: s.dnsHealth, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external, Allow: allow, Heartbeat: s.heartbeat,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version, MinVersion: captainUpdateFloor(cfg.MinVersion)},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 		Registration:  cfg.Portal.Registration,
@@ -217,8 +218,12 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	}
 	siteHandler := web.Site(filepath.Join(cfg.DataDir, "site"))
 	s.mux.Handle("GET /{$}", siteHandler)
-	s.mux.Handle("GET /assets/", siteHandler)
-	site.Register(s.mux, site.Deps{Store: st, SiteName: cfg.SiteName, Registration: cfg.Portal.Registration, ProbeURL: func(r *http.Request) string {
+	s.mux.Handle("GET /assets/", web.SiteAssets(siteHandler))
+	// A separate service page keeps existing server-monitoring paths unchanged.
+	// Use the built-in page even when the operator supplies a custom homepage.
+	s.mux.Handle("GET /service-status", web.Site(""))
+	s.mux.Handle("GET /service-status/{$}", web.Site(""))
+	site.Register(s.mux, site.Deps{ServiceStatus: serviceStatus, Store: st, SiteName: cfg.SiteName, Registration: cfg.Portal.Registration, ProbeURL: func(r *http.Request) string {
 		ps := s.probeSvc.Settings(r.Context())
 		if !ps.PageOn() || ps.Visibility == "admins" {
 			return ""
@@ -244,7 +249,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 			}
 			return u
 		}})
-	portal.Register(s.mux, portal.Deps{Store: st, Log: log, Sessions: sessions, Orders: orders, Subscription: subSvc, BaseURL: base, Gateways: names, Registration: cfg.Portal.Registration, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot})
+	portal.Register(s.mux, portal.Deps{ServiceStatus: serviceStatus, Store: st, Log: log, Sessions: sessions, Orders: orders, Subscription: subSvc, BaseURL: base, Gateways: names, Registration: cfg.Portal.Registration, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot})
 	paymenthttp.Register(s.mux, paymenthttp.Deps{Log: log, Orders: orders, ReturnTo: base + "/portal/orders", Gateways: gateways, Store: st})
 	sub.Register(s.mux, sub.Deps{Store: st, Log: log, Service: subSvc, Name: cfg.SiteName, BaseURL: base})
 	agent.Register(s.mux, agent.Deps{Addresses: s.nodeAddresses, Pairs: ratelimit.New(),

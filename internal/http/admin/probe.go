@@ -24,6 +24,8 @@ func (h *handlers) getProbe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) putProbe(w http.ResponseWriter, r *http.Request) {
+	h.Store.Topology.Lock()
+	defer h.Store.Topology.Unlock()
 	var v store.ProbeSettings
 	if !readJSON(w, r, &v) {
 		return
@@ -115,6 +117,17 @@ func (h *handlers) putProbe(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	v.Normalize()
+	if v.PageOn() && v.Path == store.ServiceStatusPath {
+		statusConfig, err := h.Store.ServiceStatusConfig(r.Context())
+		if err != nil {
+			serverErr(w, err)
+			return
+		}
+		if statusConfig.PublicEnabled {
+			fail(w, 409, store.ErrServiceStatusPathConflict.Error())
+			return
+		}
+	}
 	if err := h.Store.SetSetting(r.Context(), store.SettingProbe, v); err != nil {
 		serverErr(w, err)
 		return

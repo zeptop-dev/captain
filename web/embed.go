@@ -55,6 +55,23 @@ func Site(overrideDir string) http.Handler {
 	})
 }
 
+// SiteAssets keeps the built-in service page usable alongside an operator's
+// custom homepage. Only exact embedded, content-hashed asset names take this
+// path; other assets retain the existing custom-site behavior.
+func SiteAssets(fallback http.Handler) http.Handler {
+	builtin := spa(siteFS, "site/dist", "/", "site")
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := strings.TrimPrefix(r.URL.Path, "/")
+		if strings.HasPrefix(name, "assets/") && fs.ValidPath(name) {
+			if st, err := fs.Stat(siteFS, "site/dist/"+name); err == nil && !st.IsDir() {
+				builtin.ServeHTTP(w, r)
+				return
+			}
+		}
+		fallback.ServeHTTP(w, r)
+	})
+}
+
 // Admin serves the admin SPA under prefix (e.g. "/admin/").
 func Admin(prefix string) http.Handler { return spa(adminFS, "admin/dist", prefix, "admin console") }
 

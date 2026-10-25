@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/zeptop-dev/captain/internal/service"
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
@@ -75,9 +76,10 @@ const SettingSite = "site"
 
 // Deps wires the handler.
 type Deps struct {
-	Store        *store.Store
-	SiteName     string // config site_name, the default for Settings.Name
-	Registration bool
+	ServiceStatus *service.ServiceStatusCatalog
+	Store         *store.Store
+	SiteName      string // config site_name, the default for Settings.Name
+	Registration  bool
 	// ProbeURL returns the public status page link ("" when off/private).
 	ProbeURL func(r *http.Request) string
 }
@@ -103,6 +105,7 @@ func Defaults(name string) Settings {
 
 // Register mounts GET /api/site.
 func Register(mux *http.ServeMux, d Deps) {
+	registerServiceStatus(mux, d)
 	mux.HandleFunc("GET /api/site", func(w http.ResponseWriter, r *http.Request) {
 		var reg store.RegistrationSettings
 		if err := d.Store.GetSetting(r.Context(), store.SettingRegistration, &reg); err != nil {
@@ -123,8 +126,18 @@ func Register(mux *http.ServeMux, d Deps) {
 		if s.FAQ == nil {
 			s.FAQ = []FAQ{}
 		}
+		statusConfig, err := d.Store.ServiceStatusConfig(r.Context())
+		if err != nil {
+			http.Error(w, "site settings unavailable", 500)
+			return
+		}
+		statusURL := ""
+		if statusConfig.PublicEnabled {
+			statusURL = store.ServiceStatusPath
+		}
 		out := map[string]any{
-			"name": s.Name, "tagline": s.Tagline, "description": s.Description, "features": s.Features, "locations": s.Locations,
+			"service_status_url": statusURL,
+			"name":               s.Name, "tagline": s.Tagline, "description": s.Description, "features": s.Features, "locations": s.Locations,
 			"hub": s.Hub, "faq": s.FAQ, "links": s.Links, "show_plans": s.ShowPlans, "registration": reg.PasswordOpen(d.Registration), "probe_url": probeURL(d, r),
 			"stats": stats(r.Context(), d.Store, len(s.Locations)),
 		}

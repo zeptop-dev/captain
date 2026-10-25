@@ -42,6 +42,7 @@ type SessionStore interface {
 
 // Deps are the handlers' dependencies.
 type Deps struct {
+	ServiceStatus *service.ServiceStatusCatalog
 	// ClaudeRules fetches only the fixed community Anthropic rule source.
 	ClaudeRules interface {
 		Fetch(context.Context) (clauderules.Snapshot, error)
@@ -150,6 +151,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("GET /api/admin/nodes/{id}/network-diagnostics", h.requireAdmin(h.networkDiagnostics))
 	mux.HandleFunc("POST /api/admin/nodes/upgrade-all", h.requireAdmin(h.upgradeAllNodes))
 	h.registerPasskeys(mux)
+	h.registerServiceStatus(mux)
 	h.registerUserManagement(mux)
 	h.registerWireGuardDevices(mux)
 	h.registerOps(mux)

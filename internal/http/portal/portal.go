@@ -31,21 +31,22 @@ import (
 
 // Deps are the handlers' dependencies.
 type Deps struct {
-	Store        *store.Store
-	Log          *slog.Logger
-	Sessions     admin.SessionStore
-	Orders       *service.Orders
-	Subscription *service.Subscription
-	BaseURL      string
-	Gateways     []string // names offered to users, e.g. epay, stripe, balance
-	Registration bool
-	Logins       *ratelimit.Limiter // throttles failed sign-ins; nil disables
-	SubLinks     *service.SubLinks  // subscription URL builder
-	Mail         *mail.Loader       // nil = mail off
-	SiteName     string
-	Secure       bool             // HTTPS-only session cookies
-	Notify       *notify.Notifier // nil = no notifications
-	Bot          *telegram.Bot    // nil = no Telegram
+	ServiceStatus *service.ServiceStatusCatalog
+	Store         *store.Store
+	Log           *slog.Logger
+	Sessions      admin.SessionStore
+	Orders        *service.Orders
+	Subscription  *service.Subscription
+	BaseURL       string
+	Gateways      []string // names offered to users, e.g. epay, stripe, balance
+	Registration  bool
+	Logins        *ratelimit.Limiter // throttles failed sign-ins; nil disables
+	SubLinks      *service.SubLinks  // subscription URL builder
+	Mail          *mail.Loader       // nil = mail off
+	SiteName      string
+	Secure        bool             // HTTPS-only session cookies
+	Notify        *notify.Notifier // nil = no notifications
+	Bot           *telegram.Bot    // nil = no Telegram
 }
 
 const cookieName = "captain_session"
@@ -76,6 +77,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("DELETE /api/portal/me/hwid-devices/{hwid}", h.requireUser(h.deleteHwidDevice))
 	mux.HandleFunc("GET /api/portal/plans", h.plans)
 	mux.HandleFunc("GET /api/portal/servers", h.requireUser(h.servers))
+	mux.HandleFunc("GET /api/portal/service-status", h.requireUser(h.serviceStatus))
 	mux.HandleFunc("GET /api/portal/orders", h.requireUser(h.orders))
 	mux.HandleFunc("POST /api/portal/orders", h.requireUser(h.createOrder))
 	mux.HandleFunc("POST /api/portal/orders/quote", h.requireUser(h.quote))

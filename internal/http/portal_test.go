@@ -141,6 +141,7 @@ var portalUserRoutes = []struct {
 	{"DELETE", "/api/portal/me/hwid-devices/dev-1", nil},
 	{"PUT", "/api/portal/me/lang", map[string]string{"lang": "en"}},
 	{"GET", "/api/portal/servers", nil},
+	{"GET", "/api/portal/service-status", nil},
 	{"GET", "/api/portal/orders", nil},
 	{"POST", "/api/portal/orders", map[string]any{"plan_id": 1, "gateway": "balance"}},
 	{"POST", "/api/portal/orders/quote", map[string]any{"plan_id": 1}},
