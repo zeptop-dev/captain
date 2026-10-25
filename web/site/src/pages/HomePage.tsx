@@ -54,13 +54,13 @@ function ConnectionFigure() {
       <path d="M98 140h90m134 0h108M265 52v35m0 106v35" stroke="currentColor" strokeOpacity=".2" strokeDasharray="3 6" />
       <circle cx="265" cy="140" r="82" stroke="currentColor" strokeOpacity=".12" />
       <circle cx="265" cy="140" r="66" stroke="currentColor" strokeOpacity=".32" />
-      <circle cx="265" cy="140" r="49" fill="#e0e6d5" stroke="#a5b18f" />
-      <path d="m265 116 21 12v24l-21 12-21-12v-24l21-12Zm0 0v48m-21-36 21 12 21-12" stroke="#6f8056" strokeWidth="1.2" />
+      <circle cx="265" cy="140" r="49" className={styles.connectionCenter} />
+      <path d="m265 116 21 12v24l-21 12-21-12v-24l21-12Zm0 0v48m-21-36 21 12 21-12" className={styles.svgAccent} strokeWidth="1.2" />
       <rect x="25" y="114" width="73" height="48" rx="4" stroke="currentColor" strokeOpacity=".5" /><path d="M39 172h45m-22-10v10" stroke="currentColor" strokeOpacity=".5" />
       <rect x="430" y="109" width="74" height="59" rx="5" stroke="currentColor" strokeOpacity=".5" /><path d="M430 129h74m-74 20h74" stroke="currentColor" strokeOpacity=".3" />
-      <circle cx="442" cy="119" r="2" fill="#6f8056" /><circle cx="442" cy="139" r="2" fill="#6f8056" /><circle cx="442" cy="159" r="2" fill="#6f8056" />
-      <path d="m180 136 6 4-6 4m242-8 6 4-6 4" stroke="#6f8056" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="265" cy="45" r="5" fill="#6f8056" /><circle cx="265" cy="235" r="5" stroke="#6f8056" />
+      <circle cx="442" cy="119" r="2" className={styles.svgAccentFill} /><circle cx="442" cy="139" r="2" className={styles.svgAccentFill} /><circle cx="442" cy="159" r="2" className={styles.svgAccentFill} />
+      <path d="m180 136 6 4-6 4m242-8 6 4-6 4" className={styles.svgAccent} strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="265" cy="45" r="5" className={styles.svgAccentFill} /><circle cx="265" cy="235" r="5" className={styles.svgAccent} />
       <text x="61" y="199" textAnchor="middle">你的客户端</text><text x="265" y="264" textAnchor="middle">订阅中的节点</text><text x="467" y="199" textAnchor="middle">目标服务</text>
     </svg>
     <p>连接流程示意，不代表具体节点的实际线路拓扑。</p>

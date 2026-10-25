@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { resolveSiteAppearance, siteColorSchemeManager } from '../src/appearance.ts'
+import { resolveSiteAppearance, effectiveSiteScheme, parseSitePreference, readSitePreference, siteSchemeStorageKey } from '../src/appearance.ts'
 import { globePalette } from '../src/components/geography-theme.ts'
 
 test('landing appearance follows its own setting, independently of the portal', () => {
@@ -14,20 +14,37 @@ test('landing appearance follows its own setting, independently of the portal', 
   assert.equal(resolveSiteAppearance({ primary: 'not-a-palette', radius: 'invalid' }).radius, undefined)
 })
 
-test('public auto mode ignores persisted choices and never changes portal preferences', () => {
-  const old = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
-  Object.defineProperty(globalThis, 'localStorage', { configurable: true, get() { throw new Error('Public appearance must not access visitor theme storage') } })
-  try {
-    const manager = siteColorSchemeManager('auto')
-    assert.equal(manager.get(), 'auto')
-    manager.set('dark')
-    manager.clear()
-    assert.equal(manager.get(), 'auto')
-    assert.equal(siteColorSchemeManager('light').get(), 'light')
-  } finally {
-    if (old) Object.defineProperty(globalThis, 'localStorage', old)
-    else delete globalThis.localStorage
+test('visitor choices override operator defaults and auto follows the system', () => {
+  for (const configured of ['light', 'dark', 'auto']) {
+    for (const systemDark of [false, true]) {
+      for (const preference of [null, 'light', 'dark', 'auto']) {
+        const selected = preference ?? configured
+        assert.deepEqual(effectiveSiteScheme(preference, configured, systemDark), {
+          selected, computed: selected === 'auto' ? (systemDark ? 'dark' : 'light') : selected,
+        })
+      }
+    }
   }
+  // Late operator data cannot replace a visitor's explicit current-page choice.
+  assert.deepEqual(effectiveSiteScheme('light', 'dark', true), effectiveSiteScheme('light', 'auto', true))
+})
+
+test('only the public-site key is read; blocked, absent and invalid storage use the operator default', () => {
+  const values = new Map([['mantine-color-scheme-value', 'light'], ['themeMode', 'light']])
+  const storage = { getItem(key) { assert.equal(key, siteSchemeStorageKey); return values.get(key) ?? null } }
+  assert.equal(readSitePreference(storage), null)
+  for (const preference of ['auto', 'dark', 'light']) {
+    values.set(siteSchemeStorageKey, preference)
+    assert.equal(readSitePreference(storage), preference)
+  }
+  for (const invalid of ['', 'system', 'null', '"dark"']) {
+    values.set(siteSchemeStorageKey, invalid)
+    assert.equal(readSitePreference(storage), null)
+  }
+  assert.equal(readSitePreference({ getItem() { throw new Error('blocked') } }), null)
+  assert.equal(parseSitePreference(null), null)
+  assert.equal(values.get('mantine-color-scheme-value'), 'light')
+  assert.equal(values.get('themeMode'), 'light')
 })
 
 test('globe labels and markers retain contrast on both ocean palettes', () => {
