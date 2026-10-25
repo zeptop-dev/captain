@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { IconArrowUp, IconArrowUpRight, IconChevronDown, IconMenu2, IconX } from '@tabler/icons-react'
 import type { Site } from '../lib/site'
+import { SiteThemeSelector } from './SiteThemeSelector'
 
 type Link = { label: string; href: string }
 type LinkGroup = { label: string; links: Link[] }
@@ -57,6 +58,7 @@ export function SiteLayout({ site, children }: { site?: Site; children: ReactNod
     <header className="site-header" ref={header}>
       <div className="site-container site-header-inner">
         <Brand name={name} />
+        <div className="site-header-controls">
         <button type="button" className="site-menu-toggle" aria-label={mobile ? '关闭导航' : '打开导航'} aria-expanded={mobile} aria-controls="site-navigation" onClick={() => setMobile(!mobile)}>{mobile ? <IconX size={21} /> : <IconMenu2 size={21} />}</button>
         <nav id="site-navigation" className={`site-navigation${mobile ? ' is-open' : ''}`} aria-label="主导航">
           {groups.map(group => <div className="site-nav-group" key={group.label}>
@@ -65,6 +67,8 @@ export function SiteLayout({ site, children }: { site?: Site; children: ReactNod
           </div>)}
           <a className="site-account-link" href="/portal/">用户中心</a>
         </nav>
+        <SiteThemeSelector />
+        </div>
       </div>
     </header>
     <main id="site-content">{children}</main>

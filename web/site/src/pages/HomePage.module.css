@@ -67,17 +67,15 @@
 .orbitInner::after { top: 138px; left: auto; right: 11px; width: 4px; height: 4px; }
 .featureSymbol { width: 116px; height: 116px; display: grid; place-items: center; color: var(--site-accent); border: 1px solid color-mix(in srgb, var(--site-accent) 28%, transparent); border-radius: 22px; background: color-mix(in srgb, var(--site-accent) 3%, var(--site-bg)); }
 .featureCaption { position: absolute; bottom: 0; font: 9px var(--site-mono); letter-spacing: .14em; color: var(--site-muted); }
-.backbone { background: #eeefeb; color: #242820; border-color: #d1d4ca; }
-.backbone .sectionLabel { color: #6e7369; }
-.backbone .sectionLabel span:first-child { color: #647a3b; }
-.backbone p { color: #6e7369; }
+.backbone { background: var(--site-panel); color: var(--site-text); }
 .connectionGrid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 95px; align-items: center; margin-top: 43px; }
-.steps > div { display: flex; align-items: flex-start; gap: 25px; border-top: 1px solid #d1d4ca; padding-block: 20px; }
-.steps > div > span { font: 10px var(--site-mono); padding-top: 7px; color: #6e7369; }
+.steps > div { display: flex; align-items: flex-start; gap: 25px; border-top: 1px solid var(--site-line); padding-block: 20px; }
+.steps > div > span { font: 10px var(--site-mono); padding-top: 7px; color: var(--site-muted); }
 .steps h3 { font-size: 16px; }
 .steps p { font-size: 12px; margin-top: 6px; }
 .connectionFigure svg { width: 100%; display: block; }
-.connectionFigure text { fill: #6e7369; font-size: 10px; font-family: inherit; }
+.connectionFigure text { fill: var(--site-muted); font-size: 10px; font-family: inherit; }
+.connectionCenter { fill: color-mix(in srgb, var(--site-accent) 10%, var(--site-panel)); stroke: color-mix(in srgb, var(--site-accent) 45%, var(--site-panel)); }
 .connectionFigure p { text-align: center; font-size: 10px; margin-top: 16px; }
 .signal { background: color-mix(in srgb, var(--site-panel) 55%, var(--site-bg)); }
 .signalGrid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 95px; align-items: center; }

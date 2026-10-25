@@ -189,7 +189,12 @@ injected before `</head>` and `</body>` on every portal and landing page
 (analytics, chat widgets). The console keeps its own look.
 
 The built-in homepage and public service-status page share the landing-page
-theme. Their geographic visuals are rendered locally from configured locations;
+theme. Visitors can select Auto, Dark or Light in the top-right header. Auto
+follows the device system; without a saved visitor choice, the configured site
+scheme remains the default. The preference is saved per origin, independently
+of portal/admin and server-probe preferences, and applies to both public pages.
+The connection section and illustrations follow the selected theme.
+Their geographic visuals are rendered locally from configured locations;
 markers and illustrative connections are not live health or traffic. Operator
 features, FAQ, registration policy, downloads and published plan data remain
 the content source. Custom homepage files continue using their own appearance.
