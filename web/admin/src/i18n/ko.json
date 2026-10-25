@@ -415,6 +415,32 @@
       }
     }
   },
+  "entryCategories": {
+    "label": "노드 분류",
+    "manage": "분류 관리",
+    "unclassified": "미분류",
+    "all": "모든 분류",
+    "hint": "표시용입니다. 접근 권한, 과금, 태그 및 구독 순서는 변경하지 않습니다.",
+    "managerHint": "각 구독 노드에 표시 분류를 하나 지정할 수 있습니다. 분류 순서는 노드 순서와 별개이며 접근 권한이나 과금에 영향을 주지 않습니다.",
+    "empty": "아직 분류가 없습니다. 기존 노드는 미분류로 유지됩니다.",
+    "create": "분류 만들기",
+    "edit": "분류 수정",
+    "name": "분류 이름",
+    "description": "설명",
+    "deleteHint": "“{{name}}”을(를) 삭제할까요? 노드는 유지되며 미분류로 이동합니다.",
+    "moveUp": "{{name}} 위로 이동",
+    "moveDown": "{{name}} 아래로 이동",
+    "selected": "노드 {{count}}개 선택됨",
+    "assign": "분류 지정",
+    "pick": "분류 선택",
+    "apply": "선택한 노드에 적용",
+    "clearSelection": "선택 해제",
+    "selectVisible": "현재 표시된 노드 선택",
+    "selectNode": "{{name}} 선택",
+    "loadError": "노드 분류를 불러오지 못했습니다.",
+    "batchLimit": "한 번에 최대 10,000개 노드를 선택할 수 있습니다.",
+    "close": "닫기"
+  },
   "entries": {
     "title": "구독 노드",
     "create": "노드 추가",

@@ -415,6 +415,32 @@
       }
     }
   },
+  "entryCategories": {
+    "label": "节点分类",
+    "manage": "管理分类",
+    "unclassified": "未分类",
+    "all": "全部分类",
+    "hint": "仅用于展示，不改变访问权限、计费、标签和订阅顺序。",
+    "managerHint": "每个订阅节点可以选择一个展示分类。分类顺序与节点顺序独立，不改变访问权限和计费。",
+    "empty": "还没有分类，现有节点保持未分类。",
+    "create": "创建分类",
+    "edit": "编辑分类",
+    "name": "分类名称",
+    "description": "分类说明",
+    "deleteHint": "删除“{{name}}”？其中的节点会保留，并移到未分类。",
+    "moveUp": "上移 {{name}}",
+    "moveDown": "下移 {{name}}",
+    "selected": "已选择 {{count}} 个节点",
+    "assign": "设置分类",
+    "pick": "选择分类",
+    "apply": "应用到所选节点",
+    "clearSelection": "取消选择",
+    "selectVisible": "选择当前显示的节点",
+    "selectNode": "选择 {{name}}",
+    "loadError": "节点分类加载失败。",
+    "batchLimit": "每次最多选择 10,000 个节点。",
+    "close": "关闭"
+  },
   "entries": {
     "title": "订阅节点",
     "create": "添加节点",
