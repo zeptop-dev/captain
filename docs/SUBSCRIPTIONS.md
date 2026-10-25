@@ -81,9 +81,10 @@ The current enhancement options are:
   never groups already present in the base design. Matching uses final visible
   node names. A generated dynamic group with no matching nodes rejects traffic
   instead of implicitly selecting DIRECT.
-- **DNS protection:** Mihomo DNS configuration with proxied encrypted upstream
-  resolution, separate direct/bootstrap/proxy-server resolution and optional
-  Claude DNS policy. It does not force TUN, change the controller/listening
+- **DNS protection:** native Mihomo, Stash, Surge and Egern DNS configurations
+  with encrypted upstreams and optional Claude DNS policy. The constraints below
+  distinguish application DNS from client bootstrap/proxy resolution.
+  It does not force TUN, change the controller/listening
   ports or disable system IPv6. Client capture, browser DNS and local overrides
   still determine actual behavior; this is not a successful leak-test result.
 - **Claude dedicated routing:** explicit service domains routed through a dedicated
@@ -103,7 +104,7 @@ community classification, not a list maintained or endorsed by Anthropic.
 Only suffix (`domain`) and exact-host (`full`) entries are supported; unsupported
 syntax rejects the whole update and preserves the previous library.
 
-The designer shows **library**, **draft**, and **applied global Mihomo template**
+The designer shows **library**, **draft**, and **applied global template per format**
 versions separately. Updating the library displays additions/removals and does
 not edit the draft or published subscriptions. Review the library-to-draft diff
 and choose **Use in draft**, then preview and apply to publish it. Saved designs
@@ -113,21 +114,50 @@ original ten built-in rules until explicitly changed; disabling the option
 keeps the saved version for later reuse. With DNS protection enabled, the same
 snapshot controls Claude DNS policy, preserving exact versus suffix matches.
 
-Applied-version status refers only to the global Mihomo template. Existing
+Applied-version status refers to each format's global template independently.
+Publishing selected formats retains every unselected format's version. Existing
 publications from older versions and manual text edits have unknown provenance;
 subscription profiles, response rules and client overrides can use different
 content. The panel does not claim that updating the cache publishes to clients.
 The domain list and its upstream MIT attribution are preserved in generated
-Mihomo output. No remote scripts are executed and no node configuration is
-changed by this feature.
+client output. Rule-library synchronization executes no remote scripts and
+changes no node configuration.
 
-Regional supplementation is available in the designer's seven existing formats.
-Official INI imports and the DNS/Claude/WebRTC/UDP-443 options initially support
-**Mihomo (`clash`)**. Inspection reports unsupported formats explicitly. Apply
+Regional supplementation, Claude routing, WebRTC mitigation and UDP-443
+restriction have adapters for **Mihomo (`clash`), Stash, Surge, Surfboard, Loon,
+Quantumult X and Egern**. Exact hosts remain exact; suffix rules retain domain
+boundaries; the UDP option never becomes a TCP-443 block. Imported rules are
+checked individually instead of being restricted merely because they came from
+an official INI. Inspection reports unsupported features and non-blocking
+client requirements separately. Apply
 writes only the selected supported global templates, atomically with the saved
 draft; unselected formats keep their existing templates. The existing API's
 omitted `formats` field still requests all seven and fails if any is unsupported.
 Sing-box is not a visual-designer output format.
+
+Client-specific limits:
+
+| Client | DNS protection | Other requirements and limits |
+|---|---|---|
+| Mihomo | Proxied encrypted DNS; independent direct bootstrap | Existing behavior retained |
+| Stash | Proxied encrypted DNS with `follow-rule` | Independent proxy-hostname DNS requires iOS/tvOS 3.6+ or macOS 4.3+; geosite data may need its first download |
+| Surge | Proxied encrypted DNS, with IP-address proxy endpoints | A protected subscription containing hostname candidates or external proxy providers is rejected to prevent DIRECT fallback; only `.cn` gets the domestic resolver |
+| Surfboard | The requested DNS proxy policy cannot be expressed | Its encrypted DNS is always direct; other enhancements remain available with DNS protection off |
+| Loon | The requested DNS policy cannot be guaranteed by the documented profile | Disabling plain-DNS fallback needs an app setting; UDP logical rules require 3.1.7+; native domain-first matching remains |
+| Quantumult X | Local DNS cannot be bound to the selected DNS proxy policy | UDP restrictions apply to captured tunnel traffic; process/URL rules in ACL4SSR `ProxyMedia.list` cannot be represented |
+| Egern | Default DNS follows selected proxy policies | Its separate proxy-DNS path remains encrypted/direct; only `.cn` gets the domestic resolver |
+
+Explicit group timeouts or differing per-group test URLs are rejected where
+the target cannot preserve their meaning. These checks do not guarantee an
+arbitrary future upstream list will remain compatible.
+
+Loon and Quantumult X use credential-free, bounded inline-rule resources hosted
+by the panel to keep inline rules in their original position among remote lists.
+Quantumult X also fetches Captain's embedded, versioned rule-conversion script;
+it runs in the client's resource-parser environment, does not fetch URLs itself,
+and rejects an entire resource on unknown rule types instead of dropping lines.
+The panel does not fetch arbitrary rule URLs or disclose subscription tokens in
+these resource URLs. Downloading resources still requires the panel to be reachable.
 
 **Save draft** changes no subscription. **Save as preset** stores a separate
 named copy including the base, enhancements and source attribution. Deleting

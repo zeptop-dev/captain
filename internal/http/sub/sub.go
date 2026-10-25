@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zeptop-dev/bosun/pkg/subdesign"
 	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/http/ratelimit"
 	"github.com/zeptop-dev/captain/internal/http/site"
@@ -30,6 +31,7 @@ type Deps struct {
 	Log     *slog.Logger
 	Service *service.Subscription
 	Name    string // site name used in the download file name
+	BaseURL string // configured public origin; never derived from subscription headers
 }
 
 // templateCache reads the operator's subscription templates with a short
@@ -73,6 +75,8 @@ func (c *rulesCache) get(ctx context.Context) []service.ResponseRule {
 
 // Register mounts the subscription route.
 func Register(mux *http.ServeMux, d Deps) {
+	mux.HandleFunc("GET "+subdesign.QuantumultXRuleParserPath, subdesign.ServeQuantumultXRuleParser)
+	mux.HandleFunc("GET "+subdesign.InlineRuleResourcePath+"{format}/{rule}", subdesign.ServeInlineRuleResource)
 	tpls := &templateCache{store: d.Store}
 	rules := &rulesCache{store: d.Store}
 	// charge is called once the request has passed every refusal (response
@@ -247,15 +251,25 @@ func Register(mux *http.ServeMux, d Deps) {
 		}
 		pageMode := device == nil && format == "page" && profile != nil && profile.Settings.Page != nil && profile.Settings.Page.Enabled
 		var body []byte
+		err = nil // ErrNoAccess above intentionally renders an empty document.
 		if pageMode {
 			req.Response = "page"
 			body, err = renderProfilePage(r, profile.Settings.Page, acct)
 		} else {
 			var lines []subscription.Line
-			lines, err = service.ClientLines(published, rd.Name(), template)
+			if rd.Name() == "qx" || rd.Name() == "loon" {
+				template, err = subdesign.BindResourceURLs(template, d.BaseURL)
+			}
+			if err == nil {
+				lines, err = service.ClientLines(published, rd.Name(), template)
+			}
 			if err == nil {
 				body, err = rd.RenderWith(lines, acct, template)
 			}
+		}
+		if errors.Is(err, subscription.ErrSurgeDNSHostname) {
+			http.Error(w, "Surge DNS protection requires IP-address proxy endpoints", http.StatusUnprocessableEntity)
+			return
 		}
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)

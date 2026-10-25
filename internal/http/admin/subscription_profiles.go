@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/spec"
+	"github.com/zeptop-dev/bosun/pkg/subdesign"
 	"github.com/zeptop-dev/bosun/pkg/subscription"
 	"github.com/zeptop-dev/captain/internal/service"
 	"github.com/zeptop-dev/captain/internal/store"
@@ -231,12 +232,23 @@ func (h *handlers) previewSubscriptionProfile(w http.ResponseWriter, r *http.Req
 		}
 		body = global[rd.Name()]
 	}
+	if rd.Name() == "qx" || rd.Name() == "loon" {
+		body, err = subdesign.BindResourceURLs(body, h.BaseURL)
+		if err != nil {
+			fail(w, 400, "template contains invalid managed resources")
+			return
+		}
+	}
 	lines, err := service.ClientLines(published, rd.Name(), body)
 	if err != nil {
 		serverErr(w, err)
 		return
 	}
 	rendered, err := rd.RenderWith(lines, acct, body)
+	if errors.Is(err, subscription.ErrSurgeDNSHostname) {
+		fail(w, 422, "Surge DNS protection requires IP-address proxy endpoints")
+		return
+	}
 	if err != nil {
 		fail(w, 400, "template cannot render this user")
 		return
@@ -255,7 +267,16 @@ func (h *handlers) previewNamedSubTemplate(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	sample := subscription.Line{Name: "Example", Host: "node.example.com", Port: 443, UUID: "00000000-0000-4000-8000-000000000001", UserID: 1, Inbound: spec.Inbound{Tag: "example", Protocol: spec.VLESS, Port: 443}}
-	b, err := subscription.Pick(v.Format, "").RenderWith([]subscription.Line{sample}, subscription.Account{}, v.Body)
+	body := v.Body
+	if v.Format == "qx" || v.Format == "loon" {
+		var err error
+		body, err = subdesign.BindResourceURLs(body, h.BaseURL)
+		if err != nil {
+			fail(w, 400, "template contains invalid managed resources")
+			return
+		}
+	}
+	b, err := subscription.Pick(v.Format, "").RenderWith([]subscription.Line{sample}, subscription.Account{}, body)
 	if err != nil {
 		fail(w, 400, "template cannot render")
 		return

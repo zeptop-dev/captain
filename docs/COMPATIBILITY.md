@@ -5,12 +5,16 @@ with, what the database is good for, and what is deliberately not there.
 
 ## Subscription presets (Captain 1.36 / shared bosun package 0.78)
 
-Captain uses bosun v0.78.0's shared subscription compiler for administrator
+Captain uses bosun's shared subscription compiler for administrator
 ACL4SSR imports and optional enhancements. Existing managed nodes do not need
 an agent upgrade for this feature; no agent fields or database migrations are
 added. Basic and regional designs retain the seven existing output formats.
-Official imports and DNS/Claude/WebRTC/UDP-443 enhancements currently support
-Mihomo only, with explicit format restrictions. The existing apply API keeps
+Claude/WebRTC/UDP-443 enhancements and representable imported rules use native
+adapters for all seven formats. DNS protection supports Mihomo, Stash, Surge
+and Egern with explicit client-specific constraints; unsupported rule/group
+semantics remain blocked instead of being silently discarded. Inspection adds
+optional warning fields, and Claude publication metadata adds `applied_formats`
+while retaining the original Mihomo `applied` response. The existing apply API keeps
 its all-format behavior when `formats` is omitted; an explicit list updates
 only those supported global templates. Existing drafts, named profile templates,
 response-rule templates and independent WireGuard subscriptions keep their
