@@ -70,6 +70,10 @@ func (m *ClientCatalog) Get(ctx context.Context, id string) (cc.Client, error) {
 	return cc.Client{ID: id, Name: p.Name, Homepage: p.Website, Repo: p.Repository, Kind: kind, Format: p.Format, Revision: s.Revision, Platforms: s.Platforms, Release: s.Release, CheckedAt: s.CheckedAt, CheckError: s.CheckError, Archived: s.Archived, CachedAssets: cached, Published: s.Published}, nil
 }
 func (m *ClientCatalog) View(ctx context.Context) (cc.CatalogView, error) {
+	// Completion must not overtake the cache snapshot: callers stop polling once
+	// they see a complete job and must already see its downloaded package.
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	out := cc.CatalogView{Clients: []cc.Client{}, Storage: cc.Storage{MaxBytes: cc.MaxCacheBytes, MaxAssetBytes: cc.MaxAssetBytes}}
 	for _, p := range cc.Catalog() {
 		c, e := m.Get(ctx, p.ID)
@@ -79,12 +83,10 @@ func (m *ClientCatalog) View(ctx context.Context) (cc.CatalogView, error) {
 		out.Clients = append(out.Clients, c)
 	}
 	out.Storage.UsedBytes = m.diskUsage()
-	m.mu.Lock()
 	if m.job != nil {
 		j := *m.job
 		out.Job = &j
 	}
-	m.mu.Unlock()
 	return out, nil
 }
 func (m *ClientCatalog) diskUsage() int64 {

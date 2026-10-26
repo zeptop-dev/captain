@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -19,6 +20,98 @@ import (
 func catalogTestRelease(version string, assetID int64) *cc.Release {
 	return &cc.Release{Version: version, URL: "https://github.com/clash-verge-rev/clash-verge-rev/releases/tag/" + version, PublishedAt: time.Now().UTC(), Assets: []cc.Asset{{ID: assetID, Name: "Example_x64.exe", Platform: "windows", Arch: "x64", PackageType: "exe", Size: 7, URL: "https://github.com/clash-verge-rev/clash-verge-rev/releases/download/" + version + "/Example_x64.exe", Version: version}}}
 }
+
+func TestClientCatalogViewKeepsCompletionBehindCacheSnapshot(t *testing.T) {
+	r := newRuntimeRig(t)
+	dir := t.TempDir()
+	m := NewClientCatalog(r.store, dir, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if _, err := m.View(ctx); err != nil {
+		t.Fatal(err)
+	}
+	state, err := r.store.ClientCatalog(ctx, "clash-verge-rev")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.job = &cc.Job{ID: "download", ClientID: "clash-verge-rev", AssetID: 1, State: "downloading"}
+
+	// Hold the sole SQLite connection so the polling snapshot pauses during its
+	// metadata read while a completed download is about to notify the caller.
+	conn, err := r.store.DB().Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	waits := r.store.DB().Stats().WaitCount
+	type result struct {
+		view cc.CatalogView
+		err  error
+	}
+	viewResult := make(chan result, 1)
+	go func() {
+		view, err := m.View(ctx)
+		viewResult <- result{view, err}
+	}()
+	for r.store.DB().Stats().WaitCount == waits {
+		select {
+		case <-ctx.Done():
+			t.Fatal("catalog view did not start reading", ctx.Err())
+		case <-time.After(time.Millisecond):
+		}
+	}
+
+	// Mirror download finalization: bytes and metadata become ready before the
+	// complete notification. Use the held connection to preserve the pause.
+	sha := fmt.Sprintf("%x", sha256.Sum256([]byte("fixture")))
+	if err = os.WriteFile(filepath.Join(dir, sha), []byte("fixture"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	state.CachedAssets = []cc.CachedAsset{{Asset: catalogTestRelease("v1", 1).Assets[0], SHA256: sha, VerifiedBy: "local_sha256", CachedAt: time.Now().UTC()}}
+	raw, err := json.Marshal(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = conn.ExecContext(ctx, `UPDATE client_catalog SET document_json = ? WHERE id = ?`, string(raw), "clash-verge-rev"); err != nil {
+		t.Fatal(err)
+	}
+	completed := make(chan struct{})
+	go func() {
+		m.setJob("download", "complete", "")
+		close(completed)
+	}()
+	select {
+	case <-completed:
+		t.Fatal("completion overtook an unfinished catalog snapshot")
+	case <-time.After(50 * time.Millisecond):
+	}
+	if err = conn.Close(); err != nil {
+		t.Fatal(err)
+	}
+	first := <-viewResult
+	if first.err != nil || first.view.Job == nil || first.view.Job.State != "downloading" {
+		t.Fatalf("in-flight snapshot lost its pending job: %+v, %v", first.view.Job, first.err)
+	}
+	select {
+	case <-completed:
+	case <-ctx.Done():
+		t.Fatal("completion remained blocked after snapshot", ctx.Err())
+	}
+	final, err := m.View(ctx)
+	if err != nil || final.Job == nil || final.Job.State != "complete" {
+		t.Fatalf("completion missing from next poll: %+v, %v", final.Job, err)
+	}
+	for _, client := range final.Clients {
+		if client.ID == "clash-verge-rev" {
+			if len(client.CachedAssets) != 1 || client.CachedAssets[0].ID != 1 {
+				t.Fatalf("complete job omitted its package: %+v", client.CachedAssets)
+			}
+			return
+		}
+	}
+	t.Fatal("completed client missing")
+}
+
 func TestClientCatalogPublicationSnapshotAndFailedCheck(t *testing.T) {
 	r := newRuntimeRig(t)
 	m := NewClientCatalog(r.store, t.TempDir(), nil)
