@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import { shows, snapshot } from '@shared/captain'
 import { CARRIER_DOT_CLASSES, buildEmptyBars, buildHistoryBars } from '@shared/composables/pingBars'
 import { t } from '@shared/i18n'
-import { carriers, matchesPing, selectPings } from '@shared/ping-selection'
+import { carriers, carrierUnavailable, matchesPing, selectPings } from '@shared/ping-selection'
 import { useBox } from './useBox'
 import { useNodePingStats } from './useNodePingStats'
 
@@ -36,7 +36,7 @@ export function useNodeCarrierPingDisplay(uuid: string, enabled: boolean) {
     const series = selection.families.map((family, slot) => {
       const state = states[i]![slot]!, source = sourceOf(i, slot)
       const sample = source ? node?.host?.pings?.find(p => matchesPing(p, source)) : undefined
-      const unavailable = source?.state === 'unsupported' || sample?.quality?.outcome === 'permission'
+      const unavailable = carrierUnavailable(source, sample)
       const reason = reasonText(source?.reason) ?? reasonText(sample?.quality?.outcome)
       const empty = state.loading ? t('加载中') : state.error ? t('加载失败') : !historyShown ? t('未启用记录') : reason ?? t('无采样数据')
       const latency = !unavailable && state.hasData && Number.isFinite(state.avgLatency) ? `${Math.round(state.avgLatency)} ms` : '—'

@@ -40,3 +40,9 @@ export function matchesPing(point: { task_id: number; name: string; series?: str
 export function selectedHistory(history: NetworkHistory, source: PublicPingTask | null): NetworkHistory {
   return { ...history, points: source ? history.points.filter(p => matchesPing(p, source)) : [] }
 }
+
+// A carrier that cannot currently be probed must not look like measured packet
+// loss. Keep timeout as an attempted failure and leave custom-task semantics intact.
+export function carrierUnavailable(source: Pick<PublicPingTask, 'id' | 'state'> | null, sample?: { quality?: { outcome: string } }): boolean {
+  return source?.id === 0 && (source.state === 'unsupported' || sample?.quality?.outcome === 'permission' || sample?.quality?.outcome === 'unreachable')
+}

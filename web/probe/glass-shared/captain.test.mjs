@@ -4,7 +4,7 @@ import { snapshot, clientFor, statusFor, captainCall, clearHistoryCache, pingMet
 import { cpuSpec } from '../src/lib/cpu-spec.ts'
 import { storageItems, storageCapacity, storageBytes, storagePercent } from '../src/lib/storage.ts'
 import { summarizePings } from './ping-summary.ts'
-import { selectPings, selectedHistory } from './ping-selection.ts'
+import { carrierUnavailable, selectPings, selectedHistory } from './ping-selection.ts'
 const now = Math.floor(Date.now() / 60000) * 60
 const node = {id:1,name:'Example',online:true,last_seen:new Date(now*1000).toISOString(),info:{},host:{valid:{cpu:true,memory:true,disk:true,network:true,load:true,swap:true,connections:true,processes:true},mem_total:1024},traffic:{used:100,limit:1000,mode:'sum'},recent:[]}
 beforeEach(() => { snapshot.value = { nodes:[structuredClone(node)], now }; clearHistoryCache() })
@@ -283,4 +283,15 @@ test('an unsupported agent does not revive matching history from before a downgr
  const result = await pingMetrics('1', 1)
  assert.equal(result.stats.count, 0)
  assert.equal(result.metrics.series.length, 0)
+})
+
+
+test('carrier unreachable and permissions show unavailable without changing timeout or custom task semantics', () => {
+ const carrier = { id: 0, name: 'CT', series: 'v6', family: 'ipv6' }
+ assert.equal(carrierUnavailable(carrier, { quality: { outcome: 'unreachable' } }), true)
+ assert.equal(carrierUnavailable(carrier, { quality: { outcome: 'permission' } }), true)
+ assert.equal(carrierUnavailable({ ...carrier, state: 'unsupported' }), true)
+ for (const outcome of ['ok', 'refused', 'timeout', 'dns']) assert.equal(carrierUnavailable(carrier, { quality: { outcome } }), false)
+ for (const outcome of ['permission', 'unreachable', 'timeout']) assert.equal(carrierUnavailable({ ...carrier, id: 7 }, { quality: { outcome } }), false)
+ assert.equal(carrierUnavailable(null, { quality: { outcome: 'unreachable' } }), false)
 })

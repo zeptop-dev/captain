@@ -1,4 +1,4 @@
-import { matchesPing } from '../glass-shared/ping-selection'
+import { carrierUnavailable, matchesPing } from '../glass-shared/ping-selection'
 import { networkIdentity, networkLabel } from './lib/network'
 import { nodeBandwidth } from './lib/node-bandwidth'
 import { nodePrice } from './lib/node-price'
@@ -94,10 +94,10 @@ function NodeCard({ n, snapshot, onOpen }: { n: Node; snapshot: Snapshot; onOpen
             const label = networkLabel(task)
             const stale = p?.at && snapshot.now - p.at > Math.max(60, (p.quality?.interval_seconds ?? 30) * 2)
             const reason = task.reason || (stale ? 'stale' : p?.quality?.outcome)
-            const unavailable = !p || stale || p.quality?.outcome === 'permission'
+            const unavailable = !p || stale || carrierUnavailable(task, p)
             const value = unavailable || !Number.isFinite(p.latency_ms) ? '—' : p.latency_ms < 0 ? '×' : `${Math.round(p.latency_ms)}ms`
             const loss = !unavailable && p.loss != null ? `${p.loss.toFixed(0)}%` : '—'
-            return <Tooltip key={networkIdentity({ ...task, task_id: task.id })} label={`${label} ${t('page.loss')} ${loss}${reason ? ` · ${reason === 'stale' ? t('networkQuality.stale') : t(`networkQuality.outcomes.${reason}`)}` : ''}`}><Text size="xs" c={!p || stale ? 'dimmed' : p.latency_ms < 0 ? 'red' : p.latency_ms > 200 ? 'orange' : 'dimmed'}>{label} {value}</Text></Tooltip>
+            return <Tooltip key={networkIdentity({ ...task, task_id: task.id })} label={`${label} ${t('page.loss')} ${loss}${reason ? ` · ${reason === 'stale' ? t('networkQuality.stale') : t(`networkQuality.outcomes.${reason}`)}` : ''}`}><Text size="xs" c={unavailable ? 'dimmed' : p.latency_ms < 0 ? 'red' : p.latency_ms > 200 ? 'orange' : 'dimmed'}>{label} {value}</Text></Tooltip>
           })}
         </Group>
       )}
