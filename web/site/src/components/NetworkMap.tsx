@@ -26,6 +26,10 @@ export function NetworkMap({ locations, hub }: { locations: Location[]; hub: Loc
       <desc id={`${id}-description`}>{t(displayPoints.length ? 'geography.configuredLocations' : 'geography.noLocations', { names: locationNames })} {t('geography.mapDisclaimer')}</desc>
       <defs><pattern id={`${id}-grid`} width="46" height="46" patternUnits="userSpaceOnUse"><path d="M46 0H0V46" fill="none" stroke="var(--map-grid)" strokeOpacity=".035" strokeWidth=".6" /></pattern><clipPath id={`${id}-clip`}><rect x="40" y="12" width="1070" height="566" /></clipPath></defs>
       <rect width="1150" height="590" fill={`url(#${id}-grid)`} />
+      {/* Enlarge the geography uniformly and place its center slightly below
+          the frame center to balance the legend and northern land mass.
+          Move the longitude clip, markers and routes with the land. */}
+      <g transform="matrix(1.1 0 0 1.1 -57.5 27.671861)">
       <g clipPath={`url(#${id}-clip)`}><path d={flatLandPath} fill="var(--map-land)" fillOpacity=".67" stroke="var(--map-outline)" strokeOpacity=".08" strokeWidth=".6" fillRule="evenodd" />
         <g fill="none" stroke="var(--map-accent)" strokeWidth=".9" strokeOpacity=".45" strokeDasharray="2 5">{arcs.map((arc, index) => <path key={index} d={arc} className={styles.arc} />)}</g>
         {displayPoints.map((point, index) => {
@@ -35,6 +39,7 @@ export function NetworkMap({ locations, hub }: { locations: Location[]; hub: Loc
             <g className={styles.label} transform={`translate(${x > 950 ? -12 : 12},-9)`}><rect x={x > 950 ? -132 : 0} y="-12" width="132" height="25" rx="4" fill="var(--map-label-bg)" stroke="var(--map-label-line)" /><text x={x > 950 ? -124 : 8} y="4" fill="var(--map-label-text)" fontSize="11" fontFamily="ui-monospace, monospace">{locationLabel(point).slice(0, 18)}</text></g>
           </g>
         })}
+      </g>
       </g>
     </svg>
     </div>

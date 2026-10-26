@@ -3,7 +3,7 @@
 .map { position: relative; width: 100%; overflow: hidden; background: var(--map-bg); border-top: 1px solid #ffffff06; border-bottom: 1px solid #ffffff06; }
 .viewport { width: 100%; height: 100%; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: thin; scrollbar-color: var(--map-label-line) var(--map-bg); }
 .viewport:focus-visible { outline: 2px solid var(--map-accent); outline-offset: -3px; }
-.map svg { display: block; width: 100%; min-width: 640px; height: 100%; }
+.map svg { display: block; width: 100%; min-width: 640px; height: 100%; overflow: visible; }
 .ring { fill: none; stroke: var(--map-accent); stroke-width: .7; transform-origin: center; transform-box: fill-box; animation: ripple 3.4s ease-out infinite; }
 .arc { animation: flow 12s linear infinite; }
 .location { outline: none; cursor: default; }
