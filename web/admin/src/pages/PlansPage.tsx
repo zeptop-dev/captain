@@ -8,6 +8,8 @@ import { useTranslation } from 'react-i18next'
 import { api, type Group as UGroup, type Plan } from '../lib/api'
 import { bytes, money } from '../lib/format'
 import { toast } from '../lib/notify'
+import { PlanNodeAccess } from '../components/NodeAccess'
+import { SettingsDraftBoundary } from '../lib/settings-draft'
 import { PageHeader } from '../components/PageHeader'
 
 type Values = { Name: string; PriceCents: number; PeriodDays: number; ResetDays: number; ResetMode: string; Prices: string; QuotaGiB: number; DeviceLimit: number; SpeedLimitMbps: number; GroupID: string; Enabled: boolean }
@@ -24,8 +26,8 @@ export default function PlansPage() {
   const [editing, setEditing] = useState<Plan | 'new' | null>(null)
   const form = useForm<Values>({ initialValues: empty })
   const payload = (v: Values) => ({ Name: v.Name, PriceCents: v.PriceCents, PeriodDays: v.PeriodDays, ResetDays: v.ResetMode === 'days' ? v.ResetDays : 0, ResetMode: v.ResetMode, Prices: parsePrices(v.Prices), QuotaBytes: Math.round(v.QuotaGiB * 2 ** 30), DeviceLimit: v.DeviceLimit, SpeedLimitMbps: v.SpeedLimitMbps, GroupID: v.GroupID ? Number(v.GroupID) : null, Enabled: v.Enabled })
-  const save = useMutation({ mutationFn: (v: Values) => editing === 'new' ? api.post('/api/admin/plans', payload(v)) : api.patch(`/api/admin/plans/${(editing as Plan).ID}`, payload(v)), onSuccess: () => { toast.ok(t('common.saved')); setEditing(null); qc.invalidateQueries({ queryKey: ['plans'] }) }, onError: toast.err })
-  const del = useMutation({ mutationFn: (id: number) => api.del(`/api/admin/plans/${id}`), onSuccess: () => { toast.ok(t('common.deleted')); qc.invalidateQueries({ queryKey: ['plans'] }) }, onError: toast.err })
+  const save = useMutation({ mutationFn: (v: Values) => editing === 'new' ? api.post('/api/admin/plans', payload(v)) : api.patch(`/api/admin/plans/${(editing as Plan).ID}`, payload(v)), onSuccess: () => { toast.ok(t('common.saved')); setEditing(null); qc.invalidateQueries({ queryKey: ['plans'] }); qc.invalidateQueries({ queryKey: ['node-access'] }) }, onError: toast.err })
+  const del = useMutation({ mutationFn: (id: number) => api.del(`/api/admin/plans/${id}`), onSuccess: () => { toast.ok(t('common.deleted')); qc.invalidateQueries({ queryKey: ['plans'] }); qc.invalidateQueries({ queryKey: ['node-access'] }) }, onError: toast.err })
   const openEdit = (p: Plan | 'new') => { form.setValues(p === 'new' ? empty : { Name: p.Name, PriceCents: p.PriceCents, PeriodDays: p.PeriodDays, ResetDays: p.ResetDays ?? 0, ResetMode: p.ResetMode || (p.ResetDays ? 'days' : ''), Prices: formatPrices(p.Prices), QuotaGiB: p.QuotaBytes / 2 ** 30, DeviceLimit: p.DeviceLimit, SpeedLimitMbps: p.SpeedLimitMbps, GroupID: p.GroupID ? String(p.GroupID) : '', Enabled: p.Enabled }); setEditing(p) }
   return (
     <>
@@ -47,7 +49,7 @@ export default function PlansPage() {
           {q.data?.length === 0 && <Table.Tr><Table.Td colSpan={7}><Text c="dimmed" ta="center" py="lg">{t('common.empty')}</Text></Table.Td></Table.Tr>}
         </Table.Tbody>
       </Table></Card>
-      <Modal opened={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? t('plans.create') : t('common.edit')}>
+      <Modal opened={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? t('plans.create') : t('common.edit')} size="lg">
         <form onSubmit={form.onSubmit((v) => save.mutate(v))}><Stack>
           <TextInput label={t('plans.name')} required {...form.getInputProps('Name')} />
           <Group grow><NumberInput label={t('plans.price')} min={0} {...form.getInputProps('PriceCents')} /><NumberInput label={t('plans.period')} description={t('plans.periodHint')} min={0} {...form.getInputProps('PeriodDays')} /></Group>
@@ -58,6 +60,7 @@ export default function PlansPage() {
           <Textarea label={t('plans.prices')} description={t('plans.pricesHint')} placeholder={'90:2700\n365:9900'} autosize minRows={2} {...form.getInputProps('Prices')} />
           <Group grow><NumberInput label={t('plans.quota')} description={t('plans.quotaHint')} min={0} decimalScale={2} {...form.getInputProps('QuotaGiB')} /><NumberInput label={t('plans.deviceLimit')} description={t('plans.deviceHint')} min={0} {...form.getInputProps('DeviceLimit')} /><NumberInput label={t('plans.speedLimit')} min={0} {...form.getInputProps('SpeedLimitMbps')} /></Group>
           <Select label={t('plans.group')} data={[{ value: '', label: t('common.none') }, ...(groups.data ?? []).map((g) => ({ value: String(g.ID), label: g.Name }))]} allowDeselect={false} {...form.getInputProps('GroupID')} />
+          {editing !== null && <SettingsDraftBoundary><PlanNodeAccess key={form.values.GroupID} groupID={Number(form.values.GroupID)} /></SettingsDraftBoundary>}
           <Switch label={t('plans.enabled')} {...form.getInputProps('Enabled', { type: 'checkbox' })} />
           <Group justify="flex-end"><Button variant="default" onClick={() => setEditing(null)}>{t('common.cancel')}</Button><Button type="submit" loading={save.isPending}>{t('common.save')}</Button></Group>
         </Stack></form>

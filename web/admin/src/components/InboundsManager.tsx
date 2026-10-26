@@ -51,7 +51,7 @@ function Manager({ serverID, onServerChange, canWrite = true, editInboundID, onE
     modals.openConfirmModal({ title: t('workspace.unsaved'), children: <Text>{t('workspace.leaveHint')}</Text>, labels: { confirm: t('workspace.discard'), cancel: t('workspace.stay') }, onConfirm: finish })
   }
   const invalidate = () => {
-    for (const key of ['node', 'nodes', 'entries']) void qc.invalidateQueries({ queryKey: [key] })
+    for (const key of ['node', 'nodes', 'entries', 'node-access']) void qc.invalidateQueries({ queryKey: [key] })
   }
   const save = useMutation({ mutationFn: async (v: InboundValues) => {
     if (!editable || !editing || !data) throw new Error(t('workspace.forbidden'))
