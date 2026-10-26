@@ -71,7 +71,7 @@ func TestOfficialReleasePinsAssetsAndRejectsWrongRepository(t *testing.T) {
 	p, _ := Find("clash-verge-rev")
 	tag := "v1.2.3"
 	assetURL := "https://github.com/" + p.Repository + "/releases/download/" + tag + "/Client_x64-setup.exe"
-	rel := map[string]any{"tag_name": tag, "html_url": "https://github.com/" + p.Repository + "/releases/tag/" + tag, "published_at": time.Now().UTC(), "assets": []map[string]any{{"id": 12, "name": "Client_x64-setup.exe", "size": 12, "browser_download_url": assetURL, "digest": "sha256:" + strings.Repeat("a", 64)}, {"id": 13, "name": "latest.json", "size": 1}}}
+	rel := map[string]any{"tag_name": tag, "html_url": "https://github.com/" + p.Repository + "/releases/tag/" + tag, "published_at": time.Now().UTC(), "assets": []map[string]any{{"id": 12, "name": "Client_x64-setup.exe", "size": 12, "browser_download_url": assetURL, "digest": "sha256:" + strings.Repeat("a", 64)}, {"id": 13, "name": "latest.json", "size": 1}, {"id": 14, "name": "Client_futurecpu-setup.exe", "size": 10}}}
 	repo := p.Repository
 	c := &GitHubSource{client: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		var data any = map[string]any{"full_name": repo, "archived": true}
@@ -82,7 +82,7 @@ func TestOfficialReleasePinsAssetsAndRejectsWrongRepository(t *testing.T) {
 		return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader(b)), Header: make(http.Header)}, nil
 	})}}
 	got, archived, e := c.Check(context.Background(), p.ID)
-	if e != nil || !archived || len(got.Assets) != 1 || got.Assets[0].URL != assetURL {
+	if e != nil || !archived || len(got.Assets) != 1 || got.Assets[0].URL != assetURL || got.SkippedInstallers != 1 {
 		t.Fatalf("%+v %v %v", got, archived, e)
 	}
 	rel["prerelease"] = true

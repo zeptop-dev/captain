@@ -164,6 +164,9 @@ func (c *GitHubSource) Check(parent context.Context, id string) (*Release, bool,
 	for _, a := range rel.Assets {
 		platform, arch := ClassifyAsset(p, a.Name)
 		if platform == "" {
+			if guessed := assetPlatform(a.Name); guessed != "" && p.Supports(guessed) {
+				out.SkippedInstallers++
+			}
 			continue
 		}
 		if a.ID <= 0 || seen[a.ID] || a.Size <= 0 || a.Size > MaxAssetBytes || !validAssetURL(p, a.URL, a.Name, rel.Tag) || !validDigest(a.Digest) {

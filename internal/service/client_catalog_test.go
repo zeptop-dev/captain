@@ -2,10 +2,14 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -117,5 +121,92 @@ func TestClientCatalogMissingCacheCanAlwaysBeWithdrawn(t *testing.T) {
 	c.Platforms[0].ShowHome = true
 	if _, e = m.Save(ctx, c.ID, c.Revision, c.Platforms); e == nil {
 		t.Fatal("missing package was republished")
+	}
+}
+
+type catalogBytesSource struct {
+	body        []byte
+	called      bool
+	wrongDigest bool
+}
+
+func (s *catalogBytesSource) Check(context.Context, string) (*cc.Release, bool, error) {
+	return nil, false, cc.ErrInvalid
+}
+func (s *catalogBytesSource) Download(_ context.Context, _ cc.Asset, w io.Writer) (string, error) {
+	s.called = true
+	_, e := w.Write(s.body)
+	if s.wrongDigest {
+		return strings.Repeat("a", 64), e
+	}
+	return fmt.Sprintf("%x", sha256.Sum256(s.body)), e
+}
+func TestClientCatalogCacheRestartCleanupQuotaAndChecksum(t *testing.T) {
+	for _, scenario := range []string{"partial_and_orphan", "quota", "wrong_checksum"} {
+		t.Run(scenario, func(t *testing.T) {
+			r := newRuntimeRig(t)
+			dir := t.TempDir()
+			source := &catalogBytesSource{body: []byte("fixture"), wrongDigest: scenario == "wrong_checksum"}
+			m := NewClientCatalog(r.store, dir, source)
+			ctx := context.Background()
+			inc, e := m.BeginCheck(ctx, "clash-verge-rev")
+			if e != nil {
+				t.Fatal(e)
+			}
+			if e = m.CommitCheck(ctx, "clash-verge-rev", inc, catalogTestRelease("v1", 1), false, nil); e != nil {
+				t.Fatal(e)
+			}
+			m.EndCheck("clash-verge-rev")
+			partial := filepath.Join(dir, ".part-old")
+			orphan := filepath.Join(dir, strings.Repeat("b", 64))
+			if e = os.WriteFile(partial, []byte("partial"), 0600); e != nil {
+				t.Fatal(e)
+			}
+			if e = os.WriteFile(orphan, []byte("orphan"), 0600); e != nil {
+				t.Fatal(e)
+			}
+			if scenario == "quota" {
+				f, e := os.OpenFile(filepath.Join(dir, "preserved-other-file"), os.O_CREATE|os.O_WRONLY, 0600)
+				if e != nil {
+					t.Fatal(e)
+				}
+				e = f.Truncate(cc.MaxCacheBytes)
+				f.Close()
+				if e != nil {
+					t.Fatal(e)
+				}
+			}
+			_, run, e := m.PrepareDownload(ctx, "clash-verge-rev", 1)
+			if e != nil {
+				t.Fatal(e)
+			}
+			run(func(commit func() error) error { return commit() })
+			view, e := m.View(ctx)
+			if e != nil {
+				t.Fatal(e)
+			}
+			if scenario == "partial_and_orphan" {
+				if view.Job.State != "complete" || view.Storage.UsedBytes != 7 {
+					t.Fatal("restart cache recovery", view.Job, view.Storage)
+				}
+				if _, e = os.Stat(partial); !os.IsNotExist(e) {
+					t.Fatal("partial retained", e)
+				}
+				if _, e = os.Stat(orphan); !os.IsNotExist(e) {
+					t.Fatal("orphan retained", e)
+				}
+			} else {
+				if view.Job.State != "failed" {
+					t.Fatal("invalid transfer succeeded", view.Job)
+				}
+				c, _ := m.Get(ctx, "clash-verge-rev")
+				if len(c.CachedAssets) > 0 {
+					t.Fatal("invalid file ready", c)
+				}
+				if scenario == "quota" && source.called {
+					t.Fatal("quota checked after network download")
+				}
+			}
+		})
 	}
 }

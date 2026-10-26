@@ -91,9 +91,9 @@ func ValidHTTPS(raw string) bool {
 
 // ClassifyAsset only offers recognized distributable installers/packages.
 // Signatures, checksums, source archives, and unknown names are never cached.
-func ClassifyAsset(p Project, name string) (platform, arch string) {
+func assetPlatform(name string) (platform string) {
 	if !ValidFilename(name) {
-		return "", ""
+		return ""
 	}
 	n := strings.ToLower(name)
 	switch {
@@ -106,8 +106,17 @@ func ClassifyAsset(p Project, name string) (platform, arch string) {
 	case strings.HasSuffix(n, ".deb") || strings.HasSuffix(n, ".rpm") || strings.HasSuffix(n, ".appimage") || strings.HasSuffix(n, ".zip") && strings.Contains(n, "linux") || strings.HasSuffix(n, ".tar.gz") && strings.Contains(n, "linux"):
 		platform = "linux"
 	default:
+		return ""
+	}
+	return
+}
+
+func ClassifyAsset(p Project, name string) (platform, arch string) {
+	platform = assetPlatform(name)
+	if platform == "" {
 		return "", ""
 	}
+	n := strings.ToLower(name)
 	if !p.Supports(platform) {
 		return "", ""
 	}

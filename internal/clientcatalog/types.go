@@ -20,10 +20,11 @@ type CachedAsset struct {
 	CachedAt   time.Time `json:"cached_at"`
 }
 type Release struct {
-	Version     string    `json:"version"`
-	URL         string    `json:"url"`
-	PublishedAt time.Time `json:"published_at"`
-	Assets      []Asset   `json:"assets"`
+	SkippedInstallers int       `json:"skipped_installers,omitempty"`
+	Version           string    `json:"version"`
+	URL               string    `json:"url"`
+	PublishedAt       time.Time `json:"published_at"`
+	Assets            []Asset   `json:"assets"`
 }
 type PlatformSettings struct {
 	Platform    string  `json:"platform"`
