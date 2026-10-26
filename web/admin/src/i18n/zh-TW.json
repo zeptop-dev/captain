@@ -3190,6 +3190,8 @@
     "probeFollow": "跟隨主站品牌",
     "probeFollowHint": "使用主站的名稱和圖示。關閉後恢復獨立設定，切換不會刪除已填寫的獨立內容。",
     "uploadTooLarge": "圖片不能超過 2 MiB。",
-    "uploadFailed": "圖片上傳失敗。"
+    "uploadFailed": "圖片上傳失敗。",
+    "invalidURL": "請填寫 HTTP(S) 位址或站內路徑。",
+    "independentInvalid": "獨立品牌設定也會保留，請先修正下方的圖片位址再儲存。"
   }
 }

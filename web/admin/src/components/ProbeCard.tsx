@@ -7,6 +7,7 @@ import { IconPlus, IconTrash } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, type Node } from '../lib/api'
+import { validBrandAssetInput } from '../lib/branding'
 import { BrandAssetInput } from './BrandAssetInput'
 import { ProbeAppearanceFields } from './ProbeAppearanceFields'
 import { toast } from '../lib/notify'
@@ -28,10 +29,11 @@ interface PingTask { id: number; name: string; type: string; target: string; int
 export function ProbeCard() {
   const { t, i18n } = useTranslation()
   const qc = useQueryClient()
+  const [showIndependentBrandErrors, setShowIndependentBrandErrors] = useState(false)
   const q = useQuery({ queryKey: ['probe-settings'], queryFn: () => api.get<ProbeSettings>('/api/admin/settings/probe') })
-  const form = useForm<ProbeSettings & { hostsText: string; carrier_probe: CarrierProbe; carrierTargetsText: CarrierTargetTexts }>({ initialValues: { follow_site_branding: false, logo_dark: '', favicon: '', finance_currency: 'CNY', appearance: { preset: 'inherit', scheme: 'inherit' }, enabled: false, page_enabled: true, public_sections: ['cpu', 'memory', 'disk', 'network', 'system', 'info', 'traffic', 'latency', 'history', 'availability'], layout: 'grid', beat_seconds: 10, carrier_ping: true, carrier_probe: carrierProbeDraft().probe, carrierTargetsText: carrierProbeDraft().texts, path: '/status', hosts: [], hostsText: '', visibility: 'public', title: '', logo: '', show_globe: false, show_ip: false, alerts: { offline_seconds: 180, cpu_pct: 0, mem_pct: 0, disk_pct: 0, window_minutes: 5, traffic: true } } })
+  const form = useForm<ProbeSettings & { hostsText: string; carrier_probe: CarrierProbe; carrierTargetsText: CarrierTargetTexts }>({ initialValues: { follow_site_branding: false, logo_dark: '', favicon: '', finance_currency: 'CNY', appearance: { preset: 'inherit', scheme: 'inherit' }, enabled: false, page_enabled: true, public_sections: ['cpu', 'memory', 'disk', 'network', 'system', 'info', 'traffic', 'latency', 'history', 'availability'], layout: 'grid', beat_seconds: 10, carrier_ping: true, carrier_probe: carrierProbeDraft().probe, carrierTargetsText: carrierProbeDraft().texts, path: '/status', hosts: [], hostsText: '', visibility: 'public', title: '', logo: '', show_globe: false, show_ip: false, alerts: { offline_seconds: 180, cpu_pct: 0, mem_pct: 0, disk_pct: 0, window_minutes: 5, traffic: true } }, validate: { logo: value => validBrandAssetInput(value) ? null : t('branding.invalidURL'), logo_dark: value => validBrandAssetInput(value) ? null : t('branding.invalidURL'), favicon: value => validBrandAssetInput(value) ? null : t('branding.invalidURL') } })
   useEffect(() => { if (q.data) form.hydrate({ ...q.data, follow_site_branding: q.data.follow_site_branding ?? false, logo_dark: q.data.logo_dark ?? '', favicon: q.data.favicon ?? '', finance_currency: q.data.finance_currency ?? 'CNY', appearance: q.data.appearance ?? { preset: 'inherit', scheme: 'inherit' }, public_sections: q.data.public_sections ?? ['cpu', 'memory', 'disk', 'network', 'system', 'info', 'traffic', 'latency', 'history', 'availability'], layout: q.data.layout || 'grid', page_enabled: q.data.page_enabled ?? true, hostsText: (q.data.hosts ?? []).join(', '), carrier_probe: carrierProbeDraft(q.data.carrier_probe, q.data.carriers).probe, carrierTargetsText: carrierProbeDraft(q.data.carrier_probe, q.data.carriers).texts }) }, [q.data]) // eslint-disable-line react-hooks/exhaustive-deps
-  const save = useMutation({ mutationFn: (v: typeof form.values) => { const { hostsText, carrierTargetsText, ...settings } = v; const carrier_probe = carrierProbePayload(v.carrier_probe, carrierTargetsText); return api.put('/api/admin/settings/probe', { ...settings, hosts: hostsText.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean), carrier_probe, carriers: carrier_probe.tcp_ipv4 }) }, onSuccess: () => { form.resetDirty(); toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['probe-settings'] }) }, onError: toast.err })
+  const save = useMutation({ mutationFn: (v: typeof form.values) => { const { hostsText, carrierTargetsText, ...settings } = v; const carrier_probe = carrierProbePayload(v.carrier_probe, carrierTargetsText); return api.put('/api/admin/settings/probe', { ...settings, hosts: hostsText.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean), carrier_probe, carriers: carrier_probe.tcp_ipv4 }) }, onSuccess: () => { form.resetDirty(); setShowIndependentBrandErrors(false); toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['probe-settings'] }) }, onError: toast.err })
   const v = form.values
   const origin = window.location.origin
   if (q.data === undefined) return <SettingsLoadState query={q} />
@@ -39,7 +41,7 @@ export function ProbeCard() {
     <Card>
       <Title order={5} mb="xs">{t('probe.title')}</Title>
       <Text size="xs" c="dimmed" mb="sm">{t('probe.hint')}</Text>
-      <form onSubmit={form.onSubmit((vals) => save.mutate(vals))}><Stack gap="sm">
+      <form onSubmit={form.onSubmit((vals) => save.mutate(vals), errors => { if (errors.logo || errors.logo_dark || errors.favicon) setShowIndependentBrandErrors(true) })}><Stack gap="sm">
         <SettingsFields>
           <Switch label={t('probe.collection')} {...form.getInputProps('enabled', { type: 'checkbox' })} />
           <NumberInput label={t('probe.beat')} min={3} max={300} {...form.getInputProps('beat_seconds')} />
@@ -67,7 +69,8 @@ export function ProbeCard() {
           <Switch label={t('probe.showGlobe')} {...form.getInputProps('show_globe', { type: 'checkbox' })} />
         </SettingsFields>
         <Switch label={t('branding.probeFollow')} description={t('branding.probeFollowHint')} {...form.getInputProps('follow_site_branding', { type: 'checkbox' })} />
-        {!v.follow_site_branding && <Stack gap="sm">
+        {(!v.follow_site_branding || showIndependentBrandErrors) && <Stack gap="sm">
+          {v.follow_site_branding && <Text size="sm" c="red">{t('branding.independentInvalid')}</Text>}
           <TextInput label={t('probe.pageTitle')} placeholder={t('probe.pageTitleHint')} {...form.getInputProps('title')} />
           <SettingsFields>
             <BrandAssetInput label={t('branding.logoLight')} value={v.logo} onChange={value => form.setFieldValue('logo', value)} />

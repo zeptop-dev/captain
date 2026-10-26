@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { safeBrandAssetURL } from '../../../shared/branding'
+import { validBrandAssetInput } from '../lib/branding'
 import { ApiError } from '../lib/api'
 import { toast } from '../lib/notify'
 
@@ -30,7 +31,7 @@ export function BrandAssetInput({ label, value, onChange, dark = false }: {
   })
   const preview = safeBrandAssetURL(value)
   return <Stack gap="xs" style={{ minWidth: 0 }}>
-    <TextInput label={label} placeholder="https://example.com/logo.png" value={value} onChange={event => onChange(event.currentTarget.value)} />
+    <TextInput label={label} placeholder="https://example.com/logo.png" value={value} onChange={event => onChange(event.currentTarget.value.trim())} error={!validBrandAssetInput(value) ? t('branding.invalidURL') : undefined} />
     <Group gap="xs" align="center">
       <div style={{ height: 54, width: 96, flexShrink: 0, display: 'grid', placeItems: 'center', border: '1px solid var(--mantine-color-default-border)', borderRadius: 6, background: dark ? '#17191e' : '#fff', overflow: 'hidden' }}>
         {preview ? <img key={preview} src={preview} alt={label} style={{ maxWidth: 84, maxHeight: 42, objectFit: 'contain' }} /> : <Text c="dimmed" size="xs">{t('branding.noImage')}</Text>}

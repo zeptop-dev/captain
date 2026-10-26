@@ -183,7 +183,31 @@ A token carries its owner's role, narrowed by what it was issued with:
 
 ## Theme and page injection
 
-Admin → Landing page: primary colour, corner radius, light/dark/system
+Admin → Brand and homepage includes the shared brand name, browser tab title,
+light-background and dark-background logos, and browser icon (favicon). These
+apply to the built-in homepage, public service-status page, customer portal,
+sign-in pages and admin console. The existing portal title can still override
+the portal header text. Page descriptions use the homepage description. This
+does not change deployment `site_name` used by mail, notifications or subscription
+headers, nor rewrite an operator-supplied custom homepage.
+
+Upload PNG, JPEG or WebP images up to 2 MiB and 2048 × 2048 pixels, or enter an
+HTTP(S) image URL. Uploads are decoded and stored as PNGs, with a 4 MiB output
+limit; SVG and executable content are not accepted. Save the settings to use an
+uploaded image. Supplying only one logo uses it for both light and dark
+appearances; leaving both blank restores the default mark. A square PNG is
+recommended for the browser icon. Images are served at public content-addressed
+URLs and included in database backups; identical uploads share one stored asset.
+
+Monitoring → Server probe has a **Follow main-site branding** switch. Existing
+installations keep their independent probe branding by default. Enabling it uses
+the main site's name, logos, browser title, description and favicon; disabling it
+restores the probe's own title and uploaded logos/favicon. Switching never deletes
+the independent settings, and an empty independent icon does not inherit the main
+site's icon. Probe appearance and access controls remain separate. This applies
+to all five probe themes and to probes served on dedicated hostnames.
+
+Admin → Brand and homepage also includes primary colour, corner radius, light/dark/system
 scheme for the portal, portal title, font, and raw HTML
 injected before `</head>` and `</body>` on every portal and landing page
 (analytics, chat widgets). The console keeps its own look.

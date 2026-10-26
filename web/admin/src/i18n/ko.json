@@ -3190,6 +3190,8 @@
     "probeFollow": "메인 사이트 브랜드 사용",
     "probeFollowHint": "메인 사이트의 이름과 아이콘을 사용합니다. 끄면 독립 설정으로 돌아가며, 전환해도 독립 설정은 삭제되지 않습니다.",
     "uploadTooLarge": "이미지는 2 MiB 이하여야 합니다.",
-    "uploadFailed": "이미지 업로드에 실패했습니다."
+    "uploadFailed": "이미지 업로드에 실패했습니다.",
+    "invalidURL": "HTTP(S) URL 또는 사이트 내 경로를 입력하세요.",
+    "independentInvalid": "독립 브랜드 설정도 유지됩니다. 저장하기 전에 아래 이미지 주소를 수정하세요."
   }
 }

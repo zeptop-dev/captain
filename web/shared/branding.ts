@@ -8,11 +8,20 @@ export interface Branding {
 
 /** Brand images may be uploaded local assets or ordinary HTTP(S) images. */
 export function safeBrandAssetURL(value?: string): string {
-  const url = value?.trim() || ''
-  if (!url || /[\\\u0000-\u001f\u007f]/.test(url)) return ''
-  if (url.startsWith('/') && !url.startsWith('//')) return url
+  const url = value || ''
+  if (!url || url.trim() !== url || url.length > 2048 || /[\\\u0000-\u001f\u007f]/.test(url)) return ''
   try {
+    if (url.startsWith('/') && !url.startsWith('//')) {
+      const path = decodeURIComponent(url.split(/[?#]/, 1)[0])
+      if (path.startsWith('//') || /[\\\u0000-\u001f\u007f]/.test(path)) return ''
+      // URL.parse on the server rejects malformed escapes in the fragment too.
+      if (url.includes('#')) decodeURIComponent(url.slice(url.indexOf('#') + 1))
+      return url
+    }
+    if (!/^https?:\/\//i.test(url) || url.split('/')[2]?.includes('@')) return ''
     const parsed = new URL(url)
+    decodeURIComponent(parsed.pathname)
+    decodeURIComponent(parsed.hash)
     return (parsed.protocol === 'https:' || parsed.protocol === 'http:') && !parsed.username && !parsed.password ? url : ''
   } catch {
     return ''
@@ -39,9 +48,7 @@ export const defaultBrandFavicon = new URL('./captain-mark.svg', import.meta.url
 /** Own the current SPA's metadata, restoring the previous document on cleanup. */
 export function applyBrandMetadata({ name, title, description, favicon }: BrandMetadata): () => void {
   const previousTitle = document.title
-  const previousDescription = Array.from(document.head.querySelectorAll<HTMLMetaElement>('meta[name="description"]'))
-  const previousIcons = Array.from(document.head.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]'))
-  const replaced = [...previousDescription, ...previousIcons].map(element => ({ element, next: element.nextSibling }))
+  const replaced = Array.from(document.head.querySelectorAll<HTMLMetaElement | HTMLLinkElement>('meta[name="description"],link[rel~="icon"]')).map(element => ({ element, next: element.nextSibling }))
   for (const { element } of replaced) element.remove()
   document.title = title?.trim() || name?.trim() || 'Captain'
   const added: HTMLElement[] = []

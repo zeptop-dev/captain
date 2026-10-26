@@ -9,7 +9,7 @@ import { PageHeader } from '../components/PageHeader'
 import { SettingsLoadState } from '../components/SettingsLoadState'
 import { SettingsFields } from '../components/SettingsFields'
 import { BrandAssetInput } from '../components/BrandAssetInput'
-import { publicBrandQueryKey } from '../lib/branding'
+import { publicBrandQueryKey, validBrandAssetInput } from '../lib/branding'
 
 type Values = { logo_light: string; logo_dark: string; favicon: string; brand_title: string; name: string; tagline: string; description: string; show_plans: boolean; telegram: string; tos: string; download: string; github: string; hub: string; locations: string; features: string; faq: string; primary: string; radius: string; scheme: string; site_scheme: string | undefined; font_family: string; portal_title: string; inject_head: string; inject_body: string }
 
@@ -19,7 +19,7 @@ export default function SitePage() {
   const q = useQuery({ queryKey: ['site-settings'], queryFn: () => api.get<SiteSettings>('/api/admin/settings/site') })
   const form = useForm<Values>({
     initialValues: { logo_light: '', logo_dark: '', favicon: '', brand_title: '', name: '', tagline: '', description: '', show_plans: true, telegram: '', tos: '', download: '', github: '', hub: '', locations: '[]', features: '[]', faq: '[]', primary: 'cyan', radius: 'lg', scheme: 'light', site_scheme: undefined, font_family: '', portal_title: '', inject_head: '', inject_body: '' },
-    validate: { locations: json, features: json, faq: json, hub: (v) => (v.trim() === '' ? null : json(v)) },
+    validate: { logo_light: v => validBrandAssetInput(v) ? null : t('branding.invalidURL'), logo_dark: v => validBrandAssetInput(v) ? null : t('branding.invalidURL'), favicon: v => validBrandAssetInput(v) ? null : t('branding.invalidURL'), locations: json, features: json, faq: json, hub: (v) => (v.trim() === '' ? null : json(v)) },
   })
   useEffect(() => {
     const s = q.data

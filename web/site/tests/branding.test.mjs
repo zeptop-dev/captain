@@ -12,7 +12,7 @@ test('logos select the displayed scheme with a safe alternate and built-in fallb
 })
 
 test('brand images reject executable, cross-protocol, credentialed and malformed URLs', () => {
-  for (const value of ['javascript:alert(1)', 'data:image/svg+xml,<svg/>', '//example.com/x.png', '/\\example.com/x.png', 'https://example.com/\nx.png', 'https://user:pass@example.com/x.png', 'not-an-url']) assert.equal(safeBrandAssetURL(value), '')
+  for (const value of ['javascript:alert(1)', 'data:image/svg+xml,<svg/>', '//example.com/x.png', '/\\example.com/x.png', 'https://example.com/\nx.png', 'https://user:pass@example.com/x.png', 'not-an-url', ' https://example.com/logo.png ', '/%XX.png', '/%2fexample.com/logo.png', '/logo%00.png', 'https:example.com/logo.png', 'https://@example.com/logo.png']) assert.equal(safeBrandAssetURL(value), '')
   for (const value of ['/brand-assets/mark.png', 'https://example.com/mark.png', 'http://example.com/mark.png']) assert.equal(safeBrandAssetURL(value), value)
 })
 
@@ -23,7 +23,7 @@ function documentFixture() {
     children: [],
     append(node) { node.parentNode = this; this.children.push(node) },
     insertBefore(node, next) { node.parentNode = this; const index = this.children.indexOf(next); this.children.splice(index < 0 ? this.children.length : index, 0, node) },
-    querySelectorAll(selector) { return this.children.filter(node => selector.startsWith('meta') ? node.tagName === 'meta' && node.name === 'description' : node.tagName === 'link' && node.rel.split(' ').includes('icon')) },
+    querySelectorAll(selector) { return this.children.filter(node => (selector.includes('meta') && node.tagName === 'meta' && node.name === 'description') || (selector.includes('link') && node.tagName === 'link' && node.rel.split(' ').includes('icon'))) },
   }
   return {
     title: 'Original', head,
@@ -44,6 +44,7 @@ test('metadata follows the brand, clears removed values and restores the documen
   try {
     const oldIcon = fixture.createElement('link'); oldIcon.rel = 'icon'; oldIcon.href = '/original.png'; fixture.head.append(oldIcon)
     const oldDescription = fixture.createElement('meta'); oldDescription.name = 'description'; oldDescription.content = 'Original description'; fixture.head.append(oldDescription)
+    const shortcutIcon = fixture.createElement('link'); shortcutIcon.rel = 'shortcut icon'; shortcutIcon.href = '/shortcut.png'; fixture.head.append(shortcutIcon)
     const clean = applyBrandMetadata({ name: 'Example', title: 'Example Network', description: '<b>Literal text</b>', favicon: '/brand-assets/logo.png' })
     assert.equal(fixture.title, 'Example Network')
     assert.deepEqual(fixture.head.children.map(node => node.content || node.href), ['<b>Literal text</b>', '/brand-assets/logo.png'])
@@ -51,13 +52,13 @@ test('metadata follows the brand, clears removed values and restores the documen
     assert.equal(fixture.head.children[1].href, defaultBrandFavicon)
     clean()
     assert.equal(fixture.title, 'Original')
-    assert.deepEqual(fixture.head.children, [oldIcon, oldDescription])
+    assert.deepEqual(fixture.head.children, [oldIcon, oldDescription, shortcutIcon])
     const cleanEmpty = applyBrandMetadata({ name: 'New name', title: '', description: '', favicon: '' })
     assert.equal(fixture.title, 'New name')
     assert.equal(fixture.head.children.length, 1)
     assert.equal(fixture.head.children[0].href, defaultBrandFavicon)
     cleanEmpty()
-    assert.deepEqual(fixture.head.children, [oldIcon, oldDescription])
+    assert.deepEqual(fixture.head.children, [oldIcon, oldDescription, shortcutIcon])
   } finally {
     globalThis.document = oldDocument
   }

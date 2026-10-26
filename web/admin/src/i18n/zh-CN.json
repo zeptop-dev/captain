@@ -3190,6 +3190,8 @@
     "probeFollow": "跟随主站品牌",
     "probeFollowHint": "使用主站的名称和图标。关闭后恢复独立设置，切换不会删除已填写的独立内容。",
     "uploadTooLarge": "图片不能超过 2 MiB。",
-    "uploadFailed": "图片上传失败。"
+    "uploadFailed": "图片上传失败。",
+    "invalidURL": "请填写 HTTP(S) 地址或站内路径。",
+    "independentInvalid": "独立品牌设置也会保留，请先修正下方的图片地址再保存。"
   }
 }

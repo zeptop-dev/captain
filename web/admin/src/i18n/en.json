@@ -3190,6 +3190,8 @@
     "probeFollow": "Follow main-site branding",
     "probeFollowHint": "Use the main site’s name and icons. Turning this off restores the independent settings; switching does not delete them.",
     "uploadTooLarge": "The image must be no larger than 2 MiB.",
-    "uploadFailed": "Image upload failed."
+    "uploadFailed": "Image upload failed.",
+    "invalidURL": "Use an HTTP(S) URL or a site-relative path.",
+    "independentInvalid": "Independent branding settings are also preserved. Correct the image addresses below before saving."
   }
 }
