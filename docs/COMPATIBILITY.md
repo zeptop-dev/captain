@@ -38,8 +38,7 @@ the old single-group field after adopting a policy are rejected. Omitting
 No new bosun protocol fields are needed: Captain supplies each inbound's existing
 scoped-user list. Migration is forward-only. Old Captain releases cannot enforce
 these policies, especially `none`, so the updater's rollback floor is raised to
-v1.45.0 for this feature. Before its first release, verify that this floor matches
-the version actually shipping migration 92. Manual downgrade requires restoration
+v1.45.0, the first release shipping migration 92. Manual downgrade requires restoration
 of a compatible pre-feature database backup; leaving the new database in place
 can expose restricted nodes.
 
@@ -250,8 +249,9 @@ client's TLS fingerprint or change its privacy properties. The default Xray
 package remains unchanged. No Captain protocol or database change is needed
 for this bosun compatibility patch.
 
-The built-in Captain update/rollback floor is v1.35.0, superseding earlier
-floors. Older panels can omit registered device peers and lose the new
+Captain v1.35.0 raised the built-in update/rollback floor to v1.35.0;
+v1.45.0 now raises it further to preserve inbound access policies.
+Older panels can omit registered device peers and lose the new
 attribution semantics. Manual downgrade requires restoring the corresponding
 pre-upgrade database backup, including its older credential state. See
 [device subscriptions](SUBSCRIPTIONS.md#independent-wireguard-devices) and
@@ -391,6 +391,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
+| 1.45.0 | Unchanged; shared module v0.82.0 | City locations and explicit map publication, multiple inbound access groups and curated client downloads; migrations 91–93. Existing managed nodes do not need an upgrade. Captain rollback floor is v1.45.0 to retain access policies. |
 | 1.35.0 | ≥ 0.77.0 and explicitly activated Xray `26.7.28-r3` for native WG devices | Independent WG-only device subscriptions and parent-account limits; migration 85. Managed reverse exit display uses existing traffic reports and migration 84 without requiring a fleet upgrade. Existing fields and ordinary subscriptions remain compatible; Captain rollback floor becomes 1.35.0. |
 | 1.34.0 | Unchanged | Additive public storage history and per-volume detail charts. Absolute filesystem history starts with this panel version; older data-volume percentages are not reconstructed as capacity. No migration or agent protocol change. |
 | 1.32.0 | ≥ 0.76.0 for full CPU topology, asynchronous filesystem sampling and mergerfs | Additive CPU/filesystem fields and private storage selection (migration 83). Old agents retain logical CPU and existing filesystem/root fallbacks; traffic units and card layout need no agent update. |
@@ -430,8 +431,8 @@ features it has never heard of, which the node page shows as an orange
 
 `min_version` in both `config.yaml` files is the floor a self-update or
 rollback may not go below; set it to the version you have tested. Captain's
-built-in floor is v1.35.0 for device credentials and exit attribution; this also
-retains the earlier protections for line ownership, client chains, internal
+built-in floor is v1.45.0 for inbound access policies; this also
+retains device credentials, exit attribution and the earlier protections for line ownership, client chains, internal
 forwarding and public storage selection. A higher configured floor still wins.
 This protects the built-in updater, not manual replacement of the executable.
 
