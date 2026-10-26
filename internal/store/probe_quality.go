@@ -204,6 +204,19 @@ func recordPingHistory(ctx context.Context, tx *sql.Tx, nodeID int64, h spec.Sys
 		if len(p.Name) > 128 || !validPingSeries(p) {
 			continue
 		}
+		// Preserve the original tables and conflict keys for old Captain
+		// binaries. Only explicit measurement identities use the new tables.
+		statsTable, cursorTable := "node_ping_stats", "node_ping_cursors"
+		keyColumns, keyValues := "node_id,task_id,name", "?,?,?"
+		keyWhere := "node_id=? AND task_id=? AND name=?"
+		keyArgs := []any{nodeID, p.TaskID, p.Name}
+		if p.Series != "" || p.Family != "" {
+			statsTable, cursorTable = "node_ping_series_stats", "node_ping_series_cursors"
+			keyColumns, keyValues = keyColumns+",series,family", keyValues+",?,?"
+			keyWhere += " AND series=? AND family=?"
+			keyArgs = append(keyArgs, p.Series, p.Family)
+		}
+		args := func(extra ...any) []any { return append(append([]any(nil), keyArgs...), extra...) }
 		q := p.Quality
 		// Preserve legacy data shape; timestamps deduplicate cached custom-task
 		// results where available. Old carriers had a fresh timestamp on every read.
@@ -233,7 +246,7 @@ func recordPingHistory(ctx context.Context, tx *sql.Tx, nodeID int64, h spec.Sys
 		}
 		var sequence uint64
 		previous := -1.0
-		err := tx.QueryRowContext(ctx, `SELECT sequence,last_ms FROM node_ping_cursors WHERE node_id=? AND task_id=? AND name=? AND series=? AND family=? AND epoch=?`, nodeID, p.TaskID, p.Name, p.Series, p.Family, epoch).Scan(&sequence, &previous)
+		err := tx.QueryRowContext(ctx, `SELECT sequence,last_ms FROM `+cursorTable+` WHERE `+keyWhere+` AND epoch=?`, args(epoch)...).Scan(&sequence, &previous)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return err
 		}
@@ -267,7 +280,7 @@ func recordPingHistory(ctx context.Context, tx *sql.Tx, nodeID int64, h spec.Sys
 				ts := sampleAt.UTC().Truncate(b.step).Unix()
 				qualityJSON := "{}"
 				if q != nil {
-					err := tx.QueryRowContext(ctx, `SELECT quality_json FROM node_ping_stats WHERE node_id=? AND task_id=? AND name=? AND series=? AND family=? AND res=? AND ts=?`, nodeID, p.TaskID, p.Name, p.Series, p.Family, b.res, ts).Scan(&qualityJSON)
+					err := tx.QueryRowContext(ctx, `SELECT quality_json FROM `+statsTable+` WHERE `+keyWhere+` AND res=? AND ts=?`, args(b.res, ts)...).Scan(&qualityJSON)
 					if err != nil && !errors.Is(err, sql.ErrNoRows) {
 						return err
 					}
@@ -288,14 +301,14 @@ func recordPingHistory(ctx context.Context, tx *sql.Tx, nodeID int64, h spec.Sys
 					sum = 0
 					mbps = 0
 				}
-				if _, err := tx.ExecContext(ctx, `INSERT INTO node_ping_stats(node_id,task_id,name,series,family,res,ts,samples,lost,sum_ms,sum_mbps,quality_json) VALUES(?,?,?,?,?,?,?,1,?,?,?,?) ON CONFLICT(node_id,task_id,name,series,family,res,ts) DO UPDATE SET samples=samples+1,lost=lost+excluded.lost,sum_ms=sum_ms+excluded.sum_ms,sum_mbps=sum_mbps+excluded.sum_mbps,quality_json=CASE WHEN ? THEN excluded.quality_json ELSE quality_json END`, nodeID, p.TaskID, p.Name, p.Series, p.Family, b.res, ts, lost, sum, mbps, qualityJSON, q != nil); err != nil {
+				if _, err := tx.ExecContext(ctx, `INSERT INTO `+statsTable+`(`+keyColumns+`,res,ts,samples,lost,sum_ms,sum_mbps,quality_json) VALUES(`+keyValues+`,?,?,1,?,?,?,?) ON CONFLICT(`+keyColumns+`,res,ts) DO UPDATE SET samples=samples+1,lost=lost+excluded.lost,sum_ms=sum_ms+excluded.sum_ms,sum_mbps=sum_mbps+excluded.sum_mbps,quality_json=CASE WHEN ? THEN excluded.quality_json ELSE quality_json END`, args(b.res, ts, lost, sum, mbps, qualityJSON, q != nil)...); err != nil {
 					return err
 				}
 			}
 			sequence, previous = m.Sequence, m.LatencyMs
 		}
 		if sequence > 0 {
-			if _, err := tx.ExecContext(ctx, `INSERT INTO node_ping_cursors(node_id,task_id,name,series,family,epoch,sequence,last_ms,seen_at) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(node_id,task_id,name,series,family,epoch) DO UPDATE SET sequence=excluded.sequence,last_ms=excluded.last_ms,seen_at=excluded.seen_at`, nodeID, p.TaskID, p.Name, p.Series, p.Family, epoch, sequence, previous, at.Unix()); err != nil {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO `+cursorTable+`(`+keyColumns+`,epoch,sequence,last_ms,seen_at) VALUES(`+keyValues+`,?,?,?,?) ON CONFLICT(`+keyColumns+`,epoch) DO UPDATE SET sequence=excluded.sequence,last_ms=excluded.last_ms,seen_at=excluded.seen_at`, args(epoch, sequence, previous, at.Unix())...); err != nil {
 				return err
 			}
 		}

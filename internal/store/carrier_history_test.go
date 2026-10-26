@@ -118,7 +118,7 @@ func TestCarrierHistorySeparatesFamiliesProtocolsTargetsAndCursors(t *testing.T)
 		}
 	}
 	var cursors int
-	if err := conn.QueryRow(`SELECT COUNT(*) FROM node_ping_cursors`).Scan(&cursors); err != nil || cursors != 5 {
+	if err := conn.QueryRow(`SELECT (SELECT COUNT(*) FROM node_ping_cursors) + (SELECT COUNT(*) FROM node_ping_series_cursors)`).Scan(&cursors); err != nil || cursors != 5 {
 		t.Fatalf("cursor count %d, %v", cursors, err)
 	}
 }
@@ -195,21 +195,47 @@ func TestCarrierHistoryMigrationPreservesLegacyDataAndCursor(t *testing.T) {
 	if err := s.PruneStats(ctx, at.Add(8*24*time.Hour)); err != nil {
 		t.Fatal(err)
 	}
-	for _, query := range []string{`SELECT COUNT(*) FROM node_ping_stats WHERE res='m'`, `SELECT COUNT(*) FROM node_ping_cursors`} {
+	for _, query := range []string{`SELECT COUNT(*) FROM node_ping_stats WHERE res='m'`, `SELECT COUNT(*) FROM node_ping_series_stats WHERE res='m'`, `SELECT COUNT(*) FROM node_ping_cursors`, `SELECT COUNT(*) FROM node_ping_series_cursors`} {
 		var count int
 		if err := conn.QueryRow(query).Scan(&count); err != nil || count != 0 {
 			t.Fatalf("prune left %d rows, %v", count, err)
 		}
 	}
-	// Recreate rows to exercise both foreign-key cascades after table rebuild.
+	// Recreate rows to exercise foreign-key cascades for the new tables too.
 	writeCarrierHistory(t, conn, at, carrierHistoryResult("tcp", "ipv4", "192.0.2.10:80", 1, at, 32))
 	if _, err := conn.Exec(`DELETE FROM nodes WHERE id=1`); err != nil {
 		t.Fatal(err)
 	}
-	for _, query := range []string{`SELECT COUNT(*) FROM node_ping_stats`, `SELECT COUNT(*) FROM node_ping_cursors`} {
+	for _, query := range []string{`SELECT COUNT(*) FROM node_ping_stats`, `SELECT COUNT(*) FROM node_ping_series_stats`, `SELECT COUNT(*) FROM node_ping_cursors`, `SELECT COUNT(*) FROM node_ping_series_cursors`} {
 		var count int
 		if err := conn.QueryRow(query).Scan(&count); err != nil || count != 0 {
 			t.Fatalf("cascade left %d rows, %v", count, err)
 		}
+	}
+}
+
+func TestCarrierHistoryMigrationRetainsLegacyUpsertKeys(t *testing.T) {
+	conn := carrierHistoryDB(t, true)
+	if err := db.Migrate(context.Background(), conn, "sqlite"); err != nil {
+		t.Fatal(err)
+	}
+	at := time.Date(2026, 10, 25, 10, 1, 10, 0, time.UTC)
+	// These are the exact old writer's conflict keys, not the new writer's
+	// selected path. An older binary must still collect its custom probes.
+	for seq := 1; seq <= 2; seq++ {
+		if _, err := conn.Exec(`INSERT INTO node_ping_stats(node_id,task_id,name,res,ts,samples,lost,sum_ms,sum_mbps,quality_json) VALUES(?,?,?,?,?,1,?,?,?,?) ON CONFLICT(node_id,task_id,name,res,ts) DO UPDATE SET samples=samples+1,lost=lost+excluded.lost,sum_ms=sum_ms+excluded.sum_ms,sum_mbps=sum_mbps+excluded.sum_mbps,quality_json=CASE WHEN ? THEN excluded.quality_json ELSE quality_json END`, 1, 7, "Old custom task", "m", at.Truncate(time.Minute).Unix(), 0, 12, 0, "{}", false); err != nil {
+			t.Fatalf("old stats writer failed after migration: %v", err)
+		}
+		if _, err := conn.Exec(`INSERT INTO node_ping_cursors(node_id,task_id,name,epoch,sequence,last_ms,seen_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(node_id,task_id,name,epoch) DO UPDATE SET sequence=excluded.sequence,last_ms=excluded.last_ms,seen_at=excluded.seen_at`, 1, 7, "Old custom task", "old-run", seq, 12, at.Unix()); err != nil {
+			t.Fatalf("old cursor writer failed after migration: %v", err)
+		}
+	}
+	points, err := New(conn).NodePingStats(context.Background(), 1, "m", at.Add(-time.Minute), at)
+	if err != nil || len(points) != 1 || points[0].Samples != 2 || points[0].AvgMs != 12 || points[0].Series != "" || points[0].Family != "" {
+		t.Fatalf("old writer data was lost or given invented metadata: %+v, %v", points, err)
+	}
+	var seq int
+	if err := conn.QueryRow(`SELECT sequence FROM node_ping_cursors WHERE node_id=1 AND task_id=7 AND name='Old custom task' AND epoch='old-run'`).Scan(&seq); err != nil || seq != 2 {
+		t.Fatalf("old cursor update was lost: %d, %v", seq, err)
 	}
 }
