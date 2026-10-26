@@ -37,7 +37,7 @@ type Theme struct {
 	Primary     string `json:"primary"`      // cyan (default), blue, indigo, violet, grape, pink, red, orange, yellow, lime, green, teal
 	Radius      string `json:"radius"`       // xs, sm, md, lg (default), xl
 	Scheme      string `json:"scheme"`       // portal: "light" (default), "dark", "auto"
-	SiteScheme  string `json:"site_scheme"`  // landing: "dark" (default), "light", "auto"
+	SiteScheme  string `json:"site_scheme"`  // legacy site default, retained for API and probe inheritance compatibility
 	FontFamily  string `json:"font_family"`  // optional CSS font stack
 	PortalTitle string `json:"portal_title"` // brand text in the portal header; default = site name
 }
