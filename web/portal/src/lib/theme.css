@@ -1,0 +1,48 @@
+:root {
+  --portal-bg: #f5f6f1;
+  --portal-panel: #fff;
+  --portal-text: #20251d;
+  --portal-muted: #66705e;
+  --portal-line: #d7dad0;
+  --portal-accent: #4c6d16;
+  --portal-accent-ink: #fff;
+  --portal-mono: 'SFMono-Regular', Consolas, monospace;
+}
+:root[data-mantine-color-scheme='dark'] {
+  --portal-bg: #0b0c0e;
+  --portal-panel: #121315;
+  --portal-text: #e7e9e6;
+  --portal-muted: #92958e;
+  --portal-line: #292b2d;
+  --portal-accent: #d5f879;
+  --portal-accent-ink: #12170b;
+}
+:root[data-mantine-color-scheme] {
+  --mantine-color-body: var(--portal-bg);
+  --mantine-color-text: var(--portal-text);
+  --mantine-color-dimmed: var(--portal-muted);
+  --mantine-color-default: var(--portal-panel);
+  --mantine-color-default-border: var(--portal-line);
+  --mantine-color-default-hover: color-mix(in srgb, var(--portal-text) 4%, var(--portal-panel));
+  --mantine-color-placeholder: color-mix(in srgb, var(--portal-muted) 75%, var(--portal-panel));
+  --mantine-color-anchor: var(--portal-accent);
+}
+body { margin: 0; background: var(--portal-bg); }
+button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--portal-accent); outline-offset: 3px; }
+.mantine-Card-root { background: var(--portal-panel); border-color: var(--portal-line); box-shadow: none; min-width: 0; }
+.mantine-Input-input { border-color: var(--portal-line); }
+.mantine-Input-input:focus-within { border-color: var(--portal-accent); }
+.mantine-InputWrapper-label { font-weight: 500; margin-bottom: 7px; }
+.mantine-Title-root { letter-spacing: -.025em; overflow-wrap: anywhere; }
+.mantine-Button-label { white-space: normal; }
+.mantine-Menu-dropdown, .mantine-Combobox-dropdown, .mantine-Popover-dropdown { background: var(--portal-panel); border-color: var(--portal-line); }
+.mantine-Table-th { color: var(--portal-muted); font-weight: 500; }
+.mantine-Table-table { --table-border-color: var(--portal-line); }
+.mantine-Modal-body { overflow-wrap: anywhere; }
+.mantine-Progress-root { background: color-mix(in srgb, var(--portal-muted) 16%, var(--portal-panel)); }
+.portal-theme-toggle { width: 36px; height: 36px; color: var(--portal-muted); }
+@media (max-width: 48em) {
+  .portal-theme-toggle { width: 44px; height: 44px; }
+  .mantine-Card-root { --card-padding: var(--mantine-spacing-lg); }
+}
