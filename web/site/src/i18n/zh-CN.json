@@ -251,13 +251,13 @@
     "categoryCount": "运行正常数：{{healthy}} / 总数：{{total}}"
   },
   "geography": {
-    "mapViewport": "网络地理位置，可横向滚动查看完整地图",
-    "mapTitle": "网络地理位置",
+    "mapViewport": "节点地理位置，可横向滚动查看完整地图",
+    "mapTitle": "节点地理位置",
     "configuredLocations": "已配置位置：{{names}}。",
     "noLocations": "尚无已配置位置。",
     "mapDisclaimer": "标记与连线只表示地理布局，不表示节点健康或实际流量。",
     "location": "{{name}}，地理位置",
-    "illustration": "地理位置示意",
+    "illustration": "节点地理位置",
     "scrollHint": "左右滑动查看全图",
     "playAnimation": "播放动画",
     "pauseAnimation": "暂停动画",

@@ -251,13 +251,13 @@
     "categoryCount": "正常運作數：{{healthy}} / 總數：{{total}}"
   },
   "geography": {
-    "mapViewport": "網路地理位置，可橫向捲動查看完整地圖",
-    "mapTitle": "網路地理位置",
+    "mapViewport": "節點地理位置，可橫向捲動查看完整地圖",
+    "mapTitle": "節點地理位置",
     "configuredLocations": "已設定位置：{{names}}。",
     "noLocations": "尚無已設定位置。",
     "mapDisclaimer": "標記與連線僅表示地理分布，不表示節點健康或實際流量。",
     "location": "{{name}}，地理位置",
-    "illustration": "地理位置示意",
+    "illustration": "節點地理位置",
     "scrollHint": "左右滑動查看全圖",
     "playAnimation": "播放動畫",
     "pauseAnimation": "暫停動畫",

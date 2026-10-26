@@ -251,13 +251,13 @@
     "categoryCount": "正常稼働数：{{healthy}} / 総数：{{total}}"
   },
   "geography": {
-    "mapViewport": "ネットワークの所在地。横にスクロールすると地図全体を確認できます。",
-    "mapTitle": "ネットワークの所在地",
+    "mapViewport": "ノードの所在地。横にスクロールすると地図全体を確認できます。",
+    "mapTitle": "ノードの所在地",
     "configuredLocations": "設定済みの所在地：{{names}}。",
     "noLocations": "所在地はまだ設定されていません。",
     "mapDisclaimer": "マーカーと線は地理的な配置のみを示し、ノードの正常性や実際の通信量を表しません。",
     "location": "{{name}}、所在地",
-    "illustration": "所在地の概略図",
+    "illustration": "ノードの所在地",
     "scrollHint": "左右にスワイプして地図を表示",
     "playAnimation": "アニメーション再生",
     "pauseAnimation": "アニメーションを一時停止",
