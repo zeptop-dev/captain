@@ -337,3 +337,131 @@ func TestReceiverCannotGrantAccessAndTailReportsRemainAccepted(t *testing.T) {
 		t.Fatal("expired/exhausted tail report identity lost")
 	}
 }
+
+func TestInboundAccessMultiPlanLifecycleCompatibility(t *testing.T) {
+	f := newAccessFixture(t)
+	s, ctx, u, ib := f.s, f.ctx, f.users[0], f.inbounds[0]
+	at := time.Now().UTC().Truncate(time.Second)
+	if err := s.UpdateInboundAccess(ctx, ib.ID, f.change(t, ib.ID, domain.AccessGroups, f.groups[1])); err != nil {
+		t.Fatal(err)
+	}
+	allowed := func(want bool) {
+		t.Helper()
+		members, err := s.UsersWithInboundAccess(ctx, ib.ID, at)
+		if err != nil {
+			t.Fatal(err)
+		}
+		has := false
+		for _, member := range members {
+			has = has || member.ID == u.ID
+		}
+		if has != want {
+			t.Fatalf("credential eligibility = %v, want %v", has, want)
+		}
+	}
+	if _, err := s.GrantSubscriptionMode(ctx, u.ID, f.plans[1], at, GrantQueue); err != nil {
+		t.Fatal(err)
+	}
+	allowed(false) // A queued plan must not grant its selected node set.
+	if _, err := s.db.ExecContext(ctx, `UPDATE subscriptions SET expires_at=? WHERE user_id=? AND plan_id=?`, at.Add(-time.Second).Unix(), u.ID, f.plans[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	allowed(false)
+	if n, err := s.PromoteQueued(ctx, at); err != nil || n != 1 {
+		t.Fatalf("promote=%d err=%v", n, err)
+	}
+	allowed(true)
+	if _, err := s.GrantSubscriptionMode(ctx, u.ID, f.plans[2], at, GrantStack); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.ExecContext(ctx, `UPDATE subscriptions SET used_up_bytes=quota_bytes WHERE user_id=? AND plan_id=?`, u.ID, f.plans[1].ID); err != nil {
+		t.Fatal(err)
+	}
+	allowed(false) // The other usable plan does not keep the exhausted group.
+	if _, err := s.db.ExecContext(ctx, `UPDATE subscriptions SET used_up_bytes=0,expires_at=? WHERE user_id=? AND plan_id=?`, at.Add(-time.Second).Unix(), u.ID, f.plans[1].ID); err != nil {
+		t.Fatal(err)
+	}
+	allowed(false)
+	if err := s.UpdateUser(ctx, u.ID, "active", &f.groups[1], ""); err != nil {
+		t.Fatal(err)
+	}
+	allowed(true) // An existing account group still combines with another usable plan.
+	if _, err := s.db.ExecContext(ctx, `UPDATE subscriptions SET expires_at=? WHERE user_id=? AND status='active'`, at.Add(-time.Second).Unix(), u.ID); err != nil {
+		t.Fatal(err)
+	}
+	allowed(false) // The account group alone cannot supply an active allowance.
+}
+
+func TestInboundAccessRetainsLegacyReplaceGroupAcrossQueue(t *testing.T) {
+	f := newAccessFixture(t)
+	s, ctx, u, ib := f.s, f.ctx, f.users[0], f.inbounds[0]
+	at := time.Now().UTC().Truncate(time.Second)
+	if err := s.UpdateInboundAccess(ctx, ib.ID, f.change(t, ib.ID, domain.AccessGroups, f.groups[1])); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.GrantSubscriptionMode(ctx, u.ID, f.plans[1], at, GrantReplace); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.GrantSubscriptionMode(ctx, u.ID, f.plans[2], at, GrantQueue); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.ExecContext(ctx, `UPDATE subscriptions SET expires_at=? WHERE user_id=? AND status='active'`, at.Add(-time.Second).Unix(), u.ID); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := s.PromoteQueued(ctx, at); err != nil || n != 1 {
+		t.Fatalf("promote=%d err=%v", n, err)
+	}
+	current, err := s.UserByID(ctx, u.ID)
+	if err != nil || current.GroupID == nil || *current.GroupID != f.groups[1] {
+		t.Fatalf("legacy account group changed: %+v %v", current, err)
+	}
+	members, err := s.UsersWithInboundAccess(ctx, ib.ID, at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, member := range members {
+		found = found || member.ID == u.ID
+	}
+	if !found {
+		t.Fatal("new policy changed existing single-plan group semantics")
+	}
+}
+
+func TestGroupAccessConfirmsSharedPlansAndPreservesOtherGroups(t *testing.T) {
+	f := newAccessFixture(t)
+	s, ctx, group := f.s, f.ctx, f.groups[0]
+	p := &domain.Plan{Name: "Another basic plan", GroupID: &group, Enabled: true, PeriodDays: 30}
+	if err := s.CreatePlan(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	c, err := s.AccessCatalog(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	change := GroupAccessChange{Revision: c.Revision, InboundIDs: []int64{f.inbounds[0].ID, f.inbounds[1].ID}}
+	if err = s.UpdateGroupAccess(ctx, group, change); !errors.Is(err, ErrAccessConfirmationRequired) {
+		t.Fatalf("shared plans accepted: %v", err)
+	}
+	change.ConfirmShared = true
+	if err = s.UpdateGroupAccess(ctx, group, change); err != nil {
+		t.Fatal(err)
+	}
+	a, err := s.InboundAccess(ctx, f.inbounds[1].ID)
+	if err != nil || !reflect.DeepEqual(a.GroupIDs, f.groups[:2]) {
+		t.Fatalf("other membership lost: %+v %v", a, err)
+	}
+	c, err = s.AccessCatalog(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	change.Revision = c.Revision
+	change.InboundIDs = []int64{f.inbounds[0].ID}
+	if err = s.UpdateGroupAccess(ctx, group, change); err != nil {
+		t.Fatal(err)
+	}
+	a, err = s.InboundAccess(ctx, f.inbounds[1].ID)
+	if err != nil || !reflect.DeepEqual(a.GroupIDs, []int64{f.groups[1]}) {
+		t.Fatalf("removal changed another group: %+v %v", a, err)
+	}
+}
