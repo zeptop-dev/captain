@@ -1,0 +1,272 @@
+{
+  "common": {
+    "language": "Language",
+    "loadError": "Service information is temporarily unavailable.",
+    "loading": "Loading service information…",
+    "reload": "Reload",
+    "switchLight": "Switch to light mode",
+    "switchDark": "Switch to dark mode"
+  },
+  "nav": {
+    "features": "Features",
+    "coverage": "Network coverage",
+    "platform": "Your devices",
+    "serviceFeatures": "Service features",
+    "support": "Resources & support",
+    "connect": "Connection guide",
+    "download": "Download clients",
+    "faq": "FAQ",
+    "contact": "Contact support",
+    "services": "Services",
+    "plans": "Plans & services",
+    "terms": "Terms of service",
+    "security": "Account security",
+    "about": "About",
+    "home": "Home",
+    "status": "Service status",
+    "monitoring": "Server monitoring",
+    "brandHome": "{{name}} home",
+    "skip": "Skip to main content",
+    "close": "Close navigation",
+    "open": "Open navigation",
+    "main": "Main navigation",
+    "account": "User center",
+    "rights": "All rights reserved.",
+    "top": "Back to top"
+  },
+  "home": {
+    "eyebrow": "SUBSCRIPTION & CONNECTION",
+    "actions": {
+      "start": "Get started",
+      "login": "Sign in",
+      "portal": "Open user center",
+      "download": "Download clients",
+      "plans": "View plans",
+      "guide": "Connection guide",
+      "clients": "View clients",
+      "moreFeatures": "Explore service features"
+    },
+    "shortcuts": {
+      "platform": "Connect your devices",
+      "platformDescription": "Start on your own devices",
+      "features": "Service features",
+      "featuresDescription": "Learn about our service",
+      "coverage": "Network coverage",
+      "coverageDescription": "Explore configured locations",
+      "plansDescription": "Find a plan that fits",
+      "faq": "Common questions",
+      "faqDescription": "Know more before connecting"
+    },
+    "coverage": {
+      "label": "NETWORK COVERAGE",
+      "note": "Geographic coverage illustration, not live monitoring. Check the user center for available nodes and access."
+    },
+    "figure": {
+      "deviceMatrix": "DEVICE MATRIX",
+      "multiPlatform": "MULTI-PLATFORM",
+      "desktop": "DESKTOP",
+      "mobile": "MOBILE",
+      "router": "ROUTER",
+      "service": "SERVICE"
+    },
+    "sections": {
+      "platform": "PLATFORM / YOUR DEVICES",
+      "feature": "FEATURE / OUR SERVICE",
+      "connection": "CONNECTION / GET CONNECTED",
+      "signal": "YOUR CONNECTION / USER CENTER",
+      "details": "DETAILS / SERVICE INFORMATION",
+      "plans": "PLANS / SUBSCRIPTIONS",
+      "faq": "FAQ / SUPPORT"
+    },
+    "platform": {
+      "heading": "Connect on the devices you know",
+      "title": "One subscription. A choice of clients.",
+      "description": "From desktop to mobile, get the right subscription format in the user center, then follow the connection guide to set up your client.",
+      "supported": "SUPPORTED / CLIENTS",
+      "devices": "Desktop computers, mobile devices and routers",
+      "note": "Available subscription formats and protocols depend on the options in the user center and your client’s capabilities."
+    },
+    "connection": {
+      "aria": "How a client connects to a destination through a subscription node",
+      "client": "Your client",
+      "nodes": "Subscription nodes",
+      "target": "Destination",
+      "note": "Connection illustration only; it does not describe any node’s actual route topology.",
+      "heading": "From subscription to every connection",
+      "choose": "Choose a service",
+      "chooseDescription": "Review each plan’s traffic allowance, period and device limit in the user center.",
+      "subscribe": "Get your subscription",
+      "subscribeDescription": "Choose the format for your client, import it, then view the available nodes.",
+      "connect": "Connect",
+      "connectDescription": "Choose a suitable connection from the nodes included in your current plan."
+    },
+    "signal": {
+      "heading": "Your connection,\nclearly in view",
+      "description": "Manage subscriptions, plans and node information\nin one user center.",
+      "subscription": "Subscription setup",
+      "subscriptionDescription": "Get your subscription and find client setup guides.",
+      "usage": "Plans and usage",
+      "usageDescription": "View your current plan, expiry date and remaining traffic.",
+      "status": "Service status",
+      "nodes": "Node information",
+      "statusDescription": "View public node status and maintenance information.",
+      "nodesDescription": "View the subscription nodes available to your account."
+    },
+    "details": {
+      "heading": "Explore your service options"
+    },
+    "plans": {
+      "heading": "Find the right plan for you",
+      "choose": "Choose a plan",
+      "loading": "Loading plans…",
+      "error": "Plans could not be loaded. Please try again.",
+      "retry": "Try again",
+      "empty": "No public plans are available. Check the user center for service information.",
+      "permanent": "No expiry",
+      "traffic": "{{amount}} traffic",
+      "unlimitedTraffic": "Unlimited traffic",
+      "unlimitedDevices": "Unlimited devices",
+      "speed": "{{speed}} Mbps",
+      "days_one": "{{count, number}} day",
+      "days_few": "{{count, number}} days",
+      "days_many": "{{count, number}} days",
+      "days_other": "{{count, number}} days",
+      "devices_one": "{{count, number}} device",
+      "devices_few": "{{count, number}} devices",
+      "devices_many": "{{count, number}} devices",
+      "devices_other": "{{count, number}} devices"
+    },
+    "faq": {
+      "heading": "Any questions?",
+      "description": "What you may want to know\nabout the service and getting connected."
+    },
+    "closing": {
+      "heading": "Your next connection starts here"
+    },
+    "defaults": {
+      "tagline": "Reliable, fast,\nand effortless connectivity",
+      "description": "Nodes across multiple regions, automatic route selection, and one subscription link for all your devices.",
+      "protocols": {
+        "title": "Multiple protocols",
+        "text": "Popular protocols including VLESS, Hysteria2 and mieru, with one-click client import."
+      },
+      "locations": {
+        "title": "Global nodes",
+        "text": "Choose a low-latency route across multiple regions to suit your needs."
+      },
+      "privacy": {
+        "title": "Privacy first",
+        "text": "We measure traffic usage without logging the content you access."
+      },
+      "devices": {
+        "title": "Multiple devices",
+        "text": "Use one subscription on phones, computers and routers."
+      },
+      "updates": {
+        "title": "Automatic updates",
+        "text": "Node changes sync to your subscription automatically, without manual updates."
+      },
+      "support": {
+        "title": "Help when you need it",
+        "text": "Contact us whenever you need help."
+      },
+      "faq": {
+        "q": "Which clients are supported?",
+        "a": "Clash-based clients, sing-box, Shadowrocket, Surge, v2rayN and more. Simply import your subscription link."
+      }
+    }
+  },
+  "serviceStatus": {
+    "title": "Service status",
+    "serverMonitoring": "Server monitoring",
+    "scope": "Runtime status of the publicly listed subscription nodes and access paths.",
+    "refresh": "Refresh",
+    "all": "All",
+    "unavailable": "Current status unavailable",
+    "fetchError": "The update failed. Previous status is hidden. Please try again.",
+    "offline": "You are offline. Previous status is hidden; we will refresh when the connection returns.",
+    "expired": "The status report has expired. All nodes are shown as unknown until new data arrives.",
+    "never": "No record yet",
+    "overview": "Node overview",
+    "allHealthy": "All nodes operational",
+    "issues": "Some nodes have issues",
+    "allDown": "Nodes currently unavailable",
+    "maintaining": "Maintenance in progress",
+    "awaiting": "Awaiting status confirmation",
+    "emptyTitle": "No public nodes",
+    "updated": "Updated: {{time}}",
+    "autoRefresh": "Refreshes every {{seconds}} seconds",
+    "empty": "No subscription nodes are currently listed publicly.",
+    "nodes": "Node status",
+    "categories": "Node categories",
+    "categoryHint": "Category counts show operational / total. Open a node to see the evidence.",
+    "observed": "Last observed: {{time}}",
+    "noEndToEnd": "End-to-end access: not tested",
+    "limitations": "Status summarizes inbound, forwarding and tunnel signals for public nodes. It does not guarantee access from your client to a destination website. No traffic does not mean a failure.",
+    "states": {
+      "healthy": "Operational",
+      "degraded": "Degraded",
+      "down": "Failure",
+      "maintenance": "Maintenance",
+      "unknown": "Unknown"
+    },
+    "reasons": {
+      "healthy": "Required components report normal operation.",
+      "no_data": "Not enough runtime data has arrived yet.",
+      "stale": "Reports have expired; awaiting new observations.",
+      "config_pending": "Configuration is awaiting application; runtime status is not confirmed.",
+      "component_failure": "A required component reports a failure.",
+      "no_route": "No usable access path is currently available.",
+      "partial_failure": "A usable path remains, but some candidate or backup paths have failed.",
+      "partial_unknown": "A usable path remains, but some candidate paths have unknown status.",
+      "unsupported": "Available data or capabilities cannot confirm the status.",
+      "external_path": "The path includes unmanaged forwarding; its full status cannot be confirmed.",
+      "maintenance": "The administrator is maintaining this node."
+    },
+    "evidence": {
+      "inbound": "Inbound runtime",
+      "forward_tcp": "Next-hop TCP probe",
+      "wireguard": "WireGuard tunnel",
+      "vless_reverse": "VLESS reverse connection",
+      "client_chain": "Client chain dependencies"
+    },
+    "evidenceLabel": "Status evidence",
+    "uncategorized": "Uncategorized",
+    "closed": "Service status is not public",
+    "closedHint": "Sign in to the user portal to check the status of nodes available to you.",
+    "notPublic": "Not public yet",
+    "checking": "Checking status",
+    "loading": "Fetching the latest node status.",
+    "waitingRefresh": "Waiting to refresh status",
+    "connecting": "Connecting to the status service",
+    "legend": "Status legend",
+    "showEvidence": "Open to view status evidence",
+    "myNodes": "View my nodes",
+    "refreshing": "Updating…",
+    "retry": "Fetch status again",
+    "summaryAffected": "Nodes with issues: {{value}}",
+    "summaryHealthy": "Operational: {{value}}",
+    "summaryMaintenance": "In maintenance: {{value}}",
+    "summaryUnknown": "Unknown: {{value}}",
+    "categoryCount": "Operational: {{healthy}} / Total: {{total}}"
+  },
+  "geography": {
+    "mapViewport": "Network locations. Scroll horizontally to explore the full map.",
+    "mapTitle": "Network locations",
+    "configuredLocations": "Configured locations: {{names}}.",
+    "noLocations": "No locations have been configured yet.",
+    "mapDisclaimer": "Markers and lines show geography only, not node health or actual traffic.",
+    "location": "{{name}}, geographic location",
+    "illustration": "Geographic illustration",
+    "scrollHint": "Swipe to explore the map",
+    "playAnimation": "Play animation",
+    "pauseAnimation": "Pause animation",
+    "globeTitle": "Node location globe",
+    "unavailable": "Geographic illustration is currently unavailable",
+    "globeDisclaimer": "Markers show geographic locations only, not node status.",
+    "resumeGlobe": "Resume globe animation",
+    "pauseGlobe": "Pause globe animation",
+    "play": "Play",
+    "pause": "Pause"
+  }
+}

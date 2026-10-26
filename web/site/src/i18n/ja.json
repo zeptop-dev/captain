@@ -1,0 +1,272 @@
+{
+  "common": {
+    "language": "言語",
+    "loadError": "サービス情報を一時的に読み込めません。",
+    "loading": "サービス情報を読み込み中…",
+    "reload": "再読み込み",
+    "switchLight": "ライトモードに切り替え",
+    "switchDark": "ダークモードに切り替え"
+  },
+  "nav": {
+    "features": "特長",
+    "coverage": "ネットワークエリア",
+    "platform": "各種デバイス",
+    "serviceFeatures": "サービスの特長",
+    "support": "資料・サポート",
+    "connect": "接続ガイド",
+    "download": "クライアントのダウンロード",
+    "faq": "よくある質問",
+    "contact": "サポートへのお問い合わせ",
+    "services": "サービス",
+    "plans": "プランとサービス",
+    "terms": "利用規約",
+    "security": "アカウントのセキュリティ",
+    "about": "概要",
+    "home": "ホーム",
+    "status": "サービス状況",
+    "monitoring": "サーバー監視",
+    "brandHome": "{{name}} ホーム",
+    "skip": "メインコンテンツへ移動",
+    "close": "ナビゲーションを閉じる",
+    "open": "ナビゲーションを開く",
+    "main": "メインナビゲーション",
+    "account": "ユーザーセンター",
+    "rights": "All rights reserved.",
+    "top": "ページ上部へ"
+  },
+  "home": {
+    "eyebrow": "サブスクリプションと接続",
+    "actions": {
+      "start": "今すぐ始める",
+      "login": "ユーザーセンターにログイン",
+      "portal": "ユーザーセンターへ",
+      "download": "クライアントをダウンロード",
+      "plans": "プランを見る",
+      "guide": "接続ガイド",
+      "clients": "クライアントを見る",
+      "moreFeatures": "サービスの詳細を見る"
+    },
+    "shortcuts": {
+      "platform": "さまざまな端末で接続",
+      "platformDescription": "お使いの端末で始める",
+      "features": "サービスの特長",
+      "featuresDescription": "サービスについて知る",
+      "coverage": "ネットワークの範囲",
+      "coverageDescription": "設定済みの地域を見る",
+      "plansDescription": "自分に合うプランを探す",
+      "faq": "よくある質問",
+      "faqDescription": "接続前に確認する"
+    },
+    "coverage": {
+      "label": "ネットワークの範囲",
+      "note": "地理的な範囲の概略です。リアルタイム監視ではありません。利用可能なノードとアクセス権はユーザーセンターでご確認ください。"
+    },
+    "figure": {
+      "deviceMatrix": "対応端末",
+      "multiPlatform": "マルチプラットフォーム",
+      "desktop": "パソコン",
+      "mobile": "モバイル",
+      "router": "ルーター",
+      "service": "サービス"
+    },
+    "sections": {
+      "platform": "PLATFORM / 対応端末",
+      "feature": "FEATURE / サービスの特長",
+      "connection": "CONNECTION / 接続の流れ",
+      "signal": "YOUR CONNECTION / ユーザーセンター",
+      "details": "DETAILS / サービス情報",
+      "plans": "PLANS / プラン",
+      "faq": "FAQ / サポート"
+    },
+    "platform": {
+      "heading": "使い慣れた端末で接続を始める",
+      "title": "ひとつのサブスクリプションで、さまざまなクライアントを。",
+      "description": "パソコンでもモバイルでも、ユーザーセンターでクライアントに合う形式のサブスクリプションを取得し、接続ガイドに沿って設定できます。",
+      "supported": "SUPPORTED / 対応クライアント",
+      "devices": "パソコン、モバイル端末、ルーター",
+      "note": "利用できる形式とプロトコルは、ユーザーセンターの選択肢およびクライアントの対応状況によって異なります。"
+    },
+    "connection": {
+      "aria": "クライアントがサブスクリプションのノードを経由して接続先へアクセスする流れ",
+      "client": "クライアント",
+      "nodes": "サブスクリプションのノード",
+      "target": "接続先",
+      "note": "接続の概略図です。個々のノードの実際の経路構成を示すものではありません。",
+      "heading": "サブスクリプションから、毎回の接続まで",
+      "choose": "サービスを選ぶ",
+      "chooseDescription": "ユーザーセンターでプランの通信量、期間、端末数の上限を確認します。",
+      "subscribe": "サブスクリプションを取得",
+      "subscribeDescription": "クライアントに合う形式を選んでインポートし、利用可能なノードを確認します。",
+      "connect": "接続を始める",
+      "connectDescription": "現在のプランで利用可能なノードから、自分に合う接続先を選びます。"
+    },
+    "signal": {
+      "heading": "接続も利用状況も、\nわかりやすく",
+      "description": "サブスクリプション、プラン、ノード情報を\nユーザーセンターでまとめて管理。",
+      "subscription": "サブスクリプションの設定",
+      "subscriptionDescription": "サブスクリプションの取得とクライアントの接続ガイド。",
+      "usage": "プランと利用状況",
+      "usageDescription": "現在のプラン、有効期限、残りの通信量を確認。",
+      "status": "サービス状況",
+      "nodes": "ノード情報",
+      "statusDescription": "公開ノードの稼働状況とメンテナンス情報を確認。",
+      "nodesDescription": "アカウントで利用できるサブスクリプションのノードを確認。"
+    },
+    "details": {
+      "heading": "サービスの選択肢を知る"
+    },
+    "plans": {
+      "heading": "自分に合うプランを選ぶ",
+      "choose": "プランを選ぶ",
+      "loading": "プランを読み込み中…",
+      "error": "プランを読み込めませんでした。しばらくしてから再試行してください。",
+      "retry": "再試行",
+      "empty": "公開中のプランはありません。サービス情報はユーザーセンターでご確認ください。",
+      "permanent": "無期限",
+      "traffic": "通信量 {{amount}}",
+      "unlimitedTraffic": "通信量無制限",
+      "unlimitedDevices": "端末数無制限",
+      "speed": "{{speed}} Mbps",
+      "days_one": "{{count, number}} 日",
+      "days_few": "{{count, number}} 日",
+      "days_many": "{{count, number}} 日",
+      "days_other": "{{count, number}} 日",
+      "devices_one": "{{count, number}} 台の端末",
+      "devices_few": "{{count, number}} 台の端末",
+      "devices_many": "{{count, number}} 台の端末",
+      "devices_other": "{{count, number}} 台の端末"
+    },
+    "faq": {
+      "heading": "ご不明な点はありますか？",
+      "description": "サービスと接続について、\nよくある質問をまとめました。"
+    },
+    "closing": {
+      "heading": "次の接続は、ここから"
+    },
+    "defaults": {
+      "tagline": "安定、高速、\n手間のかからない接続",
+      "description": "複数の地域のノードと自動経路選択。ひとつのサブスクリプションリンクですべての端末をカバー。",
+      "protocols": {
+        "title": "多様なプロトコル",
+        "text": "VLESS、Hysteria2、mieru などの主要プロトコルに対応。クライアントへワンクリックでインポート。"
+      },
+      "locations": {
+        "title": "世界各地のノード",
+        "text": "複数の地域をカバーし、用途に応じて遅延の少ない経路を選べます。"
+      },
+      "privacy": {
+        "title": "プライバシー優先",
+        "text": "アクセス内容は記録せず、通信量のみを集計します。"
+      },
+      "devices": {
+        "title": "複数端末",
+        "text": "スマートフォン、パソコン、ルーターでひとつのサブスクリプションを共有。"
+      },
+      "updates": {
+        "title": "自動更新",
+        "text": "ノードの変更はサブスクリプションに自動反映。手動操作は不要です。"
+      },
+      "support": {
+        "title": "いつでもサポート",
+        "text": "お困りの際はいつでもお問い合わせください。"
+      },
+      "faq": {
+        "q": "どのクライアントに対応していますか？",
+        "a": "Clash 系、sing-box、Shadowrocket、Surge、v2rayN などに対応。サブスクリプションリンクをインポートするだけで利用できます。"
+      }
+    }
+  },
+  "serviceStatus": {
+    "title": "サービス状況",
+    "serverMonitoring": "サーバー監視",
+    "scope": "公開中のサブスクリプションノードと接続経路の稼働状況です。",
+    "refresh": "更新",
+    "all": "すべて",
+    "unavailable": "現在の状態を取得できません",
+    "fetchError": "更新に失敗したため、以前の状態を非表示にしました。再試行してください。",
+    "offline": "オフラインのため、以前の状態を非表示にしました。接続回復後に再取得します。",
+    "expired": "状態レポートの有効期限が切れています。新しいデータが届くまで全ノードを不明として表示します。",
+    "never": "記録なし",
+    "overview": "ノードの稼働状況",
+    "allHealthy": "すべて正常に稼働中",
+    "issues": "一部のノードに問題あり",
+    "allDown": "ノードで障害が発生中",
+    "maintaining": "メンテナンス中",
+    "awaiting": "状態を確認中",
+    "emptyTitle": "公開中のノードはありません",
+    "updated": "最終更新：{{time}}",
+    "autoRefresh": "{{seconds}} 秒ごとに更新",
+    "empty": "現在、公開表示されているサブスクリプションノードはありません。",
+    "nodes": "ノード状況",
+    "categories": "ノード分類",
+    "categoryHint": "分類の数字は正常稼働数 / 総数です。ノードを開くと判定根拠を確認できます。",
+    "observed": "最終観測：{{time}}",
+    "noEndToEnd": "エンドツーエンドの接続：未検査",
+    "limitations": "公開ノードのインバウンド、転送、トンネルの稼働情報を集約したものです。クライアントから対象サイトへの接続は保証しません。通信量がないことは障害と見なしません。",
+    "states": {
+      "healthy": "正常稼働",
+      "degraded": "一部異常",
+      "down": "障害",
+      "maintenance": "メンテナンス",
+      "unknown": "不明"
+    },
+    "reasons": {
+      "healthy": "必要なコンポーネントは正常に稼働しています。",
+      "no_data": "十分な稼働データがまだ届いていません。",
+      "stale": "報告が古いため、新しい観測を待っています。",
+      "config_pending": "設定の適用待ちのため、稼働状況を確認できません。",
+      "component_failure": "必要なコンポーネントが障害を報告しています。",
+      "no_route": "現在利用可能な接続経路がありません。",
+      "partial_failure": "利用可能な経路はありますが、一部の候補・予備経路に障害があります。",
+      "partial_unknown": "利用可能な経路はありますが、一部の候補経路の状態が不明です。",
+      "unsupported": "現在のデータや機能では状態を判定できません。",
+      "external_path": "管理対象外の転送を含むため、経路全体の状態を確認できません。",
+      "maintenance": "管理者がこのノードをメンテナンスしています。"
+    },
+    "evidence": {
+      "inbound": "インバウンド稼働",
+      "forward_tcp": "次ホップの TCP 検査",
+      "wireguard": "WireGuard トンネル",
+      "vless_reverse": "VLESS リバース接続",
+      "client_chain": "クライアントチェーン依存関係"
+    },
+    "evidenceLabel": "判定根拠",
+    "uncategorized": "未分類",
+    "closed": "サービス状況ページは非公開です",
+    "closedHint": "ユーザーポータルにログインすると、利用可能なノードの状態を確認できます。",
+    "notPublic": "現在非公開",
+    "checking": "確認中",
+    "loading": "ノードの最新の稼働状況を取得しています。",
+    "waitingRefresh": "状態の再取得を待機中",
+    "connecting": "状態サービスに接続中",
+    "legend": "状態の凡例",
+    "showEvidence": "開いて判定根拠を確認",
+    "myNodes": "自分のノードを見る",
+    "refreshing": "更新中…",
+    "retry": "状態を再取得",
+    "summaryAffected": "異常：{{value}}",
+    "summaryHealthy": "正常：{{value}}",
+    "summaryMaintenance": "メンテナンス中：{{value}}",
+    "summaryUnknown": "不明：{{value}}",
+    "categoryCount": "正常稼働数：{{healthy}} / 総数：{{total}}"
+  },
+  "geography": {
+    "mapViewport": "ネットワークの所在地。横にスクロールすると地図全体を確認できます。",
+    "mapTitle": "ネットワークの所在地",
+    "configuredLocations": "設定済みの所在地：{{names}}。",
+    "noLocations": "所在地はまだ設定されていません。",
+    "mapDisclaimer": "マーカーと線は地理的な配置のみを示し、ノードの正常性や実際の通信量を表しません。",
+    "location": "{{name}}、所在地",
+    "illustration": "所在地の概略図",
+    "scrollHint": "左右にスワイプして地図を表示",
+    "playAnimation": "アニメーション再生",
+    "pauseAnimation": "アニメーションを一時停止",
+    "globeTitle": "ノードの所在地を示す地球儀",
+    "unavailable": "所在地の概略図を表示できません",
+    "globeDisclaimer": "マーカーは所在地のみを示し、ノードの稼働状況を表しません。",
+    "resumeGlobe": "地球儀のアニメーションを再開",
+    "pauseGlobe": "地球儀のアニメーションを一時停止",
+    "play": "再生",
+    "pause": "一時停止"
+  }
+}

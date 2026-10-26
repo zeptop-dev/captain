@@ -62,14 +62,17 @@ for d in sys.argv[1:]:
         text = open(path, encoding="utf-8").read()
         used |= set(USE.findall(text)) | set(META.findall(text))
         prefixes |= set(DYN.findall(text))
-    undefined = sorted(k for k in used - union)
+    # i18next v4 resolves t('item.count', {count}) to count_one/count_other
+    # (and few/many/etc. for some languages), without requiring a base value.
+    plural_used = {k for k in union if re.sub(r"_(zero|one|two|few|many|other)$", "", k) in used}
+    undefined = sorted(k for k in used - union if k + "_other" not in union)
     if undefined:
         bad += 1
         print(f"{d}: {len(undefined)} keys used by the sources but defined nowhere")
         for k in undefined[:20]:
             print("   ", k)
     unused = sorted(
-        k for k in union - used
+        k for k in union - used - plural_used
         if not any(k.startswith(p) for p in prefixes)
     )
     if unused:

@@ -64,12 +64,12 @@ export default function ServiceStatusPage({ site }: { site?: Site }) {
   const closed = query.error instanceof StatusRequestError && query.error.status === 404
   const overall: StatusState = !data || !summary.total ? 'unknown' : summary.down === summary.total ? 'down' : summary.down || summary.degraded ? 'degraded' : summary.maintenance ? 'maintenance' : summary.unknown ? 'unknown' : 'healthy'
   const heading = unavailable ? t(closed ? 'serviceStatus.notPublic' : 'serviceStatus.awaiting') : query.isPending ? t('serviceStatus.checking') : t(`serviceStatus.${headlineKey(summary)}`)
-  const counts = new Intl.ListFormat(locale, { type: 'unit' }).format([
+  const counts = [
     summary.down + summary.degraded > 0 ? t('serviceStatus.summaryAffected', { value: number.format(summary.down + summary.degraded) }) : '',
     t('serviceStatus.summaryHealthy', { value: number.format(summary.healthy) }),
     summary.maintenance > 0 ? t('serviceStatus.summaryMaintenance', { value: number.format(summary.maintenance) }) : '',
     summary.unknown > 0 ? t('serviceStatus.summaryUnknown', { value: number.format(summary.unknown) }) : '',
-  ].filter(Boolean))
+  ].filter(Boolean).join(' · ')
   const errorMessage = closed ? t('serviceStatus.closedHint') : t(online ? 'serviceStatus.fetchError' : 'serviceStatus.offline')
   return <SiteLayout site={site}>
     <section className={classes.hero} aria-label={t('serviceStatus.overview')}>

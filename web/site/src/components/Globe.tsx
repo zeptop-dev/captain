@@ -20,7 +20,7 @@ export function NodeGlobe({ locations, hub, variant = 'home' }: Props) {
   const [available, setAvailable] = useState(true)
   const description = useId()
   const points = useMemo(() => validLocations(hub ? [...locations, hub] : locations).filter((point, index, all) => all.findIndex((other) => other.lat === point.lat && other.lng === point.lng && other.name === point.name) === index), [locations, hub])
-  const locationNames = new Intl.ListFormat(i18n.resolvedLanguage || i18n.language || 'en', { type: 'unit' }).format(points.map((point) => point.name))
+  const locationNames = new Intl.ListFormat(i18n.resolvedLanguage || i18n.language || 'en', { type: 'conjunction' }).format(points.map((point) => point.name))
 
   useEffect(() => { pausedRef.current = paused; syncAnimation.current?.() }, [paused])
   useEffect(() => {

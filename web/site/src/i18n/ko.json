@@ -1,0 +1,272 @@
+{
+  "common": {
+    "language": "언어",
+    "loadError": "서비스 정보를 일시적으로 불러올 수 없습니다.",
+    "loading": "서비스 정보를 불러오는 중…",
+    "reload": "다시 불러오기",
+    "switchLight": "라이트 모드로 전환",
+    "switchDark": "다크 모드로 전환"
+  },
+  "nav": {
+    "features": "기능",
+    "coverage": "네트워크 커버리지",
+    "platform": "다양한 기기",
+    "serviceFeatures": "서비스 기능",
+    "support": "자료 및 지원",
+    "connect": "연결 가이드",
+    "download": "클라이언트 다운로드",
+    "faq": "자주 묻는 질문",
+    "contact": "지원 문의",
+    "services": "서비스",
+    "plans": "요금제 및 서비스",
+    "terms": "이용약관",
+    "security": "계정 보안",
+    "about": "소개",
+    "home": "홈",
+    "status": "서비스 상태",
+    "monitoring": "서버 모니터링",
+    "brandHome": "{{name}} 홈",
+    "skip": "본문으로 건너뛰기",
+    "close": "탐색 메뉴 닫기",
+    "open": "탐색 메뉴 열기",
+    "main": "기본 탐색",
+    "account": "사용자 센터",
+    "rights": "모든 권리 보유.",
+    "top": "맨 위로"
+  },
+  "home": {
+    "eyebrow": "구독과 연결",
+    "actions": {
+      "start": "시작하기",
+      "login": "사용자 센터 로그인",
+      "portal": "사용자 센터로",
+      "download": "클라이언트 다운로드",
+      "plans": "요금제 보기",
+      "guide": "연결 안내",
+      "clients": "클라이언트 보기",
+      "moreFeatures": "서비스 기능 자세히 보기"
+    },
+    "shortcuts": {
+      "platform": "여러 기기에서 연결",
+      "platformDescription": "사용 중인 기기에서 시작하세요",
+      "features": "서비스 기능",
+      "featuresDescription": "서비스를 알아보세요",
+      "coverage": "네트워크 범위",
+      "coverageDescription": "설정된 지역을 확인하세요",
+      "plansDescription": "알맞은 요금제를 찾아보세요",
+      "faq": "자주 묻는 질문",
+      "faqDescription": "연결 전에 알아보세요"
+    },
+    "coverage": {
+      "label": "네트워크 범위",
+      "note": "실시간 모니터링이 아닌 지역 분포 안내입니다. 사용 가능한 노드와 접근 권한은 사용자 센터에서 확인하세요."
+    },
+    "figure": {
+      "deviceMatrix": "지원 기기",
+      "multiPlatform": "여러 플랫폼",
+      "desktop": "컴퓨터",
+      "mobile": "모바일",
+      "router": "라우터",
+      "service": "서비스"
+    },
+    "sections": {
+      "platform": "PLATFORM / 여러 기기",
+      "feature": "FEATURE / 서비스 기능",
+      "connection": "CONNECTION / 연결 과정",
+      "signal": "YOUR CONNECTION / 사용자 센터",
+      "details": "DETAILS / 서비스 정보",
+      "plans": "PLANS / 요금제",
+      "faq": "FAQ / 지원"
+    },
+    "platform": {
+      "heading": "익숙한 기기에서 연결하세요",
+      "title": "하나의 구독으로 다양한 클라이언트를.",
+      "description": "컴퓨터와 모바일에서 사용자 센터를 통해 클라이언트에 맞는 구독 형식을 받고 연결 안내에 따라 설정하세요.",
+      "supported": "SUPPORTED / 지원 클라이언트",
+      "devices": "컴퓨터, 모바일 기기 및 라우터",
+      "note": "구독 형식과 사용 가능한 프로토콜은 사용자 센터의 옵션 및 클라이언트 지원 여부에 따라 달라집니다."
+    },
+    "connection": {
+      "aria": "클라이언트가 구독 노드를 통해 대상 서비스에 연결하는 과정",
+      "client": "클라이언트",
+      "nodes": "구독 노드",
+      "target": "대상 서비스",
+      "note": "연결 과정의 예시이며 특정 노드의 실제 경로 구성을 나타내지 않습니다.",
+      "heading": "구독부터 모든 연결까지",
+      "choose": "서비스 선택",
+      "chooseDescription": "사용자 센터에서 요금제의 트래픽, 기간 및 기기 제한을 확인하세요.",
+      "subscribe": "구독 받기",
+      "subscribeDescription": "클라이언트에 맞는 구독 형식을 선택하고 가져온 뒤 사용 가능한 노드를 확인하세요.",
+      "connect": "연결 시작",
+      "connectDescription": "현재 요금제에서 허용된 노드 중 알맞은 연결을 선택하세요."
+    },
+    "signal": {
+      "heading": "연결과 사용 현황을\n한눈에",
+      "description": "구독, 요금제 및 노드 정보를\n사용자 센터에서 한곳에 관리하세요.",
+      "subscription": "구독 연결",
+      "subscriptionDescription": "구독을 받고 클라이언트 연결 안내를 확인하세요.",
+      "usage": "요금제 및 사용량",
+      "usageDescription": "현재 요금제, 유효 기간 및 남은 트래픽을 확인하세요.",
+      "status": "서비스 상태",
+      "nodes": "노드 정보",
+      "statusDescription": "공개 노드의 서비스 상태와 유지보수 정보를 확인하세요.",
+      "nodesDescription": "현재 계정에서 사용 가능한 구독 노드를 확인하세요."
+    },
+    "details": {
+      "heading": "서비스 옵션을 알아보세요"
+    },
+    "plans": {
+      "heading": "알맞은 요금제를 선택하세요",
+      "choose": "요금제 선택",
+      "loading": "요금제 불러오는 중…",
+      "error": "요금제를 불러올 수 없습니다. 잠시 후 다시 시도하세요.",
+      "retry": "다시 시도",
+      "empty": "공개된 요금제가 없습니다. 사용자 센터에서 서비스 정보를 확인하세요.",
+      "permanent": "무기한",
+      "traffic": "트래픽 {{amount}}",
+      "unlimitedTraffic": "트래픽 무제한",
+      "unlimitedDevices": "기기 수 무제한",
+      "speed": "{{speed}} Mbps",
+      "days_one": "{{count, number}}일",
+      "days_few": "{{count, number}}일",
+      "days_many": "{{count, number}}일",
+      "days_other": "{{count, number}}일",
+      "devices_one": "기기 {{count, number}}대",
+      "devices_few": "기기 {{count, number}}대",
+      "devices_many": "기기 {{count, number}}대",
+      "devices_other": "기기 {{count, number}}대"
+    },
+    "faq": {
+      "heading": "궁금한 점이 있나요?",
+      "description": "서비스와 연결에 관해\n알아두면 좋은 내용을 확인하세요."
+    },
+    "closing": {
+      "heading": "다음 연결은 여기서 시작됩니다"
+    },
+    "defaults": {
+      "tagline": "안정적이고 빠르고\n간편한 연결",
+      "description": "여러 지역의 노드, 자동 경로 선택, 모든 기기를 위한 하나의 구독 링크.",
+      "protocols": {
+        "title": "다양한 프로토콜",
+        "text": "VLESS, Hysteria2, mieru 등 주요 프로토콜을 클라이언트에 한 번에 가져오세요."
+      },
+      "locations": {
+        "title": "전 세계 노드",
+        "text": "여러 지역에서 필요에 맞게 지연이 가장 낮은 경로를 선택하세요."
+      },
+      "privacy": {
+        "title": "개인정보 보호 우선",
+        "text": "접속 내용은 기록하지 않고 트래픽 사용량만 집계합니다."
+      },
+      "devices": {
+        "title": "여러 기기",
+        "text": "휴대폰, 컴퓨터, 라우터에서 하나의 구독을 함께 사용하세요."
+      },
+      "updates": {
+        "title": "자동 업데이트",
+        "text": "노드 변경 사항이 구독에 자동 반영되므로 수동 작업이 필요 없습니다."
+      },
+      "support": {
+        "title": "필요할 때 지원",
+        "text": "문제가 발생하면 언제든 문의하세요."
+      },
+      "faq": {
+        "q": "어떤 클라이언트를 지원하나요?",
+        "a": "Clash 계열, sing-box, Shadowrocket, Surge, v2rayN 등을 지원합니다. 구독 링크를 가져오면 됩니다."
+      }
+    }
+  },
+  "serviceStatus": {
+    "title": "서비스 상태",
+    "serverMonitoring": "서버 모니터링",
+    "scope": "공개된 구독 노드와 접속 경로의 작동 상태입니다.",
+    "refresh": "새로 고침",
+    "all": "전체",
+    "unavailable": "현재 상태를 가져올 수 없습니다",
+    "fetchError": "업데이트에 실패하여 이전 상태를 숨겼습니다. 다시 시도하세요.",
+    "offline": "오프라인 상태이므로 이전 상태를 숨겼습니다. 연결이 복구되면 다시 가져옵니다.",
+    "expired": "상태 보고서가 만료되었습니다. 새 데이터가 도착할 때까지 모든 노드를 알 수 없음으로 표시합니다.",
+    "never": "기록 없음",
+    "overview": "노드 상태 개요",
+    "allHealthy": "모든 노드 정상 작동",
+    "issues": "일부 노드에 문제 발생",
+    "allDown": "현재 노드 장애",
+    "maintaining": "유지 보수 진행 중",
+    "awaiting": "상태 확인 중",
+    "emptyTitle": "공개된 노드가 없습니다",
+    "updated": "최근 업데이트: {{time}}",
+    "autoRefresh": "{{seconds}}초마다 새로 고침",
+    "empty": "현재 공개적으로 표시되는 구독 노드가 없습니다.",
+    "nodes": "노드 상태",
+    "categories": "노드 분류",
+    "categoryHint": "분류 숫자는 정상 노드 수 / 전체 수입니다. 노드를 열어 판단 근거를 확인하세요.",
+    "observed": "최근 관측: {{time}}",
+    "noEndToEnd": "종단 간 접속: 검사하지 않음",
+    "limitations": "공개 노드의 인바운드, 전달 및 터널 작동 신호를 요약합니다. 클라이언트에서 대상 웹사이트까지의 접속을 보장하지 않습니다. 트래픽이 없다는 이유로 장애로 판단하지 않습니다.",
+    "states": {
+      "healthy": "정상 작동",
+      "degraded": "일부 이상",
+      "down": "장애",
+      "maintenance": "유지 보수",
+      "unknown": "알 수 없음"
+    },
+    "reasons": {
+      "healthy": "필수 구성 요소가 정상 작동을 보고했습니다.",
+      "no_data": "아직 충분한 작동 데이터가 없습니다.",
+      "stale": "보고서가 만료되어 새 관측을 기다리고 있습니다.",
+      "config_pending": "설정 적용 대기 중이므로 작동 상태를 확인할 수 없습니다.",
+      "component_failure": "필수 구성 요소가 장애를 보고했습니다.",
+      "no_route": "현재 사용할 수 있는 접속 경로가 없습니다.",
+      "partial_failure": "사용 가능한 경로가 있지만 일부 후보 또는 예비 경로에 장애가 있습니다.",
+      "partial_unknown": "사용 가능한 경로가 있지만 일부 후보 경로의 상태를 알 수 없습니다.",
+      "unsupported": "현재 데이터나 기능으로 상태를 확인할 수 없습니다.",
+      "external_path": "관리되지 않는 전달 경로가 포함되어 전체 경로를 확인할 수 없습니다.",
+      "maintenance": "관리자가 이 노드를 유지 보수하고 있습니다."
+    },
+    "evidence": {
+      "inbound": "인바운드 작동",
+      "forward_tcp": "다음 홉 TCP 검사",
+      "wireguard": "WireGuard 터널",
+      "vless_reverse": "VLESS 역방향 연결",
+      "client_chain": "클라이언트 체인 의존성"
+    },
+    "evidenceLabel": "판단 근거",
+    "uncategorized": "미분류",
+    "closed": "서비스 상태 페이지가 공개되지 않았습니다",
+    "closedHint": "사용자 포털에 로그인하여 이용 가능한 노드의 상태를 확인하세요.",
+    "notPublic": "현재 비공개",
+    "checking": "확인 중",
+    "loading": "노드의 최신 작동 상태를 가져오는 중입니다.",
+    "waitingRefresh": "상태를 다시 가져오기 위해 대기 중",
+    "connecting": "상태 서비스에 연결 중",
+    "legend": "상태 범례",
+    "showEvidence": "열어서 판단 근거 보기",
+    "myNodes": "내 노드 보기",
+    "refreshing": "업데이트 중…",
+    "retry": "상태 다시 가져오기",
+    "summaryAffected": "문제 발생: {{value}}개",
+    "summaryHealthy": "정상: {{value}}개",
+    "summaryMaintenance": "유지 보수 중: {{value}}개",
+    "summaryUnknown": "알 수 없음: {{value}}개",
+    "categoryCount": "정상: {{healthy}} / 전체: {{total}}"
+  },
+  "geography": {
+    "mapViewport": "네트워크 위치입니다. 가로로 스크롤하여 전체 지도를 확인하세요.",
+    "mapTitle": "네트워크 위치",
+    "configuredLocations": "설정된 위치: {{names}}.",
+    "noLocations": "아직 설정된 위치가 없습니다.",
+    "mapDisclaimer": "마커와 선은 지리적 배치만 나타내며 노드 상태나 실제 트래픽을 의미하지 않습니다.",
+    "location": "{{name}}, 지리적 위치",
+    "illustration": "지리적 위치 안내",
+    "scrollHint": "좌우로 밀어 전체 지도 보기",
+    "playAnimation": "애니메이션 재생",
+    "pauseAnimation": "애니메이션 일시 정지",
+    "globeTitle": "노드 위치를 나타내는 지구본",
+    "unavailable": "지리적 위치 안내를 표시할 수 없습니다",
+    "globeDisclaimer": "마커는 지리적 위치만 나타내며 노드의 작동 상태를 의미하지 않습니다.",
+    "resumeGlobe": "지구본 애니메이션 재개",
+    "pauseGlobe": "지구본 애니메이션 일시 정지",
+    "play": "재생",
+    "pause": "일시 정지"
+  }
+}

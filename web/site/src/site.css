@@ -40,6 +40,10 @@ body { margin: 0; background: var(--site-bg); color: var(--site-text); }
 .site-theme-selector { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; flex-shrink: 0; border: 0; border-radius: var(--site-radius); color: var(--site-muted); background: transparent; cursor: pointer; }
 .site-theme-selector:hover { color: var(--site-text); background: var(--site-panel); }
 .site-theme-selector svg { flex-shrink: 0; }
+.site-language-selector { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--site-radius); color: var(--site-muted); }
+.site-language-selector:hover, .site-language-selector:focus-within { color: var(--site-text); background: var(--site-panel); }
+.site-language-selector select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.site-language-selector:focus-within { outline: 2px solid var(--site-accent); outline-offset: 5px; }
 .site-nav-group { position: relative; }
 .site-nav-button { display: inline-flex; align-items: center; gap: 7px; background: transparent; border: 0; border-radius: var(--site-radius); padding: 10px 9px; font-size: 13px !important; color: var(--site-text); cursor: pointer; }
 .site-nav-button:hover, .site-nav-button[aria-expanded='true'] { background: var(--site-panel); }
@@ -66,10 +70,10 @@ body { margin: 0; background: var(--site-bg); color: var(--site-text); }
 .site-footer-bottom svg { color: var(--site-accent); }
 .site-skip { position: fixed; top: -100px; left: 20px; z-index: 50; padding: 10px 20px; background: var(--site-accent); color: var(--site-accent-ink) !important; }
 .site-skip:focus { top: 10px; }
-@media (max-width: 850px) {
-  .site-header-inner { min-height: 71px; }
-  .site-header-controls { gap: 10px; }
-  .site-theme-selector { width: 44px; height: 44px; }
+@media (max-width: 1000px) {
+  .site-header-inner { min-height: 71px; gap: 12px; }
+  .site-header-controls { gap: 5px; }
+  .site-theme-selector, .site-language-selector { width: 44px; height: 44px; }
   .site-menu-toggle { display: inline-flex; }
   .site-navigation { display: none; position: absolute; top: 100%; left: 0; right: 0; padding: 16px 24px 24px; background: var(--site-bg); border-bottom: 1px solid var(--site-line); max-height: calc(100dvh - 72px); overflow: auto; }
   .site-navigation.is-open { display: block; }

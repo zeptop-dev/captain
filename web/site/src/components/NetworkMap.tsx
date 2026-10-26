@@ -11,7 +11,7 @@ export function NetworkMap({ locations, hub }: { locations: Location[]; hub: Loc
   const points = useMemo(() => validLocations(locations), [locations])
   const origin = hub && validLocations([hub])[0]
   const displayPoints = origin && !points.some((point) => point.lat === origin.lat && point.lng === origin.lng) ? [...points, origin] : points
-  const locationNames = new Intl.ListFormat(i18n.resolvedLanguage || i18n.language || 'en', { type: 'unit' }).format(displayPoints.map((point) => point.name))
+  const locationNames = new Intl.ListFormat(i18n.resolvedLanguage || i18n.language || 'en', { type: 'conjunction' }).format(displayPoints.map((point) => point.name))
   const arcs = origin ? points.filter((point) => point.lat !== origin.lat || point.lng !== origin.lng).map((point) => {
     const [x1, y1] = projectFlat(origin.lng, origin.lat), [x2, y2] = projectFlat(point.lng, point.lat)
     // Wrap across the antimeridian instead of drawing a nearly full-world arc.

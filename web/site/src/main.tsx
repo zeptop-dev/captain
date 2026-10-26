@@ -9,6 +9,7 @@ import type { ReactNode } from 'react'
 import { getJSON, type Site } from './lib/site'
 import { effectiveSiteScheme, parseSitePreference, readSitePreference, resolveSiteAppearance, siteSchemeStorageKey, type SiteScheme } from './appearance'
 import { SiteSchemeContext } from './components/SiteThemeSelector'
+import { subscribeSiteLanguage } from './i18n'
 import App from './App'
 import './site.css'
 
@@ -21,6 +22,7 @@ if (ref) fetch('/api/portal/ref', { method: 'POST', headers: { 'Content-Type': '
 // The public site starts light and remembers only the visitor's explicit choice.
 // Palette and typography still follow the operator's settings.
 function Themed({ children }: { children: ReactNode }) {
+  useEffect(subscribeSiteLanguage, [])
   const site = useQuery({ queryKey: ['site'], queryFn: () => getJSON<Site>('/api/site') })
   const a = resolveSiteAppearance(site.data?.theme)
   const [preference, setPreference] = useState<SiteScheme | null>(() => {
