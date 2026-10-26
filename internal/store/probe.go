@@ -564,6 +564,8 @@ type PingPoint struct {
 	Quality *PingStatsQuality `json:"quality,omitempty"`
 	TaskID  int64             `json:"task_id"`
 	Name    string            `json:"name"`
+	Series  string            `json:"series,omitempty"`
+	Family  string            `json:"family,omitempty"`
 	TS      int64             `json:"ts"`
 	Samples int               `json:"n"`
 	Lost    int               `json:"lost"`
@@ -572,7 +574,7 @@ type PingPoint struct {
 }
 
 func (s *Store) NodePingStats(ctx context.Context, nodeID int64, res string, from, to time.Time) ([]PingPoint, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT task_id, name, ts, samples, lost, sum_ms, sum_mbps, quality_json FROM node_ping_stats WHERE node_id = ? AND res = ? AND ts >= ? AND ts <= ? ORDER BY task_id, name, ts`, nodeID, res, from.Unix(), to.Unix())
+	rows, err := s.db.QueryContext(ctx, `SELECT task_id, name, series, family, ts, samples, lost, sum_ms, sum_mbps, quality_json FROM node_ping_stats WHERE node_id = ? AND res = ? AND ts >= ? AND ts <= ? ORDER BY task_id, name, series, family, ts`, nodeID, res, from.Unix(), to.Unix())
 	if err != nil {
 		return nil, err
 	}
@@ -582,7 +584,7 @@ func (s *Store) NodePingStats(ctx context.Context, nodeID int64, res string, fro
 		var p PingPoint
 		var sum, sumMbps float64
 		var qualityJSON string
-		if err := rows.Scan(&p.TaskID, &p.Name, &p.TS, &p.Samples, &p.Lost, &sum, &sumMbps, &qualityJSON); err != nil {
+		if err := rows.Scan(&p.TaskID, &p.Name, &p.Series, &p.Family, &p.TS, &p.Samples, &p.Lost, &sum, &sumMbps, &qualityJSON); err != nil {
 			return nil, err
 		}
 		var quality networkAggregate
