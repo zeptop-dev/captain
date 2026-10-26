@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next'
 import { SiteLanguageSelector } from './SiteLanguageSelector'
 import type { Site } from '../lib/site'
 import { SiteThemeSelector } from './SiteThemeSelector'
+import { SiteBrandMark } from './SiteBrandMark'
 
 type Link = { label: string; href: string }
 type LinkGroup = { id: string; label: string; links: Link[] }
@@ -36,10 +37,10 @@ function navigation(t: TFunction, site?: Site): LinkGroup[] {
   ]
 }
 
-function Brand({ name }: { name: string }) {
+function Brand({ name, site }: { name: string; site?: Site }) {
   const { t } = useTranslation()
   return <a className="site-brand" href="/" aria-label={t('nav.brandHome', { name })}>
-    <svg viewBox="0 0 28 28" width="25" height="25" fill="none" aria-hidden="true"><path d="m14 2 10.4 6v12L14 26 3.6 20V8Z" stroke="currentColor" strokeWidth="1.3" /><path d="m14 7 6 14-6-4-6 4Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /><path d="M14 7v10" stroke="currentColor" strokeWidth="1.3" /></svg>
+    <SiteBrandMark branding={site?.branding} />
     <span>{name}</span>
   </a>
 }
@@ -62,7 +63,7 @@ export function SiteLayout({ site, children }: { site?: Site; children: ReactNod
     <a className="site-skip" href="#site-content">{t('nav.skip')}</a>
     <header className="site-header" ref={header}>
       <div className="site-container site-header-inner">
-        <Brand name={name} />
+        <Brand name={name} site={site} />
         <div className="site-header-controls">
         <button type="button" className="site-menu-toggle" aria-label={mobile ? t('nav.close') : t('nav.open')} aria-expanded={mobile} aria-controls="site-navigation" onClick={() => setMobile(!mobile)}>{mobile ? <IconX size={21} /> : <IconMenu2 size={21} />}</button>
         <nav id="site-navigation" className={`site-navigation${mobile ? ' is-open' : ''}`} aria-label={t('nav.main')}>
@@ -80,7 +81,7 @@ export function SiteLayout({ site, children }: { site?: Site; children: ReactNod
     <main id="site-content">{children}</main>
     <footer className="site-footer">
       <div className="site-container">
-        <a className="site-footer-brand" href="/">{name}<IconArrowUpRight size={32} stroke={1.5} aria-hidden /></a>
+        <a className="site-footer-brand" href="/"><SiteBrandMark branding={site?.branding} /><span>{name}</span><IconArrowUpRight size={32} stroke={1.5} aria-hidden /></a>
         <div className="site-footer-columns">{groups.map(group => <div key={group.id}><h2>{group.label}</h2><ul>{group.links.map(link => <li key={`${link.label}:${link.href}`}><a href={link.href}>{link.label}</a></li>)}</ul></div>)}</div>
       </div>
       <div className="site-footer-bottom"><div className="site-container"><small>© {new Date().getFullYear()} {name}. {t('nav.rights')}</small><a href="#top">{t('nav.top')} <IconArrowUp size={14} aria-hidden /></a></div></div>

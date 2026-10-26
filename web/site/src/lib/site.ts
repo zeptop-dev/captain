@@ -1,3 +1,5 @@
+import type { Branding } from '../../../shared/branding'
+
 export interface Location { name: string; lat: number; lng: number; tag?: string }
 export interface Feature { title: string; text: string; icon?: string }
 export interface FAQ { q: string; a: string }
@@ -8,6 +10,7 @@ export interface Site {
   faq: FAQ[]; links: { telegram?: string; tos?: string; download?: string; github?: string }
   show_plans: boolean; registration: boolean; probe_url?: string; service_status_url?: string
   stats: { nodes: number; online: number; users: number; locations: number }
+  branding?: Branding
   theme?: SiteTheme
 }
 export interface Plan { ID: number; Name: string; PriceCents: number; PeriodDays: number; QuotaBytes: number; DeviceLimit: number; SpeedLimitMbps: number }

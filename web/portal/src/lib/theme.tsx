@@ -1,9 +1,10 @@
 import { createTheme, MantineProvider } from '@mantine/core'
 import { useQuery } from '@tanstack/react-query'
-import { type ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
+import { applyBrandMetadata, type Branding } from '../../../shared/branding'
 
 export interface SiteTheme { primary?: string; radius?: string; scheme?: string; site_scheme?: string; font_family?: string; portal_title?: string }
-export interface SiteInfo { name: string; theme?: SiteTheme; probe_url?: string }
+export interface SiteInfo { name: string; description?: string; branding?: Branding; theme?: SiteTheme; probe_url?: string }
 
 const colors = new Set(['cyan', 'blue', 'indigo', 'violet', 'grape', 'pink', 'red', 'orange', 'yellow', 'lime', 'green', 'teal', 'gray'])
 const radii = new Set(['xs', 'sm', 'md', 'lg', 'xl'])
@@ -34,6 +35,9 @@ export function useSite() {
 // the settings arrive so the first paint is not delayed.
 export function ThemedProvider({ children, defaultScheme }: { children: ReactNode; defaultScheme: 'light' | 'dark' }) {
   const site = useSite()
+  useEffect(() => {
+    if (site.data) return applyBrandMetadata({ name: site.data.name, title: site.data.branding?.title, description: site.data.description, favicon: site.data.branding?.favicon })
+  }, [site.data])
   const t = site.data?.theme
   const scheme = (t?.scheme === 'dark' || t?.scheme === 'light' || t?.scheme === 'auto') ? t.scheme : defaultScheme
   return <MantineProvider theme={buildTheme(t)} forceColorScheme={scheme === 'auto' ? undefined : (scheme as 'light' | 'dark')} defaultColorScheme={scheme === 'auto' ? 'auto' : scheme}>{children}</MantineProvider>

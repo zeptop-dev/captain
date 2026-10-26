@@ -1,8 +1,9 @@
 import { ActionIcon, Anchor, Card, Group, Menu, Text, Title } from '@mantine/core'
-import { IconArrowLeft, IconCheck, IconLanguage, IconSailboat } from '@tabler/icons-react'
+import { IconArrowLeft, IconCheck, IconLanguage } from '@tabler/icons-react'
 import { useEffect, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSite } from '../lib/theme'
+import { BrandMark } from './BrandMark'
 import styles from './AuthLayout.module.css'
 
 const LANGUAGES: [string, string][] = [['zh-CN', '中文'], ['zh-TW', '繁體中文'], ['en', 'English'], ['ja', '日本語'], ['ko', '한국어'], ['ru', 'Русский']]
@@ -21,7 +22,7 @@ export function AuthLayout({ title, description, children, footer }: {
     <div className={styles.shell}>
       <header className={styles.header}>
         <a href="/" className={styles.brand}>
-          <span className={styles.brandMark}><IconSailboat size={26} stroke={1.7} aria-hidden /></span>
+          <BrandMark branding={site.data?.branding} fallbackClassName={styles.brandMark} />
           <span className={styles.brandName}>{brand}</span>
         </a>
         <Group gap="sm" wrap="nowrap" className={styles.headerActions}>

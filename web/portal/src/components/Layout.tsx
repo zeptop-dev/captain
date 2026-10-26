@@ -1,10 +1,11 @@
 import { ActionIcon, Avatar, Container, Group, Menu, Text, UnstyledButton } from '@mantine/core'
-import { IconActivity, IconArrowUpRight, IconCreditCard, IconHelpCircle, IconHome, IconLanguage, IconLogout, IconPlugConnected, IconSailboat, IconUser } from '@tabler/icons-react'
+import { IconActivity, IconArrowUpRight, IconCreditCard, IconHelpCircle, IconHome, IconLanguage, IconLogout, IconPlugConnected, IconUser } from '@tabler/icons-react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../lib/auth'
 import { useSite } from '../lib/theme'
+import { BrandMark } from './BrandMark'
 import { api } from '../lib/api'
 import styles from './Layout.module.css'
 
@@ -55,7 +56,7 @@ export function Layout() {
       <header className={styles.header}>
         <Container size={1200} className={styles.headerInner}>
           <Link to="/" className={styles.brand} aria-label={brand}>
-            <span className={styles.brandMark}><IconSailboat size={25} stroke={1.7} aria-hidden /></span>
+            <BrandMark branding={site.data?.branding} fallbackClassName={styles.brandMark} />
             <Text fw={750} fz="lg" className={styles.brandName}>{brand}</Text>
           </Link>
           <nav className={styles.desktopNav} aria-label={t('portalNav.navigation')}>{links}</nav>
