@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/spec"
+	"github.com/zeptop-dev/captain/internal/branding"
 
 	"github.com/zeptop-dev/captain/internal/store"
 )
@@ -24,14 +25,21 @@ func (h *handlers) getProbe(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) putProbe(w http.ResponseWriter, r *http.Request) {
 	h.Store.Topology.Lock()
 	defer h.Store.Topology.Unlock()
-	var v store.ProbeSettings
-	if !readJSON(w, r, &v) {
+	var in struct {
+		store.ProbeSettings
+		Title    *string `json:"title"`
+		Logo     *string `json:"logo"`
+		LogoDark *string `json:"logo_dark"`
+		Favicon  *string `json:"favicon"`
+	}
+	if !readJSON(w, r, &in) {
 		return
 	}
+	v := in.ProbeSettings
 	v.Path = strings.TrimSpace(v.Path)
 	if v.Path != "" {
 		v.Path = "/" + strings.Trim(v.Path, "/")
-		for _, reserved := range []string{"/admin", "/portal", "/sub", "/api", "/assets"} {
+		for _, reserved := range []string{"/admin", "/portal", "/sub", "/api", "/assets", "/brand-assets"} {
 			if v.Path == reserved || strings.HasPrefix(v.Path, reserved+"/") {
 				fail(w, http.StatusBadRequest, "that path is reserved")
 				return
@@ -49,6 +57,31 @@ func (h *handlers) putProbe(w http.ResponseWriter, r *http.Request) {
 	if err := h.Store.GetSetting(r.Context(), store.SettingProbe, &old); err != nil && !errors.Is(err, store.ErrNotFound) {
 		serverErr(w, err)
 		return
+	}
+	if v.FollowSiteBranding == nil {
+		v.FollowSiteBranding = old.FollowSiteBranding
+	}
+	// Hiding the independent fields while inheritance is on must not erase
+	// them, including when a client omits those disabled form controls.
+	v.Title, v.Logo = old.Title, old.Logo
+	if in.Title != nil {
+		v.Title = *in.Title
+	}
+	if in.Logo != nil {
+		v.Logo = *in.Logo
+	}
+	v.LogoDark, v.Favicon = old.LogoDark, old.Favicon
+	if in.LogoDark != nil {
+		v.LogoDark = *in.LogoDark
+	}
+	if in.Favicon != nil {
+		v.Favicon = *in.Favicon
+	}
+	for _, value := range []string{v.LogoDark, v.Favicon} {
+		if !branding.ValidAssetURL(value) {
+			fail(w, http.StatusBadRequest, "invalid probe branding image URL")
+			return
+		}
 	}
 	legacyOnly := old.CarrierProbe == nil
 	old.Normalize()

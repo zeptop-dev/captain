@@ -14,7 +14,9 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/spec"
+	"github.com/zeptop-dev/captain/internal/branding"
 	"github.com/zeptop-dev/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/http/site"
 	"github.com/zeptop-dev/captain/internal/service"
 	"github.com/zeptop-dev/captain/internal/store"
 )
@@ -295,24 +297,33 @@ func (h *handlers) snapshot(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, v)
 	}
-	// Dedicated probe hosts do not expose /api/site. Resolve only the public
-	// colour scheme here, without exposing the site's other settings.
+	// Dedicated probe hosts do not expose /api/site. Resolve explicitly public
+	// presentation fields here, keeping independent branding private when the
+	// administrator chooses to follow the main site.
 	scheme := "dark"
-	var siteTheme struct {
-		Theme struct {
-			Scheme string `json:"site_scheme"`
-		} `json:"theme"`
-	}
-	if h.Store.GetSetting(r.Context(), "site", &siteTheme) == nil {
-		if v := siteTheme.Theme.Scheme; v == "light" || v == "auto" {
+	var ss site.Settings
+	if h.Store.GetSetting(r.Context(), site.SettingSite, &ss) == nil {
+		if v := ss.Theme.SiteScheme; v == "light" || v == "auto" {
 			scheme = v
 		}
 	}
 	if s.Appearance != nil && s.Appearance.Scheme != "" && s.Appearance.Scheme != "inherit" {
 		scheme = s.Appearance.Scheme
 	}
+	title, logo, logoDark, favicon := firstNonEmpty(s.Title, h.SiteName), s.Logo, s.LogoDark, s.Favicon
+	pageTitle, description := title, ""
+	if s.FollowSiteBranding != nil && *s.FollowSiteBranding {
+		title = firstNonEmpty(ss.Name, h.SiteName)
+		pageTitle, description = title, ss.Description
+		logo, logoDark, favicon = "", "", ""
+		if ss.Branding != nil {
+			logo, logoDark, favicon = ss.Branding.LogoLight, ss.Branding.LogoDark, ss.Branding.Favicon
+			pageTitle = firstNonEmpty(ss.Branding.Title, title)
+		}
+	}
 	doc := map[string]any{
-		"title": firstNonEmpty(s.Title, h.SiteName), "logo": s.Logo, "show_globe": s.ShowGlobe, "beat_seconds": s.BeatSeconds,
+		"title": title, "logo": logo, "logo_dark": logoDark, "favicon": favicon, "page_title": pageTitle, "description": description,
+		"show_globe": s.ShowGlobe, "beat_seconds": s.BeatSeconds,
 		"layout": s.Layout, "public_sections": s.PublicSections,
 		"appearance":        s.Appearance,
 		"appearance_scheme": scheme,
@@ -471,6 +482,10 @@ func (rt *Router) Wrap(next http.Handler) http.Handler {
 		}
 		path := r.URL.Path
 		if onHost {
+			if strings.HasPrefix(path, branding.AssetPrefix) {
+				next.ServeHTTP(w, r)
+				return
+			}
 			if strings.HasPrefix(path, "/api/probe") || path == "/api/health" || strings.HasPrefix(path, "/api/portal/login") || strings.HasPrefix(path, "/api/portal/me") {
 				next.ServeHTTP(w, r)
 				return

@@ -20,6 +20,7 @@ import (
 
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
 	"github.com/zeptop-dev/captain/internal/backup"
+	"github.com/zeptop-dev/captain/internal/branding"
 	"github.com/zeptop-dev/captain/internal/certs"
 	"github.com/zeptop-dev/captain/internal/clauderules"
 	"github.com/zeptop-dev/captain/internal/http/loginprovider"
@@ -562,6 +563,8 @@ func limitBodies(next http.Handler) http.Handler {
 			limit := int64(defaultBodyLimit)
 			if strings.HasPrefix(r.URL.Path, "/api/agent/") {
 				limit = agentBodyLimit
+			} else if r.Method == http.MethodPost && r.URL.Path == "/api/admin/settings/branding/assets" {
+				limit = branding.MaxInputBytes
 			}
 			r.Body = http.MaxBytesReader(w, r.Body, limit)
 		}
