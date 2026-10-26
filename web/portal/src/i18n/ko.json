@@ -43,10 +43,15 @@
     "providersFailed": "로그인 방식을 불러오지 못했습니다. 다시 시도해 주세요.",
     "loginUnavailable": "현재 사용 가능한 로그인 방식이 없습니다. 나중에 다시 시도해 주세요.",
     "loading": "불러오는 중…",
-    "emailAlternative": "또는 이메일로 계속",
     "backToLogin": "로그인으로 돌아가기",
     "showPassword": "비밀번호 표시",
-    "hidePassword": "비밀번호 숨기기"
+    "hidePassword": "비밀번호 숨기기",
+    "introTitle": "나의 연결,",
+    "introAccent": "여기서 시작하세요.",
+    "introHint": "구독 관리와 기기 연결을 한곳에서 할 수 있습니다.",
+    "introCaption": "기기 · 구독 · 연결",
+    "introFooter": "하나의 계정으로 나의 기기를 연결하세요.",
+    "otherMethods": "또는"
   },
   "home": {
     "noPlanHint": "요금제를 선택해 시작하세요.",

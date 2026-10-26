@@ -1,4 +1,4 @@
-import { createTheme, MantineProvider } from '@mantine/core'
+import { createTheme, MantineProvider, type ButtonProps, type MantineTheme } from '@mantine/core'
 import { useQuery } from '@tanstack/react-query'
 import { useMediaQuery } from '@mantine/hooks'
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
@@ -27,7 +27,15 @@ export function buildTheme(t?: SiteTheme) {
     headings: { fontWeight: '500' },
     components: {
       Card: { defaultProps: { withBorder: true, padding: 'xl', radius, shadow: 'none' } },
-      Button: { defaultProps: { radius }, styles: { root: { fontWeight: 500 } } },
+      Button: {
+        defaultProps: { radius },
+        styles: { root: { fontWeight: 500 } },
+        vars: (_: MantineTheme, props: ButtonProps) => !props.color && (!props.variant || props.variant === 'filled') ? { root: {
+          '--button-bg': 'var(--portal-accent)',
+          '--button-hover': 'color-mix(in srgb, var(--portal-accent) 88%, var(--portal-text))',
+          '--button-color': 'var(--portal-accent-ink)',
+        } } : { root: {} },
+      },
       Input: { styles: { input: { backgroundColor: 'var(--portal-panel)' } } },
       Modal: { defaultProps: { centered: true }, styles: { content: { backgroundColor: 'var(--portal-panel)' }, header: { backgroundColor: 'var(--portal-panel)' } } },
     },

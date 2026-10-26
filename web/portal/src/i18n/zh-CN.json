@@ -43,10 +43,15 @@
     "providersFailed": "暂时无法加载登录方式，请重试。",
     "loginUnavailable": "暂时没有可用的登录方式，请稍后再试。",
     "loading": "正在加载…",
-    "emailAlternative": "或使用邮箱继续",
     "backToLogin": "返回登录",
     "showPassword": "显示密码",
-    "hidePassword": "隐藏密码"
+    "hidePassword": "隐藏密码",
+    "introTitle": "你的连接，",
+    "introAccent": "从这里开始。",
+    "introHint": "管理订阅、连接设备，在一个地方，找到所需的一切。",
+    "introCaption": "设备 · 订阅 · 连接",
+    "introFooter": "一个账户，连接你的设备。",
+    "otherMethods": "或"
   },
   "home": {
     "noPlanHint": "选一个套餐开始使用。",

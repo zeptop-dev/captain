@@ -43,10 +43,15 @@
     "providersFailed": "Unable to load sign-in methods. Please try again.",
     "loginUnavailable": "No sign-in methods are available right now. Please try again later.",
     "loading": "Loading…",
-    "emailAlternative": "or continue with email",
     "backToLogin": "Back to sign in",
     "showPassword": "Show password",
-    "hidePassword": "Hide password"
+    "hidePassword": "Hide password",
+    "introTitle": "Your connection,",
+    "introAccent": "starts here.",
+    "introHint": "Manage subscriptions and connect your devices, all in one place.",
+    "introCaption": "Devices · Subscriptions · Connections",
+    "introFooter": "One account. Your connections.",
+    "otherMethods": "or"
   },
   "home": {
     "noPlanHint": "Pick a plan to get started.",

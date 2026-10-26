@@ -1,11 +1,12 @@
 import { ActionIcon, Avatar, Container, Group, Menu, Text, UnstyledButton } from '@mantine/core'
-import { IconActivity, IconArrowUpRight, IconCreditCard, IconHelpCircle, IconHome, IconLanguage, IconLogout, IconPlugConnected, IconUser } from '@tabler/icons-react'
+import { IconActivity, IconArrowUpRight, IconCreditCard, IconCheck, IconHelpCircle, IconHome, IconLanguage, IconLogout, IconPlugConnected, IconUser } from '@tabler/icons-react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../lib/auth'
 import { useSite } from '../lib/theme'
 import { BrandMark } from './BrandMark'
+import { ThemeToggle } from './ThemeToggle'
 import { api } from '../lib/api'
 import styles from './Layout.module.css'
 
@@ -54,20 +55,21 @@ export function Layout() {
     <div className={styles.shell}>
       <a className={styles.skipLink} href="#portal-main">{t('portalNav.skip')}</a>
       <header className={styles.header}>
-        <Container size={1200} className={styles.headerInner}>
+        <Container size={1240} className={styles.headerInner}>
           <Link to="/" className={styles.brand} aria-label={brand}>
             <BrandMark branding={site.data?.branding} fallbackClassName={styles.brandMark} />
-            <Text fw={750} fz="lg" className={styles.brandName}>{brand}</Text>
+            <Text fw={500} fz="lg" className={styles.brandName}>{brand}</Text>
           </Link>
           <nav className={styles.desktopNav} aria-label={t('portalNav.navigation')}>{links}</nav>
-          <Group gap={6} wrap="nowrap">
+          <Group gap={4} wrap="nowrap">
+            <ThemeToggle />
             {site.data?.probe_url && <ActionIcon className={styles.statusLink} variant="subtle" color="gray" component="a" href={site.data.probe_url} target="_blank" rel="noreferrer" aria-label={t('serviceStatus.serverMonitoring')}><IconActivity size={20} /></ActionIcon>}
             <Menu shadow="md" position="bottom-end">
-              <Menu.Target><ActionIcon variant="subtle" color="gray" size="lg" aria-label={t('portalNav.language')}><IconLanguage size={20} /></ActionIcon></Menu.Target>
-              <Menu.Dropdown>{LANGS.map(([code, label]) => <Menu.Item key={code} onClick={() => pickLanguage(code)}>{label}</Menu.Item>)}</Menu.Dropdown>
+              <Menu.Target><ActionIcon variant="subtle" color="gray" size="lg" className={styles.tool} aria-label={t('portalNav.language')}><IconLanguage size={20} /></ActionIcon></Menu.Target>
+              <Menu.Dropdown>{LANGS.map(([code, label]) => <Menu.Item key={code} onClick={() => pickLanguage(code)} rightSection={i18n.resolvedLanguage === code ? <IconCheck size={14} aria-hidden /> : undefined}>{label}</Menu.Item>)}</Menu.Dropdown>
             </Menu>
             <Menu shadow="md" position="bottom-end" width={240}>
-              <Menu.Target><UnstyledButton aria-label={t('portalNav.account')}><Avatar radius="xl" size={34}>{me?.email.slice(0, 1).toUpperCase()}</Avatar></UnstyledButton></Menu.Target>
+              <Menu.Target><UnstyledButton aria-label={t('portalNav.account')}><Avatar className={styles.avatar} radius="xl" size={30}>{me?.email.slice(0, 1).toUpperCase()}</Avatar></UnstyledButton></Menu.Target>
               <Menu.Dropdown>
                 <Menu.Label style={{ overflowWrap: 'anywhere' }}>{me?.email}</Menu.Label>
                 <Menu.Item component={Link} to="/account" leftSection={<IconUser size={16} />}>{t('portalNav.account')}</Menu.Item>
@@ -81,7 +83,7 @@ export function Layout() {
         </Container>
       </header>
       <main id="portal-main" className={styles.main}>
-        <Container size={1200}>
+        <Container size={1240}>
           {secondary.length > 0 && <nav className={styles.secondaryNav} aria-label={t('portalNav.sectionNavigation')}>
             {secondary.map((item) => <Link key={item.to} to={item.to} data-active={loc.pathname === item.to || undefined} aria-current={loc.pathname === item.to ? 'page' : undefined}>{item.label}</Link>)}
           </nav>}

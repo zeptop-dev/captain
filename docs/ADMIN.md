@@ -221,7 +221,7 @@ the operating system. The connection section and illustrations follow the
 selected theme. The legacy `theme.site_scheme` API field is retained unchanged
 when editing site settings for compatibility; it no longer selects the built-in
 homepage or public service-status appearance. The portal retains its own
-light/dark/system control.
+operator-configured light/dark/system default.
 Their geographic visuals are rendered locally from configured locations;
 markers and illustrative connections are not live health or traffic. Operator
 features, FAQ, registration policy, downloads and published plan data remain
@@ -231,6 +231,20 @@ Portal sign-in, registration and password reset share this branding, including
 the portal title, colour scheme, primary colour, font and corner radius. Visitors
 can switch language before signing in. Authentication methods and registration
 links follow the configured providers and registration policy.
+
+The customer portal uses the homepage's fine borders, flat surfaces and light/dark
+palette. Its compact header icon overrides the portal's configured default for
+that browser, including the sign-in pages. Without a saved choice or configured
+default it starts light. The independent `captain-portal-color-scheme` preference
+is shared between same-origin tabs, does not change the site's or admin console's
+preference, and is not synchronized to an account. Operator primary colour,
+font and component radius settings remain available.
+
+Overview shows each active plan's remaining allowance, usage, reset and expiry
+separately; queued plans expand below them. Connect retains configured downloads,
+supported client imports, QR codes, classified subscription nodes and WireGuard
+devices. Account separates recently active devices from registered device slots.
+The layout does not change authorization, quota accounting or payment status.
 
 ## Event webhooks
 

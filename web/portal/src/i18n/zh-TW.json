@@ -43,10 +43,15 @@
     "providersFailed": "暫時無法載入登入方式，請重試。",
     "loginUnavailable": "暫時沒有可用的登入方式，請稍後再試。",
     "loading": "正在載入…",
-    "emailAlternative": "或使用電子郵件繼續",
     "backToLogin": "返回登入",
     "showPassword": "顯示密碼",
-    "hidePassword": "隱藏密碼"
+    "hidePassword": "隱藏密碼",
+    "introTitle": "你的連線，",
+    "introAccent": "從這裡開始。",
+    "introHint": "管理訂閱、連接裝置，在一個地方，找到所需的一切。",
+    "introCaption": "裝置 · 訂閱 · 連線",
+    "introFooter": "一個帳戶，連接你的裝置。",
+    "otherMethods": "或"
   },
   "home": {
     "noPlanHint": "選一個方案開始使用。",

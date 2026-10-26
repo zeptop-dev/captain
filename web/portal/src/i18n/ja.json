@@ -43,10 +43,15 @@
     "providersFailed": "ログイン方法を読み込めませんでした。もう一度お試しください。",
     "loginUnavailable": "現在利用できるログイン方法がありません。しばらくしてからお試しください。",
     "loading": "読み込み中…",
-    "emailAlternative": "またはメールアドレスで続行",
     "backToLogin": "ログインに戻る",
     "showPassword": "パスワードを表示",
-    "hidePassword": "パスワードを非表示"
+    "hidePassword": "パスワードを非表示",
+    "introTitle": "あなたの接続は、",
+    "introAccent": "ここから。",
+    "introHint": "サブスクリプションとデバイスの接続を、ひとつの場所で管理。",
+    "introCaption": "デバイス · サブスクリプション · 接続",
+    "introFooter": "ひとつのアカウントで、あなたの接続を。",
+    "otherMethods": "または"
   },
   "home": {
     "noPlanHint": "プランを選んで始めましょう。",
