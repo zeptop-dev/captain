@@ -26,16 +26,22 @@ function fixture() {
   const f = structuredClone(base)
   for (const [index, node] of f.snapshot.nodes.entries()) {
     node.online = true
-    node.name = ['Dual sample', 'Missing IPv6', 'Old agent'][index]
+    node.name = ['Dual sample', 'IPv6 unavailable', 'Old agent'][index]
     node.host ??= {}
     node.host.carrier_probe_version = index === 2 ? 0 : 1
     node.ping_tasks = ['CT', 'CU', 'CM'].flatMap(name => (mode === 'dual' ? ['ipv4', 'ipv6'] : [mode]).map(family => ({
       id: 0, name, family, series: `${name}-${family}`, type: 'icmp',
       ...(index === 2 ? { state: 'unsupported', reason: 'agent_upgrade_required' }
-        : index === 1 && family === 'ipv6' ? { state: 'unknown', reason: 'waiting' } : {}),
+        : index === 1 && family === 'ipv6' && name === 'CU' ? { state: 'unknown', reason: 'waiting' } : {}),
     })))
     node.host.pings = node.ping_tasks.filter(task => !task.state).map(task => ({ ...task, task_id: 0, latency_ms: task.family === 'ipv4' ? 161 : 155, loss: 0, at: f.now }))
+    for (const sample of node.host.pings) if (index === 1 && sample.family === 'ipv6') {
+      sample.latency_ms = -1
+      sample.loss = 100
+      sample.quality = { outcome: sample.name === 'CT' ? 'unreachable' : 'timeout', type: 'icmp', interval_seconds: 10 }
+    }
     f.pings[node.id] = node.ping_tasks.filter(task => !task.state).flatMap(task => [60, 120, 180, 300, 500].map(age => ({ ...task, task_id: 0, ts: f.now - age, n: 10, lost: 0, avg_ms: task.family === 'ipv4' ? 161 : 155 })))
+    for (const point of f.pings[node.id]) if (index === 1 && point.family === 'ipv6') { point.lost = point.n; point.avg_ms = -1 }
   }
   return f
 }
@@ -92,6 +98,12 @@ try {
     if (mode === 'dual') {
       assert((await first.textContent()).includes('v4 161 ms / v6 155 ms'))
       assert((await cards.nth(1).textContent()).includes('v6 —'))
+      const unreachable = cards.nth(1).locator('[data-carrier="CT"][data-carrier-metric="loss"]')
+      assert((await unreachable.textContent()).includes('v4 0.0% / v6 —'))
+      assert((await unreachable.getAttribute('title')).includes('探测目标不可达'))
+      assert.equal(await unreachable.locator('[data-carrier-family="ipv6"] [class*="bg-muted-foreground"]').count(), 20)
+      const timedOut = cards.nth(1).locator('[data-carrier="CM"][data-carrier-metric="loss"]')
+      assert((await timedOut.textContent()).includes('v6 100.0%'))
     }
     assert(!(await cards.nth(2).textContent()).includes(' ms'))
     const overflow = await first.locator('[data-carrier-metric]').evaluateAll(items => items.filter(element => element.scrollWidth > element.clientWidth + 1).map(element => element.textContent))

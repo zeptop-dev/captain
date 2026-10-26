@@ -48,7 +48,9 @@ Captain adaptations:
   single-stack cards retain one value and bar. Both families keep the same one-hour
   averaging window. The compact list still fits the upstream 64px row.
   Missing samples leave only that family empty; unsupported agents and ICMP
-  permission failures show an unavailable value with a reason.
+  permission or unreachable results show an unavailable value with a reason.
+  A target being unreachable does not prove the server lacks that IP family;
+  timeouts remain attempted failures. Custom-task statistics stay unchanged.
   Otherwise the first enabled, node-assigned task by ID supplies both bars.
   `ping_tasks` in the public node snapshot contains IDs, labels, protocol, IP family
   and opaque configuration identities, never destinations. Histories match the
