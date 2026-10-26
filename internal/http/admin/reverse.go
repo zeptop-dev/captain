@@ -139,7 +139,10 @@ func (h *handlers) saveReverse(w http.ResponseWriter, r *http.Request) {
 	exitID := idOf(r)
 	var in struct {
 		Expected map[string]int64 `json:"expected"`
-		Links    []reverseInput   `json:"links"`
+		Links    []struct {
+			reverseInput
+			GroupIDValue json.RawMessage `json:"group_id"`
+		} `json:"links"`
 	}
 	if !readJSON(w, r, &in) {
 		return
@@ -317,7 +320,14 @@ func (h *handlers) saveReverse(w http.ResponseWriter, r *http.Request) {
 			fail(w, 409, "user and tunnel ports must differ")
 			return
 		}
-		x.User.GroupID = v.GroupID
+		// Omission preserves membership; explicit null retains the old clear operation.
+		if len(v.GroupIDValue) > 0 || x.User.ID == 0 {
+			if len(v.GroupIDValue) > 0 && json.Unmarshal(v.GroupIDValue, &v.GroupID) != nil {
+				fail(w, 400, "invalid group_id")
+				return
+			}
+			x.User.GroupID = v.GroupID
+		}
 		x.Receiver.GroupID = nil
 		x.Entry.Name = v.Name
 		x.Entry.Enabled = v.Enabled

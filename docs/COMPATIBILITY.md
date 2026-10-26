@@ -3,6 +3,31 @@
 What an operator can rely on across releases, which bosun a Captain works
 with, what the database is good for, and what is deliberately not there.
 
+## Subscription-node access groups
+
+Migration 92 adds explicit inbound access policies (`all`, `groups`, `none`) and
+multiple allowed groups. Existing inbounds retain their legacy `GroupID` behavior
+until explicitly edited. Entries sharing an inbound share authentication and
+billing eligibility; display categories, tags and server monitoring groups remain
+independent. Plans keep one group and users retain the union of their usable
+subscriptions and existing manual grants.
+
+The administrator-only `/api/admin/node-access` API uses a catalogue revision and
+shared-impact confirmation. Entry writes may optionally include `Access`; changing
+it requires both entry-write and node-access-write permission and commits with the
+Entry in one transaction. Omitted/null `Access` preserves permissions. Legacy
+inbound or reverse-connection edits preserve explicit policies; attempts to change
+the old single-group field after adopting a policy are rejected. Omitting
+`group_id` in managed reverse connection edits preserves its old value.
+
+No new bosun protocol fields are needed: Captain supplies each inbound's existing
+scoped-user list. Migration is forward-only. Old Captain releases cannot enforce
+these policies, especially `none`, so the updater's rollback floor is raised to
+v1.45.0 for this feature. Before its first release, verify that this floor matches
+the version actually shipping migration 92. Manual downgrade requires restoration
+of a compatible pre-feature database backup; leaving the new database in place
+can expose restricted nodes.
+
 ## City locations and map publication
 
 Migration 91 adds independent subscription-node map metadata and a foreign-key

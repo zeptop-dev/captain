@@ -7,7 +7,7 @@ Everything between a visitor and a working subscription.
 A plan has a base period and price plus any number of extra periods
 (quarter, year …) with their own prices; the buyer picks one at checkout.
 Beyond that: traffic quota, device limit, speed limit, and which node
-groups it unlocks.
+user group it unlocks.
 
 - **Renewing the same plan** before it expires extends the time and keeps
   what was used: a plan with a reset cycle keeps its counter and its next
@@ -17,10 +17,39 @@ groups it unlocks.
   Queueing a plan the user already holds is refused — renew it instead.
 - **Quota reset**: never, every N days from purchase, on the first of each
   month, or on January 1st. A user can be given a personal reset day.
-- **Several plans per user** union their node groups, take the widest
-  limits, and are charged per inbound: traffic through an inbound that
-  belongs to a plan's group is booked to that plan, and traffic through an
-  ungrouped inbound to the soonest-expiring usable plan.
+- **Several plans per user** union their usable plan groups and take the widest
+  limits. An inbound may allow several groups; traffic is charged once to the
+  soonest-expiring eligible usable plan, with the existing deterministic tie
+  order. An `all` inbound can use any usable plan. Exhausted eligible plans follow
+  the existing spillover/tail-accounting rules; unrelated groups are not charged.
+
+### Choosing which nodes a plan includes
+
+In **Nodes & lines**, open a node's access control and choose **All users**,
+**Selected user groups**, or **No users**. For example, ordinary nodes can include
+both Standard and Premium, while premium nodes include Premium only. These names
+do not imply a hierarchy. Display categories are labels, not permission grants.
+
+In **Plans**, choose the plan's user group, inspect its available nodes, and open
+**Manage node access** to change that same group's membership. Plans sharing the
+group share its nodes. The permission change is saved separately from the plan
+form and immediately affects the group, including existing subscribers. Inbounds
+available to all users remain selected in this editor; restrict them from the node
+editor first. Connections without a published Entry can also appear in this
+inbound-backed catalogue so their authentication is not silently ignored.
+
+Entries sharing one real inbound must share its access policy. Review the listed
+shared nodes and plans before confirming. To sell two different permission sets
+for the same server, use separate inbounds. A forwarding line only describes a
+path; access follows the actual inbound used by its published subscription node.
+
+A usable purchased subscription grants its plan group automatically; queued,
+expired or exhausted subscriptions do not add that grant. Existing manually
+assigned user groups and the legacy single-plan purchase behavior are retained.
+Therefore expiry removes the subscription-derived grant, but does not revoke an
+independent manual grant to the same group. This feature does not rewrite users
+or automatically promote/demote a permanent user group. Account validity, quota,
+client capability and chain dependencies still determine actual usability.
 
 In a user's drawer: extend by 30/60/90 days, override the quota (kept
 across renewals of the same plan), set a personal monthly reset day, reset

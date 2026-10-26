@@ -102,8 +102,15 @@ func (h *handlers) listWireGuard(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) saveWireGuard(w http.ResponseWriter, r *http.Request) {
 	h.Store.Topology.Lock()
 	defer h.Store.Topology.Unlock()
-	var in wireGuardInput
+	var in struct {
+		wireGuardInput
+		GroupIDValue json.RawMessage `json:"group_id"`
+	}
 	if !readJSON(w, r, &in) {
+		return
+	}
+	if len(in.GroupIDValue) > 0 && json.Unmarshal(in.GroupIDValue, &in.GroupID) != nil {
+		fail(w, 400, "invalid group_id")
 		return
 	}
 	exitID := idOf(r)
@@ -265,7 +272,10 @@ func (h *handlers) saveWireGuard(w http.ResponseWriter, r *http.Request) {
 	ib.Core = "xray"
 	ib.Port = in.Port
 	ib.Enabled = in.Enabled
-	ib.GroupID = in.GroupID
+	// Omission preserves legacy membership when editing a managed connection.
+	if len(in.GroupIDValue) > 0 || ib.ID == 0 {
+		ib.GroupID = in.GroupID
+	}
 	ib.Settings.TLS.ServerName = in.ServerName
 	ib.Settings.TLS.Reality.HandshakeServer = in.ServerName
 	if in.PrivateAccess != nil {

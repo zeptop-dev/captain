@@ -135,6 +135,9 @@ func (h *handlers) createEntry(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "name and inbound_id are required")
 		return
 	}
+	if !h.entryAccessAllowed(w, r, e.Access) {
+		return
+	}
 	if e.LineID != nil && !userFrom(r).IsAdmin() {
 		fail(w, 403, "admin only: line binding")
 		return
@@ -149,7 +152,7 @@ func (h *handlers) createEntry(w http.ResponseWriter, r *http.Request) {
 	}
 	e.Enabled = true
 	if err := h.Store.CreateEntry(r.Context(), &e); err != nil {
-		if entryClientChainError(w, err) || entryCategoryError(w, err) {
+		if nodeAccessError(w, err) || entryClientChainError(w, err) || entryCategoryError(w, err) {
 			return
 		}
 		serverErr(w, err)
@@ -182,6 +185,9 @@ func (h *handlers) updateEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	e := input.Entry
+	if !h.entryAccessAllowed(w, r, e.Access) {
+		return
+	}
 	// Omission and null from older editors preserve the display category.
 	// CategoryID: 0 is the explicit request to make an entry unclassified.
 	if e.CategoryID == nil {
@@ -211,7 +217,7 @@ func (h *handlers) updateEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.UpdateEntry(r.Context(), &e); err != nil {
-		if entryClientChainError(w, err) || entryCategoryError(w, err) {
+		if nodeAccessError(w, err) || entryClientChainError(w, err) || entryCategoryError(w, err) {
 			return
 		}
 		serverErr(w, err)

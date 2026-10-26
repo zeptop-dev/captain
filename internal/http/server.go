@@ -574,11 +574,11 @@ func limitBodies(next http.Handler) http.Handler {
 
 func (s *Server) DNSHealth() *service.DNSHealth { return s.dnsHealth }
 
-// Older panels ignore WG devices/revocations and stop maintaining accepted
-// reverse-traffic attribution. Preserve those and earlier privacy/ownership floors.
+// Older panels ignore explicit multi-group/closed inbound access and can
+// re-authorize users via the legacy group. Preserve the new authorization floor.
 func captainUpdateFloor(configured string) string {
-	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.35.0", configured) {
-		return "v1.35.0"
+	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.45.0", configured) {
+		return "v1.45.0"
 	}
 	return configured
 }
