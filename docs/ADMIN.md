@@ -373,9 +373,13 @@ and the console returns to sign-in. No process restart is required.
 
 ## Interface languages
 
-The console and the portal ship in 简体中文, 繁體中文, English, 日本語,
-Русский and 한국어. Every locale file is checked for parity in CI, and a key
-the sources use but no locale defines fails the build.
+The console, portal, server probe and public website ship in 简体中文,
+繁體中文, English, 日本語, Русский and 한국어. The public homepage and
+service-status header initially follows the browser's ordered language
+preferences; an explicit choice is saved only in that browser, separately
+from other interfaces. Custom operator content is not automatically translated
+or rewritten. Every locale file is checked for parity in CI, and a key the
+sources use but no locale defines fails the build.
 
 ## Additions in 1.8.0
 

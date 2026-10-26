@@ -3,7 +3,7 @@
 What an operator can rely on across releases, which bosun a Captain works
 with, what the database is good for, and what is deliberately not there.
 
-## Carrier protocol and address-family selection (unreleased)
+## Carrier protocol and address-family selection (Captain 1.43 / bosun 0.82)
 
 The new `carrier_probe` object is additive and retains separate TCP/ICMP,
 IPv4/IPv6 target lists. Both panel and agent changes are required: the agent
@@ -20,12 +20,11 @@ a new series; public charts never reinterpret old samples as the new target.
 Settings omission/null preserves the new object, including hidden target drafts.
 See [monitoring](MONITORING.md) for legacy hostname handling and TCP/ICMP limits.
 
-Until the next bosun release, Captain pins the published bosun commit
-`b67ba2f17c7f` through the Go module pseudo-version
-`v0.81.1-0.20261026035339-b67ba2f17c7f`. This makes the merged source buildable
-with `GOWORK=off`; no local `replace` is required. This is a source dependency,
-not an agent release. Before releasing Captain, publish bosun and move the
-dependency to that stable version, recording the minimum agent version here.
+Captain 1.43 uses the formal bosun v0.82.0 shared module without a local
+`replace`. Managed nodes need bosun v0.82.0 or newer for the selected built-in
+carrier protocol and address family. Upgrading the panel alone cannot supply
+this capability. Existing proxy routing, subscriptions, customer accounting
+and selected proxy-core versions are unchanged.
 
 ## Customer service status (Captain 1.41 / bosun 0.81)
 
