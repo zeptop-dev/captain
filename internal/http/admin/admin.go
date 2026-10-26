@@ -42,6 +42,7 @@ type SessionStore interface {
 
 // Deps are the handlers' dependencies.
 type Deps struct {
+	ClientCatalog *service.ClientCatalog
 	ServiceStatus *service.ServiceStatusCatalog
 	// ClaudeRules fetches only the fixed community Anthropic rule source.
 	ClaudeRules interface {
@@ -155,6 +156,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	h.registerUserManagement(mux)
 	h.registerWireGuardDevices(mux)
 	h.registerOps(mux)
+	h.registerClientCatalog(mux)
 	h.registerDNSHealth(mux)
 	h.registerExternal(mux)
 	h.registerSpeedtest(mux)

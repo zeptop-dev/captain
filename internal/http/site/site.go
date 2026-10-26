@@ -92,6 +92,7 @@ const SettingSite = "site"
 
 // Deps wires the handler.
 type Deps struct {
+	ClientCatalog *service.ClientCatalog
 	ServiceStatus *service.ServiceStatusCatalog
 	Store         *store.Store
 	SiteName      string // config site_name, the default for Settings.Name
@@ -122,6 +123,16 @@ func Defaults(name string) Settings {
 // Register mounts GET /api/site.
 func Register(mux *http.ServeMux, d Deps) {
 	registerBrandAssets(mux, d.Store)
+	mux.HandleFunc("GET /api/site/clients", func(w http.ResponseWriter, r *http.Request) {
+		v, e := d.ClientCatalog.Published(r.Context(), true)
+		if e != nil {
+			http.Error(w, "internal error", 500)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = json.NewEncoder(w).Encode(v)
+	})
 	registerServiceStatus(mux, d)
 	mux.HandleFunc("GET /api/site", func(w http.ResponseWriter, r *http.Request) {
 		var reg store.RegistrationSettings

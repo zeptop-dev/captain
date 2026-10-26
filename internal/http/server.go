@@ -23,6 +23,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/branding"
 	"github.com/zeptop-dev/captain/internal/certs"
 	"github.com/zeptop-dev/captain/internal/clauderules"
+	"github.com/zeptop-dev/captain/internal/clientcatalog"
 	"github.com/zeptop-dev/captain/internal/http/loginprovider"
 	"github.com/zeptop-dev/captain/internal/http/mcp"
 	"github.com/zeptop-dev/captain/internal/http/oauth"
@@ -79,7 +80,8 @@ type Server struct {
 
 // Options carries wiring the config alone cannot express (test gateways).
 type Options struct {
-	ClaudeRules interface {
+	ClientCatalogSource clientcatalog.Source
+	ClaudeRules         interface {
 		Fetch(context.Context) (clauderules.Snapshot, error)
 	}
 	// SubPresets overrides the fixed upstream fetcher in isolated tests.
@@ -173,6 +175,14 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 		u, _, _ := sessions.Resolve(r.Context(), c.Value)
 		return u
 	}
+	var clientSource clientcatalog.Source
+	for _, option := range opts {
+		if option.ClientCatalogSource != nil {
+			clientSource = option.ClientCatalogSource
+		}
+	}
+	clients := service.NewClientCatalog(st, service.CacheDirectory(cfg.DataDir), clientSource)
+	s.registerClientDownloads(clients, sessions)
 	s.external = &service.External{Store: st}
 	allow := &service.AdminAllow{Store: st}
 	s.heartbeat = &service.Heartbeat{Store: st, Log: log}
@@ -197,7 +207,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	s.certs = &service.Certs{Store: st, Issuer: certIssuer, Log: log, Notify: notifier}
 	s.probe = probe.Register(s.mux, probe.Deps{Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe(), GlassPage: web.ProbeGlass()})
 	dyn := &service.DynLimit{Store: st, State: s.state, Notify: notifier, Hooks: s.hooks, Log: log, PushSeconds: cfg.Agent.PushSeconds}
-	admin.Register(s.mux, admin.Deps{ServiceStatus: serviceStatus, ClaudeRules: claudeFetcher, SubPresets: presetFetcher, NodeRegions: s.nodeRegions, Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, DNSHealth: s.dnsHealth, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external, Allow: allow, Heartbeat: s.heartbeat,
+	admin.Register(s.mux, admin.Deps{ClientCatalog: clients, ServiceStatus: serviceStatus, ClaudeRules: claudeFetcher, SubPresets: presetFetcher, NodeRegions: s.nodeRegions, Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, DNSHealth: s.dnsHealth, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external, Allow: allow, Heartbeat: s.heartbeat,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version, MinVersion: captainUpdateFloor(cfg.MinVersion)},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 		Registration:  cfg.Portal.Registration,
@@ -222,9 +232,11 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	s.mux.Handle("GET /assets/", web.SiteAssets(siteHandler))
 	// A separate service page keeps existing server-monitoring paths unchanged.
 	// Use the built-in page even when the operator supplies a custom homepage.
+	s.mux.Handle("GET /downloads", web.Site(""))
+	s.mux.Handle("GET /downloads/{$}", web.Site(""))
 	s.mux.Handle("GET /service-status", web.Site(""))
 	s.mux.Handle("GET /service-status/{$}", web.Site(""))
-	site.Register(s.mux, site.Deps{ServiceStatus: serviceStatus, Store: st, SiteName: cfg.SiteName, Registration: cfg.Portal.Registration, ProbeURL: func(r *http.Request) string {
+	site.Register(s.mux, site.Deps{ClientCatalog: clients, ServiceStatus: serviceStatus, Store: st, SiteName: cfg.SiteName, Registration: cfg.Portal.Registration, ProbeURL: func(r *http.Request) string {
 		ps := s.probeSvc.Settings(r.Context())
 		if !ps.PageOn() || ps.Visibility == "admins" {
 			return ""
@@ -250,7 +262,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 			}
 			return u
 		}})
-	portal.Register(s.mux, portal.Deps{ServiceStatus: serviceStatus, Store: st, Log: log, Sessions: sessions, Orders: orders, Subscription: subSvc, BaseURL: base, Gateways: names, Registration: cfg.Portal.Registration, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot})
+	portal.Register(s.mux, portal.Deps{ClientCatalog: clients, ServiceStatus: serviceStatus, Store: st, Log: log, Sessions: sessions, Orders: orders, Subscription: subSvc, BaseURL: base, Gateways: names, Registration: cfg.Portal.Registration, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot})
 	paymenthttp.Register(s.mux, paymenthttp.Deps{Log: log, Orders: orders, ReturnTo: base + "/portal/orders", Gateways: gateways, Store: st})
 	sub.Register(s.mux, sub.Deps{Store: st, Log: log, Service: subSvc, Name: cfg.SiteName, BaseURL: base})
 	agent.Register(s.mux, agent.Deps{Addresses: s.nodeAddresses, Pairs: ratelimit.New(),
@@ -331,7 +343,9 @@ func (s *Server) Handler() http.Handler {
 		// Official preset synchronization authenticates under a short read
 		// lock, fetches without it, then re-authenticates before committing.
 		presetSync := r.Method == http.MethodPost && (r.URL.Path == "/api/admin/settings/sub-design/presets/sync" || r.URL.Path == "/api/admin/settings/sub-design/claude-rules/sync")
-		if r.URL.Path != "/api/agent/state" && !presetSync {
+		catalogIO := r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/admin/settings/client-catalog/") && (strings.HasSuffix(r.URL.Path, "/check") || strings.HasSuffix(r.URL.Path, "/download"))
+		clientDownload := (r.Method == http.MethodGet || r.Method == http.MethodHead) && strings.HasPrefix(r.URL.Path, "/downloads/clients/")
+		if r.URL.Path != "/api/agent/state" && !presetSync && !catalogIO && !clientDownload {
 			accounts := &s.state.Store.Accounts
 			renumber := r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, "/id") && (strings.HasPrefix(r.URL.Path, "/api/admin/users/") || strings.HasPrefix(r.URL.Path, "/api/admin/admins/"))
 			reset := r.Method == http.MethodPost && r.URL.Path == "/api/admin/system/reset"

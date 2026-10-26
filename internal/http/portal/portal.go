@@ -31,6 +31,7 @@ import (
 
 // Deps are the handlers' dependencies.
 type Deps struct {
+	ClientCatalog *service.ClientCatalog
 	ServiceStatus *service.ServiceStatusCatalog
 	Store         *store.Store
 	Log           *slog.Logger
@@ -112,6 +113,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("GET /api/portal/invite/withdrawals", h.requireUser(h.withdrawals))
 	h.registerWireGuardDevices(mux)
 	h.registerOps(mux)
+	mux.HandleFunc("GET /api/portal/client-catalog", h.requireUser(h.clientCatalog))
 }
 
 type ctxKey struct{}
@@ -805,4 +807,14 @@ func (h *handlers) sameOrigin(next http.HandlerFunc) http.HandlerFunc {
 		}
 		next(w, r)
 	}
+}
+
+func (h *handlers) clientCatalog(w http.ResponseWriter, r *http.Request) {
+	v, e := h.ClientCatalog.Published(r.Context(), false)
+	if e != nil {
+		fail(w, 500, "internal error")
+		return
+	}
+	w.Header().Set("Cache-Control", "private, no-store")
+	ok(w, v)
 }
