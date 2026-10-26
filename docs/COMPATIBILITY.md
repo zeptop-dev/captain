@@ -3,6 +3,27 @@
 What an operator can rely on across releases, which bosun a Captain works
 with, what the database is good for, and what is deliberately not there.
 
+## Carrier protocol and address-family selection (unreleased)
+
+The new `carrier_probe` object is additive and retains separate TCP/ICMP,
+IPv4/IPv6 target lists. Both panel and agent changes are required: the agent
+must report `carrier_probe_version >= 1`. Older agents continue serving proxies
+and custom monitoring tasks, while built-in carrier readings show an upgrade
+requirement. The panel does not enable the legacy TCP flag alongside the new
+object, because that would mislabel old-agent data as the selected protocol or
+family. Existing explicit targets are retained; empty lists now use NextTrace.
+
+Migration 89 adds separate carrier-series history and cursor tables. Existing
+history tables and conflict keys are unchanged, so older panels can still
+write their original history format. Protocol, family, name and target identify
+a new series; public charts never reinterpret old samples as the new target.
+Settings omission/null preserves the new object, including hidden target drafts.
+See [monitoring](MONITORING.md) for legacy hostname handling and TCP/ICMP limits.
+
+This branch is tested against its companion bosun worktree. Integration must
+publish the shared bosun change and update the formal module dependency before
+releasing Captain; no development `replace` belongs in a release.
+
 ## Customer service status (Captain 1.41 / bosun 0.81)
 
 Migration 88 adds private coherent runtime-report snapshots and service-status

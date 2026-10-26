@@ -63,7 +63,7 @@ Monitoring → Collection and status page → Probe. Off by default — nothing 
 is on. Once enabled, bosun (≥ 0.11) sends a light host beat every few
 seconds — CPU, memory, swap, disk, load, network rate and totals, TCP/UDP
 and process counts, uptime, IPv4/IPv6 reachability, host facts — plus
-latency: TCP-connect checks against the carrier probe points and your own
+latency: TCP or ICMP checks against the carrier probe points and your own
 icmp/tcp/http tasks.
 
 Captain folds the beats into minute, hour and day buckets (48 h / 60 d /
@@ -140,10 +140,44 @@ These use the status page's existing 1024-based units: 1 TB = 1024 GB and
 allowance. Zero remains unlimited. Changing units preserves the allowance;
 reopening the form or saving other settings keeps the stored byte precision.
 
-The carrier latency targets default to the CT/CU/CM probe points; Settings
-→ Probe → *Latency targets* replaces the set with your own `name host:port`
-lines, and every node managed by Captain follows the panel. A node running
-without Captain keeps its own `probe:` section in bosun's config.yaml.
+Settings → Probe → *Latency targets* selects **TCP / ICMP** and **IPv4 /
+IPv6 / IPv4 + IPv6**. Each protocol/family has its own saved target list;
+switching modes does not overwrite the other lists. Empty lists use the
+[NextTrace Beijing targets](https://github.com/nxtrace/NTrace-core/blob/main/fast_trace/basic.go):
+
+| Carrier | IPv4 hostname | IPv6 hostname |
+| --- | --- | --- |
+| Telecom (CT, AS4134) | `ipv4.pek-4134.endpoint.nxtrace.org` | `ipv6.pek-4134.endpoint.nxtrace.org` |
+| Unicom (CU, AS4837) | `ipv4.pek-4837.endpoint.nxtrace.org` | `ipv6.pek-4837.endpoint.nxtrace.org` |
+| Mobile (CM, AS9808) | `ipv4.pek-9808.endpoint.nxtrace.org` | `ipv6.pek-9808.endpoint.nxtrace.org` |
+
+TCP defaults to port 80 and accepts custom `name host:port` lines. ICMP
+accepts `name hostname-or-IP` without a port. Both explicitly select the
+requested address family; there is no fallback to another family or
+protocol. ICMP may require operating-system permission. TCP reachability
+counts an immediate refusal as a response, but a timeout remains a failure;
+ICMP reachability does not imply the same target responds on TCP port 80.
+These measurements describe the server's path to a monitoring target, not
+subscriber download speed or a full proxy request.
+
+Glass retains its one-hour latency/loss summaries. Dual stack shows separate
+v4/v6 values and history bars, including unknown or failed IPv6 readings.
+History identities include protocol, family and target, so a mode or target
+change never relabels earlier measurements. Old history remains in private
+management views; public charts use the currently configured identities.
+Targets are private: the public API exposes labels and opaque series IDs only.
+
+Existing explicit custom targets are retained. Managed nodes follow the panel;
+standalone bosun keeps its own `probe:` section in config.yaml. An agent must
+report support for the explicit carrier-probe configuration. Older bosun
+versions keep serving proxies and custom monitoring tasks, but built-in
+carrier readings show an upgrade requirement rather than silently measuring
+legacy TCP. Turning carrier collection off retains its configuration.
+
+Legacy IPv6 literals retain their family during migration. Legacy hostnames
+use the new IPv4 default without a DNS lookup while loading settings; select
+IPv6 and move an IPv6-only custom hostname into that target list if needed.
+The setting does not create an IPv6 route or change host networking.
 
 **After a panel restart** every node is given one grace period to beat
 again before anything counts as offline, so a restart that took longer than

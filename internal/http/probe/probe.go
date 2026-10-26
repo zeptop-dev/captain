@@ -122,8 +122,13 @@ type nodeView struct {
 
 // Only the identity and public label are exposed, never probe destinations.
 type pingTaskView struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
+	ID     int64  `json:"id"`
+	Name   string `json:"name"`
+	Series string `json:"series,omitempty"`
+	Family string `json:"family,omitempty"`
+	Type   string `json:"type,omitempty"`
+	State  string `json:"state,omitempty"`
+	Reason string `json:"reason,omitempty"`
 }
 
 func publicPingTasks(s store.ProbeSettings, tasks []store.PingTask, nodeID int64) []pingTaskView {
@@ -132,17 +137,14 @@ func publicPingTasks(s store.ProbeSettings, tasks []store.PingTask, nodeID int64
 		return out
 	}
 	if s.CarrierPing {
-		carriers := s.Carriers
-		if len(carriers) == 0 {
-			carriers = spec.DefaultCarriers()
-		}
-		for _, c := range carriers {
-			out = append(out, pingTaskView{ID: 0, Name: c.Name})
+		s.Normalize()
+		for _, task := range s.CarrierProbe.Tasks() {
+			out = append(out, pingTaskView{ID: 0, Name: task.Name, Series: task.Series, Family: task.Family, Type: task.Type})
 		}
 	}
 	for _, task := range tasks {
 		if task.Enabled && (len(task.NodeIDs) == 0 || slices.Contains(task.NodeIDs, nodeID)) {
-			out = append(out, pingTaskView{ID: task.ID, Name: task.Name})
+			out = append(out, pingTaskView{ID: task.ID, Name: task.Name, Type: task.Type})
 		}
 	}
 	return out
@@ -243,6 +245,26 @@ func (h *handlers) snapshot(w http.ResponseWriter, r *http.Request) {
 				hideRootDisk(&visible)
 			}
 			v.Host = visible
+		}
+		for i := range v.PingTasks {
+			task := &v.PingTasks[i]
+			if task.Series == "" {
+				continue
+			}
+			task.State, task.Reason = "unknown", "waiting"
+			if host == nil {
+				continue
+			}
+			if host.CarrierProbeVersion < 1 {
+				task.State, task.Reason = "unsupported", "agent_upgrade_required"
+				continue
+			}
+			for _, ping := range host.Pings {
+				if ping.TaskID == 0 && ping.Series == task.Series && ping.Family == task.Family && ping.Name == task.Name {
+					task.State, task.Reason = "", ""
+					break
+				}
+			}
 		}
 		if np != nil {
 			v.Info = np.Info.PublicInfo()
@@ -400,6 +422,14 @@ func (h *handlers) pings(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	current := currentCarrierSeries(s)
+	filtered := make([]store.PingPoint, 0, len(pts))
+	for _, point := range pts {
+		if point.TaskID != 0 || carrierSeriesMatches(current, point.Series, point.Family, point.Name) {
+			filtered = append(filtered, point)
+		}
+	}
+	pts = filtered
 	w.Header().Set("Content-Type", "application/json")
 	step := 60
 	if res == "h" {

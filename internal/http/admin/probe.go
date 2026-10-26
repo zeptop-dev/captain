@@ -2,8 +2,6 @@ package admin
 
 import (
 	"errors"
-	"fmt"
-	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -47,27 +45,47 @@ func (h *handlers) putProbe(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	v.Hosts = hosts
-	carriers := []spec.Carrier{}
-	seen := map[string]bool{}
-	for i, c := range v.Carriers {
-		c.Name, c.Addr = strings.TrimSpace(c.Name), strings.TrimSpace(c.Addr)
-		if c.Name == "" && c.Addr == "" {
-			continue
-		}
-		if host, port, err := net.SplitHostPort(c.Addr); err != nil || host == "" || port == "" {
-			fail(w, http.StatusBadRequest, fmt.Sprintf("carrier %d: address must be host:port", i+1))
-			return
-		}
-		if c.Name == "" || seen[c.Name] {
-			fail(w, http.StatusBadRequest, fmt.Sprintf("carrier %d: a unique name is required", i+1))
-			return
-		}
-		seen[c.Name] = true
-		carriers = append(carriers, c)
-	}
-	v.Carriers = carriers
 	var old store.ProbeSettings
-	_ = h.Store.GetSetting(r.Context(), store.SettingProbe, &old)
+	if err := h.Store.GetSetting(r.Context(), store.SettingProbe, &old); err != nil && !errors.Is(err, store.ErrNotFound) {
+		serverErr(w, err)
+		return
+	}
+	legacyOnly := old.CarrierProbe == nil
+	old.Normalize()
+	if v.CarrierProbe == nil {
+		v.CarrierProbe = old.CarrierProbe.Clone()
+		if v.Carriers != nil {
+			// An explicitly empty legacy list restores TCP IPv4 defaults;
+			// omission/null leaves all four lists and mode selection untouched.
+			carriers := []spec.Carrier{}
+			for _, c := range v.Carriers {
+				c.Name, c.Addr = strings.TrimSpace(c.Name), strings.TrimSpace(c.Addr)
+				if c.Name != "" || c.Addr != "" {
+					carriers = append(carriers, c)
+				}
+			}
+			legacy := spec.LegacyCarrierProbe(carriers)
+			if legacyOnly {
+				// The old list described every carrier target, rather than
+				// one of four independent drafts. Preserve replacement and
+				// clearing semantics on the first legacy update.
+				v.CarrierProbe = &legacy
+			}
+			v.CarrierProbe.TCPIPv4 = legacy.TCPIPv4
+			if len(legacy.TCPIPv6) > 0 {
+				// IPv6 literals were valid in the old single list. Keep them
+				// usable without ever probing them as IPv4.
+				v.CarrierProbe.TCPIPv6 = legacy.TCPIPv6
+				if v.CarrierProbe.Protocol == "tcp" {
+					v.CarrierProbe.Family = legacy.Family
+				}
+			}
+		}
+	}
+	if err := v.CarrierProbe.Validate(); err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if v.FinanceCurrency == nil {
 		v.FinanceCurrency = old.FinanceCurrency
 	}

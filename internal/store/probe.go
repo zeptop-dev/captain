@@ -18,10 +18,11 @@ type ProbeSettings struct {
 	PublicSections  *[]string        `json:"public_sections,omitempty"`
 	Layout          string           `json:"layout,omitempty"` // grid | compact
 
-	PageEnabled *bool `json:"page_enabled,omitempty"` // nil preserves the pre-v1.7 enabled-page behavior
-	Enabled     bool  `json:"enabled"`
-	BeatSeconds int   `json:"beat_seconds"` // 5..60, default 10
-	CarrierPing bool  `json:"carrier_ping"` // TCP-connect latency to the carrier points
+	PageEnabled  *bool                    `json:"page_enabled,omitempty"` // nil preserves the pre-v1.7 enabled-page behavior
+	Enabled      bool                     `json:"enabled"`
+	BeatSeconds  int                      `json:"beat_seconds"` // 5..60, default 10
+	CarrierPing  bool                     `json:"carrier_ping"` // enables the selected carrier measurements
+	CarrierProbe *spec.CarrierProbeConfig `json:"carrier_probe,omitempty"`
 	// Carriers replaces the default CT/CU/CM probe points when set.
 	Carriers   []spec.Carrier `json:"carriers"`
 	Path       string         `json:"path"`       // "/status"; "" disables the path mode
@@ -82,6 +83,15 @@ const SettingProbe = "probe"
 
 // Normalize fills defaults.
 func (p *ProbeSettings) Normalize() {
+	if p.CarrierProbe == nil {
+		legacy := spec.LegacyCarrierProbe(p.Carriers)
+		p.CarrierProbe = &legacy
+	}
+	carrier := p.CarrierProbe.Normalize()
+	p.CarrierProbe = &carrier
+	// Keep the old field available to older settings clients. The new object
+	// retains the other three lists when such clients edit the TCP IPv4 list.
+	p.Carriers = append([]spec.Carrier(nil), carrier.TCPIPv4...)
 	if p.FinanceCurrency == nil {
 		currency := "CNY"
 		p.FinanceCurrency = &currency

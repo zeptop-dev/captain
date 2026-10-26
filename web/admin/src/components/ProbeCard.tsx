@@ -51,7 +51,7 @@ export function ProbeCard() {
           </SettingsFields>
           <Text size="xs" c="dimmed">{t('probe.carrierModesHint')}</Text>
           <SettingsFields>
-            {(['ipv4', 'ipv6'] as CarrierFamily[]).filter(family => v.carrier_probe.family === 'dual' || v.carrier_probe.family === family).map(family => <Textarea key={`${v.carrier_probe.protocol}_${family}`} label={`${t('probe.carriers')} · ${family === 'ipv4' ? 'IPv4' : 'IPv6'}`} description={t(v.carrier_probe.protocol === 'icmp' ? 'probe.carriersICMPHint' : 'probe.carriersHint')} autosize minRows={3} placeholder={carrierTargetPlaceholder(v.carrier_probe.protocol, family)} styles={{ input: { fontFamily: 'monospace', fontSize: 12 } }} {...form.getInputProps(`carrierTargetsText.${v.carrier_probe.protocol}_${family}`)} />)}
+            {(['ipv4', 'ipv6'] as CarrierFamily[]).filter(family => v.carrier_probe.family === 'dual' || v.carrier_probe.family === family).map(family => <Textarea key={`${v.carrier_probe.protocol}_${family}`} label={`${t('probe.carriers')} · ${family === 'ipv4' ? 'IPv4' : 'IPv6'}`} description={v.carrier_probe.protocol === 'icmp' ? t('probe.carriersICMPHint') : t('probe.carriersHint')} autosize minRows={3} placeholder={carrierTargetPlaceholder(v.carrier_probe.protocol, family)} styles={{ input: { fontFamily: 'monospace', fontSize: 12 } }} {...form.getInputProps(`carrierTargetsText.${v.carrier_probe.protocol}_${family}`)} />)}
           </SettingsFields>
         </Stack>}
         <SettingsFields>

@@ -17,7 +17,15 @@ func hideRootDisk(h *spec.SystemStatus) {
 // Never mutate live service values: those also drive private management views.
 func publicHost(h spec.SystemStatus, s store.ProbeSettings) spec.SystemStatus {
 	h.Resources = nil
-	h.Pings = append([]spec.PingResult(nil), h.Pings...)
+	current := currentCarrierSeries(s)
+	pings := make([]spec.PingResult, 0, len(h.Pings))
+	for _, ping := range h.Pings {
+		if ping.TaskID == 0 && (!carrierSeriesMatches(current, ping.Series, ping.Family, ping.Name) || h.CarrierProbeVersion < 1) {
+			continue
+		}
+		pings = append(pings, ping)
+	}
+	h.Pings = pings
 	for i := range h.Pings {
 		if h.Pings[i].Quality != nil {
 			q := *h.Pings[i].Quality
@@ -73,8 +81,26 @@ func publicHost(h spec.SystemStatus, s store.ProbeSettings) spec.SystemStatus {
 	}
 	if !s.PublicShows("latency") {
 		h.Pings = nil
+		h.CarrierProbeVersion = 0
 	}
 	return h
+}
+
+func currentCarrierSeries(s store.ProbeSettings) map[string]spec.PingTask {
+	out := map[string]spec.PingTask{}
+	if !s.CarrierPing || !s.PublicShows("latency") {
+		return out
+	}
+	s.Normalize()
+	for _, task := range s.CarrierProbe.Tasks() {
+		out[task.Series] = task
+	}
+	return out
+}
+
+func carrierSeriesMatches(current map[string]spec.PingTask, series, family, name string) bool {
+	task, ok := current[series]
+	return ok && task.Family == family && task.Name == name
 }
 func publicSamples(samples []service.Sample, s store.ProbeSettings) []service.Sample {
 	out := make([]service.Sample, len(samples))

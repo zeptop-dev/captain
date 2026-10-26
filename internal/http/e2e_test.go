@@ -1606,7 +1606,8 @@ func TestProbePageAndBeats(t *testing.T) {
 	}
 	ac.do("PUT", "/api/admin/nodes/"+nodeID+"/probe", map[string]any{"Info": map[string]string{"region": "jp", "provider": "Vultr"}, "LimitBytes": 1000, "ResetDay": 1, "Mode": "sum"}, nil)
 	_, b, _ = nc.do("GET", "/api/agent/state", nil, nil)
-	if !strings.Contains(string(b), `"probe":{"enabled":true,"beat_seconds":5,"carrier_ping":true,"tasks":[{"id":1,"name":"cf","type":"tcp","target":"1.1.1.1:443","interval_seconds":30}]}`) {
+	probeState := mustJSON[agentproto.State](t, b)
+	if probeState.Probe == nil || !probeState.Probe.Enabled || probeState.Probe.BeatSeconds != 5 || probeState.Probe.CarrierPing || probeState.Probe.CarrierProbe == nil || len(probeState.Probe.CarrierProbe.Tasks()) != 3 || len(probeState.Probe.Tasks) != 1 || probeState.Probe.Tasks[0].Target != "1.1.1.1:443" {
 		t.Fatalf("state probe config: %s", b)
 	}
 	// Custom carrier targets replace the defaults on the node; bad ones are rejected.
@@ -1616,7 +1617,7 @@ func TestProbePageAndBeats(t *testing.T) {
 	ac.do("PUT", "/api/admin/settings/probe", map[string]any{"enabled": true, "beat_seconds": 5, "carrier_ping": true, "path": "status", "hosts": []string{"status.example.com"}, "visibility": "public", "title": "Our Status",
 		"carriers": []map[string]string{{"name": "HK", "addr": "www.hkix.net:443"}, {"name": "", "addr": ""}}, "alerts": map[string]any{"offline_seconds": 60, "cpu_pct": 80, "window_minutes": 1, "traffic": true}}, nil)
 	_, b, _ = nc.do("GET", "/api/agent/state", nil, nil)
-	if !strings.Contains(string(b), `"carriers":[{"name":"HK","addr":"www.hkix.net:443"}]`) {
+	if !strings.Contains(string(b), `"tcp_ipv4":[{"name":"HK","addr":"www.hkix.net:443"}]`) {
 		t.Fatalf("carriers missing from state: %s", b)
 	}
 	// Legacy enabled settings must not reach even older agents.
@@ -1716,8 +1717,8 @@ func TestProbePageAndBeats(t *testing.T) {
 		t.Fatalf("raw history: %s", b)
 	}
 	_, b, _ = anon.do("GET", "/api/probe/nodes/"+nodeID+"/pings?range=24h", nil, nil)
-	if !strings.Contains(string(b), `"name":"CT"`) || !strings.Contains(string(b), `"name":"cf"`) {
-		t.Fatalf("pings: %s", b)
+	if strings.Contains(string(b), `"name":"CT"`) || !strings.Contains(string(b), `"name":"cf"`) {
+		t.Fatalf("custom history must survive; unqualified legacy carriers cannot identify the current target: %s", b)
 	}
 	// Page routing: /status redirects to /status/, which serves the SPA; dedicated host serves it at /.
 	noRedirect := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}

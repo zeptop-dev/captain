@@ -128,7 +128,12 @@ func (p *Probe) AgentConfig(ctx context.Context, nodeID int64) *spec.Probe {
 		}
 		return nil
 	}
-	cfg := &spec.Probe{Resources: resources, Enabled: true, BeatSeconds: s.BeatSeconds, CarrierPing: s.CarrierPing, Carriers: s.Carriers}
+	cfg := &spec.Probe{Resources: resources, Enabled: true, BeatSeconds: s.BeatSeconds}
+	if s.CarrierPing {
+		cfg.CarrierProbe = s.CarrierProbe.Clone()
+		// Older agents ignore CarrierProbe. Leave CarrierPing false so they
+		// cannot silently report legacy TCP results as ICMP or IPv6 samples.
+	}
 	tasks, _ := p.Store.ListPingTasks(ctx)
 	for _, t := range tasks {
 		if !t.Enabled {
