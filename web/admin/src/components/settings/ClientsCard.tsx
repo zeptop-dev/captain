@@ -35,6 +35,9 @@ export default function ClientsCard() {
   const refresh = () => { polling.current = { job: '', started: 0 }; q.refetch() }
   if (!q.data) return <SettingsLoadState query={q} />
   const catalog = q.data
+  const job = catalog.job
+  const jobClient = catalog.clients.find(client => client.id === job?.client_id)
+  const showJob = job && (job.state !== 'complete' || jobClient?.cached_assets.some(asset => asset.id === job.asset_id))
   return <Stack>
     <Card>
       <Group justify="space-between" gap="sm"><Title order={4}>{t('clientCatalog.builtIn')}</Title><Button variant="light" size="xs" leftSection={<IconRefresh size={14} />} loading={q.isFetching} onClick={refresh}>{t('clientCatalog.refreshStatus')}</Button></Group>
@@ -42,7 +45,7 @@ export default function ClientsCard() {
       <Text size="xs" c="dimmed" mt="xs">{t('clientCatalog.storage', { used: bytes(catalog.storage.used_bytes), limit: bytes(catalog.storage.max_bytes), max: bytes(catalog.storage.max_asset_bytes) })}</Text>
       <Text size="xs" c="dimmed" mt={4}>{t('clientCatalog.cacheHint')}</Text>
       {q.isError && <Alert color="red" mt="sm">{t('workspace.loadError')}</Alert>}
-      {catalog.job && <DownloadProgress job={catalog.job} name={catalog.clients.find(client => client.id === catalog.job?.client_id)?.name ?? ''} />}
+      {showJob && <DownloadProgress job={job} name={jobClient?.name ?? ''} />}
       {catalog.job?.state === 'downloading' && <Text size="xs" c="dimmed" mt={4}>{t('clientCatalog.pollHint')}</Text>}
     </Card>
     <Accordion variant="separated" multiple>
