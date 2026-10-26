@@ -574,7 +574,12 @@ type PingPoint struct {
 }
 
 func (s *Store) NodePingStats(ctx context.Context, nodeID int64, res string, from, to time.Time) ([]PingPoint, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT task_id, name, series, family, ts, samples, lost, sum_ms, sum_mbps, quality_json FROM node_ping_stats WHERE node_id = ? AND res = ? AND ts >= ? AND ts <= ? ORDER BY task_id, name, series, family, ts`, nodeID, res, from.Unix(), to.Unix())
+	rows, err := s.db.QueryContext(ctx, `SELECT task_id, name, '' AS series, '' AS family, ts, samples, lost, sum_ms, sum_mbps, quality_json
+		FROM node_ping_stats WHERE node_id = ? AND res = ? AND ts >= ? AND ts <= ?
+		UNION ALL
+		SELECT task_id, name, series, family, ts, samples, lost, sum_ms, sum_mbps, quality_json
+		FROM node_ping_series_stats WHERE node_id = ? AND res = ? AND ts >= ? AND ts <= ?
+		ORDER BY task_id, name, series, family, ts`, nodeID, res, from.Unix(), to.Unix(), nodeID, res, from.Unix(), to.Unix())
 	if err != nil {
 		return nil, err
 	}
@@ -636,12 +641,16 @@ func (s *Store) PruneStats(ctx context.Context, at time.Time) error {
 		if _, err := s.db.ExecContext(ctx, `DELETE FROM node_stats WHERE res = ? AND ts < ?`, r.res, cut); err != nil {
 			return err
 		}
-		if _, err := s.db.ExecContext(ctx, `DELETE FROM node_ping_stats WHERE res = ? AND ts < ?`, r.res, cut); err != nil {
-			return err
+		for _, table := range []string{"node_ping_stats", "node_ping_series_stats"} {
+			if _, err := s.db.ExecContext(ctx, `DELETE FROM `+table+` WHERE res = ? AND ts < ?`, r.res, cut); err != nil {
+				return err
+			}
 		}
 	}
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM node_ping_cursors WHERE seen_at<?`, at.Add(-7*24*time.Hour).Unix()); err != nil {
-		return err
+	for _, table := range []string{"node_ping_cursors", "node_ping_series_cursors"} {
+		if _, err := s.db.ExecContext(ctx, `DELETE FROM `+table+` WHERE seen_at<?`, at.Add(-7*24*time.Hour).Unix()); err != nil {
+			return err
+		}
 	}
 	if err := s.pruneResourceHistory(ctx, at); err != nil {
 		return err
