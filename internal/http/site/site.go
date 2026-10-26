@@ -23,12 +23,22 @@ type Settings struct {
 	FAQ         []FAQ      `json:"faq"`
 	Links       Links      `json:"links"`
 	ShowPlans   bool       `json:"show_plans"`
+	Branding    *Branding  `json:"branding,omitempty"`
 	// Theme is shared by the landing page and the portal.
 	Theme Theme `json:"theme"`
 	// InjectHead / InjectBody are raw HTML the operator adds to every page
 	// (analytics, chat widgets). Admin-only input; served verbatim.
 	InjectHead string `json:"inject_head"`
 	InjectBody string `json:"inject_body"`
+}
+
+// Branding contains public presentation assets. An omitted object preserves
+// older installations; name and description remain the existing site fields.
+type Branding struct {
+	LogoLight string `json:"logo_light"`
+	LogoDark  string `json:"logo_dark"`
+	Favicon   string `json:"favicon"`
+	Title     string `json:"title"`
 }
 
 // Theme is the operator-chosen look: a Mantine palette name for the
@@ -105,6 +115,7 @@ func Defaults(name string) Settings {
 
 // Register mounts GET /api/site.
 func Register(mux *http.ServeMux, d Deps) {
+	registerBrandAssets(mux, d.Store)
 	registerServiceStatus(mux, d)
 	mux.HandleFunc("GET /api/site", func(w http.ResponseWriter, r *http.Request) {
 		var reg store.RegistrationSettings
@@ -141,6 +152,9 @@ func Register(mux *http.ServeMux, d Deps) {
 			"name":               s.Name, "tagline": s.Tagline, "description": s.Description, "features": s.Features, "locations": s.Locations,
 			"hub": s.Hub, "faq": s.FAQ, "links": s.Links, "show_plans": s.ShowPlans, "registration": reg.PasswordOpen(d.Registration), "probe_url": probeURL(d, r),
 			"stats": stats(r.Context(), d.Store, len(s.Locations)),
+		}
+		if s.Branding != nil {
+			out["branding"] = s.Branding
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "no-store")

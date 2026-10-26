@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
+	"github.com/zeptop-dev/captain/internal/branding"
 	"github.com/zeptop-dev/captain/internal/http/site"
 	"github.com/zeptop-dev/captain/internal/mail"
 	"github.com/zeptop-dev/captain/internal/service"
@@ -171,7 +172,40 @@ func (h *handlers) getSite(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) putSite(w http.ResponseWriter, r *http.Request) {
-	putSetting[site.Settings](h, w, r, site.SettingSite, nil)
+	var v site.Settings
+	if err := h.Store.GetSetting(r.Context(), site.SettingSite, &v); err != nil {
+		serverErr(w, err)
+		return
+	}
+	oldBranding := v.Branding
+	if !readJSON(w, r, &v) {
+		return
+	}
+	// Both omission and null from legacy clients retain the new object. An
+	// explicit empty string clears an asset without clearing unrelated fields.
+	if v.Branding == nil {
+		v.Branding = oldBranding
+	}
+	if v.Branding != nil {
+		for _, value := range []string{v.Branding.LogoLight, v.Branding.LogoDark, v.Branding.Favicon} {
+			if !branding.ValidAssetURL(value) {
+				fail(w, http.StatusBadRequest, "invalid branding image URL")
+				return
+			}
+		}
+		if len(v.Branding.Title) > 256 {
+			fail(w, http.StatusBadRequest, "branding title must be at most 256 bytes")
+			return
+		}
+	}
+	if err := h.Store.SetSetting(r.Context(), site.SettingSite, v); err != nil {
+		serverErr(w, err)
+		return
+	}
+	if h.Probe != nil {
+		h.Probe.Invalidate()
+	}
+	ok(w, v)
 }
 
 // getOIDC returns the providers with secrets replaced by a flag.

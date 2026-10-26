@@ -189,6 +189,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/admin/settings/mail/test", h.requireAdmin(h.testMail))
 	mux.HandleFunc("GET /api/admin/settings/site", h.requireAdmin(h.getSite))
 	mux.HandleFunc("PUT /api/admin/settings/site", h.requireAdmin(h.putSite))
+	mux.HandleFunc("POST /api/admin/settings/branding/assets", h.requireAdmin(h.uploadBrandAsset))
 	mux.HandleFunc("GET /api/admin/settings/oidc", h.requireAdmin(h.getOIDC))
 	mux.HandleFunc("GET /api/admin/settings/login-clients", h.requireAdmin(h.loginClients))
 	mux.HandleFunc("POST /api/admin/settings/login-clients", h.requireAdmin(h.saveLoginClient))
