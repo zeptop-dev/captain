@@ -1,46 +1,12 @@
 import { SettingsFields } from './SettingsFields'
 import { SettingsLoadState } from './SettingsLoadState'
-import { ActionIcon, Button, Card, Group, NumberInput, PasswordInput, Select, Stack, Switch, Text, TextInput, Title } from '@mantine/core'
+import { Button, Card, Group, NumberInput, PasswordInput, Select, Stack, Switch, Text, TextInput, Title } from '@mantine/core'
 import { useSettingsForm as useForm } from '../lib/settings-draft'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { IconPlus, IconTrash } from '@tabler/icons-react'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, type Plan } from '../lib/api'
 import { toast } from '../lib/notify'
-
-interface ClientItem { name: string; platform: string; url: string; note: string }
-const platforms = ['windows', 'macos', 'ios', 'android', 'linux', 'other']
-
-export function ClientsCard() {
-  const { t } = useTranslation()
-  const qc = useQueryClient()
-  const q = useQuery({ queryKey: ['clients-settings'], queryFn: () => api.get<{ items: ClientItem[] }>('/api/admin/settings/clients') })
-  const form = useForm<{ items: ClientItem[] }>({ initialValues: { items: [] } })
-  useEffect(() => { if (q.data) form.hydrate({ items: q.data.items }) }, [q.data]) // eslint-disable-line react-hooks/exhaustive-deps
-  const save = useMutation({ mutationFn: (v: { items: ClientItem[] }) => api.put('/api/admin/settings/clients', v), onSuccess: () => { form.resetDirty(); toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['clients-settings'] }) }, onError: toast.err })
-  if (q.data === undefined) return <SettingsLoadState query={q} />
-  return (
-    <Card>
-      <Title order={5} mb="xs">{t('clients.title')}</Title>
-      <Text size="xs" c="dimmed" mb="sm">{t('clients.hint')}</Text>
-      <form onSubmit={form.onSubmit((v) => save.mutate(v))}><Stack gap="xs">
-        {form.values.items.map((_, i) => (
-          <Stack key={i} gap="xs" p="sm" style={{ border: '1px solid var(--mantine-color-default-border)', borderRadius: 'var(--mantine-radius-md)' }}><SettingsFields>
-            <TextInput label={t('clients.name')} placeholder="Clash Verge" style={{ flex: 2 }} {...form.getInputProps(`items.${i}.name`)} />
-            <Select label={t('clients.platform')} data={platforms.map((p) => ({ value: p, label: t(`clients.platforms.${p}`) }))} allowDeselect={false} style={{ flex: 1 }} {...form.getInputProps(`items.${i}.platform`)} />
-            <TextInput label="URL" placeholder="https://…" style={{ flex: 3 }} {...form.getInputProps(`items.${i}.url`)} />
-            <TextInput label={t('clients.note')} style={{ flex: 2 }} {...form.getInputProps(`items.${i}.note`)} />
-            </SettingsFields><Group justify="flex-end"><ActionIcon variant="subtle" color="red" aria-label={t('common.delete')} onClick={() => form.removeListItem('items', i)}><IconTrash size={16} /></ActionIcon></Group></Stack>
-        ))}
-        <Group justify="space-between">
-          <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => form.insertListItem('items', { name: '', platform: 'windows', url: '', note: '' })}>{t('clients.add')}</Button>
-          <Button type="submit" size="xs" loading={save.isPending}>{t('common.save')}</Button>
-        </Group>
-      </Stack></form>
-    </Card>
-  )
-}
 
 interface TG { bot_token: string; bot_username: string; admin_chat_id: number; notify_orders: boolean; notify_tickets: boolean }
 

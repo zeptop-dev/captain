@@ -19,7 +19,7 @@ const editors: Record<string, ComponentType> = {
   oidc: lazy(() => import('../components/settings/GeneralCards').then(m => ({ default: m.OIDCCard }))),
   registration: lazy(() => import('../components/RegistrationCard').then(m => ({ default: m.RegistrationCard }))),
   trial: lazy(() => import('../components/OpsCards').then(m => ({ default: m.TrialCard }))),
-  clients: lazy(() => import('../components/OpsCards').then(m => ({ default: m.ClientsCard }))),
+  clients: lazy(() => import('../components/settings/ClientsCard')),
   telegram: lazy(() => import('../components/OpsCards').then(m => ({ default: m.TelegramCard }))),
   mail: lazy(() => import('../components/MailCard').then(m => ({ default: m.MailCard }))),
   webhooks: lazy(() => import('../components/WebhooksCard').then(m => ({ default: m.WebhooksCard }))),
