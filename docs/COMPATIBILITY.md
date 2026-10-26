@@ -3,6 +3,21 @@
 What an operator can rely on across releases, which bosun a Captain works
 with, what the database is good for, and what is deliberately not there.
 
+## Curated client downloads
+
+Migration 93 stores the curated client catalog independently of the existing
+custom-client setting. New catalog and cached-download APIs are additive; the
+legacy administrator and anonymous portal client-list APIs keep their existing
+shapes and behavior. No agent protocol, subscription output or bosun version
+requirement changes.
+
+Release discovery, cached files and published download snapshots are independent.
+Clients start hidden, and update checks do not change an existing publication.
+Database backups preserve metadata but not installer bytes; missing cached files
+are omitted from customer downloads until restored or downloaded again. Older
+Captain versions ignore the curated catalog and cannot serve its cached routes.
+See [client downloads](CLIENT_DOWNLOADS.md) for publication, access and storage.
+
 ## Subscription-node access groups
 
 Migration 92 adds explicit inbound access policies (`all`, `groups`, `none`) and
