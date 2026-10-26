@@ -170,6 +170,13 @@ func TestNodeAccessAuditAuthorizationAndEmbeddedScope(t *testing.T) {
 	if row.Policy != "groups" || !slices.Equal(row.GroupIDs, []int64{group}) || row.Legacy {
 		t.Fatal("dual-scope access edit did not apply", row)
 	}
+	// Access permission alone cannot authorize writing Entry metadata. Exact
+	// endpoint grants may provide both permissions without broader resources.
+	policy["revision"] = accessAuditGet(t, r).Revision
+	accessOnly := accessAuditToken(t, r, 1, "full", []string{"node-access:write"})
+	accessAuditCall(t, accessOnly, "PATCH", entryPath, map[string]any{"Access": policy}, 403)
+	exact := accessAuditToken(t, r, 1, "full", []string{"PATCH /api/admin/entries/{id}", "PUT /api/admin/node-access/inbounds/{id}"})
+	accessAuditCall(t, exact, "PATCH", entryPath, map[string]any{"Name": "Exact endpoint permissions", "Access": policy}, 200)
 }
 
 func TestNodeAccessAuditSharedConfirmationCASAndBulkAtomicity(t *testing.T) {
@@ -190,6 +197,8 @@ func TestNodeAccessAuditSharedConfirmationCASAndBulkAtomicity(t *testing.T) {
 	accessAuditCall(t, r.c, "PUT", path, accessAuditPolicy(ib.ID, after.Revision, "groups", []int64{group}, true), 200)
 	grouped := accessAuditGet(t, r)
 	for _, body := range []any{
+		map[string]any{"revision": grouped.Revision, "confirm_shared": true},
+		map[string]any{"inbound_ids": nil, "revision": grouped.Revision, "confirm_shared": true},
 		map[string]any{"inbound_ids": []int64{ib.ID, 999999}, "revision": grouped.Revision, "confirm_shared": true},
 		map[string]any{"inbound_ids": []int64{-1}, "revision": grouped.Revision, "confirm_shared": true},
 	} {
