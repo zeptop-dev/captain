@@ -253,4 +253,3 @@ export const COORD_MAP: Record<string, [number, number]> = {
   DG: [-7.3, 72.4],
   XK: [42.6026, 20.903],
 }
-
