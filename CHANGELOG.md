@@ -6,6 +6,11 @@ Merge commits and formatting-only commits are left out. Binaries and
 `SHA256SUMS` for every tag are on the GitHub Release; the in-app updater
 installs them (Settings → Backups and maintenance → Version and updates).
 
+- **v1.44.0** (2026-10-26) — Add shared website branding with light/dark logos, favicon and browser title across the public site, customer portal, authentication pages and administration. Server probes can follow the main brand or retain independent assets; switching preserves their independent settings. Existing probes remain independent by default.
+  - Restyle customer authentication and portal pages to match the homepage, with responsive navigation, compact appearance controls, six languages and independent browser-local theme preferences. Preserve individual plan quotas, expiry, queued plans, subscriptions, device controls, authentication and payment behavior.
+  - Migration 90 stores bounded, normalized raster uploads in SQLite, included in database backups and reset. Uploading an image does not publish settings; dedicated probe domains can read brand assets without gaining access to the main site's API. Deployment naming for mail and notifications remains separate from web branding.
+  - Keep the formal bosun v0.82.0 dependency. No managed-node upgrade, agent protocol, customer billing, subscription routing or default proxy-core changes are required.
+
 - **v1.43.0** (2026-10-25) — Add six-language controls to the public homepage and service-status page. Initially follow the browser's preferred languages, remember explicit selections independently of other interfaces, and preserve current page interactions. Translate built-in content without rewriting custom branding, plans or announcements.
   - Default the public site to light appearance with a compact light/dark icon and browser-local memory. Unify section backgrounds, preserve map proportions, enlarge and lower the geographical illustration, and label it as node locations with usable horizontal scrolling on small screens.
   - Add independent TCP/ICMP and IPv4/IPv6/dual carrier monitoring settings, retain each mode's target drafts, and show separate dual-stack histories in Glass. Keep unavailable/permission outcomes distinct from real timeouts and retain compact-list layout. Empty target lists use NextTrace Beijing; existing explicit targets remain unchanged.
