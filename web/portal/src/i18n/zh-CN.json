@@ -238,8 +238,8 @@
     "copy": "复制"
   },
   "loginConsent": {
-    "title": "使用 Captain 登录",
-    "login": "请先登录 Captain 普通用户账户。管理员账户不能授权应用。",
+    "title": "使用 {{brand}} 登录",
+    "login": "请先登录 {{brand}} 普通用户账户。管理员账户不能授权应用。",
     "profile": "提供稳定的账户标识和自动生成的显示名称。",
     "email": "同时提供你的邮箱地址。",
     "callback": "返回应用地址",

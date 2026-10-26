@@ -1,0 +1,11 @@
+.logo {
+  display: block;
+  width: auto;
+  height: 38px;
+  max-width: 96px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+@media (max-width: 36em) {
+  .logo { height: 32px; max-width: 72px; }
+}

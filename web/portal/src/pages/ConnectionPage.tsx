@@ -7,6 +7,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 import { api, type Server, type WireGuardDevicesResponse } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import { useSite } from '../lib/theme'
 import { copyText } from '../lib/clipboard'
 import { detectDevicePlatform, downloadURL, importClients, subscriptionImportURL, type ClientDownload, type DevicePlatform, type ImportClient } from '../lib/connection'
 import { toast } from '../lib/notify'
@@ -23,6 +24,7 @@ const platforms = [
 export default function ConnectionPage() {
   const { t } = useTranslation()
   const { me } = useAuth()
+  const site = useSite()
   const location = useLocation()
   const [platform, setPlatform] = useState<DevicePlatform>(() => detectDevicePlatform(navigator.userAgent, navigator.maxTouchPoints))
   const [client, setClient] = useState<ImportClient>(() => platform === 'ios' ? 'shadowrocket' : platform === 'other' ? 'manual' : 'clash')
@@ -37,7 +39,7 @@ export default function ConnectionPage() {
   const clients = importClients.filter(choice => choice.platforms.includes(platform))
   const selectedClient = importClients.find(choice => choice.value === client)
   const subscriptionURL = me?.subscription_url ?? ''
-  const importURL = subscriptionImportURL(subscriptionURL, client)
+  const importURL = subscriptionImportURL(subscriptionURL, client, site.data?.name)
   const changePlatform = (value: DevicePlatform) => {
     setPlatform(value)
     setClient(value === 'ios' ? 'shadowrocket' : value === 'other' ? 'manual' : 'clash')

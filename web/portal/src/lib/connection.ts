@@ -23,13 +23,13 @@ export function detectDevicePlatform(userAgent: string, maxTouchPoints = 0): Dev
 
 // Fixed schemes are independent of operator-supplied download names/URLs.
 // A download title alone does not establish import compatibility.
-export function subscriptionImportURL(url: string, client: ImportClient): string | undefined {
+export function subscriptionImportURL(url: string, client: ImportClient, brand = 'Captain'): string | undefined {
   if (!url) return undefined
   const encoded = encodeURIComponent(url)
   switch (client) {
     case 'clash': return `clash://install-config?url=${encoded}`
     case 'singbox': return `sing-box://import-remote-profile?url=${encoded}`
-    case 'shadowrocket': return `shadowrocket://add/sub://${btoa(Array.from(new TextEncoder().encode(url), byte => String.fromCharCode(byte)).join(''))}?remark=Captain`
+    case 'shadowrocket': return `shadowrocket://add/sub://${btoa(Array.from(new TextEncoder().encode(url), byte => String.fromCharCode(byte)).join(''))}?remark=${encodeURIComponent(brand || 'Captain')}`
     case 'surge': return `surge:///install-config?url=${encoded}`
     case 'manual': return undefined
   }

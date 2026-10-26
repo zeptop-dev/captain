@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client'
 import { MantineProvider } from '@mantine/core'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { buildTheme } from './theme'
+import { applyBrandMetadata } from '../../shared/branding'
 import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { getJSON, type Site } from './lib/site'
@@ -24,6 +25,9 @@ if (ref) fetch('/api/portal/ref', { method: 'POST', headers: { 'Content-Type': '
 function Themed({ children }: { children: ReactNode }) {
   useEffect(subscribeSiteLanguage, [])
   const site = useQuery({ queryKey: ['site'], queryFn: () => getJSON<Site>('/api/site') })
+  useEffect(() => {
+    if (site.data) return applyBrandMetadata({ name: site.data.name, title: site.data.branding?.title, description: site.data.description, favicon: site.data.branding?.favicon })
+  }, [site.data])
   const a = resolveSiteAppearance(site.data?.theme)
   const [preference, setPreference] = useState<SiteScheme | null>(() => {
     try { return readSitePreference(window.localStorage) } catch { return null }

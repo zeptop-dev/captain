@@ -238,8 +238,8 @@
     "copy": "Copy"
   },
   "loginConsent": {
-    "title": "Sign in with Captain",
-    "login": "Sign in with a Captain customer account to continue. Staff accounts cannot authorize applications.",
+    "title": "Sign in with {{brand}}",
+    "login": "Sign in with a {{brand}} customer account to continue. Staff accounts cannot authorize applications.",
     "profile": "Share your stable account identifier and generated display name.",
     "email": "Also share your email address.",
     "callback": "Return to application",

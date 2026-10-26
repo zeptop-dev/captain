@@ -238,8 +238,8 @@
     "copy": "複製"
   },
   "loginConsent": {
-    "title": "使用 Captain 登入",
-    "login": "請先登入 Captain 一般使用者帳戶。管理員帳戶不能授權應用。",
+    "title": "使用 {{brand}} 登入",
+    "login": "請先登入 {{brand}} 一般使用者帳戶。管理員帳戶不能授權應用。",
     "profile": "提供穩定的帳戶識別碼與自動產生的顯示名稱。",
     "email": "同時提供你的電子郵件位址。",
     "callback": "返回應用位址",
