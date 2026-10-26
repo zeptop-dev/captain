@@ -32,6 +32,10 @@ export interface BrandMetadata {
   favicon?: string
 }
 
+// A compiled local asset also clears a browser's cached icon when the custom
+// favicon is removed; deleting the link alone may leave that old icon visible.
+export const defaultBrandFavicon = new URL('./captain-mark.svg', import.meta.url).href
+
 /** Own the current SPA's metadata, restoring the previous document on cleanup. */
 export function applyBrandMetadata({ name, title, description, favicon }: BrandMetadata): () => void {
   const previousTitle = document.title
@@ -48,14 +52,12 @@ export function applyBrandMetadata({ name, title, description, favicon }: BrandM
     document.head.append(meta)
     added.push(meta)
   }
-  const asset = safeBrandAssetURL(favicon)
-  if (asset) {
-    const link = document.createElement('link')
-    link.rel = 'icon'
-    link.href = asset
-    document.head.append(link)
-    added.push(link)
-  }
+  const link = document.createElement('link')
+  link.rel = 'icon'
+  link.href = safeBrandAssetURL(favicon) || defaultBrandFavicon
+  link.onerror = () => { if (link.href !== defaultBrandFavicon) link.href = defaultBrandFavicon }
+  document.head.append(link)
+  added.push(link)
   return () => {
     document.title = previousTitle
     for (const element of added) element.remove()
