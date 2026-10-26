@@ -3310,7 +3310,8 @@
       "complete": "다운로드 완료",
       "failed": "다운로드 실패"
     },
-    "multipleVersions": "여러 버전"
+    "multipleVersions": "여러 버전",
+    "skippedInstallers": "아키텍처를 인식할 수 없어 제외한 설치 파일: {{count}}개."
   },
   "nodeAccess": {
     "title": "접근 범위",

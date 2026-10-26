@@ -3310,7 +3310,8 @@
       "complete": "Загрузка завершена",
       "failed": "Ошибка загрузки"
     },
-    "multipleVersions": "Несколько версий"
+    "multipleVersions": "Несколько версий",
+    "skippedInstallers": "Пропущено установщиков с нераспознанной архитектурой: {{count}}."
   },
   "nodeAccess": {
     "title": "Область доступа",

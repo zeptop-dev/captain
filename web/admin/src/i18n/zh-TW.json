@@ -3310,7 +3310,8 @@
       "complete": "下載完成",
       "failed": "下載失敗"
     },
-    "multipleVersions": "多個版本"
+    "multipleVersions": "多個版本",
+    "skippedInstallers": "有 {{count}} 個安裝檔暫時無法辨識架構，已略過。"
   },
   "nodeAccess": {
     "title": "存取範圍",

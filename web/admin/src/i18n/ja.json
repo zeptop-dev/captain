@@ -3310,7 +3310,8 @@
       "complete": "ダウンロード完了",
       "failed": "ダウンロード失敗"
     },
-    "multipleVersions": "複数のバージョン"
+    "multipleVersions": "複数のバージョン",
+    "skippedInstallers": "アーキテクチャを識別できず省略したインストーラー：{{count}} 件。"
   },
   "nodeAccess": {
     "title": "アクセス範囲",

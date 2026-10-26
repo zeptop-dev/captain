@@ -3310,7 +3310,8 @@
       "complete": "Download complete",
       "failed": "Download failed"
     },
-    "multipleVersions": "Multiple versions"
+    "multipleVersions": "Multiple versions",
+    "skippedInstallers": "Installers omitted because their architecture is not recognized: {{count}}."
   },
   "nodeAccess": {
     "title": "Access scope",
