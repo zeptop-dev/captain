@@ -1,7 +1,7 @@
 import { ActionIcon, Alert, Badge, Button, Card, Checkbox, Code, Group, Loader, Menu, Select, Stack, Table, Tabs, Text } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
-import { IconChevronDown, IconGripVertical, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react'
+import { IconMapPin, IconChevronDown, IconGripVertical, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react'
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -17,6 +17,7 @@ import { flag } from '../lib/regions'
 import { SettingsDraftBoundary } from '../lib/settings-draft'
 import { PageHeader } from '../components/PageHeader'
 import { EntryEditor } from '../components/EntryEditor'
+import { EntryLocationEditor } from '../components/EntryLocationEditor'
 import { EntryCategoriesManager } from '../components/EntryCategoriesManager'
 import { matchesEntryCategory, visibleEntrySelection } from '../lib/entry-categories'
 import { LineEditor, LinesPanel } from '../components/LinesPanel'
@@ -65,6 +66,7 @@ function EntriesWorkspace() {
   const sourcesLoading = nodes.isLoading || detailQueries.some(query => query.isLoading)
   const sourcesError = nodes.isError || detailQueries.some(query => query.isError)
   const reloadSources = () => { nodes.refetch(); detailQueries.forEach(query => query.refetch()); if (admin) lines.refetch() }
+  const [editingLocation, setEditingLocation] = useState<Entry | null>(null)
   const [editing, setEditing] = useState<Entry | 'new' | null>(null)
   const [initialLineID, setInitialLineID] = useState<number | undefined>()
   const requestedInboundID = params.get('create') === 'node' ? Number(params.get('inbound')) : 0
@@ -180,7 +182,7 @@ function EntriesWorkspace() {
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}><SortableContext items={visible.map(row => row.ID)} strategy={verticalListSortingStrategy}>
               <Table.ScrollContainer minWidth={940}><Table verticalSpacing="sm">
                 <Table.Thead><Table.Tr><Table.Th w={32} />{canWrite && <Table.Th w={36}><Checkbox aria-label={t('entryCategories.selectVisible')} checked={visible.length > 0 && selectedVisible.length === visible.length} indeterminate={selectedVisible.length > 0 && selectedVisible.length < visible.length} disabled={q.isLoading || q.isError || assign.isPending || !visible.length} onChange={event => setSelected(event.currentTarget.checked ? visible.map(entry => entry.ID) : [])} /></Table.Th>}<Table.Th>{t('entries.name')}</Table.Th><Table.Th>{t('entryCategories.label')}</Table.Th><Table.Th>{t('entryFlow.path')}</Table.Th><Table.Th>{t('entryFlow.publishedAddress')}</Table.Th><Table.Th>{t('entries.rate')}</Table.Th><Table.Th>{t('entries.enabled')}</Table.Th><Table.Th /></Table.Tr></Table.Thead>
-                <Table.Tbody>{visible.map(entry => <EntryRow key={entry.ID} entry={entry} categoryName={categories.data?.find(category => category.ID === entry.CategoryID)?.Name} categoryKnown={!categories.isLoading && !categories.isError} selectable={canWrite} selected={selectedSet.has(entry.ID)} onSelect={checked => setSelected(checked ? [...selectedVisible, entry.ID] : selectedVisible.filter(id => id !== entry.ID))} selectionBusy={assign.isPending || q.isError} inboundLabel={label(entry.InboundID)} inboundKnown={inbounds.some(c => c.ib.ID === entry.InboundID)} managed={managedType(entry)} lineName={lines.data?.find(line => line.id === entry.LineID)?.name} dialerName={q.data?.find(item => item.ID === entry.ClientDialerEntryID)?.Name} draggable={draggable} canWrite={canWrite && (!managedType(entry) || admin)} busy={del.isPending} onEdit={() => editEntry(entry)} onDelete={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text size="sm">{t('entryFlow.deleteHint')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => del.mutate(entry.ID) })} />)}
+                <Table.Tbody>{visible.map(entry => <EntryRow key={entry.ID} entry={entry} categoryName={categories.data?.find(category => category.ID === entry.CategoryID)?.Name} categoryKnown={!categories.isLoading && !categories.isError} selectable={canWrite} selected={selectedSet.has(entry.ID)} onSelect={checked => setSelected(checked ? [...selectedVisible, entry.ID] : selectedVisible.filter(id => id !== entry.ID))} selectionBusy={assign.isPending || q.isError} inboundLabel={label(entry.InboundID)} inboundKnown={inbounds.some(c => c.ib.ID === entry.InboundID)} managed={managedType(entry)} lineName={lines.data?.find(line => line.id === entry.LineID)?.name} dialerName={q.data?.find(item => item.ID === entry.ClientDialerEntryID)?.Name} draggable={draggable} canWrite={canWrite && (!managedType(entry) || admin)} busy={del.isPending} canEditLocation={canWrite} onLocation={() => setEditingLocation(entry)} onEdit={() => editEntry(entry)} onDelete={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text size="sm">{t('entryFlow.deleteHint')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => del.mutate(entry.ID) })} />)}
                   {!q.isLoading && !q.isError && visible.length === 0 && <Table.Tr><Table.Td colSpan={canWrite ? 9 : 8}><Text c="dimmed" ta="center" py="lg">{t('common.empty')}</Text></Table.Td></Table.Tr>}
                 </Table.Tbody>
               </Table></Table.ScrollContainer>
@@ -200,14 +202,15 @@ function EntriesWorkspace() {
         </Stack>
       </Tabs.Panel>
     </Tabs>
+    {editingLocation && <SettingsDraftBoundary><EntryLocationEditor key={`entry-location-${editingLocation.ID}`} entry={editingLocation} onClose={() => setEditingLocation(null)} /></SettingsDraftBoundary>}
     {editing !== null && <SettingsDraftBoundary><EntryEditor key={editing === 'new' ? `new-${initialLineID ?? ''}` : editing.ID} entry={editing === 'new' ? undefined : editing} nodes={nodes.data ?? []} inbounds={inbounds} entries={q.data ?? []} lines={lines.data ?? []} tags={tags.data ?? []} categories={categories.data ?? []} initialInboundID={Number(params.get('inbound')) || undefined} initialLineID={initialLineID} initialServerID={Number(nodeFilter) || serverID} canManageLines={admin} loading={sourcesLoading || categories.isLoading || categories.isError || admin && lines.isLoading} loadError={sourcesError || categories.isError || admin && lines.isError} onReload={() => { reloadSources(); categories.refetch() }} onClose={() => setEditing(null)} /></SettingsDraftBoundary>}
     {managingCategories && <SettingsDraftBoundary><EntryCategoriesManager onClose={() => setManagingCategories(false)} /></SettingsDraftBoundary>}
     {editingLine !== null && <SettingsDraftBoundary><LineEditor key={editingLine === 'new' ? 'new' : editingLine.id} line={editingLine === 'new' ? undefined : editingLine} nodes={nodes.data ?? []} details={details} inbounds={inbounds} loading={sourcesLoading} loadError={sourcesError} onReload={reloadSources} onClose={() => setEditingLine(null)} /></SettingsDraftBoundary>}
   </>
 }
 
-function EntryRow({ entry, categoryName, categoryKnown, selectable, selected, onSelect, selectionBusy, inboundLabel, inboundKnown, managed, lineName, dialerName, draggable, canWrite, busy, onEdit, onDelete }: {
-  entry: Entry; categoryName?: string; categoryKnown: boolean; selectable: boolean; selected: boolean; onSelect: (checked: boolean) => void; selectionBusy: boolean; inboundLabel: string; inboundKnown: boolean; managed?: 'wireguard' | 'reverse'; lineName?: string; dialerName?: string; draggable: boolean; canWrite: boolean; busy: boolean; onEdit: () => void; onDelete: () => void
+function EntryRow({ entry, categoryName, categoryKnown, selectable, selected, onSelect, selectionBusy, inboundLabel, inboundKnown, managed, lineName, dialerName, draggable, canWrite, busy, canEditLocation, onLocation, onEdit, onDelete }: {
+  entry: Entry; categoryName?: string; categoryKnown: boolean; selectable: boolean; selected: boolean; onSelect: (checked: boolean) => void; selectionBusy: boolean; inboundLabel: string; inboundKnown: boolean; managed?: 'wireguard' | 'reverse'; lineName?: string; dialerName?: string; draggable: boolean; canWrite: boolean; busy: boolean; canEditLocation: boolean; onLocation: () => void; onEdit: () => void; onDelete: () => void
 }) {
   const { t } = useTranslation()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entry.ID, disabled: !draggable })
@@ -219,6 +222,6 @@ function EntryRow({ entry, categoryName, categoryKnown, selectable, selected, on
     <Table.Td><Stack gap={4}><Badge size="xs" variant="light" color={managed || entry.LineID ? 'indigo' : entry.ClientDialerEntryID ? 'grape' : 'gray'}>{managed ? t(`lines.sections.${managed}`) : entry.ClientDialerEntryID ? t('entryFlow.clientChain') : entry.LineID ? t('entryFlow.viaLine') : inboundKnown ? t('entryFlow.direct') : t('entryFlow.pathUnknown')}</Badge><Text size="xs">{entry.ClientDialerEntryID ? `${dialerName ?? `#${entry.ClientDialerEntryID}`} → ` : entry.LineID ? `${lineName ?? `#${entry.LineID}`} → ` : ''}{inboundLabel}</Text></Stack></Table.Td>
     <Table.Td><Code>{hostPort(entry.DisplayHost, entry.DisplayPort)}</Code></Table.Td><Table.Td>×{entry.Rate}</Table.Td>
     <Table.Td><Badge color={entry.Enabled ? 'teal' : 'gray'}>{t(entry.Enabled ? 'common.enabled' : 'common.disabled')}</Badge></Table.Td>
-    <Table.Td>{canWrite && <Group gap={4} justify="flex-end" wrap="nowrap"><ActionIcon variant="subtle" aria-label={t('common.edit')} disabled={busy} onClick={onEdit}><IconPencil size={16} /></ActionIcon>{!managed && <ActionIcon variant="subtle" color="red" aria-label={t('common.delete')} disabled={busy} onClick={onDelete}><IconTrash size={16} /></ActionIcon>}</Group>}</Table.Td>
+    <Table.Td><Group gap={4} justify="flex-end" wrap="nowrap">{canEditLocation && <ActionIcon variant="subtle" aria-label={t('mapLocation.title')} title={t('mapLocation.title')} disabled={busy} onClick={onLocation}><IconMapPin size={16} /></ActionIcon>}{canWrite && <><ActionIcon variant="subtle" aria-label={t('common.edit')} disabled={busy} onClick={onEdit}><IconPencil size={16} /></ActionIcon>{!managed && <ActionIcon variant="subtle" color="red" aria-label={t('common.delete')} disabled={busy} onClick={onDelete}><IconTrash size={16} /></ActionIcon>}</>}</Group></Table.Td>
   </Table.Tr>
 }

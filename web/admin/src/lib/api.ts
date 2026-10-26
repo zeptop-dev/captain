@@ -1,3 +1,4 @@
+import type { GeoLocation, LocationSettings } from './location'
 // Minimal typed fetch wrapper. Sessions are cookies, so nothing to attach.
 export class ApiError extends Error {
   status: number
@@ -80,6 +81,7 @@ export interface CertStatus { domain: string; method: string; not_after: string;
 export interface DoctorCheck { id: string; name: string; status: 'ok' | 'warn' | 'fail' | 'skip'; detail?: string }
 export interface DoctorReport { at: string; checks: DoctorCheck[]; summary: { ok: number; warn: number; fail: number; skip: number } }
 export interface SiteSettings {
+  map_revision?: number; map_source?: 'manual' | 'entries'; status_map_source?: 'manual' | 'entries'; map_entry_ids?: number[]
   branding?: { logo_light?: string; logo_dark?: string; favicon?: string; title?: string }
   name: string; tagline: string; description: string
   features: { title: string; text: string; icon?: string }[]
@@ -132,6 +134,7 @@ export interface SubRequest { id: number; at: string; request_ip: string; user_a
 export interface EntryCategory { ID: number; Name: string; Description: string; Sort: number }
 
 export interface Entry {
+  LocationSettings?: LocationSettings; Location?: GeoLocation | null
   ID: number; Name: string; InboundID: number; ChainID: number | null; DisplayHost: string; DisplayPort: number
   LineID?: number | null; LineMemberID?: string; ClientDialerEntryID?: number | null; CategoryID?: number | null
   ManagedConnection?: { type: 'wireguard' | 'reverse'; exit_node_id: number }

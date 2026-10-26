@@ -1,9 +1,10 @@
 import { Button, Select, Stack, Text } from '@mantine/core'
+import type { GeoLocation } from '../lib/location'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export interface RegionResult { ip: string; country: string; checked_at: number; status: string }
-export interface RegionDetection { fresh: boolean; observed_at: number; ipv4: RegionResult; ipv6: RegionResult; country: string; ip: string; checked_at: number; conflict: boolean; source: string }
+export interface RegionDetection { location?: GeoLocation; last_success_at?: number; stale?: boolean; fresh: boolean; observed_at: number; ipv4: RegionResult; ipv6: RegionResult; country: string; ip: string; checked_at: number; conflict: boolean; source: string }
 
 export function NodeRegionSelect({ value, onChange, countries, detection, detect, pending, disabled }: { value: string; onChange: (v: string) => void; countries: string[]; detection?: RegionDetection; detect: () => void; pending: boolean; disabled: boolean }) {
   const { t, i18n } = useTranslation()
