@@ -194,12 +194,10 @@ func (s *Store) UserByUUID(ctx context.Context, uuid string) (*domain.User, erro
 // grouped = the user's own group or a group of one of their plans).
 func (s *Store) NodeAgentUserIDs(ctx context.Context, nodeID int64) (map[int64]int64, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT u.agent_id, u.id FROM users u
-		WHERE u.status = 'active' AND u.role = 'user'
-		  AND EXISTS (SELECT 1 FROM subscriptions sub WHERE sub.user_id = u.id AND sub.status = 'active')
-		  AND (EXISTS (SELECT 1 FROM inbounds i WHERE i.node_id = ? AND i.enabled = 1 AND i.group_id IS NULL)
-		    OR u.group_id IN (SELECT group_id FROM inbounds WHERE node_id = ? AND enabled = 1 AND group_id IS NOT NULL)
-		    OR EXISTS (SELECT 1 FROM subscriptions sub JOIN plans p ON p.id = sub.plan_id WHERE sub.user_id = u.id AND sub.status = 'active'
-		               AND p.group_id IN (SELECT group_id FROM inbounds WHERE node_id = ? AND enabled = 1 AND group_id IS NOT NULL)))`, nodeID, nodeID, nodeID)
+        WHERE u.status='active' AND u.role='user'
+        AND EXISTS(SELECT 1 FROM subscriptions sub WHERE sub.user_id=u.id AND sub.status='active')
+        AND EXISTS(SELECT 1 FROM inbounds i JOIN effective_inbound_access ia ON ia.inbound_id=i.id
+        WHERE i.node_id=? AND i.enabled=1 AND `+inboundUserAccessSQL(false)+`)`, nodeID)
 	if err != nil {
 		return nil, err
 	}

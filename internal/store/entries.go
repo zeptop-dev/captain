@@ -49,6 +49,11 @@ func (s *Store) CreateEntry(ctx context.Context, e *domain.Entry) error {
 	if err := validateEntryCategory(ctx, tx, e); err != nil {
 		return err
 	}
+	if e.Access != nil {
+		if err := updateInboundAccessTx(ctx, tx, e.InboundID, *e.Access, 1); err != nil {
+			return err
+		}
+	}
 	ts := now()
 	res, err := tx.ExecContext(ctx, `INSERT INTO entries (name, inbound_id, chain_id, display_host, display_port, rate, sort, enabled, tags, region, client_extra, line_id, line_member_id, client_dialer_entry_id, category_id, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -107,7 +112,7 @@ func (s *Store) entriesForUser(ctx context.Context, u *domain.User, withBlocked 
 	if err != nil {
 		return nil, err
 	}
-	clause, args := groupClause("i.group_id", groups)
+	clause, args := inboundGroupClause("i", groups)
 	q := `SELECT ` + entryCols + `, ` + inboundColsPrefixed("i") + `
 		FROM entries e JOIN inbounds i ON i.id = e.inbound_id
 		WHERE e.enabled = 1 AND i.enabled = 1 AND ` + clause
@@ -178,6 +183,19 @@ func (s *Store) UpdateEntry(ctx context.Context, e *domain.Entry) error {
 	defer tx.Rollback()
 	if err := validateEntryCategory(ctx, tx, e); err != nil {
 		return err
+	}
+	var existingInboundID int64
+	if err := tx.QueryRowContext(ctx, `SELECT inbound_id FROM entries WHERE id=?`, e.ID).Scan(&existingInboundID); err != nil {
+		return wrapNotFound(err)
+	}
+	if e.Access != nil {
+		added := 0
+		if existingInboundID != e.InboundID {
+			added = 1
+		}
+		if err := updateInboundAccessTx(ctx, tx, e.InboundID, *e.Access, added); err != nil {
+			return err
+		}
 	}
 	_, err = tx.ExecContext(ctx, `UPDATE entries SET name = ?, inbound_id = ?, chain_id = ?, display_host = ?, display_port = ?, rate = ?, sort = ?, enabled = ?, tags = ?, region = ?, client_extra = ?, line_id = ?, line_member_id = ?, client_dialer_entry_id = ?, category_id = ?, updated_at = ? WHERE id = ?`,
 		e.Name, e.InboundID, nullInt64(e.ChainID), e.DisplayHost, e.DisplayPort, e.Rate, e.Sort, boolInt(e.Enabled), joinTags(e.Tags), strings.ToUpper(e.Region), encodeExtra(e.ClientExtra), nullInt64(e.LineID), e.LineMemberID, nullInt64(e.ClientDialerEntryID), nullInt64(e.CategoryID), now(), e.ID)

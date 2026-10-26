@@ -390,6 +390,9 @@ func (s *Store) UpdateInbound(ctx context.Context, ib *domain.Inbound) error {
 		return err
 	}
 	defer tx.Rollback()
+	if err := guardLegacyAccessTx(ctx, tx, ib); err != nil {
+		return err
+	}
 	_, err = tx.ExecContext(ctx, `UPDATE inbounds SET tag = ?, protocol = ?, listen = ?, port = ?, core = ?, settings_json = ?, group_id = ?, enabled = ?, sort = ?, ingress_id = ?, updated_at = ? WHERE id = ?`,
 		ib.Tag, ib.Protocol, ib.Listen, ib.Port, ib.Core, string(settings), nullInt64(ib.GroupID), boolInt(ib.Enabled), ib.Sort, nullInt64(ib.IngressID), now(), ib.ID)
 	if err != nil {

@@ -272,7 +272,6 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 		return nil, err
 	}
 	users := toSpecUsers(all, over, limits, speeds, quotas)
-	byGroup := map[int64][]spec.User{}
 	var wgPeers map[int64][]spec.WireGuardPeer
 	if a.Store.WireGuardDevicesSupported(ctx, n.ID) {
 		wgPeers, err = a.Store.WireGuardDevicePeers(ctx)
@@ -307,19 +306,14 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 		if ib.IngressID != nil && si.Listen == "" {
 			si.Listen = bindFor[*ib.IngressID]
 		}
-		if ib.GroupID != nil {
-			list, ok := byGroup[*ib.GroupID]
-			if !ok {
-				members, err := a.Store.UsersWithAccess(ctx, ib.GroupID, at)
-				if err != nil {
-					return nil, err
-				}
-				list = toSpecUsers(members, over, limits, speeds, quotas)
-				byGroup[*ib.GroupID] = list
-			}
-			si.ScopedUsers = true
-			si.Users = list
+		members, err := a.Store.UsersWithInboundAccess(ctx, ib.ID, at)
+		if err != nil {
+			return nil, err
 		}
+		// Even an empty explicit policy is scoped; falling back to node users
+		// would turn a closed listener into one available to every customer.
+		si.ScopedUsers = true
+		si.Users = toSpecUsers(members, over, limits, speeds, quotas)
 		if si.Protocol == spec.WireGuard && len(wgPeers) > 0 {
 			// Add credentials only to WG inbounds; parent names/IDs retain accounting.
 			selected := si.EffectiveUsers(users)

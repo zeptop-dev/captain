@@ -13,18 +13,21 @@ import (
 // AddTraffic records one delta for a user on an inbound (daily bucket) and
 // charges it to the subscription that fits the inbound's group best.
 func (s *Store) AddTraffic(ctx context.Context, userID, inboundID int64, up, down int64, at time.Time) error {
-	var group sql.NullInt64
-	_ = s.db.QueryRowContext(ctx, `SELECT group_id FROM inbounds WHERE id = ?`, inboundID).Scan(&group)
 	var groups []int64
-	if group.Valid {
-		groups = []int64{group.Int64}
+	if inboundID > 0 {
+		access, err := s.InboundAccess(ctx, inboundID)
+		if err != nil {
+			return err
+		}
+		groups = access.GroupIDs
 	}
-	return s.AddTrafficBatch(ctx, inboundID, groups, []spec.UserTraffic{{UserID: userID, Up: up, Down: down}}, at)
+	_, err := s.AddTrafficSamples(ctx, []TrafficSample{{UserID: userID, InboundID: inboundID, Groups: groups, Up: up, Down: down}}, at)
+	return err
 }
 
 // NodeGroups lists the distinct user groups of a node's enabled inbounds.
 func (s *Store) NodeGroups(ctx context.Context, nodeID int64) ([]int64, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT DISTINCT group_id FROM inbounds WHERE node_id = ? AND enabled = 1 AND group_id IS NOT NULL`, nodeID)
+	rows, err := s.db.QueryContext(ctx, `SELECT DISTINCT g.group_id FROM inbounds i JOIN effective_inbound_access a ON a.inbound_id=i.id JOIN effective_inbound_access_groups g ON g.inbound_id=i.id WHERE i.node_id=? AND i.enabled=1 AND a.policy='groups' ORDER BY g.group_id`, nodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +50,7 @@ func (s *Store) NodeGroups(ctx context.Context, nodeID int64) ([]int64, error) {
 func (s *Store) AddTrafficBatch(ctx context.Context, inboundID int64, groups []int64, samples []spec.UserTraffic, at time.Time) error {
 	out := make([]TrafficSample, 0, len(samples))
 	for _, t := range samples {
-		out = append(out, TrafficSample{UserID: t.UserID, InboundID: inboundID, Groups: groups, Up: t.Up, Down: t.Down})
+		out = append(out, TrafficSample{UserID: t.UserID, InboundID: inboundID, Groups: groups, Up: t.Up, Down: t.Down, UnattributedInbound: true})
 	}
 	_, err := s.AddTrafficSamples(ctx, out, at)
 	return err
@@ -114,7 +117,19 @@ func addTrafficSamplesTx(ctx context.Context, tx *sql.Tx, samples []TrafficSampl
 			t.UserID, t.InboundID, day, t.Up, t.Down); err != nil {
 			return nil, err
 		}
-		if id, found := chargeableTx(ctx, tx, t.UserID, t.Groups, at); found {
+		groups := t.Groups
+		if !t.UnattributedInbound && t.InboundID > 0 {
+			// Resolve the real listener in this same transaction. The supplied
+			// groups may come from a legacy report handler or a stale snapshot.
+			access, err := inboundAccess(ctx, tx, t.InboundID)
+			if err != nil {
+				return nil, err
+			}
+			groups = access.GroupIDs
+			// A closed policy still permits accounting of already accepted
+			// tail traffic; chargeableTx's existing fallback is not admission.
+		}
+		if id, found := chargeableTx(ctx, tx, t.UserID, groups, at); found {
 			if _, err := tx.ExecContext(ctx, `UPDATE subscriptions SET used_up_bytes = used_up_bytes + ?, used_down_bytes = used_down_bytes + ?, updated_at = ? WHERE id = ?`, t.Up, t.Down, ts, id); err != nil {
 				return nil, err
 			}
