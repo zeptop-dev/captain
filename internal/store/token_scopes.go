@@ -10,7 +10,7 @@ import (
 
 // These identifiers are also the first resource segment of the admin API.
 // Scopes only narrow an employee's existing role; they cannot grant a role.
-var TokenResources = []string{"admin-log", "articles", "audit-log", "audit-rules", "certificates", "coupons", "config-presets", "dashboard", "domains", "entries", "entry-categories", "external", "gifts", "groups", "inbounds", "ingresses", "keys", "me", "metrics", "monitoring", "nodes", "orders", "ping-tasks", "plans", "renewals", "settings", "speedtest", "system", "tickets", "tokens", "users", "withdrawals"}
+var TokenResources = []string{"admin-log", "articles", "audit-log", "audit-rules", "certificates", "coupons", "config-presets", "dashboard", "domains", "entries", "entry-categories", "external", "gifts", "groups", "inbounds", "ingresses", "keys", "me", "metrics", "monitoring", "node-access", "nodes", "orders", "ping-tasks", "plans", "renewals", "settings", "speedtest", "system", "tickets", "tokens", "users", "withdrawals"}
 
 var endpointGrant = regexp.MustCompile(`^(GET|POST|PUT|PATCH|DELETE) /api/admin/[A-Za-z0-9_{}/-]+$`)
 

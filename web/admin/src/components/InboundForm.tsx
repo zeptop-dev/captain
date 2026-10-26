@@ -13,6 +13,7 @@ import { api } from '../lib/api'
 import { ConfigPresets } from './ConfigPresets'
 import { PrivateAccessFields } from './PrivateAccessFields'
 import { useAuth } from '../lib/auth'
+import { InboundAccessControl } from './NodeAccess'
 import { useCoreSelection } from '../lib/coreSelection'
 
 // REALITY helpers over the settings JSON.
@@ -84,11 +85,11 @@ function withMieru(settings: string, patch: { strategy?: string; transport?: str
   return JSON.stringify(s, null, 2)
 }
 
-export type InboundValues = { Tag: string; Protocol: string; Listen: string; Port: number; Core: string; GroupID: string; Enabled: boolean; Settings: string; IngressID: string; NewIngress?: IngressValues }
+export type InboundValues = { ExistingInboundID?: number; Tag: string; Protocol: string; Listen: string; Port: number; Core: string; GroupID: string; Enabled: boolean; Settings: string; IngressID: string; NewIngress?: IngressValues }
 
 export function toValues(ib?: Inbound): InboundValues {
   return ib
-    ? { Tag: ib.Tag, Protocol: ib.Protocol, Listen: ib.Listen, Port: ib.Port, Core: ib.Core, GroupID: ib.GroupID ? String(ib.GroupID) : '', Enabled: ib.Enabled, Settings: JSON.stringify(normalizePrivateAccess(stripIdentity(ib.Settings)), null, 2), IngressID: ib.IngressID ? String(ib.IngressID) : '' }
+    ? { ExistingInboundID: ib.ID || undefined, Tag: ib.Tag, Protocol: ib.Protocol, Listen: ib.Listen, Port: ib.Port, Core: ib.Core, GroupID: ib.GroupID ? String(ib.GroupID) : '', Enabled: ib.Enabled, Settings: JSON.stringify(normalizePrivateAccess(stripIdentity(ib.Settings)), null, 2), IngressID: ib.IngressID ? String(ib.IngressID) : '' }
     : { Tag: '', Protocol: 'vless', Listen: '', Port: 443, Core: '', GroupID: '', Enabled: true, Settings: '{}', IngressID: '' }
 }
 
@@ -99,7 +100,7 @@ function stripIdentity(s: Record<string, unknown>) {
 
 export function toPayload(v: InboundValues) {
   const settings = JSON.parse(v.Settings || '{}')
-  return { Tag: v.Tag, Protocol: v.Protocol, Listen: v.Listen, Port: v.Port, Core: v.Core, GroupID: v.GroupID ? Number(v.GroupID) : null, Enabled: v.Enabled, Settings: settings, IngressID: v.IngressID ? Number(v.IngressID) : null }
+  return { Tag: v.Tag, Protocol: v.Protocol, Listen: v.Listen, Port: v.Port, Core: v.Core, ...(!v.ExistingInboundID ? { GroupID: v.GroupID ? Number(v.GroupID) : null } : {}), Enabled: v.Enabled, Settings: settings, IngressID: v.IngressID ? Number(v.IngressID) : null }
 }
 
 export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain, ingresses = [], usedPorts = [], lineOnly, nodeID, decoyDomain, fixedCore, onDirtyChange }: { initial: InboundValues; groups: UGroup[]; onSubmit: (v: InboundValues) => void; busy: boolean; onCancel: () => void; domain?: string; ingresses?: Ingress[]; usedPorts?: number[]; lineOnly?: boolean; nodeID?: number; decoyDomain?: string; fixedCore?: string; onDirtyChange?: (dirty: boolean) => void }) {
@@ -170,7 +171,7 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
         {form.values.Protocol === 'ssh' && <Text size="sm" c="dimmed">{t('coreManager.sshHint')}</Text>}
         {form.values.Protocol === 'mieru' && form.values.Core === 'singbox-extended' && <Text size="sm" c="orange">{t('coreManager.extendedHint')}</Text>}
         <Group grow align="flex-end">
-          <Select label={t('inbounds.group')} data={[{ value: '', label: t('inbounds.groupAll') }, ...groups.map((g) => ({ value: String(g.ID), label: g.Name }))]} allowDeselect={false} {...form.getInputProps('GroupID')} />
+          {initial.ExistingInboundID ? <InboundAccessControl inboundID={initial.ExistingInboundID} /> : <Select label={t('inbounds.group')} description={t('nodeAccess.newInboundHint')} data={[{ value: '', label: t('nodeAccess.all') }, ...groups.map((g) => ({ value: String(g.ID), label: g.Name }))]} allowDeselect={false} {...form.getInputProps('GroupID')} />}
           {form.values.Protocol === 'mieru' && (
             <Group grow align="flex-start">
               <Select label={t('inbounds.mieruStrategy')} description={t('inbounds.mieruStrategyHint')} allowDeselect={false}

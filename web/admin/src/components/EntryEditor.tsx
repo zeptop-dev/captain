@@ -3,7 +3,11 @@ import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useAuth } from '../lib/auth'
+import { accessChanged, accessDraft, changedAccessPayload, sharedEntries, validAccess, type AccessDraft } from '../lib/node-access'
+import { AccessFields } from './NodeAccess'
 import { useTranslation } from 'react-i18next'
+import { useNodeAccess } from '../lib/node-access-query'
 import { api, type Entry, type EntryCategory, type Line, type Node } from '../lib/api'
 import { canDialThrough, changeEntryInbound, entryEndpoint, type InboundChoice } from '../lib/entry-flow'
 import { hostPort } from '../lib/ingress'
@@ -24,6 +28,10 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
 }) {
   const { t } = useTranslation()
   const qc = useQueryClient()
+  const { me } = useAuth()
+  const admin = me?.role === 'admin'
+  const access = useNodeAccess()
+  const [accessEdit, setAccessEdit] = useState<AccessDraft | null>(null)
   const initialInbound = inbounds.find(c => c.ib.ID === (entry?.InboundID || initialInboundID))
   const initialLine = lines.find(line => line.id === (entry?.LineID || initialLineID))
   const lineExtraReadOnly = !!entry?.LineID && !canManageLines
@@ -49,16 +57,28 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
   const selected = choices.find(c => String(c.ib.ID) === form.values.InboundID)
   const line = lines.find(l => String(l.id) === form.values.LineID)
   const endpoint = line?.endpoints.find(e => e.member_id === form.values.LineMemberID)
+  const targetID = form.values.mode === 'line' ? line?.target_inbound_id ?? 0 : Number(form.values.InboundID)
+  const accessRow = access.data?.inbounds.find(row => row.inbound_id === targetID)
+  const accessValue = accessEdit?.source.inbound_id === targetID ? accessEdit : accessRow ? accessDraft(accessRow) : null
+  const accessDirty = !!accessValue && accessChanged(accessValue)
+  const accessBlocked = admin && !!targetID && (access.isPending || access.isError || !accessValue || accessDirty && (!access.data || !validAccess(accessValue, access.data) || !!sharedEntries(accessValue.source, entry?.ID).length && !accessValue.confirm_shared))
+  const reloadAccess = () => {
+    const run = () => { setAccessEdit(null); void access.refetch() }
+    if (!accessDirty) { run(); return }
+    modals.openConfirmModal({ title: t('workspace.unsaved'), children: <Text>{t('workspace.leaveHint')}</Text>, labels: { confirm: t('workspace.discard'), cancel: t('workspace.stay') }, onConfirm: run })
+  }
   const save = useMutation({
     mutationFn: (v: Values) => {
+      if (accessBlocked) throw new Error(t('nodeAccess.reloadHint'))
+      const Access = admin ? changedAccessPayload(accessValue, targetID) : undefined
       const extra = JSON.parse(v.ClientExtra || '{}')
-      const payload = { Name: v.Name.trim(), InboundID: v.mode === 'line' ? line?.target_inbound_id ?? Number(v.InboundID) : Number(v.InboundID), DisplayHost: v.mode === 'line' ? !canManageLines && entry ? entry.DisplayHost : '' : v.DisplayHost.trim(), DisplayPort: v.mode === 'line' ? !canManageLines && entry ? entry.DisplayPort : 0 : v.DisplayPort, Rate: v.Rate, Sort: v.Sort, Enabled: v.Enabled, Tags: v.Tags, Region: v.Region, CategoryID: Number(v.CategoryID), ClientExtra: lineExtraReadOnly ? entry?.ClientExtra ?? null : Object.keys(extra).length ? extra : null,
+      const payload = { ...(Access ? { Access } : {}), Name: v.Name.trim(), InboundID: v.mode === 'line' ? line?.target_inbound_id ?? Number(v.InboundID) : Number(v.InboundID), DisplayHost: v.mode === 'line' ? !canManageLines && entry ? entry.DisplayHost : '' : v.DisplayHost.trim(), DisplayPort: v.mode === 'line' ? !canManageLines && entry ? entry.DisplayPort : 0 : v.DisplayPort, Rate: v.Rate, Sort: v.Sort, Enabled: v.Enabled, Tags: v.Tags, Region: v.Region, CategoryID: Number(v.CategoryID), ClientExtra: lineExtraReadOnly ? entry?.ClientExtra ?? null : Object.keys(extra).length ? extra : null,
         LineID: v.mode === 'line' ? Number(v.LineID) : null, LineMemberID: v.mode === 'line' ? v.LineMemberID : '', ClientDialerEntryID: v.mode === 'client' ? Number(v.ClientDialerEntryID) : null }
       return entry ? api.patch<Entry>(`/api/admin/entries/${entry.ID}`, payload) : api.post<Entry>('/api/admin/entries', payload)
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['entries'] }); qc.invalidateQueries({ queryKey: ['entry-tags'] }); toast.ok(t('common.saved')); onClose() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['entries'] }); qc.invalidateQueries({ queryKey: ['entry-tags'] }); qc.invalidateQueries({ queryKey: ['node-access'] }); toast.ok(t('common.saved')); onClose() },
   })
-  const dirty = form.isDirty() || !!createdInbound
+  const dirty = form.isDirty() || !!createdInbound || accessDirty
   useSettingsDirty(dirty || save.isPending)
   const close = () => {
     if (save.isPending) return
@@ -66,17 +86,19 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
     modals.openConfirmModal({ title: t('workspace.unsaved'), children: <Text size="sm">{createdInbound ? t('entryFlow.createdResourcesRemain') : t('workspace.leaveHint')}</Text>, labels: { confirm: t('workspace.discard'), cancel: t('workspace.stay') }, onConfirm: onClose })
   }
   const pickInbound = (id: string | null) => {
+    if (Number(id) !== targetID) setAccessEdit(null)
     const next = choices.find(c => String(c.ib.ID) === id)
     if (!next) { form.setFieldValue('InboundID', id ?? ''); return }
     form.setValues({ InboundID: String(next.ib.ID), ...changeEntryInbound(form.getValues(), selected, next), ...(!form.values.Name ? { Name: next.ib.Tag } : {}) })
   }
   const pickLine = (id: string | null) => {
     const next = lines.find(l => String(l.id) === id)
+    if (next?.target_inbound_id !== targetID) setAccessEdit(null)
     form.setValues({ LineID: id ?? '', LineMemberID: next?.endpoints.find(e => e.host.trim())?.member_id ?? '', InboundID: String(next?.target_inbound_id ?? ''), ...(!form.values.Name && next ? { Name: next.name } : {}) })
   }
   return <>
     <Modal opened onClose={close} closeOnClickOutside={false} closeOnEscape={!save.isPending} withCloseButton={!save.isPending} title={entry ? t('entryFlow.editNode') : t('entryFlow.createNode')} size="lg">
-      <form onSubmit={form.onSubmit(v => { if (!save.isPending && !loading && !(v.mode === 'line' && canManageLines && !endpoint?.host.trim())) save.mutate(v) })}>
+      <form onSubmit={form.onSubmit(v => { if (!save.isPending && !loading && !accessBlocked && !(v.mode === 'line' && canManageLines && !endpoint?.host.trim())) save.mutate(v) })}>
         <Stack>
           {loadError && <Alert color="yellow"><Text size="sm">{t('entryFlow.partialLoad')}</Text><Button size="xs" variant="subtle" onClick={onReload}>{t('entryFlow.retry')}</Button></Alert>}
           {save.isError && <Alert color="red">{save.error.message}</Alert>}
@@ -84,6 +106,8 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
             { value: 'direct', label: t('entryFlow.direct') }, { value: 'line', label: t('entryFlow.viaLine'), disabled: !canManageLines }, { value: 'client', label: t('entryFlow.clientChain') },
           ]} value={form.values.mode} onChange={value => {
             const mode = value as Mode
+            const nextTargetID = mode === 'line' ? line?.target_inbound_id ?? 0 : form.values.mode === 'line' ? line?.target_inbound_id ?? 0 : Number(form.values.InboundID)
+            if (nextTargetID !== targetID) setAccessEdit(null)
             if (mode !== 'line' && form.values.mode === 'line') {
               const target = choices.find(c => c.ib.ID === line?.target_inbound_id)
               form.setValues({ mode, ...entryEndpoint(target), InboundID: String(target?.ib.ID ?? '') })
@@ -107,6 +131,13 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
             <SimpleGrid cols={{ base: 1, sm: 2 }}><TextInput label={t('entryFlow.connectHost')} required disabled={save.isPending} placeholder="example.com" {...form.getInputProps('DisplayHost')} /><NumberInput label={t('entryFlow.connectPort')} required disabled={save.isPending} min={1} max={65535} {...form.getInputProps('DisplayPort')} /></SimpleGrid>
             <Text size="xs" c="dimmed">{t('entryFlow.addressHint')}</Text>
           </>}
+          {admin && !!targetID && <Stack gap="xs">
+            {(access.isError || !access.isPending && !accessRow) && <Alert color="red">{t('nodeAccess.loadError')}</Alert>}
+            {access.isPending && <Text size="sm" c="dimmed">{t('entryFlow.loading')}</Text>}
+            {accessValue && access.data && <AccessFields draft={accessValue} directory={access.data} entryID={entry?.ID} onChange={setAccessEdit} busy={save.isPending || access.isError || access.isFetching} />}
+            {accessDirty && accessValue?.source.revision !== access.data?.revision && <Alert color="yellow">{t('nodeAccess.reloadHint')}</Alert>}
+            <Button size="compact-xs" variant="subtle" w="fit-content" disabled={save.isPending || access.isFetching} onClick={reloadAccess}>{t('nodeAccess.reload')}</Button>
+          </Stack>}
           <TextInput label={t('entries.name')} required disabled={save.isPending} {...form.getInputProps('Name')} />
           <SimpleGrid cols={{ base: 1, sm: 2 }}>
             <Select label={t('entries.region')} searchable clearable data={REGIONS.map(r => ({ value: r.code, label: `${flag(r.code)} ${r.code} ${r.name}` }))} disabled={save.isPending} value={form.values.Region || null} onChange={v => form.setFieldValue('Region', v ?? '')} />
@@ -116,12 +147,12 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
           <TagsInput label={t('entries.tags')} data={tags} disabled={save.isPending} {...form.getInputProps('Tags')} />
           <JsonInput label={t('entries.clientExtra')} description={lineExtraReadOnly ? t('entryFlow.lineExtraAdminOnly') : t('entries.clientExtraHint')} autosize minRows={2} maxRows={8} formatOnBlur validationError={t('overrides.invalid')} disabled={save.isPending || lineExtraReadOnly} {...form.getInputProps('ClientExtra')} />
           <Switch label={t('entries.enabled')} disabled={save.isPending} {...form.getInputProps('Enabled', { type: 'checkbox' })} />
-          <Group justify="flex-end"><Button variant="default" disabled={save.isPending} onClick={close}>{t('common.cancel')}</Button><Button type="submit" loading={save.isPending} disabled={loading || form.values.mode === 'line' && canManageLines && !endpoint?.host.trim()}>{t('common.save')}</Button></Group>
+          <Group justify="flex-end"><Button variant="default" disabled={save.isPending} onClick={close}>{t('common.cancel')}</Button><Button type="submit" loading={save.isPending} disabled={loading || accessBlocked || form.values.mode === 'line' && canManageLines && !endpoint?.host.trim()}>{t('common.save')}</Button></Group>
         </Stack>
       </form>
     </Modal>
     {creatingInbound && <EntryInboundCreator nodes={nodes} initialServerID={initialServerID} onClose={() => setCreatingInbound(false)} onCreated={choice => {
-      setCreatedInbound(choice); setCreatingInbound(false)
+      setAccessEdit(null); void access.refetch(); setCreatedInbound(choice); setCreatingInbound(false)
       form.setValues({ InboundID: String(choice.ib.ID), ...entryEndpoint(choice), ...(!form.values.Name ? { Name: choice.ib.Tag } : {}) })
     }} />}
   </>

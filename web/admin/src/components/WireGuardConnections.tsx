@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { api, type Node, type Group as UserGroup } from '../lib/api'
+import { InboundAccessControl } from './NodeAccess'
+import { preserveExistingGroup } from '../lib/node-access'
 import { hostPort } from '../lib/ingress'
 import { toast } from '../lib/notify'
 import { SettingsDraftBoundary, useSettingsDirty } from '../lib/settings-draft'
@@ -16,7 +18,7 @@ import { WireGuardReadiness, useWireGuardReadiness } from './WireGuardReadiness'
 type Policy = { mode: string; rules?: { cidr: string; protocol?: string; port_start?: number; port_end?: number }[] }
 type Forwarding = { state: string; backend?: string; reason?: string; checked_at: number }
 interface Connection {
-  id: string; exit_id: number; transit_id: number; version: number; name: string
+  id: string; exit_id: number; transit_id: number; version: number; name: string; user_inbound_id?: number
   port: number; tunnel_port: number; endpoint: string; mtu: number; server_name: string
   group_id: number | null; private_access: Policy | null; enabled: boolean; state: string
   domain_preference?: '' | 'ipv4' | 'ipv6'; auto_forwarding?: boolean; forwarding?: Forwarding
@@ -59,8 +61,8 @@ function Connections({ node, readOnly = false, editRequest = 0, onEditRequestHan
     if (!dirty) { setDraft(null); return }
     modals.openConfirmModal({ title: t('workspace.unsaved'), children: <Text>{t('workspace.leaveHint')}</Text>, labels: { confirm: t('workspace.discard'), cancel: t('workspace.stay') }, onConfirm: () => { setDraft(null); setDirty(false) } })
   }
-  const invalidate = () => { for (const key of ['wireguard', 'node', 'entries']) qc.invalidateQueries({ queryKey: [key] }) }
-  const save = useMutation({ mutationFn: (value: Connection) => value.id ? api.put(`${url}/${value.id}`, value) : api.post(url, value), onSuccess: () => { setDraft(null); setDirty(false); invalidate(); toast.ok(t('common.saved')) }, onError: toast.err })
+  const invalidate = () => { for (const key of ['wireguard', 'node', 'entries', 'node-access']) qc.invalidateQueries({ queryKey: [key] }) }
+  const save = useMutation({ mutationFn: (value: Connection) => value.id ? api.put(`${url}/${value.id}`, preserveExistingGroup(value)) : api.post(url, value), onSuccess: () => { setDraft(null); setDirty(false); invalidate(); toast.ok(t('common.saved')) }, onError: toast.err })
   const remove = useMutation({ mutationFn: (value: Connection) => api.del(`${url}/${value.id}`, { version: value.version }), onSuccess: invalidate, onError: toast.err })
   const editable = !readOnly && node.proxy_allowed !== false && node.paired
   const handledRequest = useRef(0)
@@ -113,7 +115,7 @@ function Connections({ node, readOnly = false, editRequest = 0, onEditRequestHan
         <TextInput required label={t('wireguard.sni')} description={t('wireguard.sniHint')} value={draft.server_name} onChange={e => update({ server_name: e.currentTarget.value })} />
         <Text size="xs" c="dimmed">{draft.transit_id > 0 ? t('wireguard.scanFrom', { node: nodes.data?.find(n => n.id === draft.transit_id)?.name ?? String(draft.transit_id) }) : t('wireguard.selectTransitToScan')}</Text>
         <RealityScan key={draft.transit_id} disabled={!draft.transit_id} current={draft.server_name} scan={(hosts, signal) => scanRealityViaNode(draft.transit_id, hosts, signal)} onPick={server_name => update({ server_name })} />
-        <Select clearable label={t('inbounds.group')} placeholder={t('inbounds.groupAll')} value={draft.group_id ? String(draft.group_id) : null} data={(groups.data ?? []).map(g => ({ value: String(g.ID), label: g.Name }))} onChange={id => update({ group_id: id ? Number(id) : null })} />
+        {draft.id ? draft.user_inbound_id ? <InboundAccessControl inboundID={draft.user_inbound_id} /> : <Text size="sm" c="dimmed">{t('nodeAccess.connectionHint')}</Text> : <Select clearable label={t('inbounds.group')} description={t('nodeAccess.newInboundHint')} placeholder={t('nodeAccess.all')} value={draft.group_id ? String(draft.group_id) : null} data={(groups.data ?? []).map(g => ({ value: String(g.ID), label: g.Name }))} onChange={id => update({ group_id: id ? Number(id) : null })} />}
         <PrivateAccessFields explicitOnly json={JSON.stringify({ private_access: draft.private_access })} onChange={json => update({ private_access: JSON.parse(json).private_access })} />
         <Switch label={t('common.enabled')} checked={draft.enabled} onChange={e => update({ enabled: e.currentTarget.checked })} />
         <Group justify="flex-end"><Button variant="default" onClick={close}>{t('common.cancel')}</Button><Button loading={save.isPending} disabled={!editable || (draft.enabled && (!exitReady.data?.ready || !transitReady.data?.ready || exitReady.isError || transitReady.isError)) || !draft.transit_id || !draft.name.trim() || !draft.endpoint || !draft.server_name.trim()} onClick={() => save.mutate(draft)}>{t('common.save')}</Button></Group>

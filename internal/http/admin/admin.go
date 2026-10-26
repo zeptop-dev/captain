@@ -229,6 +229,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("PUT /api/admin/users/{id}/hwid-limit", h.requireAdmin(h.putHwidLimit))
 	mux.HandleFunc("DELETE /api/admin/users/{id}/hwid-devices/{hwid}", h.requireAdmin(h.deleteHwidDevice))
 
+	h.registerNodeAccess(mux)
 	mux.HandleFunc("GET /api/admin/plans", h.requireAdmin(h.listPlans))
 	mux.HandleFunc("POST /api/admin/plans", h.requireAdmin(h.createPlan))
 	mux.HandleFunc("PATCH /api/admin/plans/{id}", h.requireAdmin(h.updatePlan))
@@ -568,6 +569,9 @@ func fail(w http.ResponseWriter, code int, msg string) {
 // Operator: everything except settings, system, staff management and the
 // landing page. Support: tickets, plus read-only users, orders, dashboard.
 func allowed(role, method, path string) bool {
+	if (path == "/api/admin/node-access" || strings.HasPrefix(path, "/api/admin/node-access/")) && role != domain.RoleAdmin {
+		return false
+	}
 	if (path == "/api/admin/lines" || strings.HasPrefix(path, "/api/admin/lines/")) && role != domain.RoleAdmin && !(role == domain.RoleOperator && method == http.MethodGet && path == "/api/admin/lines/options") {
 		return false
 	}

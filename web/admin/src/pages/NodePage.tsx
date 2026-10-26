@@ -19,9 +19,11 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import { api, runNodeJob, type DoctorReport, type Ingress, type CertStatus, type Group as UGroup, type Inbound, type InternalAddressUsage, type Node } from '../lib/api'
+import { api, runNodeJob, type DoctorReport, type Ingress, type CertStatus, type Inbound, type InternalAddressUsage, type Node } from '../lib/api'
 import { ago, bytes, when } from '../lib/format'
 import { dnsToast, toast, type DNSResult } from '../lib/notify'
+import { useNodeAccess } from '../lib/node-access-query'
+import { AccessSummary } from '../components/NodeAccess'
 import { PageHeader } from '../components/PageHeader'
 import { InfoGrid, InfoTile, SectionTitle } from '../components/InfoTile'
 import { HostTrafficSummary } from '../components/HostTrafficSummary'
@@ -44,7 +46,7 @@ export default function NodePage() {
   const qc = useQueryClient()
   const nav = useNavigate()
   const q = useQuery({ queryKey: ['node', id], queryFn: () => api.get<Detail>(`/api/admin/nodes/${id}`), refetchInterval: 10_000 })
-  const groups = useQuery({ queryKey: ['groups'], queryFn: () => api.get<UGroup[]>('/api/admin/groups') })
+  const access = useNodeAccess()
   const [editNode, setEditNode] = useState(false)
   const internalUsage = useQuery({ queryKey: ['internal-address-usage', id], queryFn: () => api.get<InternalAddressUsage>(`/api/admin/nodes/${id}/internal-address-usage`), enabled: editNode })
   const [pair, setPair] = useState<string | null>(null)
@@ -136,7 +138,7 @@ export default function NodePage() {
           <Group gap="xs"><Button component={Link} to={`/entries?node=${n.id}`} variant="light" size="xs">{t('entries.title')}</Button>{(me?.role === 'admin' || me?.role === 'operator') && <Button component={Link} to={`/entries?section=inbounds&server=${n.id}`} variant="default" size="xs">{t('inbounds.title')}</Button>}</Group>
         </Group>
         <Table>
-          <Table.Thead><Table.Tr><Table.Th>{t('inbounds.tag')}</Table.Th><Table.Th>{t('inbounds.protocol')}</Table.Th><Table.Th>{t('inbounds.port')}</Table.Th><Table.Th>{t('inbounds.core')}</Table.Th><Table.Th>{t('inbounds.traffic')}</Table.Th><Table.Th>{t('inbounds.group')}</Table.Th><Table.Th>{t('inbounds.enabled')}</Table.Th><Table.Th /></Table.Tr></Table.Thead>
+          <Table.Thead><Table.Tr><Table.Th>{t('inbounds.tag')}</Table.Th><Table.Th>{t('inbounds.protocol')}</Table.Th><Table.Th>{t('inbounds.port')}</Table.Th><Table.Th>{t('inbounds.core')}</Table.Th><Table.Th>{t('inbounds.traffic')}</Table.Th><Table.Th>{t('nodeAccess.title')}</Table.Th><Table.Th>{t('inbounds.enabled')}</Table.Th><Table.Th /></Table.Tr></Table.Thead>
           <Table.Tbody>
             {d.inbounds.map((ib) => (
               <Table.Tr key={ib.ID}>
@@ -145,7 +147,7 @@ export default function NodePage() {
                 <Table.Td><Code>{ib.Listen || '::'}:{ib.Port}</Code></Table.Td>
                 <Table.Td><Text size="sm">{ib.Core ? coreName(ib.Core) : t('inbounds.coreAuto')}</Text><Text size="xs" c="dimmed">{(() => { const actual = Object.entries(d.node.online ? d.status?.cores ?? {} : {}).find(([, c]) => c.running && c.inbounds?.includes(ib.Tag))?.[0]; return actual ? t('inbounds.coreSelection.running', { core: coreName(actual) }) : t('inbounds.coreSelection.notReported') })()}</Text></Table.Td>
                 <Table.Td>{d.traffic?.[String(ib.ID)] ? <Text size="xs">{bytes(d.traffic[String(ib.ID)].today)} <Text span c="dimmed">/ {bytes(d.traffic[String(ib.ID)].total)}</Text></Text> : <Text size="xs" c="dimmed">—</Text>}</Table.Td>
-                <Table.Td>{ib.GroupID ? (groups.data?.find((g) => g.ID === ib.GroupID)?.Name ?? ib.GroupID) : t('inbounds.groupAll')}</Table.Td>
+                <Table.Td>{me?.role === 'admin' ? <AccessSummary row={access.isError ? undefined : access.data?.inbounds.find(row => row.inbound_id === ib.ID)} directory={access.data} /> : <Text size="xs" c="dimmed">{t('nodeAccess.adminOnly')}</Text>}</Table.Td>
                 <Table.Td>{ib.Enabled ? <Badge color="teal">{t('common.enabled')}</Badge> : <Badge color="gray">{t('common.disabled')}</Badge>}</Table.Td>
                 <Table.Td>{(me?.role === 'admin' || (me?.role === 'operator' && !ib.Settings.reverse && !ib.Settings.wireguard_slot)) && <Button component={Link} to={(ib.Settings.reverse || ib.Settings.wireguard_slot) ? `/entries?node=${n.id}` : `/entries?section=inbounds&server=${n.id}&inbound=${ib.ID}`} variant="subtle" size="compact-xs">{t((ib.Settings.reverse || ib.Settings.wireguard_slot) ? 'reverse.managed' : 'inbounds.title')}</Button>}</Table.Td>
               </Table.Tr>

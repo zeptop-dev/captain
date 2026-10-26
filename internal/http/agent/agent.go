@@ -286,6 +286,7 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 	for _, ib := range inbounds {
 		byTag[ib.Tag] = ib
 	}
+	accessGroups := make(map[int64][]int64)
 	dropped := 0
 	samples := make([]store.TrafficSample, 0, len(rep.Traffic))
 	for _, t := range rep.Traffic {
@@ -307,8 +308,17 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 		if ib, ok := byTag[t.Inbound]; ok && t.Inbound != "" {
 			s.InboundID, s.Groups = ib.ID, nil
 			s.UnattributedInbound = false
-			if ib.GroupID != nil {
-				s.Groups = []int64{*ib.GroupID}
+			if groups, loaded := accessGroups[ib.ID]; loaded {
+				s.Groups = groups
+			} else {
+				access, err := h.Store.InboundAccess(ctx, ib.ID)
+				if err != nil {
+					h.Log.Error("inbound access", "err", err)
+					fail(w, 500, "internal error")
+					return
+				}
+				s.Groups = access.GroupIDs
+				accessGroups[ib.ID] = access.GroupIDs
 			}
 		}
 		samples = append(samples, s)

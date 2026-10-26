@@ -215,6 +215,9 @@ func saveReverseInbound(ctx context.Context, tx *sql.Tx, ib *domain.Inbound) err
 		ib.ID, _ = res.LastInsertId()
 		return nil
 	}
+	if err := guardLegacyAccessTx(ctx, tx, ib); err != nil {
+		return err
+	}
 	_, err = tx.ExecContext(ctx, `UPDATE inbounds SET node_id=?,tag=?,protocol=?,listen=?,port=?,core=?,settings_json=?,group_id=?,enabled=?,ingress_id=?,updated_at=? WHERE id=?`, append(args, ib.ID)...)
 	if err != nil {
 		return err

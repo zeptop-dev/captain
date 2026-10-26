@@ -208,6 +208,8 @@ func (i *Inbound) Spec() spec.Inbound {
 
 // Entry is a line in a user's subscription.
 type Entry struct {
+	// Access is an optional atomic edit to the final resolved inbound's policy.
+	Access       *InboundAccessChange `json:"Access,omitempty"`
 	ID           int64
 	Name         string
 	InboundID    int64

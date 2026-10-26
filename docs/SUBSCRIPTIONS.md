@@ -190,8 +190,11 @@ Independent WireGuard device subscriptions continue to ignore custom templates.
 ## Entries: what each user sees
 
 An entry is a server as users see it: a display host and port on top of a
-landing inbound's settings. An inbound restricted to a user group only
-appears for that group. Admin → Nodes can drag subscription nodes into the order
+landing inbound's settings. Its access policy can allow all eligible users,
+several selected user groups, or nobody. Entries sharing an inbound share this
+policy. Node editing and a plan's **Manage available nodes** edit the same
+relationship; see [plan access](BILLING.md#choosing-which-nodes-a-plan-includes).
+Admin → Nodes can drag subscription nodes into the order
 clients see, give them free-form tags (shown in the portal, usable as a
 filter and in the designer) and a region.
 
