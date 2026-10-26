@@ -452,5 +452,9 @@
       "client_chain": "Client chain dependencies"
     },
     "evidenceLabel": "Status evidence"
+  },
+  "portalAppearance": {
+    "toLight": "Switch to light appearance",
+    "toDark": "Switch to dark appearance"
   }
 }

@@ -452,5 +452,9 @@
       "client_chain": "用戶端鏈依賴"
     },
     "evidenceLabel": "偵測依據"
+  },
+  "portalAppearance": {
+    "toLight": "切換到淺色",
+    "toDark": "切換到深色"
   }
 }
