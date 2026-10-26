@@ -1,9 +1,9 @@
 import { IconArrowUpRight, IconRefresh } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState, type CSSProperties } from 'react'
+import { useTranslation } from 'react-i18next'
 import { NodeGlobe } from '../components/Globe'
 import { SiteLayout } from '../components/SiteLayout'
-import { statusText as t } from '../lib/service-status-text'
 import type { Location, Site } from '../lib/site'
 import { StatusRequestError, currentEntries, fetchServiceStatus, headlineKey, snapshotExpired, statusCategories, statusEvidence, statusStates, summarize, type StatusState } from '../lib/service-status'
 import classes from './ServiceStatusPage.module.css'
@@ -12,6 +12,10 @@ const noLocations: Location[] = []
 const colors: Record<StatusState, string> = { healthy: 'var(--status-healthy, #67c7a1)', degraded: 'var(--status-degraded, #fbbf24)', down: 'var(--status-down, #f16f70)', maintenance: 'var(--status-maintenance, #fbbf24)', unknown: 'var(--status-unknown, #858b90)' }
 
 export default function ServiceStatusPage({ site }: { site?: Site }) {
+  const { t, i18n } = useTranslation()
+  const locale = i18n.resolvedLanguage || i18n.language || 'en'
+  const number = new Intl.NumberFormat(locale, { maximumFractionDigits: 20 })
+  const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'medium' })
   const [now, setNow] = useState(() => Date.now() / 1000)
   const [online, setOnline] = useState(() => navigator.onLine)
   const [category, setCategory] = useState<string | null>(null)
@@ -47,27 +51,35 @@ export default function ServiceStatusPage({ site }: { site?: Site }) {
   const summary = summarize(entries)
   const categories = statusCategories(entries)
   const options = categories.map(value => ({ value: String(value.id), name: value.name, description: value.description }))
-  if (entries.some(entry => !entry.category)) options.push({ value: '0', name: t('servers.uncategorized'), description: '' })
+  if (entries.some(entry => !entry.category)) options.push({ value: '0', name: t('serviceStatus.uncategorized'), description: '' })
   if (options.length > 1) options.push({ value: 'all', name: t('serviceStatus.all'), description: '' })
   const activeCategory = options.some(option => option.value === category) ? category : options[0]?.value ?? 'all'
   const visibleEntries = activeCategory === 'all' ? entries : entries.filter(entry => String(entry.category?.id ?? 0) === activeCategory)
   const description = options.find(option => option.value === activeCategory)?.description
   const colorStyle = (state: StatusState) => ({ '--status-color': colors[state] } as CSSProperties)
-  const time = (timestamp: number | null) => timestamp && Number.isFinite(timestamp) ? new Date(timestamp * 1000).toLocaleString('zh-CN') : t('serviceStatus.never')
+  const time = (timestamp: number | null) => {
+    const date = timestamp ? new Date(timestamp * 1000) : null
+    return date && Number.isFinite(date.getTime()) ? dateTime.format(date) : t('serviceStatus.never')
+  }
   const closed = query.error instanceof StatusRequestError && query.error.status === 404
   const overall: StatusState = !data || !summary.total ? 'unknown' : summary.down === summary.total ? 'down' : summary.down || summary.degraded ? 'degraded' : summary.maintenance ? 'maintenance' : summary.unknown ? 'unknown' : 'healthy'
-  const heading = unavailable ? closed ? '暂未公开' : '状态待确认' : query.isPending ? '正在确认' : t(`serviceStatus.${headlineKey(summary)}`)
-  const counts = [summary.down + summary.degraded > 0 && `${summary.down + summary.degraded} 个节点异常`, `${summary.healthy} 个正常`, summary.maintenance > 0 && `${summary.maintenance} 个维护中`, summary.unknown > 0 && `${summary.unknown} 个状态未知`].filter(Boolean).join('，')
+  const heading = unavailable ? t(closed ? 'serviceStatus.notPublic' : 'serviceStatus.awaiting') : query.isPending ? t('serviceStatus.checking') : t(`serviceStatus.${headlineKey(summary)}`)
+  const counts = new Intl.ListFormat(locale, { type: 'unit' }).format([
+    summary.down + summary.degraded > 0 ? t('serviceStatus.summaryAffected', { value: number.format(summary.down + summary.degraded) }) : '',
+    t('serviceStatus.summaryHealthy', { value: number.format(summary.healthy) }),
+    summary.maintenance > 0 ? t('serviceStatus.summaryMaintenance', { value: number.format(summary.maintenance) }) : '',
+    summary.unknown > 0 ? t('serviceStatus.summaryUnknown', { value: number.format(summary.unknown) }) : '',
+  ].filter(Boolean))
   const errorMessage = closed ? t('serviceStatus.closedHint') : t(online ? 'serviceStatus.fetchError' : 'serviceStatus.offline')
   return <SiteLayout site={site}>
     <section className={classes.hero} aria-label={t('serviceStatus.overview')}>
       <div className={`site-container ${classes.heroInner}`}>
         <div className={classes.heroCopy}>
-          <p className={classes.eyebrow}>{site?.name || 'Captain'} · 服务状态</p>
+          <p className={classes.eyebrow}>{site?.name || 'Captain'} · {t('serviceStatus.title')}</p>
           <h1 className={classes.heading} style={colorStyle(overall)}>{heading}</h1>
-          <p className={classes.summary} aria-live="polite">{unavailable ? t(closed ? 'serviceStatus.closed' : 'serviceStatus.unavailable') : query.isPending ? '正在获取节点的最新运行状态。' : summary.total ? counts : t('serviceStatus.empty')}</p>
+          <p className={classes.summary} aria-live="polite">{unavailable ? t(closed ? 'serviceStatus.closed' : 'serviceStatus.unavailable') : query.isPending ? t('serviceStatus.loading') : summary.total ? counts : t('serviceStatus.empty')}</p>
           <p className={classes.scope}>{t('serviceStatus.limitations')}</p>
-          <p className={classes.updated}>{data ? <>{t('serviceStatus.updated', { time: time(data.generated_at) })}<span className={classes.separator}>·</span>{t('serviceStatus.autoRefresh')}</> : unavailable ? '等待重新获取状态' : '正在连接状态服务'}</p>
+          <p className={classes.updated}>{data ? <>{t('serviceStatus.updated', { time: time(data.generated_at) })}<span className={classes.separator}>·</span>{t('serviceStatus.autoRefresh', { seconds: number.format(60) })}</> : t(unavailable ? 'serviceStatus.waitingRefresh' : 'serviceStatus.connecting')}</p>
         </div>
         <div className={classes.globe}>
           <NodeGlobe locations={site?.locations ?? noLocations} hub={site?.hub ?? null} variant="status" />
@@ -79,26 +91,26 @@ export default function ServiceStatusPage({ site }: { site?: Site }) {
         <div className={classes.sectionHeading}>
           <h2>{t('serviceStatus.nodes')}</h2>
           <div className={classes.controls}>
-            <div className={classes.legend} aria-label="状态图例">{statusStates.map(state => <span key={state} style={colorStyle(state)}><span className={classes.dot} aria-hidden="true" />{t(`serviceStatus.states.${state}`)}</span>)}</div>
+            <div className={classes.legend} aria-label={t('serviceStatus.legend')}>{statusStates.map(state => <span key={state} style={colorStyle(state)}><span className={classes.dot} aria-hidden="true" />{t(`serviceStatus.states.${state}`)}</span>)}</div>
             <button className={classes.refresh} type="button" onClick={() => void refetch()} disabled={query.isFetching} aria-label={t('serviceStatus.refresh')} title={t('serviceStatus.refresh')}><IconRefresh size={15} className={query.isFetching ? classes.spinning : undefined} aria-hidden="true" /></button>
           </div>
         </div>
         {unavailable && <div className={classes.notice} role="status">{errorMessage}</div>}
         {data && snapshotExpired(data, at) && <div className={classes.notice} role="status">{t('serviceStatus.expired')}</div>}
-        {query.isPending && online && <div className={classes.panel} aria-label="正在获取节点状态" aria-busy="true"><div className={classes.loadingTabs} /><div className={classes.loadingRows} aria-hidden="true">{Array.from({ length: 8 }, (_, index) => <div key={index}><span /><i /></div>)}</div></div>}
+        {query.isPending && online && <div className={classes.panel} aria-label={t('serviceStatus.loading')} aria-busy="true"><div className={classes.loadingTabs} /><div className={classes.loadingRows} aria-hidden="true">{Array.from({ length: 8 }, (_, index) => <div key={index}><span /><i /></div>)}</div></div>}
         {data && summary.total > 0 && <div className={classes.panel}>
           <div className={classes.categories} role="group" aria-label={t('serviceStatus.categories')}>
             {options.map(option => {
               const members = option.value === 'all' ? entries : entries.filter(entry => String(entry.category?.id ?? 0) === option.value)
               const healthy = members.filter(entry => entry.state === 'healthy').length
-              return <button type="button" key={option.value} className={classes.category} aria-pressed={activeCategory === option.value} onClick={() => setCategory(option.value)}>{option.name}<small data-affected={healthy < members.length || undefined}>{healthy}/{members.length}</small></button>
+              return <button type="button" key={option.value} className={classes.category} aria-label={`${option.name} — ${t('serviceStatus.categoryCount', { healthy: number.format(healthy), total: number.format(members.length) })}`} aria-pressed={activeCategory === option.value} onClick={() => setCategory(option.value)}>{option.name}<small data-affected={healthy < members.length || undefined}>{number.format(healthy)}/{number.format(members.length)}</small></button>
             })}
           </div>
           {description && <p className={classes.description}>{description}</p>}
           <div className={classes.grid}>
             {visibleEntries.map(entry => <details key={entry.id} className={classes.entry}>
-              <summary title="点击查看检测依据">
-                <span className={classes.name}>{entry.name}<span className={classes.rate}>{Number.isFinite(entry.rate) ? entry.rate : '—'}×</span></span>
+              <summary title={t('serviceStatus.showEvidence')}>
+                <span className={classes.name}>{entry.name}<span className={classes.rate}>{Number.isFinite(entry.rate) ? number.format(entry.rate) : '—'}×</span></span>
                 <span className={classes.state} style={colorStyle(entry.state)}><span className={classes.dot} aria-hidden="true" />{t(`serviceStatus.states.${entry.state}`)}</span>
               </summary>
               <div className={classes.detail}>
@@ -118,7 +130,7 @@ export default function ServiceStatusPage({ site }: { site?: Site }) {
           <span className={classes.emptyMark} aria-hidden="true"><span /><span /><span /></span>
           <h3>{unavailable ? t(closed ? 'serviceStatus.closed' : 'serviceStatus.unavailable') : t('serviceStatus.emptyTitle')}</h3>
           <p>{unavailable ? errorMessage : t('serviceStatus.empty')}</p>
-          {closed ? <a href="/portal/status">查看我的节点<IconArrowUpRight size={14} aria-hidden="true" /></a> : unavailable && <button type="button" onClick={() => void refetch()} disabled={query.isFetching}>{query.isFetching ? '正在更新…' : '重新获取状态'}</button>}
+          {closed ? <a href="/portal/status">{t('serviceStatus.myNodes')}<IconArrowUpRight size={14} aria-hidden="true" /></a> : unavailable && <button type="button" onClick={() => void refetch()} disabled={query.isFetching}>{t(query.isFetching ? 'serviceStatus.refreshing' : 'serviceStatus.retry')}</button>}
         </div>}
         {data && summary.total > 0 && <p className={classes.hint}>{t('serviceStatus.categoryHint')}</p>}
       </div>

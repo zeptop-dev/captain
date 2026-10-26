@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useComputedColorScheme } from '@mantine/core'
+import { useTranslation } from 'react-i18next'
 import type { Location } from '../lib/site'
 import { landDots, locationLabel, validLocations } from './geography'
 import { globePalette } from './geography-theme'
@@ -9,6 +10,7 @@ interface Props { locations: Location[]; hub: Location | null; variant?: 'status
 const radians = Math.PI / 180
 
 export function NodeGlobe({ locations, hub, variant = 'home' }: Props) {
+  const { t, i18n } = useTranslation()
   const scheme = useComputedColorScheme('dark')
   const canvas = useRef<HTMLCanvasElement>(null)
   const host = useRef<HTMLDivElement>(null)
@@ -18,6 +20,7 @@ export function NodeGlobe({ locations, hub, variant = 'home' }: Props) {
   const [available, setAvailable] = useState(true)
   const description = useId()
   const points = useMemo(() => validLocations(hub ? [...locations, hub] : locations).filter((point, index, all) => all.findIndex((other) => other.lat === point.lat && other.lng === point.lng && other.name === point.name) === index), [locations, hub])
+  const locationNames = new Intl.ListFormat(i18n.resolvedLanguage || i18n.language || 'en', { type: 'unit' }).format(points.map((point) => point.name))
 
   useEffect(() => { pausedRef.current = paused; syncAnimation.current?.() }, [paused])
   useEffect(() => {
@@ -107,9 +110,9 @@ export function NodeGlobe({ locations, hub, variant = 'home' }: Props) {
   }, [points, hub, variant, scheme])
 
   return <div ref={host} className={styles.globe} data-variant={variant}>
-    <canvas ref={canvas} role="img" aria-label="节点地理位置示意" aria-describedby={description} />
-    {!available && <div className={styles.fallback}>地理位置示意暂不可用</div>}
-    <p id={description} className={styles.srOnly}>{points.length ? `已配置位置：${points.map((point) => point.name).join('、')}。标记仅表示地理位置，不代表节点运行状态。` : '世界地理示意，尚无已配置位置；不表示节点运行状态。'}</p>
-    <button type="button" className={styles.control} onClick={() => setPaused((value) => !value)} aria-pressed={paused} aria-label={paused ? '继续地球动画' : '暂停地球动画'}>{paused ? '播放' : '暂停'}<span aria-hidden="true">{paused ? ' ▷' : ' Ⅱ'}</span></button>
+    <canvas ref={canvas} role="img" aria-label={t('geography.globeTitle')} aria-describedby={description} />
+    {!available && <div className={styles.fallback}>{t('geography.unavailable')}</div>}
+    <p id={description} className={styles.srOnly}>{t(points.length ? 'geography.configuredLocations' : 'geography.noLocations', { names: locationNames })} {t('geography.globeDisclaimer')}</p>
+    <button type="button" className={styles.control} onClick={() => setPaused((value) => !value)} aria-pressed={paused} aria-label={t(paused ? 'geography.resumeGlobe' : 'geography.pauseGlobe')}>{t(paused ? 'geography.play' : 'geography.pause')}<span aria-hidden="true">{paused ? ' ▷' : ' Ⅱ'}</span></button>
   </div>
 }

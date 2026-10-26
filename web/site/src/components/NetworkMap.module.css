@@ -10,10 +10,10 @@
 .location:focus-visible > circle { stroke: var(--map-marker); stroke-width: 1.5; }
 .label { opacity: 0; pointer-events: none; transition: opacity .15s; }
 .location:hover .label, .location:focus .label { opacity: 1; }
-.legend { position: absolute; left: 20px; top: 20px; display: flex; align-items: center; gap: 7px; font: 10px/1.4 ui-monospace, monospace; color: var(--map-muted); }
-.legend i { width: 4px; height: 4px; border-radius: 50%; background: var(--map-accent); }
+.legend { position: absolute; left: 20px; top: 20px; display: flex; align-items: center; gap: 7px; max-width: calc(50% - 28px); overflow-wrap: anywhere; font: 10px/1.4 ui-monospace, monospace; color: var(--map-muted); }
+.legend i { flex: 0 0 4px; width: 4px; height: 4px; border-radius: 50%; background: var(--map-accent); }
 .scrollHint { display: none; }
-.control { position: absolute; right: 17px; top: 15px; padding: 5px 8px; border: 1px solid var(--map-label-line); border-radius: 4px; color: var(--map-muted); background: var(--map-bg); cursor: pointer; font: 10px/1.4 ui-monospace, monospace; }
+.control { position: absolute; right: 17px; top: 15px; max-width: calc(50% - 28px); padding: 5px 8px; overflow-wrap: anywhere; border: 1px solid var(--map-label-line); border-radius: 4px; color: var(--map-muted); background: var(--map-bg); cursor: pointer; font: 10px/1.4 ui-monospace, monospace; }
 .control:hover { color: var(--map-label-text); }
 .control:focus-visible { outline: 2px solid var(--map-accent); outline-offset: 2px; }
 .map[data-paused='true'] .ring, .map[data-paused='true'] .arc { animation-play-state: paused; }
