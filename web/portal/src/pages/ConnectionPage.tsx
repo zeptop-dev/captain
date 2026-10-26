@@ -1,4 +1,4 @@
-import { Accordion, Alert, Anchor, Badge, Button, Card, Center, Divider, Group, Modal, Select, Skeleton, Stack, Text, Title, UnstyledButton } from '@mantine/core'
+import { Accordion, Alert, Anchor, Badge, Button, Card, Center, Group, Modal, Select, Skeleton, Stack, Text, Title, UnstyledButton } from '@mantine/core'
 import { IconArrowUpRight, IconBook2, IconBrandAndroid, IconBrandApple, IconBrandWindows, IconCheck, IconCopy, IconDeviceDesktop, IconDeviceMobile, IconDownload, IconNetwork, IconQrcode, IconWorld } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
@@ -58,29 +58,29 @@ export default function ConnectionPage() {
   }, [location.hash, location.key, downloads.isPending, nodes.isPending, wireguard.isPending])
 
   return <Stack gap="xl">
-    <Group justify="space-between" align="flex-start">
+    <Group justify="space-between" align="flex-start" className={classes.welcome}>
       <div>
-        <Title order={1} fz={30} className={classes.heading}>{t('connection.title')}</Title>
-        <Text c="dimmed" mt={6}>{t('connection.subtitle')}</Text>
+        <Text className={classes.eyebrow}>{t('portalNav.connect')}</Text>
+        <Title order={1} className={classes.heading}>{t('connection.title')}</Title>
+        <Text size="sm" c="dimmed" mt={10}>{t('connection.subtitle')}</Text>
       </div>
       <Group gap="xs"><Button variant="subtle" component={Link} to="/status">{t('serviceStatus.title')}</Button><Button variant="default" component={Link} to="/help" leftSection={<IconBook2 size={17} />}>{t('connection.guide')}</Button></Group>
     </Group>
 
     {me && !(me.subscriptions ?? []).some(subscription => subscription.usable) && <Alert color="orange"><Group justify="space-between" gap="sm"><Text size="sm" style={{ flex: '1 1 240px' }}>{t('connection.planNeeded')}</Text><Button component={Link} to="/plans" variant="light" size="xs" color="orange">{t('home.browsePlans')}</Button></Group></Alert>}
     <Card className={classes.setup}>
-      <Stack gap="xl">
-        <div>
-          <Group gap="xs" mb="md"><Text className={classes.stepLabel}>01</Text><Title order={3} fz="lg">{t('connection.chooseDevice')}</Title></Group>
-          <div className={classes.platforms} role="group" aria-label={t('connection.chooseDevice')}>
-            {platforms.map(({ value, icon: Icon }) => <UnstyledButton key={value} className={classes.platform} aria-pressed={platform === value} onClick={() => changePlatform(value)}>
-              <Icon size={23} stroke={1.6} aria-hidden />
-              <Text size="sm" fw={600}>{t(`help.platform.${value}`)}</Text>
-            </UnstyledButton>)}
+      <div className={classes.setupColumns}>
+        <div className={classes.deviceColumn}>
+          <div>
+            <Group gap="xs" mb="md"><Text className={classes.stepLabel}>01</Text><Title order={3} fz="lg">{t('connection.chooseDevice')}</Title></Group>
+            <div className={classes.platforms} role="group" aria-label={t('connection.chooseDevice')}>
+              {platforms.map(({ value, icon: Icon }) => <UnstyledButton key={value} className={classes.platform} aria-pressed={platform === value} onClick={() => changePlatform(value)}>
+                <Icon size={23} stroke={1.6} aria-hidden />
+                <Text size="sm" fw={600}>{t(`help.platform.${value}`)}</Text>
+              </UnstyledButton>)}
+            </div>
           </div>
-        </div>
-        <Divider />
-        <div className={classes.setupColumns}>
-          <Stack gap="sm" style={{ minWidth: 0 }}>
+          <Stack className={classes.installPanel} gap="sm" style={{ minWidth: 0 }}>
             <Group gap="xs"><Text className={classes.stepLabel}>02</Text><Title order={3} fz="lg">{t('connection.install')}</Title></Group>
             <Text size="sm" c="dimmed">{t('connection.installHint')}</Text>
             {downloads.isPending && <Stack gap="sm"><Skeleton height={56} /><Skeleton height={56} /></Stack>}
@@ -91,26 +91,26 @@ export default function ConnectionPage() {
             </Stack> : <div>{selectedDownloads.map((download, index) => {
               const url = downloadURL(download.url)
               return <Group key={`${download.name}-${index}`} className={classes.downloadRow} justify="space-between" align="flex-start" wrap="nowrap">
-                <div style={{ minWidth: 0 }}><Text fw={600} size="sm" style={{ overflowWrap: 'anywhere' }}>{download.name}</Text>{download.note && <Text size="xs" c="dimmed" mt={4} style={{ overflowWrap: 'anywhere' }}>{download.note}</Text>}</div>
+                <div style={{ minWidth: 0 }}><Text fw={500} size="sm" style={{ overflowWrap: 'anywhere' }}>{download.name}</Text>{download.note && <Text size="xs" c="dimmed" mt={4} style={{ overflowWrap: 'anywhere' }}>{download.note}</Text>}</div>
                 {url ? <Button size="compact-sm" variant="light" component="a" href={url} target="_blank" rel="noopener noreferrer" rightSection={<IconArrowUpRight size={14} />}>{t('connection.download')}</Button> : <Badge color="gray" variant="light">{t('connection.unavailable')}</Badge>}
               </Group>
             })}</div>)}
             <Text size="xs" c="dimmed">{t('connection.architectureHint')}</Text>
           </Stack>
-          <Stack className={classes.importPanel} gap="sm">
-            <Group gap="xs"><Text className={classes.stepLabel}>03</Text><Title order={3} fz="lg">{t('connection.importTitle')}</Title></Group>
-            <Text size="sm" c="dimmed">{t('connection.importHint')}</Text>
-            <Select label={t('connection.installedClient')} value={client} onChange={value => value && setClient(value as ImportClient)} data={[...clients.map(choice => ({ value: choice.value, label: choice.label })), { value: 'manual', label: t('connection.otherClient') }]} allowDeselect={false} />
-            {importURL ? <Button mt={4} size="md" component="a" href={importURL} leftSection={<IconDownload size={18} />}>{t('connection.importInto', { name: selectedClient?.label })}</Button> : <Button mt={4} size="md" disabled={!subscriptionURL} onClick={copy} leftSection={<IconCopy size={18} />}>{t('home.copy')}</Button>}
-            <Group grow gap="sm">{importURL && <Button variant="default" disabled={!subscriptionURL} onClick={copy} leftSection={<IconCopy size={16} />}>{t('home.copy')}</Button>}<Button variant="default" disabled={!subscriptionURL} onClick={() => setQrOpened(true)} leftSection={<IconQrcode size={16} />}>{t('connection.qr')}</Button></Group>
-            <Text size="xs" c="dimmed">{t('connection.importNote')}</Text>
-          </Stack>
         </div>
-        <Group className={classes.finish} gap="sm" align="flex-start" wrap="nowrap">
-          <IconCheck size={20} style={{ flexShrink: 0, marginTop: 2 }} aria-hidden />
-          <div><Text size="sm" fw={600}>{t('connection.finishTitle')}</Text><Text size="sm" mt={3}>{t('connection.finishHint')}</Text></div>
-        </Group>
-      </Stack>
+        <Stack className={classes.importPanel} gap="sm">
+          <Group gap="xs"><Text className={classes.stepLabel}>03</Text><Title order={3} fz="lg">{t('connection.importTitle')}</Title></Group>
+          <Text size="sm" c="dimmed">{t('connection.importHint')}</Text>
+          <Select label={t('connection.installedClient')} value={client} onChange={value => value && setClient(value as ImportClient)} data={[...clients.map(choice => ({ value: choice.value, label: choice.label })), { value: 'manual', label: t('connection.otherClient') }]} allowDeselect={false} />
+          {importURL ? <Button mt={4} size="md" component="a" href={importURL} leftSection={<IconDownload size={18} />}>{t('connection.importInto', { name: selectedClient?.label })}</Button> : <Button mt={4} size="md" disabled={!subscriptionURL} onClick={copy} leftSection={<IconCopy size={18} />}>{t('home.copy')}</Button>}
+          <Group grow gap="sm">{importURL && <Button variant="default" disabled={!subscriptionURL} onClick={copy} leftSection={<IconCopy size={16} />}>{t('home.copy')}</Button>}<Button variant="default" disabled={!subscriptionURL} onClick={() => setQrOpened(true)} leftSection={<IconQrcode size={16} />}>{t('connection.qr')}</Button></Group>
+          <Text size="xs" c="dimmed">{t('connection.importNote')}</Text>
+        </Stack>
+      </div>
+      <Group className={classes.finish} gap="sm" align="flex-start" wrap="nowrap">
+        <IconCheck size={20} style={{ flexShrink: 0, marginTop: 2 }} aria-hidden />
+        <div><Text size="sm" fw={600}>{t('connection.finishTitle')}</Text><Text size="sm" mt={3}>{t('connection.finishHint')}</Text></div>
+      </Group>
       <Accordion variant="default" className={classes.manual}>
         <Accordion.Item value="manual"><Accordion.Control icon={<IconCopy size={17} />}>{t('connection.manual')}</Accordion.Control><Accordion.Panel>
           <Text size="sm" c="dimmed" mb="sm">{t('home.subscribeHint')}</Text>
