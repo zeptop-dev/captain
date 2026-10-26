@@ -5,6 +5,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import { currentEntries, fetchServiceStatus, headlineKey, snapshotExpired, statusCategories, statusColors, statusEvidence, statusStates, summarize, type StatusState } from '../lib/service-status'
 import classes from './ServiceStatusPage.module.css'
+import page from './SecondaryPages.module.css'
 
 export default function ServiceStatusPage() {
   const { t, i18n } = useTranslation()
@@ -49,11 +50,11 @@ export default function ServiceStatusPage() {
   const description = options.find(option => option.value === activeCategory)?.description
   const colorStyle = (state: StatusState) => ({ '--status-color': `var(--mantine-color-${statusColors[state]}-6)` } as CSSProperties)
   const time = (timestamp: number | null) => timestamp && Number.isFinite(timestamp) ? new Date(timestamp * 1000).toLocaleString(i18n.language) : t('serviceStatus.never')
-  return <Stack gap="xl">
-    <Group justify="space-between" align="center">
-      <Title order={1} fz={30}>{t('serviceStatus.title')}</Title>
+  return <Stack className={page.page}>
+    <header className={page.header}>
+      <div><div className={page.eyebrow}>04 / {t('portalNav.help')}</div><Title order={1} className={page.title}>{t('serviceStatus.title')}</Title></div>
       <Button variant="default" onClick={() => void refetch()} loading={query.isFetching} leftSection={<IconRefresh size={16} />}>{t('serviceStatus.refresh')}</Button>
-    </Group>
+    </header>
     <Text c="dimmed" size="sm">{t('serviceStatus.scope')}</Text>
     {unavailable && <Alert color="orange" title={t('serviceStatus.unavailable')} role="status">{t(online ? 'serviceStatus.fetchError' : 'serviceStatus.offline')}</Alert>}
     {query.isPending && online && <Skeleton height={220} radius="lg" />}

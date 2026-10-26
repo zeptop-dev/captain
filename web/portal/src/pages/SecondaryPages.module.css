@@ -1,0 +1,73 @@
+.page { gap: 32px; min-width: 0; }
+.header { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: 6px; }
+.header > div { min-width: 0; }
+.eyebrow { color: var(--portal-muted, var(--mantine-color-dimmed)); font: 11px/1.7 var(--mantine-font-family-monospace); letter-spacing: .09em; margin: 0 0 12px; }
+.title { color: var(--portal-text, var(--mantine-color-text)); font-size: clamp(28px, 3.6vw, 42px); line-height: 1.25; font-weight: 500; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.description { max-width: 65ch; margin-top: 12px; color: var(--portal-muted, var(--mantine-color-dimmed)); font-size: 14px; line-height: 1.8; }
+.sectionTitle { font-size: 18px; line-height: 1.5; font-weight: 500; }
+.accountRows { border-top: 1px solid var(--portal-line, var(--mantine-color-default-border)); }
+.accountRow { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding-block: 22px; border-bottom: 1px solid var(--portal-line, var(--mantine-color-default-border)); }
+.accountLabel { color: var(--portal-muted, var(--mantine-color-dimmed)); font-size: 14px; flex-shrink: 0; }
+.accountValue { min-width: 0; text-align: end; overflow-wrap: anywhere; }
+.accountValue strong { font-size: 17px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.accountValue p { max-width: 44ch; }
+.accountSection { border-top: 1px solid var(--portal-line, var(--mantine-color-default-border)); padding-top: 24px; }
+.detailRow { padding-block: 16px; border-bottom: 1px solid var(--portal-line, var(--mantine-color-default-border)); }
+.detailRow:last-child { border-bottom: 0; padding-bottom: 0; }
+.accountTools { align-items: start; gap: 32px; }
+.accountTools :global(.mantine-Card-root) { background: transparent; border: 0; border-top: 1px solid var(--portal-line, var(--mantine-color-default-border)); padding: 24px 0 0; border-radius: 0; box-shadow: none; }
+.accountTools :global(.mantine-TextInput-root) { min-width: 130px; }
+.ownedPlans { border: 1px solid var(--portal-line, var(--mantine-color-default-border)); padding: 22px 24px; background: transparent; }
+.ownedPlan { gap: 12px 24px; padding-block: 10px; border-bottom: 1px solid var(--portal-line, var(--mantine-color-default-border)); }
+.ownedPlan:last-child { border-bottom: 0; }
+.ownedPlan > :first-child { min-width: 0; overflow-wrap: anywhere; }
+.plansGrid { gap: 20px; }
+.plan { min-width: 0; min-height: 286px; padding: 28px; border: 1px solid var(--portal-line, var(--mantine-color-default-border)); background: var(--portal-panel, var(--mantine-color-body)); box-shadow: none; }
+.planName { font-size: 20px; font-weight: 500; overflow-wrap: anywhere; }
+.price { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin-block: 18px 10px; font-size: 36px; line-height: 1.25; font-weight: 450; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.priceUnit { color: var(--portal-muted, var(--mantine-color-dimmed)); font-size: 13px; font-weight: 400; letter-spacing: 0; }
+.planAction { margin-top: auto; padding-top: 28px; }
+.list { border-top: 1px solid var(--portal-line, var(--mantine-color-default-border)); }
+.listRow { border: 0; border-bottom: 1px solid var(--portal-line, var(--mantine-color-default-border)); border-radius: 0; box-shadow: none; background: transparent; padding: 22px 0; color: inherit; text-align: start; text-decoration: none; width: 100%; min-width: 0; }
+button.listRow { cursor: pointer; }
+button.listRow:hover, a.listRow:hover { color: var(--portal-accent, var(--mantine-primary-color-filled)); background: transparent; }
+button.listRow:focus-visible, a.listRow:focus-visible { outline: 2px solid var(--portal-accent, var(--mantine-primary-color-filled)); outline-offset: 4px; }
+.listTitle { font-size: 15px; font-weight: 500; overflow-wrap: anywhere; }
+.listMeta { font-size: 11px; color: var(--portal-muted, var(--mantine-color-dimmed)); font-family: var(--mantine-font-family-monospace); overflow-wrap: anywhere; }
+.article { padding: 28px 0; border: 0; border-top: 1px solid var(--portal-line, var(--mantine-color-default-border)); border-radius: 0; background: transparent; box-shadow: none; }
+.article :global(.mantine-TypographyStylesProvider-root) { overflow-wrap: anywhere; }
+.article pre, .article table { max-width: 100%; overflow-x: auto; }
+.download { background: transparent; border: 1px solid var(--portal-line, var(--mantine-color-default-border)); padding: 22px; text-decoration: none; color: inherit; box-shadow: none; }
+.download:hover { border-color: var(--portal-accent, var(--mantine-primary-color-filled)); }
+.ticketMessage { border: 1px solid var(--portal-line, var(--mantine-color-default-border)); background: var(--portal-panel, var(--mantine-color-default)); color: var(--portal-text, var(--mantine-color-text)); max-width: 90%; padding: 14px 16px; border-radius: var(--mantine-radius-default); overflow-wrap: anywhere; }
+.supportMessage { border-inline-start: 3px solid var(--portal-accent, var(--mantine-primary-color-filled)); }
+.stats { border-block: 1px solid var(--portal-line, var(--mantine-color-default-border)); gap: 0; }
+.stat { padding: 24px; background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+.stat + .stat { border-inline-start: 1px solid var(--portal-line, var(--mantine-color-default-border)); }
+.statValue { margin-top: 10px; font-size: 32px; font-weight: 450; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.tableScroll { overflow-x: auto; }
+.tableScroll table { min-width: 520px; }
+.serverGrid { gap: 0 32px; border-top: 1px solid var(--portal-line, var(--mantine-color-default-border)); }
+.server { padding: 20px 0; background: transparent; border: 0; border-bottom: 1px solid var(--portal-line, var(--mantine-color-default-border)); border-radius: 0; box-shadow: none; }
+.serverIcon { flex-shrink: 0; color: var(--portal-muted, var(--mantine-color-dimmed)); }
+@media (max-width: 48em) {
+  .page { gap: 28px; }
+  .header { align-items: flex-start; flex-wrap: wrap; gap: 18px; }
+  .description { font-size: 13px; }
+  .accountRow { padding-block: 20px; gap: 18px; }
+  .accountLabel { font-size: 13px; }
+  .accountValue strong { font-size: 14px; }
+  .accountTools { gap: 28px; }
+  .plan { padding: 24px; min-height: 270px; }
+  .price { font-size: 32px; }
+  .ownedPlans { padding: 18px; }
+  .listRow { padding-block: 19px; }
+  .listMeta { font-size: 10px; }
+  .stat { padding: 20px 14px; }
+  .statValue { font-size: 26px; }
+  .serverGrid { column-gap: 20px; }
+}
+@media (max-width: 22em) {
+  .accountRow { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .accountValue { text-align: start; width: 100%; }
+}

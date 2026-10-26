@@ -8,6 +8,7 @@ import { useAuth } from '../lib/auth'
 import { money } from '../lib/format'
 import { toast } from '../lib/notify'
 import { Copy } from '../components/Copy'
+import classes from './SecondaryPages.module.css'
 
 export default function InvitePage() {
   const { t } = useTranslation()
@@ -26,16 +27,16 @@ export default function InvitePage() {
   const d = q.data
   if (!d) return null
   return (
-    <Stack gap="lg">
-      <Title order={2}>{t('invite.title')}</Title>
+    <Stack className={classes.page}>
+      <header className={classes.header}><div><div className={classes.eyebrow}>05 / {t('portalNav.account')}</div><Title order={1} className={classes.title}>{t('invite.title')}</Title></div></header>
       <Card>
         <Text size="sm" c="dimmed">{d.enabled ? t('invite.hint', { percent: d.percent }) : t('invite.disabledHint')}{d.enabled && d.levels.length > 1 && ' ' + t('invite.levelsHint', { levels: d.levels.slice(1).map((p) => p + '%').join(' / ') })}</Text>
         <Group gap={4} mt="sm" wrap="nowrap"><Code style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.url}</Code><Copy value={d.url} /></Group>
         <Text size="xs" c="dimmed" mt={4}>{t('invite.code')}: <b>{d.code}</b></Text>
       </Card>
-      <SimpleGrid cols={2}>
-        <Card><Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('invite.invited')}</Text><Text fz="xl" fw={700}>{d.invited}</Text></Card>
-        <Card><Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('invite.earned')}</Text><Text fz="xl" fw={700}>{money(d.earned_cents)}</Text></Card>
+      <SimpleGrid cols={2} className={classes.stats}>
+        <Card className={classes.stat}><Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('invite.invited')}</Text><Text className={classes.statValue}>{d.invited}</Text></Card>
+        <Card className={classes.stat}><Text size="xs" tt="uppercase" c="dimmed" fw={700}>{t('invite.earned')}</Text><Text className={classes.statValue}>{money(d.earned_cents)}</Text></Card>
       </SimpleGrid>
       {d.payout === 'commission' && (
         <Card>
@@ -51,9 +52,9 @@ export default function InvitePage() {
             <Button disabled={!Number(amount) || !account || (d.withdraw_methods.length > 0 && !method)} loading={withdraw.isPending} onClick={() => withdraw.mutate()}>{t('invite.withdraw')}</Button>
           </Group>
           {(wds.data ?? []).length > 0 && (
-            <Table mt="md" fz="sm"><Table.Tbody>
+            <div className={classes.tableScroll}><Table mt="md" fz="sm"><Table.Tbody>
               {wds.data!.map((w) => <Table.Tr key={w.id}><Table.Td>{when(w.created_at).split(',')[0]}</Table.Td><Table.Td>{money(w.amount_cents)}</Table.Td><Table.Td>{w.method} {w.account}</Table.Td><Table.Td><Badge color={w.status === 'paid' ? 'teal' : w.status === 'rejected' ? 'red' : 'orange'}>{t(`invite.wd.${w.status}`)}</Badge>{w.note && <Text size="xs" c="dimmed">{w.note}</Text>}</Table.Td></Table.Tr>)}
-            </Table.Tbody></Table>
+            </Table.Tbody></Table></div>
           )}
         </Card>
       )}
