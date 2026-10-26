@@ -55,6 +55,8 @@ Captain adaptations:
   exact task ID, name and series identity; changing a target or protocol cannot
   blend old samples into the new result. Selection never jumps to another task
   or IP family because samples are absent.
+  `../scripts/carrier-layout.mjs` checks dual/single-stack cards and the actual
+  list view at desktop and phone widths, including bar bounds within 64px rows.
   Custom non-carrier labels are not presented as Chinese operators.
 - CPU/resource validity, monthly monitoring traffic, section visibility and
   unavailable financial data follow Captain semantics. An unknown price does

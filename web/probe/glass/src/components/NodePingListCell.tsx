@@ -25,7 +25,7 @@ export default function NodePingListCell({ uuid, online: _online, enabled, onCli
     return (
       <button
         type="button"
-        className="group flex w-full min-w-0 flex-col gap-[2px] pr-4 text-left"
+        className={vclass('group flex w-full min-w-0 flex-col pr-4 text-left', dual ? 'gap-px' : 'gap-[2px]')}
         aria-label={`${node?.name ?? ''} ${t('网络监测')}`}
         onClick={click}
         onKeyDown={stop}
@@ -40,7 +40,7 @@ export default function NodePingListCell({ uuid, online: _online, enabled, onCli
             <span className={vclass('size-1.5 shrink-0 rounded-full', carrier.dotClass)} />
             <span className="flex min-w-0 flex-1 flex-col gap-[1px]">
               {carrier.series.map(series => <span key={series.family ?? 'legacy'} data-carrier-family={series.family} className={dual ? 'flex min-w-0 items-center gap-1' : 'contents'}>
-                {dual && <span className="w-3 shrink-0 text-[7px] leading-none text-muted-foreground">{series.familyLabel}</span>}
+                {dual && <span className="w-3 shrink-0 text-[6px] leading-none text-muted-foreground">{series.familyLabel}</span>}
                 <span className={dual ? 'flex min-w-0 flex-1 flex-col gap-px' : 'contents'}>
                   {(['latency', 'loss'] as const).map(metric => {
                     const bars = metric === 'latency' ? series.latencyBars : series.lossBars
