@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { IconArrowDown, IconArrowRight, IconArrowUpRight, IconBolt, IconBrandAndroid, IconBrandApple, IconBrandWindows, IconCheck, IconDevices, IconHeadset, IconRefresh, IconRouter, IconShieldLock, IconWorld } from '@tabler/icons-react'
+import { ClientCatalog } from '../components/ClientCatalog'
+import type { PublishedClient } from '../../../shared/client-downloads'
 import { NetworkMap } from '../components/NetworkMap'
 import { bytes, money } from '../lib/format'
 import { localizeSiteDefaults } from '../lib/site-defaults'
@@ -76,6 +78,9 @@ export default function HomePage({ site }: { site: Site }) {
   const locale = i18n.resolvedLanguage || i18n.language || 'en'
   const s = localizeSiteDefaults(site, t)
   const plans = useQuery({ queryKey: ['plans'], queryFn: () => getJSON<Plan[]>('/api/portal/plans'), enabled: s.show_plans })
+  const catalog = useQuery({ queryKey: ['client-catalog', 'site'], queryFn: () => getJSON<PublishedClient[]>('/api/site/clients') })
+  const hasClients = !!catalog.data?.length
+  const downloadsURL = s.links.download || (hasClients ? '/downloads' : '')
   const featured = s.features[0]
   const FeaturedIcon = featureIcons[(featured?.icon as keyof typeof featureIcons) ?? 'world'] ?? IconWorld
   const startURL = s.registration ? '/portal/register' : '/portal/login'
@@ -95,7 +100,7 @@ export default function HomePage({ site }: { site: Site }) {
           {s.description && <p>{s.description}</p>}
           <div className={styles.actions}>
             <a className={styles.primaryAction} href={startURL}>{startText}<IconArrowUpRight size={18} aria-hidden /></a>
-            <a className={styles.secondaryAction} href={s.links.download || (s.show_plans ? '#plans' : '/portal/connect')}>{s.links.download ? t('home.actions.download') : s.show_plans ? t('home.actions.plans') : t('home.actions.guide')}<IconArrowRight size={16} aria-hidden /></a>
+            <a className={styles.secondaryAction} href={downloadsURL || (s.show_plans ? '#plans' : '/portal/connect')}>{downloadsURL ? t('home.actions.download') : s.show_plans ? t('home.actions.plans') : t('home.actions.guide')}<IconArrowRight size={16} aria-hidden /></a>
           </div>
         </div>
       </div>
@@ -118,10 +123,11 @@ export default function HomePage({ site }: { site: Site }) {
             <div className={styles.platformIcons} aria-label={t('home.platform.devices')}><IconBrandApple /><IconBrandWindows /><IconBrandAndroid /><IconDevices /><IconRouter /></div>
             <p className={styles.clientNames}>Mihomo · Stash · sing-box · Surge<br />Loon · Quantumult X · Egern</p>
             <p className={styles.finePrint}>{t('home.platform.note')}</p>
-            <a className={styles.textLink} href={s.links.download || '/portal/connect'}>{s.links.download ? t('home.actions.clients') : t('home.actions.guide')}<IconArrowUpRight size={15} aria-hidden /></a>
+            <a className={styles.textLink} href={downloadsURL || '/portal/connect'}>{downloadsURL ? t('home.actions.clients') : t('home.actions.guide')}<IconArrowUpRight size={15} aria-hidden /></a>
           </div>
           <DeviceFigure />
         </div>
+        {hasClients && <div id="downloads" style={{ marginTop: 40 }}><ClientCatalog clients={catalog.data!} /></div>}
       </div>
     </section>
 

@@ -270,5 +270,40 @@
     "pause": "一時停止",
     "countryApproximate": "国単位の概算位置",
     "cityLocation": "都市単位の位置"
+  },
+  "clientCatalog": {
+    "title": "クライアントのダウンロード",
+    "description": "端末に合うクライアントを選び、インストール後にユーザーセンターから購読を読み込んでください。",
+    "recommended": "おすすめ",
+    "platform": "OS",
+    "package": "インストーラー",
+    "choosePackage": "アーキテクチャとパッケージを選択",
+    "download": "ダウンロード",
+    "openStore": "ストアを開く",
+    "unavailable": "利用不可",
+    "project": "公式サイト",
+    "architectureHint": "OS は自動選択できます。インストーラーを選ぶ前に CPU のアーキテクチャを確認してください。",
+    "otherChoices": "その他の選択肢（{{count}}）",
+    "storeNote": "バージョン、価格、対応地域はストアまたは公式ページをご確認ください。",
+    "empty": "ダウンロードはまだありません。",
+    "moreDownloads": "その他の配布先",
+    "source": {
+      "official": "公式ダウンロード",
+      "cache": "このサイトからダウンロード",
+      "store": "アプリストア"
+    },
+    "format": {
+      "full": "完全な購読設定：ノード、グループ、ルールはサイトのテンプレートに従います。",
+      "nodes": "ノード購読のみ：完全なポリシーグループ、振り分けルール、DNS 拡張は含まれません。",
+      "unknown": "接続ガイドに従って購読形式を選択してください。"
+    },
+    "platforms": {
+      "windows": "Windows",
+      "macos": "macOS",
+      "ios": "iOS / iPadOS",
+      "android": "Android",
+      "linux": "Linux",
+      "other": "その他"
+    }
   }
 }

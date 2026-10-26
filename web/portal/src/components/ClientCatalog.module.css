@@ -1,0 +1,5 @@
+.card { min-width: 0; border: 1px solid var(--portal-line, var(--mantine-color-default-border)); background: transparent; box-shadow: none; padding: 18px; overflow: visible; }
+.file { overflow-wrap: anywhere; }
+.alternatives summary { cursor: pointer; font-size: 13px; color: var(--mantine-color-dimmed); padding: 5px 0; }
+.legacy { border-top: 1px solid var(--portal-line, var(--mantine-color-default-border)); padding: 14px 0; }
+.legacy > div { min-width: 0; overflow-wrap: anywhere; }

@@ -461,5 +461,29 @@
   "portalAppearance": {
     "toLight": "Switch to light appearance",
     "toDark": "Switch to dark appearance"
+  },
+  "clientCatalog": {
+    "recommended": "Recommended",
+    "platform": "Operating system",
+    "package": "Installer",
+    "choosePackage": "Choose architecture and package",
+    "download": "Download",
+    "openStore": "Open store",
+    "unavailable": "Unavailable",
+    "project": "Project website",
+    "architectureHint": "We can suggest your operating system. Confirm your processor architecture before choosing an installer.",
+    "otherChoices": "Other choices ({{count}})",
+    "storeNote": "Check the store or official page for the current version, price and regional availability.",
+    "customLinks": "Other downloads from this site",
+    "source": {
+      "official": "Official download",
+      "cache": "Download from this site",
+      "store": "App store"
+    },
+    "format": {
+      "full": "Full subscription configuration: nodes, groups and rules depend on the template provided by this site.",
+      "nodes": "Node subscription only: full policy groups, routing rules and DNS enhancements are not included.",
+      "unknown": "Follow the connection guide to choose your subscription format."
+    }
   }
 }

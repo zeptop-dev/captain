@@ -2,6 +2,9 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { IconArrowUp, IconArrowUpRight, IconChevronDown, IconMenu2, IconX } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
+import { useQuery } from '@tanstack/react-query'
+import { getJSON } from '../lib/site'
+import type { PublishedClient } from '../../../shared/client-downloads'
 import { SiteLanguageSelector } from './SiteLanguageSelector'
 import type { Site } from '../lib/site'
 import { SiteThemeSelector } from './SiteThemeSelector'
@@ -10,7 +13,7 @@ import { SiteBrandMark } from './SiteBrandMark'
 type Link = { label: string; href: string }
 type LinkGroup = { id: string; label: string; links: Link[] }
 
-function navigation(t: TFunction, site?: Site): LinkGroup[] {
+function navigation(t: TFunction, site?: Site, hasClients = false): LinkGroup[] {
   return [
     { id: 'features', label: t('nav.features'), links: [
       { label: t('nav.coverage'), href: '/#coverage' },
@@ -19,7 +22,7 @@ function navigation(t: TFunction, site?: Site): LinkGroup[] {
     ] },
     { id: 'support', label: t('nav.support'), links: [
       { label: t('nav.connect'), href: '/portal/connect' },
-      ...(site?.links.download ? [{ label: t('nav.download'), href: site.links.download }] : []),
+      ...((site?.links.download || hasClients) ? [{ label: t('nav.download'), href: site?.links.download || '/downloads' }] : []),
       ...(site?.faq.length ? [{ label: t('nav.faq'), href: '/#faq' }] : []),
       ...(site?.links.telegram ? [{ label: t('nav.contact'), href: site.links.telegram }] : []),
     ] },
@@ -48,7 +51,8 @@ function Brand({ name, site }: { name: string; site?: Site }) {
 export function SiteLayout({ site, children }: { site?: Site; children: ReactNode }) {
   const { t } = useTranslation()
   const name = site?.name || 'Captain'
-  const groups = navigation(t, site)
+  const catalog = useQuery({ queryKey: ['client-catalog', 'site'], queryFn: () => getJSON<PublishedClient[]>('/api/site/clients') })
+  const groups = navigation(t, site, !!catalog.data?.length)
   const [open, setOpen] = useState<string | null>(null)
   const [mobile, setMobile] = useState(false)
   const header = useRef<HTMLElement>(null)

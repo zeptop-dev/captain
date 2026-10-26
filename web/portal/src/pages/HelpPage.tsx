@@ -1,8 +1,11 @@
-import { Alert, Anchor, Badge, Button, Card, Group, SimpleGrid, Skeleton, Stack, Tabs, Text, Title, TypographyStylesProvider } from '@mantine/core'
+import { Alert, Anchor, Button, Card, Group, Select, Skeleton, Stack, Tabs, Text, Title, TypographyStylesProvider } from '@mantine/core'
 import { useQuery } from '@tanstack/react-query'
 import DOMPurify from 'dompurify'
 import { marked } from 'marked'
 import { Link, useSearchParams } from 'react-router-dom'
+import { useState } from 'react'
+import { ClientCatalog, LegacyDownloads } from '../components/ClientCatalog'
+import { clientPlatforms, detectClientPlatform, type ClientPlatform, type PublishedClient } from '../../../shared/client-downloads'
 import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
 import { when } from '../lib/format'
@@ -12,15 +15,17 @@ interface ArticleHead { id: number; title: string; category: string; lang: strin
 interface Article extends ArticleHead { body: string }
 interface Client { name: string; platform: string; url: string; note: string }
 
-const platforms = ['windows', 'macos', 'ios', 'android', 'linux', 'other']
-
 // Knowledge base and client downloads. Articles are Markdown from the admin;
 // the server already substituted per-user placeholders (subscription URL).
 export default function HelpPage() {
   const { t, i18n } = useTranslation()
   const [params, setParams] = useSearchParams()
+  const [platform, setPlatform] = useState<ClientPlatform>(() => detectClientPlatform(navigator.userAgent, navigator.maxTouchPoints))
   const list = useQuery({ queryKey: ['articles'], queryFn: () => api.get<ArticleHead[]>('/api/portal/articles') })
   const clients = useQuery({ queryKey: ['clients'], queryFn: () => api.get<Client[]>('/api/portal/clients') })
+  const catalog = useQuery({ queryKey: ['client-catalog', 'portal'], queryFn: () => api.get<PublishedClient[]>('/api/portal/client-catalog') })
+  const platformClients = (catalog.data ?? []).filter(client => client.platform === platform)
+  const platformLegacy = (clients.data ?? []).filter(client => client.platform === platform)
   const articleId = Number(params.get('article'))
   const openId = Number.isSafeInteger(articleId) && articleId > 0 ? articleId : null
   const setOpenId = (id: number | null) => setParams((previous) => { const next = new URLSearchParams(previous); if (id === null) next.delete('article'); else next.set('article', String(id)); return next })
@@ -65,16 +70,15 @@ export default function HelpPage() {
           )}
         </Tabs.Panel>
         <Tabs.Panel value="downloads" pt="md">
-          {clients.isPending && <Skeleton height={140} radius="lg" />}
-          {clients.isError && <Alert color="red">{t('accountUI.loadError')} <Button variant="subtle" size="compact-xs" onClick={() => clients.refetch()}>{t('auth.retry')}</Button></Alert>}
-          {clients.isSuccess && (clients.data ?? []).length === 0 && <Text c="dimmed">{t('help.noClients')}</Text>}
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
-            {platforms.flatMap((p) => (clients.data ?? []).filter((c) => c.platform === p)).map((c, i) => (
-              <Card key={i} className={classes.download} component="a" href={c.url} target="_blank" rel="noreferrer">
-                <Group justify="space-between" wrap="nowrap"><div><Text fw={600}>{c.name}</Text>{c.note && <Text size="xs" c="dimmed">{c.note}</Text>}</div><Badge variant="light">{t(`help.platform.${c.platform}`, { defaultValue: c.platform })}</Badge></Group>
-              </Card>
-            ))}
-          </SimpleGrid>
+          <Stack gap="md">
+            <Select label={t('clientCatalog.platform')} value={platform} data={clientPlatforms.map(value => ({ value, label: t(`help.platform.${value}`) }))} allowDeselect={false} onChange={value => value && setPlatform(value as ClientPlatform)} maw={320} />
+            <Text size="xs" c="dimmed">{t('clientCatalog.architectureHint')}</Text>
+            {(clients.isPending || catalog.isPending) && <Skeleton height={140} radius="lg" />}
+            {(clients.isError || catalog.isError) && <Alert color="red">{t('accountUI.loadError')} <Button variant="subtle" size="compact-xs" onClick={() => { void clients.refetch(); void catalog.refetch() }}>{t('auth.retry')}</Button></Alert>}
+            {clients.isSuccess && catalog.isSuccess && !platformClients.length && !platformLegacy.length && <Text c="dimmed">{t('help.noClients')}</Text>}
+            <ClientCatalog clients={platformClients} platform={platform} />
+            <LegacyDownloads items={platformLegacy} />
+          </Stack>
         </Tabs.Panel>
       </Tabs>
     </Stack>

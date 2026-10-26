@@ -270,5 +270,40 @@
     "pause": "暫停",
     "countryApproximate": "國家級近似位置",
     "cityLocation": "城市級位置"
+  },
+  "clientCatalog": {
+    "title": "用戶端下載",
+    "description": "選擇適合裝置的用戶端，安裝後到使用者中心匯入訂閱。",
+    "recommended": "推薦",
+    "platform": "裝置系統",
+    "package": "安裝套件",
+    "choosePackage": "選擇架構與安裝套件",
+    "download": "下載",
+    "openStore": "前往商店",
+    "unavailable": "暫不可用",
+    "project": "專案官網",
+    "architectureHint": "系統可自動選擇，晶片架構需要你確認；請選用適合裝置的安裝套件。",
+    "otherChoices": "其他選擇（{{count}}）",
+    "storeNote": "版本、價格與可用地區以應用程式商店或官方頁面為準。",
+    "empty": "暫未提供用戶端下載。",
+    "moreDownloads": "其他下載管道",
+    "source": {
+      "official": "官方下載",
+      "cache": "本站下載",
+      "store": "應用程式商店"
+    },
+    "format": {
+      "full": "完整訂閱設定：節點、策略群組和規則以站點提供的範本為準。",
+      "nodes": "節點訂閱：不包含完整策略群組、分流規則和 DNS 增強。",
+      "unknown": "請依站點連線指南選擇訂閱格式。"
+    },
+    "platforms": {
+      "windows": "Windows",
+      "macos": "macOS",
+      "ios": "iOS / iPadOS",
+      "android": "Android",
+      "linux": "Linux",
+      "other": "其他"
+    }
   }
 }

@@ -461,5 +461,29 @@
   "portalAppearance": {
     "toLight": "라이트 모드로 전환",
     "toDark": "다크 모드로 전환"
+  },
+  "clientCatalog": {
+    "recommended": "추천",
+    "platform": "운영체제",
+    "package": "설치 파일",
+    "choosePackage": "아키텍처와 설치 파일 선택",
+    "download": "다운로드",
+    "openStore": "스토어 열기",
+    "unavailable": "사용 불가",
+    "project": "공식 웹사이트",
+    "architectureHint": "운영체제는 자동으로 선택할 수 있습니다. 설치 파일을 선택하기 전에 프로세서 아키텍처를 확인하세요.",
+    "otherChoices": "다른 선택 ({{count}})",
+    "storeNote": "현재 버전, 가격 및 제공 지역은 스토어 또는 공식 페이지를 확인하세요.",
+    "customLinks": "이 사이트의 다른 다운로드",
+    "source": {
+      "official": "공식 다운로드",
+      "cache": "이 사이트에서 다운로드",
+      "store": "앱 스토어"
+    },
+    "format": {
+      "full": "전체 구독 설정: 노드, 정책 그룹 및 규칙은 사이트에서 제공하는 템플릿에 따라 달라집니다.",
+      "nodes": "노드 구독만 제공: 전체 정책 그룹, 라우팅 규칙 및 DNS 강화 설정은 포함되지 않습니다.",
+      "unknown": "연결 안내에 따라 구독 형식을 선택하세요."
+    }
   }
 }

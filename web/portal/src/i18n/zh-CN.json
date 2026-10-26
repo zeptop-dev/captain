@@ -461,5 +461,29 @@
   "portalAppearance": {
     "toLight": "切换到浅色",
     "toDark": "切换到深色"
+  },
+  "clientCatalog": {
+    "recommended": "推荐",
+    "platform": "设备系统",
+    "package": "安装包",
+    "choosePackage": "选择架构与安装包",
+    "download": "下载",
+    "openStore": "前往商店",
+    "unavailable": "暂不可用",
+    "project": "项目官网",
+    "architectureHint": "系统可自动选择，芯片架构需要你确认；请选用适合设备的安装包。",
+    "otherChoices": "其他选择（{{count}}）",
+    "storeNote": "版本、价格与可用地区以应用商店或官方页面为准。",
+    "customLinks": "站点提供的其他下载",
+    "source": {
+      "official": "官方下载",
+      "cache": "本站下载",
+      "store": "应用商店"
+    },
+    "format": {
+      "full": "完整订阅配置：节点、策略组和规则以站点提供的模板为准。",
+      "nodes": "节点订阅：不包含完整策略组、分流规则和 DNS 增强。",
+      "unknown": "请按站点连接指南选择订阅格式。"
+    }
   }
 }

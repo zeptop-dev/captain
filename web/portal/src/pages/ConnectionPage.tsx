@@ -1,5 +1,5 @@
-import { Accordion, Alert, Anchor, Badge, Button, Card, Center, Group, Modal, Select, Skeleton, Stack, Text, Title, UnstyledButton } from '@mantine/core'
-import { IconArrowUpRight, IconBook2, IconBrandAndroid, IconBrandApple, IconBrandWindows, IconCheck, IconCopy, IconDeviceDesktop, IconDeviceMobile, IconDownload, IconNetwork, IconQrcode, IconWorld } from '@tabler/icons-react'
+import { Accordion, Alert, Anchor, Button, Card, Center, Group, Modal, Select, Skeleton, Stack, Text, Title, UnstyledButton } from '@mantine/core'
+import { IconBook2, IconBrandAndroid, IconBrandApple, IconBrandWindows, IconCheck, IconCopy, IconDeviceDesktop, IconDeviceMobile, IconDownload, IconNetwork, IconQrcode, IconWorld } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -9,9 +9,11 @@ import { api, type Server, type WireGuardDevicesResponse } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { useSite } from '../lib/theme'
 import { copyText } from '../lib/clipboard'
-import { detectDevicePlatform, downloadURL, importClients, subscriptionImportURL, type ClientDownload, type DevicePlatform, type ImportClient } from '../lib/connection'
+import { detectDevicePlatform, importClients, subscriptionImportURL, type ClientDownload, type DevicePlatform, type ImportClient } from '../lib/connection'
 import { toast } from '../lib/notify'
 import { WireGuardDevices } from '../components/WireGuardDevices'
+import { ClientCatalog, LegacyDownloads } from '../components/ClientCatalog'
+import type { PublishedClient } from '../../../shared/client-downloads'
 import { ServerList } from './ServersPage'
 import classes from './ConnectionPage.module.css'
 
@@ -30,12 +32,14 @@ export default function ConnectionPage() {
   const [client, setClient] = useState<ImportClient>(() => platform === 'ios' ? 'shadowrocket' : platform === 'other' ? 'manual' : 'clash')
   const [qrOpened, setQrOpened] = useState(false)
   const downloads = useQuery({ queryKey: ['clients'], queryFn: () => api.get<ClientDownload[]>('/api/portal/clients'), meta: { handlesError: true } })
+  const catalog = useQuery({ queryKey: ['client-catalog', 'portal'], queryFn: () => api.get<PublishedClient[]>('/api/portal/client-catalog'), meta: { handlesError: true } })
   // Observe the children’s initial requests without starting another fetch.
   // Their final heights must be present before positioning a deep link.
   const nodes = useQuery({ queryKey: ['servers'], queryFn: () => api.get<Server[]>('/api/portal/servers'), enabled: false })
   const wireguard = useQuery({ queryKey: ['wireguard-devices', '/api/portal/me/wireguard-devices'], queryFn: () => api.get<WireGuardDevicesResponse>('/api/portal/me/wireguard-devices'), enabled: false })
   const positionedNavigation = useRef<string | null>(null)
   const selectedDownloads = (downloads.data ?? []).filter(download => download.platform === platform)
+  const selectedCatalog = (catalog.data ?? []).filter(item => item.platform === platform)
   const clients = importClients.filter(choice => choice.platforms.includes(platform))
   const selectedClient = importClients.find(choice => choice.value === client)
   const subscriptionURL = me?.subscription_url ?? ''
@@ -47,7 +51,7 @@ export default function ConnectionPage() {
   const copy = async () => { if (await copyText(subscriptionURL)) toast.ok(t('home.copied')) }
   useEffect(() => {
     const target = location.hash === '#nodes' ? 'nodes' : (location.hash === '#wireguard' || location.hash === '#wireguard-devices') ? 'wireguard' : null
-    if (!target || downloads.isPending || nodes.isPending || (target === 'wireguard' && wireguard.isPending)) return
+    if (!target || downloads.isPending || catalog.isPending || nodes.isPending || (target === 'wireguard' && wireguard.isPending)) return
     const navigation = `${location.key}:${location.hash}`
     if (positionedNavigation.current === navigation) return
     const frame = window.requestAnimationFrame(() => {
@@ -55,7 +59,7 @@ export default function ConnectionPage() {
       positionedNavigation.current = navigation
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [location.hash, location.key, downloads.isPending, nodes.isPending, wireguard.isPending])
+  }, [location.hash, location.key, downloads.isPending, catalog.isPending, nodes.isPending, wireguard.isPending])
 
   return <Stack gap="xl">
     <Group justify="space-between" align="flex-start" className={classes.welcome}>
@@ -83,18 +87,14 @@ export default function ConnectionPage() {
           <Stack className={classes.installPanel} gap="sm" style={{ minWidth: 0 }}>
             <Group gap="xs"><Text className={classes.stepLabel}>02</Text><Title order={3} fz="lg">{t('connection.install')}</Title></Group>
             <Text size="sm" c="dimmed">{t('connection.installHint')}</Text>
-            {downloads.isPending && <Stack gap="sm"><Skeleton height={56} /><Skeleton height={56} /></Stack>}
-            {downloads.isError && <Alert color="red" title={t('connection.downloadError')}><Button variant="subtle" size="compact-sm" onClick={() => downloads.refetch()}>{t('connection.retry')}</Button></Alert>}
-            {downloads.isSuccess && (selectedDownloads.length === 0 ? <Stack gap="xs" py="md">
+            {(downloads.isPending || catalog.isPending) && <Stack gap="sm"><Skeleton height={56} /><Skeleton height={56} /></Stack>}
+            {(downloads.isError || catalog.isError) && <Alert color="red" title={t('connection.downloadError')}><Button variant="subtle" size="compact-sm" onClick={() => { void downloads.refetch(); void catalog.refetch() }}>{t('connection.retry')}</Button></Alert>}
+            {downloads.isSuccess && catalog.isSuccess && !selectedDownloads.length && !selectedCatalog.length && <Stack gap="xs" py="md">
               <Text size="sm">{t('connection.noDownloads')}</Text>
               <Anchor component={Link} to="/help?tab=downloads" size="sm">{t('connection.allDownloads')}</Anchor>
-            </Stack> : <div>{selectedDownloads.map((download, index) => {
-              const url = downloadURL(download.url)
-              return <Group key={`${download.name}-${index}`} className={classes.downloadRow} justify="space-between" align="flex-start" wrap="nowrap">
-                <div style={{ minWidth: 0 }}><Text fw={500} size="sm" style={{ overflowWrap: 'anywhere' }}>{download.name}</Text>{download.note && <Text size="xs" c="dimmed" mt={4} style={{ overflowWrap: 'anywhere' }}>{download.note}</Text>}</div>
-                {url ? <Button size="compact-sm" variant="light" component="a" href={url} target="_blank" rel="noopener noreferrer" rightSection={<IconArrowUpRight size={14} />}>{t('connection.download')}</Button> : <Badge color="gray" variant="light">{t('connection.unavailable')}</Badge>}
-              </Group>
-            })}</div>)}
+            </Stack>}
+            {selectedCatalog.length > 0 && <ClientCatalog clients={selectedCatalog} platform={platform} compact />}
+            <LegacyDownloads items={selectedDownloads} />
             <Text size="xs" c="dimmed">{t('connection.architectureHint')}</Text>
           </Stack>
         </div>
