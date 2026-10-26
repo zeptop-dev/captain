@@ -1,0 +1,272 @@
+{
+  "common": {
+    "language": "語言",
+    "loadError": "暫時無法載入服務資訊。",
+    "loading": "正在載入服務資訊…",
+    "reload": "重新載入",
+    "switchLight": "切換為淺色",
+    "switchDark": "切換為深色"
+  },
+  "nav": {
+    "features": "特色",
+    "coverage": "網路涵蓋",
+    "platform": "多端連線",
+    "serviceFeatures": "服務特色",
+    "support": "資源與支援",
+    "connect": "連線指南",
+    "download": "下載用戶端",
+    "faq": "常見問題",
+    "contact": "聯絡支援",
+    "services": "服務與保障",
+    "plans": "方案與服務",
+    "terms": "服務條款",
+    "security": "帳戶安全",
+    "about": "關於",
+    "home": "首頁",
+    "status": "服務狀態",
+    "monitoring": "伺服器監控",
+    "brandHome": "{{name}} 首頁",
+    "skip": "跳至主要內容",
+    "close": "關閉導覽",
+    "open": "開啟導覽",
+    "main": "主要導覽",
+    "account": "使用者中心",
+    "rights": "保留所有權利。",
+    "top": "回到頂端"
+  },
+  "home": {
+    "eyebrow": "訂閱與連線",
+    "actions": {
+      "start": "立即開始",
+      "login": "登入使用者中心",
+      "portal": "前往使用者中心",
+      "download": "用戶端下載",
+      "plans": "查看方案",
+      "guide": "連線指南",
+      "clients": "查看用戶端",
+      "moreFeatures": "了解更多服務特色"
+    },
+    "shortcuts": {
+      "platform": "多裝置接入",
+      "platformDescription": "在你的裝置上開始使用",
+      "features": "服務特色",
+      "featuresDescription": "了解我們的服務",
+      "coverage": "網路覆蓋",
+      "coverageDescription": "查看設定的覆蓋地區",
+      "plansDescription": "找到適合你的方案",
+      "faq": "常見問題",
+      "faqDescription": "連線前，先了解更多"
+    },
+    "coverage": {
+      "label": "網路覆蓋",
+      "note": "網路覆蓋示意，非即時監控；可用節點與存取權限以使用者中心為準。"
+    },
+    "figure": {
+      "deviceMatrix": "裝置矩陣",
+      "multiPlatform": "跨平台",
+      "desktop": "電腦",
+      "mobile": "行動裝置",
+      "router": "路由器",
+      "service": "服務"
+    },
+    "sections": {
+      "platform": "PLATFORM / 多裝置接入",
+      "feature": "FEATURE / 服務特色",
+      "connection": "CONNECTION / 連線流程",
+      "signal": "YOUR CONNECTION / 使用者中心",
+      "details": "DETAILS / 服務資訊",
+      "plans": "PLANS / 方案",
+      "faq": "FAQ / 支援"
+    },
+    "platform": {
+      "heading": "在熟悉的裝置上，開始連線",
+      "title": "一份訂閱，多種用戶端選擇。",
+      "description": "從桌面到行動裝置，在使用者中心取得適合用戶端的訂閱格式，再依連線指南完成設定。",
+      "supported": "SUPPORTED / 支援的用戶端",
+      "devices": "桌面、行動裝置及路由器",
+      "note": "訂閱格式與可用協定以使用者中心提供的選項及用戶端支援為準。"
+    },
+    "connection": {
+      "aria": "用戶端透過訂閱中的節點連線目標服務的流程示意",
+      "client": "你的用戶端",
+      "nodes": "訂閱中的節點",
+      "target": "目標服務",
+      "note": "連線流程示意，不代表個別節點的實際線路拓撲。",
+      "heading": "從訂閱，到每一次連線",
+      "choose": "選擇服務",
+      "chooseDescription": "在使用者中心查看方案的流量、週期和裝置限制。",
+      "subscribe": "取得訂閱",
+      "subscribeDescription": "依用戶端選擇訂閱格式，匯入後查看可用節點。",
+      "connect": "開始連線",
+      "connectDescription": "從目前方案授權的節點中，選擇適合你的連線。"
+    },
+    "signal": {
+      "heading": "連線與使用，\n都清楚一點",
+      "description": "訂閱、方案與節點資訊，\n在使用者中心集中管理。",
+      "subscription": "訂閱連線",
+      "subscriptionDescription": "取得訂閱，查看用戶端連線指南。",
+      "usage": "方案與用量",
+      "usageDescription": "查看目前方案、有效期限與剩餘流量。",
+      "status": "服務狀態",
+      "nodes": "節點資訊",
+      "statusDescription": "查看公開節點的服務狀態與維護資訊。",
+      "nodesDescription": "查看目前帳戶可用的訂閱節點。"
+    },
+    "details": {
+      "heading": "了解你的服務選擇"
+    },
+    "plans": {
+      "heading": "選擇適合你的方案",
+      "choose": "選擇方案",
+      "loading": "正在載入方案…",
+      "error": "暫時無法載入方案，請稍後重試。",
+      "retry": "重新載入",
+      "empty": "暫無公開方案，請在使用者中心查看服務資訊。",
+      "permanent": "永久",
+      "traffic": "{{amount}} 流量",
+      "unlimitedTraffic": "不限流量",
+      "unlimitedDevices": "裝置數不限",
+      "speed": "{{speed}} Mbps",
+      "days_one": "{{count, number}} 天",
+      "days_few": "{{count, number}} 天",
+      "days_many": "{{count, number}} 天",
+      "days_other": "{{count, number}} 天",
+      "devices_one": "{{count, number}} 台裝置",
+      "devices_few": "{{count, number}} 台裝置",
+      "devices_many": "{{count, number}} 台裝置",
+      "devices_other": "{{count, number}} 台裝置"
+    },
+    "faq": {
+      "heading": "還有疑問？",
+      "description": "關於服務與連線，\n你可能想了解這些。"
+    },
+    "closing": {
+      "heading": "下一次連線，從這裡開始"
+    },
+    "defaults": {
+      "tagline": "穩定、快速、省心的網路加速",
+      "description": "多地區節點，自動優選線路，一條訂閱連結涵蓋所有裝置。",
+      "protocols": {
+        "title": "多協定",
+        "text": "VLESS、Hysteria2、mieru 等主流協定，用戶端一鍵匯入。"
+      },
+      "locations": {
+        "title": "全球節點",
+        "text": "涵蓋多個地區，依需求選擇延遲最低的線路。"
+      },
+      "privacy": {
+        "title": "隱私優先",
+        "text": "不記錄存取內容，僅統計流量用量。"
+      },
+      "devices": {
+        "title": "多裝置",
+        "text": "手機、電腦、路由器共用一份訂閱。"
+      },
+      "updates": {
+        "title": "自動更新",
+        "text": "節點變動自動同步到訂閱，無需手動操作。"
+      },
+      "support": {
+        "title": "隨時支援",
+        "text": "遇到問題隨時聯絡我們。"
+      },
+      "faq": {
+        "q": "支援哪些用戶端？",
+        "a": "Clash 系列、sing-box、Shadowrocket、Surge、v2rayN 等，匯入訂閱連結即可。"
+      }
+    }
+  },
+  "serviceStatus": {
+    "title": "服務狀態",
+    "serverMonitoring": "伺服器監控",
+    "scope": "查看已公開的訂閱節點及其接入路徑運作狀態。",
+    "refresh": "重新整理",
+    "all": "全部",
+    "unavailable": "暫時無法取得目前狀態",
+    "fetchError": "更新失敗，已隱藏舊狀態。請稍後重試。",
+    "offline": "目前網路已中斷，已隱藏舊狀態。恢復連線後將重新取得。",
+    "expired": "狀態報告已超過有效期，所有節點暫以狀態未知顯示。",
+    "never": "尚無記錄",
+    "overview": "節點運行概況",
+    "allHealthy": "全部運行正常",
+    "issues": "部分節點異常",
+    "allDown": "節點目前故障",
+    "maintaining": "維護進行中",
+    "awaiting": "狀態有待確認",
+    "emptyTitle": "暫無公開節點",
+    "updated": "最近更新：{{time}}",
+    "autoRefresh": "每 {{seconds}} 秒重新整理",
+    "empty": "目前沒有公開展示的訂閱節點。",
+    "nodes": "節點狀態",
+    "categories": "節點分類",
+    "categoryHint": "分類數字為運行正常數 / 總數；點選節點查看偵測依據。",
+    "observed": "最近觀測：{{time}}",
+    "noEndToEnd": "端到端存取：尚未偵測",
+    "limitations": "僅彙總已公開節點的入站、轉發與隧道運作訊號，不保證用戶端到目標網站的完整存取。沒有流量不視為故障。",
+    "states": {
+      "healthy": "運行正常",
+      "degraded": "部分異常",
+      "down": "故障",
+      "maintenance": "維護中",
+      "unknown": "狀態未知"
+    },
+    "reasons": {
+      "healthy": "必要元件的運行訊號正常。",
+      "no_data": "尚未收到足夠的運行資料。",
+      "stale": "回報已過期，等待新的觀測。",
+      "config_pending": "設定等待套用，暫時無法確認運行狀態。",
+      "component_failure": "必要元件回報故障。",
+      "no_route": "目前沒有可用的連線路徑。",
+      "partial_failure": "仍有可用路徑，部分候選或備用路徑故障。",
+      "partial_unknown": "仍有可用路徑，部分候選路徑狀態未知。",
+      "unsupported": "目前資料或能力不足以判斷狀態。",
+      "external_path": "路徑包含未託管的轉發，暫時無法確認整條路徑。",
+      "maintenance": "管理員正在維護此節點。"
+    },
+    "evidence": {
+      "inbound": "入站運行",
+      "forward_tcp": "下一跳 TCP 偵測",
+      "wireguard": "WireGuard 隧道",
+      "vless_reverse": "VLESS 反向連線",
+      "client_chain": "用戶端鏈依賴"
+    },
+    "evidenceLabel": "偵測依據",
+    "uncategorized": "未分類",
+    "closed": "服務狀態頁暫未公開",
+    "closedHint": "你可以登入使用者中心查看自己可用節點的狀態。",
+    "notPublic": "暫未公開",
+    "checking": "正在確認",
+    "loading": "正在取得節點的最新運作狀態。",
+    "waitingRefresh": "等待重新取得狀態",
+    "connecting": "正在連線至狀態服務",
+    "legend": "狀態圖例",
+    "showEvidence": "點選查看檢測依據",
+    "myNodes": "查看我的節點",
+    "refreshing": "正在更新…",
+    "retry": "重新取得狀態",
+    "summaryAffected": "{{value}} 個節點異常",
+    "summaryHealthy": "{{value}} 個正常",
+    "summaryMaintenance": "{{value}} 個維護中",
+    "summaryUnknown": "{{value}} 個狀態未知",
+    "categoryCount": "正常運作數：{{healthy}} / 總數：{{total}}"
+  },
+  "geography": {
+    "mapViewport": "節點地理位置，可橫向捲動查看完整地圖",
+    "mapTitle": "節點地理位置",
+    "configuredLocations": "已設定位置：{{names}}。",
+    "noLocations": "尚無已設定位置。",
+    "mapDisclaimer": "標記與連線僅表示地理分布，不表示節點健康或實際流量。",
+    "location": "{{name}}，地理位置",
+    "illustration": "節點地理位置",
+    "scrollHint": "左右滑動查看全圖",
+    "playAnimation": "播放動畫",
+    "pauseAnimation": "暫停動畫",
+    "globeTitle": "節點地理位置示意",
+    "unavailable": "地理位置示意暫時無法使用",
+    "globeDisclaimer": "標記僅表示地理位置，不代表節點運作狀態。",
+    "resumeGlobe": "繼續地球動畫",
+    "pauseGlobe": "暫停地球動畫",
+    "play": "播放",
+    "pause": "暫停"
+  }
+}
