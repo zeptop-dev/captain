@@ -11,7 +11,7 @@ export default function NodePingListCell({ uuid, online: _online, enabled, onCli
   const snap = useBox(snapshot)
   const node = useMemo(() => snap?.nodes.find(n => String(n.id) === uuid), [snap, uuid])
   const threeNetwork = selectPings(node, snap?.carrier_ping ?? false).threeNetwork
-  const { carrierDisplays } = useNodeCarrierPingDisplay(uuid, enabled && threeNetwork)
+  const { carrierDisplays, dual } = useNodeCarrierPingDisplay(uuid, enabled && threeNetwork)
   const { latencyRenderBars, lossRenderBars } = useNodePingDisplay(uuid, { enabled: enabled && !threeNetwork })
 
   const click = (e: { stopPropagation: () => void }) => {
@@ -39,26 +39,19 @@ export default function NodePingListCell({ uuid, online: _online, enabled, onCli
           >
             <span className={vclass('size-1.5 shrink-0 rounded-full', carrier.dotClass)} />
             <span className="flex min-w-0 flex-1 flex-col gap-[1px]">
-              {(['latency', 'loss'] as const).map((metric) => {
-                const bars = metric === 'latency' ? carrier.latencyBars : carrier.lossBars
-                return (
-                  <span
-                    key={metric}
-                    data-carrier-metric={metric}
-                    className="grid h-1 items-end gap-[1px] opacity-80 group-hover:opacity-100"
-                    style={{ gridTemplateColumns: `repeat(${bars.length}, minmax(0, 1fr))` }}
-                  >
-                    {bars.map(bar => (
-                      <span
-                        key={bar.key}
-                        title={`${t(metric === 'latency' ? '延迟' : '丢包')} · ${bar.tooltip}`}
-                        aria-label={bar.tooltip}
-                        className={vclass('block h-full w-full rounded-[1px]', bar.className)}
-                      />
-                    ))}
-                  </span>
-                )
-              })}
+              {carrier.series.map(series => <span key={series.family ?? 'legacy'} data-carrier-family={series.family} className={dual ? 'flex min-w-0 items-center gap-1' : 'contents'}>
+                {dual && <span className="w-3 shrink-0 text-[7px] leading-none text-muted-foreground">{series.familyLabel}</span>}
+                <span className={dual ? 'flex min-w-0 flex-1 flex-col gap-px' : 'contents'}>
+                  {(['latency', 'loss'] as const).map(metric => {
+                    const bars = metric === 'latency' ? series.latencyBars : series.lossBars
+                    return <span key={metric} data-carrier-metric={metric}
+                      className={vclass('grid items-end gap-[1px] opacity-80 group-hover:opacity-100', dual ? 'h-[2px]' : 'h-1')}
+                      style={{ gridTemplateColumns: `repeat(${bars.length}, minmax(0, 1fr))` }}>
+                      {bars.map(bar => <span key={bar.key} title={`${t(metric === 'latency' ? '延迟' : '丢包')} · ${bar.tooltip}`} aria-label={bar.tooltip} className={vclass('block h-full w-full rounded-[1px]', bar.className)} />)}
+                    </span>
+                  })}
+                </span>
+              </span>)}
             </span>
           </span>
         ))}

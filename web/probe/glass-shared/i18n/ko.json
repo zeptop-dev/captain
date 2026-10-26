@@ -140,5 +140,11 @@
   "language.saveError": "언어 설정을 저장하지 못했습니다. 사이트 저장소를 허용한 후 다시 시도하세요.",
   "expiry.days": "{days}일",
   "expiry.remainingDay": "1일 남음",
-  "expiry.remainingDays": "{days}일 남음"
+  "expiry.remainingDays": "{days}일 남음",
+  "升级服务器端以启用所选探测": "선택한 측정을 사용하려면 서버 에이전트를 업그레이드하세요",
+  "等待采样": "측정 대기 중",
+  "ICMP 权限不足": "ICMP 권한 없음",
+  "目标解析失败": "대상 DNS 조회 실패",
+  "探测超时": "측정 시간 초과",
+  "探测目标不可达": "측정 대상에 도달할 수 없음"
 }

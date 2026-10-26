@@ -16,17 +16,27 @@ function carrierKey(name: string): CarrierKey | undefined {
 }
 
 export function selectPings(node: Node | undefined, carrierPing: boolean) {
-  // Configured identities survive missing samples. Old servers only offer the
-  // last public snapshot; never infer the first task from history arrival order.
-  const tasks: PublicPingTask[] = node?.ping_tasks ?? (node?.host?.pings ?? []).map(p => ({ id: p.task_id, name: p.name }))
-  const selected = carriers.map(c => ({ ...c, source: carrierPing ? tasks.find(p => p.id === 0 && carrierKey(p.name) === c.key) ?? null : null }))
-  const threeNetwork = carrierPing && selected.every(c => c.source !== null)
+  // Configured identities survive missing samples. Never substitute another
+  // protocol, family or old target when the configured series has no samples.
+  const tasks: PublicPingTask[] = node?.ping_tasks ?? (node?.host?.pings ?? []).map(p => ({ id: p.task_id, name: p.name, series: p.series, family: p.family, type: p.type }))
+  const carrierTasks = carrierPing ? tasks.filter(p => p.id === 0) : []
+  const families = (['ipv4', 'ipv6'] as const).filter(f => carrierTasks.some(p => p.family === f))
+  const slots = families.length ? families : [undefined]
+  const selected = carriers.map(c => {
+    const sources = slots.map(family => carrierTasks.find(p => carrierKey(p.name) === c.key && p.family === family) ?? null)
+    return { ...c, source: sources[0] ?? null, sources }
+  })
+  const threeNetwork = carrierPing && selected.every(c => c.sources.some(p => p !== null))
   const first = tasks.filter(p => p.id > 0).sort((a, b) => a.id - b.id)[0]
     // Custom non-carrier points keep their real names, not fabricated CT/CU/CM labels.
-    ?? (carrierPing ? tasks.find(p => p.id === 0) : undefined) ?? null
-  return { threeNetwork, carriers: selected, first }
+    ?? carrierTasks[0] ?? null
+  return { threeNetwork, carriers: selected, first, families: slots, dual: families.length === 2 }
+}
+
+export function matchesPing(point: { task_id: number; name: string; series?: string }, source: PublicPingTask): boolean {
+  return point.task_id === source.id && point.name === source.name && (point.series ?? '') === (source.series ?? '')
 }
 
 export function selectedHistory(history: NetworkHistory, source: PublicPingTask | null): NetworkHistory {
-  return { ...history, points: source ? history.points.filter(p => p.task_id === source.id && p.name === source.name) : [] }
+  return { ...history, points: source ? history.points.filter(p => matchesPing(p, source)) : [] }
 }

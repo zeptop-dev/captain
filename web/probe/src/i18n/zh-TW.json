@@ -59,7 +59,9 @@
       "io": "讀寫失敗",
       "invalid": "目標無效",
       "canceled": "已取消",
-      "empty": "空回應"
+      "empty": "空回應",
+      "agent_upgrade_required": "升級伺服器端以啟用所選探測",
+      "waiting": "等待取樣"
     },
     "phases": {
       "dns_ms": "DNS 解析",

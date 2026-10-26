@@ -14,7 +14,7 @@ export function useNodePingStats(uuid: string, options?: { hours?: number, enabl
   const snap = useBox(snapshot)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [state, setState] = useState<NodePingStatsState | null>(null)
+  const [state, setState] = useState<{ identity: string; value: NodePingStatsState } | null>(null)
   const epoch = useRef(0)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -28,7 +28,7 @@ export function useNodePingStats(uuid: string, options?: { hours?: number, enabl
     const current = ++epoch.current
     const { id, hours, enabled, source: selected } = JSON.parse(resolved) as { id: string, hours: number, enabled: boolean, source: PublicPingTask | null }
     clearTimeout(timer.current)
-    if (!enabled || !selected) {
+    if (!enabled || !selected || selected.state === 'unsupported') {
       setState(null)
       setLoading(false)
       setError(null)
@@ -38,7 +38,7 @@ export function useNodePingStats(uuid: string, options?: { hours?: number, enabl
     try {
       const history = await historyFor<NetworkHistory>(id, 'pings', hours)
       if (current === epoch.current) {
-        setState(summarizePings(selectedHistory(history, selected), hours))
+        setState({ identity: resolved, value: summarizePings(selectedHistory(history, selected), hours) })
         setError(null)
       }
     }
@@ -66,15 +66,16 @@ export function useNodePingStats(uuid: string, options?: { hours?: number, enabl
   }, [refresh])
 
   const parsedSource = useMemo(() => (JSON.parse(resolved) as { source: PublicPingTask | null }).source, [resolved])
+  const currentState = state?.identity === resolved ? state.value : null
   return {
     loading,
     error,
     refresh,
     source: parsedSource,
-    history: state?.history ?? NO_HISTORY,
-    hasData: state?.hasData ?? false,
-    avgLatency: state?.avgLatency ?? Number.NaN,
-    avgLoss: state?.avgLoss ?? Number.NaN,
+    history: currentState?.history ?? NO_HISTORY,
+    hasData: currentState?.hasData ?? false,
+    avgLatency: currentState?.avgLatency ?? Number.NaN,
+    avgLoss: currentState?.avgLoss ?? Number.NaN,
     avgVolatility: 0,
   }
 }

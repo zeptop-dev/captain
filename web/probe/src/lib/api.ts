@@ -3,8 +3,9 @@ import type { ProbeAppearance } from '../appearance'
 export interface Validity { cpu: boolean; memory: boolean; swap: boolean; disk: boolean; network: boolean; load: boolean; connections: boolean; processes: boolean }
 export interface Sample { valid?: Validity; t: number; cpu: number; mem: number; up: number; down: number }
 export type Ping = NetworkSample
-export interface PublicPingTask { id: number; name: string }
+export interface PublicPingTask { id: number; name: string; series?: string; family?: 'ipv4' | 'ipv6'; type?: string; state?: string; reason?: string }
 export interface Host {
+  carrier_probe_version?: number
   valid?: Validity
   cpu_percent?: number; mem_total?: number; mem_used?: number; swap_total?: number; swap_used?: number; disk_total?: number; disk_used?: number
   load1?: number; load5?: number; load15?: number; net_up?: number; net_down?: number; net_total_up?: number; net_total_down?: number

@@ -1289,12 +1289,16 @@
     "taskNodes": "서버 제한",
     "taskNodeCount": "서버 {{count}}대",
     "carriers": "지연 측정 대상",
-    "carriersHint": "한 줄에 하나: 이름 호스트:포트. 비우면 기본 전신/연통/이동 측정점(cloudcpp)을 쓰고, 입력하면 전체를 대체합니다. 서버는 TCP 연결 시간을 재며 연결 거부도 한 번의 왕복으로 칩니다.",
+    "carriersHint": "한 줄에 이름 주소:포트를 입력합니다. 비워 두면 해당 IP 버전의 NextTrace 베이징 기본 대상을 사용하며 입력하면 전체 대상을 대체합니다.",
     "collection": "모니터링 데이터 수집",
     "pageEnabled": "상태 페이지 활성화",
     "pageEnabledHint": "페이지를 꺼도 데이터 수집과 알림은 계속 작동합니다.",
     "financeCurrency": "비용 합계 통화",
-    "financeCurrencyHint": "홈의 비용 합계를 참고 환율로 환산합니다. 서버 가격과 상세 페이지에는 원래 통화를 유지합니다."
+    "financeCurrencyHint": "홈의 비용 합계를 참고 환율로 환산합니다. 서버 가격과 상세 페이지에는 원래 통화를 유지합니다.",
+    "carrierProtocol": "측정 방식",
+    "carrierFamily": "IP 버전",
+    "carrierModesHint": "방식과 IP 버전별로 대상을 저장합니다. 비워 두면 NextTrace 베이징 통신 3사의 기본 대상을 사용합니다. TCP 80 포트는 응답하지 않을 수 있으며 ICMP에는 서버 권한이 필요합니다.",
+    "carriersICMPHint": "한 줄에 이름 호스트명 또는 IP를 입력합니다(포트 제외). 비워 두면 해당 IP 버전의 NextTrace 베이징 기본 대상을 사용하며 입력하면 전체 대상을 대체합니다."
   },
   "nodeProbe": {
     "title": "모니터링과 월간 트래픽",
@@ -1905,7 +1909,9 @@
       "io": "입출력 실패",
       "invalid": "잘못된 대상",
       "canceled": "취소됨",
-      "empty": "빈 응답"
+      "empty": "빈 응답",
+      "agent_upgrade_required": "선택한 측정을 사용하려면 서버 에이전트를 업그레이드하세요",
+      "waiting": "측정 대기 중"
     },
     "phases": {
       "dns_ms": "DNS",

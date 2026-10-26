@@ -1289,12 +1289,16 @@
     "taskNodes": "限定伺服器",
     "taskNodeCount": "{{count}} 個伺服器",
     "carriers": "延遲探測目標",
-    "carriersHint": "每行一個：名稱 位址:連接埠。留空用預設的電信/聯通/移動探測點（cloudcpp）；填了就整體取代。伺服器做 TCP 連線測延遲，連線被拒絕也算一次有效往返。",
+    "carriersHint": "每行一個：名稱 位址:連接埠。留空使用該 IP 版本的 NextTrace 北京三網預設目標；填寫後整體取代。",
     "collection": "收集監控資料",
     "pageEnabled": "啟用狀態頁",
     "pageEnabledHint": "關閉狀態頁後仍可繼續收集資料並傳送警報。",
     "financeCurrency": "費用彙總幣別",
-    "financeCurrencyHint": "首頁費用彙總按參考匯率換算為所選幣別；伺服器原價和詳情中的幣別保持不變。"
+    "financeCurrencyHint": "首頁費用彙總按參考匯率換算為所選幣別；伺服器原價和詳情中的幣別保持不變。",
+    "carrierProtocol": "探測方式",
+    "carrierFamily": "IP 版本",
+    "carrierModesHint": "不同探測方式與 IP 版本分別儲存目標。留空使用 NextTrace 北京電信、聯通和移動。TCP 80 連接埠可能不回應；ICMP 需要伺服器具備探測權限。",
+    "carriersICMPHint": "每行一個：名稱 網域或 IP（不含連接埠）。留空使用該 IP 版本的 NextTrace 北京三網預設目標；填寫後整體取代。"
   },
   "nodeProbe": {
     "title": "探針與月流量",
@@ -1905,7 +1909,9 @@
       "io": "讀寫失敗",
       "invalid": "目標無效",
       "canceled": "已取消",
-      "empty": "空回應"
+      "empty": "空回應",
+      "agent_upgrade_required": "升級伺服器端以啟用所選探測",
+      "waiting": "等待取樣"
     },
     "phases": {
       "dns_ms": "DNS 解析",

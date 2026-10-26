@@ -1,3 +1,5 @@
+import { matchesPing } from '../glass-shared/ping-selection'
+import { networkIdentity, networkLabel } from './lib/network'
 import { nodeBandwidth } from './lib/node-bandwidth'
 import { nodePrice } from './lib/node-price'
 import { cpuSpec } from './lib/cpu-spec'
@@ -6,7 +8,7 @@ import type { UseQueryResult } from '@tanstack/react-query'
 import { IconServer, IconArrowUp, IconArrowDown } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { useEffect, useState } from 'react'
-import { publicShows, bytes, flag, pct, rate, uptime, type Node, type Snapshot } from './lib/api'
+import { publicShows, bytes, flag, pct, rate, uptime, type Node, type Snapshot, type PublicPingTask } from './lib/api'
 import { Spark } from './components/Spark'
 import { StorageSummary } from './components/StorageSummary'
 import { NodeDetail } from './components/NodeDetail'
@@ -63,7 +65,7 @@ function NodeCard({ n, snapshot, onOpen }: { n: Node; snapshot: Snapshot; onOpen
   const mem = !h || h.valid?.memory === false ? null : pct(h.mem_used, h.mem_total)
   const tr = n.traffic
   const trafficPct = tr.limit > 0 ? Math.min(100, Math.round((tr.used / tr.limit) * 100)) : 0
-  const carriers = (h?.pings ?? []).filter((p) => p.task_id === 0)
+  const carriers: PublicPingTask[] = !show('latency') || !snapshot.carrier_ping ? [] : (n.ping_tasks ?? (h?.pings ?? []).map(p => ({ id: p.task_id, name: p.name, series: p.series, family: p.family, type: p.type }))).filter(p => p.id === 0)
   return (
     <Card className={`glass monitor-node ${snapshot.layout === 'compact' ? 'monitor-compact' : ''}`} withBorder={false} style={{ cursor: 'pointer', opacity: n.online ? 1 : 0.6 }} onClick={onOpen} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() } }}>
       <Group justify="space-between" wrap="nowrap">
@@ -87,7 +89,16 @@ function NodeCard({ n, snapshot, onOpen }: { n: Node; snapshot: Snapshot; onOpen
       {show('history') && show('network') && snapshot.layout !== 'compact' && <Spark values={n.recent.flatMap((r, i) => [...(i > 0 && r.t - n.recent[i - 1].t > snapshot.beat_seconds * 2 ? [null] : []), r.valid?.network === false ? null : r.down])} color="#f59e0b" height={28} />}
       {carriers.length > 0 && (
         <Group gap="sm" mt="xs">
-          {carriers.map((p) => <Tooltip key={p.name} label={`${p.name} ${t('page.loss')} ${p.loss?.toFixed(0) ?? 0}%`}><Text size="xs" c={p.latency_ms < 0 ? 'red' : p.latency_ms > 200 ? 'orange' : 'dimmed'}>{p.name} {p.latency_ms < 0 ? '×' : `${Math.round(p.latency_ms)}ms`}</Text></Tooltip>)}
+          {carriers.map(task => {
+            const p = task.state === 'unsupported' ? undefined : h?.pings?.find(p => matchesPing(p, task))
+            const label = networkLabel(task)
+            const stale = p?.at && snapshot.now - p.at > Math.max(60, (p.quality?.interval_seconds ?? 30) * 2)
+            const reason = task.reason || (stale ? 'stale' : p?.quality?.outcome)
+            const unavailable = !p || stale || p.quality?.outcome === 'permission'
+            const value = unavailable || !Number.isFinite(p.latency_ms) ? '—' : p.latency_ms < 0 ? '×' : `${Math.round(p.latency_ms)}ms`
+            const loss = !unavailable && p.loss != null ? `${p.loss.toFixed(0)}%` : '—'
+            return <Tooltip key={networkIdentity({ ...task, task_id: task.id })} label={`${label} ${t('page.loss')} ${loss}${reason ? ` · ${reason === 'stale' ? t('networkQuality.stale') : t(`networkQuality.outcomes.${reason}`)}` : ''}`}><Text size="xs" c={!p || stale ? 'dimmed' : p.latency_ms < 0 ? 'red' : p.latency_ms > 200 ? 'orange' : 'dimmed'}>{label} {value}</Text></Tooltip>
+          })}
         </Group>
       )}
       {show('traffic') && (tr.limit > 0 ? (

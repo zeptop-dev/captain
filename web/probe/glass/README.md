@@ -44,10 +44,17 @@ Captain adaptations:
   carrier rows. The list uses three compact pairs of twenty-segment bars with
   carrier dots and tooltips, fitting the upstream 64px row and its virtual-scroll
   spacing; card-sized panels must not be placed in the narrow uptime cell.
-  Missing samples leave the corresponding row empty.
+  Dual-stack probes add labeled v4/v6 values and history bars to each carrier;
+  single-stack cards retain one value and bar. Both families keep the same one-hour
+  averaging window. The compact list still fits the upstream 64px row.
+  Missing samples leave only that family empty; unsupported agents and ICMP
+  permission failures show an unavailable value with a reason.
   Otherwise the first enabled, node-assigned task by ID supplies both bars.
-  `ping_tasks` in the public node snapshot contains only IDs and labels, never
-  destinations. Selection never jumps to another task because samples are absent.
+  `ping_tasks` in the public node snapshot contains IDs, labels, protocol, IP family
+  and opaque configuration identities, never destinations. Histories match the
+  exact task ID, name and series identity; changing a target or protocol cannot
+  blend old samples into the new result. Selection never jumps to another task
+  or IP family because samples are absent.
   Custom non-carrier labels are not presented as Chinese operators.
 - CPU/resource validity, monthly monitoring traffic, section visibility and
   unavailable financial data follow Captain semantics. An unknown price does

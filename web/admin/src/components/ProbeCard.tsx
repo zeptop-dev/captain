@@ -10,9 +10,11 @@ import { api, type Node } from '../lib/api'
 import { ProbeAppearanceFields } from './ProbeAppearanceFields'
 import { toast } from '../lib/notify'
 import { currencyOptions } from '../lib/currency-options'
+import { carrierProbeDraft, carrierProbePayload, carrierTargetPlaceholder, type CarrierProbe, type CarrierTargetTexts, type CarrierFamily } from '../lib/carrier-probe'
 
 interface ProbeSettings {
   appearance?: { preset: string; scheme: string }
+  carrier_probe?: CarrierProbe
   finance_currency?: string
   enabled: boolean; page_enabled?: boolean; public_sections?: string[]; layout?: string; beat_seconds: number; carrier_ping: boolean; carriers?: { name: string; addr: string }[]; path: string; hosts: string[]; visibility: string; title: string; logo: string; show_globe: boolean; show_ip: boolean
   alerts: { offline_seconds: number; cpu_pct: number; mem_pct: number; disk_pct: number; window_minutes: number; traffic: boolean }
@@ -25,10 +27,9 @@ export function ProbeCard() {
   const { t, i18n } = useTranslation()
   const qc = useQueryClient()
   const q = useQuery({ queryKey: ['probe-settings'], queryFn: () => api.get<ProbeSettings>('/api/admin/settings/probe') })
-  const form = useForm<ProbeSettings & { hostsText: string; carriersText: string }>({ initialValues: { finance_currency: 'CNY', appearance: { preset: 'inherit', scheme: 'inherit' }, enabled: false, page_enabled: true, public_sections: ['cpu', 'memory', 'disk', 'network', 'system', 'info', 'traffic', 'latency', 'history', 'availability'], layout: 'grid', beat_seconds: 10, carrier_ping: true, carriersText: '', path: '/status', hosts: [], hostsText: '', visibility: 'public', title: '', logo: '', show_globe: false, show_ip: false, alerts: { offline_seconds: 180, cpu_pct: 0, mem_pct: 0, disk_pct: 0, window_minutes: 5, traffic: true } } })
-  useEffect(() => { if (q.data) form.hydrate({ ...q.data, finance_currency: q.data.finance_currency ?? 'CNY', appearance: q.data.appearance ?? { preset: 'inherit', scheme: 'inherit' }, public_sections: q.data.public_sections ?? ['cpu', 'memory', 'disk', 'network', 'system', 'info', 'traffic', 'latency', 'history', 'availability'], layout: q.data.layout || 'grid', page_enabled: q.data.page_enabled ?? true, hostsText: (q.data.hosts ?? []).join(', '), carriersText: (q.data.carriers ?? []).map((c) => `${c.name} ${c.addr}`).join('\n') }) }, [q.data]) // eslint-disable-line react-hooks/exhaustive-deps
-  const parseCarriers = (text: string) => text.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => { const [name, ...rest] = l.split(/[\s,=]+/); return { name, addr: rest.join('') } })
-  const save = useMutation({ mutationFn: (v: ProbeSettings & { hostsText: string; carriersText: string }) => api.put('/api/admin/settings/probe', { ...v, hosts: v.hostsText.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean), carriers: parseCarriers(v.carriersText) }), onSuccess: () => { form.resetDirty(); toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['probe-settings'] }) }, onError: toast.err })
+  const form = useForm<ProbeSettings & { hostsText: string; carrier_probe: CarrierProbe; carrierTargetsText: CarrierTargetTexts }>({ initialValues: { finance_currency: 'CNY', appearance: { preset: 'inherit', scheme: 'inherit' }, enabled: false, page_enabled: true, public_sections: ['cpu', 'memory', 'disk', 'network', 'system', 'info', 'traffic', 'latency', 'history', 'availability'], layout: 'grid', beat_seconds: 10, carrier_ping: true, carrier_probe: carrierProbeDraft().probe, carrierTargetsText: carrierProbeDraft().texts, path: '/status', hosts: [], hostsText: '', visibility: 'public', title: '', logo: '', show_globe: false, show_ip: false, alerts: { offline_seconds: 180, cpu_pct: 0, mem_pct: 0, disk_pct: 0, window_minutes: 5, traffic: true } } })
+  useEffect(() => { if (q.data) form.hydrate({ ...q.data, finance_currency: q.data.finance_currency ?? 'CNY', appearance: q.data.appearance ?? { preset: 'inherit', scheme: 'inherit' }, public_sections: q.data.public_sections ?? ['cpu', 'memory', 'disk', 'network', 'system', 'info', 'traffic', 'latency', 'history', 'availability'], layout: q.data.layout || 'grid', page_enabled: q.data.page_enabled ?? true, hostsText: (q.data.hosts ?? []).join(', '), carrier_probe: carrierProbeDraft(q.data.carrier_probe, q.data.carriers).probe, carrierTargetsText: carrierProbeDraft(q.data.carrier_probe, q.data.carriers).texts }) }, [q.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  const save = useMutation({ mutationFn: (v: typeof form.values) => { const { hostsText, carrierTargetsText, ...settings } = v; const carrier_probe = carrierProbePayload(v.carrier_probe, carrierTargetsText); return api.put('/api/admin/settings/probe', { ...settings, hosts: hostsText.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean), carrier_probe, carriers: carrier_probe.tcp_ipv4 }) }, onSuccess: () => { form.resetDirty(); toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['probe-settings'] }) }, onError: toast.err })
   const v = form.values
   const origin = window.location.origin
   if (q.data === undefined) return <SettingsLoadState query={q} />
@@ -43,7 +44,16 @@ export function ProbeCard() {
           <Switch label={t('probe.carrier')} {...form.getInputProps('carrier_ping', { type: 'checkbox' })} />
         </SettingsFields>
         <Switch label={t('probe.pageEnabled')} description={t('probe.pageEnabledHint')} {...form.getInputProps('page_enabled', { type: 'checkbox' })} />
-        {v.carrier_ping && <Textarea label={t('probe.carriers')} description={t('probe.carriersHint')} autosize minRows={2} placeholder={'CT ct.tz.cloudcpp.com:80\nCU cu.tz.cloudcpp.com:80\nCM cm.tz.cloudcpp.com:80'} styles={{ input: { fontFamily: 'monospace', fontSize: 12 } }} {...form.getInputProps('carriersText')} />}
+        {v.carrier_ping && <Stack gap="xs">
+          <SettingsFields>
+            <Select label={t('probe.carrierProtocol')} data={['tcp', 'icmp'].map(value => ({ value, label: value.toUpperCase() }))} allowDeselect={false} {...form.getInputProps('carrier_probe.protocol')} />
+            <Select label={t('probe.carrierFamily')} data={[{ value: 'ipv4', label: 'IPv4' }, { value: 'ipv6', label: 'IPv6' }, { value: 'dual', label: 'IPv4 + IPv6' }]} allowDeselect={false} {...form.getInputProps('carrier_probe.family')} />
+          </SettingsFields>
+          <Text size="xs" c="dimmed">{t('probe.carrierModesHint')}</Text>
+          <SettingsFields>
+            {(['ipv4', 'ipv6'] as CarrierFamily[]).filter(family => v.carrier_probe.family === 'dual' || v.carrier_probe.family === family).map(family => <Textarea key={`${v.carrier_probe.protocol}_${family}`} label={`${t('probe.carriers')} · ${family === 'ipv4' ? 'IPv4' : 'IPv6'}`} description={t(v.carrier_probe.protocol === 'icmp' ? 'probe.carriersICMPHint' : 'probe.carriersHint')} autosize minRows={3} placeholder={carrierTargetPlaceholder(v.carrier_probe.protocol, family)} styles={{ input: { fontFamily: 'monospace', fontSize: 12 } }} {...form.getInputProps(`carrierTargetsText.${v.carrier_probe.protocol}_${family}`)} />)}
+          </SettingsFields>
+        </Stack>}
         <SettingsFields>
           <TextInput label={t('probe.path')} description={t('probe.pathHint')} placeholder="/status" {...form.getInputProps('path')} />
           <TextInput label={t('probe.hosts')} description={t('probe.hostsHint')} placeholder="status.example.com, probes.example.com" {...form.getInputProps('hostsText')} />
