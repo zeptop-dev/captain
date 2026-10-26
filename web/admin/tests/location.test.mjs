@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { locationDraft, locationDraftError, locationSettings } from '../src/lib/location.ts'
+import { nodeLocationDraft, locationDraft, locationDraftError, locationSettings } from '../src/lib/location.ts'
 
 test('legacy location settings inherit and do not invent coordinates', () => {
   const draft = locationDraft()
@@ -46,4 +46,16 @@ test('switching auto/off retains a complete manual correction including zero coo
   }
   draft.city = 'Changed'
   assert.equal(saved.manual.city, 'Example City')
+})
+
+
+test('saving an older server preserves an explicit map opt-out without changing entry inheritance', () => {
+  for (const missing of [undefined, null]) {
+    assert.deepEqual(locationSettings(nodeLocationDraft(missing, 'off')), { mode: 'off' })
+    assert.deepEqual(locationSettings(nodeLocationDraft(missing, 'auto')), { mode: 'auto' })
+    assert.deepEqual(locationSettings(nodeLocationDraft(missing, 'manual')), { mode: 'auto' })
+    assert.deepEqual(locationSettings(locationDraft(missing)), { mode: 'auto' })
+  }
+  assert.equal(nodeLocationDraft({ mode: 'auto' }, 'off').mode, 'auto')
+  assert.equal(nodeLocationDraft({ mode: 'off' }, 'auto').mode, 'off')
 })

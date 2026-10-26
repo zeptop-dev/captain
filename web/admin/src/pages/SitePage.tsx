@@ -42,7 +42,15 @@ export default function SitePage() {
       hub: v.hub.trim() ? JSON.parse(v.hub) : null, locations: JSON.parse(v.locations), features: JSON.parse(v.features), faq: JSON.parse(v.faq),
       theme: { primary: v.primary, radius: v.radius, scheme: v.scheme, site_scheme: v.site_scheme, font_family: v.font_family, portal_title: v.portal_title }, inject_head: v.inject_head, inject_body: v.inject_body,
     }),
-    onSuccess: (result, submitted) => { const saved = { ...submitted, map_revision: result.map_revision ?? submitted.map_revision }; form.setValues(saved); form.resetDirty(saved); setMapConflict(false); toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['site-settings'] }); qc.invalidateQueries({ queryKey: publicBrandQueryKey }) }, onError: error => { if (error instanceof ApiError && error.status === 409) setMapConflict(true); else toast.err(error) },
+    onSuccess: (result, submitted) => {
+      const revision = result.map_revision ?? submitted.map_revision
+      // A slow save must not replace edits made after the submitted snapshot.
+      // Keep those values dirty so the follow-up GET cannot hydrate over them.
+      form.setValues({ ...form.getValues(), map_revision: revision })
+      form.resetDirty({ ...submitted, map_revision: revision })
+      setMapConflict(false); toast.ok(t('common.saved'))
+      qc.invalidateQueries({ queryKey: ['site-settings'] }); qc.invalidateQueries({ queryKey: publicBrandQueryKey })
+    }, onError: error => { if (error instanceof ApiError && error.status === 409) setMapConflict(true); else toast.err(error) },
   })
   const reload = () => modals.openConfirmModal({ title: t('workspace.unsaved'), children: <Text size="sm">{t('mapLocation.siteConflictHint')}</Text>, labels: { confirm: t('serviceStatus.discardReload'), cancel: t('workspace.stay') }, onConfirm: async () => { const result = await q.refetch(); if (!result.isError && result.data) { const fresh = siteValues(result.data); form.setValues(fresh); form.resetDirty(fresh); setMapConflict(false); entries.refetch() } } })
   if (!q.data) return <SettingsLoadState query={q} />

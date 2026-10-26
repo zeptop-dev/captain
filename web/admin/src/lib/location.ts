@@ -24,6 +24,11 @@ export function locationDraft(settings?: LocationSettings | null): LocationDraft
   }
 }
 
+// Older servers have no separate map mode. Preserve their explicit region opt-out.
+export function nodeLocationDraft(settings: LocationSettings | null | undefined, regionMode: string): LocationDraft {
+  return locationDraft(settings ?? { mode: regionMode === 'off' ? 'off' : 'auto' })
+}
+
 export function manualLocationError(draft: LocationDraft): 'countryRequired' | 'cityCoordinatesRequired' | 'invalidCoordinates' | null {
   if (!/^[A-Z]{2}$/.test(draft.country.trim().toUpperCase())) return 'countryRequired'
   const hasLat = draft.lat !== '', hasLng = draft.lng !== ''
