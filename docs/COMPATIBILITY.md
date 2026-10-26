@@ -20,9 +20,12 @@ a new series; public charts never reinterpret old samples as the new target.
 Settings omission/null preserves the new object, including hidden target drafts.
 See [monitoring](MONITORING.md) for legacy hostname handling and TCP/ICMP limits.
 
-This branch is tested against its companion bosun worktree. Integration must
-publish the shared bosun change and update the formal module dependency before
-releasing Captain; no development `replace` belongs in a release.
+Until the next bosun release, Captain pins the published bosun commit
+`b67ba2f17c7f` through the Go module pseudo-version
+`v0.81.1-0.20261026035339-b67ba2f17c7f`. This makes the merged source buildable
+with `GOWORK=off`; no local `replace` is required. This is a source dependency,
+not an agent release. Before releasing Captain, publish bosun and move the
+dependency to that stable version, recording the minimum agent version here.
 
 ## Customer service status (Captain 1.41 / bosun 0.81)
 
