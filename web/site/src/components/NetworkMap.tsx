@@ -17,11 +17,12 @@ export function NetworkMap({ locations, hub }: { locations: Location[]; hub: Loc
     return [-1070, 0, 1070].map((shift) => `M${x1 + shift},${y1} Q${(x1 + wrappedX) / 2 + shift},${Math.min(y1, y2) - lift} ${wrappedX + shift},${y2}`)
   }).flat() : []
   return <div className={styles.map} data-paused={paused}>
-    <svg viewBox="0 0 1150 320" role="img" aria-labelledby={`${id}-title ${id}-description`}>
+    <div className={styles.viewport} tabIndex={0} role="region" aria-label="网络地理位置，可横向滚动查看完整地图">
+    <svg viewBox="0 0 1150 590" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby={`${id}-title ${id}-description`}>
       <title id={`${id}-title`}>网络地理位置</title>
       <desc id={`${id}-description`}>{displayPoints.length ? `已配置位置：${displayPoints.map((point) => point.name).join('、')}。` : '尚无已配置位置。'}标记与连线只表示地理布局，不表示节点健康或实际流量。</desc>
-      <defs><pattern id={`${id}-grid`} width="46" height="40" patternUnits="userSpaceOnUse"><path d="M46 0H0V40" fill="none" stroke="var(--map-grid)" strokeOpacity=".035" strokeWidth=".6" /></pattern><clipPath id={`${id}-clip`}><rect x="40" y="12" width="1070" height="290" /></clipPath></defs>
-      <rect width="1150" height="320" fill={`url(#${id}-grid)`} />
+      <defs><pattern id={`${id}-grid`} width="46" height="46" patternUnits="userSpaceOnUse"><path d="M46 0H0V46" fill="none" stroke="var(--map-grid)" strokeOpacity=".035" strokeWidth=".6" /></pattern><clipPath id={`${id}-clip`}><rect x="40" y="12" width="1070" height="566" /></clipPath></defs>
+      <rect width="1150" height="590" fill={`url(#${id}-grid)`} />
       <g clipPath={`url(#${id}-clip)`}><path d={flatLandPath} fill="var(--map-land)" fillOpacity=".67" stroke="var(--map-outline)" strokeOpacity=".08" strokeWidth=".6" fillRule="evenodd" />
         <g fill="none" stroke="var(--map-accent)" strokeWidth=".9" strokeOpacity=".45" strokeDasharray="2 5">{arcs.map((arc, index) => <path key={index} d={arc} className={styles.arc} />)}</g>
         {displayPoints.map((point, index) => {
@@ -33,7 +34,9 @@ export function NetworkMap({ locations, hub }: { locations: Location[]; hub: Loc
         })}
       </g>
     </svg>
+    </div>
     <span className={styles.legend}><i aria-hidden="true" /> 地理位置示意</span>
+    <span className={styles.scrollHint}>左右滑动查看全图</span>
     <button type="button" className={styles.control} onClick={() => setPaused((value) => !value)} aria-pressed={paused}>{paused ? '播放动画 ▷' : '暂停动画 Ⅱ'}</button>
   </div>
 }

@@ -49,7 +49,10 @@ export function validLocations(locations: Location[]): Location[] {
 }
 
 export function projectFlat(longitude: number, latitude: number): Coordinate {
-  return [40 + (longitude + 180) * 1070 / 360, 22 + (84 - latitude) * 276 / 146]
+  // Use one scale on both axes: shortening latitude to fit a banner distorts
+  // the map. The viewport handles layout without changing geographic shapes.
+  const scale = 1070 / 360
+  return [40 + (longitude + 180) * scale, 28 + (90 - latitude) * scale]
 }
 
 export const flatLandPath = [-360, 0, 360].map((shift) => polygons.map((polygon) => polygon.map((ring) => {

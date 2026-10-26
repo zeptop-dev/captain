@@ -125,7 +125,7 @@ export default function HomePage({ site: s }: { site: Site }) {
       </div>
     </section>}
 
-    <section className={`${styles.section} ${styles.backbone}`} aria-labelledby="connection-heading">
+    <section className={styles.section} aria-labelledby="connection-heading">
       <div className="site-container">
         <SectionLabel number="03" label="CONNECTION / 连接流程" />
         <h2 id="connection-heading">从订阅，到每一次连接</h2>

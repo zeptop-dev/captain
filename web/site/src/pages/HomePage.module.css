@@ -1,4 +1,4 @@
-.page { color: var(--site-text); overflow-wrap: anywhere; }
+.page { background: var(--site-bg); color: var(--site-text); overflow-wrap: anywhere; }
 .page p { color: var(--site-muted); font-size: 15px; line-height: 1.9; margin: 0; }
 .page h2 { font-size: clamp(30px, 3.7vw, 44px); line-height: 1.35; letter-spacing: -.035em; font-weight: 500; margin: 0; }
 .page h3 { font-size: 18px; line-height: 1.6; font-weight: 500; margin: 0; }
@@ -17,7 +17,7 @@
 .secondaryAction { background: transparent; border: 1px solid var(--site-line); color: var(--site-text); }
 .secondaryAction:hover { border-color: var(--site-muted); background: var(--site-panel); }
 .primaryAction svg, .secondaryAction svg { flex-shrink: 0; }
-.map { height: 320px; border: 1px solid var(--site-line); border-radius: 4px; overflow: hidden; scroll-margin-top: 100px; }
+.map { height: clamp(280px, 43.5vw, 500px); border: 1px solid var(--site-line); border-radius: 4px; overflow: hidden; scroll-margin-top: 100px; }
 .map > * { width: 100%; height: 100%; }
 .coverageNote { display: flex; justify-content: space-between; gap: 24px; margin-block: 14px 44px; }
 .coverageNote > span { flex-shrink: 0; font-family: var(--site-mono); font-size: 9px; letter-spacing: .1em; line-height: 1.8; color: var(--site-muted); }
@@ -31,7 +31,7 @@
 .shortcuts p { margin-top: 4px; font-size: 12px; }
 .shortcuts svg { margin-left: auto; margin-top: 3px; flex-shrink: 0; color: var(--site-muted); }
 .shortcuts a:hover h2, .shortcuts a:hover svg { color: var(--site-accent); }
-.section { padding-block: 88px; border-bottom: 1px solid var(--site-line); scroll-margin-top: 78px; }
+.section { padding-block: 88px; background: var(--site-bg); border-bottom: 1px solid var(--site-line); scroll-margin-top: 78px; }
 .sectionLabel { display: flex; gap: 21px; align-items: center; font-family: var(--site-mono); font-size: 10px; letter-spacing: .08em; color: var(--site-muted); margin-bottom: 23px; }
 .sectionLabel span:first-child { color: var(--site-accent); font-size: 11px; }
 .platformGrid { display: grid; grid-template-columns: .85fr 1.1fr; gap: 66px; align-items: center; margin-top: 42px; }
@@ -56,7 +56,6 @@
 .figureFooter { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--site-line); font: 8px var(--site-mono); letter-spacing: .1em; color: var(--site-muted); text-align: center; }
 .figureFooter > span { padding-block: 14px; }
 .figureFooter > span + span { border-left: 1px solid var(--site-line); }
-.highlight { background: color-mix(in srgb, var(--site-accent) 4%, var(--site-bg)); }
 .highlightGrid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 100px; align-items: center; }
 .highlight h2 { max-width: 560px; }
 .highlight p { margin-top: 24px; white-space: pre-line; }
@@ -67,7 +66,6 @@
 .orbitInner::after { top: 138px; left: auto; right: 11px; width: 4px; height: 4px; }
 .featureSymbol { width: 116px; height: 116px; display: grid; place-items: center; color: var(--site-accent); border: 1px solid color-mix(in srgb, var(--site-accent) 28%, transparent); border-radius: 22px; background: color-mix(in srgb, var(--site-accent) 3%, var(--site-bg)); }
 .featureCaption { position: absolute; bottom: 0; font: 9px var(--site-mono); letter-spacing: .14em; color: var(--site-muted); }
-.backbone { background: var(--site-panel); color: var(--site-text); }
 .connectionGrid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 95px; align-items: center; margin-top: 43px; }
 .steps > div { display: flex; align-items: flex-start; gap: 25px; border-top: 1px solid var(--site-line); padding-block: 20px; }
 .steps > div > span { font: 10px var(--site-mono); padding-top: 7px; color: var(--site-muted); }
@@ -77,7 +75,6 @@
 .connectionFigure text { fill: var(--site-muted); font-size: 10px; font-family: inherit; }
 .connectionCenter { fill: color-mix(in srgb, var(--site-accent) 10%, var(--site-panel)); stroke: color-mix(in srgb, var(--site-accent) 45%, var(--site-panel)); }
 .connectionFigure p { text-align: center; font-size: 10px; margin-top: 16px; }
-.signal { background: color-mix(in srgb, var(--site-panel) 55%, var(--site-bg)); }
 .signalGrid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 95px; align-items: center; }
 .signal h2 + p { margin-top: 23px; }
 .signalLinks > a { display: flex; gap: 23px; align-items: center; border-top: 1px solid var(--site-line); padding-block: 25px; }
@@ -133,7 +130,7 @@
   .hero h1 { font-size: clamp(42px, 9.5vw, 60px); }
   .heroAside > p { font-size: 16px; }
   .actions { margin-top: 22px; }
-  .map { height: 190px; }
+  .map { height: 300px; }
   .coverageNote { display: block; margin-bottom: 29px; }
   .coverageNote p { text-align: left; margin-top: 4px; }
   .shortcuts { grid-template-columns: 1fr; }
