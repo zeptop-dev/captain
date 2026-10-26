@@ -1,5 +1,5 @@
 import { locateGeo, validCoordinates } from '../../../shared/geolocation.ts'
-import type { Location, LocatedPoint } from './site'
+import type { Location, LocatedPoint, Site } from './site'
 import type { StatusEntry } from './service-status'
 
 export function mapLocations(locations: readonly Location[]): LocatedPoint[] {
@@ -20,4 +20,12 @@ export function statusMapLocations(entries: readonly StatusEntry[]): LocatedPoin
     return location ? [{ ...location, name: entry.name }] : []
   })
   return points.filter((point, index, all) => all.findIndex(other => other.lat === point.lat && other.lng === point.lng && other.name === point.name) === index)
+}
+
+/** New explicit empty/null status settings must not revive homepage entries. */
+export function manualStatusMap(site?: Pick<Site, 'locations' | 'hub' | 'status_locations' | 'status_hub'>): { locations: Location[]; hub: Location | null } {
+  return {
+    locations: site?.status_locations !== undefined ? site.status_locations ?? [] : site?.locations ?? [],
+    hub: site?.status_hub !== undefined ? site.status_hub : site?.hub ?? null,
+  }
 }

@@ -13,7 +13,7 @@ export interface Site {
   stats: { nodes: number; online: number; users: number; locations: number }
   map_source?: 'manual' | 'entries'
   status_map_source?: 'manual' | 'entries'
-  status_locations?: Location[]
+  status_locations?: Location[] | null
   status_hub?: Location | null
   branding?: Branding
   theme?: SiteTheme

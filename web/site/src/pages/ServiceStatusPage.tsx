@@ -4,12 +4,11 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NodeGlobe } from '../components/Globe'
 import { SiteLayout } from '../components/SiteLayout'
-import { statusMapLocations } from '../lib/map-locations'
-import type { Location, Site } from '../lib/site'
+import { manualStatusMap, statusMapLocations } from '../lib/map-locations'
+import type { Site } from '../lib/site'
 import { StatusRequestError, currentEntries, fetchServiceStatus, headlineKey, snapshotExpired, statusCategories, statusEvidence, statusStates, summarize, type StatusState } from '../lib/service-status'
 import classes from './ServiceStatusPage.module.css'
 
-const noLocations: Location[] = []
 const colors: Record<StatusState, string> = { healthy: 'var(--status-healthy, #67c7a1)', degraded: 'var(--status-degraded, #fbbf24)', down: 'var(--status-down, #f16f70)', maintenance: 'var(--status-maintenance, #fbbf24)', unknown: 'var(--status-unknown, #858b90)' }
 
 export default function ServiceStatusPage({ site }: { site?: Site }) {
@@ -57,7 +56,8 @@ export default function ServiceStatusPage({ site }: { site?: Site }) {
   const activeCategory = options.some(option => option.value === category) ? category : options[0]?.value ?? 'all'
   const visibleEntries = activeCategory === 'all' ? entries : entries.filter(entry => String(entry.category?.id ?? 0) === activeCategory)
   const entryMap = site?.status_map_source === 'entries'
-  const mapLocations = entryMap ? statusMapLocations(visibleEntries) : site?.status_locations ?? site?.locations ?? noLocations
+  const manualMap = manualStatusMap(site)
+  const mapLocations = entryMap ? statusMapLocations(visibleEntries) : manualMap.locations
   const description = options.find(option => option.value === activeCategory)?.description
   const colorStyle = (state: StatusState) => ({ '--status-color': colors[state] } as CSSProperties)
   const time = (timestamp: number | null) => {
@@ -85,7 +85,7 @@ export default function ServiceStatusPage({ site }: { site?: Site }) {
           <p className={classes.updated}>{data ? <>{t('serviceStatus.updated', { time: time(data.generated_at) })}<span className={classes.separator}>·</span>{t('serviceStatus.autoRefresh', { seconds: number.format(60) })}</> : t(unavailable ? 'serviceStatus.waitingRefresh' : 'serviceStatus.connecting')}</p>
         </div>
         <div className={classes.globe}>
-          <NodeGlobe locations={mapLocations} hub={entryMap ? null : site?.status_hub !== undefined ? site.status_hub : site?.hub ?? null} variant="status" />
+          <NodeGlobe locations={mapLocations} hub={entryMap ? null : manualMap.hub} variant="status" />
         </div>
       </div>
     </section>

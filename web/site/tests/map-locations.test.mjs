@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { mapLocations, statusMapLocations } from '../src/lib/map-locations.ts'
+import { manualStatusMap, mapLocations, statusMapLocations } from '../src/lib/map-locations.ts'
 
 const west = {country:'US',city:'Los Angeles',lat:34.05,lng:-118.24,precision:'city'}
 const east = {country:'US',city:'New York',lat:40.71,lng:-74,precision:'city'}
@@ -31,4 +31,12 @@ test('status maps use only visible entries and their exit locations, never the f
   assert.deepEqual(points.map(point => [point.name,point.lat,point.lng]), [['Front to west',34.05,-118.24],['East',40.71,-74]])
   assert.deepEqual(statusMapLocations(entries.slice(1,2)).map(point => point.city), ['New York'])
   assert.deepEqual(statusMapLocations([]), [])
+})
+
+test('explicit empty status map settings never revive homepage entry locations', () => {
+  const locations = [{name:'Homepage entry',...west}], hub = {name:'Old hub',lat:10,lng:20}
+  assert.deepEqual(manualStatusMap({locations,hub}), {locations,hub})
+  assert.deepEqual(manualStatusMap({locations,hub,status_locations:[],status_hub:null}), {locations:[],hub:null})
+  assert.deepEqual(manualStatusMap({locations,hub,status_locations:null,status_hub:null}), {locations:[],hub:null})
+  assert.deepEqual(manualStatusMap(), {locations:[],hub:null})
 })
