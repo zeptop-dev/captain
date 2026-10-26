@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError } from '../lib/api'
+import { usePublicBrand } from '../lib/branding'
 import { useAuth } from '../lib/auth'
 import { Brand } from '../components/AppLayout'
 import { loginWithPasskey, passkeysAvailable } from '../lib/passkeys'
@@ -13,6 +14,7 @@ export default function LoginPage() {
   const { t } = useTranslation()
   const nav = useNavigate()
   const { refresh } = useAuth()
+  const { data: site } = usePublicBrand()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [needCode, setNeedCode] = useState(false)
@@ -32,9 +34,9 @@ export default function LoginPage() {
       <Card w={400} p="xl">
         <form onSubmit={submit}>
           <Stack>
-            <Brand name="Captain" size="lg" />
+            <Brand size="lg" />
             <div>
-              <Title order={3}>{t('login.title')}</Title>
+              <Title order={3}>{t('login.title', { name: site?.name || 'Captain' })}</Title>
               <Text c="dimmed" size="sm">{t('login.subtitle')}</Text>
             </div>
             <TextInput label={t('login.email')} type="email" required autoFocus {...form.getInputProps('Email')} />

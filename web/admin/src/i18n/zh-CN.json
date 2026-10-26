@@ -116,7 +116,7 @@
     "infrastructure": "基础设施成本"
   },
   "login": {
-    "title": "登录 Captain",
+    "title": "登录 {{name}}",
     "subtitle": "管理控制台",
     "email": "邮箱",
     "password": "密码",
@@ -627,11 +627,10 @@
     "preparing": "正在提交升级请求并准备更新…"
   },
   "site": {
-    "title": "展示页",
+    "title": "品牌与展示页",
     "subtitle": "网站首页的文案、地球上的服务器位置和套餐展示。保存即生效。",
     "open": "打开首页",
     "copy": "文案",
-    "name": "站名",
     "tagline": "一句话标语",
     "description": "描述",
     "tos": "服务条款链接",
@@ -922,7 +921,6 @@
     "showGlobe": "显示地球",
     "pageTitle": "页面标题",
     "pageTitleHint": "默认站点名",
-    "logo": "Logo 地址",
     "alerts": "告警（走 Telegram / 邮件 / Webhook）",
     "offline": "离线宽限（秒）",
     "memPct": "内存 %",
@@ -3175,5 +3173,23 @@
       "client_chain": "客户端代理链"
     },
     "discardReload": "放弃草稿并重新载入"
+  },
+  "branding": {
+    "title": "品牌设置",
+    "hint": "首页、用户中心、服务状态页和管理后台共用。服务器探针可选择使用独立品牌。",
+    "name": "品牌名称",
+    "browserTitle": "浏览器标签标题",
+    "logoLight": "浅色背景 Logo",
+    "logoDark": "深色背景 Logo",
+    "favicon": "浏览器图标（favicon）",
+    "upload": "上传图片",
+    "clear": "清除",
+    "noImage": "默认",
+    "uploadHint": "支持 PNG、JPEG、WebP，不超过 2 MiB、2048 × 2048 像素。上传后保存设置才会生效。",
+    "fallbackHint": "只填一张 Logo 时，深浅外观共用；全部留空使用默认图标。浏览器图标建议使用正方形 PNG。",
+    "probeFollow": "跟随主站品牌",
+    "probeFollowHint": "使用主站的名称和图标。关闭后恢复独立设置，切换不会删除已填写的独立内容。",
+    "uploadTooLarge": "图片不能超过 2 MiB。",
+    "uploadFailed": "图片上传失败。"
   }
 }

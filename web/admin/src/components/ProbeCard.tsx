@@ -7,12 +7,14 @@ import { IconPlus, IconTrash } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, type Node } from '../lib/api'
+import { BrandAssetInput } from './BrandAssetInput'
 import { ProbeAppearanceFields } from './ProbeAppearanceFields'
 import { toast } from '../lib/notify'
 import { currencyOptions } from '../lib/currency-options'
 import { carrierProbeDraft, carrierProbePayload, carrierTargetPlaceholder, type CarrierProbe, type CarrierTargetTexts, type CarrierFamily } from '../lib/carrier-probe'
 
 interface ProbeSettings {
+  follow_site_branding?: boolean; logo_dark?: string; favicon?: string
   appearance?: { preset: string; scheme: string }
   carrier_probe?: CarrierProbe
   finance_currency?: string
@@ -27,8 +29,8 @@ export function ProbeCard() {
   const { t, i18n } = useTranslation()
   const qc = useQueryClient()
   const q = useQuery({ queryKey: ['probe-settings'], queryFn: () => api.get<ProbeSettings>('/api/admin/settings/probe') })
-  const form = useForm<ProbeSettings & { hostsText: string; carrier_probe: CarrierProbe; carrierTargetsText: CarrierTargetTexts }>({ initialValues: { finance_currency: 'CNY', appearance: { preset: 'inherit', scheme: 'inherit' }, enabled: false, page_enabled: true, public_sections: ['cpu', 'memory', 'disk', 'network', 'system', 'info', 'traffic', 'latency', 'history', 'availability'], layout: 'grid', beat_seconds: 10, carrier_ping: true, carrier_probe: carrierProbeDraft().probe, carrierTargetsText: carrierProbeDraft().texts, path: '/status', hosts: [], hostsText: '', visibility: 'public', title: '', logo: '', show_globe: false, show_ip: false, alerts: { offline_seconds: 180, cpu_pct: 0, mem_pct: 0, disk_pct: 0, window_minutes: 5, traffic: true } } })
-  useEffect(() => { if (q.data) form.hydrate({ ...q.data, finance_currency: q.data.finance_currency ?? 'CNY', appearance: q.data.appearance ?? { preset: 'inherit', scheme: 'inherit' }, public_sections: q.data.public_sections ?? ['cpu', 'memory', 'disk', 'network', 'system', 'info', 'traffic', 'latency', 'history', 'availability'], layout: q.data.layout || 'grid', page_enabled: q.data.page_enabled ?? true, hostsText: (q.data.hosts ?? []).join(', '), carrier_probe: carrierProbeDraft(q.data.carrier_probe, q.data.carriers).probe, carrierTargetsText: carrierProbeDraft(q.data.carrier_probe, q.data.carriers).texts }) }, [q.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  const form = useForm<ProbeSettings & { hostsText: string; carrier_probe: CarrierProbe; carrierTargetsText: CarrierTargetTexts }>({ initialValues: { follow_site_branding: false, logo_dark: '', favicon: '', finance_currency: 'CNY', appearance: { preset: 'inherit', scheme: 'inherit' }, enabled: false, page_enabled: true, public_sections: ['cpu', 'memory', 'disk', 'network', 'system', 'info', 'traffic', 'latency', 'history', 'availability'], layout: 'grid', beat_seconds: 10, carrier_ping: true, carrier_probe: carrierProbeDraft().probe, carrierTargetsText: carrierProbeDraft().texts, path: '/status', hosts: [], hostsText: '', visibility: 'public', title: '', logo: '', show_globe: false, show_ip: false, alerts: { offline_seconds: 180, cpu_pct: 0, mem_pct: 0, disk_pct: 0, window_minutes: 5, traffic: true } } })
+  useEffect(() => { if (q.data) form.hydrate({ ...q.data, follow_site_branding: q.data.follow_site_branding ?? false, logo_dark: q.data.logo_dark ?? '', favicon: q.data.favicon ?? '', finance_currency: q.data.finance_currency ?? 'CNY', appearance: q.data.appearance ?? { preset: 'inherit', scheme: 'inherit' }, public_sections: q.data.public_sections ?? ['cpu', 'memory', 'disk', 'network', 'system', 'info', 'traffic', 'latency', 'history', 'availability'], layout: q.data.layout || 'grid', page_enabled: q.data.page_enabled ?? true, hostsText: (q.data.hosts ?? []).join(', '), carrier_probe: carrierProbeDraft(q.data.carrier_probe, q.data.carriers).probe, carrierTargetsText: carrierProbeDraft(q.data.carrier_probe, q.data.carriers).texts }) }, [q.data]) // eslint-disable-line react-hooks/exhaustive-deps
   const save = useMutation({ mutationFn: (v: typeof form.values) => { const { hostsText, carrierTargetsText, ...settings } = v; const carrier_probe = carrierProbePayload(v.carrier_probe, carrierTargetsText); return api.put('/api/admin/settings/probe', { ...settings, hosts: hostsText.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean), carrier_probe, carriers: carrier_probe.tcp_ipv4 }) }, onSuccess: () => { form.resetDirty(); toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['probe-settings'] }) }, onError: toast.err })
   const v = form.values
   const origin = window.location.origin
@@ -64,10 +66,17 @@ export function ProbeCard() {
           <Switch label={t('probe.showIP')} {...form.getInputProps('show_ip', { type: 'checkbox' })} />
           <Switch label={t('probe.showGlobe')} {...form.getInputProps('show_globe', { type: 'checkbox' })} />
         </SettingsFields>
-        <SettingsFields>
+        <Switch label={t('branding.probeFollow')} description={t('branding.probeFollowHint')} {...form.getInputProps('follow_site_branding', { type: 'checkbox' })} />
+        {!v.follow_site_branding && <Stack gap="sm">
           <TextInput label={t('probe.pageTitle')} placeholder={t('probe.pageTitleHint')} {...form.getInputProps('title')} />
-          <TextInput label={t('probe.logo')} placeholder="https://…/logo.png" {...form.getInputProps('logo')} />
-        </SettingsFields>
+          <SettingsFields>
+            <BrandAssetInput label={t('branding.logoLight')} value={v.logo} onChange={value => form.setFieldValue('logo', value)} />
+            <BrandAssetInput label={t('branding.logoDark')} value={v.logo_dark ?? ''} onChange={value => form.setFieldValue('logo_dark', value)} dark />
+            <BrandAssetInput label={t('branding.favicon')} value={v.favicon ?? ''} onChange={value => form.setFieldValue('favicon', value)} />
+          </SettingsFields>
+          <Text size="xs" c="dimmed">{t('branding.uploadHint')}</Text>
+          <Text size="xs" c="dimmed">{t('branding.fallbackHint')}</Text>
+        </Stack>}
         <MultiSelect label={t('monitoring.publicSections')} description={t('monitoring.publicHint')} data={['cpu', 'memory', 'disk', 'network', 'system', 'info', 'traffic', 'latency', 'history', 'availability'].map((value) => ({ value, label: t(`monitoring.sections.${value}`) }))} {...form.getInputProps('public_sections')} />
         <SettingsFields>
           <Select label={t('monitoring.layout')} data={['grid', 'compact'].map((value) => ({ value, label: t(`monitoring.layouts.${value}`) }))} allowDeselect={false} {...form.getInputProps('layout')} />

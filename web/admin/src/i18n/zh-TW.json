@@ -116,7 +116,7 @@
     "infrastructure": "基礎設施成本"
   },
   "login": {
-    "title": "登入 Captain",
+    "title": "登入 {{name}}",
     "subtitle": "管理主控台",
     "email": "電子郵件",
     "password": "密碼",
@@ -627,11 +627,10 @@
     "preparing": "正在提交升級請求並準備更新…"
   },
   "site": {
-    "title": "展示頁",
+    "title": "品牌與展示頁",
     "subtitle": "網站首頁的文案、地球上的伺服器位置和方案展示。儲存即生效。",
     "open": "開啟首頁",
     "copy": "文案",
-    "name": "站名",
     "tagline": "一句話標語",
     "description": "描述",
     "tos": "服務條款連結",
@@ -1272,7 +1271,6 @@
     "showGlobe": "顯示地球",
     "pageTitle": "頁面標題",
     "pageTitleHint": "預設站點名稱",
-    "logo": "Logo 位址",
     "alerts": "告警（走 Telegram / 郵件 / Webhook）",
     "offline": "離線寬限（秒）",
     "memPct": "記憶體 %",
@@ -3175,5 +3173,23 @@
       "client_chain": "用戶端代理鏈"
     },
     "discardReload": "放棄草稿並重新載入"
+  },
+  "branding": {
+    "title": "品牌設定",
+    "hint": "首頁、使用者中心、服務狀態頁和管理後台共用。伺服器探針可選擇使用獨立品牌。",
+    "name": "品牌名稱",
+    "browserTitle": "瀏覽器分頁標題",
+    "logoLight": "淺色背景 Logo",
+    "logoDark": "深色背景 Logo",
+    "favicon": "瀏覽器圖示（favicon）",
+    "upload": "上傳圖片",
+    "clear": "清除",
+    "noImage": "預設",
+    "uploadHint": "支援 PNG、JPEG、WebP，不超過 2 MiB、2048 × 2048 像素。上傳後儲存設定才會生效。",
+    "fallbackHint": "只填一張 Logo 時，深淺外觀共用；全部留空使用預設圖示。瀏覽器圖示建議使用正方形 PNG。",
+    "probeFollow": "跟隨主站品牌",
+    "probeFollowHint": "使用主站的名稱和圖示。關閉後恢復獨立設定，切換不會刪除已填寫的獨立內容。",
+    "uploadTooLarge": "圖片不能超過 2 MiB。",
+    "uploadFailed": "圖片上傳失敗。"
   }
 }

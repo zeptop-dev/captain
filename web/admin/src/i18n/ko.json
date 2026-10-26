@@ -116,7 +116,7 @@
     "infrastructure": "인프라 비용"
   },
   "login": {
-    "title": "Captain 로그인",
+    "title": "{{name}} 로그인",
     "subtitle": "관리 콘솔",
     "email": "이메일",
     "password": "비밀번호",
@@ -627,11 +627,10 @@
     "preparing": "업그레이드를 요청하고 업데이트를 준비하는 중…"
   },
   "site": {
-    "title": "랜딩 페이지",
+    "title": "브랜드 및 홈페이지",
     "subtitle": "사이트 홈의 문구, 지구본 위 서버 위치, 요금제 표시. 저장하면 즉시 적용됩니다.",
     "open": "홈 열기",
     "copy": "문구",
-    "name": "사이트 이름",
     "tagline": "한 줄 슬로건",
     "description": "설명",
     "tos": "서비스 약관 링크",
@@ -1272,7 +1271,6 @@
     "showGlobe": "지구본 표시",
     "pageTitle": "페이지 제목",
     "pageTitleHint": "기본값은 사이트 이름",
-    "logo": "로고 URL",
     "alerts": "알림(Telegram / 메일 / Webhook)",
     "offline": "오프라인 유예(초)",
     "memPct": "메모리 %",
@@ -3175,5 +3173,23 @@
       "client_chain": "클라이언트 프록시 체인"
     },
     "discardReload": "초안 버리고 다시 불러오기"
+  },
+  "branding": {
+    "title": "브랜드 설정",
+    "hint": "홈페이지, 사용자 포털, 서비스 상태 페이지, 관리자 화면에서 공유합니다. 서버 모니터는 독립 브랜드를 사용할 수 있습니다.",
+    "name": "브랜드 이름",
+    "browserTitle": "브라우저 탭 제목",
+    "logoLight": "밝은 배경 로고",
+    "logoDark": "어두운 배경 로고",
+    "favicon": "브라우저 아이콘 (favicon)",
+    "upload": "이미지 업로드",
+    "clear": "지우기",
+    "noImage": "기본값",
+    "uploadHint": "PNG, JPEG, WebP 지원, 최대 2 MiB 및 2048 × 2048 픽셀. 업로드 후 설정을 저장해야 적용됩니다.",
+    "fallbackHint": "로고가 하나면 두 모드에서 함께 사용합니다. 모두 비우면 기본 아이콘을 사용합니다. 브라우저 아이콘에는 정사각형 PNG를 권장합니다.",
+    "probeFollow": "메인 사이트 브랜드 사용",
+    "probeFollowHint": "메인 사이트의 이름과 아이콘을 사용합니다. 끄면 독립 설정으로 돌아가며, 전환해도 독립 설정은 삭제되지 않습니다.",
+    "uploadTooLarge": "이미지는 2 MiB 이하여야 합니다.",
+    "uploadFailed": "이미지 업로드에 실패했습니다."
   }
 }

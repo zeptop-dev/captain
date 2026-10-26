@@ -80,6 +80,7 @@ export interface CertStatus { domain: string; method: string; not_after: string;
 export interface DoctorCheck { id: string; name: string; status: 'ok' | 'warn' | 'fail' | 'skip'; detail?: string }
 export interface DoctorReport { at: string; checks: DoctorCheck[]; summary: { ok: number; warn: number; fail: number; skip: number } }
 export interface SiteSettings {
+  branding?: { logo_light?: string; logo_dark?: string; favicon?: string; title?: string }
   name: string; tagline: string; description: string
   features: { title: string; text: string; icon?: string }[]
   locations: { name: string; lat: number; lng: number; tag?: string }[]

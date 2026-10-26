@@ -116,7 +116,7 @@
     "infrastructure": "Infrastructure costs"
   },
   "login": {
-    "title": "Sign in to Captain",
+    "title": "Sign in to {{name}}",
     "subtitle": "Admin console",
     "email": "Email",
     "password": "Password",
@@ -627,11 +627,10 @@
     "preparing": "Submitting the upgrade request and preparing the update…"
   },
   "site": {
-    "title": "Landing page",
+    "title": "Brand and homepage",
     "subtitle": "Copy for the home page, server locations on the globe and the plan section. Saves take effect at once.",
     "open": "Open the page",
     "copy": "Copy",
-    "name": "Site name",
     "tagline": "Tagline",
     "description": "Description",
     "tos": "Terms link",
@@ -922,7 +921,6 @@
     "showGlobe": "Show globe",
     "pageTitle": "Page title",
     "pageTitleHint": "Defaults to the site name",
-    "logo": "Logo URL",
     "alerts": "Alerts (Telegram / mail / webhook)",
     "offline": "Offline grace (s)",
     "memPct": "Memory %",
@@ -3175,5 +3173,23 @@
       "client_chain": "Client proxy chain"
     },
     "discardReload": "Discard and reload"
+  },
+  "branding": {
+    "title": "Brand settings",
+    "hint": "Shared by the homepage, customer portal, service-status page and admin console. The server probe can use its own branding.",
+    "name": "Brand name",
+    "browserTitle": "Browser tab title",
+    "logoLight": "Logo on light backgrounds",
+    "logoDark": "Logo on dark backgrounds",
+    "favicon": "Browser icon (favicon)",
+    "upload": "Upload image",
+    "clear": "Clear",
+    "noImage": "Default",
+    "uploadHint": "PNG, JPEG or WebP; up to 2 MiB and 2048 × 2048 pixels. Save settings to apply uploaded images.",
+    "fallbackHint": "A single logo is used in both appearances; leave both empty for the default icon. A square PNG works best as a browser icon.",
+    "probeFollow": "Follow main-site branding",
+    "probeFollowHint": "Use the main site’s name and icons. Turning this off restores the independent settings; switching does not delete them.",
+    "uploadTooLarge": "The image must be no larger than 2 MiB.",
+    "uploadFailed": "Image upload failed."
   }
 }

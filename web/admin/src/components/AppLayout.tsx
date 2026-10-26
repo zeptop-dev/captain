@@ -1,4 +1,7 @@
-import { ActionIcon, AppShell, Avatar, Badge, Box, Burger, Group, Indicator, Menu, NavLink, ScrollArea, Text, ThemeIcon, UnstyledButton, useMantineColorScheme } from '@mantine/core'
+import { ActionIcon, AppShell, Avatar, Badge, Box, Burger, Group, Indicator, Menu, NavLink, ScrollArea, Text, ThemeIcon, UnstyledButton, useMantineColorScheme, useComputedColorScheme } from '@mantine/core'
+import { useState } from 'react'
+import { brandLogo } from '../../../shared/branding'
+import { usePublicBrand } from '../lib/branding'
 import { useDisclosure } from '@mantine/hooks'
 import { IconLayoutDashboard, IconServer, IconUsers, IconSettings, IconLogout, IconLanguage, IconGauge, IconShip, IconSun, IconMoon, IconDotsVertical, IconChevronDown, IconLink, IconUsersGroup, IconReceipt, IconMessage, IconTemplate, IconAdjustments, IconFilter, IconWorld, IconBuilding, IconFileText, IconTag, IconBell, IconCertificate } from '@tabler/icons-react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
@@ -29,11 +32,16 @@ const icons = {
   '/settings/area/users': IconSettings, '/settings/area/nodes': IconCertificate, '/settings/service-status': IconGauge, '/settings/subscription': IconSettings, '/settings/clients': IconFileText, '/settings/area/monitoring': IconSettings, '/settings/area/business': IconSettings,
 }
 
-export function Brand({ name, size = 'md' }: { name: string; size?: 'md' | 'lg' }) {
+export function Brand({ size = 'md' }: { size?: 'md' | 'lg' }) {
+  const { data } = usePublicBrand()
+  const name = data?.name || 'Captain'
+  const scheme = useComputedColorScheme('light')
+  const src = brandLogo(data?.branding, scheme)
+  const [failed, setFailed] = useState('')
   return (
     <Group gap="xs" wrap="nowrap">
-      <ThemeIcon size={size === 'lg' ? 40 : 30} radius="md" variant="filled"><IconShip size={size === 'lg' ? 24 : 18} stroke={2} /></ThemeIcon>
-      <Text fw={700} size={size === 'lg' ? 'xl' : 'lg'} style={{ letterSpacing: '-0.01em' }}>{name}</Text>
+      {src && failed !== src ? <img src={src} alt="" onError={() => setFailed(src)} style={{ maxWidth: size === 'lg' ? 80 : 60, height: size === 'lg' ? 40 : 30, objectFit: 'contain', flexShrink: 0 }} /> : <ThemeIcon size={size === 'lg' ? 40 : 30} radius="md" variant="filled"><IconShip size={size === 'lg' ? 24 : 18} stroke={2} /></ThemeIcon>}
+      <Text fw={700} size={size === 'lg' ? 'xl' : 'lg'} style={{ letterSpacing: '-0.01em', overflowWrap: 'anywhere' }}>{name}</Text>
     </Group>
   )
 }
@@ -58,7 +66,7 @@ export function AppLayout() {
         <Group h="100%" px="md" justify="space-between" wrap="nowrap">
           <Group gap="sm" wrap="nowrap">
             <Burger aria-label={t('workspace.navigation')} opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
-            <UnstyledButton onClick={() => { nav('/'); close() }}><Brand name="Captain" /></UnstyledButton>
+            <UnstyledButton onClick={() => { nav('/'); close() }}><Brand /></UnstyledButton>
           </Group>
           <Group gap="xs" wrap="nowrap">
             {me?.version && (

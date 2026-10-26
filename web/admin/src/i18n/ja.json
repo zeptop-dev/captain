@@ -116,7 +116,7 @@
     "infrastructure": "インフラ費用"
   },
   "login": {
-    "title": "Captain にログイン",
+    "title": "{{name}} にログイン",
     "subtitle": "管理コンソール",
     "email": "メールアドレス",
     "password": "パスワード",
@@ -627,11 +627,10 @@
     "preparing": "更新を要求し、準備しています…"
   },
   "site": {
-    "title": "ランディングページ",
+    "title": "ブランドとホームページ",
     "subtitle": "サイトトップの文言、地球儀上のサーバー位置、プラン表示。保存すると即時反映されます。",
     "open": "トップページを開く",
     "copy": "文言",
-    "name": "サイト名",
     "tagline": "キャッチコピー",
     "description": "説明",
     "tos": "利用規約のリンク",
@@ -1272,7 +1271,6 @@
     "showGlobe": "地球儀を表示",
     "pageTitle": "ページタイトル",
     "pageTitleHint": "既定はサイト名",
-    "logo": "ロゴ URL",
     "alerts": "アラート（Telegram / メール / Webhook）",
     "offline": "オフライン猶予（秒）",
     "memPct": "メモリ %",
@@ -3175,5 +3173,23 @@
       "client_chain": "クライアントのプロキシチェーン"
     },
     "discardReload": "破棄して再読み込み"
+  },
+  "branding": {
+    "title": "ブランド設定",
+    "hint": "ホーム、ユーザーポータル、サービス状況、管理画面で共有します。サーバー監視ページには独自のブランドを設定できます。",
+    "name": "ブランド名",
+    "browserTitle": "ブラウザーのタブタイトル",
+    "logoLight": "ライト背景のロゴ",
+    "logoDark": "ダーク背景のロゴ",
+    "favicon": "ブラウザーアイコン（favicon）",
+    "upload": "画像をアップロード",
+    "clear": "クリア",
+    "noImage": "既定",
+    "uploadHint": "PNG、JPEG、WebP、最大 2 MiB、2048 × 2048 ピクセル。アップロード後に設定を保存すると反映されます。",
+    "fallbackHint": "ロゴが1枚の場合は両方の表示で使用します。両方空欄なら既定のアイコンを使用します。ブラウザーアイコンには正方形のPNGを推奨します。",
+    "probeFollow": "メインサイトのブランドを使用",
+    "probeFollowHint": "メインサイトの名前とアイコンを使用します。オフにすると独自の設定に戻ります。切り替えても独自の設定は消えません。",
+    "uploadTooLarge": "画像は 2 MiB 以下にしてください。",
+    "uploadFailed": "画像のアップロードに失敗しました。"
   }
 }
