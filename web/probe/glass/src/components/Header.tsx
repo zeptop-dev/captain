@@ -11,6 +11,7 @@ import { useVisitorAudit } from '@/hooks/useVisitorAudit'
 import { useRoute, useRouter } from '@/lib/router'
 import { appStore, useApp } from '@/stores/app'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
+import { probeLogo } from '../../../src/lib/branding'
 
 // VisitorInfo is not rendered: Captain sets visitorInfoEnabled to false and
 // the status page must not run the original theme's visitor IP lookup.
@@ -34,7 +35,7 @@ export default function Header() {
     sitename: s.publicSettings?.sitename,
   }))
 
-  const siteFavicon = snap?.logo || ''
+  const siteLogo = probeLogo(snap, st.isDark ? 'dark' : 'light')
 
   const themeTitleMap = {
     auto: st.managedThemeMode === 'beijing'
@@ -106,7 +107,7 @@ export default function Header() {
       <div className="px-4 flex-between h-14 max-w-[1280px] mx-auto">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => void router.push('/')}>
           <Avatar className="size-8">
-            <AvatarImage src={siteFavicon} alt={sitename} />
+            <AvatarImage src={siteLogo} alt={sitename} />
             <AvatarFallback>{sitename.slice(0, 1)}</AvatarFallback>
           </Avatar>
           <h3 className="m-0 text-lg font-semibold">

@@ -22,7 +22,7 @@ export interface Node {
   traffic: { used: number; used_up?: number; used_down?: number; limit: number; prev: number; mode: string; period_start: number; reset_day: number }
   recent: Sample[]
 }
-export interface Snapshot { finance_currency?: string; exchange_rates?: import('./node-cost').ExchangeRates; appearance_scheme?: string; appearance?: ProbeAppearance | null; public_sections?: string[] | null; layout?: string; title: string; logo: string; show_globe: boolean; beat_seconds: number; visibility: string; carrier_ping: boolean; now: number; nodes: Node[]; staff: boolean }
+export interface Snapshot { finance_currency?: string; exchange_rates?: import('./node-cost').ExchangeRates; appearance_scheme?: string; appearance?: ProbeAppearance | null; public_sections?: string[] | null; layout?: string; title: string; logo: string; logo_dark?: string; favicon?: string; page_title?: string; description?: string; show_globe: boolean; beat_seconds: number; visibility: string; carrier_ping: boolean; now: number; nodes: Node[]; staff: boolean }
 export interface StatPoint { valid?: Validity; ts: number; n: number; cpu: number; mem_used: number; mem_total: number; swap_used: number; disk_used: number; disk_total: number; net_up: number; net_down: number; load1: number; tcp: number; udp: number; procs: number }
 export interface PingPoint { task_id: number; name: string; group?: string; ts: number; n: number; lost: number; avg_ms: number }
 

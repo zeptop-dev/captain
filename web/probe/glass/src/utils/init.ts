@@ -3,10 +3,12 @@ import { nodesStore } from '@/stores/nodes'
 import { snapshot, readJSON, clientFor, statusFor, periodTraffic, shows, clearHistoryCache } from '@shared/captain'
 import type { Snapshot } from '@shared/captain'
 import type { PublicSettings } from '@shared/utils/api'
+import { applyProbeMetadata } from '../../../src/lib/branding'
 
 let timer: ReturnType<typeof setTimeout> | undefined
 let controller: AbortController | undefined
 let stopped = false
+let restoreMetadata: (() => void) | undefined
 const system = window.matchMedia('(prefers-color-scheme: dark)')
 
 async function refresh(): Promise<boolean> {
@@ -22,9 +24,10 @@ async function refresh(): Promise<boolean> {
     }
     snapshot.value = s
     const scheme = s.appearance_scheme ?? s.appearance?.scheme ?? 'dark'
-    document.title = s.title
+    restoreMetadata?.()
+    restoreMetadata = applyProbeMetadata(s)
     appStore.setPublicSettings({
-      sitename: s.title, description: '', allow_cors: false, custom_body: '', custom_head: '', disable_password_login: true, oauth_enable: false, oauth_provider: '', theme: 'glass', record_enabled: shows('history'), record_preserve_time: 720,
+      sitename: s.title, description: s.description || '', allow_cors: false, custom_body: '', custom_head: '', disable_password_login: true, oauth_enable: false, oauth_provider: '', theme: 'glass', record_enabled: shows('history'), record_preserve_time: 720,
       ping_record_preserve_time: shows('latency') && shows('history') ? 720 : 0,
       visitor_audit_enabled: false, private_site: false,
       theme_settings: {
@@ -66,4 +69,4 @@ async function refresh(): Promise<boolean> {
 function systemChanged() { if ((snapshot.value?.appearance_scheme ?? snapshot.value?.appearance?.scheme) === 'auto') void retryInitApp() }
 export async function initApp() { stopped = false; system.addEventListener('change', systemChanged); return refresh() }
 export async function retryInitApp() { clearTimeout(timer); return refresh() }
-export function destroyInitManager() { stopped = true; clearTimeout(timer); controller?.abort(); system.removeEventListener('change', systemChanged); clearHistoryCache() }
+export function destroyInitManager() { stopped = true; clearTimeout(timer); controller?.abort(); system.removeEventListener('change', systemChanged); clearHistoryCache(); restoreMetadata?.(); restoreMetadata = undefined }
