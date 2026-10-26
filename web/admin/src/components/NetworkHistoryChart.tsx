@@ -2,16 +2,16 @@ import { Alert, Group, Select, Stack, Text } from '@mantine/core'
 import { LineChart } from '@mantine/charts'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { NetworkHistory, NetworkPoint } from '../lib/network'
+import { networkIdentity, networkLabel, type NetworkHistory, type NetworkPoint } from '../lib/network'
 
 export function NetworkHistoryChart({ history }: { history?: Pick<NetworkHistory, 'points' | 'from' | 'to' | 'step'> }) {
  const { t } = useTranslation()
  const [chosen, setChosen] = useState<string | null>(null)
  const [metric, setMetric] = useState('avg_ms')
  const targets = new Map<string, string>()
- for (const p of history?.points ?? []) targets.set(`${p.task_id}:${p.name}`, p.name)
+ for (const p of history?.points ?? []) targets.set(networkIdentity(p), networkLabel(p))
  const selected = chosen && targets.has(chosen) ? chosen : targets.keys().next().value
- const points = (history?.points ?? []).filter((p) => `${p.task_id}:${p.name}` === selected)
+ const points = (history?.points ?? []).filter((p) => networkIdentity(p) === selected)
  const byTs = new Map(points.map((p) => [p.ts, p]))
  const value = (p?: NetworkPoint): number | null => {
   if (!p) return null

@@ -59,7 +59,9 @@
       "io": "입출력 실패",
       "invalid": "잘못된 대상",
       "canceled": "취소됨",
-      "empty": "빈 응답"
+      "empty": "빈 응답",
+      "agent_upgrade_required": "선택한 측정을 사용하려면 서버 에이전트를 업그레이드하세요",
+      "waiting": "측정 대기 중"
     },
     "phases": {
       "dns_ms": "DNS",

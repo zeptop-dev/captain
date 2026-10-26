@@ -140,5 +140,11 @@
   "language.saveError": "Could not save the language preference. Allow site storage and try again.",
   "expiry.days": "{days} days",
   "expiry.remainingDay": "1 day left",
-  "expiry.remainingDays": "{days} days left"
+  "expiry.remainingDays": "{days} days left",
+  "升级服务器端以启用所选探测": "Upgrade the server agent to use the selected probe",
+  "等待采样": "Waiting for samples",
+  "ICMP 权限不足": "ICMP permission denied",
+  "目标解析失败": "Target DNS lookup failed",
+  "探测超时": "Probe timed out",
+  "探测目标不可达": "Probe target unreachable"
 }

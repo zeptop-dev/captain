@@ -939,12 +939,16 @@
     "taskNodes": "Only on servers",
     "taskNodeCount": "{{count}} servers",
     "carriers": "Latency targets",
-    "carriersHint": "One per line: name host:port. Blank = the default CT/CU/CM points (cloudcpp); anything here replaces the whole set. Servers measure TCP connect time; a refused connection still counts as a round trip.",
+    "carriersHint": "One per line: name address:port. Empty uses the NextTrace Beijing defaults for this IP version; a custom list replaces all three.",
     "collection": "Collect monitoring data",
     "pageEnabled": "Enable status page",
     "pageEnabledHint": "Turning off the page keeps data collection and alerts running.",
     "financeCurrency": "Summary currency",
-    "financeCurrencyHint": "Convert homepage cost totals using reference exchange rates. Server prices and detail pages keep their original currencies."
+    "financeCurrencyHint": "Convert homepage cost totals using reference exchange rates. Server prices and detail pages keep their original currencies.",
+    "carrierProtocol": "Probe protocol",
+    "carrierFamily": "IP version",
+    "carrierModesHint": "Each protocol and IP version keeps its own targets. Empty lists use NextTrace Beijing Telecom, Unicom and Mobile. TCP port 80 may not respond; ICMP requires permission on the server.",
+    "carriersICMPHint": "One per line: name hostname or IP (no port). Empty uses the NextTrace Beijing defaults for this IP version; a custom list replaces all three."
   },
   "nodeProbe": {
     "title": "Probe & monthly traffic",
@@ -1905,7 +1909,9 @@
       "io": "I/O failure",
       "invalid": "Invalid target",
       "canceled": "Canceled",
-      "empty": "Empty response"
+      "empty": "Empty response",
+      "agent_upgrade_required": "Upgrade the server agent to use the selected probe",
+      "waiting": "Waiting for samples"
     },
     "phases": {
       "dns_ms": "DNS",

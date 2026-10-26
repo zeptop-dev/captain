@@ -1289,12 +1289,16 @@
     "taskNodes": "対象サーバーを限定",
     "taskNodeCount": "{{count}} 台のサーバー",
     "carriers": "遅延計測先",
-    "carriersHint": "1 行に 1 つ：名前 ホスト:ポート。空欄なら既定の電信 / 聯通 / 移動の計測点（cloudcpp）。記入すると全体が置き換わります。サーバーは TCP 接続時間を計測し、接続拒否も 1 往復として数えます。",
+    "carriersHint": "1 行ごとに名前 アドレス:ポートを指定します。空欄では選択した IP バージョンの NextTrace 北京の既定値を使用します。入力すると全対象を置き換えます。",
     "collection": "監視データを収集",
     "pageEnabled": "ステータスページを有効にする",
     "pageEnabledHint": "ページを無効にしてもデータ収集と通知は継続します。",
     "financeCurrency": "費用集計の通貨",
-    "financeCurrencyHint": "ホームの費用合計を参考為替レートで換算します。サーバーの価格と詳細ページは元の通貨のまま表示します。"
+    "financeCurrencyHint": "ホームの費用合計を参考為替レートで換算します。サーバーの価格と詳細ページは元の通貨のまま表示します。",
+    "carrierProtocol": "測定方式",
+    "carrierFamily": "IP バージョン",
+    "carrierModesHint": "測定方式と IP バージョンごとに対象を保存します。空欄では NextTrace 北京の電信・聯通・移動を使用します。TCP ポート 80 は応答しない場合があります。ICMP にはサーバーの実行権限が必要です。",
+    "carriersICMPHint": "1 行ごとに名前 ホスト名または IP を指定します（ポート不要）。空欄では選択した IP バージョンの NextTrace 北京の既定値を使用します。入力すると全対象を置き換えます。"
   },
   "nodeProbe": {
     "title": "監視と月間トラフィック",
@@ -1905,7 +1909,9 @@
       "io": "入出力エラー",
       "invalid": "無効な対象",
       "canceled": "キャンセル",
-      "empty": "空の応答"
+      "empty": "空の応答",
+      "agent_upgrade_required": "選択した測定を使用するにはサーバーを更新してください",
+      "waiting": "測定待ち"
     },
     "phases": {
       "dns_ms": "DNS",

@@ -1,6 +1,8 @@
 import { nodeBandwidth } from '../src/lib/node-bandwidth.ts'
 import { nodePrice } from '../src/lib/node-price.ts'
 import { cpuSpec } from '../src/lib/cpu-spec.ts'
+import { matchesPing } from './ping-selection.ts'
+import { networkIdentity, networkLabel } from '../src/lib/network.ts'
 import { storageItems } from '../src/lib/storage.ts'
 /** Read-only Captain transport for the MIT Glassmorphism public frontend.
  * Only the public probe API is used: no Komari RPC, agent tokens or admin data.
@@ -104,22 +106,23 @@ function requestedHours(params: Record<string, unknown>) {
   const hours = start ? (Date.now() - new Date(start as string).getTime()) / 3600000 : Number(params.hours) || 1
   return Math.min(720, Math.max(1, Math.ceil(hours)))
 }
-function taskKey(point: Pick<NetworkPoint, 'task_id' | 'name'>) { return JSON.stringify([point.task_id, point.name]) }
-// Carrier probes share task_id=0. Their names distinguish independent time series.
-function taskID(point: Pick<NetworkPoint, 'task_id' | 'name'>): string { return `${point.task_id}:${point.name}` }
+const taskKey = networkIdentity
+// Retain legacy task IDs while adding the opaque configuration identity for new probes.
+function taskID(point: Pick<NetworkPoint, 'task_id' | 'name' | 'series'>): string { return point.series ? networkIdentity(point) : `${point.task_id}:${point.name}` }
 export async function pingMetrics(id: string, hours: number, bounds?: Pick<MetricQueryParams, 'start' | 'end'>): Promise<{ metrics: MetricQueryResponse; stats: PingMetricStatsResponse }> {
   const history = await historyFor<NetworkHistory>(id, 'pings', hours)
   const start = bounds?.start ? new Date(bounds.start).getTime() / 1000 : history.to - hours * 3600
   const end = bounds?.end ? Math.min(new Date(bounds.end).getTime() / 1000, history.to) : history.to
   const groups = new Map<string, NetworkPoint[]>()
-  for (const p of (history.points ?? []).filter(p => p.ts >= start && p.ts <= end && p.n > 0)) {
+  const configured = snapshot.value?.nodes.find(n => String(n.id) === id)?.ping_tasks
+  for (const p of (history.points ?? []).filter(p => p.ts >= start && p.ts <= end && p.n > 0 && (configured === undefined || configured.some(task => task.state !== 'unsupported' && matchesPing(p, task))))) {
     const key = taskKey(p)
     groups.set(key, [...(groups.get(key) ?? []), p])
   }
   const series: MetricSeries[] = [], stats: PingMetricStatsResponse['stats'] = []
   for (const points of groups.values()) {
     points.sort((a, b) => a.ts - b.ts)
-    const p = points[0]!, tags = { task_id: taskID(p), task_name: p.name, task_type: p.quality?.type ?? 'tcp' }
+    const p = points[0]!, tags = { task_id: taskID(p), task_name: networkLabel(p), task_type: p.quality?.type ?? 'tcp' }
     const total = points.reduce((n, p) => n + p.n, 0), lost = points.reduce((n, p) => n + p.lost, 0), valid = total - lost
     const weighted = points.reduce((n, p) => n + Math.max(0, p.n - p.lost) * p.avg_ms, 0)
     for (const key of ['ping.latency_ms', 'ping.loss']) {
@@ -132,7 +135,7 @@ export async function pingMetrics(id: string, hours: number, bounds?: Pick<Metri
       }
       series.push({ metric_key: key, entity_id: id, tags, count: grid.length, points: grid, downsampled: true, interval_seconds: history.step })
     }
-    stats.push({ entity_id: id, task_id: taskID(p), name: p.name, type: p.quality?.type ?? 'tcp', tags,
+    stats.push({ entity_id: id, task_id: taskID(p), name: networkLabel(p), type: p.quality?.type ?? 'tcp', tags,
       total, valid, loss: total ? lost / total * 100 : 0, loss_approximate: false,
       ...(valid > 0 ? { avg: weighted / valid } : {}),
       // Quantiles cannot be recovered by averaging bucket quantiles. Omit them.

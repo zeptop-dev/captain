@@ -230,3 +230,57 @@ test('bandwidth metadata uses decimal bit rates and respects publication', async
  snapshot.value.public_sections=['network']
  assert.equal(captainBandwidth('1','en'), '')
 })
+
+test('dual carrier descriptors select six independent configured series even before samples arrive', () => {
+ const tasks = ['CT', 'CU', 'CM'].flatMap(name => ['ipv4', 'ipv6'].map(family => ({ id: 0, name, family, type: 'icmp', series: `icmp-${name}-${family}` })))
+ const selection = selectPings({ ping_tasks: tasks, host: { pings: [{ task_id: 0, name: 'CT', latency_ms: 1, series: 'old-tcp' }] } }, true)
+ assert.equal(selection.threeNetwork, true)
+ assert.equal(selection.dual, true)
+ assert.deepEqual(selection.families, ['ipv4', 'ipv6'])
+ assert.deepEqual(selection.carriers.flatMap(c => c.sources.map(s => [s.name, s.family])), [['CU', 'ipv4'], ['CU', 'ipv6'], ['CT', 'ipv4'], ['CT', 'ipv6'], ['CM', 'ipv4'], ['CM', 'ipv6']])
+ const points = [
+  { task_id: 0, name: 'CT', series: 'old-tcp', ts: now - 60, n: 10, lost: 0, avg_ms: 1 },
+  { task_id: 0, name: 'CT', ts: now - 60, n: 10, lost: 0, avg_ms: 2 },
+  { task_id: 0, name: 'CT', series: 'icmp-CT-ipv4', family: 'ipv4', ts: now - 60, n: 10, lost: 2, avg_ms: 40 },
+ ]
+ const v4 = summarizePings(selectedHistory({ to: now, points }, selection.carriers[1].sources[0]), 1)
+ const v6 = summarizePings(selectedHistory({ to: now, points }, selection.carriers[1].sources[1]), 1)
+ assert.equal(v4.avgLatency, 40)
+ assert.equal(v4.avgLoss, 20)
+ assert.equal(v6.hasData, false)
+ assert(Number.isNaN(v6.avgLoss))
+ assert.equal(summarizePings(selectedHistory({ to: now, points }, { id: 0, name: 'CT' }), 1).avgLatency, 2)
+})
+
+test('IPv6-only configuration keeps IPv6 as the single source, never a stale IPv4 sample', () => {
+ const tasks = ['CT', 'CU', 'CM'].map(name => ({ id: 0, name, family: 'ipv6', type: 'icmp', series: `${name}-v6`, state: 'unsupported', reason: 'agent_upgrade_required' }))
+ const selection = selectPings({ ping_tasks: tasks }, true)
+ assert.equal(selection.threeNetwork, true)
+ assert.equal(selection.dual, false)
+ assert.deepEqual(selection.families, ['ipv6'])
+ assert(selection.carriers.every(c => c.source.family === 'ipv6' && c.sources.length === 1 && c.source.state === 'unsupported'))
+})
+
+test('Glass charts separate dual-stack identities and exclude history from old protocol or target', async () => {
+ const tasks = ['ipv4', 'ipv6'].map(family => ({ id: 0, name: 'CT', family, type: 'icmp', series: `new-${family}` }))
+ snapshot.value.nodes[0].ping_tasks = tasks
+ globalThis.fetch = async () => Response.json({ from: now-3600, to: now, step: 60, points: [
+  {task_id: 0, name: 'CT', family: 'ipv4', series: 'old-target', ts: now-60, n: 10, lost: 0, avg_ms: 999},
+  {task_id: 0, name: 'CT', family: 'ipv4', series: 'new-ipv4', type: 'icmp', ts: now-60, n: 10, lost: 0, avg_ms: 40},
+  {task_id: 0, name: 'CT', family: 'ipv6', series: 'new-ipv6', type: 'icmp', ts: now-60, n: 10, lost: 1, avg_ms: 60},
+ ] })
+ const result = await pingMetrics('1', 1)
+ assert.equal(result.stats.count, 2)
+ assert.equal(new Set(result.stats.stats.map(s => s.task_id)).size, 2)
+ assert.deepEqual(result.stats.stats.map(s => [s.name, s.avg]), [['CT · IPv4 · ICMP', 40], ['CT · IPv6 · ICMP', 60]])
+ assert.equal(result.metrics.series.length, 4)
+ assert(!result.metrics.series.some(s => s.points.some(p => p.value === 999)))
+})
+
+test('an unsupported agent does not revive matching history from before a downgrade', async () => {
+ snapshot.value.nodes[0].ping_tasks = [{ id: 0, name: 'CT', series: 'new-ipv4', family: 'ipv4', state: 'unsupported', reason: 'agent_upgrade_required' }]
+ globalThis.fetch = async () => Response.json({ from: now-3600, to: now, step: 60, points: [{ task_id: 0, name: 'CT', series: 'new-ipv4', family: 'ipv4', ts: now-60, n: 10, lost: 0, avg_ms: 40 }] })
+ const result = await pingMetrics('1', 1)
+ assert.equal(result.stats.count, 0)
+ assert.equal(result.metrics.series.length, 0)
+})

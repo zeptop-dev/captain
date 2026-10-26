@@ -59,7 +59,9 @@
       "io": "入出力エラー",
       "invalid": "無効な対象",
       "canceled": "キャンセル",
-      "empty": "空の応答"
+      "empty": "空の応答",
+      "agent_upgrade_required": "選択した測定を使用するにはサーバーを更新してください",
+      "waiting": "測定待ち"
     },
     "phases": {
       "dns_ms": "DNS",

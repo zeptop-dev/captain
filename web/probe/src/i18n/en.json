@@ -59,7 +59,9 @@
       "io": "I/O failure",
       "invalid": "Invalid target",
       "canceled": "Canceled",
-      "empty": "Empty response"
+      "empty": "Empty response",
+      "agent_upgrade_required": "Upgrade the server agent to use the selected probe",
+      "waiting": "Waiting for samples"
     },
     "phases": {
       "dns_ms": "DNS",
