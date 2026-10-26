@@ -18,6 +18,7 @@ test('checking a new release retains older published installer metadata and sele
 test('cached sources require matching ready artifacts rather than silently using official files', () => {
   const draft = clientDraft(client)
   draft.platforms[0].source = 'cache'
+  draft.platforms[0].show_home = true
   assert.equal(clientDraftErrors(client, draft)['platforms.0.asset_ids'], 'cacheNotReady')
   draft.platforms[0].asset_ids = []
   assert.equal(clientDraftErrors(client, draft)['platforms.0.asset_ids'], 'cacheSelectionRequired')
@@ -47,4 +48,19 @@ test('download progress uses only actual bytes and external links reject active 
   assert.equal(clientJobProgress({ received_bytes: -2, total_bytes: 40 }), null)
   for (const url of ['javascript:alert(1)', 'data:text/html,test', 'http://example.com', 'https://u:p@example.com']) assert.equal(safeClientExternalURL(url), undefined)
   assert.equal(safeClientExternalURL('https://example.com/a'), 'https://example.com/a')
+})
+
+
+test('missing cached files can be withdrawn, but cannot be republished until restored', () => {
+  const draft = clientDraft(client)
+  draft.platforms[0].source = 'cache'
+  draft.platforms[0].asset_ids = [99]
+  assert.deepEqual(clientDraftErrors(client, draft), {})
+  draft.platforms[0].show_portal = true
+  assert.equal(clientDraftErrors(client, draft)['platforms.0.asset_ids'], 'cacheNotReady')
+  draft.platforms[0].show_portal = false
+  draft.platforms[0].asset_ids = []
+  assert.deepEqual(clientDraftErrors(client, draft), {})
+  draft.platforms[0].show_home = true
+  assert.equal(clientDraftErrors(client, draft)['platforms.0.asset_ids'], 'cacheSelectionRequired')
 })

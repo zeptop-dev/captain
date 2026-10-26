@@ -35,11 +35,12 @@ export function selectableClientAssets(client: CatalogClient, platform: ClientPl
 export function clientDraftErrors(client: CatalogClient, draft: ClientDraft): Record<string, string> {
   const errors: Record<string, string> = {}
   draft.platforms.forEach((platform, index) => {
-    if (platform.source === 'cache' && platform.asset_ids.length === 0) errors[`platforms.${index}.asset_ids`] = 'cacheSelectionRequired'
+    const published = platform.show_home || platform.show_portal
+    if (published && platform.source === 'cache' && platform.asset_ids.length === 0) errors[`platforms.${index}.asset_ids`] = 'cacheSelectionRequired'
     if (!Number.isInteger(platform.sort) || platform.sort < 0 || platform.sort > 10000) errors[`platforms.${index}.sort`] = 'invalidSort'
     const known = availableClientAssets(client)
     if (platform.asset_ids.some(id => known.some(file => file.id === id && file.platform !== platform.platform))) errors[`platforms.${index}.asset_ids`] = 'wrongPlatform'
-    if (platform.source === 'cache' && platform.asset_ids.some(id => !client.cached_assets.some(file => file.id === id && file.platform === platform.platform))) errors[`platforms.${index}.asset_ids`] = 'cacheNotReady'
+    if (published && platform.source === 'cache' && platform.asset_ids.some(id => !client.cached_assets.some(file => file.id === id && file.platform === platform.platform))) errors[`platforms.${index}.asset_ids`] = 'cacheNotReady'
   })
   return errors
 }
