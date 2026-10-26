@@ -452,5 +452,9 @@
       "client_chain": "클라이언트 체인 의존성"
     },
     "evidenceLabel": "판단 근거"
+  },
+  "portalAppearance": {
+    "toLight": "라이트 모드로 전환",
+    "toDark": "다크 모드로 전환"
   }
 }

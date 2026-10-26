@@ -452,5 +452,9 @@
       "client_chain": "客户端链依赖"
     },
     "evidenceLabel": "检测依据"
+  },
+  "portalAppearance": {
+    "toLight": "切换到浅色",
+    "toDark": "切换到深色"
   }
 }
