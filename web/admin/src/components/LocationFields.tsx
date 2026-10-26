@@ -18,12 +18,12 @@ export function LocationFields({ value, onChange, effective, countries, inherite
   const change = <K extends keyof LocationDraft>(key: K, next: LocationDraft[K]) => onChange({ ...value, [key]: next })
   return <Stack gap="sm">
     <Title order={6}>{t('mapLocation.title')}</Title>
-    <Text size="xs" c="dimmed">{t(inherited ? 'mapLocation.entryHint' : 'mapLocation.serverHint')}</Text>
+    <Text size="xs" c="dimmed">{inherited ? t('mapLocation.entryHint') : t('mapLocation.serverHint')}</Text>
     <Select label={t('mapLocation.mode')} allowDeselect={false} value={value.mode} disabled={disabled} onChange={mode => { if (mode) change('mode', mode as LocationDraft['mode']) }} data={[
-      { value: 'auto', label: t(inherited ? 'mapLocation.inherit' : 'mapLocation.auto') },
+      { value: 'auto', label: inherited ? t('mapLocation.inherit') : t('mapLocation.auto') },
       { value: 'manual', label: t('mapLocation.manual') }, { value: 'off', label: t('mapLocation.off') },
     ]} />
-    <Text size="sm" c="dimmed">{t('mapLocation.savedPosition')}: {effective ? `${locationName(effective)} · ${t(effective.precision === 'city' ? 'mapLocation.cityPrecision' : 'mapLocation.countryPrecision')}` : t('mapLocation.unknown')}</Text>
+    <Text size="sm" c="dimmed">{t('mapLocation.savedPosition')}: {effective ? `${locationName(effective)} · ${effective.precision === 'city' ? t('mapLocation.cityPrecision') : t('mapLocation.countryPrecision')}` : t('mapLocation.unknown')}</Text>
     {value.mode === 'manual' && <>
       <SimpleGrid cols={{ base: 1, sm: 3 }}>
         {countries ? <Select label={t('mapLocation.country')} required searchable allowDeselect={false} value={value.country || null} disabled={disabled} onChange={country => change('country', country || '')} data={codes.map(code => ({ value: code, label: `${code} · ${names.of(code) ?? code}` }))} /> : <Autocomplete label={t('mapLocation.country')} required maxLength={2} value={value.country} disabled={disabled} onChange={country => change('country', country.toUpperCase())} data={codes} description={/^[A-Z]{2}$/.test(value.country) ? names.of(value.country) : undefined} />}

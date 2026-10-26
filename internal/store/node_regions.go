@@ -119,6 +119,13 @@ func resolveRegion(info *NodeProbeInfo, mode string, obs AddressObservation, d R
 	switch nodeLocationMode(info.LocationSettings, mode) {
 	case "auto":
 		info.Location = d.Location.Clone()
+		// Older manually assigned country markers remain useful on agents that
+		// have never reported a public address. Keep only that explicit country
+		// approximation until automatic city data is available. An explicitly
+		// selected auto mode never borrows the independent flag field.
+		if info.Location == nil && info.LocationSettings == nil && mode == "manual" && ValidRegion(info.Region) {
+			info.Location = &domain.GeoLocation{Country: info.Region, Precision: "country"}
+		}
 	case "manual":
 		if info.LocationSettings.Manual != nil && info.LocationSettings.Manual.Validate() == nil {
 			info.Location = info.LocationSettings.Manual.Clone()

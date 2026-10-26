@@ -3,6 +3,27 @@
 What an operator can rely on across releases, which bosun a Captain works
 with, what the database is good for, and what is deliberately not there.
 
+## City locations and map publication
+
+Migration 91 adds independent subscription-node map metadata and a foreign-key
+homepage publication list with an optimistic revision. No existing Entry columns,
+proxy configuration, subscription region, agent protocol or billing fields change.
+Server map preferences extend the existing private probe-info JSON. The effective
+public `location` is additive: null means hidden or unknown; a missing field from
+an older API permits the legacy country-marker fallback. Only public-safe location
+fields are projected, without lookup IPs, timestamps or manual-setting drafts.
+
+Old Entry updates preserve map metadata. Old website updates that omit/null the
+new selection preserve it; explicit changes require a matching revision. Deleting
+an entry removes its publication reference and invalidates older selection drafts,
+so a reused numeric ID cannot inherit public visibility. Service-status visibility
+continues to use its own publication list and user authorization.
+
+No bosun upgrade is required beyond the existing public-address observations used
+by automatic country detection. Older Captain releases ignore these display-only
+options, and old probe-info writers may discard the new private preferences when
+resaving them. Keep a database backup for downgrade; migrations remain forward-only.
+
 ## Carrier protocol and address-family selection (Captain 1.43 / bosun 0.82)
 
 The new `carrier_probe` object is additive and retains separate TCP/ICMP,

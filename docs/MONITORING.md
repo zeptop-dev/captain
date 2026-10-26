@@ -205,12 +205,13 @@ using IPv6 only when IPv4 is absent. A differing IPv6 country is shown as a hint
 A failed IPv4 lookup does not silently switch to the IPv6 country.
 
 Captain queries [Country.is](https://country.is/) over HTTPS with the public IP
-only. No node hostname, token or credentials are sent. A country lookup is an
+only, requesting country, subdivision, city and coordinates. No node hostname,
+token or credentials are sent. An IP location lookup is an
 estimate, not proof of physical location; use manual selection for broadcast IPs
 or inaccurate database entries. The form shows the lookup IP and time and offers
 **Detect / refresh country**. Detection previews do not change the saved choice.
-Public pages receive only the effective country code, never lookup metadata or
-the detection IP through this feature.
+Public pages receive only the effective country code and permitted map position,
+never lookup metadata or the detection IP through this feature.
 
 Automatic mode checks for changes every minute using recent bosun observations
 (15 minutes). Successes are cached per IP for seven days; unknown/failed lookups
@@ -227,6 +228,57 @@ configured public entries, NAT mappings, domain records and HTTP peer addresses
 are not substitutes. No further bosun upgrade is needed. The probe update API
 adds optional `RegionMode: auto|manual|off`; legacy clients can still change the
 country explicitly and an unchanged effective country preserves automatic mode.
+
+## City locations and public maps
+
+Server details → Probe and monthly traffic → **Map location** has independent
+automatic, manual-correction and hidden modes. The flag's country choice remains
+separate: changing the map position does not change flags, subscription region
+groups, routing or accounting. Existing hidden region settings remain hidden
+until a map mode is explicitly selected. Older manual country markers remain
+country approximations when no automatic position is available.
+
+Automatic lookup uses the same observed-IP selection and bounded cache as the
+country lookup above. Country-only cached results are refreshed to obtain city
+data. A failed refresh for the same IP retains the last successful position;
+the administrator sees the failed attempt and last success separately. An IP
+change cannot keep an old IP's city. A city marker requires a city name and both
+valid coordinates. A response with no city or complete coordinates remains a
+clearly labelled country approximation, not a fabricated point at zero latitude
+and longitude. Zero itself is a valid manually specified coordinate.
+
+IP geolocation is approximate, especially for anycast and reassigned addresses.
+Use manual correction for known machine locations: choose a country, optionally
+enter a subdivision, and enter the city and latitude/longitude together. A
+country-only manual correction is also supported. Turning the map off hides the
+point; a complete manual correction is retained when switching modes.
+
+Each subscription node has a **Map location** action. Its default inherits its
+actual proxy exit server: reverse WireGuard and VLESS Reverse inherit B, including
+additional subscription aliases sharing that reverse inbound. A server forwarding
+line inherits the final inbound's server; a client front proxy does not replace
+the exit location. Ambiguous custom routing or core overrides leave the inherited
+position unknown. Administrators can correct or hide a subscription node's map
+position independently, including managed reverse nodes.
+
+Website settings provide separate map sources:
+
+- **Homepage**: retain the existing manual map, or explicitly select subscription
+  nodes whose effective positions may be public. Only enabled, publishable nodes
+  with complete client-chain dependencies appear. Selecting a node does not
+  publish its address, credentials, private server metadata or status-page entry.
+- **Public service status**: retain the manual map, or follow the status page's
+  own published nodes. Its map follows the current category filter and never
+  uses the homepage selection to expose additional nodes.
+- **Glass server probe**: use each visible server's effective map position,
+  subject to the existing probe visibility and information-section settings.
+  City positions in the same country can produce separate markers. Country-only
+  positions are labelled approximate; hidden/unknown positions have no marker.
+
+Existing manual website points and hub are retained when changing map sources.
+Homepage publication uses entry references with deletion cleanup, not reusable
+numeric IDs stored in general settings. A stale selection draft must be reloaded
+after a concurrent change or entry deletion before it can be saved.
 
 ## DNS health checks
 
@@ -836,8 +888,11 @@ Flags use the node's saved **Region code** under **Probe & monthly traffic**
 value. An empty region hides the flag in both cards and details; the frontend
 does not infer it from the node name or IP address.
 
-The optional globe uses bundled textures and the node's public region for an
-approximate marker. It does not query external IP geolocation services. Icons
+The optional globe uses bundled textures and the server's permitted map location.
+City coordinates take precedence; country-only data is visibly approximate.
+An older API without the location field can still use its region marker, while
+an explicit null location is hidden. The browser does not query external IP
+geolocation services. Icons
 are bundled too; upstream visitor fingerprinting, external exchange-rate
 requests and administrative operations are not enabled. The snapshot adds
 `appearance_scheme` so inherited light/dark/system mode works on a dedicated

@@ -111,3 +111,16 @@ func TestNodeLocationCountryFallbackAndAddressInvalidation(t *testing.T) {
 		t.Fatal("explicit location auto depended on flag mode", info)
 	}
 }
+
+func TestNodeLocationRetainsLegacyManualCountryWithoutObservation(t *testing.T) {
+	info := NodeProbeInfo{Region: "US"}
+	resolveRegion(&info, "manual", AddressObservation{}, RegionDetection{})
+	if info.Location == nil || info.Location.Country != "US" || info.Location.Precision != "country" || info.Location.Lat != nil {
+		t.Fatal("lost legacy country marker", info)
+	}
+	info.LocationSettings = &domain.LocationSettings{Mode: "auto"}
+	resolveRegion(&info, "manual", AddressObservation{}, RegionDetection{})
+	if info.Location != nil {
+		t.Fatal("explicit automatic location borrowed flag", info)
+	}
+}
