@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { brandLogo, safeBrandAssetURL, applyBrandMetadata } from '../../shared/branding.ts'
+import { brandLogo, safeBrandAssetURL, applyBrandMetadata, defaultBrandFavicon } from '../../shared/branding.ts'
 
 test('logos select the displayed scheme with a safe alternate and built-in fallback', () => {
   const branding = { logo_light: '/brand-assets/light.png', logo_dark: 'https://example.com/dark.png' }
@@ -47,12 +47,15 @@ test('metadata follows the brand, clears removed values and restores the documen
     const clean = applyBrandMetadata({ name: 'Example', title: 'Example Network', description: '<b>Literal text</b>', favicon: '/brand-assets/logo.png' })
     assert.equal(fixture.title, 'Example Network')
     assert.deepEqual(fixture.head.children.map(node => node.content || node.href), ['<b>Literal text</b>', '/brand-assets/logo.png'])
+    fixture.head.children[1].onerror()
+    assert.equal(fixture.head.children[1].href, defaultBrandFavicon)
     clean()
     assert.equal(fixture.title, 'Original')
     assert.deepEqual(fixture.head.children, [oldIcon, oldDescription])
     const cleanEmpty = applyBrandMetadata({ name: 'New name', title: '', description: '', favicon: '' })
     assert.equal(fixture.title, 'New name')
-    assert.deepEqual(fixture.head.children, [])
+    assert.equal(fixture.head.children.length, 1)
+    assert.equal(fixture.head.children[0].href, defaultBrandFavicon)
     cleanEmpty()
     assert.deepEqual(fixture.head.children, [oldIcon, oldDescription])
   } finally {
