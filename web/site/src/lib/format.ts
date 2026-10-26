@@ -1,14 +1,17 @@
-export function bytes(n: number): string {
+export function bytes(n: number, locale?: string): string {
   if (!n) return '0 B'
   const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
   let i = 0
   let v = n
   while (v >= 1024 && i < units.length - 1) { v /= 1024; i++ }
-  return `${v < 10 ? v.toFixed(2) : v < 100 ? v.toFixed(1) : Math.round(v)} ${units[i]}`
+  const digits = v < 10 ? 2 : v < 100 ? 1 : 0
+  const value = locale ? v.toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits }) : v.toFixed(digits)
+  return `${value} ${units[i]}`
 }
 
-export function money(cents: number, currency = '¥'): string {
-  return `${currency}${(cents / 100).toFixed(2)}`
+export function money(cents: number, currency = '¥', locale?: string): string {
+  const value = cents / 100
+  return `${currency}${locale ? value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : value.toFixed(2)}`
 }
 
 export function when(iso: string | null | undefined): string {

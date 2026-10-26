@@ -77,6 +77,7 @@
 .connectionFigure p { text-align: center; font-size: 10px; margin-top: 16px; }
 .signalGrid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 95px; align-items: center; }
 .signal h2 + p { margin-top: 23px; }
+.signal h2, .signal h2 + p, .faqGrid h2 + p { white-space: pre-line; }
 .signalLinks > a { display: flex; gap: 23px; align-items: center; border-top: 1px solid var(--site-line); padding-block: 25px; }
 .signalLinks > a:last-child { border-bottom: 1px solid var(--site-line); }
 .signalLinks > a > span { font: 10px var(--site-mono); color: var(--site-muted); }
@@ -97,7 +98,7 @@
 .plan { display: flex; flex-direction: column; min-width: 0; padding: 27px; border: 1px solid var(--site-line); border-radius: 4px; }
 .plan h3 { font-size: 17px; }
 .price { font-size: 32px; line-height: 1.5; letter-spacing: -.025em; font-weight: 500; margin-top: 15px; }
-.price span { color: var(--site-muted); font-size: 12px; letter-spacing: 0; white-space: nowrap; font-weight: 400; }
+.price span { color: var(--site-muted); font-size: 12px; letter-spacing: 0; font-weight: 400; }
 .plan ul { padding: 23px 0 28px; margin: 0; list-style: none; }
 .plan li { display: flex; align-items: center; gap: 10px; color: var(--site-muted); font-size: 13px; }
 .plan li + li { margin-top: 10px; }
