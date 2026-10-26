@@ -8,6 +8,7 @@ import (
 
 	"github.com/zeptop-dev/bosun/pkg/spec"
 	"github.com/zeptop-dev/captain/internal/branding"
+	"github.com/zeptop-dev/captain/internal/domain"
 
 	"github.com/zeptop-dev/captain/internal/store"
 )
@@ -300,7 +301,7 @@ func (h *handlers) putNodeProbe(w http.ResponseWriter, r *http.Request) {
 			fail(w, http.StatusConflict, err.Error())
 			return
 		}
-		if errors.Is(err, store.ErrNodeRegion) || errors.Is(err, store.ErrNodeCost) || errors.Is(err, store.ErrNodeBandwidth) || errors.Is(err, store.ErrNodeStorage) {
+		if errors.Is(err, domain.ErrGeoLocation) || errors.Is(err, domain.ErrLocationSettings) || errors.Is(err, store.ErrNodeRegion) || errors.Is(err, store.ErrNodeCost) || errors.Is(err, store.ErrNodeBandwidth) || errors.Is(err, store.ErrNodeStorage) {
 			fail(w, 400, err.Error())
 			return
 		}

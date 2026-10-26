@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/spec"
+	"github.com/zeptop-dev/captain/internal/domain"
 )
 
 // ProbeSettings is the admin-edited monitoring configuration.
@@ -197,16 +198,18 @@ type NodeProbe struct {
 
 // NodeProbeInfo is what the public page may show about a server.
 type NodeProbeInfo struct {
-	AutoRenewal  *NodeAutoRenewal  `json:"auto_renewal,omitempty"`
-	Bandwidth    *NodeBandwidth    `json:"bandwidth,omitempty"`
-	Billing      *NodeCost         `json:"billing,omitempty"`
-	TrafficReset *NodeTrafficReset `json:"traffic_reset,omitempty"`
-	Region       string            `json:"region,omitempty"`   // ISO country code, e.g. "JP"
-	Provider     string            `json:"provider,omitempty"` //
-	ProviderURL  string            `json:"provider_url,omitempty"`
-	Price        string            `json:"price,omitempty"`      // free text, "$5/mo"
-	ExpiresAt    string            `json:"expires_at,omitempty"` // YYYY-MM-DD
-	Note         string            `json:"note,omitempty"`
+	LocationSettings *domain.LocationSettings `json:"location_settings,omitempty"`
+	Location         *domain.GeoLocation      `json:"location"` // resolved on read; never trusted from clients
+	AutoRenewal      *NodeAutoRenewal         `json:"auto_renewal,omitempty"`
+	Bandwidth        *NodeBandwidth           `json:"bandwidth,omitempty"`
+	Billing          *NodeCost                `json:"billing,omitempty"`
+	TrafficReset     *NodeTrafficReset        `json:"traffic_reset,omitempty"`
+	Region           string                   `json:"region,omitempty"`   // ISO country code, e.g. "JP"
+	Provider         string                   `json:"provider,omitempty"` //
+	ProviderURL      string                   `json:"provider_url,omitempty"`
+	Price            string                   `json:"price,omitempty"`      // free text, "$5/mo"
+	ExpiresAt        string                   `json:"expires_at,omitempty"` // YYYY-MM-DD
+	Note             string                   `json:"note,omitempty"`
 }
 
 // Billed returns the bytes that count against the limit under Mode.
@@ -331,6 +334,18 @@ func (s *Store) UpdateNodeProbeWithExpiryGuard(ctx context.Context, nodeID int64
 			return ErrNodeExpiryConflict
 		}
 		info.ExpiresAt = old.Info.ExpiresAt
+	}
+	// The location in a GET is derived from the current observation. Never
+	// persist a client-supplied automatic result, including an old form echo.
+	info.Location = nil
+	if info.LocationSettings == nil {
+		info.LocationSettings = old.Info.LocationSettings.Clone()
+	} else {
+		info.LocationSettings = info.LocationSettings.Clone()
+		info.LocationSettings.Normalize()
+		if err := info.LocationSettings.Validate(); err != nil {
+			return err
+		}
 	}
 	if err := normalizeNodeBandwidth(&info, old.Info); err != nil {
 		return err

@@ -11,66 +11,125 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
+	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
-// Country lookup is panel-side and uses only the observed public IP. It never
+// Geolocation is panel-side and uses only the observed public IP. It never
 // connects to that IP, accepts a user-supplied URL, or sends node credentials.
+func lookupLocation(ctx context.Context, ip string) (*domain.GeoLocation, error) {
+	client := &http.Client{Timeout: 4 * time.Second}
+	return lookupLocationWithClient(ctx, ip, client)
+}
+
+// Country-only wrappers retain the existing test/integration seam.
 func lookupCountry(ctx context.Context, ip string) (string, error) {
-	client := &http.Client{Timeout: 4 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	return lookupCountryWithClient(ctx, ip, client)
+	location, err := lookupLocation(ctx, ip)
+	if location == nil {
+		return "", err
+	}
+	return location.Country, err
 }
 func lookupCountryWithClient(ctx context.Context, ip string, client *http.Client) (string, error) {
+	location, err := lookupLocationWithClient(ctx, ip, client)
+	if location == nil {
+		return "", err
+	}
+	return location.Country, err
+}
+func lookupLocationWithClient(ctx context.Context, ip string, client *http.Client) (*domain.GeoLocation, error) {
 	a, err := netip.ParseAddr(ip)
 	if err != nil || !agentproto.ValidPublicAddress(ip, a.Is6()) {
-		return "", errors.New("invalid public IP")
+		return nil, errors.New("invalid public IP")
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.country.is/"+a.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.country.is/"+a.String()+"?fields=city,subdivision,location", nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	resp, err := client.Do(req)
+	// Apply the redirect boundary even to injected clients. A provider response
+	// can never redirect a request containing the observed IP elsewhere.
+	bounded := *client
+	bounded.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, err := bounded.Do(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusNotFound {
-		return "", nil
+		return nil, nil
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", errors.New("country service unavailable")
+		return nil, errors.New("country service unavailable")
 	}
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 4097))
 	if err != nil || len(raw) > 4096 {
-		return "", errors.New("invalid country response")
+		return nil, errors.New("invalid country response")
 	}
 	var out struct {
-		IP      string `json:"ip"`
-		Country string `json:"country"`
+		IP          string `json:"ip"`
+		Country     string `json:"country"`
+		City        string `json:"city"`
+		Subdivision string `json:"subdivision"`
+		Location    *struct {
+			Latitude  *float64 `json:"latitude"`
+			Longitude *float64 `json:"longitude"`
+		} `json:"location"`
 	}
 	if json.Unmarshal(raw, &out) != nil {
-		return "", errors.New("invalid country response")
+		return nil, errors.New("invalid country response")
 	}
 	returned, err := netip.ParseAddr(out.IP)
 	if err != nil || returned != a {
-		return "", errors.New("country response IP mismatch")
+		return nil, errors.New("country response IP mismatch")
 	}
 	if out.Country == "" {
-		return "", nil
+		return nil, nil
 	}
-	if !store.ValidRegion(out.Country) {
-		return "", errors.New("invalid country code")
+	location := &domain.GeoLocation{Country: out.Country, Subdivision: out.Subdivision, Precision: "country"}
+	// Validate all returned labels and coordinates, even when there is not enough
+	// information to draw a city. Country-centre coordinates are not city evidence.
+	if out.City != "" || out.Location != nil {
+		candidate := &domain.GeoLocation{Country: out.Country, Subdivision: out.Subdivision, City: out.City, Precision: "city"}
+		if out.Location != nil {
+			candidate.Lat, candidate.Lng = out.Location.Latitude, out.Location.Longitude
+		}
+		if candidate.City != "" && candidate.Lat != nil && candidate.Lng != nil {
+			if candidate.Validate() != nil {
+				return nil, errors.New("invalid country location")
+			}
+			location = candidate
+		} else {
+			// Missing fields are an ordinary country-only result. Invalid fields are not.
+			check := candidate.Clone()
+			if check.City == "" {
+				check.City = "unknown"
+			}
+			zero := 0.0
+			if check.Lat == nil {
+				check.Lat = &zero
+			}
+			if check.Lng == nil {
+				check.Lng = &zero
+			}
+			if check.Validate() != nil {
+				return nil, errors.New("invalid country location")
+			}
+		}
 	}
-	return out.Country, nil
+	if location.Validate() != nil {
+		return nil, errors.New("invalid country location")
+	}
+	return location, nil
 }
 
 type NodeRegions struct {
-	Store       *store.Store
-	Probe       *Probe
-	Lookup      func(context.Context, string) (string, error) // nil uses Country.is
-	once        sync.Once
-	gate        chan struct{}
-	nextRequest time.Time // protected by gate
+	Store          *store.Store
+	Probe          *Probe
+	Lookup         func(context.Context, string) (string, error)              // legacy country-only injection
+	LookupLocation func(context.Context, string) (*domain.GeoLocation, error) // nil uses Country.is unless Lookup is set
+	once           sync.Once
+	gate           chan struct{}
+	nextRequest    time.Time // protected by gate
 }
 
 func (s *NodeRegions) Run(ctx context.Context) {
@@ -95,7 +154,7 @@ func (s *NodeRegions) Tick(ctx context.Context, at time.Time) {
 			return
 		}
 		state, err := s.Store.NodeRegionState(ctx, n.ID)
-		if err != nil || state.Mode != "auto" || !state.Fresh(at) {
+		if err != nil || !state.Automatic() || !state.Fresh(at) {
 			continue
 		}
 		_ = s.Detect(ctx, n.ID, false)
@@ -117,7 +176,7 @@ func (s *NodeRegions) Detect(ctx context.Context, id int64, refresh bool) error 
 		return err
 	}
 	at := time.Now()
-	if !state.Fresh(at) || (!refresh && state.Mode != "auto") {
+	if !state.Fresh(at) || (!refresh && !state.Automatic()) {
 		return nil
 	}
 	ip4, ip6 := state.IPs()
@@ -130,6 +189,10 @@ func (s *NodeRegions) Detect(ctx context.Context, id int64, refresh bool) error 
 		ttl := time.Hour
 		if result.Status == "ok" {
 			ttl = 7 * 24 * time.Hour
+			// Old successful country-only caches get one bounded upgrade lookup.
+			if result.LocationVersion == 0 {
+				ttl = time.Minute
+			}
 		}
 		if refresh {
 			ttl = time.Minute
@@ -147,22 +210,40 @@ func (s *NodeRegions) Detect(ctx context.Context, id int64, refresh bool) error 
 			}
 		}
 		s.nextRequest = time.Now().Add(150 * time.Millisecond)
-		lookup := s.Lookup
+		lookup := s.LookupLocation
 		if lookup == nil {
-			lookup = lookupCountry
+			lookup = lookupLocation
+			if s.Lookup != nil {
+				lookup = func(ctx context.Context, ip string) (*domain.GeoLocation, error) {
+					country, err := s.Lookup(ctx, ip)
+					if err != nil || country == "" {
+						return nil, err
+					}
+					return &domain.GeoLocation{Country: country, Precision: "country"}, nil
+				}
+			}
 		}
 		queryCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
-		country, queryErr := lookup(queryCtx, ip)
+		location, queryErr := lookup(queryCtx, ip)
 		cancel()
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		*result = store.RegionResult{IP: ip, CheckedAt: time.Now().Unix(), Status: "unknown"}
+		if location != nil && location.Validate() != nil {
+			queryErr = domain.ErrGeoLocation
+		}
+		previous := *result
+		*result = store.RegionResult{IP: ip, CheckedAt: time.Now().Unix(), Status: "unknown", LocationVersion: 1}
 		if queryErr != nil {
 			result.Status = "failed"
-		} else if store.ValidRegion(country) {
-			result.Country = country
-			result.Status = "ok"
+			// A failed refresh may retain the last successful value for this IP only.
+			// The attempt timestamp and status are separate from the successful sample.
+			if previous.IP == ip && store.ValidRegion(previous.Country) && previous.LastSuccessAt > 0 {
+				result.Country, result.Location, result.LastSuccessAt = previous.Country, previous.Location.Clone(), previous.LastSuccessAt
+			}
+		} else if location != nil {
+			result.Country, result.Location, result.Status = location.Country, location.Clone(), "ok"
+			result.LastSuccessAt = result.CheckedAt
 		}
 		changed = true
 		return nil

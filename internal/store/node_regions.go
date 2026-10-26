@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
-	"golang.org/x/text/language"
+	"github.com/zeptop-dev/captain/internal/domain"
 )
 
 var ErrNodeRegion = errors.New("invalid region mode or country code")
@@ -19,8 +19,7 @@ var regionCountries = func() []string {
 	for a := 'A'; a <= 'Z'; a++ {
 		for b := 'A'; b <= 'Z'; b++ {
 			code := string([]rune{a, b})
-			r, err := language.ParseRegion(code)
-			if err == nil && r.IsCountry() && !r.IsPrivateUse() && r.String() == code && r.Canonicalize().String() == code {
+			if domain.ValidCountryCode(code) {
 				out = append(out, code)
 			}
 		}
@@ -28,32 +27,31 @@ var regionCountries = func() []string {
 	return out
 }()
 
-func RegionCountries() []string { return append([]string(nil), regionCountries...) }
-func ValidRegion(code string) bool {
-	for _, c := range regionCountries {
-		if code == c {
-			return true
-		}
-	}
-	return false
-}
+func RegionCountries() []string    { return append([]string(nil), regionCountries...) }
+func ValidRegion(code string) bool { return domain.ValidCountryCode(code) }
 
 type RegionResult struct {
-	IP        string `json:"ip"`
-	Country   string `json:"country"`
-	CheckedAt int64  `json:"checked_at"`
-	Status    string `json:"status"` // ok | unknown | failed
+	Location        *domain.GeoLocation `json:"location,omitempty"`
+	LocationVersion int                 `json:"location_version,omitempty"` // 1 queried city fields, including no-city results
+	LastSuccessAt   int64               `json:"last_success_at,omitempty"`  // does not advance on a failed attempt
+	IP              string              `json:"ip"`
+	Country         string              `json:"country"`
+	CheckedAt       int64               `json:"checked_at"`
+	Status          string              `json:"status"` // ok | unknown | failed
 }
 type RegionDetection struct {
-	ObservedAt int64        `json:"observed_at"`
-	Fresh      bool         `json:"fresh"`
-	IPv4       RegionResult `json:"ipv4"`
-	IPv6       RegionResult `json:"ipv6"`
-	Country    string       `json:"country"`
-	IP         string       `json:"ip"`
-	CheckedAt  int64        `json:"checked_at"`
-	Conflict   bool         `json:"conflict"`
-	Source     string       `json:"source"`
+	Location      *domain.GeoLocation `json:"location,omitempty"`
+	LastSuccessAt int64               `json:"last_success_at,omitempty"`
+	Stale         bool                `json:"stale"`
+	ObservedAt    int64               `json:"observed_at"`
+	Fresh         bool                `json:"fresh"`
+	IPv4          RegionResult        `json:"ipv4"`
+	IPv6          RegionResult        `json:"ipv6"`
+	Country       string              `json:"country"`
+	IP            string              `json:"ip"`
+	CheckedAt     int64               `json:"checked_at"`
+	Conflict      bool                `json:"conflict"`
+	Source        string              `json:"source"`
 }
 
 func observedRegionIPs(obs AddressObservation) (string, string) {
@@ -84,8 +82,14 @@ func resolveRegion(info *NodeProbeInfo, mode string, obs AddressObservation, d R
 		if r.IP != ip || ip == "" {
 			return RegionResult{IP: ip}
 		}
-		if !ValidRegion(r.Country) || r.Status != "ok" {
-			r.Country = ""
+		if !ValidRegion(r.Country) || (r.Status != "ok" && r.LastSuccessAt == 0) {
+			r.Country, r.Location, r.LastSuccessAt = "", nil, 0
+		}
+		if r.Status == "ok" && r.LastSuccessAt == 0 {
+			r.LastSuccessAt = r.CheckedAt
+		}
+		if r.Location != nil && (r.Location.Validate() != nil || r.Location.Country != r.Country) {
+			r.Location = nil
 		}
 		return r
 	}
@@ -96,6 +100,12 @@ func resolveRegion(info *NodeProbeInfo, mode string, obs AddressObservation, d R
 		chosen = d.IPv6
 	}
 	d.IP, d.Country, d.CheckedAt = chosen.IP, chosen.Country, chosen.CheckedAt
+	d.LastSuccessAt = chosen.LastSuccessAt
+	d.Stale = chosen.Country != "" && (chosen.Status != "ok" || chosen.LastSuccessAt < time.Now().Add(-7*24*time.Hour).Unix())
+	d.Location = chosen.Location.Clone()
+	if d.Location == nil && ValidRegion(chosen.Country) {
+		d.Location = &domain.GeoLocation{Country: chosen.Country, Precision: "country"}
+	}
 	d.ObservedAt = obs.ReceivedAt
 	d.Fresh = chosen.IP != "" && obs.ReceivedAt >= time.Now().Add(-15*time.Minute).Unix()
 	d.Conflict = d.IPv4.Country != "" && d.IPv6.Country != "" && d.IPv4.Country != d.IPv6.Country
@@ -105,15 +115,35 @@ func resolveRegion(info *NodeProbeInfo, mode string, obs AddressObservation, d R
 	case "off":
 		info.Region = ""
 	}
+	info.Location = nil
+	switch nodeLocationMode(info.LocationSettings, mode) {
+	case "auto":
+		info.Location = d.Location.Clone()
+	case "manual":
+		if info.LocationSettings.Manual != nil && info.LocationSettings.Manual.Validate() == nil {
+			info.Location = info.LocationSettings.Manual.Clone()
+		}
+	}
 	return mode, d
 }
 
+func nodeLocationMode(settings *domain.LocationSettings, oldMode string) string {
+	if settings != nil {
+		return settings.Mode
+	}
+	if oldMode == "off" {
+		return "off"
+	}
+	return "auto"
+}
+
 type NodeRegionState struct {
-	ID        int64
-	Token     string
-	Mode      string
-	Observed  AddressObservation
-	Detection RegionDetection
+	LocationMode string
+	ID           int64
+	Token        string
+	Mode         string
+	Observed     AddressObservation
+	Detection    RegionDetection
 }
 
 func (s *Store) NodeRegionState(ctx context.Context, id int64) (NodeRegionState, error) {
@@ -130,8 +160,10 @@ func (s *Store) NodeRegionState(ctx context.Context, id int64) (NodeRegionState,
 	var ni NodeProbeInfo
 	_ = json.Unmarshal([]byte(info), &ni)
 	out.Mode, out.Detection = resolveRegion(&ni, out.Mode, out.Observed, out.Detection)
+	out.LocationMode = nodeLocationMode(ni.LocationSettings, out.Mode)
 	return out, nil
 }
+func (n NodeRegionState) Automatic() bool       { return n.Mode == "auto" || n.LocationMode == "auto" }
 func (n NodeRegionState) IPs() (string, string) { return observedRegionIPs(n.Observed) }
 func (n NodeRegionState) Fresh(at time.Time) bool {
 	return n.Token != "" && n.Observed.ReceivedAt >= at.Add(-15*time.Minute).Unix()

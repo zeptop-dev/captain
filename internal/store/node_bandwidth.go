@@ -35,6 +35,8 @@ func normalizeNodeBandwidth(info *NodeProbeInfo, old NodeProbeInfo) error {
 
 // PublicInfo strips private metadata before serializing a public probe response.
 func (info NodeProbeInfo) PublicInfo() NodeProbeInfo {
+	info.LocationSettings = nil
+	info.Location = info.Location.Clone()
 	if info.Bandwidth != nil && !info.Bandwidth.Public {
 		info.Bandwidth = nil
 	}

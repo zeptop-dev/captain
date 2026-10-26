@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
+	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
@@ -29,7 +30,7 @@ func TestNodeRegionsCacheModesAndAddressChanges(t *testing.T) {
 	}
 	read := func() *store.NodeProbe { p, err := st.NodeProbe(ctx, n.ID); must(err); return p }
 	set := func(mode, country string) {
-		must(st.UpdateNodeProbeWithRegion(ctx, n.ID, false, store.NodeProbeInfo{Region: country}, 0, 1, "sum", nil, &mode))
+		must(st.UpdateNodeProbeWithRegion(ctx, n.ID, false, store.NodeProbeInfo{Region: country, LocationSettings: &domain.LocationSettings{Mode: "off"}}, 0, 1, "sum", nil, &mode))
 	}
 	calls := 0
 	svc := &NodeRegions{Store: st, Lookup: func(ctx context.Context, ip string) (string, error) {
@@ -202,4 +203,125 @@ func TestNodeRegionsOfflineKeepsCountryWithoutQuerying(t *testing.T) {
 	if err != nil || p.Info.Region != "JP" || p.RegionDetection.Fresh {
 		t.Fatal(p, err)
 	}
+}
+
+func TestNodeLocationsUpgradeCacheAndRetainLastGood(t *testing.T) {
+	ctx := context.Background()
+	st, n := dnsTestStore(t)
+	must := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err := st.RedeemPairCode(ctx, "dns-test", "token", "node", "test", "linux")
+	must(err)
+	at := time.Now().Add(-2 * time.Minute)
+	observe := func(ip string) {
+		t.Helper()
+		at = at.Add(time.Second)
+		must(st.ObserveNodeAddresses(ctx, n.ID, "token", &agentproto.PublicAddresses{SampledAt: at.Unix(), IPv4: ip}, at))
+	}
+	observe("198.51.100.20")
+	state, err := st.NodeRegionState(ctx, n.ID)
+	must(err)
+	must(st.SaveRegionDetection(ctx, state, store.RegionDetection{IPv4: store.RegionResult{IP: "198.51.100.20", Country: "JP", Status: "ok", CheckedAt: time.Now().Add(-2 * time.Hour).Unix()}}))
+	calls := 0
+	lat, lng := 35.68, 139.76
+	svc := &NodeRegions{Store: st, LookupLocation: func(context.Context, string) (*domain.GeoLocation, error) {
+		calls++
+		if !st.Accounts.TryLock() {
+			t.Error("network held Accounts")
+		} else {
+			st.Accounts.Unlock()
+		}
+		if !st.Topology.TryLock() {
+			t.Error("network held Topology")
+		} else {
+			st.Topology.Unlock()
+		}
+		return &domain.GeoLocation{Country: "JP", City: "Tokyo", Lat: &lat, Lng: &lng, Precision: "city"}, nil
+	}}
+	must(svc.Detect(ctx, n.ID, false))
+	p, err := st.NodeProbe(ctx, n.ID)
+	must(err)
+	if calls != 1 || p.Info.Location == nil || p.Info.Location.City != "Tokyo" || p.RegionDetection.IPv4.LocationVersion != 1 {
+		t.Fatal(calls, p)
+	}
+	must(svc.Detect(ctx, n.ID, false))
+	if calls != 1 {
+		t.Fatal("city cache not retained", calls)
+	}
+	// A failed weekly refresh retains the coordinates for this IP, but does not
+	// present the failed attempt as a fresh successful location sample.
+	state, err = st.NodeRegionState(ctx, n.ID)
+	must(err)
+	oldAt := time.Now().Add(-8 * 24 * time.Hour).Unix()
+	state.Detection.IPv4.CheckedAt = oldAt
+	state.Detection.IPv4.LastSuccessAt = oldAt
+	must(st.SaveRegionDetection(ctx, state, state.Detection))
+	svc.LookupLocation = func(context.Context, string) (*domain.GeoLocation, error) {
+		calls++
+		return nil, errors.New("provider unavailable")
+	}
+	must(svc.Detect(ctx, n.ID, false))
+	p, err = st.NodeProbe(ctx, n.ID)
+	must(err)
+	if p.Info.Location == nil || p.Info.Location.City != "Tokyo" || p.RegionDetection.IPv4.Status != "failed" || p.RegionDetection.LastSuccessAt != oldAt || !p.RegionDetection.Stale || p.RegionDetection.CheckedAt <= oldAt {
+		t.Fatal(p)
+	}
+	count := calls
+	must(svc.Detect(ctx, n.ID, false))
+	if calls != count {
+		t.Fatal("failed lookup bypassed hourly backoff")
+	}
+	observe("203.0.113.30")
+	p, err = st.NodeProbe(ctx, n.ID)
+	must(err)
+	if p.Info.Location != nil || p.RegionDetection.Location != nil {
+		t.Fatal("old location on changed IP", p)
+	}
+	must(svc.Detect(ctx, n.ID, false))
+	p, err = st.NodeProbe(ctx, n.ID)
+	must(err)
+	if p.Info.Location != nil || p.RegionDetection.LastSuccessAt != 0 {
+		t.Fatal("failed new IP inherited last-good", p)
+	}
+}
+
+func TestNodeLocationsIndependentModesAndLateManualChoice(t *testing.T) {
+	ctx := context.Background()
+	st, n := dnsTestStore(t)
+	must := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err := st.RedeemPairCode(ctx, "dns-test", "token", "node", "test", "linux")
+	must(err)
+	at := time.Now().Add(-time.Minute)
+	must(st.ObserveNodeAddresses(ctx, n.ID, "token", &agentproto.PublicAddresses{SampledAt: at.Unix(), IPv4: "198.51.100.20"}, at))
+	mode := "manual"
+	must(st.UpdateNodeProbeWithRegion(ctx, n.ID, false, store.NodeProbeInfo{Region: "DE"}, 0, 1, "sum", nil, &mode))
+	lat, lng := 35.68, 139.76
+	svc := &NodeRegions{Store: st, LookupLocation: func(context.Context, string) (*domain.GeoLocation, error) {
+		// A manual location chosen while the provider is in flight stays authoritative.
+		manual := &domain.LocationSettings{Mode: "manual", Manual: &domain.GeoLocation{Country: "US", City: "Example City", Lat: &lat, Lng: &lng, Precision: "city"}}
+		must(st.UpdateNodeProbeWithRegion(ctx, n.ID, false, store.NodeProbeInfo{Region: "DE", LocationSettings: manual}, 0, 1, "sum", nil, &mode))
+		return &domain.GeoLocation{Country: "JP", City: "Tokyo", Lat: &lat, Lng: &lng, Precision: "city"}, nil
+	}}
+	// Legacy manual flags now have automatic city detection until a location mode
+	// is explicitly chosen, without changing the independent manual flag.
+	svc.Tick(ctx, time.Now())
+	p, err := st.NodeProbe(ctx, n.ID)
+	must(err)
+	if p.Info.Region != "DE" || p.Info.Location == nil || p.Info.Location.Country != "US" || p.Info.Location.City != "Example City" || p.RegionDetection.Location.City != "Tokyo" {
+		t.Fatal(p)
+	}
+	svc.LookupLocation = func(context.Context, string) (*domain.GeoLocation, error) {
+		t.Fatal("manual location and flag triggered query")
+		return nil, nil
+	}
+	svc.Tick(ctx, time.Now())
 }
