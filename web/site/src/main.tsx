@@ -2,7 +2,6 @@ import '@mantine/core/styles.css'
 import React, { useEffect, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import { MantineProvider } from '@mantine/core'
-import { useMediaQuery } from '@mantine/hooks'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { buildTheme } from './theme'
 import { useQuery } from '@tanstack/react-query'
@@ -19,16 +18,15 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, sta
 const ref = new URLSearchParams(window.location.search).get('ref')
 if (ref) fetch('/api/portal/ref', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ Code: ref }), credentials: 'same-origin' }).catch(() => {})
 
-// The operator supplies the initial appearance; a visitor can override only
-// the public site's scheme without changing portal/admin/probe preferences.
+// The public site starts light and remembers only the visitor's explicit choice.
+// Palette and typography still follow the operator's settings.
 function Themed({ children }: { children: ReactNode }) {
   const site = useQuery({ queryKey: ['site'], queryFn: () => getJSON<Site>('/api/site') })
   const a = resolveSiteAppearance(site.data?.theme)
   const [preference, setPreference] = useState<SiteScheme | null>(() => {
     try { return readSitePreference(window.localStorage) } catch { return null }
   })
-  const systemDark = useMediaQuery('(prefers-color-scheme: dark)', true, { getInitialValueInEffect: false })
-  const { selected, computed } = effectiveSiteScheme(preference, a.scheme, systemDark)
+  const selected = effectiveSiteScheme(preference)
   useEffect(() => {
     const changed = (event: StorageEvent) => {
       if (event.key === siteSchemeStorageKey || event.key === null) setPreference(parseSitePreference(event.newValue))
@@ -53,7 +51,7 @@ function Themed({ children }: { children: ReactNode }) {
       '--site-configured-accent': a.primary ? `var(--mantine-color-${a.primary}-3)` : 'initial',
       '--site-configured-ink': a.primary ? '#12170b' : 'initial',
     },
-  })} forceColorScheme={computed} colorSchemeManager={{ get: () => computed, set: () => {}, clear: () => {}, subscribe: () => {}, unsubscribe: () => {} }}>{children}</MantineProvider></SiteSchemeContext.Provider>
+  })} forceColorScheme={selected} colorSchemeManager={{ get: () => selected, set: () => {}, clear: () => {}, subscribe: () => {}, unsubscribe: () => {} }}>{children}</MantineProvider></SiteSchemeContext.Provider>
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
