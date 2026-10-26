@@ -7,11 +7,12 @@ import { copyText } from '../lib/clipboard'
 import { api, type Server } from '../lib/api'
 import { Link } from 'react-router-dom'
 import { toast } from '../lib/notify'
+import classes from './SecondaryPages.module.css'
 
 export default function ServersPage() {
   const { t } = useTranslation()
-  return <Stack gap="lg">
-    <Group justify="space-between"><Title order={1} fz={30}>{t('servers.title')}</Title><Button variant="subtle" component={Link} to="/connect" leftSection={<IconArrowLeft size={16} />}>{t('connection.back')}</Button></Group>
+  return <Stack className={classes.page}>
+    <header className={classes.header}><div><div className={classes.eyebrow}>02 / {t('portalNav.connect')}</div><Title order={1} className={classes.title}>{t('servers.title')}</Title></div><Button variant="subtle" component={Link} to="/connect" leftSection={<IconArrowLeft size={16} />}>{t('connection.back')}</Button></header>
     <ServerList />
   </Stack>
 }
@@ -46,10 +47,10 @@ export function ServerList() {
     {selectedCategory?.description && <Text size="sm" c="dimmed" style={{ overflowWrap: 'anywhere' }}>{selectedCategory.description}</Text>}
     {q.isSuccess && servers.length === 0 && <Card><Text c="dimmed" size="sm">{t('servers.empty')}</Text><Anchor component={Link} to="/plans" size="sm" mt="xs">{t('home.browsePlans')}</Anchor></Card>}
     {servers.length > 0 && visible.length === 0 && <Card><Text size="sm" c="dimmed">{t('connection.noMatches')}</Text><Button variant="subtle" size="compact-sm" mt="xs" onClick={() => { setSearch(''); setProtocol(null); setTag(null); setCategory(null) }}>{t('connection.clearFilters')}</Button></Card>}
-    <SimpleGrid cols={{ base: 1, sm: 2 }}>
-      {visible.map((server, index) => <Card key={`${server.name}-${server.host}-${server.port}-${index}`} padding="lg">
+    <SimpleGrid cols={{ base: 1, sm: 2 }} className={classes.serverGrid}>
+      {visible.map((server, index) => <Card key={`${server.name}-${server.host}-${server.port}-${index}`} className={classes.server}>
         <Group justify="space-between" align="flex-start" wrap="nowrap">
-          <Group gap="sm" wrap="nowrap" style={{ minWidth: 0 }}><IconServer size={21} style={{ flexShrink: 0, color: 'var(--mantine-primary-color-filled)' }} aria-hidden /><Text fw={600} style={{ overflowWrap: 'anywhere' }}>{server.name}</Text></Group>
+          <Group gap="sm" wrap="nowrap" style={{ minWidth: 0 }}><IconServer size={18} className={classes.serverIcon} aria-hidden /><Text fw={600} style={{ overflowWrap: 'anywhere' }}>{server.name}</Text></Group>
           <Group gap={6} wrap="nowrap"><Badge variant="light" size="sm">{server.protocol}</Badge>{server.uri && <Tooltip label={t('servers.copyLink')}><ActionIcon variant="subtle" aria-label={t('servers.copyLink')} onClick={async () => { if (await copyText(server.uri)) toast.ok(t('home.copied')) }}><IconCopy size={17} /></ActionIcon></Tooltip>}</Group>
         </Group>
         {(server.category || (server.tags ?? []).length > 0) && <Group gap={5} mt="sm">{server.category && <Badge size="xs" variant="outline" style={{ maxWidth: '100%' }}>{server.category.name}</Badge>}{(server.tags ?? []).map(value => <Badge key={value} size="xs" color="gray" variant="light">{value}</Badge>)}</Group>}

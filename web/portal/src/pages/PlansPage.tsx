@@ -7,6 +7,7 @@ import { api, ApiError, type Plan, type Quote } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { money, when } from '../lib/format'
 import { toast } from '../lib/notify'
+import classes from './SecondaryPages.module.css'
 
 export default function PlansPage() {
   const { t } = useTranslation()
@@ -56,14 +57,14 @@ export default function PlansPage() {
     return ''
   }
   return (
-    <Stack gap="lg">
-      <Title order={2}>{t('plans.title')}</Title>
+    <Stack className={classes.page}>
+      <header className={classes.header}><div><div className={classes.eyebrow}>03 / {t('portalNav.billing')}</div><Title order={1} className={classes.title}>{t('plans.title')}</Title></div></header>
       {(held.length > 0 || queued.length > 0) && (
-        <Card>
+        <Card className={classes.ownedPlans}>
           <Text size="xs" tt="uppercase" c="dimmed" fw={700} mb="xs">{t('plans.mine')}</Text>
           <Stack gap={6}>
             {[...held, ...queued].map((s) => (
-              <Group key={s.id} justify="space-between" wrap="nowrap">
+              <Group className={classes.ownedPlan} key={s.id} justify="space-between">
                 <Group gap="xs"><Text size="sm" fw={600}>{s.plan_name}</Text><Badge size="xs" variant="light" color={s.status === 'queued' ? 'gray' : 'teal'}>{s.status === 'queued' ? t('home.statusQueued') : t('home.statusActive')}</Badge></Group>
                 <Text size="xs" c="dimmed">{s.status === 'queued' ? t('plans.mineQueued') : s.expires_at ? t('plans.mineExpires', { date: when(s.expires_at).split(',')[0] }) : t('home.never')}</Text>
               </Group>
@@ -72,15 +73,15 @@ export default function PlansPage() {
           <Text size="xs" c="dimmed" mt="sm">{me?.single_plan ? t('plans.mineHintSingle') : t('plans.mineHint')}</Text>
         </Card>
       )}
-      <SimpleGrid cols={{ base: 1, xs: 2 }}>
-        {(q.data ?? []).map((p) => (
-          <Card key={p.ID}>
+      <SimpleGrid cols={{ base: 1, sm: Math.min(q.data?.length || 1, 2), lg: Math.min(q.data?.length || 1, 3) }} className={classes.plansGrid}>
+        {(q.data ?? []).map((p, index) => (
+          <Card key={p.ID} className={classes.plan}>
             <Stack gap="xs" h="100%">
-              <Text fw={700} fz="lg">{p.Name}</Text>
-              <Text fz={30} fw={800}>{money(cheapest(p).price_cents)}<Text span c="dimmed" fz="sm"> / {periodLabel(cheapest(p).period_days)}</Text></Text>
+              <Text className={classes.eyebrow} aria-hidden>{String(index + 1).padStart(2, '0')}</Text><Title order={2} className={classes.planName}>{p.Name}</Title>
+              <div className={classes.price}>{money(cheapest(p).price_cents)}<span className={classes.priceUnit}>/ {periodLabel(cheapest(p).period_days)}</span></div>
               {periods(p).length > 1 && <Text size="xs" c="dimmed">{t('plans.morePeriods', { count: periods(p).length })}</Text>}
               <Text size="sm" c="dimmed">{p.QuotaBytes ? t('plans.quota', { gb: Math.round(p.QuotaBytes / 2 ** 30) }) : t('plans.unlimited')}{p.DeviceLimit ? ` · ${t('plans.devices', { count: p.DeviceLimit })}` : ''}</Text>
-              <Button mt="auto" onClick={() => choose(p)}>{held.some((s) => s.plan_id === p.ID) ? t('plans.renew') : t('plans.buy')}</Button>
+              <div className={classes.planAction}><Button fullWidth onClick={() => choose(p)} rightSection={<span aria-hidden>↗</span>}>{held.some((s) => s.plan_id === p.ID) ? t('plans.renew') : t('plans.buy')}</Button></div>
             </Stack>
           </Card>
         ))}

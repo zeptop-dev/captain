@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
 import { when } from '../lib/format'
 import { toast } from '../lib/notify'
+import classes from './SecondaryPages.module.css'
 
 interface Msg { id: number; from_admin: boolean; body: string; created_at: string }
 interface Ticket { id: number; subject: string; status: string; priority: string; messages: number | Msg[]; created_at: string; updated_at: string }
@@ -28,17 +29,17 @@ export default function TicketsPage() {
   const d = detail.data
   const thread = (d && Array.isArray(d.messages) ? d.messages : []) as Msg[]
   return (
-    <Stack gap="lg">
-      <Group justify="space-between"><Title order={2}>{t('tickets.title')}</Title><Button leftSection={<IconPlus size={16} />} onClick={() => setCreating(true)}>{t('tickets.create')}</Button></Group>
+    <Stack className={classes.page}>
+      <header className={classes.header}><div><div className={classes.eyebrow}>04 / {t('portalNav.help')}</div><Title order={1} className={classes.title}>{t('tickets.title')}</Title></div><Button leftSection={<IconPlus size={16} />} onClick={() => setCreating(true)}>{t('tickets.create')}</Button></header>
       {list.data?.length === 0 && <Text c="dimmed">{t('tickets.empty')}</Text>}
-      {(list.data ?? []).map((tk) => (
-        <Card key={tk.id} padding="md" style={{ cursor: 'pointer' }} onClick={() => setOpenId(tk.id)}>
+      <div className={classes.list}>{(list.data ?? []).map((tk) => (
+        <Card key={tk.id} component="button" type="button" className={classes.listRow} onClick={() => setOpenId(tk.id)}>
           <Group justify="space-between" wrap="nowrap">
-            <div style={{ minWidth: 0 }}><Text fw={700} truncate>#{tk.id} {tk.subject}</Text><Text size="xs" c="dimmed">{when(tk.updated_at)} · {t('tickets.count', { count: typeof tk.messages === 'number' ? tk.messages : tk.messages.length })}</Text></div>
+            <div style={{ minWidth: 0 }}><Text className={classes.listTitle} truncate>#{tk.id} {tk.subject}</Text><Text className={classes.listMeta} mt={5}>{when(tk.updated_at)} · {t('tickets.count', { count: typeof tk.messages === 'number' ? tk.messages : tk.messages.length })}</Text></div>
             <Badge color={colors[tk.status] ?? 'gray'}>{t(`tickets.status.${tk.status}`)}</Badge>
           </Group>
         </Card>
-      ))}
+      ))}</div>
 
       <Modal opened={creating} onClose={() => setCreating(false)} title={t('tickets.create')}>
         <form onSubmit={form.onSubmit((v) => create.mutate(v))}><Stack>
@@ -55,7 +56,7 @@ export default function TicketsPage() {
             <Group gap="xs"><Badge color={colors[d.status] ?? 'gray'}>{t(`tickets.status.${d.status}`)}</Badge><Badge variant="outline" color="gray">{t(`tickets.prio.${d.priority}`)}</Badge></Group>
             <Stack gap="xs">
               {thread.map((m) => (
-                <Paper key={m.id} p="sm" radius="md" bg={m.from_admin ? 'var(--mantine-color-cyan-0)' : 'var(--mantine-color-gray-0)'} style={{ alignSelf: m.from_admin ? 'flex-start' : 'flex-end', maxWidth: '90%' }}>
+                <Paper key={m.id} className={`${classes.ticketMessage} ${m.from_admin ? classes.supportMessage : ''}`} style={{ alignSelf: m.from_admin ? 'flex-start' : 'flex-end' }}>
                   <Text size="xs" c="dimmed" mb={4}>{m.from_admin ? t('tickets.support') : t('tickets.you')} · {when(m.created_at)}</Text>
                   <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{m.body}</Text>
                 </Paper>
