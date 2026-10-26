@@ -33,6 +33,7 @@
     "src/**/*.tsx",
     "../glass-shared/**/*.ts",
     "../src/lib/**/*.ts",
-    "../src/appearance.ts"
+    "../src/appearance.ts",
+    "../../shared/branding.ts"
   ]
 }

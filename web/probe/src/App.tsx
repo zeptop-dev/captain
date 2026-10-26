@@ -3,7 +3,7 @@ import { networkIdentity, networkLabel } from './lib/network'
 import { nodeBandwidth } from './lib/node-bandwidth'
 import { nodePrice } from './lib/node-price'
 import { cpuSpec } from './lib/cpu-spec'
-import { Badge, Box, Card, Container, Group, Progress, SimpleGrid, Stack, Text, Title, Tooltip, Select, TextInput } from '@mantine/core'
+import { Badge, Box, Card, Container, Group, Progress, SimpleGrid, Stack, Text, Title, Tooltip, Select, TextInput, useComputedColorScheme } from '@mantine/core'
 import type { UseQueryResult } from '@tanstack/react-query'
 import { IconServer, IconArrowUp, IconArrowDown } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
@@ -12,14 +12,19 @@ import { publicShows, bytes, flag, pct, rate, uptime, type Node, type Snapshot, 
 import { Spark } from './components/Spark'
 import { StorageSummary } from './components/StorageSummary'
 import { NodeDetail } from './components/NodeDetail'
+import { applyProbeMetadata, probeLogo } from './lib/branding'
 
 // The public status page: one card per node, live values, sparklines and
 // the monthly traffic bar. Polls the snapshot at the beat interval.
 export default function App({ snap }: { snap: UseQueryResult<Snapshot, Error> }) {
   const { t, i18n } = useTranslation()
+  const scheme = useComputedColorScheme('dark')
   const [search, setSearch] = useState(''), [group, setGroup] = useState<string | null>(null), [status, setStatus] = useState<string | null>(null)
   const [open, setOpen] = useState<number | null>(null)
-  useEffect(() => { if (snap.data?.title) document.title = snap.data.title }, [snap.data?.title])
+  const { title, page_title, description, favicon } = snap.data ?? {}
+  useEffect(() => {
+    if (title !== undefined) return applyProbeMetadata({ title, page_title, description, favicon })
+  }, [title, page_title, description, favicon])
   if (snap.isError) {
     const code = (snap.error as Error).message
     return <Container size="sm" py={80}><Card className="glass" bg="transparent" withBorder={false}><Title order={3}>{t(code === '401' ? 'page.signInRequired' : code === '403' ? 'page.staffOnly' : code === '404' ? 'page.off' : 'page.error')}</Title>{code === '401' && <Text mt="sm"><a href="/portal/login">{t('page.signIn')}</a></Text>}</Card></Container>
@@ -37,7 +42,7 @@ export default function App({ snap }: { snap: UseQueryResult<Snapshot, Error> })
       <div className="site-bg" />
       <Container size="lg" py="md">
         <Group justify="space-between">
-          <Group gap="xs">{s.logo && <img src={s.logo} alt="" style={{ height: 28 }} />}<Text fw={800} fz="xl" className="gradient-text">{s.title}</Text></Group>
+          <Group gap="xs"><ProbeLogo src={probeLogo(s, scheme)} /><Text fw={800} fz="xl" className="gradient-text">{s.title}</Text></Group>
           <Group gap="md">
             <Badge variant="light" color="teal" size="lg" leftSection={<span className="live-dot" />}>{online} / {s.nodes.length} {t('page.online')}</Badge>
             {show('network') && <Text size="sm" c="dimmed"><IconArrowUp size={14} /> {validNetworkNodes.length ? rate(totalUp) : '—'} <IconArrowDown size={14} /> {validNetworkNodes.length ? rate(totalDown) : '—'}</Text>}
@@ -55,6 +60,11 @@ export default function App({ snap }: { snap: UseQueryResult<Snapshot, Error> })
       <NodeDetail snapshot={s} node={s.nodes.find((n) => n.id === open) ?? null} onClose={() => setOpen(null)} />
     </Box>
   )
+}
+
+function ProbeLogo({ src }: { src: string }) {
+  const [failed, setFailed] = useState('')
+  return src && failed !== src ? <img src={src} alt="" style={{ height: 28, maxWidth: 180, objectFit: 'contain' }} onError={() => setFailed(src)} /> : null
 }
 
 function NodeCard({ n, snapshot, onOpen }: { n: Node; snapshot: Snapshot; onOpen: () => void }) {
