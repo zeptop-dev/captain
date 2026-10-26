@@ -267,6 +267,8 @@
     "resumeGlobe": "Resume globe animation",
     "pauseGlobe": "Pause globe animation",
     "play": "Play",
-    "pause": "Pause"
+    "pause": "Pause",
+    "countryApproximate": "Country-level approximation",
+    "cityLocation": "City-level location"
   }
 }

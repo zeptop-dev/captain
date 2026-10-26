@@ -146,5 +146,7 @@
   "ICMP 权限不足": "ICMP permission denied",
   "目标解析失败": "Target DNS lookup failed",
   "探测超时": "Probe timed out",
-  "探测目标不可达": "Probe target unreachable"
+  "探测目标不可达": "Probe target unreachable",
+  "国家级近似位置": "Country-level approximation",
+  "城市级位置": "City-level location"
 }

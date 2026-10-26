@@ -22,7 +22,7 @@ const STATUS_FIELDS = [
 
 const CLIENT_FIELDS = [
   'name', 'cpu_name', 'virtualization', 'arch', 'cpu_cores', 'cpu_physical_cores', 'os',
-  'kernel_version', 'gpu_name', 'ipv4', 'ipv6', 'region', 'remark', 'public_remark',
+  'kernel_version', 'gpu_name', 'ipv4', 'ipv6', 'region', 'location', 'remark', 'public_remark',
   'mem_total', 'swap_total', 'disk_total', 'version', 'weight', 'price', 'billing_cycle',
   'auto_renewal', 'currency', 'expired_at', 'tags', 'hidden', 'traffic_limit',
   'created_at', 'updated_at',
@@ -47,6 +47,7 @@ function createNodeFromClient(client: Client): NodeData {
     ipv4: client.ipv4,
     ipv6: client.ipv6,
     region: client.region,
+    location: client.location,
     remark: client.remark,
     public_remark: client.public_remark,
     mem_total: client.mem_total,

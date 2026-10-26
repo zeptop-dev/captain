@@ -11,3 +11,14 @@
 :global(html[data-mantine-color-scheme='light']) .control:focus-visible { outline-color: #4c6d16; }
 :global(html[data-mantine-color-scheme='light']) .fallback { background: radial-gradient(circle at 35% 30%, #f7f9f2, #d9e1d0 72%); color: #52624a; border-color: #b8c3b1; }
 @media (prefers-reduced-motion: reduce) { .control { display: none; } }
+
+.precision {
+  position: absolute;
+  bottom: 13%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--site-muted);
+  font-size: 10px;
+  white-space: nowrap;
+  pointer-events: none;
+}

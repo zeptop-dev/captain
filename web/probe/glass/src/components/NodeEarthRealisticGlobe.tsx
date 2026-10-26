@@ -7,6 +7,7 @@ import { useNodeGeoClusters } from '@/hooks/useNodeGeoClusters'
 import { vclass } from '@/lib/vclass'
 import '@/scoped/node-earth-realistic-globe.css'
 import { scope } from '@/scoped/scope'
+import { t, language } from '@shared/i18n'
 import { appStore, useApp } from '@/stores/app'
 import type { NodeData } from '@/stores/nodes'
 
@@ -18,8 +19,11 @@ const EARTH_BUMP_MAP = './images/earth/earth-topology.png'
 const EARTH_SPECULAR_MAP = './images/earth/earth-water.png'
 const CHINA_COORD: [number, number] = [35.8617, 104.1954]
 
-interface GlobePoint { id: string, lat: number, lng: number, code: string, servers: number, onlineServers: number }
-interface GlobeLabel { id: string, lat: number, lng: number, code: string }
+interface GlobePoint { id: string, lat: number, lng: number, code: string, label: string, precision: 'city' | 'country', servers: number, onlineServers: number }
+interface GlobeLabel { id: string, lat: number, lng: number, code: string, label: string, precision: 'city' | 'country' }
+
+const countryNames = new Intl.DisplayNames([language], { type: 'region' })
+const clusterLabel = (cluster: { code: string; city?: string; subdivision?: string }) => [cluster.city, cluster.subdivision, countryNames.of(cluster.code) || cluster.code].filter(Boolean).join(' · ')
 
 const isDark = () => appStore.getState().isDark
 const earthTextureUrl = () => isDark() ? EARTH_NIGHT_TEXTURE : EARTH_DAY_TEXTURE
@@ -35,12 +39,22 @@ function createLabelElement(data: object): HTMLElement {
   const label = data as GlobeLabel
   const root = document.createElement('div')
   root.className = 'earth-label'
+  root.tabIndex = 0
+  root.setAttribute('role', 'img')
   root.dataset.clusterId = label.id
+  root.title = `${label.label} · ${t(label.precision === 'city' ? '城市级位置' : '国家级近似位置')}`
+  root.setAttribute('aria-label', root.title)
   const flag = document.createElement('img')
   flag.className = 'earth-label-flag'
   flag.src = `./images/flags/${label.code}.svg`
   flag.alt = label.code
   root.appendChild(flag)
+  if (label.precision === 'city') {
+    root.classList.add('earth-label-city')
+    const text = document.createElement('span')
+    text.textContent = label.label.split(' · ')[0]
+    root.appendChild(text)
+  }
   return root
 }
 
@@ -57,8 +71,8 @@ export default function NodeEarthRealisticGlobe({ nodes, className, ...attrs }: 
   const shouldRender = documentVisibility === 'visible' && elementVisible
 
   const { regionClusters, totalServers, onlineServers, offlineServers, clusterKey } = useNodeGeoClusters(nodes)
-  const pointsData = useMemo<GlobePoint[]>(() => regionClusters.map(c => ({ id: c.id, lat: c.coord[0], lng: c.coord[1], code: c.code, servers: c.servers, onlineServers: c.onlineServers })), [regionClusters])
-  const labelsData = useMemo<GlobeLabel[]>(() => regionClusters.map(c => ({ id: c.id, lat: c.coord[0], lng: c.coord[1], code: c.code })), [regionClusters])
+  const pointsData = useMemo<GlobePoint[]>(() => regionClusters.map(c => ({ id: c.id, lat: c.coord[0], lng: c.coord[1], code: c.code, label: clusterLabel(c), precision: c.precision, servers: c.servers, onlineServers: c.onlineServers })), [regionClusters])
+  const labelsData = useMemo<GlobeLabel[]>(() => regionClusters.map(c => ({ id: c.id, lat: c.coord[0], lng: c.coord[1], code: c.code, label: clusterLabel(c), precision: c.precision })), [regionClusters])
 
   // Live values for the imperative globe code (Vue read them reactively).
   const live = useRef({ containerWidth, containerHeight, shouldRender, pointsData, labelsData })
@@ -149,6 +163,12 @@ export default function NodeEarthRealisticGlobe({ nodes, className, ...attrs }: 
         .pointAltitude(0.008)
         .pointRadius((point: object) => ((point as GlobePoint).onlineServers > 0 ? 0.22 : 0.13))
         .pointColor(pointColor)
+        .pointLabel((point: object) => {
+          const value = point as GlobePoint
+          const label = document.createElement('span')
+          label.textContent = `${value.label} · ${t(value.precision === 'city' ? '城市级位置' : '国家级近似位置')}`
+          return label
+        })
         .pointsMerge(false)
         .pointsTransitionDuration(500)
         .ringsData(points)

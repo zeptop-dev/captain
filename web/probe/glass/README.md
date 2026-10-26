@@ -90,6 +90,16 @@ Captain adaptations:
   The production bundle includes the theme and icon licence texts under `licenses/`.
   External visitor audit/fingerprinting, IP geolocation, exchange-rate fetches
   and Komari administrative operations are disabled.
+- Globe markers consume only the published `info.location` metadata. City
+  coordinates form distinct clusters within a country; country-only results
+  use the existing approximate coordinates and identify that precision in
+  accessible labels and tooltips. Explicit `null` hides the location; only an
+  older API with no field falls back to `info.region`. Disabling public info
+  suppresses locations even if a stale snapshot still carries metadata. The
+  country coordinate table is shared with the homepage and service-status maps.
+  City flag markers are smaller, with a city label on hover or keyboard focus;
+  tooltip text uses DOM text nodes, never HTML interpolation. No browser IP
+  lookup is enabled.
 - The search container expands along with its focused input, so the toolbar
   reserves its full width and wraps on narrow screens. Upstream's absolute input
   expanded outside its icon-sized container and could extend beyond the viewport.

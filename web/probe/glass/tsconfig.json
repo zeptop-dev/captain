@@ -34,6 +34,8 @@
     "../glass-shared/**/*.ts",
     "../src/lib/**/*.ts",
     "../src/appearance.ts",
-    "../../shared/branding.ts"
+    "../../shared/branding.ts",
+    "../../shared/country-coordinates.ts",
+    "../../shared/geolocation.ts"
   ]
 }

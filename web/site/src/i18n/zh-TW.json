@@ -267,6 +267,8 @@
     "resumeGlobe": "繼續地球動畫",
     "pauseGlobe": "暫停地球動畫",
     "play": "播放",
-    "pause": "暫停"
+    "pause": "暫停",
+    "countryApproximate": "國家級近似位置",
+    "cityLocation": "城市級位置"
   }
 }

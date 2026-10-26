@@ -1,6 +1,7 @@
 import { feature } from 'topojson-client'
 import atlas from 'world-atlas/land-110m.json'
 import type { Location } from '../lib/site'
+export { mapLocations as validLocations } from '../lib/map-locations'
 
 type Coordinate = [number, number]
 type Polygon = Coordinate[][]
@@ -44,10 +45,6 @@ for (let latitude = -58; latitude <= 82; latitude += 2.1) {
   }
 }
 
-export function validLocations(locations: Location[]): Location[] {
-  return locations.filter((location) => Number.isFinite(location.lat) && Number.isFinite(location.lng) && Math.abs(location.lat) <= 90 && Math.abs(location.lng) <= 180)
-}
-
 export function projectFlat(longitude: number, latitude: number): Coordinate {
   // Use one scale on both axes: shortening latitude to fit a banner distorts
   // the map. The viewport handles layout without changing geographic shapes.
@@ -64,5 +61,6 @@ export const flatLandPath = [-360, 0, 360].map((shift) => polygons.map((polygon)
 }).join('')).join('')).join('')
 
 export function locationLabel(location: Location): string {
-  return location.tag?.trim() || location.name
+  const name = location.tag?.trim() || location.city?.trim() || location.name
+  return location.precision === 'country' ? `≈ ${name}` : name
 }

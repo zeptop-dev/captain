@@ -88,6 +88,8 @@ export interface Client {
   ipv4?: string
   ipv6?: string
   region: string
+  /** Undefined supports old snapshots; null explicitly hides the location. */
+  location?: import('../../../shared/geolocation').GeoLocation | null
   remark?: string
   public_remark: string
   mem_total: number

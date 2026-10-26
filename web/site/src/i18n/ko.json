@@ -267,6 +267,8 @@
     "resumeGlobe": "지구본 애니메이션 재개",
     "pauseGlobe": "지구본 애니메이션 일시 정지",
     "play": "재생",
-    "pause": "일시 정지"
+    "pause": "일시 정지",
+    "countryApproximate": "국가 단위 추정 위치",
+    "cityLocation": "도시 단위 위치"
   }
 }

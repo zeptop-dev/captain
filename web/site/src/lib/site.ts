@@ -1,6 +1,7 @@
 import type { Branding } from '../../../shared/branding'
 
-export interface Location { name: string; lat: number; lng: number; tag?: string }
+export interface Location { name: string; lat?: number; lng?: number; tag?: string; country?: string; city?: string; subdivision?: string; precision?: 'city' | 'country' }
+export interface LocatedPoint extends Location { lat: number; lng: number }
 export interface Feature { title: string; text: string; icon?: string }
 export interface FAQ { q: string; a: string }
 export interface SiteTheme { primary?: string; radius?: string; scheme?: string; site_scheme?: string; font_family?: string; portal_title?: string }
@@ -10,6 +11,10 @@ export interface Site {
   faq: FAQ[]; links: { telegram?: string; tos?: string; download?: string; github?: string }
   show_plans: boolean; registration: boolean; probe_url?: string; service_status_url?: string
   stats: { nodes: number; online: number; users: number; locations: number }
+  map_source?: 'manual' | 'entries'
+  status_map_source?: 'manual' | 'entries'
+  status_locations?: Location[]
+  status_hub?: Location | null
   branding?: Branding
   theme?: SiteTheme
 }

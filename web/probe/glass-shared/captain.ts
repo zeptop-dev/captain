@@ -45,7 +45,7 @@ export function clientFor(n: Node, weight: number): Client {
   return {
     uuid: String(n.id), name: n.name, cpu_name: info?.cpu_model ?? '', cpu_cores: info?.cpu_cores ?? 0,
     virtualization: info?.virt ?? '', arch: info?.arch ?? '', os: info?.os ?? '', kernel_version: info?.kernel ?? '',
-    region: n.info.region ?? '', public_remark: n.info.note ?? '',
+    region: n.info.region ?? '', location: shows('info') ? n.info.location : null, public_remark: n.info.note ?? '',
     ...(n.addr ? { [n.addr.includes(':') ? 'ipv6' : 'ipv4']: n.addr } : {}),
     mem_total: metric(h, 'memory', 'memory', 'mem_total'), swap_total: metric(h, 'memory', 'swap', 'swap_total'),
     disk_total: metric(h, 'disk', 'disk', 'disk_total'), version: n.version, weight,

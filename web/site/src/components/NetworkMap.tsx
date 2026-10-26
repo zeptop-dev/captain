@@ -34,8 +34,8 @@ export function NetworkMap({ locations, hub }: { locations: Location[]; hub: Loc
         <g fill="none" stroke="var(--map-accent)" strokeWidth=".9" strokeOpacity=".45" strokeDasharray="2 5">{arcs.map((arc, index) => <path key={index} d={arc} className={styles.arc} />)}</g>
         {displayPoints.map((point, index) => {
           const [x, y] = projectFlat(point.lng, point.lat)
-          return <g key={`${point.name}-${index}`} transform={`translate(${x},${y})`} className={styles.location} tabIndex={0} role="img" aria-label={t('geography.location', { name: point.name })}>
-            <title>{point.name}</title><circle r="15" className={styles.ring} style={{ animationDelay: `${index % 5 * -0.65}s` }} /><circle r="6" fill="var(--map-accent)" fillOpacity=".09" stroke="var(--map-accent)" strokeOpacity=".5" strokeWidth=".7" /><circle r="2.4" fill="var(--map-marker)" />
+          return <g key={`${point.name}-${index}`} transform={`translate(${x},${y})`} className={styles.location} tabIndex={0} role="img" aria-label={`${t('geography.location', { name: point.name })}${point.precision ? ` · ${t(point.precision === 'country' ? 'geography.countryApproximate' : 'geography.cityLocation')}` : ''}`}>
+            <title>{point.name}{point.city ? ` · ${point.city}` : ''}{point.precision ? ` · ${t(point.precision === 'country' ? 'geography.countryApproximate' : 'geography.cityLocation')}` : ''}</title><circle r="15" className={styles.ring} style={{ animationDelay: `${index % 5 * -0.65}s` }} /><circle r="6" fill="var(--map-accent)" fillOpacity=".09" stroke="var(--map-accent)" strokeOpacity=".5" strokeWidth=".7" /><circle r="2.4" fill="var(--map-marker)" />
             <g className={styles.label} transform={`translate(${x > 950 ? -12 : 12},-9)`}><rect x={x > 950 ? -132 : 0} y="-12" width="132" height="25" rx="4" fill="var(--map-label-bg)" stroke="var(--map-label-line)" /><text x={x > 950 ? -124 : 8} y="4" fill="var(--map-label-text)" fontSize="11" fontFamily="ui-monospace, monospace">{locationLabel(point).slice(0, 18)}</text></g>
           </g>
         })}
@@ -43,7 +43,7 @@ export function NetworkMap({ locations, hub }: { locations: Location[]; hub: Loc
       </g>
     </svg>
     </div>
-    <span className={styles.legend}><i aria-hidden="true" /> {t('geography.illustration')}</span>
+    <span className={styles.legend}><i aria-hidden="true" /> {t('geography.illustration')}{points.some(point => point.precision === 'country') ? ` · ≈ ${t('geography.countryApproximate')}` : ''}</span>
     <span className={styles.scrollHint}>{t('geography.scrollHint')}</span>
     <button type="button" className={styles.control} onClick={() => setPaused((value) => !value)} aria-pressed={paused}>{t(paused ? 'geography.playAnimation' : 'geography.pauseAnimation')}<span aria-hidden="true">{paused ? ' ▷' : ' Ⅱ'}</span></button>
   </div>

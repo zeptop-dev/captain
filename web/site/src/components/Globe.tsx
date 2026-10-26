@@ -19,8 +19,11 @@ export function NodeGlobe({ locations, hub, variant = 'home' }: Props) {
   const [paused, setPaused] = useState(false)
   const [available, setAvailable] = useState(true)
   const description = useId()
-  const points = useMemo(() => validLocations(hub ? [...locations, hub] : locations).filter((point, index, all) => all.findIndex((other) => other.lat === point.lat && other.lng === point.lng && other.name === point.name) === index), [locations, hub])
-  const locationNames = new Intl.ListFormat(i18n.resolvedLanguage || i18n.language || 'en', { type: 'conjunction' }).format(points.map((point) => point.name))
+  // Status snapshots refresh frequently. Equal geometry should not restart rotation.
+  const geometry = JSON.stringify({ locations, hub })
+  const stable = useMemo(() => JSON.parse(geometry) as { locations: Location[]; hub: Location | null }, [geometry])
+  const points = useMemo(() => validLocations(stable.hub ? [...stable.locations, stable.hub] : stable.locations).filter((point, index, all) => all.findIndex((other) => other.lat === point.lat && other.lng === point.lng && other.name === point.name) === index), [stable])
+  const locationNames = new Intl.ListFormat(i18n.resolvedLanguage || i18n.language || 'en', { type: 'conjunction' }).format(points.map((point) => `${point.name}${point.city ? ` · ${point.city}` : ''}${point.precision ? ` · ${t(point.precision === 'country' ? 'geography.countryApproximate' : 'geography.cityLocation')}` : ''}`))
 
   useEffect(() => { pausedRef.current = paused; syncAnimation.current?.() }, [paused])
   useEffect(() => {
@@ -31,7 +34,7 @@ export function NodeGlobe({ locations, hub, variant = 'home' }: Props) {
     const palette = globePalette(scheme)
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)')
     let reduced = motion.matches
-    const origin = hub && validLocations([hub])[0] || points[0]
+    const origin = stable.hub && validLocations([stable.hub])[0] || points[0]
     let width = 470, frame = 0, last = 0, longitude = origin?.lng ?? 100
     const latitude = Math.max(-35, Math.min(45, origin?.lat ?? 22)) * radians
     const sinLat = Math.sin(latitude), cosLat = Math.cos(latitude)
@@ -107,12 +110,13 @@ export function NodeGlobe({ locations, hub, variant = 'home' }: Props) {
     document.addEventListener('visibilitychange', sync)
     resize(); sync()
     return () => { syncAnimation.current = null; window.cancelAnimationFrame(frame); observer.disconnect(); intersection.disconnect(); motion.removeEventListener('change', onMotion); document.removeEventListener('visibilitychange', sync) }
-  }, [points, hub, variant, scheme])
+  }, [points, stable.hub, variant, scheme])
 
   return <div ref={host} className={styles.globe} data-variant={variant}>
     <canvas ref={canvas} role="img" aria-label={t('geography.globeTitle')} aria-describedby={description} />
     {!available && <div className={styles.fallback}>{t('geography.unavailable')}</div>}
     <p id={description} className={styles.srOnly}>{t(points.length ? 'geography.configuredLocations' : 'geography.noLocations', { names: locationNames })} {t('geography.globeDisclaimer')}</p>
+    {points.some(point => point.precision === 'country') && <span className={styles.precision}>≈ {t('geography.countryApproximate')}</span>}
     <button type="button" className={styles.control} onClick={() => setPaused((value) => !value)} aria-pressed={paused} aria-label={t(paused ? 'geography.resumeGlobe' : 'geography.pauseGlobe')}>{t(paused ? 'geography.play' : 'geography.pause')}<span aria-hidden="true">{paused ? ' ▷' : ' Ⅱ'}</span></button>
   </div>
 }

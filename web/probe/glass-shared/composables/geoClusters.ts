@@ -1,14 +1,18 @@
 // Region clusters for the globe and map; shared by the Vue composable and
 // the React hook so both builds group nodes identically.
 import type { NodeData } from '@shared/types/node'
-import { getCoordByCode, getCountryCodeFromRegion } from '@shared/utils/geoHelper'
-import { getRegionDisplayName } from '@shared/utils/regionHelper'
+import { getCountryCodeFromRegion } from '../utils/geoHelper.ts'
+import { getRegionDisplayName } from '../utils/regionHelper.ts'
+import { geoKey, locateGeo } from '../../../shared/geolocation.ts'
 
 export interface RegionCluster {
   id: string
   code: string
   coord: [number, number]
   label: string
+  precision: 'city' | 'country'
+  city?: string
+  subdivision?: string
   asn?: string
   org?: string
   servers: number
@@ -21,15 +25,15 @@ export interface ClusterSummary {
   onlineServers: number
 }
 
-function nodeClusterInfo(node: NodeData): { id: string, code: string, coord: [number, number], label: string, asn?: string, org?: string } | null {
-  const countryCode = getCountryCodeFromRegion(node.region)
-  if (countryCode) {
-    const coord = getCoordByCode(countryCode)
-    if (coord)
-      return { id: countryCode.toLowerCase(), code: countryCode, coord, label: getRegionDisplayName(node.region) || getRegionDisplayName(countryCode) || '' }
-  }
-
-  return null
+function nodeClusterInfo(node: NodeData): Omit<RegionCluster, 'servers' | 'onlineServers'> | null {
+  // Null is an explicit decision from the current API (off, hidden or unknown).
+  // Only a missing field from an older API may fall back to the country flag.
+  const legacyCountry = node.location === undefined ? getCountryCodeFromRegion(node.region) : null
+  const location = locateGeo(node.location === undefined && legacyCountry ? { country: legacyCountry, precision: 'country' } : node.location)
+  if (!location) return null
+  const label = location.precision === 'city' ? [location.city, location.subdivision, getRegionDisplayName(location.country)].filter(Boolean).join(' · ')
+    : getRegionDisplayName(location.country) || location.country
+  return { id: geoKey(location), code: location.country, coord: [location.lat, location.lng], label, precision: location.precision, city: location.city, subdivision: location.subdivision }
 }
 
 export function summarizeClusters(displayNodes: readonly NodeData[]): ClusterSummary {
@@ -46,7 +50,7 @@ export function summarizeClusters(displayNodes: readonly NodeData[]): ClusterSum
 
     let cluster = clustersById.get(info.id)
     if (!cluster) {
-      cluster = { id: info.id, code: info.code, coord: info.coord, label: info.label, asn: info.asn, org: info.org, servers: 0, onlineServers: 0 }
+      cluster = { ...info, servers: 0, onlineServers: 0 }
       clustersById.set(info.id, cluster)
     }
     if (!cluster.asn && info.asn)
@@ -67,5 +71,5 @@ export function summarizeClusters(displayNodes: readonly NodeData[]): ClusterSum
 }
 
 export function clusterKey(cluster: RegionCluster) {
-  return `${cluster.id}:${cluster.coord[0]},${cluster.coord[1]}:${cluster.label}:${cluster.asn ?? ''}:${cluster.org ?? ''}:${cluster.servers}:${cluster.onlineServers}`
+  return `${cluster.id}:${cluster.coord[0]},${cluster.coord[1]}:${cluster.label}:${cluster.precision}:${cluster.asn ?? ''}:${cluster.org ?? ''}:${cluster.servers}:${cluster.onlineServers}`
 }

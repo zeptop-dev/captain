@@ -20,7 +20,7 @@
   background: transparent !important;
 }
 .earth-globe-host[data-v-node-earth-realistic-globe] .earth-label {
-  pointer-events: none;
+  pointer-events: auto;
   position: relative;
   transform: translate(-50%, -118%);
   transition:
@@ -36,4 +36,32 @@
   display: block;
   border-radius: 0.18rem;
   box-shadow: 0 8px 20px rgb(15 23 42 / 24%);
+}
+
+.earth-globe-host[data-v-node-earth-realistic-globe] .earth-label-city {
+  pointer-events: auto;
+}
+.earth-globe-host[data-v-node-earth-realistic-globe] .earth-label-city .earth-label-flag {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+.earth-globe-host[data-v-node-earth-realistic-globe] .earth-label-city span {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: -2px;
+  margin-left: 4px;
+  max-width: 144px;
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.earth-globe-host[data-v-node-earth-realistic-globe] .earth-label-city:hover span,
+.earth-globe-host[data-v-node-earth-realistic-globe] .earth-label-city:focus-visible span {
+  display: block;
 }

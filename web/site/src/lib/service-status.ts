@@ -1,4 +1,5 @@
-// Kept identical in the independently built portal and site SPAs.
+// Shared service-status semantics; the site additionally consumes public map metadata.
+import type { GeoLocation } from '../../../shared/geolocation'
 export const statusStates = ['healthy', 'degraded', 'down', 'maintenance', 'unknown'] as const
 export type StatusState = typeof statusStates[number]
 export const statusReasons = ['healthy', 'no_data', 'stale', 'config_pending', 'component_failure', 'no_route', 'partial_failure', 'partial_unknown', 'unsupported', 'external_path', 'maintenance'] as const
@@ -6,6 +7,7 @@ export const statusEvidence = ['inbound', 'forward_tcp', 'wireguard', 'vless_rev
 export interface StatusCategory { id: number; name: string; description: string; sort: number }
 export interface StatusEntry {
   id: number; name: string; rate: number; region: string; category: StatusCategory | null
+  location?: GeoLocation | null
   state: StatusState; reason: string; evidence: string[]; observed_at: number | null
   end_to_end: false; maintenance: { starts_at: number; ends_at: number; note: string } | null
 }

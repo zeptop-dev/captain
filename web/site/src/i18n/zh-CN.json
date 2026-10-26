@@ -267,6 +267,8 @@
     "resumeGlobe": "继续地球动画",
     "pauseGlobe": "暂停地球动画",
     "play": "播放",
-    "pause": "暂停"
+    "pause": "暂停",
+    "countryApproximate": "国家级近似位置",
+    "cityLocation": "城市级位置"
   }
 }
