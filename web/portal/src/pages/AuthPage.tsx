@@ -1,8 +1,8 @@
 import { Alert, Anchor, Button, Divider, Loader, PasswordInput, Text, TextInput } from '@mantine/core'
 import { useForm } from '@mantine/form'
-import { useState } from 'react'
+import { useState, type KeyboardEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { IconArrowRight, IconKey, IconLock, IconMail, IconTicket } from '@tabler/icons-react'
+import { IconArrowRight, IconKey } from '@tabler/icons-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError } from '../lib/api'
@@ -51,27 +51,29 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
         {registering && policy.isError && <Alert color="red" className={styles.feedback}>{t('auth.policyFailed')} <Anchor component="button" type="button" onClick={() => policy.refetch()}>{t('auth.retry')}</Anchor></Alert>}
         {registering && !policy.isError && policy.data && !registrationOpen && <Alert color="gray" className={styles.feedback}>{t('auth.closed')}</Alert>}
         {oauth.isError && showMethods && <Alert color="red" className={styles.feedback}>{t('auth.providersFailed')} <Anchor component="button" type="button" onClick={() => oauth.refetch()}>{t('auth.retry')}</Anchor></Alert>}
-        {providers.length > 0 && showMethods && <>
-          <div className={styles.providers} data-stacked={providers.length === 1 || providers.some((p) => t('auth.with', { name: p.name }).length > 32) || undefined}>
-            {providers.map((p) => <Button key={p.id} component="a" href={`/api/oauth/${p.id}/start?next=${encodeURIComponent(next)}`} variant="default" className={styles.provider} leftSection={<IconKey size={18} aria-hidden />}>{t('auth.with', { name: p.name })}</Button>)}
-          </div>
-          {passwordLogin && <Divider label={t('auth.emailAlternative')} labelPosition="center" className={styles.divider} />}
-        </>}
         {!loading && oauth.data && showMethods && !passwordLogin && providers.length === 0 && <Alert color="gray" className={styles.feedback}>{t('auth.loginUnavailable')}</Alert>}
         {showPasswordForm && <>
-          <TextInput className={styles.field} label={t('auth.email')} placeholder={t('auth.emailPlaceholder')} leftSection={<IconMail size={18} aria-hidden />} type="email" autoComplete="username" size="md" required {...form.getInputProps('Email')} />
-          <PasswordInput inputWrapperOrder={['label', 'input', 'description', 'error']} className={styles.field} label={t('auth.password')} placeholder={t(registering ? 'auth.passwordCreatePlaceholder' : 'auth.passwordPlaceholder')} leftSection={<IconLock size={18} aria-hidden />} autoComplete={registering ? 'new-password' : 'current-password'} size="md" required minLength={8} visible={passwordVisible} onVisibilityChange={setPasswordVisible} visibilityToggleButtonProps={{ tabIndex: 0, 'aria-hidden': false, 'aria-label': t(passwordVisible ? 'auth.hidePassword' : 'auth.showPassword') }} description={registering ? t('auth.passwordHint') : undefined} {...form.getInputProps('Password')} />
+          <TextInput className={styles.field} label={t('auth.email')} placeholder={t('auth.emailPlaceholder')} type="email" autoComplete="username" size="md" required {...form.getInputProps('Email')} />
+          <div className={styles.passwordField}>
+            {!registering && policy.data?.reset && <div className={styles.forgot}><Anchor component={Link} to="/forgot">{t('auth.forgot')}</Anchor></div>}
+            <PasswordInput inputWrapperOrder={['label', 'input', 'description', 'error']} className={styles.field} label={t('auth.password')} placeholder={t(registering ? 'auth.passwordCreatePlaceholder' : 'auth.passwordPlaceholder')} autoComplete={registering ? 'new-password' : 'current-password'} size="md" required minLength={8} visible={passwordVisible} onVisibilityChange={setPasswordVisible} visibilityToggleButtonProps={{ tabIndex: 0, 'aria-hidden': false, 'aria-label': t(passwordVisible ? 'auth.hidePassword' : 'auth.showPassword'), onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => { if (event.key === 'Enter') { event.preventDefault(); setPasswordVisible((visible) => !visible) } } }} description={registering ? t('auth.passwordHint') : undefined} {...form.getInputProps('Password')} />
+          </div>
           {registering && policy.data?.verify && <div className={styles.codeRow}>
             <TextInput className={`${styles.field} ${styles.codeField}`} label={t('auth.code')} size="md" required placeholder="000000" autoComplete="one-time-code" inputMode="numeric" {...form.getInputProps('Code')} />
             <Button type="button" variant="default" size="md" className={styles.codeButton} loading={sending} disabled={!form.values.Email.includes('@')} onClick={sendCode}>{codeSent ? t('auth.resend') : t('auth.sendCode')}</Button>
           </div>}
           {registering && (policy.data?.email_suffixes ?? []).length > 0 && <Text size="xs" c="dimmed" className={styles.feedback}>{t('auth.suffixes', { list: policy.data!.email_suffixes.join(', ') })}</Text>}
-          {registering && <TextInput className={styles.field} leftSection={<IconTicket size={18} aria-hidden />} label={policy.data?.invite_only ? t('auth.inviteRequired') : t('auth.invite')} placeholder={t('auth.inviteHint')} required={policy.data?.invite_only} {...form.getInputProps('Invite')} />}
+          {registering && <TextInput className={styles.field} label={policy.data?.invite_only ? t('auth.inviteRequired') : t('auth.invite')} placeholder={t('auth.inviteHint')} required={policy.data?.invite_only} {...form.getInputProps('Invite')} />}
           {registering && policy.data?.captcha && <div className={styles.captcha}><Captcha provider={policy.data.captcha.provider} siteKey={policy.data.captcha.site_key} onToken={setCaptcha} size="compact" /></div>}
-          {!registering && policy.data?.reset && <div className={styles.forgot}><Anchor component={Link} to="/forgot">{t('auth.forgot')}</Anchor></div>}
         </>}
         {error && <Alert color="red" className={styles.feedback}>{error}</Alert>}
         {showPasswordForm && <Button type="submit" size="md" autoContrast className={styles.submit} loading={busy} rightSection={<IconArrowRight size={18} aria-hidden />}>{t(`auth.${mode}`)}</Button>}
+        {providers.length > 0 && showMethods && <>
+          {passwordLogin && <Divider label={t('auth.otherMethods')} labelPosition="center" className={styles.divider} />}
+          <div className={styles.providers} data-stacked={providers.length === 1 || providers.some((p) => t('auth.with', { name: p.name }).length > 32) || undefined}>
+            {providers.map((p) => <Button key={p.id} component="a" href={`/api/oauth/${p.id}/start?next=${encodeURIComponent(next)}`} variant="default" className={styles.provider} leftSection={<IconKey size={17} stroke={1.5} aria-hidden />}>{t('auth.with', { name: p.name })}</Button>)}
+          </div>
+        </>}
       </form>
     </AuthLayout>
   )
