@@ -166,18 +166,32 @@ func (h *handlers) putSubscription(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) getSite(w http.ResponseWriter, r *http.Request) {
+	h.Store.Topology.Lock()
+	defer h.Store.Topology.Unlock()
 	v := site.Defaults("")
-	_ = h.Store.GetSetting(r.Context(), site.SettingSite, &v)
+	if err := h.Store.GetSetting(r.Context(), site.SettingSite, &v); err != nil {
+		serverErr(w, err)
+		return
+	}
+	ids, revision, err := h.Store.SiteMapSelection(r.Context())
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
+	v.MapEntryIDs, v.MapRevision = ids, &revision
 	ok(w, v)
 }
 
 func (h *handlers) putSite(w http.ResponseWriter, r *http.Request) {
+	h.Store.Topology.Lock()
+	defer h.Store.Topology.Unlock()
 	var v site.Settings
 	if err := h.Store.GetSetting(r.Context(), site.SettingSite, &v); err != nil {
 		serverErr(w, err)
 		return
 	}
 	oldBranding := v.Branding
+	v.MapEntryIDs, v.MapRevision = nil, nil
 	if !readJSON(w, r, &v) {
 		return
 	}
@@ -198,10 +212,35 @@ func (h *handlers) putSite(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if err := h.Store.SetSetting(r.Context(), site.SettingSite, v); err != nil {
+	for _, source := range []string{v.MapSource, v.StatusMapSource} {
+		if source != "" && source != "manual" && source != "entries" {
+			fail(w, 400, "invalid map source")
+			return
+		}
+	}
+	ids, expected := v.MapEntryIDs, v.MapRevision
+	v.MapEntryIDs, v.MapRevision = nil, nil
+	revision, err := h.Store.SaveSiteWithMap(r.Context(), v, ids, expected)
+	if err != nil {
+		if errors.Is(err, store.ErrMapRevision) {
+			fail(w, 409, err.Error())
+			return
+		}
+		if errors.Is(err, store.ErrMapSelection) {
+			fail(w, 400, err.Error())
+			return
+		}
 		serverErr(w, err)
 		return
 	}
+	if ids == nil {
+		ids, _, err = h.Store.SiteMapSelection(r.Context())
+		if err != nil {
+			serverErr(w, err)
+			return
+		}
+	}
+	v.MapEntryIDs, v.MapRevision = ids, &revision
 	if h.Probe != nil {
 		h.Probe.Invalidate()
 	}

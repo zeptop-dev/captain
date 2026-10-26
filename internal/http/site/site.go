@@ -20,10 +20,16 @@ type Settings struct {
 	Features    []Feature  `json:"features"`
 	Locations   []Location `json:"locations"`
 	Hub         *Location  `json:"hub,omitempty"`
-	FAQ         []FAQ      `json:"faq"`
-	Links       Links      `json:"links"`
-	ShowPlans   bool       `json:"show_plans"`
-	Branding    *Branding  `json:"branding,omitempty"`
+	// Sources default to the legacy manually configured geographic markers.
+	MapSource       string `json:"map_source,omitempty"`
+	StatusMapSource string `json:"status_map_source,omitempty"`
+	// Administrative projection only; references are stored with foreign keys.
+	MapEntryIDs []int64   `json:"map_entry_ids"`
+	MapRevision *int64    `json:"map_revision,omitempty"`
+	FAQ         []FAQ     `json:"faq"`
+	Links       Links     `json:"links"`
+	ShowPlans   bool      `json:"show_plans"`
+	Branding    *Branding `json:"branding,omitempty"`
 	// Theme is shared by the landing page and the portal.
 	Theme Theme `json:"theme"`
 	// InjectHead / InjectBody are raw HTML the operator adds to every page
@@ -146,12 +152,29 @@ func Register(mux *http.ServeMux, d Deps) {
 		if statusConfig.PublicEnabled {
 			statusURL = store.ServiceStatusPath
 		}
+		var locations any = s.Locations
+		locationCount := len(s.Locations)
+		hub := s.Hub
+		if s.MapSource == "entries" {
+			points, err := service.SiteMapPoints(r.Context(), d.Store)
+			if err != nil {
+				http.Error(w, "site locations unavailable", 500)
+				return
+			}
+			locations, locationCount, hub = points, len(points), nil
+		}
+		statusLocations, statusHub := s.Locations, s.Hub
+		if s.StatusMapSource == "entries" {
+			statusLocations, statusHub = []Location{}, nil
+		}
 		out := map[string]any{
 			"service_status_url": statusURL,
 			"theme":              s.Theme,
-			"name":               s.Name, "tagline": s.Tagline, "description": s.Description, "features": s.Features, "locations": s.Locations,
-			"hub": s.Hub, "faq": s.FAQ, "links": s.Links, "show_plans": s.ShowPlans, "registration": reg.PasswordOpen(d.Registration), "probe_url": probeURL(d, r),
-			"stats": stats(r.Context(), d.Store, len(s.Locations)),
+			"name":               s.Name, "tagline": s.Tagline, "description": s.Description, "features": s.Features, "locations": locations,
+			"hub": hub, "faq": s.FAQ, "links": s.Links, "show_plans": s.ShowPlans, "registration": reg.PasswordOpen(d.Registration), "probe_url": probeURL(d, r),
+			"map_source": s.MapSource, "status_map_source": s.StatusMapSource,
+			"status_locations": statusLocations, "status_hub": statusHub,
+			"stats": stats(r.Context(), d.Store, locationCount),
 		}
 		if s.Branding != nil {
 			out["branding"] = s.Branding

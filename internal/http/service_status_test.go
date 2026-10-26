@@ -93,7 +93,7 @@ func TestServiceStatusPublicationAndPortalIsolation(t *testing.T) {
 	if err := json.Unmarshal(raw, &decoded); err != nil {
 		t.Fatal(err)
 	}
-	allowed := map[string]bool{"id": true, "name": true, "rate": true, "region": true, "category": true, "state": true, "reason": true, "evidence": true, "observed_at": true, "end_to_end": true, "maintenance": true}
+	allowed := map[string]bool{"id": true, "name": true, "rate": true, "region": true, "category": true, "location": true, "state": true, "reason": true, "evidence": true, "observed_at": true, "end_to_end": true, "maintenance": true}
 	for _, v := range decoded["entries"].([]any) {
 		for key := range v.(map[string]any) {
 			if !allowed[key] {

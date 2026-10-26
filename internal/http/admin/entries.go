@@ -10,10 +10,13 @@ import (
 	"github.com/zeptop-dev/bosun/pkg/spec"
 
 	"github.com/zeptop-dev/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/service"
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
 func (h *handlers) listEntries(w http.ResponseWriter, r *http.Request) {
+	h.Store.Topology.Lock()
+	defer h.Store.Topology.Unlock()
 	list, err := h.Store.ListEntries(r.Context())
 	if err != nil {
 		serverErr(w, err)
@@ -26,11 +29,27 @@ func (h *handlers) listEntries(w http.ResponseWriter, r *http.Request) {
 	}
 	type entryView struct {
 		*domain.Entry
-		ManagedConnection *store.EntryConnection `json:"ManagedConnection,omitempty"`
+		ManagedConnection *store.EntryConnection   `json:"ManagedConnection,omitempty"`
+		LocationSettings  *domain.LocationSettings `json:"LocationSettings"`
+		Location          *domain.GeoLocation      `json:"Location"`
+	}
+	settings, err := h.Store.EntryLocationSettings(r.Context())
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
+	locations, err := service.EntryMapLocations(r.Context(), h.Store, list)
+	if err != nil {
+		serverErr(w, err)
+		return
 	}
 	out := make([]entryView, 0, len(list))
 	for _, e := range list {
-		out = append(out, entryView{e, connections[e.ID]})
+		cfg := settings[e.ID]
+		if cfg == nil {
+			cfg = &domain.LocationSettings{Mode: "auto"}
+		}
+		out = append(out, entryView{e, connections[e.ID], cfg, locations[e.ID]})
 	}
 	ok(w, out)
 }

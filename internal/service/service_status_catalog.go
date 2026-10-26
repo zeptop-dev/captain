@@ -39,6 +39,7 @@ type ServiceStatusEntry struct {
 	Rate     float64                `json:"rate"`
 	Region   string                 `json:"region"`
 	Category *ServiceStatusCategory `json:"category"`
+	Location *domain.GeoLocation    `json:"location"`
 	EntryRuntimeStatus
 	Maintenance *ServiceStatusMaintenance `json:"maintenance"`
 }
@@ -143,6 +144,10 @@ func availableStatusEntries(entries []*domain.Entry) []*domain.Entry {
 
 func (s *ServiceStatusCatalog) build(ctx context.Context, entries []*domain.Entry, names map[int64]string, cfg store.ServiceStatusConfig, at time.Time) (ServiceStatusView, error) {
 	out := ServiceStatusView{GeneratedAt: at.Unix(), RefreshSeconds: 60, Entries: []ServiceStatusEntry{}}
+	locations, err := EntryMapLocations(ctx, s.Store, entries)
+	if err != nil {
+		return out, err
+	}
 	runtime, err := s.Runtime.Evaluate(ctx, entries, at)
 	if err != nil {
 		return out, err
@@ -182,7 +187,7 @@ func (s *ServiceStatusCatalog) build(ctx context.Context, entries []*domain.Entr
 		}
 		// No runtime observation in this version is an end-to-end service test.
 		r.EndToEnd = false
-		v := ServiceStatusEntry{ID: e.ID, Name: e.Name, Rate: e.Rate, Region: e.Region, EntryRuntimeStatus: r, Maintenance: maintenance[e.ID]}
+		v := ServiceStatusEntry{ID: e.ID, Name: e.Name, Rate: e.Rate, Region: e.Region, Location: locations[e.ID], EntryRuntimeStatus: r, Maintenance: maintenance[e.ID]}
 		if name, ok := names[e.ID]; ok {
 			v.Name = name
 		}
