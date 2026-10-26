@@ -251,13 +251,13 @@
     "categoryCount": "Operational: {{healthy}} / Total: {{total}}"
   },
   "geography": {
-    "mapViewport": "Network locations. Scroll horizontally to explore the full map.",
-    "mapTitle": "Network locations",
+    "mapViewport": "Node locations. Scroll horizontally to explore the full map.",
+    "mapTitle": "Node locations",
     "configuredLocations": "Configured locations: {{names}}.",
     "noLocations": "No locations have been configured yet.",
     "mapDisclaimer": "Markers and lines show geography only, not node health or actual traffic.",
     "location": "{{name}}, geographic location",
-    "illustration": "Geographic illustration",
+    "illustration": "Node locations",
     "scrollHint": "Swipe to explore the map",
     "playAnimation": "Play animation",
     "pauseAnimation": "Pause animation",

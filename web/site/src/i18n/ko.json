@@ -251,13 +251,13 @@
     "categoryCount": "정상: {{healthy}} / 전체: {{total}}"
   },
   "geography": {
-    "mapViewport": "네트워크 위치입니다. 가로로 스크롤하여 전체 지도를 확인하세요.",
-    "mapTitle": "네트워크 위치",
+    "mapViewport": "노드 위치입니다. 가로로 스크롤하여 전체 지도를 확인하세요.",
+    "mapTitle": "노드 위치",
     "configuredLocations": "설정된 위치: {{names}}.",
     "noLocations": "아직 설정된 위치가 없습니다.",
     "mapDisclaimer": "마커와 선은 지리적 배치만 나타내며 노드 상태나 실제 트래픽을 의미하지 않습니다.",
     "location": "{{name}}, 지리적 위치",
-    "illustration": "지리적 위치 안내",
+    "illustration": "노드 위치",
     "scrollHint": "좌우로 밀어 전체 지도 보기",
     "playAnimation": "애니메이션 재생",
     "pauseAnimation": "애니메이션 일시 정지",
