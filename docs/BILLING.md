@@ -21,7 +21,9 @@ user group it unlocks.
   limits. An inbound may allow several groups; traffic is charged once to the
   soonest-expiring eligible usable plan, with the existing deterministic tie
   order. An `all` inbound can use any usable plan. Exhausted eligible plans follow
-  the existing spillover/tail-accounting rules; unrelated groups are not charged.
+  the existing spillover/tail-accounting rules: if no matching usable plan remains,
+  accounting falls back to another usable plan, then the latest active subscription.
+  This accounting fallback does not itself grant access to a node.
 
 ### Choosing which nodes a plan includes
 
@@ -44,12 +46,14 @@ for the same server, use separate inbounds. A forwarding line only describes a
 path; access follows the actual inbound used by its published subscription node.
 
 A usable purchased subscription grants its plan group automatically; queued,
-expired or exhausted subscriptions do not add that grant. Existing manually
-assigned user groups and the legacy single-plan purchase behavior are retained.
-Therefore expiry removes the subscription-derived grant, but does not revoke an
-independent manual grant to the same group. This feature does not rewrite users
-or automatically promote/demote a permanent user group. Account validity, quota,
-client capability and chain dependencies still determine actual usability.
+expired or exhausted subscriptions do not add that grant. Existing account
+`group_id` behavior remains compatible: this field may have been set manually or
+by a legacy single-plan purchase, and expiry does not clear it. Stacking a plan
+still follows the existing rules for clearing duplicate account group grants;
+the database does not record their original source. This feature does not rewrite
+these lifecycle rules or promise an automatic permanent-group downgrade. At least
+one usable subscription, account validity, quota, client capability and chain
+dependencies still determine actual usability.
 
 In a user's drawer: extend by 30/60/90 days, override the quota (kept
 across renewals of the same plan), set a personal monthly reset day, reset

@@ -459,7 +459,7 @@ func inboundGroupClause(alias string, groups []int64) (string, []any) {
 }
 
 // UsersWithInboundAccess preserves the existing usable-plan prerequisite and
-// manual user group semantics while allowing any explicitly selected group.
+// existing account group semantics while allowing any explicitly selected group.
 func (s *Store) UsersWithInboundAccess(ctx context.Context, id int64, at time.Time) ([]*domain.User, error) {
 	q := `SELECT ` + userCols + ` FROM users u WHERE u.status='active' AND u.role='user'
  AND EXISTS(SELECT 1 FROM subscriptions sub WHERE sub.user_id=u.id AND sub.status='active' AND ` + usableSQL + `)

@@ -10,7 +10,7 @@ multiple allowed groups. Existing inbounds retain their legacy `GroupID` behavio
 until explicitly edited. Entries sharing an inbound share authentication and
 billing eligibility; display categories, tags and server monitoring groups remain
 independent. Plans keep one group and users retain the union of their usable
-subscriptions and existing manual grants.
+subscriptions and existing account-group grants.
 
 The administrator-only `/api/admin/node-access` API uses a catalogue revision and
 shared-impact confirmation. Entry writes may optionally include `Access`; changing
