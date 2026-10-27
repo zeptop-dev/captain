@@ -293,6 +293,10 @@ func (s *Store) UpdateNodeProbeWithRegion(ctx context.Context, nodeID int64, hid
 // Expected expiry distinguishes an unchanged form echo from an intentional
 // date edit when an automatic renewal happened while the form was open.
 func (s *Store) UpdateNodeProbeWithExpiryGuard(ctx context.Context, nodeID int64, hidden bool, info NodeProbeInfo, limit int64, resetDay int, mode string, resources *spec.ResourceOptions, requested, expectedExpiry *string, storage ...*NodeStorage) error {
+	return s.UpdateNodeProbeWithInfrastructure(ctx, nodeID, hidden, info, limit, resetDay, mode, resources, requested, expectedExpiry, NodeInfrastructureGuard{}, storage...)
+}
+
+func (s *Store) UpdateNodeProbeWithInfrastructure(ctx context.Context, nodeID int64, hidden bool, info NodeProbeInfo, limit int64, resetDay int, mode string, resources *spec.ResourceOptions, requested, expectedExpiry *string, infrastructure NodeInfrastructureGuard, storage ...*NodeStorage) error {
 	if resetDay < 1 || resetDay > 31 {
 		resetDay = 1
 	}
@@ -351,6 +355,9 @@ func (s *Store) UpdateNodeProbeWithExpiryGuard(ctx context.Context, nodeID int64
 		return err
 	}
 	if err := normalizeNodeCost(&info, old.Info); err != nil {
+		return err
+	}
+	if err := guardNodeInfrastructureTx(ctx, tx, nodeID, &info, old.Info, infrastructure); err != nil {
 		return err
 	}
 	selected := old.RegionMode

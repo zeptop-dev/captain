@@ -569,6 +569,9 @@ func fail(w http.ResponseWriter, code int, msg string) {
 // Operator: everything except settings, system, staff management and the
 // landing page. Support: tickets, plus read-only users, orders, dashboard.
 func allowed(role, method, path string) bool {
+	if (path == "/api/admin/infrastructure" || strings.HasPrefix(path, "/api/admin/infrastructure/")) && role != domain.RoleAdmin {
+		return false
+	}
 	if (path == "/api/admin/node-access" || strings.HasPrefix(path, "/api/admin/node-access/")) && role != domain.RoleAdmin {
 		return false
 	}

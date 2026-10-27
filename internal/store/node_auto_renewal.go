@@ -212,6 +212,13 @@ func renewNodeExpiryTx(ctx context.Context, tx *sql.Tx, p *NodeProbe, tokenHash 
 	if !meaningfulNodeResources(h) || p.Info.AutoRenewal == nil || !p.Info.AutoRenewal.Enabled {
 		return false, nil
 	}
+	var linked bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM node_infrastructure WHERE node_id=? AND asset_id IS NOT NULL)`, p.NodeID).Scan(&linked); err != nil {
+		return false, err
+	}
+	if linked {
+		return false, nil
+	} // Only a recorded payment can renew a linked ledger.
 	var raw, infoRaw string
 	if err := tx.QueryRowContext(ctx, `SELECT probe_renewal_json,probe_info_json FROM nodes WHERE id=?`, p.NodeID).Scan(&raw, &infoRaw); err != nil {
 		return false, err

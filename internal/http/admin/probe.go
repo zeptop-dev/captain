@@ -247,12 +247,16 @@ func (h *handlers) deletePingTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) getNodeProbe(w http.ResponseWriter, r *http.Request) {
-	np, err := h.Store.NodeProbe(r.Context(), idOf(r))
+	np, revision, linked, supplierLinked, err := h.Store.NodeProbeInfrastructure(r.Context(), idOf(r))
 	if err != nil {
-		fail(w, http.StatusNotFound, "node not found")
+		if errors.Is(err, store.ErrNotFound) {
+			fail(w, http.StatusNotFound, "node not found")
+		} else {
+			serverErr(w, err)
+		}
 		return
 	}
-	out := map[string]any{"probe": np, "billed": np.Billed(), "region_countries": store.RegionCountries()}
+	out := map[string]any{"probe": np, "billed": np.Billed(), "region_countries": store.RegionCountries(), "infrastructure_revision": revision, "infrastructure_linked": linked, "infrastructure_supplier_linked": supplierLinked}
 	var host *spec.SystemStatus
 	var received time.Time
 	monitored, err := h.Store.MonitorNodes(r.Context(), time.Now(), 3*time.Minute, np.NodeID)
@@ -277,15 +281,17 @@ func (h *handlers) getNodeProbe(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) putNodeProbe(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		ExpectedExpiresAt *string
-		RegionMode        *string
-		Hidden            bool
-		Info              store.NodeProbeInfo
-		LimitBytes        int64
-		ResetDay          int
-		Mode              string
-		Resources         *spec.ResourceOptions
-		Storage           *store.NodeStorage
+		ExpectedExpiresAt      *string
+		InfrastructureRevision *string
+		SupplierID             *int64
+		RegionMode             *string
+		Hidden                 bool
+		Info                   store.NodeProbeInfo
+		LimitBytes             int64
+		ResetDay               int
+		Mode                   string
+		Resources              *spec.ResourceOptions
+		Storage                *store.NodeStorage
 	}
 	if !readJSON(w, r, &in) {
 		return
@@ -296,7 +302,12 @@ func (h *handlers) putNodeProbe(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if err := h.Store.UpdateNodeProbeWithExpiryGuard(r.Context(), idOf(r), in.Hidden, in.Info, in.LimitBytes, in.ResetDay, in.Mode, in.Resources, in.RegionMode, in.ExpectedExpiresAt, in.Storage); err != nil {
+	guard := store.NodeInfrastructureGuard{Revision: in.InfrastructureRevision, SupplierID: in.SupplierID, CanWrite: h.infrastructureWriteAllowed(r, idOf(r))}
+	if err := h.Store.UpdateNodeProbeWithInfrastructure(r.Context(), idOf(r), in.Hidden, in.Info, in.LimitBytes, in.ResetDay, in.Mode, in.Resources, in.RegionMode, in.ExpectedExpiresAt, guard, in.Storage); err != nil {
+		if errors.Is(err, store.ErrInfrastructureConflict) || errors.Is(err, store.ErrInfrastructurePermission) || errors.Is(err, store.ErrInfrastructureConversion) || errors.Is(err, store.ErrInfrastructureLinked) || errors.Is(err, store.ErrInfrastructureConfirmation) {
+			infraError(w, err)
+			return
+		}
 		if errors.Is(err, store.ErrNodeExpiryConflict) {
 			fail(w, http.StatusConflict, err.Error())
 			return

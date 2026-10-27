@@ -27,21 +27,22 @@ type InfraSupplier struct {
 	Notes   string `json:"notes"`
 }
 type InfraAsset struct {
-	ID           int64  `json:"id"`
-	SupplierID   int64  `json:"supplier_id"`
-	SupplierName string `json:"supplier_name"`
-	NodeID       *int64 `json:"node_id"`
-	Name         string `json:"name"`
-	ExternalRef  string `json:"external_ref"`
-	Currency     string `json:"currency"`
-	AmountMinor  int64  `json:"amount_minor"`
-	PeriodMonths int    `json:"period_months"`
-	AnchorDay    int    `json:"anchor_day"`
-	NextDue      string `json:"next_due"`
-	RemindDays   int    `json:"remind_days"`
-	Active       bool   `json:"active"`
-	Notes        string `json:"notes"`
-	Revision     int64  `json:"revision"`
+	ID            int64  `json:"id"`
+	SupplierID    int64  `json:"supplier_id"`
+	SupplierName  string `json:"supplier_name"`
+	NodeID        *int64 `json:"node_id"`
+	PrimaryNodeID *int64 `json:"primary_node_id"`
+	Name          string `json:"name"`
+	ExternalRef   string `json:"external_ref"`
+	Currency      string `json:"currency"`
+	AmountMinor   int64  `json:"amount_minor"`
+	PeriodMonths  int    `json:"period_months"`
+	AnchorDay     int    `json:"anchor_day"`
+	NextDue       string `json:"next_due"`
+	RemindDays    int    `json:"remind_days"`
+	Active        bool   `json:"active"`
+	Notes         string `json:"notes"`
+	Revision      int64  `json:"revision"`
 }
 type InfraPayment struct {
 	ID           int64  `json:"id"`
@@ -117,19 +118,24 @@ func (s *Store) InfraSuppliers(ctx context.Context) ([]InfraSupplier, error) {
 	}
 	return out, rows.Err()
 }
-func (s *Store) SaveInfraSupplier(ctx context.Context, v *InfraSupplier) error {
+func (s *Store) SaveInfraSupplier(ctx context.Context, v *InfraSupplier, sharedWrite ...bool) error {
 	if e := v.Validate(); e != nil {
 		return e
 	}
+	tx, e := s.db.BeginTx(ctx, nil)
+	if e != nil {
+		return e
+	}
+	defer tx.Rollback()
 	if v.ID == 0 {
-		res, e := s.db.ExecContext(ctx, `INSERT INTO infra_suppliers(name,url,contact,notes) VALUES(?,?,?,?)`, v.Name, v.URL, v.Contact, v.Notes)
+		res, e := tx.ExecContext(ctx, `INSERT INTO infra_suppliers(name,url,contact,notes) VALUES(?,?,?,?)`, v.Name, v.URL, v.Contact, v.Notes)
 		if e != nil {
 			return e
 		}
 		v.ID, _ = res.LastInsertId()
-		return nil
+		return tx.Commit()
 	}
-	res, e := s.db.ExecContext(ctx, `UPDATE infra_suppliers SET name=?,url=?,contact=?,notes=? WHERE id=?`, v.Name, v.URL, v.Contact, v.Notes, v.ID)
+	res, e := tx.ExecContext(ctx, `UPDATE infra_suppliers SET name=?,url=?,contact=?,notes=? WHERE id=?`, v.Name, v.URL, v.Contact, v.Notes, v.ID)
 	if e != nil {
 		return e
 	}
@@ -137,7 +143,10 @@ func (s *Store) SaveInfraSupplier(ctx context.Context, v *InfraSupplier) error {
 	if n == 0 {
 		return ErrNotFound
 	}
-	return nil
+	if e = syncInfraSupplierNodesTx(ctx, tx, *v, sharedWrite); e != nil {
+		return e
+	}
+	return tx.Commit()
 }
 func (s *Store) DeleteInfraSupplier(ctx context.Context, id int64) error {
 	tx, e := s.db.BeginTx(ctx, nil)
@@ -146,7 +155,7 @@ func (s *Store) DeleteInfraSupplier(ctx context.Context, id int64) error {
 	}
 	defer tx.Rollback()
 	var n int
-	if e = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM infra_assets WHERE supplier_id=?`, id).Scan(&n); e != nil {
+	if e = tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM infra_assets WHERE supplier_id=?)+(SELECT COUNT(*) FROM node_infrastructure WHERE supplier_id=?)`, id, id).Scan(&n); e != nil {
 		return e
 	}
 	if n > 0 {
@@ -163,11 +172,11 @@ func (s *Store) DeleteInfraSupplier(ctx context.Context, id int64) error {
 	return tx.Commit()
 }
 
-const assetColumns = `a.id,a.supplier_id,s.name,a.node_id,a.name,a.external_ref,a.currency,a.amount_minor,a.period_months,a.anchor_day,a.next_due,a.remind_days,a.active,a.notes,a.revision`
+const assetColumns = `a.id,a.supplier_id,s.name,a.node_id,a.name,a.external_ref,a.currency,a.amount_minor,a.period_months,a.anchor_day,a.next_due,a.remind_days,a.active,a.notes,a.revision,(SELECT ni.node_id FROM node_infrastructure ni WHERE ni.asset_id=a.id)`
 
 func scanInfraAsset(row interface{ Scan(...any) error }) (InfraAsset, error) {
 	var v InfraAsset
-	e := row.Scan(&v.ID, &v.SupplierID, &v.SupplierName, &v.NodeID, &v.Name, &v.ExternalRef, &v.Currency, &v.AmountMinor, &v.PeriodMonths, &v.AnchorDay, &v.NextDue, &v.RemindDays, &v.Active, &v.Notes, &v.Revision)
+	e := row.Scan(&v.ID, &v.SupplierID, &v.SupplierName, &v.NodeID, &v.Name, &v.ExternalRef, &v.Currency, &v.AmountMinor, &v.PeriodMonths, &v.AnchorDay, &v.NextDue, &v.RemindDays, &v.Active, &v.Notes, &v.Revision, &v.PrimaryNodeID)
 	return v, wrapNotFound(e)
 }
 func (s *Store) InfraAssets(ctx context.Context) ([]InfraAsset, error) {
@@ -186,7 +195,7 @@ func (s *Store) InfraAssets(ctx context.Context) ([]InfraAsset, error) {
 	}
 	return out, rows.Err()
 }
-func (s *Store) SaveInfraAsset(ctx context.Context, v *InfraAsset) error {
+func (s *Store) SaveInfraAsset(ctx context.Context, v *InfraAsset, sharedWrite ...bool) error {
 	if e := v.Validate(); e != nil {
 		return e
 	}
@@ -195,6 +204,23 @@ func (s *Store) SaveInfraAsset(ctx context.Context, v *InfraAsset) error {
 		return e
 	}
 	defer tx.Rollback()
+	v.PrimaryNodeID = nil // Read-only relation, not an alternate linking API.
+	if v.ID > 0 {
+		var linked int64
+		e = tx.QueryRowContext(ctx, `SELECT node_id FROM node_infrastructure WHERE asset_id=?`, v.ID).Scan(&linked)
+		if e != nil && !errors.Is(e, sql.ErrNoRows) {
+			return e
+		}
+		if e == nil {
+			v.PrimaryNodeID = &linked
+			if v.NodeID == nil {
+				v.NodeID = &linked
+			} // Omitted old field preserves the primary relation.
+			if *v.NodeID != linked {
+				return ErrInfrastructureLinked
+			}
+		}
+	}
 	var name string
 	if e = tx.QueryRowContext(ctx, `SELECT name FROM infra_suppliers WHERE id=?`, v.SupplierID).Scan(&name); e != nil {
 		return wrapNotFound(e)
@@ -233,6 +259,9 @@ func (s *Store) SaveInfraAsset(ctx context.Context, v *InfraAsset) error {
 		}
 		v.Revision++
 	}
+	if e = syncInfraAssetNodeTx(ctx, tx, *v, sharedWrite); e != nil {
+		return e
+	}
 	return tx.Commit()
 }
 func (s *Store) DeleteInfraAsset(ctx context.Context, id int64, revision int64) error {
@@ -242,6 +271,12 @@ func (s *Store) DeleteInfraAsset(ctx context.Context, id int64, revision int64) 
 	}
 	defer tx.Rollback()
 	var n int
+	if e = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM node_infrastructure WHERE asset_id=?`, id).Scan(&n); e != nil {
+		return e
+	}
+	if n > 0 {
+		return ErrInfrastructureLinked
+	}
 	if e = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM infra_payments WHERE asset_id=?`, id).Scan(&n); e != nil {
 		return e
 	}
@@ -283,7 +318,7 @@ func scanInfraPayment(row interface{ Scan(...any) error }) (InfraPayment, error)
 	e := row.Scan(&v.ID, &v.AssetID, &v.StaffID, &v.SupplierName, &v.AssetName, &v.Currency, &v.AmountMinor, &v.PaidDate, &v.PeriodStart, &v.NextDue, &v.Reference, &v.Notes)
 	return v, wrapNotFound(e)
 }
-func (s *Store) RecordInfraPayment(ctx context.Context, assetID, staffID int64, in InfraPaymentInput) (InfraPayment, error) {
+func (s *Store) RecordInfraPayment(ctx context.Context, assetID, staffID int64, in InfraPaymentInput, sharedWrite ...bool) (InfraPayment, error) {
 	empty := InfraPayment{}
 	if !infraRequestKey.MatchString(in.RequestKey) || in.Revision < 1 || in.AmountMinor < 0 || in.AmountMinor > 1_000_000_000_000 || !infraText(in.Reference, 200) || len(in.Notes) > 4000 {
 		return empty, ErrAssetInput
@@ -334,6 +369,10 @@ func (s *Store) RecordInfraPayment(ctx context.Context, assetID, staffID int64, 
 	}
 	v.ID, _ = res.LastInsertId()
 	if _, e = tx.ExecContext(ctx, `UPDATE infra_assets SET next_due=?,active=?,revision=revision+1 WHERE id=?`, next, active, a.ID); e != nil {
+		return empty, e
+	}
+	a.NextDue, a.Active = next, active
+	if e = syncInfraAssetNodeTx(ctx, tx, a, sharedWrite); e != nil {
 		return empty, e
 	}
 	if e = tx.Commit(); e != nil {

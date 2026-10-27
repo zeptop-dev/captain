@@ -8,6 +8,7 @@ import (
 )
 
 func (h *handlers) registerInfraAssets(m *http.ServeMux) {
+	h.registerNodeInfrastructure(m)
 	const base = "/api/admin/settings/infrastructure"
 	m.HandleFunc("GET "+base, h.requireAdmin(h.listInfrastructure))
 	m.HandleFunc("POST "+base+"/suppliers", h.requireAdmin(h.saveInfraSupplier))
@@ -29,6 +30,12 @@ func infraError(w http.ResponseWriter, e error) {
 		fail(w, 409, "asset changed or payment key was reused; refresh before retrying")
 	case errors.Is(e, store.ErrAssetHistory):
 		fail(w, 409, "record has assets or payment history; archive the asset instead")
+	case errors.Is(e, store.ErrInfrastructurePermission):
+		fail(w, 403, e.Error())
+	case errors.Is(e, store.ErrInfrastructureConversion):
+		fail(w, 400, e.Error())
+	case errors.Is(e, store.ErrInfrastructureConflict), errors.Is(e, store.ErrInfrastructureLinked), errors.Is(e, store.ErrInfrastructureConfirmation):
+		fail(w, 409, e.Error())
 	default:
 		serverErr(w, e)
 	}
@@ -66,10 +73,11 @@ func (h *handlers) saveInfraSupplier(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	v.ID = id
-	if e := h.Store.SaveInfraSupplier(r.Context(), &v); e != nil {
+	if e := h.Store.SaveInfraSupplier(r.Context(), &v, h.infrastructureWriteAllowed(r, 0)); e != nil {
 		infraError(w, e)
 		return
 	}
+	h.invalidateInfrastructureProbe()
 	ok(w, v)
 }
 func (h *handlers) deleteInfraSupplier(w http.ResponseWriter, r *http.Request) {
@@ -87,10 +95,11 @@ func (h *handlers) saveInfraAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	v.ID = id
-	if e := h.Store.SaveInfraAsset(r.Context(), &v); e != nil {
+	if e := h.Store.SaveInfraAsset(r.Context(), &v, h.infrastructureWriteAllowed(r, 0)); e != nil {
 		infraError(w, e)
 		return
 	}
+	h.invalidateInfrastructureProbe()
 	ok(w, v)
 }
 func (h *handlers) deleteInfraAsset(w http.ResponseWriter, r *http.Request) {
@@ -111,11 +120,12 @@ func (h *handlers) recordInfraPayment(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "invalid payment")
 		return
 	}
-	v, e := h.Store.RecordInfraPayment(r.Context(), idOf(r), userFrom(r).ID, in)
+	v, e := h.Store.RecordInfraPayment(r.Context(), idOf(r), userFrom(r).ID, in, h.infrastructureWriteAllowed(r, 0))
 	if e != nil {
 		infraError(w, e)
 		return
 	}
+	h.invalidateInfrastructureProbe()
 	ok(w, v)
 }
 func (h *handlers) infraPayments(w http.ResponseWriter, r *http.Request) {
