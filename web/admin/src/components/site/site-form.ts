@@ -1,6 +1,7 @@
 import type { Entry, SiteSettings } from '../../lib/api'
 
 export type SiteValues = {
+  homepage_enabled: boolean
   map_revision: number
   map_source: 'manual' | 'entries'
   status_map_source: 'manual' | 'entries'
@@ -33,6 +34,7 @@ export type SiteValues = {
 
 export function siteValues(s: SiteSettings): SiteValues {
   return {
+    homepage_enabled: s.homepage_enabled !== false,
     map_revision: s.map_revision ?? 0,
     map_source: s.map_source ?? 'manual',
     status_map_source: s.status_map_source ?? 'manual',
@@ -67,6 +69,7 @@ export function siteValues(s: SiteSettings): SiteValues {
 
 export function sitePayload(v: SiteValues): SiteSettings {
   return {
+    homepage_enabled: v.homepage_enabled,
     map_revision: v.map_revision,
     map_source: v.map_source,
     status_map_source: v.status_map_source,

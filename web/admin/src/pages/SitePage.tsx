@@ -19,10 +19,12 @@ export default function SitePage({ embedded = false }: { embedded?: boolean }) {
   const qc = useQueryClient()
   const [mapConflict, setMapConflict] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [homepageOpen, setHomepageOpen] = useState<boolean | null>(null)
+  const [homepageAdvancedOpen, setHomepageAdvancedOpen] = useState(false)
   const entries = useQuery({ queryKey: ['entries'], queryFn: () => api.get<Entry[]>('/api/admin/entries') })
   const q = useQuery({ queryKey: ['site-settings'], queryFn: () => api.get<SiteSettings>('/api/admin/settings/site') })
   const form = useForm<SiteValues>({
-    initialValues: { map_revision: 0, map_source: 'manual', status_map_source: 'manual', map_entry_ids: [], logo_light: '', logo_dark: '', favicon: '', brand_title: '', name: '', tagline: '', description: '', show_plans: true, telegram: '', tos: '', download: '', github: '', hub: '', locations: '[]', features: '[]', faq: '[]', primary: 'cyan', radius: 'lg', scheme: 'light', site_scheme: undefined, font_family: '', portal_title: '', inject_head: '', inject_body: '' },
+    initialValues: { homepage_enabled: true, map_revision: 0, map_source: 'manual', status_map_source: 'manual', map_entry_ids: [], logo_light: '', logo_dark: '', favicon: '', brand_title: '', name: '', tagline: '', description: '', show_plans: true, telegram: '', tos: '', download: '', github: '', hub: '', locations: '[]', features: '[]', faq: '[]', primary: 'cyan', radius: 'lg', scheme: 'light', site_scheme: undefined, font_family: '', portal_title: '', inject_head: '', inject_body: '' },
     validate: { logo_light: v => validBrandAssetInput(v) ? null : t('branding.invalidURL'), logo_dark: v => validBrandAssetInput(v) ? null : t('branding.invalidURL'), favicon: v => validBrandAssetInput(v) ? null : t('branding.invalidURL'), locations: json, features: json, faq: json, hub: (v) => (v.trim() === '' ? null : json(v)) },
   })
   useEffect(() => {
@@ -50,7 +52,10 @@ export default function SitePage({ embedded = false }: { embedded?: boolean }) {
   return (
     <>
       {!embedded && <PageHeader title={t('site.title')} subtitle={t('site.subtitle')} actions={<Button component="a" href="/" target="_blank" variant="default">{t('site.open')}</Button>} />}
-      <form onSubmit={form.onSubmit((v) => { if (!blocked && !save.isPending) save.mutate(v) }, errors => { if (['hub', 'locations', 'features', 'faq'].some(field => errors[field])) setAdvancedOpen(true) })}>
+      <form onSubmit={form.onSubmit((v) => { if (!blocked && !save.isPending) save.mutate(v) }, errors => {
+        if (['hub', 'locations'].some(field => errors[field])) setAdvancedOpen(true)
+        if (['features', 'faq'].some(field => errors[field])) { setHomepageOpen(true); setHomepageAdvancedOpen(true) }
+      })}>
         <Stack>
           {(q.isError || entries.isError) && <Alert color="red"><Text size="sm">{t('workspace.loadError')}</Text><Button variant="light" size="xs" onClick={() => { q.refetch(); entries.refetch() }}>{t('workspace.retry')}</Button></Alert>}
           {mapConflict && <Alert color="yellow"><Text size="sm">{t('mapLocation.siteConflict')}</Text><Button variant="light" size="xs" onClick={reload}>{t('serviceStatus.reload')}</Button></Alert>}
@@ -72,17 +77,48 @@ export default function SitePage({ embedded = false }: { embedded?: boolean }) {
             </Stack>
           </Card>
           <Card component="section" id="site-content" aria-labelledby="site-content-title" style={{ scrollMarginTop: 88 }}>
-            <Title id="site-content-title" order={5} mb="sm">{t('site.copy')}</Title>
+            <Title id="site-content-title" order={5} mb="sm">{t('site.homepageTitle')}</Title>
+            <Switch label={t('site.homepageEnabled')} description={t('site.homepageHint')} checked={form.values.homepage_enabled} onChange={event => {
+              const enabled = event.currentTarget.checked
+              form.setFieldValue('homepage_enabled', enabled)
+              setHomepageOpen(enabled)
+            }} />
+            {!form.values.homepage_enabled && <Text size="xs" c="dimmed" mt="sm">{t('site.homepageRetained')}</Text>}
+            {missingIDs.length > 0 && entries.data && <Alert color="yellow" mt="sm"><Text size="sm">{t('serviceStatus.deletedHint')}</Text><Button variant="subtle" size="xs" onClick={() => setHomepageOpen(true)}>{t('site.homepageContent')}</Button></Alert>}
+            <details open={homepageOpen ?? form.values.homepage_enabled} style={{ marginTop: 16 }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 600 }} onClick={event => {
+                event.preventDefault()
+                setHomepageOpen(!(homepageOpen ?? form.values.homepage_enabled))
+              }}>{t('site.homepageContent')}</summary>
+              <Stack gap="sm" mt="md">
+                <Title order={6}>{t('site.copy')}</Title>
+                <TextInput label={t('site.tagline')} {...form.getInputProps('tagline')} />
+                <Textarea label={t('site.description')} autosize minRows={2} {...form.getInputProps('description')} />
+                <Switch label={t('site.showPlans')} {...form.getInputProps('show_plans', { type: 'checkbox' })} />
+                <Select label={t('mapLocation.homeSource')} allowDeselect={false} data={[{ value: 'manual', label: t('mapLocation.manualMap') }, { value: 'entries', label: t('mapLocation.entryMap') }]} {...form.getInputProps('map_source')} />
+                {(form.values.map_source === 'entries' || missingIDs.length > 0) && <><MultiSelect label={t('mapLocation.homeEntries')} description={t('mapLocation.homeEntriesHint')} searchable clearable data={entryChoices} value={form.values.map_entry_ids.map(String)} onChange={ids => form.setFieldValue('map_entry_ids', ids.map(Number))} disabled={!entries.data || entries.isError} /><Text size="xs" c="dimmed">{t('mapLocation.emptyMapHint')}</Text></>}
+                <Text size="xs" c="dimmed">{t('site.homepageMapHint')}</Text>
+                <details open={homepageAdvancedOpen} onToggle={event => setHomepageAdvancedOpen(event.currentTarget.open)}>
+                  <summary style={{ cursor: 'pointer', fontWeight: 600 }}>{t('site.sections')}</summary>
+                  <Stack gap="sm" mt="sm">
+                    <JsonInput label={t('site.features')} description={t('site.featuresHint')} autosize minRows={4} formatOnBlur {...form.getInputProps('features')} />
+                    <JsonInput label={t('site.faq')} autosize minRows={3} formatOnBlur {...form.getInputProps('faq')} />
+                  </Stack>
+                </details>
+                <Text size="xs" c="dimmed">{t('site.overrideHint')} <Anchor href="https://github.com/zeptop-dev/captain" target="_blank" rel="noopener noreferrer" size="xs">README</Anchor></Text>
+              </Stack>
+            </details>
+          </Card>
+          <Card component="section" id="site-links" aria-labelledby="site-links-title" style={{ scrollMarginTop: 88 }}>
+            <Title id="site-links-title" order={5} mb={4}>{t('site.sharedLinks')}</Title>
+            <Text size="xs" c="dimmed" mb="sm">{t('site.sharedLinksHint')}</Text>
             <Stack gap="sm">
-              <TextInput label={t('site.tagline')} {...form.getInputProps('tagline')} />
-              <Textarea label={t('site.description')} autosize minRows={2} {...form.getInputProps('description')} />
               <SettingsFields>
                 <TextInput label="Telegram" placeholder="https://t.me/..." {...form.getInputProps('telegram')} />
                 <TextInput label={t('site.tos')} {...form.getInputProps('tos')} />
                 <TextInput label={t('site.download')} {...form.getInputProps('download')} />
                 <TextInput label="GitHub" {...form.getInputProps('github')} />
               </SettingsFields>
-              <Switch label={t('site.showPlans')} {...form.getInputProps('show_plans', { type: 'checkbox' })} />
             </Stack>
           </Card>
           <Card component="section" id="site-theme" aria-labelledby="site-theme-title" style={{ scrollMarginTop: 88 }}>
@@ -105,12 +141,8 @@ export default function SitePage({ embedded = false }: { embedded?: boolean }) {
             <Title id="site-map-title" order={5} mb={4}>{t('site.globe')}</Title>
             <Text size="xs" c="dimmed" mb="sm">{t('site.globeHint')}</Text>
             <Stack gap="sm">
-              <SettingsFields>
-                <Select label={t('mapLocation.homeSource')} allowDeselect={false} data={[{ value: 'manual', label: t('mapLocation.manualMap') }, { value: 'entries', label: t('mapLocation.entryMap') }]} {...form.getInputProps('map_source')} />
-                <Select label={t('mapLocation.statusSource')} description={t('mapLocation.statusSourceHint')} allowDeselect={false} data={[{ value: 'manual', label: t('mapLocation.manualMap') }, { value: 'entries', label: t('mapLocation.publicEntryMap') }]} {...form.getInputProps('status_map_source')} />
-              </SettingsFields>
-              {(form.values.map_source === 'entries' || missingIDs.length > 0) && <><MultiSelect label={t('mapLocation.homeEntries')} description={t('mapLocation.homeEntriesHint')} searchable clearable data={entryChoices} value={form.values.map_entry_ids.map(String)} onChange={ids => form.setFieldValue('map_entry_ids', ids.map(Number))} disabled={!entries.data || entries.isError} /><Text size="xs" c="dimmed">{t('mapLocation.emptyMapHint')}</Text></>}
-              {missingIDs.length > 0 && entries.data && <Alert color="yellow">{t('serviceStatus.deletedHint')}</Alert>}
+              <Select label={t('mapLocation.statusSource')} description={t('mapLocation.statusSourceHint')} allowDeselect={false} data={[{ value: 'manual', label: t('mapLocation.manualMap') }, { value: 'entries', label: t('mapLocation.publicEntryMap') }]} {...form.getInputProps('status_map_source')} />
+              <Text size="xs" c="dimmed">{t('site.sharedMapHint')}</Text>
               <Anchor component={Link} to="/settings/category/monitoring#service-status" size="sm">{t('serviceStatus.title')}</Anchor>
             </Stack>
           </Card>
@@ -120,12 +152,8 @@ export default function SitePage({ embedded = false }: { embedded?: boolean }) {
               <Text size="xs" c="dimmed" mt={4}>{t('settingsLayout.advancedHint')}</Text>
               <Stack mt="md" gap="lg">
                 <Stack gap="sm">
-                  <Title order={6}>{t('site.sections')}</Title>
-                  <JsonInput label={t('site.features')} description={t('site.featuresHint')} autosize minRows={4} formatOnBlur {...form.getInputProps('features')} />
-                  <JsonInput label={t('site.faq')} autosize minRows={3} formatOnBlur {...form.getInputProps('faq')} />
-                </Stack>
-                <Stack gap="sm">
                   <Title order={6}>{t('mapLocation.manualMap')}</Title>
+                  <Text size="xs" c="dimmed">{t('site.sharedMapHint')}</Text>
                   <TextInput label={t('site.hub')} placeholder='{"name":"Example city","lat":35,"lng":135}' {...form.getInputProps('hub')} />
                   <JsonInput label={t('site.locations')} description={t('mapLocation.manualMapHint')} autosize minRows={4} formatOnBlur {...form.getInputProps('locations')} />
                 </Stack>
@@ -135,7 +163,6 @@ export default function SitePage({ embedded = false }: { embedded?: boolean }) {
                   <Textarea label={t('site.injectHead')} placeholder="<script ...></script>" autosize minRows={2} ff="monospace" {...form.getInputProps('inject_head')} />
                   <Textarea label={t('site.injectBody')} autosize minRows={2} ff="monospace" {...form.getInputProps('inject_body')} />
                 </Stack>
-                <Text size="xs" c="dimmed">{t('site.overrideHint')} <Anchor href="https://github.com/zeptop-dev/captain" target="_blank" rel="noopener noreferrer" size="xs">README</Anchor></Text>
               </Stack>
             </details>
           </Card>
