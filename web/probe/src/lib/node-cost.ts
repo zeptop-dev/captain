@@ -10,7 +10,7 @@ export interface ExchangeRates {
   stale: boolean
   source: 'Frankfurter'
 }
-export interface NodeAutoRenewal { enabled: boolean; anchor_date?: string }
+export interface NodeAutoRenewal { enabled: boolean; anchor_date?: string; readonly anchor_day?: number }
 export interface CostInfo { billing?: NodeCost; price?: string; expires_at?: string; auto_renewal?: NodeAutoRenewal }
 export type RemainingCostReason = 'missing-price' | 'legacy-price' | 'missing-expiry' | 'unsupported-cycle' | 'invalid'
 export interface CalculatedNodeCost {
@@ -43,6 +43,11 @@ function previousCycle(expiry: Date, months: number, day = expiry.getUTCDate()):
   return utcDate(first.getUTCFullYear(), first.getUTCMonth(), Math.min(day, lastDay))
 }
 
+function explicitRenewalDay(info: CostInfo): number | null {
+  const day = info.auto_renewal?.anchor_day
+  return typeof day === 'number' && Number.isInteger(day) && day >= 1 && day <= 31 ? day : null
+}
+
 // A persisted renewal anchor defines the original calendar day even after a
 // short-month expiry. Ignore inconsistent metadata instead of guessing a cycle.
 function renewalDay(info: CostInfo, expiry: Date, months: number): number | null {
@@ -52,7 +57,8 @@ function renewalDay(info: CostInfo, expiry: Date, months: number): number | null
   if (!anchor || anchor > expiry) return null
   const delta = (expiry.getUTCFullYear() - anchor.getUTCFullYear()) * 12 + expiry.getUTCMonth() - anchor.getUTCMonth()
   const last = utcDate(expiry.getUTCFullYear(), expiry.getUTCMonth() + 1, 0).getUTCDate()
-  return delta % months === 0 && expiry.getUTCDate() === Math.min(anchor.getUTCDate(), last) ? anchor.getUTCDate() : null
+  const day = explicitRenewalDay(info) ?? anchor.getUTCDate()
+  return delta % months === 0 && expiry.getUTCDate() === Math.min(day, last) ? day : null
 }
 
 /** Display estimates only. Never changes saved prices or interprets legacy text.
@@ -80,7 +86,7 @@ export function calculateNodeCost(info: CostInfo, now = new Date()): CalculatedN
   if (!expiry || !Number.isFinite(now.getTime())) return { monthly, remaining: null, remainingReason: 'invalid' }
   if (expiry.getTime() <= now.getTime()) return { monthly, remaining: money(0), remainingReason: null }
   const anchorDay = renewalDay(info, expiry, months)
-  if (billing.cycle === 'custom' && anchorDay === null) return { monthly, remaining: null, remainingReason: 'unsupported-cycle' }
+  if ((billing.cycle === 'custom' || explicitRenewalDay(info) !== null) && anchorDay === null) return { monthly, remaining: null, remainingReason: 'unsupported-cycle' }
   const duration = expiry.getTime() - previousCycle(expiry, months, anchorDay ?? expiry.getUTCDate()).getTime()
   const remaining = amount * ((expiry.getTime() - now.getTime()) / duration)
   return { monthly, remaining: money(remaining), remainingReason: null }

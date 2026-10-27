@@ -3,6 +3,51 @@
 What an operator can rely on across releases, which bosun a Captain works
 with, what the database is good for, and what is deliberately not there.
 
+## Server suppliers and primary infrastructure bills
+
+Migration 94 stores explicit server-to-supplier and primary-asset associations
+separately from public probe information. Existing provider text and loose
+`infra_assets.node_id` references are preserved; no assets are automatically
+selected. The new administrator-only `/api/admin/infrastructure` API has its own
+`infrastructure` token scope. Shared financial writes through existing node and
+asset endpoints also require that permission, while unrelated legacy edits keep
+their existing permissions.
+
+The node probe API adds an optimistic infrastructure revision and an optional
+supplier ID. Omission preserves associations; changing linked values requires a
+matching revision. Payments, expiry changes and supplier renames invalidate old
+drafts. Public probes retain the existing provider, fee and expiry projection,
+without ledger IDs, contact details or payment history. No customer billing,
+subscription rendering, agent protocol or bosun upgrade changes are involved.
+
+Linking preserves the online expiry-extension setting. Accepted fresh resource
+reports can advance both shared dates atomically without recording a payment.
+The server-maintained additive `auto_renewal.anchor_day` preserves month-end
+days separately from the real cycle month; callers cannot supply an arbitrary
+anchor. Unlinking keeps the current values and date-maintenance setting.
+
+Migration 95 records the payment's date action. Payment input adds optional
+`date_action` (`record_only` or `set_due_date`) and `next_due` for an explicit
+target. Recording only a payment changes no expiry or active status, and keeps
+the existing ledger permission. Changing shared dates additionally requires
+`infrastructure` permission. Explicit targets cannot precede the current expiry;
+past payment snapshots are preserved even after a manual date correction.
+Asset responses add read-only
+`auto_renewal_enabled` for form defaults; changing that setting invalidates open
+payment drafts. Payment history leaves date fields empty for bookkeeping-only
+records, rather than inventing a coverage period.
+
+Omitted actions retain the old period-advance/one-time behavior for existing
+independent assets and manually maintained primary bills. A newly linked primary
+bill with automatic date extension defaults to bookkeeping only. Optional
+fields are omitted from legacy request hashes so successful pre-upgrade payment
+retries remain idempotent. Old history remains distinguishable as legacy
+period-advance records. No report or association manufactures a payment.
+
+Older Captain versions do not maintain these associations or payment actions:
+before downgrading, restore the matching pre-upgrade database backup rather than
+editing shared values with an older binary.
+
 ## Curated client downloads
 
 Migration 93 stores the curated client catalog independently of the existing

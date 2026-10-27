@@ -99,6 +99,9 @@ func nodePeriodDay(p *NodeProbe) (day, after int) {
 		}
 		if date, err := time.Parse("2006-01-02", anchor); err == nil {
 			day = date.Day()
+			if renewal := p.Info.AutoRenewal; renewal != nil && renewal.AnchorDay >= 1 && renewal.AnchorDay <= 31 {
+				day = renewal.AnchorDay
+			}
 			if r.Mode == "expiry_next" {
 				after = 1
 			}

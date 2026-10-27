@@ -21,6 +21,9 @@ var ErrNodeExpiryConflict = errors.New("server expiry changed; refresh before ch
 type NodeAutoRenewal struct {
 	Enabled    bool   `json:"enabled"`
 	AnchorDate string `json:"anchor_date,omitempty"`
+	// AnchorDay preserves a clamped month's intended day independently of the
+	// cycle's month. Zero keeps the original AnchorDate-only representation.
+	AnchorDay int `json:"anchor_day,omitempty"`
 }
 
 func nodeBillingMonths(b *NodeCost) int {
@@ -74,9 +77,11 @@ func normalizeNodeAutoRenewal(info *NodeProbeInfo, old NodeProbeInfo) error {
 	next := NodeAutoRenewal{Enabled: requested.Enabled}
 	if old.AutoRenewal != nil {
 		next.AnchorDate = old.AutoRenewal.AnchorDate
+		next.AnchorDay = old.AutoRenewal.AnchorDay
 	}
 	if info.ExpiresAt != old.ExpiresAt || !sameNodeBillingCycle(info.Billing, old.Billing) {
 		next.AnchorDate = info.ExpiresAt
+		next.AnchorDay = 0
 	}
 	if next.Enabled {
 		if info.ExpiresAt == "" || nodeBillingMonths(info.Billing) == 0 {
@@ -85,20 +90,25 @@ func normalizeNodeAutoRenewal(info *NodeProbeInfo, old NodeProbeInfo) error {
 		anchor, err := time.Parse("2006-01-02", next.AnchorDate)
 		if err != nil || anchor.Year() < 1 {
 			next.AnchorDate = info.ExpiresAt
+			next.AnchorDay = 0
 		}
 	}
 	info.AutoRenewal = &next // Never trust a client-supplied anchor.
 	return nil
 }
 
-func nodeExpiryAt(anchor time.Time, months int) time.Time {
+func nodeExpiryAt(anchor time.Time, months int, days ...int) time.Time {
 	first := time.Date(anchor.Year(), anchor.Month()+time.Month(months), 1, 0, 0, 0, 0, time.UTC)
 	last := first.AddDate(0, 1, -1).Day()
-	return first.AddDate(0, 0, min(anchor.Day(), last)-1)
+	day := anchor.Day()
+	if len(days) > 0 && days[0] >= 1 && days[0] <= 31 {
+		day = days[0]
+	}
+	return first.AddDate(0, 0, min(day, last)-1)
 }
 
-// Calculate from the original calendar anchor, not the last clamped date or the
-// reconnect time. Work is bounded even after many years without a report.
+// Advance whole billing periods from the current due month, retaining the
+// original unclamped day. Work stays bounded after years without a report.
 func nextNodeExpiry(info NodeProbeInfo, at time.Time) (string, bool) {
 	r := info.AutoRenewal
 	if r == nil || !r.Enabled {
@@ -114,11 +124,18 @@ func nextNodeExpiry(info NodeProbeInfo, at time.Time) (string, bool) {
 		return "", false
 	}
 	at = at.UTC()
-	elapsed := (at.Year()-anchor.Year())*12 + int(at.Month()-anchor.Month())
-	periods := max(0, elapsed/months)
-	next := nodeExpiryAt(anchor, periods*months)
+	day := anchor.Day()
+	if r.AnchorDay >= 1 && r.AnchorDay <= 31 {
+		day = r.AnchorDay
+	}
+	elapsed := (at.Year()-expiry.Year())*12 + int(at.Month()-expiry.Month())
+	// The current due date and configured day may differ intentionally (for
+	// example Feb 15, quarterly, day 31). Never turn that into a partial period
+	// ending later this month: its next full period ends on May 31.
+	periods := max(1, elapsed/months)
+	next := nodeExpiryAt(expiry, periods*months, day)
 	if !next.After(at) {
-		next = nodeExpiryAt(anchor, (periods+1)*months)
+		next = nodeExpiryAt(expiry, (periods+1)*months, day)
 	}
 	if next.Year() > 9999 {
 		return "", false
@@ -283,6 +300,9 @@ func renewNodeExpiryTx(ctx context.Context, tx *sql.Tx, p *NodeProbe, tokenHash 
 		return false, err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE nodes SET probe_info_json=?,updated_at=? WHERE id=?`, string(info), at.Unix(), p.NodeID); err != nil {
+		return false, err
+	}
+	if err := renewNodeInfrastructureTx(ctx, tx, p.NodeID, saved); err != nil {
 		return false, err
 	}
 	// The audit entry commits with the date. No network operation or payment is
