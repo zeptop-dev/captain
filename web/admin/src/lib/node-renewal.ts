@@ -1,4 +1,4 @@
-export interface NodeAutoRenewal { enabled: boolean; anchor_date?: string }
+export interface NodeAutoRenewal { enabled: boolean; anchor_date?: string; readonly anchor_day?: number }
 
 export function renewalPeriodMonths(cycle: string, years: string | number): number | null {
   switch (cycle) {
@@ -20,5 +20,17 @@ export function renewalUnavailable(date: string, costMode: string, cycle: string
   if (!Number.isFinite(time.getTime()) || time.toISOString().slice(0, 10) !== date) return 'nodeCost.renewalDateRequired'
   if (costMode !== 'structured') return 'nodeCost.renewalCycleRequired'
   if (renewalPeriodMonths(cycle, years) === null) return 'nodeCost.renewalWholeMonths'
+  return null
+}
+
+// A short-month date can retain an original billing day (for example 31).
+export function renewalAnchorDay(renewal: NodeAutoRenewal | undefined, fallbackDate = ''): number | null {
+  const day = renewal?.anchor_day
+  if (typeof day === 'number' && Number.isInteger(day) && day >= 1 && day <= 31) return day
+  for (const value of [renewal?.anchor_date, fallbackDate]) {
+    if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith('0000-')) continue
+    const date = new Date(`${value}T00:00:00Z`)
+    if (Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value) return date.getUTCDate()
+  }
   return null
 }

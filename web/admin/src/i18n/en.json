@@ -3403,7 +3403,7 @@
     "automaticHint": "Automatic expiry extension is enabled, so payment-only recording is selected by default to avoid extending the date twice.",
     "manualHint": "The next billing date is prefilled. Review the actual renewal date and confirm it before saving.",
     "targetDate": "Confirmed expiry date",
-    "setDateHint": "Sets this exact date; it does not add another period. The date cannot precede the current expiry or an expiry already recorded in payment history.",
+    "setDateHint": "Sets this exact date; it does not add another period. The date cannot precede the current expiry.",
     "unchangedDate": "Expiry stays at {{date}}. This records spending without claiming a paid coverage period.",
     "invalidDate": "Enter a valid date between 1970 and 9900.",
     "earlierDate": "The target date cannot precede the current expiry.",

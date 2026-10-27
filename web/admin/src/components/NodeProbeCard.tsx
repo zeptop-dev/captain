@@ -24,7 +24,7 @@ import { api, ApiError } from '../lib/api'
 import { bytes } from '../lib/format'
 import { trafficLimitBytes, trafficLimitFactors, trafficLimitInput, validTrafficLimit, type TrafficLimitUnit } from '../lib/traffic-limit'
 import { toast } from '../lib/notify'
-import { renewalPeriodMonths, renewalUnavailable, type NodeAutoRenewal } from '../lib/node-renewal'
+import { renewalAnchorDay, renewalPeriodMonths, renewalUnavailable, type NodeAutoRenewal } from '../lib/node-renewal'
 import { currencyOptions } from '../lib/currency-options'
 
 interface NodeProbe {
@@ -112,7 +112,7 @@ function NodeProbeForm({ nodeID, reportedHost }: { nodeID: number; reportedHost?
   const draftMonths = renewalPeriodMonths(form.values.cycle, form.values.years)
   const savedMonths = p?.info.billing ? renewalPeriodMonths(p.info.billing.cycle, p.info.billing.years ?? '') : null
   const samePeriod = form.values.costMode === 'structured' && draftMonths !== null && draftMonths === savedMonths
-  const resetDate = form.values.expires_at === expectedExpiresAt && samePeriod ? p?.info.auto_renewal?.anchor_date || form.values.expires_at : form.values.expires_at
+  const resetDay = renewalAnchorDay(form.values.expires_at === expectedExpiresAt && samePeriod ? p?.info.auto_renewal : undefined, form.values.expires_at)
   const used = q.data?.billed ?? 0
   const pct = p && p.limit_bytes > 0 ? Math.min(100, Math.round((used / p.limit_bytes) * 100)) : 0
   const liveHost = q.data?.live?.host
@@ -140,7 +140,7 @@ function NodeProbeForm({ nodeID, reportedHost }: { nodeID: number; reportedHost?
           <NumberInput label={t('nodeProbe.limit')} description={t('nodeProbe.limitHint')} min={0} allowNegative={false} value={form.values.Limit.amount} error={form.errors.Limit} onChange={amount => form.setFieldValue('Limit', { ...form.values.Limit, amount, bytes: trafficLimitBytes(amount, form.values.Limit.unit) })} />
           <Select label={t('nodeProbe.limitUnit')} description={t('nodeProbe.limitUnitHint')} data={Object.keys(trafficLimitFactors)} value={form.values.Limit.unit} disabled={!validTrafficLimit(form.values.Limit)} allowDeselect={false} onChange={unit => { if (unit) form.setFieldValue('Limit', trafficLimitInput(form.values.Limit.bytes, unit as TrafficLimitUnit)) }} />
           <Stack gap="xs"><Select label={t('nodeProbe.resetDay')} allowDeselect={false} data={['expiry', 'expiry_next', 'manual'].map(value => ({ value, label: t(`nodeCost.reset_${value}`) }))} {...form.getInputProps('resetPolicy')} />
-          {form.values.resetPolicy === 'manual' ? <NumberInput aria-label={t('nodeProbe.resetDay')} min={1} max={31} allowDecimal={false} {...form.getInputProps('ResetDay')} /> : <Text size="xs" c="dimmed">{form.values.expires_at ? t(form.values.resetPolicy === 'expiry_next' ? 'nodeCost.resetNextHint' : 'nodeCost.resetHint', { day: Number(resetDate.slice(8,10)) }) : t('nodeCost.dateRequired')}</Text>}</Stack>
+          {form.values.resetPolicy === 'manual' ? <NumberInput aria-label={t('nodeProbe.resetDay')} min={1} max={31} allowDecimal={false} {...form.getInputProps('ResetDay')} /> : <Text size="xs" c="dimmed">{resetDay !== null ? t(form.values.resetPolicy === 'expiry_next' ? 'nodeCost.resetNextHint' : 'nodeCost.resetHint', { day: resetDay }) : t('nodeCost.dateRequired')}</Text>}</Stack>
           <Select label={t('nodeProbe.mode')} description={t('nodeProbe.modeHint')} data={[{ value: 'sum', label: t('nodeProbe.modes.sum') }, { value: 'up', label: t('nodeProbe.modes.up') }, { value: 'down', label: t('nodeProbe.modes.down') }, { value: 'max', label: t('nodeProbe.modes.max') }]} allowDeselect={false} {...form.getInputProps('Mode')} />
         </SimpleGrid>
         <NodeStorageFields value={form.values.Storage} candidates={q.data?.storage_candidates ?? []} onChange={v => form.setFieldValue('Storage', v)} disabled={!p || q.isError || save.isPending} />

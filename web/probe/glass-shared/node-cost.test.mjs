@@ -218,3 +218,36 @@ test('calculations never rewrite saved decimal strings, periods or caller dates'
   assert.deepEqual(value, before)
   assert.equal(clock.getTime(), now.getTime())
 })
+
+test('explicit billing days survive short-month anchor dates without changing expiry boundaries', () => {
+  for (const enabled of [true, false]) {
+    const value = info('28', 'monthly', 'USD', {
+      expires_at: '2027-02-28', auto_renewal: { enabled, anchor_date: '2027-02-28', anchor_day: 31 },
+    })
+    money(calculateNodeCost(value, new Date('2027-02-01T00:00:00Z')).remaining, 27)
+    // The real expiry is February 28, not an invented February 31 or March date.
+    money(calculateNodeCost(value, new Date('2027-02-28T00:00:00Z')).remaining, 0)
+  }
+  const quarterly = info('92', 'custom', 'USD', {
+    expires_at: '2027-05-31', auto_renewal: { enabled: true, anchor_date: '2027-02-28', anchor_day: 31 },
+  })
+  quarterly.billing.years = '0.25'
+  money(calculateNodeCost(quarterly, new Date('2027-05-01T00:00:00Z')).remaining, 30)
+  assert.equal(calculateNodeCost({ ...quarterly, expires_at: '2027-04-30' }, new Date('2027-04-01T00:00:00Z')).remainingReason, 'unsupported-cycle')
+})
+
+test('invalid explicit billing days fall back to legacy calendar anchors', () => {
+  for (const anchor_day of [0, 32, -1, 28.5, '31']) {
+    const value = info('28', 'monthly', 'USD', { expires_at: '2027-02-28', auto_renewal: { enabled: true, anchor_date: '2027-01-31', anchor_day } })
+    money(calculateNodeCost(value, new Date('2027-02-01T00:00:00Z')).remaining, 27)
+  }
+})
+
+test('a saved billing day inconsistent with expiry leaves remaining value unknown', () => {
+  const value = info('28', 'monthly', 'USD', { expires_at: '2027-02-15', auto_renewal: { enabled: true, anchor_date: '2027-02-15', anchor_day: 31 } })
+  const result = calculateNodeCost(value, new Date('2027-02-01T00:00:00Z'))
+  money(result.monthly, 28)
+  assert.equal(result.remaining, null)
+  assert.equal(result.remainingReason, 'unsupported-cycle')
+  money(calculateNodeCost(value, new Date('2027-02-15T00:00:00Z')).remaining, 0)
+})
