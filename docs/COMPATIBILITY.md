@@ -3,7 +3,7 @@
 What an operator can rely on across releases, which bosun a Captain works
 with, what the database is good for, and what is deliberately not there.
 
-## Server suppliers and primary infrastructure bills
+## Server suppliers and primary infrastructure bills (Captain v1.46.0)
 
 Migration 94 stores explicit server-to-supplier and primary-asset associations
 separately from public probe information. Existing provider text and loose
@@ -44,9 +44,10 @@ fields are omitted from legacy request hashes so successful pre-upgrade payment
 retries remain idempotent. Old history remains distinguishable as legacy
 period-advance records. No report or association manufactures a payment.
 
-Older Captain versions do not maintain these associations or payment actions:
-before downgrading, restore the matching pre-upgrade database backup rather than
-editing shared values with an older binary.
+Captain v1.46.0 raises the built-in rollback floor to v1.46.0. Older panels
+do not maintain these associations or payment actions and ignore a disabled
+public homepage. Before manually downgrading, restore the matching pre-upgrade
+database backup rather than editing shared values with an older binary.
 
 ## Curated client downloads
 
@@ -295,7 +296,8 @@ package remains unchanged. No Captain protocol or database change is needed
 for this bosun compatibility patch.
 
 Captain v1.35.0 raised the built-in update/rollback floor to v1.35.0;
-v1.45.0 now raises it further to preserve inbound access policies.
+v1.45.0 raised it further for inbound access policies, and v1.46.0 retains
+those protections while preserving shared infrastructure dates and payments.
 Older panels can omit registered device peers and lose the new
 attribution semantics. Manual downgrade requires restoring the corresponding
 pre-upgrade database backup, including its older credential state. See
@@ -436,6 +438,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
+| 1.46.0 | Unchanged; shared module v0.82.0 | Server supplier/primary-bill associations, independent payment date actions, settings navigation and an optional homepage; migrations 94–95. Existing managed nodes do not need an upgrade. Captain rollback floor is v1.46.0 to retain shared dates and payment semantics. |
 | 1.45.0 | Unchanged; shared module v0.82.0 | City locations and explicit map publication, multiple inbound access groups and curated client downloads; migrations 91–93. Existing managed nodes do not need an upgrade. Captain rollback floor is v1.45.0 to retain access policies. |
 | 1.35.0 | ≥ 0.77.0 and explicitly activated Xray `26.7.28-r3` for native WG devices | Independent WG-only device subscriptions and parent-account limits; migration 85. Managed reverse exit display uses existing traffic reports and migration 84 without requiring a fleet upgrade. Existing fields and ordinary subscriptions remain compatible; Captain rollback floor becomes 1.35.0. |
 | 1.34.0 | Unchanged | Additive public storage history and per-volume detail charts. Absolute filesystem history starts with this panel version; older data-volume percentages are not reconstructed as capacity. No migration or agent protocol change. |
@@ -476,7 +479,8 @@ features it has never heard of, which the node page shows as an orange
 
 `min_version` in both `config.yaml` files is the floor a self-update or
 rollback may not go below; set it to the version you have tested. Captain's
-built-in floor is v1.45.0 for inbound access policies; this also
+built-in floor is v1.46.0 for shared infrastructure dates and payment actions;
+this also preserves the homepage switch and inbound access policies, and
 retains device credentials, exit attribution and the earlier protections for line ownership, client chains, internal
 forwarding and public storage selection. A higher configured floor still wins.
 This protects the built-in updater, not manual replacement of the executable.

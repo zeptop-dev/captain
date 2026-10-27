@@ -589,11 +589,11 @@ func limitBodies(next http.Handler) http.Handler {
 
 func (s *Server) DNSHealth() *service.DNSHealth { return s.dnsHealth }
 
-// Older panels ignore explicit multi-group/closed inbound access and can
-// re-authorize users via the legacy group. Preserve the new authorization floor.
+// Older panels ignore linked supplier bills, payment date actions and the
+// homepage switch. Preserve these semantics and earlier access-policy protections.
 func captainUpdateFloor(configured string) string {
-	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.45.0", configured) {
-		return "v1.45.0"
+	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.46.0", configured) {
+		return "v1.46.0"
 	}
 	return configured
 }

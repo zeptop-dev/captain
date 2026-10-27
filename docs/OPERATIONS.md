@@ -234,6 +234,12 @@ why the pre-upgrade snapshot matters. If the release added no migrations
 (compare `ls migrations/` between the two tags), rolling the binary back
 is enough.
 
+Captain v1.46.0 adds migrations 94–95 and raises the built-in rollback floor
+to v1.46.0. Earlier panels cannot maintain primary-bill associations or the new
+payment date actions, and ignore the disabled-homepage setting. Do not run an
+older binary against this database; restore its matching pre-upgrade snapshot
+for a manual downgrade. A higher configured `min_version` remains effective.
+
 ### Rolling a node back
 
 Nodes → the ↶ icon next to a node's version queues a `rollback` job: bosun

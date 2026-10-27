@@ -1,9 +1,12 @@
 # Fleet administration workflows
 
-Available in Captain 1.8.0. These features retain the single SQLite database,
-staff/customer separation and existing management API contracts. Migrations
-58–64 run automatically; take a backup before upgrading. A binary rollback
-across these migrations requires the pre-upgrade database snapshot.
+The original workflows arrived in Captain 1.8.0 with migrations 58–64.
+Captain v1.46.0 adds server supplier/primary-bill associations and explicit
+payment date actions in migrations 94–95. These features retain the single
+SQLite database, staff/customer separation and existing management API
+contracts. Migrations run automatically; take a backup before upgrading.
+Manual downgrade across these migrations requires the matching pre-upgrade
+database snapshot; the built-in rollback floor is v1.46.0.
 
 ## Traffic delivery
 
