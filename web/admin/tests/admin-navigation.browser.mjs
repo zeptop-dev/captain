@@ -24,11 +24,11 @@ const mail = { provider: 'smtp', from_name: 'Example', from_address: 'mail@examp
 const emptyPage = { items: [], total: 0, page: 1, per_page: 50 }
 const defaults = { clash: 'proxies: {{proxies}}\nproxy-groups: []\nrules: []', stash: 'proxies: {{proxies}}', surge: '[Proxy]\n{{proxies}}' }
 
-async function setup({ role = 'admin', language = 'en', width = 1440, scheme = 'light' } = {}) {
+async function setup({ role = 'admin', language = 'en', width = 1440, scheme = 'light', templateWrites = false } = {}) {
   const context = await browser.newContext({ locale: language, viewport: { width, height: 1000 }, serviceWorkers: 'block' })
   await context.addInitScript(({ language, scheme }) => { if (location.protocol === 'http:') { localStorage.setItem('i18nextLng', language); localStorage.setItem('mantine-color-scheme-value', scheme) } }, { language, scheme })
   await context.routeWebSocket('**/*', socket => socket.close())
-  const state = { requests: [], unexpected: [], errors: [], blockers: [], external: [] }
+  const state = { requests: [], unexpected: [], errors: [], blockers: [], external: [], templates: {}, saveGate: null }
   await context.route('**/*', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname, method = request.method()
     if (url.origin !== base.origin) { state.external.push(url.origin); return route.abort() }
@@ -39,8 +39,13 @@ async function setup({ role = 'admin', language = 'en', width = 1440, scheme = '
     const body = request.postData() ? request.postDataJSON() : undefined
     state.requests.push({ method, path, body })
     const send = (value, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(value) })
-    // Inspection is a read-only POST; saving settings is never needed here.
+    // Writes are denied unless this isolated scenario explicitly enables template saves.
     if (method === 'POST' && path === '/api/admin/settings/sub-design/inspect') return send({ effective_design: body.design, formats: [{ format: 'clash', supported: true, reasons: [] }] })
+    if (templateWrites && method === 'PUT' && path === '/api/admin/settings/sub-templates') {
+      if (state.saveGate) await state.saveGate
+      state.templates = body.templates
+      return send({ templates: state.templates, defaults })
+    }
     if (method !== 'GET') { state.unexpected.push({ method, path }); return send({ error: 'Unexpected mock write' }, 500) }
     switch (path) {
       case '/api/admin/me': return send({ id: 1, email: `${role}@example.com`, role, version: 'v1.45.0' })
@@ -79,7 +84,7 @@ async function setup({ role = 'admin', language = 'en', width = 1440, scheme = '
       case '/api/admin/monitoring/windows': return send({ items: [], truncated: false, now: Math.floor(Date.now() / 1000) })
       case '/api/admin/settings/dns/history': return send({ items: [], more: false })
       case '/api/admin/speedtest': return send({ nodes: [], entries: [], probe_enabled: false })
-      case '/api/admin/settings/sub-templates': return send({ templates: {}, defaults })
+      case '/api/admin/settings/sub-templates': return send({ templates: state.templates, defaults })
       case '/api/admin/settings/sub-library/templates': return send({ items: [], defaults })
       case '/api/admin/settings/sub-design': return send({ design, catalogue: [], presets: [], regions: [], tags: [], formats: ['clash', 'stash'] })
       case '/api/admin/settings/sub-design/claude-rules': {
@@ -127,12 +132,12 @@ async function selected(run, modulePath, sectionKey) {
     await eventually(() => sectionLink(run, sectionKey).getAttribute('aria-current'), value => value === 'page', `Active child ${sectionKey}`)
   }
 }
-async function finish(run) {
+async function finish(run, expectedWrites = []) {
   assert.deepEqual(run.state.errors, [], 'Runtime errors')
   assert.deepEqual(run.state.unexpected, [], 'Every API call is explicitly mocked')
   assert.deepEqual(run.state.blockers, [], 'No overlapping navigation blockers')
   assert.deepEqual(run.state.external, [], 'No external network')
-  assert.deepEqual(run.state.requests.filter(r => r.method !== 'GET' && r.path !== '/api/admin/settings/sub-design/inspect'), [], 'Navigation and canceled drafts must not save data')
+  assert.deepEqual(run.state.requests.filter(r => r.method !== 'GET' && r.path !== '/api/admin/settings/sub-design/inspect'), expectedWrites, 'Only explicitly expected mock writes may occur')
   await run.context.close()
 }
 
@@ -190,6 +195,49 @@ const scenarios = {
   await run.page.getByRole('option', {name:'mihomo / Clash Meta',exact:true}).click()
   await eventually(() => editor.inputValue(), value => value === defaults.clash, 'Discarded Clash draft must not reappear')
     await finish(run)
+  },
+  async 'text-save'() {
+    const run = await setup({templateWrites:true})
+    await open(run, '/sub-templates?mode=text&format=clash')
+    const editor = run.page.locator('textarea:not([aria-hidden])')
+    const save = run.page.getByRole('button', {name:run.t('common.save'),exact:true})
+    const dirty = run.page.getByRole('status').filter({hasText:run.t('workspace.unsaved')})
+    await eventually(() => editor.inputValue(), text => text === defaults.clash, 'Template loaded')
+    const first = defaults.clash + '\n# saved-first'
+    await editor.fill(first)
+    await dirty.waitFor()
+    const saved = run.page.waitForResponse(response => new URL(response.url()).pathname === '/api/admin/settings/sub-templates' && response.request().method() === 'PUT')
+    await save.click()
+    assert.equal((await saved).status(), 200)
+    await dirty.waitFor({state:'hidden'})
+    await sideLink(run, '/users').click()
+    await selected(run, '/users', 'users.viewList')
+    assert.equal(await dirtyDialog(run).count(), 0, 'Successful save rebases navigation guard')
+    await sideLink(run, '/sub-templates').click()
+    const textMode = run.page.getByRole('radio', {name:run.t('subTemplates.modeText'),exact:true})
+    await run.page.locator(`label[for="${await textMode.getAttribute('id')}"]`).click()
+    await eventually(() => editor.inputValue(), text => text === first, 'Saved template is returned by GET')
+    const second = defaults.clash + '\n# saved-second'
+    await editor.fill(second)
+    await dirty.waitFor()
+    let releaseSave
+    run.state.saveGate = new Promise(resolve => { releaseSave = resolve })
+    const delayed = run.page.waitForResponse(response => new URL(response.url()).pathname === '/api/admin/settings/sub-templates' && response.request().method() === 'PUT')
+    await save.click()
+    await eventually(() => editor.isDisabled(), disabled => disabled, 'Pending save disables editing')
+    assert.equal(await editor.locator('xpath=ancestor::fieldset').getAttribute('inert'), '')
+    assert.equal(await editor.inputValue(), second)
+    releaseSave()
+    assert.equal((await delayed).status(), 200)
+    await dirty.waitFor({state:'hidden'})
+    await eventually(() => editor.isDisabled(), disabled => !disabled, 'Saved editor becomes editable')
+    await editor.fill(second + '\n# next-unsaved')
+    await dirty.waitFor()
+    await sideLink(run, '/users').click(); await cancel(run)
+    assert.equal(await editor.inputValue(), second + '\n# next-unsaved', 'Later edits remain dirty after saved baseline advances')
+    await sideLink(run, '/users').click(); await discard(run)
+    await selected(run, '/users', 'users.viewList')
+    await finish(run, [first, second].map(text => ({method:'PUT',path:'/api/admin/settings/sub-templates',body:{templates:{clash:text}}})))
   },
   async routes() {
     const run = await setup()
