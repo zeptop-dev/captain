@@ -17,7 +17,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { IconInfoCircle, IconPencil, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { api, runNodeJob, type DoctorReport, type Ingress, type CertStatus, type Inbound, type InternalAddressUsage, type Node } from '../lib/api'
 import { ago, bytes, when } from '../lib/format'
@@ -35,11 +35,13 @@ import { ServerProxySettings } from '../components/ServerProxySettings'
 import { ForwardsCard } from '../components/ForwardsCard'
 import { MetadataEditor } from '../components/MetadataEditor'
 import { DeleteNodeModal } from '../components/DeleteNodeModal'
+import { SettingsDraftBoundary } from '../lib/settings-draft'
 
 interface Detail { traffic?: Record<string, { today: number; total: number }>; node: Node; inbounds: Inbound[]; ingresses?: Ingress[]; status: { core_inventory?: CoreInventory | null; host: ResourceHost | null; cores: Record<string, { running: boolean; inbounds?: string[] }> | null; certs: CertStatus[] | null; doctor?: DoctorReport | null } | null }
 
 export default function NodePage() {
   const { id } = useParams()
+  const location = useLocation()
   const [params] = useSearchParams()
   const { me } = useAuth()
   const { t } = useTranslation()
@@ -66,8 +68,10 @@ export default function NodePage() {
   const internalBlocked = internalChanged && (internalUsage.isPending || internalUsage.isError || internalInUse && !nodeForm.values.InternalAddr.trim())
   const host = d.status?.host
   const proxyAllowed = n.proxy_allowed !== false
+  // One blocker owns all server forms; a clean sibling must not hide another
+  // form's draft. Confirmed navigation resets drafts for the new destination.
   return (
-    <>
+    <SettingsDraftBoundary key={`${n.id}:${location.key}`}>
       {(n.domain_shared || n.domain_conflict) && <Alert mb="md" color={n.domain_shared ? 'blue' : 'orange'} title={t(n.domain_shared ? 'nodes.domainExternal' : 'nodes.domainDuplicate')}>{t(n.domain_shared ? 'nodes.domainSharedHint' : 'nodes.domainLegacyHint')}</Alert>}
       <DeleteNodeModal node={n} opened={deletingNode} onClose={() => setDeletingNode(false)} onDeleted={() => { qc.invalidateQueries({ queryKey: ['nodes'] }); nav('/nodes') }} />
       <PageHeader title={n.name} subtitle={`${n.hostname || ''} ${n.platform || ''} ${n.version || ''}`.trim()} actions={<>
@@ -192,7 +196,7 @@ export default function NodePage() {
         </Stack></form>
       </Modal>
       <Modal opened={pair !== null} onClose={() => setPair(null)} title={t('nodes.pairTitle')} size="lg">{pair && <PairCodeBox code={pair} mode={n.mode} />}</Modal>
-    </>
+    </SettingsDraftBoundary>
   )
 }
 

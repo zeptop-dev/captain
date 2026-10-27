@@ -13,7 +13,7 @@ import { ResourcesCard } from './ResourcesCard'
 import { ResourceOptionsFields } from './ResourceOptionsFields'
 import type { ResourceHost, ResourceOptions } from '../lib/resources'
 import { Alert, Button, Card, Group, NumberInput, Progress, Select, SimpleGrid, Stack, Switch, Text, TextInput, Title } from '@mantine/core'
-import { SettingsDraftBoundary, useSettingsForm as useForm } from '../lib/settings-draft'
+import { useSettingsForm as useForm } from '../lib/settings-draft'
 import { useAuth } from '../lib/auth'
 import { NodeBillingLink, NodeSupplierFields } from './NodeInfrastructureFields'
 import { applyDraftSave, financeDraft, reloadFinance as mergeFinance, sameInfrastructureSnapshot, nodeInfrastructureKey, nodeInfrastructureURL, suppliersKey, type NodeCost, type NodeInfrastructure, type SupplierOption } from '../lib/node-infrastructure'
@@ -40,11 +40,7 @@ interface NodeProbe {
 
 // Per-node probe settings: display facts for the status page, hide flag,
 // and the monthly NIC traffic allowance with its current usage.
-export function NodeProbeCard(props: { nodeID: number; reportedHost?: ResourceHost | null }) {
-  return <SettingsDraftBoundary key={props.nodeID}><NodeProbeForm {...props} /></SettingsDraftBoundary>
-}
-
-function NodeProbeForm({ nodeID, reportedHost }: { nodeID: number; reportedHost?: ResourceHost | null }) {
+export function NodeProbeCard({ nodeID, reportedHost }: { nodeID: number; reportedHost?: ResourceHost | null }) {
   const { t, i18n } = useTranslation()
   const qc = useQueryClient()
   const q = useQuery({ queryKey: ['node-probe', nodeID], queryFn: ({ signal }) => api.get<NodeProbe>(`/api/admin/nodes/${nodeID}/probe`, signal), refetchInterval: 10_000 })

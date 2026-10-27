@@ -4,14 +4,13 @@ import { useTranslation } from 'react-i18next'
 import { api, type Inbound, type Ingress, type Node } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { isServerSettingsSection } from '../lib/navigation'
-import { SettingsDraftBoundary } from '../lib/settings-draft'
 import { EgressUpstreams } from './EgressUpstreams'
 import { IngressesCard } from './IngressesCard'
 import { OverridesCard } from './OverridesCard'
 import { RoutingCard } from './RoutingCard'
 
-// The caller keys this whole boundary by server and requested section. Polling
-// keeps drafts intact; confirmed navigation resets them for the new destination.
+// The caller owns the shared server-page draft boundary and keys this section.
+// Polling keeps drafts intact; confirmed navigation resets them.
 export function ServerProxySettings({ node, inbounds, ingresses, section }: {
   node: Node; inbounds: Inbound[]; ingresses: Ingress[]; section: string | null
 }) {
@@ -26,7 +25,6 @@ export function ServerProxySettings({ node, inbounds, ingresses, section }: {
   }, [section])
   return <Card mt="lg" p={0} ref={root}>
     <Stack p="md" gap={4}><Text fw={600}>{t('nodes.proxySettings')}</Text><Text size="xs" c="dimmed">{t('nodes.proxySettingsHint')}</Text></Stack>
-    <SettingsDraftBoundary>
       {!node.paired && <Alert color="orange" mx="md">{t('nodes.unpaired')}</Alert>}
       <Accordion multiple defaultValue={isServerSettingsSection(section) ? [section] : []} chevronPosition="right" variant="default">
         <Accordion.Item value="ingresses" data-section="ingresses" style={{ scrollMarginTop: 80 }}>
@@ -42,6 +40,5 @@ export function ServerProxySettings({ node, inbounds, ingresses, section }: {
           <Accordion.Panel><OverridesCard embedded readOnly={!editable} queryKey={['overrides', node.id]} load={() => api.get<Record<string, string>>(`/api/admin/nodes/${node.id}/overrides`)} save={value => api.put(`/api/admin/nodes/${node.id}/overrides`, value)} /></Accordion.Panel>
         </Accordion.Item>
       </Accordion>
-    </SettingsDraftBoundary>
   </Card>
 }
