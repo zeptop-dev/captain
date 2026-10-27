@@ -156,8 +156,7 @@ function EntriesWorkspace() {
         <Menu.Item onClick={() => createConnection('reverse')}>{t('lines.sections.reverse')}</Menu.Item>
       </Menu.Dropdown></Menu>}
     </Group>} />
-    <Tabs value={tab} onChange={value => updateParams({ tab: value === 'lines' ? 'lines' : null, section: null, inbound: null })} keepMounted={false}>
-      <Tabs.Panel value="entries">
+    {tab === 'entries' ? <div>
         {section === 'inbounds' ? <Stack>
           <Group justify="space-between"><Text fw={600}>{t('entryFlow.inbounds')}</Text><Button variant="subtle" onClick={() => updateParams({ section: null, inbound: null })}>{t('entryFlow.backToNodes')}</Button></Group>
           <InboundsManager serverID={serverID} onServerChange={id => updateParams({ server: id ? String(id) : null, inbound: null })} canWrite={canWrite} editInboundID={params.get('inbound') === 'new' ? 'new' : Number(params.get('inbound')) || undefined} onEditorClose={() => updateParams({ inbound: null })} />
@@ -197,8 +196,7 @@ function EntriesWorkspace() {
           </Card>
           {draggable && rows.length > 1 && <Text size="xs" c="dimmed" mt="xs">{t('entries.dragHint')}</Text>}
         </>}
-      </Tabs.Panel>
-      <Tabs.Panel value="lines">
+      </div> : <div>
         <Stack>
           <Select label={t('lines.section')} allowDeselect={false} value={connectionSection ?? 'forward'} data={['forward', 'wireguard', 'reverse'].map(value => ({ value, label: t(`lines.sections.${value}`) }))} onChange={value => { setConnectionRequest(0); updateParams({ section: value, mode: null, inbound: null }) }} maw={420} />
           {connectionSection ? <LinesConnections section={connectionSection} serverID={serverID} onServerChange={id => updateParams({ server: id ? String(id) : null })} editRequest={connectionRequest} onEditRequestHandled={() => setConnectionRequest(0)} canWrite={canWrite} /> : <Tabs value={singleForward ? 'single' : 'grouped'} onChange={value => updateParams({ section: 'forward', mode: value === 'single' ? 'single' : null })} keepMounted={false}>
@@ -207,8 +205,7 @@ function EntriesWorkspace() {
             <Tabs.Panel value="grouped">{admin ? <LinesPanel lines={lines.data ?? []} nodes={nodes.data ?? []} inbounds={inbounds} loading={lines.isLoading} error={lines.isError} observedAt={Math.max(lines.dataUpdatedAt, lines.errorUpdatedAt)} focusID={Number(params.get('line')) || undefined} onRetry={() => lines.refetch()} onEdit={setEditingLine} onCreateNode={createNode} /> : <Alert color="blue">{t('lines.adminOnly')}</Alert>}</Tabs.Panel>
           </Tabs>}
         </Stack>
-      </Tabs.Panel>
-    </Tabs>
+      </div>}
     {editingAccess && <SettingsDraftBoundary><InboundAccessModal inboundID={editingAccess.InboundID} entryID={editingAccess.ID} onClose={() => setEditingAccess(null)} /></SettingsDraftBoundary>}
     {editingLocation && <SettingsDraftBoundary><EntryLocationEditor key={`entry-location-${editingLocation.ID}`} entry={editingLocation} onClose={() => setEditingLocation(null)} /></SettingsDraftBoundary>}
     {editing !== null && <SettingsDraftBoundary><EntryEditor key={editing === 'new' ? `new-${initialLineID ?? ''}` : editing.ID} entry={editing === 'new' ? undefined : editing} nodes={nodes.data ?? []} inbounds={inbounds} entries={q.data ?? []} lines={lines.data ?? []} tags={tags.data ?? []} categories={categories.data ?? []} initialInboundID={Number(params.get('inbound')) || undefined} initialLineID={initialLineID} initialServerID={Number(nodeFilter) || serverID} canManageLines={admin} loading={sourcesLoading || categories.isLoading || categories.isError || admin && lines.isLoading} loadError={sourcesError || categories.isError || admin && lines.isError} onReload={() => { reloadSources(); categories.refetch() }} onClose={() => setEditing(null)} /></SettingsDraftBoundary>}

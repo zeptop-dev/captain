@@ -30,7 +30,7 @@ export default function SubTemplatesPage() {
       {mode === 'profiles' && <SubscriptionProfiles />}
       {mode === 'design' && <SubDesigner />}
       {mode === 'rules' && <ResponseRules />}
-      {mode === 'text' && <SettingsDraftBoundary><TextTemplateEditor format={format} onFormatChange={setFormat} /></SettingsDraftBoundary>}
+      {mode === 'text' && <SettingsDraftBoundary key={format}><TextTemplateEditor format={format} onFormatChange={setFormat} /></SettingsDraftBoundary>}
     </>
   )
 }
