@@ -97,12 +97,9 @@
   "nav": {
     "dashboard": "ダッシュボード",
     "nodes": "サーバー",
-    "entries": "ノード",
-    "users": "ユーザー",
     "plans": "プラン",
     "orders": "注文",
     "settings": "設定",
-    "site": "ランディングページ",
     "coupons": "クーポン",
     "tickets": "チケット",
     "gifts": "引き換えコード",
@@ -897,7 +894,6 @@
     "secretKept": "保存済み。空欄で維持"
   },
   "subTemplates": {
-    "title": "サブスクリプションテンプレート",
     "subtitle": "クライアント形式ごとのサブスクリプション文書の骨格。ノード一覧は Captain が生成し、それ以外（ルール、ポリシーグループ、General）はここで編集できます。",
     "format": "形式",
     "customized": "カスタマイズ済み",
@@ -2311,12 +2307,7 @@
     "notFound": "この設定ページは存在しません。",
     "noResults": "該当する設定がありません。別の語句をお試しください。",
     "updateHint": "現在のバージョンと利用可能な更新を確認します。",
-    "subscription": "サブスクリプション",
     "templates": "購読テンプレート",
-    "business": "運営",
-    "marketing": "販促と紹介報酬",
-    "content": "コンテンツとサイト",
-    "businessHint": "関連する運営業務をまとめて管理します。",
     "loadError": "設定を読み込めませんでした。再試行してから編集してください。",
     "retry": "再試行",
     "backupHint": "ローカルスナップショット、リモート保存先、バックアップ暗号化を管理します。",
@@ -2326,11 +2317,15 @@
     "publishedEntries": "有効ノード：{{count}}",
     "publicationHint": "ノードで有効なインバウンドを公開します。利用には有効なプランと権限も必要です。",
     "navigation": "ナビゲーションメニュー",
-    "moreIn": "{{section}}のその他の項目",
-    "more": "その他",
     "userManagement": "ユーザー管理",
-    "nodeManagement": "サーバー管理",
-    "monitoring": "監視"
+    "monitoring": "監視",
+    "serverList": "サーバー一覧",
+    "subscriptionManagement": "サブスクリプション管理",
+    "templateEditor": "テンプレート編集",
+    "transactions": "プランと取引",
+    "customerService": "カスタマーサービス",
+    "systemSettings": "システム設定",
+    "sectionNavigation": "ワークスペース内のナビゲーション"
   },
   "reverse": {
     "title": "VLESS Reverse 接続",

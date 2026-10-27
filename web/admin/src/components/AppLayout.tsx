@@ -3,15 +3,16 @@ import { useState } from 'react'
 import { brandLogo } from '../../../shared/branding'
 import { usePublicBrand } from '../lib/branding'
 import { useDisclosure } from '@mantine/hooks'
-import { IconLayoutDashboard, IconServer, IconUsers, IconSettings, IconLogout, IconLanguage, IconGauge, IconShip, IconSun, IconMoon, IconDotsVertical, IconChevronDown, IconLink, IconUsersGroup, IconReceipt, IconMessage, IconTemplate, IconAdjustments, IconFilter, IconWorld, IconBuilding, IconFileText, IconTag, IconBell } from '@tabler/icons-react'
+import { IconLayoutDashboard, IconServer, IconUsers, IconSettings, IconLogout, IconLanguage, IconGauge, IconShip, IconSun, IconMoon, IconDotsVertical, IconChevronDown, IconLink, IconReceipt, IconMessage, IconTemplate } from '@tabler/icons-react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../lib/auth'
 import { useQuery } from '@tanstack/react-query'
 import { api, type SystemUpdate } from '../lib/api'
 import { pageBackground } from '../theme'
-import { navigation, canVisit, navigationGroup } from '../lib/navigation'
+import { visibleNavigation, navigationGroup } from '../lib/navigation'
 import { GroupedNavigation } from './GroupedNavigation'
+import { WorkspaceNavigation } from './WorkspaceNavigation'
 
 const languages = [
   { code: 'zh-CN', label: '简体中文' },
@@ -23,12 +24,9 @@ const languages = [
 ]
 
 const icons = {
-  overview: IconLayoutDashboard,
-  '/users': IconUsers, '/users?tab=groups': IconUsersGroup, '/users?tab=renewals': IconReceipt,
-  '/nodes': IconServer, '/infrastructure': IconBuilding, '/domains': IconWorld,
-  '/entries': IconLink, '/sub-templates': IconTemplate, '/sub-templates?mode=profiles': IconAdjustments, '/sub-templates?mode=rules': IconFilter, '/external': IconWorld,
-  '/monitoring': IconGauge, '/monitoring?tab=alerts': IconBell, '/speedtest': IconGauge,
-  '/plans': IconReceipt, '/orders': IconReceipt, '/tickets': IconMessage, '/business/marketing': IconTag, '/business/content': IconFileText,
+  overview: IconLayoutDashboard, users: IconUsers, nodes: IconServer,
+  entries: IconLink, subscription: IconTemplate, monitoring: IconGauge,
+  business: IconReceipt, support: IconMessage,
 }
 
 export function Brand({ size = 'md' }: { size?: 'md' | 'lg' }) {
@@ -53,7 +51,7 @@ export function AppLayout() {
   const loc = useLocation()
   const { colorScheme, setColorScheme } = useMantineColorScheme()
   const role = me?.role ?? ''
-  const shown = navigation.map(group => ({ ...group, items: group.items.filter(item => canVisit(item.to, role)) })).filter(group => group.items.length > 0)
+  const shown = visibleNavigation(role)
   const group = navigationGroup(loc.pathname)
   const upd = useQuery({ queryKey: ['update'], queryFn: () => api.get<SystemUpdate>('/api/admin/system/update'), staleTime: 10 * 60_000, refetchInterval: 30 * 60_000, retry: false, enabled: role === 'admin' })
   const lang = languages.find((l) => l.code === i18n.language) ?? languages[0]
@@ -82,7 +80,7 @@ export function AppLayout() {
           <GroupedNavigation key={role} groups={shown} icons={icons} activeGroup={group} onNavigate={close} />
         </AppShell.Section>
         <AppShell.Section p="sm" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
-          {role === 'admin' && <NavLink component={Link} to="/settings/category/site" label={t('nav.settings')} leftSection={<IconSettings size={18} />} active={group === 'system'} onClick={close} mb="sm" styles={{ root: { borderRadius: 8 } }} />}
+          {role === 'admin' && <NavLink component={Link} to="/settings/category/site" label={t('workspace.systemSettings')} leftSection={<IconSettings size={18} />} active={group === 'system'} aria-current={group === 'system' ? 'page' : undefined} onClick={close} mb="sm" styles={{ root: { borderRadius: 8 } }} />}
           <Group justify="space-between" mb="sm" px={4}>
             <Menu shadow="md" width={160}>
               <Menu.Target>
@@ -114,7 +112,7 @@ export function AppLayout() {
         </AppShell.Section>
       </AppShell.Navbar>
 
-      <AppShell.Main><Outlet /></AppShell.Main>
+      <AppShell.Main><WorkspaceNavigation /><Outlet /></AppShell.Main>
     </AppShell>
   )
 }

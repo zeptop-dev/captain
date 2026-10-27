@@ -97,12 +97,9 @@
   "nav": {
     "dashboard": "總覽",
     "nodes": "伺服器",
-    "entries": "節點",
-    "users": "使用者",
     "plans": "方案",
     "orders": "訂單",
     "settings": "設定",
-    "site": "展示頁",
     "coupons": "優惠券",
     "tickets": "工單",
     "gifts": "兌換碼",
@@ -897,7 +894,6 @@
     "secretKept": "已儲存，留空不改"
   },
   "subTemplates": {
-    "title": "訂閱範本",
     "subtitle": "每種用戶端格式的訂閱文件骨架。節點列表由 Captain 產生，其餘部分（規則、策略群組、General）可以在這裡改。",
     "format": "格式",
     "customized": "已自訂",
@@ -2311,12 +2307,7 @@
     "notFound": "這個設定頁面不存在。",
     "noResults": "沒有符合的設定，請換個關鍵字。",
     "updateHint": "查看目前版本與可用更新。",
-    "subscription": "訂閱",
     "templates": "訂閱範本",
-    "business": "營運",
-    "marketing": "行銷與返佣",
-    "content": "內容與網站",
-    "businessHint": "在同一入口處理相關營運事務。",
     "loadError": "設定載入失敗，請重試後再編輯。",
     "retry": "重試",
     "backupHint": "管理本機快照、異地儲存與備份加密。",
@@ -2326,11 +2317,15 @@
     "publishedEntries": "已啟用節點：{{count}} 個",
     "publicationHint": "節點將已啟用入站發佈到訂閱；使用者仍需有效方案及相應權限才能使用。",
     "navigation": "導覽選單",
-    "moreIn": "更多{{section}}選項",
-    "more": "更多",
     "userManagement": "使用者管理",
-    "nodeManagement": "伺服器管理",
-    "monitoring": "監控"
+    "monitoring": "監控",
+    "serverList": "伺服器列表",
+    "subscriptionManagement": "訂閱管理",
+    "templateEditor": "範本編輯",
+    "transactions": "方案與交易",
+    "customerService": "客戶服務",
+    "systemSettings": "系統設定",
+    "sectionNavigation": "模組內導覽"
   },
   "reverse": {
     "title": "VLESS Reverse 連線",

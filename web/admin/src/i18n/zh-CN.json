@@ -97,12 +97,9 @@
   "nav": {
     "dashboard": "概览",
     "nodes": "服务器",
-    "entries": "节点",
-    "users": "用户",
     "plans": "套餐",
     "orders": "订单",
     "settings": "设置",
-    "site": "展示页",
     "coupons": "优惠券",
     "tickets": "工单",
     "gifts": "兑换码",
@@ -897,7 +894,6 @@
     "secretKept": "已保存，留空不改"
   },
   "subTemplates": {
-    "title": "订阅模板",
     "subtitle": "每种客户端格式的订阅文档骨架。节点列表由 Captain 生成，其余部分（规则、策略组、General）可以在这里改。",
     "format": "格式",
     "customized": "已自定义",
@@ -2311,12 +2307,7 @@
     "notFound": "这个设置页面不存在。",
     "noResults": "没有匹配的设置，请换个关键词。",
     "updateHint": "查看当前版本和可用更新。",
-    "subscription": "订阅",
     "templates": "订阅模板",
-    "business": "运营",
-    "marketing": "营销与返佣",
-    "content": "内容与站点",
-    "businessHint": "在同一入口处理相关运营事务。",
     "loadError": "设置加载失败，请重试后再编辑。",
     "retry": "重试",
     "backupHint": "管理本地快照、异地存储与备份加密。",
@@ -2326,11 +2317,15 @@
     "publishedEntries": "已启用节点：{{count}} 个",
     "publicationHint": "节点将已启用入站发布到订阅；用户仍需有效套餐及相应权限才能使用。",
     "navigation": "导航菜单",
-    "moreIn": "更多{{section}}选项",
-    "more": "更多",
     "userManagement": "用户管理",
-    "nodeManagement": "服务器管理",
-    "monitoring": "监控"
+    "monitoring": "监控",
+    "serverList": "服务器列表",
+    "subscriptionManagement": "订阅管理",
+    "templateEditor": "模板编辑",
+    "transactions": "套餐与交易",
+    "customerService": "客户服务",
+    "systemSettings": "系统设置",
+    "sectionNavigation": "模块内导航"
   },
   "reverse": {
     "title": "VLESS Reverse 连接",

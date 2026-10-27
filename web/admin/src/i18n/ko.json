@@ -97,12 +97,9 @@
   "nav": {
     "dashboard": "대시보드",
     "nodes": "서버",
-    "entries": "노드",
-    "users": "사용자",
     "plans": "요금제",
     "orders": "주문",
     "settings": "설정",
-    "site": "랜딩 페이지",
     "coupons": "쿠폰",
     "tickets": "티켓",
     "gifts": "교환 코드",
@@ -897,7 +894,6 @@
     "secretKept": "저장됨. 비우면 유지"
   },
   "subTemplates": {
-    "title": "구독 템플릿",
     "subtitle": "클라이언트 형식별 구독 문서의 뼈대입니다. 노드 목록은 Captain이 생성하고 나머지(규칙, 정책 그룹, General)는 여기서 수정할 수 있습니다.",
     "format": "형식",
     "customized": "사용자 지정됨",
@@ -2311,12 +2307,7 @@
     "notFound": "설정 페이지가 존재하지 않습니다.",
     "noResults": "일치하는 설정이 없습니다. 다른 검색어를 사용하세요.",
     "updateHint": "현재 버전과 사용 가능한 업데이트를 확인합니다.",
-    "subscription": "구독",
     "templates": "구독 템플릿",
-    "business": "운영",
-    "marketing": "프로모션 및 추천",
-    "content": "콘텐츠 및 사이트",
-    "businessHint": "관련 운영 작업을 한곳에서 관리합니다.",
     "loadError": "설정을 불러오지 못했습니다. 다시 시도한 후 편집하세요.",
     "retry": "다시 시도",
     "backupHint": "로컬 스냅샷, 원격 저장소 및 백업 암호화를 관리합니다.",
@@ -2326,11 +2317,15 @@
     "publishedEntries": "활성 구독 노드: {{count}}개",
     "publicationHint": "구독 노드은 활성 인바운드를 구독에 게시합니다. 사용자는 유효한 요금제와 사용 권한도 필요합니다.",
     "navigation": "탐색 메뉴",
-    "moreIn": "{{section}} 추가 항목",
-    "more": "더 보기",
     "userManagement": "사용자 관리",
-    "nodeManagement": "서버 관리",
-    "monitoring": "모니터링"
+    "monitoring": "모니터링",
+    "serverList": "서버 목록",
+    "subscriptionManagement": "구독 관리",
+    "templateEditor": "템플릿 편집",
+    "transactions": "요금제 및 거래",
+    "customerService": "고객 서비스",
+    "systemSettings": "시스템 설정",
+    "sectionNavigation": "작업 공간 탐색"
   },
   "reverse": {
     "title": "VLESS Reverse 연결",
