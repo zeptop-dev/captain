@@ -154,7 +154,7 @@ function NodeProbeForm({ nodeID, reportedHost }: { nodeID: number; reportedHost?
         <fieldset disabled={billingReadOnly || editingDisabled} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}><Stack gap="sm">
         {form.values.costMode === 'legacy' ? <Stack gap="xs"><TextInput label={t('nodeProbe.price')} {...form.getInputProps('price')} /><Group><Text size="xs" c="dimmed">{t('nodeCost.legacyHint')}</Text><Button variant="light" size="xs" onClick={() => form.setFieldValue('costMode', 'structured')}>{t('nodeCost.convert')}</Button></Group></Stack> : <>
         <SimpleGrid cols={{ base: 1, sm: 3 }}>
-          <NumberInput label={t('nodeCost.amount')} description={t('nodeCost.amountHint')} min={0} max={999999999999} decimalScale={4} allowNegative={false} {...form.getInputProps('amount')} />
+          <NumberInput label={t('nodeCost.amount')} description={t(q.data?.infrastructure_linked ? 'infraLink.linkedAmountHint' : 'nodeCost.amountHint')} min={0} max={999999999999} decimalScale={4} allowNegative={false} {...form.getInputProps('amount')} />
           <Select label={t('nodeCost.currency')} searchable allowDeselect={false} data={currencyOptions(i18n.language, form.values.currency)} {...form.getInputProps('currency')} />
           <Select label={t('nodeCost.cycle')} allowDeselect={false} data={['monthly','quarterly','semiannual','annual','custom'].map(value => ({ value, label: t(`nodeCost.${value}`) }))} {...form.getInputProps('cycle')} />
         </SimpleGrid>

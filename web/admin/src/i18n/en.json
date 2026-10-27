@@ -3393,6 +3393,7 @@
     "reloadAsset": "Discard draft and reload bill",
     "supplierClearRequiresUnlink": "Unlink the primary bill before clearing the supplier.",
     "archivedLinked": "Archived: data still syncs. Unlink the bill to stop syncing.",
-    "savedRefreshNeeded": "The link change was saved, but the updated server details could not be loaded. Refresh before making another change."
+    "savedRefreshNeeded": "The link change was saved, but the updated server details could not be loaded. Refresh before making another change.",
+    "linkedAmountHint": "A linked bill requires an amount with the currency’s supported decimal places. 0 means free; unlink the bill before clearing it."
   }
 }

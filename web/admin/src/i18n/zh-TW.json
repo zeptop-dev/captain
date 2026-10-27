@@ -3393,6 +3393,7 @@
     "reloadAsset": "放棄草稿並重新載入帳單",
     "supplierClearRequiresUnlink": "請先解除主帳單關聯，才能清除供應商選擇。",
     "archivedLinked": "帳單已封存，資料仍保持同步；如需停止同步，請解除關聯。",
-    "savedRefreshNeeded": "關聯變更已儲存，但未能重新載入伺服器資料。請重新整理後再繼續修改。"
+    "savedRefreshNeeded": "關聯變更已儲存，但未能重新載入伺服器資料。請重新整理後再繼續修改。",
+    "linkedAmountHint": "關聯帳單後，金額不能留空且須符合幣別精度；0 表示免費。若需清空，請先解除帳單關聯。"
   }
 }
