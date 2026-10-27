@@ -4,14 +4,32 @@ Who can do what, how the panel is reached, and everything it can talk to.
 
 ## Finding a task
 
-The console has six main navigation groups: Overview, Users, Nodes,
-Subscriptions, Monitoring and Operations. On desktop, section headings group
-always-visible common pages; only secondary settings and tools collapse.
-Headings do not navigate. On phones, section buttons expand their pages, and
-choosing a page closes the drawer. Secondary expansion survives navigation.
-Settings stays at the bottom; account security is in the avatar menu.
-Subscription profiles, templates and response rules have separate direct links
-to the existing editor modes, with one active navigation item.
+The sidebar opens eight business workspaces. Each workspace has direct links
+above its page content; there are no expandable sidebar submenus or intermediate
+directory pages.
+
+| Workspace | Pages |
+| --- | --- |
+| Overview | Dashboard |
+| Users | Users, groups and renewals |
+| Servers | Server list, infrastructure costs and domains/certificates |
+| Nodes and lines | Subscription nodes, lines and external nodes |
+| Subscriptions | Template editor, template library, profiles and response rules |
+| Monitoring | Fleet status, alerts, DNS health and speed tests |
+| Plans & transactions | Plans, orders, coupons, gift codes and withdrawals |
+| Customer service | Tickets and knowledge base |
+
+System settings stays at the bottom; account security is in the avatar menu.
+Each staff role sees only its permitted pages, and a workspace opens its first
+permitted page. For example, support staff enter Orders from Plans & transactions.
+On phones, selecting a workspace closes the drawer. Workspaces with only one
+permitted page do not add a redundant page-navigation bar.
+
+Existing page URLs and deep links remain valid. Switching pages within a
+workspace preserves relevant URL filters, including the selected template format.
+Visual and text editing remain two modes of the template editor. Leaving a dirty
+template asks whether to discard it; selecting the current page keeps its draft.
+The old Operations directory links redirect to Coupons or Knowledge base.
 
 System settings has one sidebar entry and eight direct editor tabs:
 

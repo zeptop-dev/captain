@@ -1,5 +1,5 @@
 import { DNSHealthCard } from '../components/DNSHealthCard'
-import { Alert, Badge, Button, Card, Checkbox, Group, Loader, MultiSelect, Select, SimpleGrid, Stack, Table, Tabs, Text, TextInput, Title } from '@mantine/core'
+import { Alert, Badge, Button, Card, Checkbox, Group, Loader, MultiSelect, Select, SimpleGrid, Stack, Table, Text, TextInput, Title } from '@mantine/core'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -15,7 +15,7 @@ import { useURLChoice } from '../lib/use-url-choice'
 export default function MonitoringPage() {
   const { t } = useTranslation()
   const qc = useQueryClient()
-  const [tab, setTab] = useURLChoice('tab', ['nodes', 'alerts', 'dns'], 'nodes')
+  const [tab] = useURLChoice('tab', ['nodes', 'alerts', 'dns'], 'nodes')
   const q = useQuery({ queryKey: ['monitoring'], queryFn: () => api.get<MonitorNode[]>('/api/admin/monitoring'), refetchInterval: 10_000 })
   const [search, setSearch] = useState(''), [group, setGroup] = useState<string | null>(null), [status, setStatus] = useState<string | null>(null)
   const [sort, setSort] = useState<string | null>('name'), [selected, setSelected] = useState<string[]>([])
@@ -34,7 +34,7 @@ export default function MonitoringPage() {
   return <Stack>
     <Title order={2}>{t('monitoring.title')}</Title>
     <Text c="dimmed">{t('monitoring.hint')}</Text>
-    <Tabs value={tab} onChange={value => value && setTab(value)} keepMounted={false}><Tabs.List><Tabs.Tab value="nodes">{t('monitoring.title')}</Tabs.Tab><Tabs.Tab value="alerts">{t('alerts.title')}</Tabs.Tab><Tabs.Tab value="dns">{t('dnsHealth.title')}</Tabs.Tab></Tabs.List><Tabs.Panel value="nodes" pt="md"><Stack>
+    {tab === 'nodes' && <Stack>
     {q.isLoading && <Loader />}{q.isError && <Alert color="red">{t('monitoring.loadError')}</Alert>}
     <SimpleGrid cols={{ base: 1, sm: 3 }}>{['online', 'offline', 'unpaired'].map((key) => <Card key={key}><Text size="sm" c="dimmed">{t(`monitoring.${key}`)}</Text><Text size="xl" fw={700}>{nodes.filter((n) => key === 'online' ? n.online : key === 'offline' ? n.paired && !n.online : !n.paired).length}</Text></Card>)}</SimpleGrid>
     <Card><Stack>
@@ -59,6 +59,8 @@ export default function MonitoringPage() {
       <MultiSelect label={t('monitoring.compare')} description={t('monitoring.compareHint')} maxValues={4} searchable clearable value={selected} onChange={setSelected} data={nodes.map((n) => ({ value: String(n.id), label: n.name }))} />
     </Stack></Card>
     {selected.length > 0 && <ResourceHistoryCard nodes={selected.map((id) => nodes.find((n) => String(n.id) === id)).filter((n): n is MonitorNode => !!n)} />}
-  </Stack></Tabs.Panel><Tabs.Panel value="alerts" pt="md"><MonitoringAlerts nodes={nodes} /></Tabs.Panel><Tabs.Panel value="dns" pt="md"><DNSHealthCard /></Tabs.Panel></Tabs>
+  </Stack>}
+    {tab === 'alerts' && <MonitoringAlerts nodes={nodes} />}
+    {tab === 'dns' && <DNSHealthCard />}
   </Stack>
 }

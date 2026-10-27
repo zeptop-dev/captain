@@ -97,12 +97,9 @@
   "nav": {
     "dashboard": "Overview",
     "nodes": "Servers",
-    "entries": "Nodes",
-    "users": "Users",
     "plans": "Plans",
     "orders": "Orders",
     "settings": "Settings",
-    "site": "Landing page",
     "coupons": "Coupons",
     "tickets": "Tickets",
     "gifts": "Gift codes",
@@ -897,7 +894,6 @@
     "secretKept": "stored; leave empty to keep"
   },
   "subTemplates": {
-    "title": "Subscription templates",
     "subtitle": "The document skeleton for each client format. Captain fills in the servers; rules, groups and General settings are yours to edit.",
     "format": "Format",
     "customized": "Customized",
@@ -2311,12 +2307,7 @@
     "notFound": "This settings page does not exist.",
     "noResults": "No matching settings. Try another keyword.",
     "updateHint": "View the current version and available updates.",
-    "subscription": "Subscriptions",
     "templates": "Templates",
-    "business": "Operations",
-    "marketing": "Promotions and referrals",
-    "content": "Content and site",
-    "businessHint": "Manage related tasks together.",
     "loadError": "Could not load settings. Try again before editing.",
     "retry": "Try again",
     "backupHint": "Manage local snapshots, remote storage and backup encryption.",
@@ -2326,11 +2317,15 @@
     "publishedEntries": "Enabled subscription nodes: {{count}}",
     "publicationHint": "Subscription nodes publish enabled inbounds to subscriptions. Users also need an active plan and permission to use them.",
     "navigation": "Navigation menu",
-    "moreIn": "More in {{section}}",
-    "more": "More",
     "userManagement": "Users",
-    "nodeManagement": "Servers",
-    "monitoring": "Monitoring"
+    "monitoring": "Monitoring",
+    "serverList": "Server list",
+    "subscriptionManagement": "Subscriptions",
+    "templateEditor": "Template editor",
+    "transactions": "Plans & transactions",
+    "customerService": "Customer service",
+    "systemSettings": "System settings",
+    "sectionNavigation": "Workspace navigation"
   },
   "reverse": {
     "title": "VLESS Reverse connections",
