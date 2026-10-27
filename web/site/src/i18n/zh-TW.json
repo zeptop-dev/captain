@@ -8,23 +8,18 @@
     "switchDark": "切換為深色"
   },
   "nav": {
-    "features": "特色",
     "coverage": "網路涵蓋",
     "platform": "多端連線",
     "serviceFeatures": "服務特色",
-    "support": "資源與支援",
+    "support": "幫助支援",
     "connect": "連線指南",
     "download": "下載用戶端",
     "faq": "常見問題",
     "contact": "聯絡支援",
-    "services": "服務與保障",
-    "plans": "方案與服務",
+    "services": "了解服務",
+    "plans": "方案",
     "terms": "服務條款",
-    "security": "帳戶安全",
-    "about": "關於",
-    "home": "首頁",
     "status": "服務狀態",
-    "monitoring": "伺服器監控",
     "brandHome": "{{name}} 首頁",
     "skip": "跳至主要內容",
     "close": "關閉導覽",
@@ -33,7 +28,8 @@
     "account": "使用者中心",
     "rights": "保留所有權利。",
     "top": "回到頂端",
-    "brandAccount": "{{name}} 使用者中心"
+    "brandAccount": "{{name}} 使用者中心",
+    "termsLinks": "條款與連結"
   },
   "home": {
     "eyebrow": "訂閱與連線",
@@ -179,7 +175,6 @@
   },
   "serviceStatus": {
     "title": "服務狀態",
-    "serverMonitoring": "伺服器監控",
     "scope": "查看已公開的訂閱節點及其接入路徑運作狀態。",
     "refresh": "重新整理",
     "all": "全部",

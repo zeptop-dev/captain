@@ -8,23 +8,18 @@
     "switchDark": "Switch to dark mode"
   },
   "nav": {
-    "features": "Features",
     "coverage": "Network coverage",
     "platform": "Your devices",
     "serviceFeatures": "Service features",
-    "support": "Resources & support",
+    "support": "Help & support",
     "connect": "Connection guide",
     "download": "Download clients",
     "faq": "FAQ",
     "contact": "Contact support",
-    "services": "Services",
-    "plans": "Plans & services",
+    "services": "Explore the service",
+    "plans": "Plans",
     "terms": "Terms of service",
-    "security": "Account security",
-    "about": "About",
-    "home": "Home",
     "status": "Service status",
-    "monitoring": "Server monitoring",
     "brandHome": "{{name}} home",
     "skip": "Skip to main content",
     "close": "Close navigation",
@@ -33,7 +28,8 @@
     "account": "User center",
     "rights": "All rights reserved.",
     "top": "Back to top",
-    "brandAccount": "{{name}} user center"
+    "brandAccount": "{{name}} user center",
+    "termsLinks": "Terms & links"
   },
   "home": {
     "eyebrow": "SUBSCRIPTION & CONNECTION",
@@ -179,7 +175,6 @@
   },
   "serviceStatus": {
     "title": "Service status",
-    "serverMonitoring": "Server monitoring",
     "scope": "Runtime status of the publicly listed subscription nodes and access paths.",
     "refresh": "Refresh",
     "all": "All",

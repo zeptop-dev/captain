@@ -8,23 +8,18 @@
     "switchDark": "다크 모드로 전환"
   },
   "nav": {
-    "features": "기능",
     "coverage": "네트워크 커버리지",
     "platform": "다양한 기기",
     "serviceFeatures": "서비스 기능",
-    "support": "자료 및 지원",
+    "support": "도움말 및 지원",
     "connect": "연결 가이드",
     "download": "클라이언트 다운로드",
     "faq": "자주 묻는 질문",
     "contact": "지원 문의",
-    "services": "서비스",
-    "plans": "요금제 및 서비스",
+    "services": "서비스 소개",
+    "plans": "요금제",
     "terms": "이용약관",
-    "security": "계정 보안",
-    "about": "소개",
-    "home": "홈",
     "status": "서비스 상태",
-    "monitoring": "서버 모니터링",
     "brandHome": "{{name}} 홈",
     "skip": "본문으로 건너뛰기",
     "close": "탐색 메뉴 닫기",
@@ -33,7 +28,8 @@
     "account": "사용자 센터",
     "rights": "모든 권리 보유.",
     "top": "맨 위로",
-    "brandAccount": "{{name}} 사용자 센터"
+    "brandAccount": "{{name}} 사용자 센터",
+    "termsLinks": "약관 및 링크"
   },
   "home": {
     "eyebrow": "구독과 연결",
@@ -179,7 +175,6 @@
   },
   "serviceStatus": {
     "title": "서비스 상태",
-    "serverMonitoring": "서버 모니터링",
     "scope": "공개된 구독 노드와 접속 경로의 작동 상태입니다.",
     "refresh": "새로 고침",
     "all": "전체",

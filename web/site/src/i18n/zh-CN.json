@@ -8,23 +8,18 @@
     "switchDark": "切换为深色"
   },
   "nav": {
-    "features": "特性",
     "coverage": "网络覆盖",
     "platform": "多端接入",
     "serviceFeatures": "服务特性",
-    "support": "数据及支持",
+    "support": "帮助支持",
     "connect": "连接指南",
     "download": "客户端下载",
     "faq": "常见问题",
     "contact": "联系支持",
-    "services": "服务及保障",
-    "plans": "套餐与服务",
+    "services": "了解服务",
+    "plans": "套餐",
     "terms": "服务条款",
-    "security": "账户安全",
-    "about": "关于",
-    "home": "首页",
     "status": "服务状态",
-    "monitoring": "服务器监控",
     "brandHome": "{{name}} 首页",
     "skip": "跳到主要内容",
     "close": "关闭导航",
@@ -33,7 +28,8 @@
     "account": "用户中心",
     "rights": "保留所有权利。",
     "top": "返回顶部",
-    "brandAccount": "{{name}} 用户中心"
+    "brandAccount": "{{name}} 用户中心",
+    "termsLinks": "条款与链接"
   },
   "home": {
     "eyebrow": "订阅与连接",
@@ -179,7 +175,6 @@
   },
   "serviceStatus": {
     "title": "服务状态",
-    "serverMonitoring": "服务器监控",
     "scope": "查看已公开的订阅节点及其接入路径运行状态。",
     "refresh": "刷新",
     "all": "全部",

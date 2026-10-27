@@ -220,6 +220,14 @@ its brand link opens the portal instead. This switch changes the website's
 entry page, not authentication or authorization. Custom injected navigation is
 still controlled by its author.
 
+The built-in public header links directly to plans, published client downloads
+and public service status, with connection guidance and contact links under
+Help & support. Unconfigured download/status links are hidden. The footer has
+its own service, support and terms/link groups. Server-monitoring links are not
+shown in the public site or customer portal; customer service status remains
+available. This navigation choice does not change the separate server probe's
+public, signed-in-user or staff visibility setting, or access through its URL.
+
 Admin → Brand and homepage includes the shared brand name, browser tab title,
 light-background and dark-background logos, and browser icon (favicon). These
 apply to the built-in homepage, public service-status page, customer portal,

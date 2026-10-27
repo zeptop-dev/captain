@@ -8,23 +8,18 @@
     "switchDark": "ダークモードに切り替え"
   },
   "nav": {
-    "features": "特長",
     "coverage": "ネットワークエリア",
     "platform": "各種デバイス",
     "serviceFeatures": "サービスの特長",
-    "support": "資料・サポート",
+    "support": "ヘルプ・サポート",
     "connect": "接続ガイド",
     "download": "クライアントのダウンロード",
     "faq": "よくある質問",
     "contact": "サポートへのお問い合わせ",
-    "services": "サービス",
-    "plans": "プランとサービス",
+    "services": "サービス案内",
+    "plans": "プラン",
     "terms": "利用規約",
-    "security": "アカウントのセキュリティ",
-    "about": "概要",
-    "home": "ホーム",
     "status": "サービス状況",
-    "monitoring": "サーバー監視",
     "brandHome": "{{name}} ホーム",
     "skip": "メインコンテンツへ移動",
     "close": "ナビゲーションを閉じる",
@@ -33,7 +28,8 @@
     "account": "ユーザーセンター",
     "rights": "All rights reserved.",
     "top": "ページ上部へ",
-    "brandAccount": "{{name}} ユーザーセンター"
+    "brandAccount": "{{name}} ユーザーセンター",
+    "termsLinks": "規約・リンク"
   },
   "home": {
     "eyebrow": "サブスクリプションと接続",
@@ -179,7 +175,6 @@
   },
   "serviceStatus": {
     "title": "サービス状況",
-    "serverMonitoring": "サーバー監視",
     "scope": "公開中のサブスクリプションノードと接続経路の稼働状況です。",
     "refresh": "更新",
     "all": "すべて",
