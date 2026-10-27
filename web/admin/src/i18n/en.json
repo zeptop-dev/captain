@@ -3409,7 +3409,7 @@
     "earlierDate": "The target date cannot precede the current expiry.",
     "unavailable": "The bill is missing or archived. The draft was kept; close this dialog and review the asset.",
     "reloaded": "The latest bill is loaded. Review the expiry action and target again; the old target and confirmation were cleared. If the currency changed, the amount was reset to the bill amount.",
-    "conflict": "The bill or automatic expiry setting changed. Your payment details were kept. Reload the bill and confirm a fresh action and target before saving.",
+    "conflict": "The bill or automatic expiry setting changed, or an earlier payment request may already have succeeded. Your details were kept. If the earlier result is unclear, check Payment history before starting a new payment. Reloading this bill keeps the same request ID; review the action and target again.",
     "reload": "Reload bill and review expiry"
   }
 }

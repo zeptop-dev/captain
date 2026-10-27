@@ -25,9 +25,10 @@ export function paymentDateDefaults(asset: InfraAsset): Pick<PaymentDraft, 'date
 export function newPaymentDraft(asset: InfraAsset, date: string, requestKey: string): PaymentDraft {
   return { asset, request_key: requestKey, amount_minor: asset.amount_minor, paid_date: date, reference: '', notes: '', confirm: false, ...paymentDateDefaults(asset) }
 }
-// A conflict must be reviewed again against a fresh bill. Never replay its old date target.
-export function reloadPaymentDraft(draft: PaymentDraft, fresh: InfraAsset, requestKey: string): PaymentDraft {
-  return { ...draft, asset: fresh, request_key: requestKey, amount_minor: fresh.currency === draft.asset.currency ? draft.amount_minor : fresh.amount_minor, confirm: false, ...paymentDateDefaults(fresh) }
+// Review a fresh bill without replaying the old date target. Keep the request key:
+// the earlier POST may have committed even when its response was lost.
+export function reloadPaymentDraft(draft: PaymentDraft, fresh: InfraAsset): PaymentDraft {
+  return { ...draft, asset: fresh, amount_minor: fresh.currency === draft.asset.currency ? draft.amount_minor : fresh.amount_minor, confirm: false, ...paymentDateDefaults(fresh) }
 }
 export function paymentDateError(draft: PaymentDraft): 'invalidDate' | 'earlierDate' | null {
   if (draft.date_action !== 'set_due_date') return null

@@ -30,15 +30,27 @@ test('explicit targets may equal current expiry but cannot rewind or normalize i
 test('a fresh conflict snapshot resets action, target and approval without replaying stale dates', () => {
  const previous = { ...newPaymentDraft({ ...asset, auto_renewal_enabled: false }, '2027-01-20', 'old-key'), next_due: '2030-12-31', confirm: true, amount_minor: 1500, reference: 'Receipt 42', notes: 'Keep these payment details' }
  const fresh = { ...asset, revision: 8, next_due: '2027-03-31' }
- const reloaded = reloadPaymentDraft(previous, fresh, 'new-key')
+ const reloaded = reloadPaymentDraft(previous, fresh)
  assert.equal(reloaded.date_action, 'record_only'); assert.equal(reloaded.next_due, '2027-04-30'); assert.equal(reloaded.confirm, false)
  assert.equal(reloaded.reference, previous.reference); assert.equal(reloaded.notes, previous.notes); assert.equal(reloaded.amount_minor, 1500)
- assert.equal(paymentPayload(reloaded).revision, 8); assert.equal(paymentPayload(reloaded).request_key, 'new-key'); assert.equal(paymentPayload(reloaded).next_due, undefined)
- assert.equal(reloadPaymentDraft(previous, { ...fresh, currency: 'JPY', amount_minor: 900 }, 'new-key').amount_minor, 900)
+ assert.equal(paymentPayload(reloaded).revision, 8); assert.equal(paymentPayload(reloaded).request_key, 'old-key'); assert.equal(paymentPayload(reloaded).next_due, undefined)
+ assert.equal(reloadPaymentDraft(previous, { ...fresh, currency: 'JPY', amount_minor: 900 }).amount_minor, 900)
 })
 test('independent one-time assets keep the legacy payment-and-archive contract', () => {
  const draft = newPaymentDraft({ ...asset, primary_node_id: null, auto_renewal_enabled: false, period_months: 0 }, '2027-01-20', 'one-time')
  assert.equal(draft.date_action, ''); assert.equal(draft.next_due, '')
  assert.equal(Object.hasOwn(paymentPayload(draft), 'date_action'), false)
  assert.equal(Object.hasOwn(paymentPayload(draft), 'next_due'), false)
+})
+
+test('ambiguous payment retries retain the original request key across repeated reloads', () => {
+ const submitted = { ...newPaymentDraft(asset, '2027-01-20', 'committed-response-lost'), confirm: true }
+ const editedRetry = { ...submitted, notes: 'Edited after the response was lost', amount_minor: 1400 }
+ const firstReload = reloadPaymentDraft(editedRetry, { ...asset, revision: 8, next_due: '2027-02-28' })
+ const secondReload = reloadPaymentDraft(firstReload, { ...asset, revision: 9, next_due: '2027-03-31' })
+ assert.equal(paymentPayload(firstReload).request_key, paymentPayload(submitted).request_key)
+ assert.equal(paymentPayload(secondReload).request_key, paymentPayload(submitted).request_key)
+ assert.equal(secondReload.confirm, false)
+ assert.equal(secondReload.notes, editedRetry.notes)
+ assert.equal(paymentPayload(secondReload).revision, 9)
 })

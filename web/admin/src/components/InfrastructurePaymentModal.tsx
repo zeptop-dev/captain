@@ -21,7 +21,7 @@ export function InfrastructurePaymentModal({ asset, onClose, onSaved }: { asset:
     const latest = fresh.assets.find(item => item.id === asset.id)
     if (!latest?.active) throw new Error(t('infraPayment.unavailable'))
     return latest
-  }, onSuccess: latest => { setDraft(previous => reloadPaymentDraft(previous, latest, crypto.randomUUID())); setConflict(false); setReloaded(true) }, onError: toast.err })
+  }, onSuccess: latest => { setDraft(previous => reloadPaymentDraft(previous, latest)); setConflict(false); setReloaded(true) }, onError: toast.err })
   const busy = record.isPending || reload.isPending
   const edit = (patch: Partial<PaymentDraft>) => setDraft(previous => ({ ...previous, ...patch, confirm: false }))
   const dateError = paymentDateError(draft)
