@@ -15,12 +15,11 @@ export function SubscriptionCard() {
   const [subText, setSubText] = useState<string | null>(null)
   const [shortLinks, setShortLinks] = useState<boolean | null>(null)
   const [autoFlags, setAutoFlags] = useState<boolean | null>(null)
-  const [singlePlan, setSinglePlan] = useState<boolean | null>(null)
   const [infoText, setInfoText] = useState<string | null>(null)
   const [hwid, setHwid] = useState<{ enabled: boolean; require: boolean; fallback_limit: number; announce: string } | null>(null)
   const hw = hwid ?? subs.data?.hwid ?? { enabled: false, require: false, fallback_limit: 0, announce: '' }
-  const saveSubs = useMutation({ mutationFn: (urls: string[]) => api.put('/api/admin/settings/subscription', { URLs: urls, short_links: shortLinks ?? subs.data?.short_links ?? false, auto_flags: autoFlags ?? subs.data?.auto_flags ?? false, single_plan: singlePlan ?? subs.data?.single_plan ?? false, hwid: hw, info_lines: (infoText ?? (subs.data?.info_lines ?? []).join('\n')).split('\n').map((l) => l.trim()).filter(Boolean) }), onSuccess: () => { toast.ok(t('common.saved')); setSubText(null); setShortLinks(null); setAutoFlags(null); setSinglePlan(null); setHwid(null); setInfoText(null); qc.invalidateQueries({ queryKey: ['subscription-settings'] }); qc.invalidateQueries({ queryKey: ['users'] }) }, onError: toast.err })
-  useSettingsDirty(subText !== null || shortLinks !== null || autoFlags !== null || singlePlan !== null || infoText !== null || hwid !== null)
+  const saveSubs = useMutation({ mutationFn: (urls: string[]) => api.put('/api/admin/settings/subscription', { URLs: urls, short_links: shortLinks ?? subs.data?.short_links ?? false, auto_flags: autoFlags ?? subs.data?.auto_flags ?? false, hwid: hw, info_lines: (infoText ?? (subs.data?.info_lines ?? []).join('\n')).split('\n').map((l) => l.trim()).filter(Boolean) }), onSuccess: () => { toast.ok(t('common.saved')); setSubText(null); setShortLinks(null); setAutoFlags(null); setHwid(null); setInfoText(null); qc.invalidateQueries({ queryKey: ['subscription-settings'] }); qc.invalidateQueries({ queryKey: ['users'] }) }, onError: toast.err })
+  useSettingsDirty(subText !== null || shortLinks !== null || autoFlags !== null || infoText !== null || hwid !== null)
   if (subs.data === undefined) return <SettingsLoadState query={subs} />
   return (
         <Card>
@@ -29,7 +28,6 @@ export function SubscriptionCard() {
           <Textarea autosize minRows={2} placeholder={'https://sub.example.com\nhttps://s[1-9].example.com'} value={subText ?? (subs.data?.urls ?? []).join('\n')} onChange={(e) => setSubText(e.currentTarget.value)} />
           <Switch mt="xs" label={t('settings.shortLinks')} description={t('settings.shortLinksHint')} checked={shortLinks ?? subs.data?.short_links ?? false} onChange={(e) => setShortLinks(e.currentTarget.checked)} />
           <Switch mt="xs" label={t('settings.autoFlags')} description={t('settings.autoFlagsHint')} checked={autoFlags ?? subs.data?.auto_flags ?? false} onChange={(e) => setAutoFlags(e.currentTarget.checked)} />
-          <Switch mt="xs" label={t('settings.singlePlan')} description={t('settings.singlePlanHint')} checked={singlePlan ?? subs.data?.single_plan ?? false} onChange={(e) => setSinglePlan(e.currentTarget.checked)} />
           <Textarea mt="sm" autosize minRows={2} label={t('settings.infoLines')} description={t('settings.infoLinesHint')} placeholder={'{{STATUS:ACTIVE=✅|EXPIRED=😓|LIMITED=⛔}} {{PLAN}} · {{DAYS_LEFT}} d\n{{TRAFFIC_LEFT}} / {{TRAFFIC_LIMIT}}'} value={infoText ?? (subs.data?.info_lines ?? []).join('\n')} onChange={(e) => setInfoText(e.currentTarget.value)} />
           <Divider my="sm" label={t('settings.hwid')} labelPosition="left" />
           <Text size="xs" c="dimmed" mb="xs">{t('settings.hwidHint')}</Text>
@@ -41,9 +39,29 @@ export function SubscriptionCard() {
               <TextInput flex={1} label={t('settings.hwidAnnounce')} description={t('settings.hwidAnnounceHint')} value={hw.announce} onChange={(e) => setHwid({ ...hw, announce: e.currentTarget.value })} />
             </Group>
           </>}
-          <Group justify="flex-end" mt="sm"><Button size="xs" loading={saveSubs.isPending} disabled={subText === null && shortLinks === null && autoFlags === null && singlePlan === null && hwid === null && infoText === null} onClick={() => saveSubs.mutate((subText ?? (subs.data?.urls ?? []).join('\n')).split('\n').map((l) => l.trim()).filter(Boolean))}>{t('common.save')}</Button></Group>
+          <Group justify="flex-end" mt="sm"><Button size="xs" loading={saveSubs.isPending} disabled={subText === null && shortLinks === null && autoFlags === null && hwid === null && infoText === null} onClick={() => saveSubs.mutate((subText ?? (subs.data?.urls ?? []).join('\n')).split('\n').map((l) => l.trim()).filter(Boolean))}>{t('settingsLayout.saveSection', { section: t('settings.subUrls') })}</Button></Group>
         </Card>
   )
+}
+
+export function PurchaseCard() {
+  const { t } = useTranslation()
+  const qc = useQueryClient()
+  const subs = useQuery({ queryKey: ['subscription-settings'], queryFn: () => api.get<SubscriptionSettings>('/api/admin/settings/subscription') })
+  const [singlePlan, setSinglePlan] = useState<boolean | null>(null)
+  const savePurchase = useMutation({
+    mutationFn: (single_plan: boolean) => api.put('/api/admin/settings/subscription', { single_plan }),
+    onSuccess: () => { toast.ok(t('common.saved')); setSinglePlan(null); qc.invalidateQueries({ queryKey: ['subscription-settings'] }) },
+    onError: toast.err,
+  })
+  useSettingsDirty(singlePlan !== null)
+  if (subs.data === undefined) return <SettingsLoadState query={subs} />
+  return <Card>
+    <Title order={5} mb="xs">{t('settings.singlePlan')}</Title>
+    <Text size="xs" c="dimmed" mb="sm">{t('settings.singlePlanHint')}</Text>
+    <Switch label={t('common.enabled')} checked={singlePlan ?? subs.data.single_plan ?? false} onChange={(e) => setSinglePlan(e.currentTarget.checked)} />
+    <Group justify="flex-end" mt="sm"><Button size="xs" loading={savePurchase.isPending} disabled={singlePlan === null} onClick={() => { if (singlePlan !== null) savePurchase.mutate(singlePlan) }}>{t('settingsLayout.saveSection', { section: t('settings.singlePlan') })}</Button></Group>
+  </Card>
 }
 
 export function InviteCard() {
@@ -73,7 +91,7 @@ export function InviteCard() {
               {iform.values.payout === 'commission' && <NumberInput label={t('settings.minWithdraw')} min={0} value={iform.values.min_withdraw_cents / 100} onChange={(v) => iform.setFieldValue('min_withdraw_cents', Math.round(Number(v) * 100))} />}
               {iform.values.payout === 'commission' && <TextInput label={t('settings.withdrawMethods')} placeholder="USDT-TRC20, Alipay" {...iform.getInputProps('methods')} />}
             </SettingsFields>
-            <Group justify="space-between"><Switch label={t('common.enabled')} {...iform.getInputProps('enabled', { type: 'checkbox' })} /><Button type="submit" size="xs" loading={saveInvite.isPending}>{t('common.save')}</Button></Group>
+            <Group justify="space-between"><Switch label={t('common.enabled')} {...iform.getInputProps('enabled', { type: 'checkbox' })} /><Button type="submit" size="xs" loading={saveInvite.isPending}>{t('settingsLayout.saveSection', { section: t('settings.invite') })}</Button></Group>
           </Stack></form>
         </Card>
   )
@@ -90,6 +108,7 @@ export function SurplusCard() {
           <Title order={5} mb="xs">{t('settings.surplus')}</Title>
           <Text size="xs" c="dimmed" mb="sm">{t('settings.surplusHint')}</Text>
           <Switch label={t('common.enabled')} checked={surplus.data?.enabled ?? false} onChange={(e) => saveSurplus.mutate(e.currentTarget.checked)} />
+          <Text size="xs" c="dimmed" mt="xs">{t('settingsLayout.immediateHint')}</Text>
         </Card>
   )
 }
@@ -109,7 +128,7 @@ export function NoticeCard() {
           <form onSubmit={nform.onSubmit((v) => saveNotice.mutate(v))}><Stack gap="sm">
             <TextInput label={t('settings.noticeTitle')} {...nform.getInputProps('title')} />
             <Textarea label={t('settings.noticeBody')} autosize minRows={2} {...nform.getInputProps('body')} />
-            <Group justify="space-between"><Switch label={t('common.enabled')} {...nform.getInputProps('enabled', { type: 'checkbox' })} /><Button type="submit" size="xs" loading={saveNotice.isPending}>{t('common.save')}</Button></Group>
+            <Group justify="space-between"><Switch label={t('common.enabled')} {...nform.getInputProps('enabled', { type: 'checkbox' })} /><Button type="submit" size="xs" loading={saveNotice.isPending}>{t('settingsLayout.saveSection', { section: t('settings.notice') })}</Button></Group>
           </Stack></form>
         </Card>
   )
@@ -131,7 +150,7 @@ export function OIDCCard() {
           <JsonInput autosize minRows={4} formatOnBlur value={oidcText ?? JSON.stringify((oidc.data?.providers ?? []).map(({ has_secret: _h, ...p }) => p), null, 2)} onChange={setOidcText} placeholder={'[{"id":"casdoor","name":"Casdoor","issuer":"https://door.example.com","client_id":"...","client_secret":"...","trust_email":true,"auto_register":true}]'} />
           <Group justify="space-between" mt="sm">
             <Switch label={t('settings.passwordLogin')} checked={pwLogin ?? oidc.data?.password_login ?? true} onChange={(e) => setPwLogin(e.currentTarget.checked)} />
-            <Button size="xs" loading={saveOidc.isPending} disabled={oidcText === null && pwLogin === null} onClick={() => saveOidc.mutate()}>{t('common.save')}</Button>
+            <Button size="xs" loading={saveOidc.isPending} disabled={oidcText === null && pwLogin === null} onClick={() => saveOidc.mutate()}>{t('settingsLayout.saveSection', { section: t('settings.oidc') })}</Button>
           </Group>
           <Text size="xs" c="dimmed" mt="xs">{t('settings.oidcCallback')} <code>{window.location.origin}/api/oauth/&lt;id&gt;/callback</code></Text>
         </Card>
@@ -153,7 +172,7 @@ export function ACMECard() {
           <form onSubmit={aform.onSubmit((v) => saveAcme.mutate(v))}><Stack gap="sm">
             <TextInput label={t('settings.acmeEmail')} placeholder="you@example.com" {...aform.getInputProps('Email')} />
             <PasswordInput label={t('settings.cfToken')} description={acme.data?.has_cloudflare_token ? t('settings.cfTokenSet') : t('settings.cfTokenHint')} placeholder={acme.data?.has_cloudflare_token ? '••••••••' : ''} {...aform.getInputProps('CloudflareToken')} />
-            <Group justify="flex-end"><Button type="submit" size="xs" loading={saveAcme.isPending}>{t('common.save')}</Button></Group>
+            <Group justify="flex-end"><Button type="submit" size="xs" loading={saveAcme.isPending}>{t('settingsLayout.saveSection', { section: t('settings.acme') })}</Button></Group>
           </Stack></form>
         </Card>
   )

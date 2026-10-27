@@ -135,10 +135,17 @@ func (h *handlers) getSubscription(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) putSubscription(w http.ResponseWriter, r *http.Request) {
+	// The subscription and purchase forms edit independent fields in this
+	// document. Serialize their merges so concurrent saves keep both edits.
+	h.subscriptionSettings.Lock()
+	defer h.subscriptionSettings.Unlock()
 	// Decoded onto the stored document: a partial PUT edits the keys it
 	// carries and leaves HWID, single-plan and the info lines as they are.
 	var in service.SubscriptionSettings
-	_ = h.Store.GetSetting(r.Context(), service.SettingSubscription, &in)
+	if err := h.Store.GetSetting(r.Context(), service.SettingSubscription, &in); err != nil {
+		serverErr(w, err)
+		return
+	}
 	if !readJSON(w, r, &in) {
 		return
 	}

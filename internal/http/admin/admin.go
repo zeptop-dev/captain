@@ -108,9 +108,10 @@ const cookieName = "captain_session"
 
 type handlers struct {
 	Deps
-	passkeyStarts  ratelimit.Limiter
-	subPresetSync  sync.Mutex
-	claudeRuleSync sync.Mutex
+	passkeyStarts        ratelimit.Limiter
+	subPresetSync        sync.Mutex
+	claudeRuleSync       sync.Mutex
+	subscriptionSettings sync.Mutex
 }
 
 // Register mounts the admin routes.
