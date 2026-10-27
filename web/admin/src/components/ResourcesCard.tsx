@@ -1,6 +1,6 @@
-import { Badge, Card, Group, Progress, SimpleGrid, Stack, Table, Tabs, Text, Title } from '@mantine/core'
+import { Accordion, Badge, Card, Group, Progress, SimpleGrid, Stack, Table, Tabs, Text, Title } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { GPUResources } from './GPUResources'
 import { bytes } from '../lib/format'
 import type { ResourceHost } from '../lib/resources'
@@ -16,10 +16,10 @@ function Rows({ headers, children }: { headers: string[]; children: ReactNode })
 }
 
 // Kept in sync with Captain's resource card. Detail is visible only to admins.
-export function ResourcesCard({ host }: { host?: ResourceHost | null }) {
+export function ResourcesCard({ host, compact = false }: { host?: ResourceHost | null; compact?: boolean }) {
   const { t } = useTranslation()
-  // One clock read per mount keeps render pure; data refetches refresh it.
-  const [renderedAt] = useState(() => Date.now())
+  const [renderedAt, setRenderedAt] = useState(() => Date.now())
+  useEffect(() => { const timer = setInterval(() => setRenderedAt(Date.now()), 15_000); return () => clearInterval(timer) }, [])
   const r = host?.resources
   const valid = (key: keyof NonNullable<ResourceHost['valid']>) => !!host && (!host.valid || host.valid[key])
   const empty = <Text c="dimmed" size="sm">{t('resources.unavailable')}</Text>
@@ -31,13 +31,7 @@ export function ResourcesCard({ host }: { host?: ResourceHost | null }) {
     { label: t('resources.network'), value: valid('network') ? `↑ ${rate(host?.net_up ?? 0)} · ↓ ${rate(host?.net_down ?? 0)}` : dash },
     { label: t('resources.load'), value: valid('load') ? [host?.load1, host?.load5, host?.load15].map((v) => (v ?? 0).toFixed(2)).join(' / ') : dash },
   ]
-  return <Card mb="lg">
-    <Group justify="space-between" align="flex-start" mb="sm">
-      <div><Title order={5}>{t('resources.title')}</Title><Text c="dimmed" size="xs">{t('resources.hint')}</Text></div>
-      {r && <Text c="dimmed" size="xs">{t('resources.sampled')}: {new Date(r.at).toLocaleString()}{renderedAt - r.at > 90_000 && <Badge component="span" ml="xs" color="orange">{t('resources.stale')}</Badge>}</Text>}
-    </Group>
-    <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} mb="md">{summary.map((s) => <div key={s.label}><Text size="xs" c="dimmed">{s.label}</Text><Text size="sm" fw={500}>{s.value}</Text></div>)}</SimpleGrid>
-    {!r ? <Text size="sm" c="dimmed">{t('resources.legacy')}</Text> : <Tabs defaultValue="network" keepMounted={false}>
+  const details = !r ? <Text size="sm" c="dimmed">{t('resources.legacy')}</Text> : <Tabs defaultValue="network" keepMounted={false}>
       <Tabs.List mb="sm">
         <Tabs.Tab value="network">{t('resources.network')}</Tabs.Tab><Tabs.Tab value="filesystems">{t('resources.filesystems')}</Tabs.Tab><Tabs.Tab value="io">{t('resources.diskIO')}</Tabs.Tab><Tabs.Tab value="cpu">{t('resources.cpuCores')}</Tabs.Tab><Tabs.Tab value="processes">{t('resources.processes')}</Tabs.Tab><Tabs.Tab value="gpu">GPU</Tabs.Tab>
       </Tabs.List>
@@ -47,6 +41,13 @@ export function ResourcesCard({ host }: { host?: ResourceHost | null }) {
       <Tabs.Panel value="cpu">{r.cpus == null ? empty : <SimpleGrid cols={{ base: 2, sm: 4, lg: 6 }}>{r.cpus.map((c) => <Stack key={c.name} gap={4}><Group justify="space-between"><Text size="xs">{c.name}</Text><Text size="xs">{percent(c.percent)}</Text></Group>{c.percent != null && <Progress value={c.percent} size="sm" />}</Stack>)}</SimpleGrid>}</Tabs.Panel>
       <Tabs.Panel value="processes">{r.processes == null ? empty : <Rows headers={[t('resources.process'), 'PID', 'CPU', 'RSS']}>{r.processes.map((p) => <Table.Tr key={p.pid}><Table.Td>{p.name}</Table.Td><Table.Td>{p.pid}</Table.Td><Table.Td>{percent(p.cpu)}</Table.Td><Table.Td>{amount(p.rss)}</Table.Td></Table.Tr>)}</Rows>}<Text size="xs" c="dimmed" mt="xs">{t('resources.processHint')}</Text></Tabs.Panel>
       <Tabs.Panel value="gpu"><GPUResources value={r.gpu} /></Tabs.Panel>
-    </Tabs>}
+    </Tabs>
+  return <Card mb="lg">
+    <Group justify="space-between" align="flex-start" mb="sm">
+      <div><Title order={5}>{t('resources.title')}</Title><Text c="dimmed" size="xs">{t('resources.hint')}</Text></div>
+      {r && <Text c="dimmed" size="xs">{t('resources.sampled')}: {new Date(r.at).toLocaleString()}{renderedAt - r.at > 90_000 && <Badge component="span" ml="xs" color="orange">{t('resources.stale')}</Badge>}</Text>}
+    </Group>
+    <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} mb="md">{summary.map((s) => <div key={s.label}><Text size="xs" c="dimmed">{s.label}</Text><Text size="sm" fw={500}>{s.value}</Text></div>)}</SimpleGrid>
+    {compact ? <Accordion variant="default"><Accordion.Item value="details"><Accordion.Control>{t('serverDetail.resourceDetails')}</Accordion.Control><Accordion.Panel>{details}</Accordion.Panel></Accordion.Item></Accordion> : details}
   </Card>
 }

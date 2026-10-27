@@ -3438,5 +3438,55 @@
     "reloaded": "The latest bill is loaded. Review the expiry action and target again; the old target and confirmation were cleared. If the currency changed, the amount was reset to the bill amount.",
     "conflict": "The bill or automatic expiry setting changed, or an earlier payment request may already have succeeded. Your details were kept. If the earlier result is unclear, check Payment history before starting a new payment. Reloading this bill keeps the same request ID; review the action and target again.",
     "reload": "Reload bill and review expiry"
+  },
+  "serverDetail": {
+    "back": "Back to servers",
+    "navigation": "Server details",
+    "tabs": {
+      "overview": "Overview",
+      "information": "Information",
+      "diagnostics": "Diagnostics",
+      "settings": "Settings"
+    },
+    "profile": "Profile and addresses",
+    "resourceDetails": "Resource details",
+    "services": "Inbound and line details",
+    "waiting": "Monitoring data will appear after pairing.",
+    "offline": "This server is offline. Check the sampling time of the last collected data below.",
+    "diagnosticWarning": "The latest self-check contains items that need attention.",
+    "maintenance": "Maintenance",
+    "maintenanceHint": "These actions affect server operation. Review them before continuing.",
+    "diagnostics": {
+      "health": "Checks and certificates",
+      "network": "Network diagnostics",
+      "routes": "Return routes"
+    },
+    "settings": {
+      "proxy": "Proxy options",
+      "ingresses": "NAT / line mapping",
+      "routing": "Outbound and routing",
+      "overrides": "Core overrides",
+      "runtime": "Maintenance"
+    },
+    "networkHistory": "Latency and packet loss history"
+  },
+  "nodeInformation": {
+    "title": "Server information",
+    "hint": "Review saved information here. Edit to change display, traffic accounting and billing details.",
+    "edit": "Edit information",
+    "cancel": "Cancel editing",
+    "showOnProbe": "Show on server probe",
+    "visibilityHint": "Controls whether this server is listed on the server probe. The probe must also be enabled and its access rules still apply. Hiding a server does not stop collection or alerts.",
+    "traffic": "Traffic accounting",
+    "specifications": "Specifications and storage",
+    "location": "Region and location",
+    "billing": "Provider and billing",
+    "editBilling": "Edit billing and primary asset link",
+    "notSet": "Not set",
+    "notReported": "Not reported",
+    "manualReset": "Day {{day}} of each month",
+    "automaticInterfaces": "Automatic interface selection",
+    "unlimited": "Unlimited",
+    "loading": "Loading saved information…"
   }
 }

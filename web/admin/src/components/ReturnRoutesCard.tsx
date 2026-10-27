@@ -1,3 +1,4 @@
+import { useSettingsDirty } from '../lib/settings-draft'
 import { Accordion, Alert, Badge, Button, Card, Group, Select, Stack, Switch, Table, Text, Title } from '@mantine/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
@@ -26,6 +27,7 @@ export function ReturnRoutesCard({ nodeID }: { nodeID: number }) {
   const [draft, setDraft] = useState<Schedule | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const form = draft ?? q.data?.schedule ?? defaults
+  useSettingsDirty(draft !== null && JSON.stringify(draft) !== JSON.stringify(q.data?.schedule ?? defaults))
   const edit = (patch: Partial<Schedule>) => setDraft({ ...form, ...patch })
   const save = useMutation({
     mutationFn: () => api.put<Schedule>(`/api/admin/settings/nodes/${nodeID}/return-routes`, form),

@@ -4,6 +4,46 @@ How a server becomes a node, what it serves, and how traffic gets in and
 out of it. Version notes name the bosun release a feature needs; Captain
 1.2 ships against bosun 0.49.
 
+## Server detail workspace
+
+Opening a server shows its monitoring overview. Use the four server tabs to
+switch between related tasks:
+
+- **Overview**: resource summaries and history, availability, carrier quality,
+  and separate server-cycle and UTC-day proxy traffic. Resource tables and
+  inbound/line details expand on demand. Offline and stale samples retain their
+  timestamps; status is not an end-to-end connectivity guarantee.
+- **Information**: basic identity and addresses, probe specifications, supplier
+  and optional primary bill, price/cycle/expiry, notes, monitoring group and
+  metadata. Edit the saved details explicitly. Included/excluded interfaces,
+  traffic direction, allowance and reset policy belong here as well.
+- **Diagnostics**: checks/certificates, network diagnostics and return routes.
+  Only the selected diagnostic view mounts. Opening Overview does not enqueue
+  inspection or diagnostic jobs.
+- **Settings**: proxy options, NAT/line mapping, outbound/routing, core overrides,
+  and runtime maintenance. Mode switching, core management, host tools,
+  re-pairing and deletion retain their existing permissions and confirmations.
+  Monitor-only servers expose maintenance without proxy configuration.
+
+The per-server **Show in server probe** switch exists only in Information. It
+is the inverse of the existing hidden flag and follows the globally configured
+probe access scope. Hiding a server does not disable collection or change
+subscription-node publication. Global probe visibility settings are unchanged.
+
+The information editor keeps one full probe draft, including infrastructure
+revision checks, even though its read-only view groups the details. Navigation
+prompts before discarding edits; polling and saving another form do not silently
+discard a draft. Basic profile and proxy-policy edits preserve unedited fields
+from a fresh server read before sending the legacy full-field PATCH. This is not
+a new server-side concurrency lock.
+
+Existing `/nodes/{id}` bookmarks open Overview. Legacy `?section=ingresses`,
+`routing` and `overrides` links select the corresponding settings page;
+`#diagnostics` opens network diagnostics, `#billing-link` opens the information
+editor, and `#node-inbounds` expands related services. `/nodes/{id}/host` remains
+the administrator host-management workflow. No API, schema, agent upgrade,
+traffic accounting or subscription changes are required.
+
 ## Groups and display order
 
 These groups organize **servers** for monitoring. To categorize the subscription

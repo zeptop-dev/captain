@@ -3438,5 +3438,55 @@
     "reloaded": "已载入最新账单，请重新核对到期日处理和目标；旧目标及确认已清除。若币种变化，金额已重置为账单金额。",
     "conflict": "账单或在线自动顺延设置已变化，或此前付款请求可能已经成功。付款资料已保留。若此前提交结果不明，请先核对付款历史，再发起新付款。重新载入仍使用同一个请求编号，请重新确认处理方式和目标日期。",
     "reload": "重新载入账单并核对到期日"
+  },
+  "serverDetail": {
+    "back": "返回服务器列表",
+    "navigation": "服务器详情",
+    "tabs": {
+      "overview": "概览",
+      "information": "信息",
+      "diagnostics": "诊断",
+      "settings": "设置"
+    },
+    "profile": "基础信息与地址",
+    "resourceDetails": "资源明细",
+    "services": "入站与线路详情",
+    "waiting": "配对后将显示服务器监控数据。",
+    "offline": "服务器离线，以下为最近采集的数据，请留意采样时间。",
+    "diagnosticWarning": "最近自检存在需要关注的项目。",
+    "maintenance": "运行维护",
+    "maintenanceHint": "这些操作会影响服务器运行，请确认后执行。",
+    "diagnostics": {
+      "health": "自检与证书",
+      "network": "网络诊断",
+      "routes": "回程线路"
+    },
+    "settings": {
+      "proxy": "代理常规",
+      "ingresses": "NAT / 专线映射",
+      "routing": "出站与分流",
+      "overrides": "内核覆写",
+      "runtime": "运行维护"
+    },
+    "networkHistory": "延迟与丢包历史"
+  },
+  "nodeInformation": {
+    "title": "服务器信息",
+    "hint": "查看已保存的资料；点击编辑可修改展示、流量统计和费用信息。",
+    "edit": "编辑信息",
+    "cancel": "取消编辑",
+    "showOnProbe": "在服务器探针中展示",
+    "visibilityHint": "仅控制这台服务器是否列在服务器探针中，仍受探针整体启用状态和访问范围限制。隐藏不会停止数据采集或告警。",
+    "traffic": "流量统计",
+    "specifications": "规格与存储",
+    "location": "地区与位置",
+    "billing": "供应商与费用",
+    "editBilling": "编辑费用与主账单关联",
+    "notSet": "未设置",
+    "notReported": "尚未上报",
+    "manualReset": "每月 {{day}} 日",
+    "automaticInterfaces": "自动选择网卡",
+    "unlimited": "不限流量",
+    "loading": "正在加载已保存的资料…"
   }
 }

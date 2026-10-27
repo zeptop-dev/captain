@@ -48,7 +48,7 @@ export default function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/monitoring" element={<MonitoringPage />} />
           <Route path="/nodes" element={<NodesPage />} />
-          <Route path="/nodes/:id" element={<NodePage />} />
+          <Route path="/nodes/:id/*" element={<NodePage />} />
           <Route path="/nodes/:id/host" element={<HostManagementPage />} />
           <Route path="/entries" element={<EntriesPage />} />
           <Route path="/external" element={<ExternalPage />} />

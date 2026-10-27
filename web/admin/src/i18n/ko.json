@@ -3438,5 +3438,55 @@
     "reloaded": "최신 청구서를 불러왔습니다. 만료일 처리와 목표를 다시 확인하세요. 이전 목표와 확인은 해제되었습니다. 통화가 바뀌면 금액은 청구 금액으로 초기화됩니다.",
     "conflict": "청구서 또는 자동 만료일 연장 설정이 변경되었거나 이전 결제 요청이 이미 성공했을 수 있습니다. 입력 내용은 유지됩니다. 이전 제출 결과가 불명확하면 새 결제를 시작하기 전에 결제 내역을 확인하세요. 다시 불러와도 같은 요청 ID를 유지합니다. 처리 방식과 목표 날짜를 다시 확인하세요.",
     "reload": "청구서를 다시 불러와 만료일 확인"
+  },
+  "serverDetail": {
+    "back": "서버 목록으로",
+    "navigation": "서버 상세",
+    "tabs": {
+      "overview": "개요",
+      "information": "정보",
+      "diagnostics": "진단",
+      "settings": "설정"
+    },
+    "profile": "기본 정보 및 주소",
+    "resourceDetails": "리소스 상세",
+    "services": "인바운드 및 회선 상세",
+    "waiting": "페어링 후 모니터링 데이터가 표시됩니다.",
+    "offline": "서버가 오프라인입니다. 아래 데이터의 마지막 수집 시간을 확인하세요.",
+    "diagnosticWarning": "최근 자체 검사에 확인이 필요한 항목이 있습니다.",
+    "maintenance": "유지 관리",
+    "maintenanceHint": "이 작업은 서버 운영에 영향을 줍니다. 실행 전에 확인하세요.",
+    "diagnostics": {
+      "health": "검사 및 인증서",
+      "network": "네트워크 진단",
+      "routes": "복귀 경로"
+    },
+    "settings": {
+      "proxy": "프록시 일반",
+      "ingresses": "NAT / 전용선 매핑",
+      "routing": "아웃바운드 및 라우팅",
+      "overrides": "코어 재정의",
+      "runtime": "유지 관리"
+    },
+    "networkHistory": "지연 및 패킷 손실 기록"
+  },
+  "nodeInformation": {
+    "title": "서버 정보",
+    "hint": "저장된 정보를 확인합니다. 표시, 트래픽 집계, 비용 정보를 변경하려면 편집하세요.",
+    "edit": "정보 편집",
+    "cancel": "편집 취소",
+    "showOnProbe": "서버 프로브에 표시",
+    "visibilityHint": "이 서버를 서버 프로브 목록에 표시할지 설정합니다. 프로브 전체의 활성화 상태와 접근 제한은 계속 적용됩니다. 숨겨도 데이터 수집이나 알림은 중지되지 않습니다.",
+    "traffic": "트래픽 집계",
+    "specifications": "사양 및 저장소",
+    "location": "지역 및 위치",
+    "billing": "공급업체 및 비용",
+    "editBilling": "비용 및 기본 청구 자산 연결 편집",
+    "notSet": "설정되지 않음",
+    "notReported": "아직 보고되지 않음",
+    "manualReset": "매월 {{day}}일",
+    "automaticInterfaces": "네트워크 인터페이스 자동 선택",
+    "unlimited": "무제한",
+    "loading": "저장된 정보를 불러오는 중…"
   }
 }

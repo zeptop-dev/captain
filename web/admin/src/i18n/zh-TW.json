@@ -3438,5 +3438,55 @@
     "reloaded": "已載入最新帳單，請重新核對到期日處理和目標；舊目標及確認已清除。若幣別變更，金額已重設為帳單金額。",
     "conflict": "帳單或線上自動順延設定已變更，或先前付款請求可能已經成功。付款資料已保留。若先前提交結果不明，請先核對付款歷史，再發起新付款。重新載入仍使用同一個請求編號，請重新確認處理方式和目標日期。",
     "reload": "重新載入帳單並核對到期日"
+  },
+  "serverDetail": {
+    "back": "返回伺服器列表",
+    "navigation": "伺服器詳情",
+    "tabs": {
+      "overview": "概覽",
+      "information": "資訊",
+      "diagnostics": "診斷",
+      "settings": "設定"
+    },
+    "profile": "基本資訊與位址",
+    "resourceDetails": "資源明細",
+    "services": "入站與線路詳情",
+    "waiting": "配對後將顯示伺服器監控資料。",
+    "offline": "伺服器離線，以下為最近採集的資料，請留意採樣時間。",
+    "diagnosticWarning": "最近自檢存在需要關注的項目。",
+    "maintenance": "執行維護",
+    "maintenanceHint": "這些操作會影響伺服器執行，請確認後操作。",
+    "diagnostics": {
+      "health": "自檢與憑證",
+      "network": "網路診斷",
+      "routes": "回程線路"
+    },
+    "settings": {
+      "proxy": "代理一般設定",
+      "ingresses": "NAT / 專線映射",
+      "routing": "出站與分流",
+      "overrides": "核心覆寫",
+      "runtime": "執行維護"
+    },
+    "networkHistory": "延遲與丟包歷史"
+  },
+  "nodeInformation": {
+    "title": "伺服器資訊",
+    "hint": "查看已儲存的資料；點擊編輯可修改顯示、流量統計和費用資訊。",
+    "edit": "編輯資訊",
+    "cancel": "取消編輯",
+    "showOnProbe": "在伺服器探針中顯示",
+    "visibilityHint": "僅控制這台伺服器是否列在伺服器探針中，仍受探針整體啟用狀態和存取範圍限制。隱藏不會停止資料收集或告警。",
+    "traffic": "流量統計",
+    "specifications": "規格與儲存",
+    "location": "地區與位置",
+    "billing": "供應商與費用",
+    "editBilling": "編輯費用與主要帳單關聯",
+    "notSet": "未設定",
+    "notReported": "尚未回報",
+    "manualReset": "每月 {{day}} 日",
+    "automaticInterfaces": "自動選擇網卡",
+    "unlimited": "不限流量",
+    "loading": "正在載入已儲存的資料…"
   }
 }

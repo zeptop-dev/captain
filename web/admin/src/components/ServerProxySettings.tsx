@@ -11,8 +11,8 @@ import { RoutingCard } from './RoutingCard'
 
 // The caller owns the shared server-page draft boundary and keys this section.
 // Polling keeps drafts intact; confirmed navigation resets them.
-export function ServerProxySettings({ node, inbounds, ingresses, section }: {
-  node: Node; inbounds: Inbound[]; ingresses: Ingress[]; section: string | null
+export function ServerProxySettings({ node, inbounds, ingresses, section, singleSection = false }: {
+  node: Node; inbounds: Inbound[]; ingresses: Ingress[]; section: string | null; singleSection?: boolean
 }) {
   const { t } = useTranslation()
   const { me } = useAuth()
@@ -23,6 +23,12 @@ export function ServerProxySettings({ node, inbounds, ingresses, section }: {
     const frame = requestAnimationFrame(() => root.current?.querySelector(`[data-section="${section}"]`)?.scrollIntoView({ block: 'start' }))
     return () => cancelAnimationFrame(frame)
   }, [section])
+  if (singleSection) return <Card data-section={section ?? undefined} mb="lg"><Stack gap="md">
+    <div><Text fw={600}>{t(`lines.sections.${section}`)}</Text><Text size="xs" c="dimmed">{t(section === 'ingresses' ? 'nodes.advIngressHint' : section === 'routing' ? 'nodes.advRoutingHint' : 'nodes.advOverridesHint')}</Text></div>
+    {section === 'ingresses' && (editable ? <IngressesCard embedded nodeID={node.id} ingresses={ingresses} inbounds={inbounds} /> : <Text>{t('nodes.advIngressCount', { count: ingresses.length })}</Text>)}
+    {section === 'routing' && <><RoutingCard embedded nodeID={node.id} inboundTags={inbounds.map(ib => ib.Tag)} readOnly={!editable} />{editable && me?.role === 'admin' && <EgressUpstreams endpoint={`/api/admin/settings/nodes/${node.id}/egress`} />}</>}
+    {section === 'overrides' && <OverridesCard embedded readOnly={!editable} queryKey={['overrides', node.id]} load={() => api.get<Record<string, string>>(`/api/admin/nodes/${node.id}/overrides`)} save={value => api.put(`/api/admin/nodes/${node.id}/overrides`, value)} />}
+  </Stack></Card>
   return <Card mt="lg" p={0} ref={root}>
     <Stack p="md" gap={4}><Text fw={600}>{t('nodes.proxySettings')}</Text><Text size="xs" c="dimmed">{t('nodes.proxySettingsHint')}</Text></Stack>
       {!node.paired && <Alert color="orange" mx="md">{t('nodes.unpaired')}</Alert>}
