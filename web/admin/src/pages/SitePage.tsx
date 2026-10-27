@@ -55,7 +55,7 @@ export default function SitePage({ embedded = false }: { embedded?: boolean }) {
           {(q.isError || entries.isError) && <Alert color="red"><Text size="sm">{t('workspace.loadError')}</Text><Button variant="light" size="xs" onClick={() => { q.refetch(); entries.refetch() }}>{t('workspace.retry')}</Button></Alert>}
           {mapConflict && <Alert color="yellow"><Text size="sm">{t('mapLocation.siteConflict')}</Text><Button variant="light" size="xs" onClick={reload}>{t('serviceStatus.reload')}</Button></Alert>}
           <Card component="section" id="site-brand" aria-labelledby="site-brand-title" style={{ scrollMarginTop: 88 }}>
-            <Group justify="space-between" align="center" mb={4}><Title id="site-brand-title" order={5}>{t('branding.title')}</Title>{embedded && <Button component="a" href="/" target="_blank" rel="noopener noreferrer" variant="subtle" size="xs">{t('site.open')}</Button>}</Group>
+            <Title id="site-brand-title" order={5} mb={4}>{t('branding.title')}</Title>
             <Text size="xs" c="dimmed" mb="sm">{t('branding.hint')}</Text>
             <Stack gap="sm">
               <SettingsFields>

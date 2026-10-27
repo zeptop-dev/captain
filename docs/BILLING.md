@@ -13,7 +13,7 @@ user group it unlocks.
   what was used: a plan with a reset cycle keeps its counter and its next
   reset date, a plan without one has the new period's allowance added.
 - **Buying a different plan** stacks it next to the current one, or
-  replaces it when *single-plan mode* is on (Settings → Subscription).
+  replaces it when *single-plan mode* is on (Settings → Plans and purchases).
   Queueing a plan the user already holds is refused — renew it instead.
 - **Quota reset**: never, every N days from purchase, on the first of each
   month, or on January 1st. A user can be given a personal reset day.
@@ -60,10 +60,10 @@ across renewals of the same plan), set a personal monthly reset day, reset
 usage, grant a plan directly. Users → Renewals lists everyone by expiry
 with one-click extensions for batch renewals.
 
-**Trial plan** — Settings → Trial plan hands every new account (password or
+**Trial plan** — Settings → Accounts and security → Trial plan hands every new account (password or
 external login) one plan once, for the configured number of days.
 
-**Plan change credit** — Settings → Plan change credit: switching to a
+**Plan change credit** — Settings → Plans and purchases → Plan change credit: switching to a
 different plan credits the unused remainder of the current one (by
 remaining time, or by remaining traffic for plans without an expiry)
 against the new order. Only one pending order can hold that credit at a
@@ -127,7 +127,7 @@ it is recorded as invited when the account is created (by password or by
 external login), and each paid order credits a configurable share to the
 inviter.
 
-Settings → Invites holds the level-1 percentage, optional multi-level
+Settings → Plans and purchases → Invites holds the level-1 percentage, optional multi-level
 (levels 2 and 3), and where a reward goes:
 
 - straight to the inviter's **balance**, or

@@ -7,10 +7,13 @@ import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { toast } from '../lib/notify'
 
+import { useSettingsHaveDrafts } from '../lib/settings-draft'
+
 const categories = ['users', 'staff', 'nodes', 'plans', 'orders', 'subscriptions'] as const
 type Counts = Record<(typeof categories)[number], number>
 
 export function ResetSiteCard() {
+  const hasDrafts = useSettingsHaveDrafts()
   const { t } = useTranslation()
   const { me } = useAuth()
   const qc = useQueryClient()
@@ -21,7 +24,7 @@ export function ResetSiteCard() {
   const [nodesAcknowledged, setNodesAcknowledged] = useState(false)
   const preview = useQuery({ queryKey: ['site-reset-preview'], queryFn: () => api.get<Counts>('/api/admin/system/reset'), enabled: opened, staleTime: 0 })
   const reset = useMutation({
-    mutationFn: () => api.post('/api/admin/system/reset', { password, code, confirmation, nodes_acknowledged: nodesAcknowledged }),
+    mutationFn: () => { if (hasDrafts) throw new Error(t('settingsLayout.saveBeforeRestart')); return api.post('/api/admin/system/reset', { password, code, confirmation, nodes_acknowledged: nodesAcknowledged }) },
     onSuccess: () => { qc.clear(); window.location.replace('/admin/login') },
     onError: (error) => { setCode(''); toast.err(error) },
   })
@@ -30,12 +33,13 @@ export function ResetSiteCard() {
     setOpened(false); setPassword(''); setCode(''); setConfirmation(''); setNodesAcknowledged(false)
   }
   const hasNodes = (preview.data?.nodes ?? 0) > 0
-  const canReset = preview.isSuccess && !preview.isFetching && confirmation === 'RESET' && !!password && (!me?.totp || !!code.trim()) && (!hasNodes || nodesAcknowledged)
+  const canReset = !hasDrafts && preview.isSuccess && !preview.isFetching && confirmation === 'RESET' && !!password && (!me?.totp || !!code.trim()) && (!hasNodes || nodesAcknowledged)
   return (
     <Card>
       <Title order={5} c="red" mb="xs">{t('siteReset.title')}</Title>
       <Text size="sm" mb="sm">{t('siteReset.description')}</Text>
-      <Button color="red" variant="light" size="xs" onClick={() => setOpened(true)}>{t('siteReset.open')}</Button>
+      {hasDrafts && <Text size="sm" c="dimmed" mb="sm">{t('settingsLayout.saveBeforeRestart')}</Text>}
+      <Button color="red" variant="light" size="xs" disabled={hasDrafts} onClick={() => setOpened(true)}>{t('siteReset.open')}</Button>
       <Modal opened={opened} onClose={close} title={t('siteReset.title')} size="lg" centered closeOnClickOutside={!reset.isPending} closeOnEscape={!reset.isPending} withCloseButton={!reset.isPending}>
         <form onSubmit={(e) => { e.preventDefault(); if (canReset && !reset.isPending) reset.mutate() }}>
           <Stack gap="md">

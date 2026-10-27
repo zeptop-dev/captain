@@ -4,7 +4,10 @@ One entry per release tag, newest first, condensed from the commit subjects
 between that tag and the previous one (`git log --format=%s <prev>..<tag>`).
 Merge commits and formatting-only commits are left out. Binaries and
 `SHA256SUMS` for every tag are on the GitHub Release; the in-app updater
-installs them (Settings → Backups and maintenance → Version and updates).
+installs them (Settings → System maintenance → Version and updates).
+
+- **Unreleased** — Replace nested settings directories with eight direct editing categories, searchable section links, per-module saves and unsaved-change protection. Keep legacy bookmarks and administrator permissions; distinguish server probes from customer service status and fold advanced site configuration.
+  - Move the single-plan purchase policy beside transaction rules without changing the subscription API. Serialize partial subscription-setting saves so concurrent edits preserve both modules; protect unsaved maintenance drafts before upgrade, restart or reset.
 
 - **v1.45.0** (2026-10-26) — Add an administrator-managed catalog of seven proxy clients, official stable-release checks, architecture-specific installers and optional Captain-hosted downloads. Keep checking, caching and publishing independent; control homepage and customer-portal visibility, recommendations and ordering per platform. Preserve custom links, explicit store destinations and existing subscription import behavior.
   - Add city-level location lookup, manual coordinates and explicit map publication for server probes, the homepage and service status. Keep unknown/hidden locations distinct and retain existing country markers and subscription regions; public map metadata excludes lookup addresses and private preferences.

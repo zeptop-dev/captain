@@ -16,8 +16,6 @@ import AccountPage from './pages/AccountPage'
 import SettingsPage from './pages/SettingsPage'
 import BusinessPage from './pages/BusinessPage'
 import { canVisit } from './lib/navigation'
-import SitePage from './pages/SitePage'
-import { SettingsDraftBoundary } from './lib/settings-draft'
 import { BrandingMetadata } from './components/BrandingMetadata'
 import SubTemplatesPage from './pages/SubTemplatesPage'
 import DomainsPage from './pages/DomainsPage'
@@ -68,7 +66,7 @@ export default function App() {
           <Route path="/account" element={<AccountPage />} />
           <Route path="/settings/*" element={<SettingsPage />} />
           <Route path="/business/:section" element={<BusinessPage />} />
-          <Route path="/site" element={<SettingsDraftBoundary><SitePage /></SettingsDraftBoundary>} />
+          <Route path="/site" element={<Navigate to="/settings/category/site#site" replace />} />
           <Route path="/sub-templates" element={<SubTemplatesPage />} />
           <Route path="/domains" element={<DomainsPage />} />
         </Route>

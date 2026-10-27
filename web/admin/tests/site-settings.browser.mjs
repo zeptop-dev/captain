@@ -42,14 +42,7 @@ page.on('pageerror', error => errors.push(error.message))
 try {
  await page.goto(`${base}site`)
  await page.getByRole('textbox', { name: 'Brand name', exact: true }).waitFor()
- // The parent settings integration supplies these new locale entries. The isolated
- // component branch injects the same labels without changing shared locale files.
- await page.evaluate(async () => {
-  const { default: i18n } = await import('/admin/src/i18n/index.ts')
-  i18n.addResourceBundle('en', 'translation', { settingsLayout: { advanced: 'Advanced settings', advancedHint: 'JSON and custom scripts', saveSection: 'Save {{section}}', categories: { site: 'site and branding' } } }, true, true)
-  await i18n.changeLanguage('en')
- })
- const save = page.getByRole('button', { name: 'Save site and branding', exact: true })
+ const save = page.getByRole('button', { name: 'Save Site & branding', exact: true })
  const advanced = page.locator('#site-advanced details')
  assert.equal(await advanced.getAttribute('open'), null)
  assert.equal(await save.isDisabled(), true)

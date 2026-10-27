@@ -1252,7 +1252,6 @@
     "deleteSourceHint": "이 구독에서 동기화한 노드도 함께 삭제됩니다."
   },
   "probe": {
-    "title": "모니터링 / 상태 페이지",
     "hint": "기본은 꺼짐. 켜면 서버가 몇 초마다 호스트 지표를 보내고 패널이 분/시/일 단위로 집계해 상태 페이지를 제공합니다. 다른 모니터링을 쓴다면 꺼 두세요. 서버는 추가 데이터를 보내지 않습니다.",
     "beat": "보고 간격(초)",
     "carrier": "통신사 지연(전신/연통/이동)",
@@ -2297,7 +2296,6 @@
   },
   "workspace": {
     "search": "설정 검색…",
-    "settingsHint": "분류를 선택하거나 설정을 검색하세요.",
     "unsaved": "저장하지 않은 변경 사항",
     "leaveHint": "변경 사항을 저장하거나 버리고 이동하세요.",
     "stay": "계속 편집",
@@ -2305,30 +2303,13 @@
     "forbidden": "이 설정에 접근할 권한이 없습니다.",
     "notFound": "설정 페이지가 존재하지 않습니다.",
     "noResults": "일치하는 설정이 없습니다. 다른 검색어를 사용하세요.",
-    "allSettings": "설정 목록",
     "updateHint": "현재 버전과 사용 가능한 업데이트를 확인합니다.",
-    "registration": "가입 및 체험",
-    "nodeSettings": "서버 정책",
     "subscription": "구독",
     "templates": "구독 템플릿",
-    "subscriptionSettings": "구독 설정",
-    "monitorSettings": "수집 및 상태 페이지",
     "business": "운영",
     "marketing": "프로모션 및 추천",
     "content": "콘텐츠 및 사이트",
-    "businessSettings": "운영 규칙",
     "businessHint": "관련 운영 작업을 한곳에서 관리합니다.",
-    "businessRules": "업무별 설정",
-    "areas": {
-      "users": "사용자 규칙",
-      "nodes": "서버 정책 및 인증서",
-      "subscription": "구독 설정",
-      "monitoring": "모니터링 설정",
-      "business": "운영 규칙",
-      "security": "직원 및 사이트 보안",
-      "integrations": "알림 및 연동",
-      "maintenance": "백업 및 유지 관리"
-    },
     "loadError": "설정을 불러오지 못했습니다. 다시 시도한 후 편집하세요.",
     "retry": "다시 시도",
     "backupHint": "로컬 스냅샷, 원격 저장소 및 백업 암호화를 관리합니다.",
@@ -3346,5 +3327,42 @@
     "clearFilter": "권한 필터 지우기",
     "newInboundHint": "생성 시 초기 그룹을 선택합니다. 저장 후 노드 권한에서 여러 그룹 또는 접근 차단을 설정할 수 있습니다.",
     "connectionHint": "기존 연결의 권한은 구독 노드 목록의 열쇠 버튼에서 변경하세요. 여기서 연결 설정을 저장해도 권한은 유지됩니다."
+  },
+  "settingsLayout": {
+    "hint": "용도별로 설정을 관리합니다. 각 모듈은 별도로 저장되며, 분류를 떠나기 전에 저장하지 않은 변경을 확인합니다.",
+    "search": "설정 검색: SMTP, 브랜드, 인증서…",
+    "searchResults": "검색 결과",
+    "categoriesLabel": "설정 분류",
+    "jumpTo": "설정으로 이동",
+    "saveSection": "{{section}} 저장",
+    "siteEditor": "브랜드 및 홈페이지",
+    "advanced": "고급 설정",
+    "advancedHint": "사용자 스크립트와 구조화된 설정이 필요할 때 펼치세요.",
+    "probeTitle": "서버 모니터링",
+    "probeAudience": "관리자를 위한 서버 리소스와 네트워크 상태입니다. 공개 범위와 브랜드를 별도로 설정할 수 있습니다.",
+    "statusTitle": "사용자 서비스 상태",
+    "statusAudience": "구독 노드의 상태, 공개 범위 및 유지 관리 일정을 표시합니다.",
+    "immediateHint": "변경 사항은 즉시 저장됩니다.",
+    "saveBeforeRestart": "업그레이드, 재시작 또는 초기화 전에 이 페이지의 변경 사항을 저장하세요.",
+    "categories": {
+      "site": "사이트 및 브랜드",
+      "account": "계정 및 보안",
+      "subscription": "구독 및 클라이언트",
+      "business": "요금제 및 구매",
+      "proxy": "프록시 및 인증서",
+      "monitoring": "모니터링 및 상태",
+      "integrations": "알림 및 연동",
+      "maintenance": "시스템 유지 관리"
+    },
+    "descriptions": {
+      "site": "사이트 브랜드, 홈페이지 콘텐츠 및 포털 모양입니다. 사이트 설정과 공지는 별도로 저장됩니다.",
+      "account": "가입, 로그인, 체험 및 관리자 접근 제어입니다. 개인 인증 정보는 내 계정에서 관리합니다.",
+      "subscription": "구독 배포와 클라이언트 다운로드입니다. 노드 권한과 요금제 내용은 각 관리 페이지에 있습니다.",
+      "business": "구매 제한, 잔여량 차감 및 추천 수수료입니다. 결제 채널은 배포 설정에서 관리합니다.",
+      "proxy": "전역 인증서, 연결 기록 및 프록시 정책입니다. 개별 서버 설정은 서버 상세에 있습니다.",
+      "monitoring": "서버 모니터링과 사용자 서비스 상태를 분리하고 네트워크 검사 및 외부 하트비트를 설정합니다.",
+      "integrations": "메일, Telegram, 이벤트 알림 및 외부 로그인 앱을 설정합니다. 각 모듈은 별도로 저장됩니다.",
+      "maintenance": "백업, 버전 업데이트 및 작업 로그입니다. 업데이트, 재시작 및 초기화는 현재 세션에 영향을 줍니다."
+    }
   }
 }

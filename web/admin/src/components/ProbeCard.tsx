@@ -39,8 +39,9 @@ export function ProbeCard() {
   if (q.data === undefined) return <SettingsLoadState query={q} />
   return (
     <Card>
-      <Title order={5} mb="xs">{t('probe.title')}</Title>
+      <Title order={5} mb="xs">{t('settingsLayout.probeTitle')}</Title>
       <Text size="xs" c="dimmed" mb="sm">{t('probe.hint')}</Text>
+      <Text size="sm" c="dimmed" mb="md">{t('settingsLayout.probeAudience')}</Text>
       <form onSubmit={form.onSubmit((vals) => save.mutate(vals), errors => { if (errors.logo || errors.logo_dark || errors.favicon) setShowIndependentBrandErrors(true) })}><Stack gap="sm">
         <SettingsFields>
           <Switch label={t('probe.collection')} {...form.getInputProps('enabled', { type: 'checkbox' })} />
@@ -95,7 +96,7 @@ export function ProbeCard() {
           <NumberInput label={t('probe.window')} min={1} {...form.getInputProps('alerts.window_minutes')} />
           <Switch label={t('probe.trafficAlert')} mb={6} {...form.getInputProps('alerts.traffic', { type: 'checkbox' })} />
         </SettingsFields>
-        <Group justify="flex-end"><Button type="submit" size="xs" loading={save.isPending}>{t('common.save')}</Button></Group>
+        <Group justify="flex-end"><Button type="submit" size="xs" loading={save.isPending}>{t('settingsLayout.saveSection', { section: t('settingsLayout.probeTitle') })}</Button></Group>
       </Stack></form>
 
     </Card>
@@ -114,7 +115,7 @@ export function PingTasks() {
   const del = useMutation({ mutationFn: (id: number) => api.del(`/api/admin/ping-tasks/${id}`), onSuccess: () => qc.invalidateQueries({ queryKey: ['ping-tasks'] }), onError: toast.err })
   if (q.data === undefined) return <SettingsLoadState query={q} />
   return (
-    <Stack gap="xs" mt="lg">
+    <Card><Stack gap="sm">
       <Group justify="space-between"><Text size="sm" fw={600}>{t('probe.tasks')}</Text><Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => setAdding((a) => !a)}>{t('probe.addTask')}</Button></Group>
       <Text size="xs" c="dimmed">{t('probe.tasksHint')}</Text><Text size="xs" c="dimmed">{t('networkQuality.semantics')}</Text>
       {adding && (
@@ -124,11 +125,11 @@ export function PingTasks() {
           <TextInput label={t('probe.taskTarget')} placeholder="1.1.1.1 / host:443 / https://…" required style={{ flex: 2, minWidth: 180 }} {...form.getInputProps('Target')} />
           <NumberInput label={t('probe.taskInterval')} min={5} style={{ width: 110 }} {...form.getInputProps('IntervalSeconds')} />
           <MultiSelect label={t('probe.taskNodes')} placeholder={t('common.all')} data={(nodes.data ?? []).map((n) => ({ value: String(n.id), label: n.name }))} style={{ flex: 1, minWidth: 160 }} {...form.getInputProps('NodeIDs')} />
-          <Button type="submit" size="xs" mb={2} loading={save.isPending}>{t('common.save')}</Button>
+          <Button type="submit" size="xs" mb={2} loading={save.isPending}>{t('settingsLayout.saveSection', { section: t('probe.tasks') })}</Button>
         </Group></form>
       )}
       {(q.data ?? []).length > 0 && (
-        <Table fz="sm"><Table.Tbody>
+        <Table.ScrollContainer minWidth={640}><Table fz="sm"><Table.Tbody>
           {q.data!.map((tk) => (
             <Table.Tr key={tk.id}>
               <Table.Td><Text fw={600}>{tk.name}</Text></Table.Td>
@@ -139,8 +140,8 @@ export function PingTasks() {
               <Table.Td><ActionIcon variant="subtle" color="red" onClick={() => del.mutate(tk.id)}><IconTrash size={14} /></ActionIcon></Table.Td>
             </Table.Tr>
           ))}
-        </Table.Tbody></Table>
+        </Table.Tbody></Table></Table.ScrollContainer>
       )}
-    </Stack>
+    </Stack></Card>
   )
 }

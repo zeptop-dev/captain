@@ -61,12 +61,19 @@ async function setup(locale = 'en', options = {}) {
       case '/api/admin/me': return send({ id: 1, email: 'admin@example.com', role: 'admin', version: 'v1.45.0' })
       case '/api/site': return send({ name: 'Captain', branding: {}, theme: {} })
       case '/api/admin/system/update': return send(update)
-      case '/api/admin/settings/mail': return state.failMailReads ? send({ error: 'Simulated mail load failure' }, 503) : send({ settings: state.mail, has_smtp_password: true, has_resend_key: false })
+      case '/api/admin/settings/mail':
+        if (options.mailReadDelay) await new Promise(resolve => setTimeout(resolve, options.mailReadDelay))
+        return state.failMailReads ? send({ error: 'Simulated mail load failure' }, 503) : send({ settings: state.mail, has_smtp_password: true, has_resend_key: false })
       case '/api/admin/settings/telegram': return send({ settings: state.telegram, has_token: true })
       case '/api/admin/settings/webhooks': return send({ settings: { endpoints: [] }, events: ['order.paid'] })
       case '/api/admin/settings/login-clients': return send({ clients: [], base_url: 'https://panel.example.com' })
       case '/api/admin/settings/subscription': return send(state.subscription)
       case '/api/admin/settings/client-catalog': return send({ clients: [], storage: { used_bytes: 0, max_bytes: 1024 ** 3, max_asset_bytes: 1024 ** 2 } })
+      case '/api/admin/settings/registration': return send({ enabled: true, password_open: true, oidc_open: false, settings: { email_suffixes: [], invite_only: false, ip_limit: 0, ip_window_hours: 24, captcha: { provider: '', site_key: '' } } })
+      case '/api/admin/settings/trial': return send({ plan_id: 0, period_days: 7 })
+      case '/api/admin/plans': return send([])
+      case '/api/admin/settings/oidc': return send({ providers: [], password_login: true })
+      case '/api/admin/settings/security': return send({ admin_allow_cidrs: [] })
       case '/api/admin/settings/clients': return send({ items: [] })
       case '/api/admin/settings/surplus': return send({ enabled: true })
       case '/api/admin/settings/invite': return send({ enabled: false, percent: 10, first_order_only: false, multi_level: false, level2: 0, level3: 0, payout: 'balance', min_withdraw_cents: 0, withdraw_methods: [] })
@@ -218,6 +225,39 @@ try {
   assert.deepEqual(writes(maintenance).map(({ method, path }) => ({ method, path })), [{ method: 'PUT', path: '/api/admin/settings/backup' }])
   await finish(maintenance)
 
+  // A preceding editor can expand after the target has rendered. Wait for that
+  // load before positioning, but never take focus from an already active form.
+  const slow = await setup('en', { mailReadDelay: 700 })
+  await slow.page.goto(new URL('settings/category/integrations#telegram', base).href)
+  await eventually(() => section(slow, 'telegram').evaluate(element => element === document.activeElement), Boolean, 'Deep link waits for preceding editor')
+  const targetBounds = await section(slow, 'telegram').boundingBox()
+  assert.ok(targetBounds && targetBounds.y >= 55 && targetBounds.y < 250, 'Loaded target remains below the sticky category navigation')
+  await finish(slow)
+
+  const editing = await setup('en', { mailReadDelay: 1800 })
+  await editing.page.goto(new URL('settings/category/integrations#telegram', base).href)
+  const editingChat = section(editing, 'telegram').getByRole('textbox', { name: editing.t('telegram.adminChat'), exact: true })
+  await editingChat.fill('987654')
+  await section(editing, 'mail').getByRole('textbox', { name: editing.t('mail.fromName'), exact: true }).waitFor()
+  await editing.page.waitForTimeout(200)
+  assert.equal(await editingChat.evaluate(element => element === document.activeElement), true, 'Late anchor positioning must not steal editing focus')
+  assert.equal(await editingChat.inputValue(), '987654')
+  await finish(editing)
+
+  const linked = await setup()
+  await linked.page.goto(new URL('settings/category/account', base).href)
+  const suffixes = section(linked, 'registration').getByRole('textbox', { name: linked.t('registration.suffixes'), exact: true })
+  await suffixes.fill('example.com')
+  const oidcLink = section(linked, 'registration').getByRole('link', { name: linked.t('settings.oidc'), exact: true })
+  await oidcLink.focus()
+  await oidcLink.press('Enter')
+  await linked.page.waitForURL('**/settings/category/account#oidc')
+  await eventually(() => section(linked, 'oidc').evaluate(element => element === document.activeElement), Boolean, 'In-form OIDC link positions and focuses its target')
+  assert.equal(await suffixes.inputValue(), 'example.com', 'In-form section links keep sibling drafts')
+  assert.equal(await linked.page.getByRole('dialog').count(), 0)
+  assert.deepEqual(writes(linked), [])
+  await finish(linked)
+
   for (const locale of locales) {
     const translated = await setup(locale)
     await translated.page.goto(new URL('settings/mail', base).href)
@@ -234,7 +274,7 @@ try {
     assertOnlyIntegrationReads(translated)
     await finish(translated)
   }
-  console.log('PASS: 8 categories, six locales, SMTP search, legacy redirect, hash drafts, cancel/discard, isolated saves, query isolation, failure/retry, and maintenance action guards')
+  console.log('PASS: 8 categories, six locales, SMTP search, legacy redirect, hash drafts, cancel/discard, isolated saves, query isolation, failure/retry, maintenance action guards, delayed anchors, and editing focus')
 } finally {
   await browser.close()
 }

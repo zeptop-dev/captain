@@ -902,7 +902,6 @@
     "modeRules": "Response rules"
   },
   "probe": {
-    "title": "Probe / status page",
     "hint": "Off by default. When on, servers send host metrics every few seconds; the panel aggregates minute/hour/day series and serves a status page. Using another probe? Leave it off and servers send nothing extra.",
     "beat": "Beat interval (s)",
     "carrier": "Carrier latency (CT/CU/CM)",
@@ -2297,7 +2296,6 @@
   },
   "workspace": {
     "search": "Search settings…",
-    "settingsHint": "Choose a category, or search for a setting.",
     "unsaved": "Unsaved changes",
     "leaveHint": "Save your changes before leaving, or discard them to continue.",
     "stay": "Keep editing",
@@ -2305,30 +2303,13 @@
     "forbidden": "You do not have access to these settings.",
     "notFound": "This settings page does not exist.",
     "noResults": "No matching settings. Try another keyword.",
-    "allSettings": "Settings directory",
     "updateHint": "View the current version and available updates.",
-    "registration": "Registration and trial",
-    "nodeSettings": "Server policies",
     "subscription": "Subscriptions",
     "templates": "Templates",
-    "subscriptionSettings": "Subscription settings",
-    "monitorSettings": "Collection and status page",
     "business": "Operations",
     "marketing": "Promotions and referrals",
     "content": "Content and site",
-    "businessSettings": "Business rules",
     "businessHint": "Manage related tasks together.",
-    "businessRules": "Rules for each workspace",
-    "areas": {
-      "users": "User rules",
-      "nodes": "Server policies and certificates",
-      "subscription": "Subscription settings",
-      "monitoring": "Monitoring settings",
-      "business": "Business rules",
-      "security": "Staff and site security",
-      "integrations": "Notifications and integrations",
-      "maintenance": "Backups and maintenance"
-    },
     "loadError": "Could not load settings. Try again before editing.",
     "retry": "Try again",
     "backupHint": "Manage local snapshots, remote storage and backup encryption.",
@@ -3346,5 +3327,42 @@
     "clearFilter": "Clear access filter",
     "newInboundHint": "Choose an initial group when creating. After saving, node access supports multiple groups or No access.",
     "connectionHint": "For an existing connection, use the key button in Subscription nodes to change access. Saving connection settings here preserves its permissions."
+  },
+  "settingsLayout": {
+    "hint": "Manage settings by purpose. Each module saves independently; unsaved changes are protected when leaving a category.",
+    "search": "Search settings, e.g. SMTP, branding, certificates…",
+    "searchResults": "Search results",
+    "categoriesLabel": "Settings categories",
+    "jumpTo": "Jump to setting",
+    "saveSection": "Save {{section}}",
+    "siteEditor": "Branding & homepage",
+    "advanced": "Advanced settings",
+    "advancedHint": "Expand only when needed for custom scripts and structured configuration.",
+    "probeTitle": "Server monitoring",
+    "probeAudience": "Server resources and network performance for maintainers, with separate visibility and branding.",
+    "statusTitle": "User service status",
+    "statusAudience": "Subscription node status, public visibility and scheduled maintenance for users.",
+    "immediateHint": "Changes are saved immediately.",
+    "saveBeforeRestart": "Save the changes on this page before upgrading, restarting or resetting.",
+    "categories": {
+      "site": "Site & branding",
+      "account": "Accounts & security",
+      "subscription": "Subscriptions & clients",
+      "business": "Plans & purchases",
+      "proxy": "Proxy & certificates",
+      "monitoring": "Monitoring & status",
+      "integrations": "Notifications & integrations",
+      "maintenance": "System maintenance"
+    },
+    "descriptions": {
+      "site": "Site branding, homepage content and portal appearance. Site settings and notices save separately.",
+      "account": "Registration, sign-in, trials and administrator access. Manage personal credentials in My account.",
+      "subscription": "Subscription delivery and client downloads. Node permissions and plan content stay in their own management pages.",
+      "business": "Purchase limits, remaining credit and referral commissions. Payment gateways remain in deployment configuration.",
+      "proxy": "Global certificates, connection logging and proxy policies. Per-server configuration stays in server details.",
+      "monitoring": "Manage server monitoring and user service status separately, with network checks and external heartbeats.",
+      "integrations": "Configure email, Telegram, event notifications and third-party login clients. Each module saves independently.",
+      "maintenance": "Backups, version updates and operation logs. Upgrades, restarts and resets affect the current session."
+    }
   }
 }

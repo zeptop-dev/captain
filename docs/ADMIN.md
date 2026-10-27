@@ -13,22 +13,43 @@ Settings stays at the bottom; account security is in the avatar menu.
 Subscription profiles, templates and response rules have separate direct links
 to the existing editor modes, with one active navigation item.
 
-Settings is a directory, with separate pages for each editor. Registration and
-trial rules are under Users; certificates, connection recording, audit and
-speed policies under Nodes; subscription URLs, HWID and clients under
-Subscriptions; collection, the public status page, ping tasks and heartbeat
-under Monitoring; notices, referrals and purchase credit under Operations.
-Global security, notification integrations and maintenance stay under Settings.
-The directory search covers names and descriptions across these categories,
-without loading configuration values. Moving a setting does not change its
-admin-only API permission.
+System settings has one sidebar entry and eight direct editor tabs:
 
-Editor URLs such as `/admin/settings/mail` can be bookmarked. Only the selected
-editor loads its data. Unsaved changes survive background refreshes, and leaving
-the editor asks whether to discard them. A failed initial load must be retried
-before editing. User-group and monitoring tabs, and subscription template modes,
-also keep their selection in the URL. Dashboard links preserve node, order and
-asset filters in URLs as well. Existing page and API URLs remain valid.
+| Category | Contents |
+| --- | --- |
+| Site & branding | Logos, favicon, homepage content, portal appearance, map and notices |
+| Accounts & security | Registration, trial, external sign-in and administrator access |
+| Subscriptions & clients | Subscription addresses, HWID, information lines and client downloads |
+| Plans & purchases | Single-plan purchase policy, remaining credit and referral commissions |
+| Proxy & certificates | ACME, connection logging, traffic audit and dynamic speed policies |
+| Monitoring & status | Server probes, customer service status, network checks and heartbeat |
+| Notifications & integrations | Mail, Telegram, event webhooks and Captain login applications |
+| System maintenance | Backups, updates, operation logs and site reset |
+
+Search opens the matching editor directly. It indexes labels and descriptions,
+not stored configuration or credentials. Only editors in the selected category
+load their data; inactive categories do not run their polling. Advanced site JSON
+and script injection are folded without dropping their saved values. Server
+probe branding and visibility remain independent of customer service status.
+
+Each module saves independently; saving mail cannot publish a Telegram draft.
+The plan-credit toggle still saves immediately and says so. Subscription and
+purchase policy use separate fields of the existing subscription settings
+resource, with serialized partial updates to avoid losing concurrent edits.
+Payment gateways remain deployment configuration, not new browser-editable fields.
+
+Category URLs such as `/admin/settings/category/integrations#mail` can be
+bookmarked. Old `/admin/settings/mail`, `/admin/settings/area/*` and `/admin/site`
+links redirect to their corresponding category. Same-category anchors preserve
+unsaved changes; leaving the category requires saving or confirming discard.
+Background refreshes cannot overwrite a dirty form. An initial load failure
+requires a retry before editing. Upgrade, restart and reset actions are blocked
+while this category contains unsaved drafts. Personal credentials remain in
+My account; staff, plans, entries and other resources retain their management pages.
+Moving a setting does not change its administrator-only API permission.
+
+User-group and monitoring tabs, subscription template modes and dashboard
+filters continue to keep their state in URLs. Existing API URLs remain valid.
 
 Creating a user opens that user's detail drawer; granting a plan leaves it open
 for subscription checks. Node details show connection, confirmed running
@@ -63,7 +84,7 @@ support accounts cannot. The APIs remain `GET` and `POST /api/admin/groups`.
 
 ## Staff roles
 
-Settings → Staff creates console accounts with a role:
+Settings → Accounts & security → Staff creates console accounts with a role:
 
 | Role | Can |
 |---|---|
@@ -160,7 +181,7 @@ A token carries its owner's role, narrowed by what it was issued with:
 
 ## Access control and the client address
 
-- **Admin allow-list** — Settings → Staff and site security → Console access control
+- **Admin allow-list** — Settings → Accounts and security → Console access control
   (`admin_allow_cidrs`: bare addresses or CIDRs) restricts the admin login,
   every `/api/admin` route including API tokens, and `/mcp`. Saving a list
   that would exclude your own address is refused.
@@ -323,7 +344,7 @@ if you want to reword them or add a language.
 
 ## External login (OIDC)
 
-Settings → Staff and site security → External login takes any OpenID Connect provider (Casdoor,
+Settings → Accounts and security → External login takes any OpenID Connect provider (Casdoor,
 Authentik, Auth0, Keycloak, Zitadel, Google …): id, display name, issuer URL,
 client id and secret. Register
 `https://<your domain>/api/oauth/<id>/callback` as the redirect URI at the
@@ -347,7 +368,7 @@ Casdoor example: issuer `https://door.example.com`, default scopes
 
 ## Captain as a login provider
 
-Settings → Integrations → Captain login applications registers trusted applications
+Settings → Notifications and integrations → Captain login applications registers trusted applications
 such as New API. This is separate from External login and grants customer identity
 only. See [New API setup and security boundaries](CAPTAIN_LOGIN.md).
 
@@ -355,7 +376,7 @@ only. See [New API setup and security boundaries](CAPTAIN_LOGIN.md).
 
 Captain snapshots its database once a day with `VACUUM INTO`, so the copy is
 consistent while the panel keeps serving, into `<data_dir>/backups`, keeping
-the newest seven. Settings → Backups and maintenance → Database backups sets the hour and retention,
+the newest seven. Settings → System maintenance → Database backups sets the hour and retention,
 adds a remote (WebDAV with basic auth, or any S3-compatible bucket: AWS,
 Cloudflare R2, Backblaze B2, MinIO with path-style) that receives each
 snapshot gzipped with its own retention, tests the remote, runs a backup on
@@ -371,7 +392,7 @@ caveat that silently corrupts a careless restore — are in
 
 ## Reset site
 
-Settings → Backups and maintenance → Reset site starts Captain over with an empty business database.
+Settings → System maintenance → Reset site starts Captain over with an empty business database.
 Only an active **admin** using a console cookie session can preview or execute
 it; operator/support accounts, customer sessions and API tokens cannot. The
 confirmation dialog shows affected record counts, requires the current password,

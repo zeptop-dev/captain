@@ -43,7 +43,7 @@ export function HeartbeatCard() {
         )}
         <Group justify="flex-end">
           <Button size="xs" variant="default" loading={test.isPending} onClick={() => test.mutate()}>{t('heartbeat.test')}</Button>
-          <Button size="xs" type="submit" loading={save.isPending}>{t('common.save')}</Button>
+          <Button size="xs" type="submit" loading={save.isPending}>{t('settingsLayout.saveSection', { section: t('heartbeat.title') })}</Button>
         </Group>
       </Stack></form>
     </Card>

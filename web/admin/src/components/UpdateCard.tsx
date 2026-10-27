@@ -8,6 +8,8 @@ import { api, type SystemUpdate, type UpdateInfo } from '../lib/api'
 import { when } from '../lib/format'
 import { setToastMuted, toast } from '../lib/notify'
 
+import { useSettingsHaveDrafts } from '../lib/settings-draft'
+
 const ME_URL = '/api/admin/me'
 
 // After apply/rollback/restart the process exits. A blocking modal keeps the
@@ -82,15 +84,17 @@ function RestartOverlay({ version, submitting, onGiveUp }: { version?: string; s
 }
 
 export function UpdateCard({ mb }: { mb?: string }) {
+  const hasDrafts = useSettingsHaveDrafts()
   const { t } = useTranslation()
   const qc = useQueryClient()
   const [restarting, setRestarting] = useState<{ version?: string } | null>(null)
   const q = useQuery({ queryKey: ['update'], queryFn: () => api.get<SystemUpdate>('/api/admin/system/update'), retry: false, refetchInterval: (query) => { const phase = query.state.data?.captain?.host_update?.job?.phase; return phase && !['complete', 'failed'].includes(phase) ? 3000 : false } })
   const check = useMutation({ mutationFn: () => api.get<SystemUpdate>('/api/admin/system/update?force=1'), onSuccess: (d) => qc.setQueryData(['update'], d), onError: toast.err })
+  const ensureSaved = () => { if (hasDrafts) throw new Error(t('settingsLayout.saveBeforeRestart')) }
   const afterExit = (r: { installed?: string }) => setRestarting({ version: r?.installed })
-  const apply = useMutation({ mutationFn: () => api.post<{ installed?: string }>('/api/admin/system/update/apply'), onSuccess: afterExit, onError: (e) => { setRestarting(null); setToastMuted(false); toast.err(e) } })
-  const rollback = useMutation({ mutationFn: () => api.post<{ installed?: string }>('/api/admin/system/update/rollback'), onSuccess: afterExit, onError: toast.err })
-  const restart = useMutation({ mutationFn: () => api.post<{ installed?: string }>('/api/admin/system/restart'), onSuccess: () => afterExit({}), onError: toast.err })
+  const apply = useMutation({ mutationFn: () => { ensureSaved(); return api.post<{ installed?: string }>('/api/admin/system/update/apply') }, onSuccess: afterExit, onError: (e) => { setRestarting(null); setToastMuted(false); toast.err(e) } })
+  const rollback = useMutation({ mutationFn: () => { ensureSaved(); return api.post<{ installed?: string }>('/api/admin/system/update/rollback') }, onSuccess: afterExit, onError: toast.err })
+  const restart = useMutation({ mutationFn: () => { ensureSaved(); return api.post<{ installed?: string }>('/api/admin/system/restart') }, onSuccess: () => afterExit({}), onError: toast.err })
   const d: UpdateInfo | undefined = q.data?.captain
   return (
     <Card mb={mb}>
@@ -101,6 +105,7 @@ export function UpdateCard({ mb }: { mb?: string }) {
           <Button size="xs" variant="default" leftSection={<IconRefresh size={14} />} loading={check.isPending} onClick={() => check.mutate()}>{t('update.check')}</Button>
         </Group>
       </Group>
+      {hasDrafts && <Alert color="yellow" mb="sm">{t('settingsLayout.saveBeforeRestart')}</Alert>}
       {restarting && <RestartOverlay submitting={apply.isPending} version={restarting.version} onGiveUp={() => { setRestarting(null); qc.invalidateQueries() }} />}
       {d?.warning && <Text size="xs" c="orange" mb="xs">{d.warning}</Text>}
       {d && (
@@ -118,16 +123,16 @@ export function UpdateCard({ mb }: { mb?: string }) {
           {d.host_update?.job && <Alert color={d.host_update.job.phase === 'failed' ? 'red' : 'blue'} title={d.host_update.job.target}>
             <Text size="sm">{t(`update.hostPhases.${d.host_update.job.phase}`)}</Text>
             {d.host_update.job.phase === 'failed' && <Text size="sm">{t('update.hostFailed')}</Text>}
-            {!['complete', 'failed'].includes(d.host_update.job.phase) && <Button mt="xs" size="xs" onClick={() => setRestarting({ version: d.host_update?.job?.target })}>{t('update.hostProgress')}</Button>}
+            {!['complete', 'failed'].includes(d.host_update.job.phase) && <Button mt="xs" size="xs" disabled={hasDrafts} onClick={() => setRestarting({ version: d.host_update?.job?.target })}>{t('update.hostProgress')}</Button>}
           </Alert>}
           <Group gap="xs">
             {d.has_update && (!d.in_container || d.host_update?.available) && d.release_build && (
-              <Button size="xs" color="orange" loading={apply.isPending} onClick={() => modals.openConfirmModal({ title: t('update.apply'), children: <Text size="sm">{t('update.applyConfirm', { version: d.latest })}</Text>, labels: { confirm: t('update.apply'), cancel: t('common.cancel') }, confirmProps: { color: 'orange' }, onConfirm: () => { setRestarting({ version: d.latest }); apply.mutate() } })}>{t('update.apply')}</Button>
+              <Button size="xs" color="orange" disabled={hasDrafts} loading={apply.isPending} onClick={() => modals.openConfirmModal({ title: t('update.apply'), children: <Text size="sm">{t('update.applyConfirm', { version: d.latest })}</Text>, labels: { confirm: t('update.apply'), cancel: t('common.cancel') }, confirmProps: { color: 'orange' }, onConfirm: () => { setRestarting({ version: d.latest }); apply.mutate() } })}>{t('update.apply')}</Button>
             )}
             {d.has_backup && !d.in_container && (
-              <Button size="xs" variant="default" loading={rollback.isPending} onClick={() => modals.openConfirmModal({ title: t('update.rollback'), children: <Text size="sm">{t('update.rollbackConfirm', { version: d.backup_version || '?' })}</Text>, labels: { confirm: t('update.rollback'), cancel: t('common.cancel') }, onConfirm: () => rollback.mutate() })}>{t('update.rollback', { version: d.backup_version ? ` ${d.backup_version}` : '' })}</Button>
+              <Button size="xs" variant="default" disabled={hasDrafts} loading={rollback.isPending} onClick={() => modals.openConfirmModal({ title: t('update.rollback'), children: <Text size="sm">{t('update.rollbackConfirm', { version: d.backup_version || '?' })}</Text>, labels: { confirm: t('update.rollback'), cancel: t('common.cancel') }, onConfirm: () => rollback.mutate() })}>{t('update.rollback', { version: d.backup_version ? ` ${d.backup_version}` : '' })}</Button>
             )}
-            <Button size="xs" variant="subtle" loading={restart.isPending} onClick={() => modals.openConfirmModal({ title: t('update.restart'), children: <Text size="sm">{t('update.restartConfirm')}</Text>, labels: { confirm: t('update.restart'), cancel: t('common.cancel') }, onConfirm: () => restart.mutate() })}>{t('update.restart')}</Button>
+            <Button size="xs" variant="subtle" disabled={hasDrafts} loading={restart.isPending} onClick={() => modals.openConfirmModal({ title: t('update.restart'), children: <Text size="sm">{t('update.restartConfirm')}</Text>, labels: { confirm: t('update.restart'), cancel: t('common.cancel') }, onConfirm: () => restart.mutate() })}>{t('update.restart')}</Button>
           </Group>
         </Stack>
       )}

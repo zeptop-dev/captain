@@ -1252,7 +1252,6 @@
     "deleteSourceHint": "該訂閱來源同步來的節點會一併刪除。"
   },
   "probe": {
-    "title": "探針 / 狀態頁",
     "hint": "預設關閉。開啟後伺服器每隔幾秒回報主機指標，面板彙整成分鐘/小時/天曲線並提供一個狀態頁。用別的探針的人保持關閉即可，伺服器不會多送任何資料。",
     "beat": "回報間隔（秒）",
     "carrier": "三網延遲（電信/聯通/移動）",
@@ -2297,7 +2296,6 @@
   },
   "workspace": {
     "search": "搜尋設定…",
-    "settingsHint": "選擇分類，或搜尋需要的設定。",
     "unsaved": "有未儲存的修改",
     "leaveHint": "請先儲存修改，或放棄修改後離開。",
     "stay": "繼續編輯",
@@ -2305,30 +2303,13 @@
     "forbidden": "目前帳號無權存取這些設定。",
     "notFound": "這個設定頁面不存在。",
     "noResults": "沒有符合的設定，請換個關鍵字。",
-    "allSettings": "設定目錄",
     "updateHint": "查看目前版本與可用更新。",
-    "registration": "註冊與試用",
-    "nodeSettings": "伺服器規則",
     "subscription": "訂閱",
     "templates": "訂閱範本",
-    "subscriptionSettings": "訂閱設定",
-    "monitorSettings": "採集與狀態頁",
     "business": "營運",
     "marketing": "行銷與返佣",
     "content": "內容與網站",
-    "businessSettings": "業務規則",
     "businessHint": "在同一入口處理相關營運事務。",
-    "businessRules": "各業務模組的規則",
-    "areas": {
-      "users": "使用者規則",
-      "nodes": "伺服器規則與憑證",
-      "subscription": "訂閱設定",
-      "monitoring": "監控設定",
-      "business": "業務規則",
-      "security": "員工與全站安全",
-      "integrations": "通知與整合",
-      "maintenance": "備份與維護"
-    },
     "loadError": "設定載入失敗，請重試後再編輯。",
     "retry": "重試",
     "backupHint": "管理本機快照、異地儲存與備份加密。",
@@ -3346,5 +3327,42 @@
     "clearFilter": "清除權限篩選",
     "newInboundHint": "建立時可選初始群組；儲存後可在節點權限中設定多群組或暫不授權。",
     "connectionHint": "既有連線的存取權限請至「訂閱節點」列表，用鑰匙按鈕修改；此處儲存連線參數會保留現有權限。"
+  },
+  "settingsLayout": {
+    "hint": "依用途管理全站設定。各模組獨立儲存，切換分類前會提醒未儲存的修改。",
+    "search": "搜尋設定，例如 SMTP、品牌、憑證…",
+    "searchResults": "搜尋結果",
+    "categoriesLabel": "設定分類",
+    "jumpTo": "跳至設定",
+    "saveSection": "儲存{{section}}",
+    "siteEditor": "品牌與首頁",
+    "advanced": "進階設定",
+    "advancedHint": "自訂指令碼與結構化設定，僅在需要時展開。",
+    "probeTitle": "伺服器探針",
+    "probeAudience": "供維護者查看伺服器資源與網路表現；可獨立設定存取範圍與品牌。",
+    "statusTitle": "使用者服務狀態",
+    "statusAudience": "向使用者顯示訂閱節點的狀態、公開範圍及維護計畫。",
+    "immediateHint": "切換後立即儲存。",
+    "saveBeforeRestart": "請先儲存本頁的修改，再執行升級、重新啟動或重設。",
+    "categories": {
+      "site": "站點與品牌",
+      "account": "帳戶與安全",
+      "subscription": "訂閱與客戶端",
+      "business": "方案與交易",
+      "proxy": "代理與憑證",
+      "monitoring": "監控與狀態",
+      "integrations": "通知與整合",
+      "maintenance": "系統維護"
+    },
+    "descriptions": {
+      "site": "全站品牌、首頁內容與入口外觀。站點設定與公告分別儲存。",
+      "account": "註冊與登入、試用及管理員存取控制。個人憑證在「我的帳戶」管理。",
+      "subscription": "設定訂閱分發與客戶端下載。節點權限和方案內容仍在各自管理頁。",
+      "business": "設定購買限制、餘量折抵及邀請回饋。付款管道繼續由部署設定管理。",
+      "proxy": "全域憑證、連線紀錄與代理策略。單台伺服器設定仍在伺服器詳情中。",
+      "monitoring": "分別管理伺服器探針與使用者服務狀態，設定網路探測與外部心跳。",
+      "integrations": "設定郵件、Telegram、事件通知和第三方登入應用，各模組獨立儲存。",
+      "maintenance": "管理備份、版本更新和操作紀錄。升級、重新啟動與重設會影響目前工作階段。"
+    }
   }
 }

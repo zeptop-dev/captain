@@ -30,7 +30,7 @@ export function ConnLogCard() {
           <NumberInput w={200} label={t('connlog.maxPerUser')} description={t('connlog.maxPerUserHint')} min={100} max={100000} step={100} {...form.getInputProps('max_per_user')} />
         </Group>
         <Text size="xs" c="orange">{t('connlog.privacy')}</Text>
-        <Group justify="flex-end"><Button type="submit" size="xs" loading={save.isPending}>{t('common.save')}</Button></Group>
+        <Group justify="flex-end"><Button type="submit" size="xs" loading={save.isPending}>{t('settingsLayout.saveSection', { section: t('connlog.title') })}</Button></Group>
       </Stack></form>
     </Card>
   )

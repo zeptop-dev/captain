@@ -33,7 +33,7 @@ export function RegistrationCard() {
         <Stack gap={4}>
           {q.data.settings.enabled === undefined && <Text size="xs" c="dimmed">{t('registration.inherited')}</Text>}
           <Group gap="xs"><Text size="sm">{t('registration.passwordStatus')}</Text><Badge color={q.data.password_open ? 'teal' : 'gray'}>{q.data.password_open ? t('registration.open') : t('registration.closed')}</Badge></Group>
-          <Group gap="xs"><Text size="sm">{t('registration.oidcStatus')}</Text><Badge color={q.data.oidc_open ? 'teal' : 'gray'}>{q.data.oidc_open ? t('registration.open') : t('registration.closed')}</Badge><Anchor component={Link} to="/settings/oidc" size="xs">{t('settings.oidc')}</Anchor></Group>
+          <Group gap="xs"><Text size="sm">{t('registration.oidcStatus')}</Text><Badge color={q.data.oidc_open ? 'teal' : 'gray'}>{q.data.oidc_open ? t('registration.open') : t('registration.closed')}</Badge><Anchor component={Link} to="/settings/category/account#oidc" size="xs">{t('settings.oidc')}</Anchor></Group>
         </Stack>
         <Textarea label={t('registration.suffixes')} description={t('registration.suffixesHint')} placeholder={'gmail.com\noutlook.com'} autosize minRows={1} {...form.getInputProps('suffixes')} />
         <SettingsFields>
@@ -46,7 +46,7 @@ export function RegistrationCard() {
           {form.values.provider && <TextInput label="Site key" {...form.getInputProps('site_key')} />}
           {form.values.provider && <PasswordInput label="Secret key" placeholder={q.data?.has_captcha_secret ? t('mail.keep') : ''} {...form.getInputProps('secret_key')} />}
         </SettingsFields>
-        <Group justify="flex-end"><Button type="submit" size="xs" loading={save.isPending}>{t('common.save')}</Button></Group>
+        <Group justify="flex-end"><Button type="submit" size="xs" loading={save.isPending}>{t('settingsLayout.saveSection', { section: t('registration.title') })}</Button></Group>
       </Stack></form>
     </Card>
   )

@@ -38,7 +38,7 @@ export function AuditRulesCard() {
     <Card>
       <Group justify="space-between" mb="xs">
         <div><Title order={5}>{t('audit.title')}</Title><Text size="xs" c="dimmed">{t('audit.hint')}</Text></div>
-        <Group gap="xs"><Button size="xs" variant="default" leftSection={<IconPlus size={14} />} onClick={() => setRules([...list, { name: `rule-${list.length + 1}`, match: [], action: 'block', enabled: true }])}>{t('audit.add')}</Button><Button size="xs" disabled={!dirty} loading={save.isPending} onClick={() => save.mutate()}>{t('common.save')}</Button></Group>
+        <Group gap="xs"><Button size="xs" variant="default" leftSection={<IconPlus size={14} />} onClick={() => setRules([...list, { name: `rule-${list.length + 1}`, match: [], action: 'block', enabled: true }])}>{t('audit.add')}</Button><Button size="xs" disabled={!dirty} loading={save.isPending} onClick={() => save.mutate()}>{t('settingsLayout.saveSection', { section: t('audit.title') })}</Button></Group>
       </Group>
       <Stack gap="xs">
         {list.length === 0 && <Text size="sm" c="dimmed">{t('audit.empty')}</Text>}

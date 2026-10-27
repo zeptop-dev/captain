@@ -35,7 +35,7 @@ export function TelegramCard() {
             <Switch label={t('telegram.notifyTickets')} {...form.getInputProps('notify_tickets', { type: 'checkbox' })} />
           </Stack>
         </SettingsFields>
-        <Group justify="flex-end"><Button size="xs" variant="light" loading={test.isPending} onClick={() => test.mutate()}>{t('telegram.test')}</Button><Button type="submit" size="xs" loading={save.isPending}>{t('common.save')}</Button></Group>
+        <Group justify="flex-end"><Button size="xs" variant="light" loading={test.isPending} onClick={() => test.mutate()}>{t('telegram.test')}</Button><Button type="submit" size="xs" loading={save.isPending}>{t('settingsLayout.saveSection', { section: t('telegram.title') })}</Button></Group>
       </Stack></form>
     </Card>
   )
@@ -54,11 +54,13 @@ export function TrialCard() {
     <Card>
       <Title order={5} mb="xs">{t('trial.title')}</Title>
       <Text size="xs" c="dimmed" mb="sm">{t('trial.hint')}</Text>
-      <form onSubmit={form.onSubmit((v) => save.mutate(v))}><Group align="flex-end">
-        <Select label={t('trial.plan')} placeholder={t('trial.off')} clearable data={(plans.data ?? []).map((p) => ({ value: String(p.ID), label: p.Name }))} style={{ flex: 2 }} {...form.getInputProps('plan')} />
-        <NumberInput label={t('trial.days')} min={1} style={{ flex: 1 }} {...form.getInputProps('days')} />
-        <Button type="submit" size="xs" mb={2} loading={save.isPending}>{t('common.save')}</Button>
-      </Group></form>
+      <form onSubmit={form.onSubmit((v) => save.mutate(v))}><Stack gap="sm">
+        <SettingsFields>
+          <Select label={t('trial.plan')} placeholder={t('trial.off')} clearable data={(plans.data ?? []).map((p) => ({ value: String(p.ID), label: p.Name }))} {...form.getInputProps('plan')} />
+          <NumberInput label={t('trial.days')} min={1} {...form.getInputProps('days')} />
+        </SettingsFields>
+        <Group justify="flex-end"><Button type="submit" size="xs" loading={save.isPending}>{t('settingsLayout.saveSection', { section: t('trial.title') })}</Button></Group>
+      </Stack></form>
     </Card>
   )
 }

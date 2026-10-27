@@ -68,7 +68,7 @@ export function MailCard() {
         </Group>
         <Group justify="space-between" align="flex-end">
           <Group align="flex-end"><TextInput label={t('mail.testTo')} placeholder="you@example.com" value={to} onChange={(e) => setTo(e.currentTarget.value)} /><Button variant="default" size="sm" loading={test.isPending} disabled={!to.includes('@')} onClick={() => test.mutate()}>{t('mail.test')}</Button></Group>
-          <Button type="submit" size="sm" loading={save.isPending}>{t('common.save')}</Button>
+          <Button type="submit" size="sm" loading={save.isPending}>{t('settingsLayout.saveSection', { section: t('mail.title') })}</Button>
         </Group>
       </Stack></form>
     </Card>

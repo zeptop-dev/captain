@@ -902,7 +902,6 @@
     "modeRules": "响应规则"
   },
   "probe": {
-    "title": "探针 / 状态页",
     "hint": "默认关闭。开启后服务器每隔几秒上报主机指标，面板聚合成分钟/小时/天曲线并提供一个状态页。用别的探针的人保持关闭即可，服务器不会多发任何数据。",
     "beat": "上报间隔（秒）",
     "carrier": "三网延迟（电信/联通/移动）",
@@ -2297,7 +2296,6 @@
   },
   "workspace": {
     "search": "搜索设置…",
-    "settingsHint": "选择分类，或搜索需要的设置。",
     "unsaved": "有未保存的修改",
     "leaveHint": "请先保存修改，或放弃修改后离开。",
     "stay": "继续编辑",
@@ -2305,30 +2303,13 @@
     "forbidden": "当前账号无权访问这些设置。",
     "notFound": "这个设置页面不存在。",
     "noResults": "没有匹配的设置，请换个关键词。",
-    "allSettings": "设置目录",
     "updateHint": "查看当前版本和可用更新。",
-    "registration": "注册与试用",
-    "nodeSettings": "服务器规则",
     "subscription": "订阅",
     "templates": "订阅模板",
-    "subscriptionSettings": "订阅设置",
-    "monitorSettings": "采集与状态页",
     "business": "运营",
     "marketing": "营销与返佣",
     "content": "内容与站点",
-    "businessSettings": "业务规则",
     "businessHint": "在同一入口处理相关运营事务。",
-    "businessRules": "各业务模块的规则",
-    "areas": {
-      "users": "用户规则",
-      "nodes": "服务器规则与证书",
-      "subscription": "订阅设置",
-      "monitoring": "监控设置",
-      "business": "业务规则",
-      "security": "员工与全站安全",
-      "integrations": "通知与集成",
-      "maintenance": "备份与维护"
-    },
     "loadError": "设置加载失败，请重试后再编辑。",
     "retry": "重试",
     "backupHint": "管理本地快照、异地存储与备份加密。",
@@ -3346,5 +3327,42 @@
     "clearFilter": "清除权限筛选",
     "newInboundHint": "新建时可选初始用户组；保存后可在节点访问权限中设置多组或暂不授权。",
     "connectionHint": "已有连接的访问权限请到“订阅节点”列表，通过钥匙按钮修改；这里保存连接参数会保留现有权限。"
+  },
+  "settingsLayout": {
+    "hint": "按用途管理全站设置。每个模块独立保存，切换分类前会提醒未保存的修改。",
+    "search": "搜索设置，例如 SMTP、品牌、证书…",
+    "searchResults": "搜索结果",
+    "categoriesLabel": "设置分类",
+    "jumpTo": "跳转到设置",
+    "saveSection": "保存{{section}}",
+    "siteEditor": "品牌与首页",
+    "advanced": "高级设置",
+    "advancedHint": "自定义脚本和结构化配置，仅在需要时展开。",
+    "probeTitle": "服务器探针",
+    "probeAudience": "供维护者查看服务器资源与网络表现；可单独设置访问范围和品牌。",
+    "statusTitle": "用户服务状态",
+    "statusAudience": "面向用户展示订阅节点的状态、公开范围和维护计划。",
+    "immediateHint": "切换后立即保存。",
+    "saveBeforeRestart": "请先保存本页未保存的修改，再执行升级、重启或重置。",
+    "categories": {
+      "site": "站点与品牌",
+      "account": "账户与安全",
+      "subscription": "订阅与客户端",
+      "business": "套餐与交易",
+      "proxy": "代理与证书",
+      "monitoring": "监控与状态",
+      "integrations": "通知与集成",
+      "maintenance": "系统维护"
+    },
+    "descriptions": {
+      "site": "全站品牌、首页内容与门户外观。站点设置与公告分别保存。",
+      "account": "注册与登录、试用及管理员访问控制。个人凭据在「我的账户」中管理。",
+      "subscription": "配置订阅分发与客户端下载。节点权限和套餐内容仍在各自管理页。",
+      "business": "设置购买限制、余量折抵及邀请返佣。支付渠道继续由部署配置管理。",
+      "proxy": "全局证书、连接记录与代理策略。单台服务器配置仍在服务器详情中。",
+      "monitoring": "分别管理服务器探针与用户服务状态，配置网络探测和外部心跳。",
+      "integrations": "配置邮件、Telegram、事件通知和第三方登录应用，各模块独立保存。",
+      "maintenance": "管理备份、版本更新和操作日志。升级、重启与重置会影响当前会话。"
+    }
   }
 }

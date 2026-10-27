@@ -23,7 +23,7 @@ export function SecurityCard() {
       <Title order={5} mb="xs">{t('security.title')}</Title>
       <Text size="xs" c="dimmed" mb="sm">{t('security.hint')}</Text>
       <TagsInput label={t('security.allowCidrs')} description={t('security.allowCidrsHint')} placeholder="203.0.113.0/24" value={list ?? q.data?.admin_allow_cidrs ?? []} onChange={setList} />
-      <Group justify="flex-end" mt="sm"><Button size="xs" loading={save.isPending} onClick={() => save.mutate()}>{t('common.save')}</Button></Group>
+      <Group justify="flex-end" mt="sm"><Button size="xs" loading={save.isPending} onClick={() => save.mutate()}>{t('settingsLayout.saveSection', { section: t('security.title') })}</Button></Group>
     </Card>
   )
 }

@@ -12,9 +12,9 @@ export default function BusinessPage() {
   const { me } = useAuth()
   const content = section === 'content'
   const entries = content ? [
-    { to: '/articles', labelKey: 'nav.articles' }, { to: '/site', labelKey: 'nav.site' }, { to: '/settings/notice', labelKey: 'settings.notice' },
+    { to: '/articles', labelKey: 'nav.articles' }, { to: '/settings/category/site#site', labelKey: 'nav.site' }, { to: '/settings/category/site#notice', labelKey: 'settings.notice' },
   ] : [
-    { to: '/coupons', labelKey: 'nav.coupons' }, { to: '/gifts', labelKey: 'nav.gifts' }, { to: '/withdrawals', labelKey: 'nav.withdrawals' }, { to: '/settings/invite', labelKey: 'settings.invite' },
+    { to: '/coupons', labelKey: 'nav.coupons' }, { to: '/gifts', labelKey: 'nav.gifts' }, { to: '/withdrawals', labelKey: 'nav.withdrawals' }, { to: '/settings/category/business#invite', labelKey: 'settings.invite' },
   ]
   return <><PageHeader title={t(content ? 'workspace.content' : 'workspace.marketing')} subtitle={t('workspace.businessHint')} /><SimpleGrid cols={{ base: 1, sm: 2 }}>{entries.filter(e => canVisit(e.to, me?.role ?? '')).map(e => <Card component={Link} to={e.to} key={e.to} style={{ textDecoration: 'none', color: 'inherit' }}><Group justify="space-between"><Text fw={600}>{t(e.labelKey)}</Text><IconArrowRight size={17} /></Group></Card>)}</SimpleGrid></>
 }

@@ -37,7 +37,7 @@ export function DynLimitCard() {
           <TagsInput label={t('dynlimit.windows')} description={t('dynlimit.windowsHint')} placeholder="20:00-02:00" {...form.getInputProps('windows')} />
           <TagsInput label={t('dynlimit.whitelist')} description={t('dynlimit.whitelistHint')} placeholder="12, 34" value={form.values.whitelist.map(String)} onChange={(v) => form.setFieldValue('whitelist', v.map(Number).filter((n) => n > 0))} />
         </SettingsFields>
-        <Group justify="flex-end"><Button type="submit" size="xs" loading={save.isPending}>{t('common.save')}</Button></Group>
+        <Group justify="flex-end"><Button type="submit" size="xs" loading={save.isPending}>{t('settingsLayout.saveSection', { section: t('dynlimit.title') })}</Button></Group>
       </Stack></form>
     </Card>
   )

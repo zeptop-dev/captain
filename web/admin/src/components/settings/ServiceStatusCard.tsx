@@ -1,4 +1,4 @@
-import { Alert, Anchor, Badge, Button, Card, Checkbox, Group, MultiSelect, Select, SimpleGrid, Stack, Table, Text, Textarea, TextInput, Title } from '@mantine/core'
+import { Alert, Anchor, Badge, Box, Button, Card, Checkbox, Group, MultiSelect, Select, SimpleGrid, Stack, Table, Text, Textarea, TextInput, Title } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { IconPlus, IconRefresh, IconTrash } from '@tabler/icons-react'
@@ -54,6 +54,7 @@ export default function ServiceStatusCard() {
     save.mutate(settings)
   }
   return <Stack>
+    <Box><Title order={4}>{t('settingsLayout.statusTitle')}</Title><Text size="sm" c="dimmed" mt={4}>{t('settingsLayout.statusAudience')}</Text></Box>
     <Alert>{t('serviceStatus.hint')}</Alert>
     {(q.isError || entries.isError) && <Alert color="red"><Stack align="flex-start"><Text size="sm">{t('workspace.loadError')}</Text><Button variant="light" size="xs" onClick={() => { q.refetch(); entries.refetch() }}>{t('workspace.retry')}</Button></Stack></Alert>}
     {conflict && <Alert color="yellow"><Stack align="flex-start"><Text size="sm">{t(conflict === 'path' ? 'serviceStatus.pathConflict' : 'serviceStatus.conflict')}</Text>{conflict === 'revision' && <Button variant="light" size="xs" onClick={reload}>{t('serviceStatus.reload')}</Button>}</Stack></Alert>}
@@ -81,7 +82,7 @@ export default function ServiceStatusCard() {
         {duplicates && <Alert color="red">{t('serviceStatus.duplicateMaintenance')}</Alert>}
       </Stack></Card>
       {missing.length > 0 && <Alert color="yellow">{t('serviceStatus.deletedHint')}</Alert>}
-      <Group justify="flex-end"><Button variant="default" onClick={reload}>{t('serviceStatus.reload')}</Button><Button type="submit" loading={save.isPending} disabled={blocked || conflict === 'revision' || !form.isDirty()}>{t('common.save')}</Button></Group>
+      <Group justify="flex-end"><Button variant="default" onClick={reload}>{t('serviceStatus.reload')}</Button><Button type="submit" loading={save.isPending} disabled={blocked || conflict === 'revision' || !form.isDirty()}>{t('settingsLayout.saveSection', { section: t('settingsLayout.statusTitle') })}</Button></Group>
     </Stack></fieldset></form>
     <Card><Stack>
       <Group justify="space-between"><Title order={5}>{t('serviceStatus.preview')}</Title><Button variant="light" size="xs" leftSection={<IconRefresh size={15} />} loading={preview.isFetching} onClick={() => preview.refetch()}>{t('common.refresh')}</Button></Group>

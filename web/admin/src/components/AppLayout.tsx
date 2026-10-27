@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { brandLogo } from '../../../shared/branding'
 import { usePublicBrand } from '../lib/branding'
 import { useDisclosure } from '@mantine/hooks'
-import { IconLayoutDashboard, IconServer, IconUsers, IconSettings, IconLogout, IconLanguage, IconGauge, IconShip, IconSun, IconMoon, IconDotsVertical, IconChevronDown, IconLink, IconUsersGroup, IconReceipt, IconMessage, IconTemplate, IconAdjustments, IconFilter, IconWorld, IconBuilding, IconFileText, IconTag, IconBell, IconCertificate } from '@tabler/icons-react'
+import { IconLayoutDashboard, IconServer, IconUsers, IconSettings, IconLogout, IconLanguage, IconGauge, IconShip, IconSun, IconMoon, IconDotsVertical, IconChevronDown, IconLink, IconUsersGroup, IconReceipt, IconMessage, IconTemplate, IconAdjustments, IconFilter, IconWorld, IconBuilding, IconFileText, IconTag, IconBell } from '@tabler/icons-react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../lib/auth'
@@ -29,7 +29,6 @@ const icons = {
   '/entries': IconLink, '/sub-templates': IconTemplate, '/sub-templates?mode=profiles': IconAdjustments, '/sub-templates?mode=rules': IconFilter, '/external': IconWorld,
   '/monitoring': IconGauge, '/monitoring?tab=alerts': IconBell, '/speedtest': IconGauge,
   '/plans': IconReceipt, '/orders': IconReceipt, '/tickets': IconMessage, '/business/marketing': IconTag, '/business/content': IconFileText,
-  '/settings/area/users': IconSettings, '/settings/area/nodes': IconCertificate, '/settings/service-status': IconGauge, '/settings/subscription': IconSettings, '/settings/clients': IconFileText, '/settings/area/monitoring': IconSettings, '/settings/area/business': IconSettings,
 }
 
 export function Brand({ size = 'md' }: { size?: 'md' | 'lg' }) {
@@ -71,7 +70,7 @@ export function AppLayout() {
           <Group gap="xs" wrap="nowrap">
             {me?.version && (
               <Indicator disabled={!upd.data?.captain?.has_update} color="red" size={8} offset={2} processing styles={{ root: { display: 'flex' } }}>
-                <Badge variant="light" color="gray" style={{ cursor: role === 'admin' ? 'pointer' : undefined }} onClick={role === 'admin' ? () => nav('/settings/update') : undefined} title={upd.data?.captain?.has_update ? t('update.available', { version: upd.data.captain.latest }) : undefined}>{me.version}</Badge>
+                <Badge variant="light" color="gray" style={{ cursor: role === 'admin' ? 'pointer' : undefined }} onClick={role === 'admin' ? () => nav('/settings/category/maintenance#update') : undefined} title={upd.data?.captain?.has_update ? t('update.available', { version: upd.data.captain.latest }) : undefined}>{me.version}</Badge>
               </Indicator>
             )}
           </Group>
@@ -83,7 +82,7 @@ export function AppLayout() {
           <GroupedNavigation key={role} groups={shown} icons={icons} activeGroup={group} onNavigate={close} />
         </AppShell.Section>
         <AppShell.Section p="sm" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
-          {role === 'admin' && <NavLink component={Link} to="/settings" label={t('nav.settings')} leftSection={<IconSettings size={18} />} active={group === 'system'} onClick={close} mb="sm" styles={{ root: { borderRadius: 8 } }} />}
+          {role === 'admin' && <NavLink component={Link} to="/settings/category/site" label={t('nav.settings')} leftSection={<IconSettings size={18} />} active={group === 'system'} onClick={close} mb="sm" styles={{ root: { borderRadius: 8 } }} />}
           <Group justify="space-between" mb="sm" px={4}>
             <Menu shadow="md" width={160}>
               <Menu.Target>
@@ -107,7 +106,7 @@ export function AppLayout() {
               <Menu.Target><ActionIcon variant="subtle" color="gray" aria-label="account menu"><IconDotsVertical size={18} /></ActionIcon></Menu.Target>
               <Menu.Dropdown>
                 <Menu.Item leftSection={<IconSettings size={16} />} onClick={() => { nav('/account'); close() }}>{t('passkeys.account')}</Menu.Item>
-                {role === 'admin' && <Menu.Item leftSection={<IconSettings size={16} />} onClick={() => { nav('/settings'); close() }}>{t('nav.settings')}</Menu.Item>}
+                {role === 'admin' && <Menu.Item leftSection={<IconSettings size={16} />} onClick={() => { nav('/settings/category/site'); close() }}>{t('nav.settings')}</Menu.Item>}
                 <Menu.Item leftSection={<IconLogout size={16} />} color="red" onClick={async () => { await logout(); nav('/login') }}>{t('app.logout')}</Menu.Item>
               </Menu.Dropdown>
             </Menu>

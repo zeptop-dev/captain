@@ -85,7 +85,7 @@ export function BackupCard() {
             <Button size="xs" variant="light" leftSection={<IconDatabaseExport size={14} />} loading={run.isPending} onClick={() => run.mutate()}>{t('backup.runNow')}</Button>
             {v.remote && <Button size="xs" variant="default" leftSection={<IconCloudUpload size={14} />} loading={test.isPending} onClick={() => test.mutate(v)}>{t('backup.test')}</Button>}
           </Group>
-          <Button type="submit" size="xs" loading={save.isPending}>{t('common.save')}</Button>
+          <Button type="submit" size="xs" loading={save.isPending}>{t('settingsLayout.saveSection', { section: t('backup.title') })}</Button>
         </Group>
         {st?.last_at && !st.last_at.startsWith('0001') && (
           <Text size="xs" c={st.last_error || st.remote_error ? 'red' : 'dimmed'}>

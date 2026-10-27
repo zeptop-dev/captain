@@ -148,7 +148,7 @@ function EntriesWorkspace() {
   const assignable = assignCategory !== null && categoryOptions.some(option => option.value === assignCategory)
   return <>
     <PageHeader title={t('entryFlow.title')} subtitle={t('entryFlow.subtitle')} actions={<Group gap="xs">
-      {admin && <Button component={Link} to="/settings/service-status" variant="default">{t('serviceStatus.title')}</Button>}
+      {admin && <Button component={Link} to="/settings/category/monitoring#service-status" variant="default">{t('serviceStatus.title')}</Button>}
       {canWrite && <Button leftSection={<IconPlus size={16} />} onClick={() => createNode()} disabled={q.isLoading || q.isError || sourcesLoading}>{t('entryFlow.createNode')}</Button>}
       {admin && <Menu position="bottom-end"><Menu.Target><Button variant="light" rightSection={<IconChevronDown size={16} />}>{t('lines.create')}</Button></Menu.Target><Menu.Dropdown>
         <Menu.Item onClick={() => { updateParams({ tab: 'lines', section: 'forward', mode: null }); setEditingLine('new') }}>{t('lines.normal')}</Menu.Item>
