@@ -34,5 +34,7 @@ export const rememberReferral = createReferralWriter(async code => {
     method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ Code: code }), signal: AbortSignal.timeout(10_000),
   })
-  if (!response.ok) throw new Error('Could not save invitation')
+  // A removed or unknown invite has no attribution. It must not prevent an
+  // existing account from signing in; registration policy stays server-side.
+  if (!response.ok && response.status !== 404) throw new Error('Could not save invitation')
 })

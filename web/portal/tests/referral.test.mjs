@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { authDestination, createReferralWriter, referralCode, withReferral } from '../src/lib/referral.ts'
+import { authDestination, createReferralWriter, referralCode, rememberReferral, withReferral } from '../src/lib/referral.ts'
 import { loginReturn } from '../src/lib/login-return.ts'
 import { readFileSync } from 'node:fs'
 
@@ -49,6 +49,22 @@ test('failed bootstrap can retry and does not block a corrected invitation', asy
   await write('SECOND')
   await write('')
   assert.equal(count, 3)
+})
+
+test('unknown invitation permits OAuth but transient and malformed requests remain retryable', async () => {
+  const original = globalThis.fetch
+  try {
+    globalThis.fetch = async () => new Response('{}', { status: 404 })
+    await rememberReferral('REMOVED')
+    for (const status of [400, 500]) {
+      globalThis.fetch = async () => new Response('{}', { status })
+      await assert.rejects(rememberReferral('RETRY-' + status))
+    }
+    globalThis.fetch = async () => { throw new TypeError('Network unavailable') }
+    await assert.rejects(rememberReferral('NETWORK'))
+    globalThis.fetch = async () => new Response('{}', { status: 200 })
+    await rememberReferral('NETWORK')
+  } finally { globalThis.fetch = original }
 })
 
 test('homepage and referral notices exist in all six portal languages', () => {

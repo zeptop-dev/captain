@@ -4,7 +4,7 @@ const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
 const base = process.env.PORTAL_TEST_URL || 'http://127.0.0.1:5622/portal/'
 const browser = await chromium.launch({ headless: true, ...(process.env.CHROME_EXECUTABLE ? { executablePath: process.env.CHROME_EXECUTABLE } : {}) })
 const errors = []
-const state = { loggedIn: false, homepage: false, refGate: null, failRef: false, codes: [], events: [], registered: null, oauthNext: '' }
+const state = { loggedIn: false, homepage: false, refGate: null, failRef: false, missingRef: false, codes: [], events: [], registered: null, oauthNext: '' }
 const context = await browser.newContext({ locale: 'en-US', viewport: { width: 1440, height: 1000 } })
 context.on('page', page => page.on('pageerror', error => errors.push(error.message)))
 await context.addInitScript(() => { if (location.protocol === 'http:') localStorage.setItem('i18nextLng', 'en') })
@@ -23,6 +23,7 @@ await context.route('**/*', async route => {
     const code = req.postDataJSON().Code
     state.codes.push(code)
     if (state.refGate) await state.refGate
+    if (state.missingRef) return send({ error: 'Invitation not found' }, 404)
     if (state.failRef) return send({ error: 'Invalid invitation' }, 400)
     state.events.push('saved:' + code)
     return send({}, 200, { 'set-cookie': 'captain_ref=' + code + '; Path=/; HttpOnly; SameSite=Lax' })
@@ -80,6 +81,14 @@ try {
   await page.getByRole('button', { name: 'Continue with Example OAuth', exact: true }).click()
   await page.getByRole('heading', { name: 'OAuth destination', exact: true }).waitFor()
   assert.ok(state.events.at(-1).includes('captain_ref=RETRY'))
+  state.missingRef = true; state.events = []
+  await page.goto(base + 'login?ref=REMOVED')
+  await page.getByRole('button', { name: 'Continue with Example OAuth', exact: true }).click()
+  await page.getByRole('heading', { name: 'OAuth destination', exact: true }).waitFor()
+  assert.equal(state.events.length, 1)
+  assert.ok(state.events[0].startsWith('oauth:'))
+  assert.equal(state.oauthNext, '/portal/')
+  state.missingRef = false
   // Navigating within the portal while the cookie is pending cancels the old
   // page's OAuth transition; a late response must not hijack the new form.
   state.refGate = new Promise(resolve => { releaseRef = resolve })
@@ -100,5 +109,5 @@ try {
   await page.getByRole('link', { name: 'Back to the site', exact: true }).waitFor()
   assert.equal(await page.getByRole('link', { name: 'Example home', exact: true }).getAttribute('href'), '/')
   assert.deepEqual(errors, [])
-  console.log('PASS: anonymous/authenticated entry, ref registration and forgot paths, ordered OAuth cookie, failure retry, legacy enabled default')
+  console.log('PASS: anonymous/authenticated entry, ref registration and forgot paths, ordered OAuth cookie, failure retry, missing invite OAuth, navigation cancellation, legacy enabled default')
 } finally { await browser.close() }
