@@ -32,7 +32,8 @@
     "main": "기본 탐색",
     "account": "사용자 센터",
     "rights": "모든 권리 보유.",
-    "top": "맨 위로"
+    "top": "맨 위로",
+    "brandAccount": "{{name}} 사용자 센터"
   },
   "home": {
     "eyebrow": "구독과 연결",

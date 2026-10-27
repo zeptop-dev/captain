@@ -51,7 +51,10 @@
     "introHint": "구독 관리와 기기 연결을 한곳에서 할 수 있습니다.",
     "introCaption": "기기 · 구독 · 연결",
     "introFooter": "하나의 계정으로 나의 기기를 연결하세요.",
-    "otherMethods": "또는"
+    "otherMethods": "또는",
+    "brandHome": "{{name}} 홈",
+    "brandPortal": "{{name}} 사용자 센터",
+    "inviteSaveFailed": "초대 코드를 저장하지 못했습니다. 코드를 확인한 후 다시 시도해 주세요."
   },
   "home": {
     "noPlanHint": "요금제를 선택해 시작하세요.",

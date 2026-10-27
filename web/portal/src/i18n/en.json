@@ -51,7 +51,10 @@
     "introHint": "Manage subscriptions and connect your devices, all in one place.",
     "introCaption": "Devices · Subscriptions · Connections",
     "introFooter": "One account. Your connections.",
-    "otherMethods": "or"
+    "otherMethods": "or",
+    "brandHome": "{{name}} home",
+    "brandPortal": "{{name}} user center",
+    "inviteSaveFailed": "Could not save the invitation code. Check the code and try again."
   },
   "home": {
     "noPlanHint": "Pick a plan to get started.",

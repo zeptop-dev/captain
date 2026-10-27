@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { IconArrowUp, IconArrowUpRight, IconChevronDown, IconMenu2, IconX } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
-import type { TFunction } from 'i18next'
 import { useQuery } from '@tanstack/react-query'
 import { getJSON } from '../lib/site'
 import type { PublishedClient } from '../../../shared/client-downloads'
@@ -9,40 +8,11 @@ import { SiteLanguageSelector } from './SiteLanguageSelector'
 import type { Site } from '../lib/site'
 import { SiteThemeSelector } from './SiteThemeSelector'
 import { SiteBrandMark } from './SiteBrandMark'
-
-type Link = { label: string; href: string }
-type LinkGroup = { id: string; label: string; links: Link[] }
-
-function navigation(t: TFunction, site?: Site, hasClients = false): LinkGroup[] {
-  return [
-    { id: 'features', label: t('nav.features'), links: [
-      { label: t('nav.coverage'), href: '/#coverage' },
-      { label: t('nav.platform'), href: '/#platform' },
-      ...(site?.features.length ? [{ label: t('nav.serviceFeatures'), href: '/#features' }] : []),
-    ] },
-    { id: 'support', label: t('nav.support'), links: [
-      { label: t('nav.connect'), href: '/portal/connect' },
-      ...((site?.links.download || hasClients) ? [{ label: t('nav.download'), href: site?.links.download || '/downloads' }] : []),
-      ...(site?.faq.length ? [{ label: t('nav.faq'), href: '/#faq' }] : []),
-      ...(site?.links.telegram ? [{ label: t('nav.contact'), href: site.links.telegram }] : []),
-    ] },
-    { id: 'services', label: t('nav.services'), links: [
-      { label: t('nav.plans'), href: site?.show_plans ? '/#plans' : '/portal/plans' },
-      ...(site?.links.tos ? [{ label: t('nav.terms'), href: site.links.tos }] : []),
-      { label: t('nav.security'), href: '/portal/account' },
-    ] },
-    { id: 'about', label: t('nav.about'), links: [
-      { label: t('nav.home'), href: '/' },
-      ...(site?.service_status_url ? [{ label: t('nav.status'), href: site.service_status_url }] : []),
-      ...(site?.probe_url ? [{ label: t('nav.monitoring'), href: site.probe_url }] : []),
-      ...(site?.links.github ? [{ label: 'GitHub', href: site.links.github }] : []),
-    ] },
-  ]
-}
+import { brandDestination, navigation } from '../lib/site-navigation'
 
 function Brand({ name, site }: { name: string; site?: Site }) {
   const { t } = useTranslation()
-  return <a className="site-brand" href="/" aria-label={t('nav.brandHome', { name })}>
+  return <a className="site-brand" href={brandDestination(site)} aria-label={t(site?.homepage_enabled === false ? 'nav.brandAccount' : 'nav.brandHome', { name })}>
     <SiteBrandMark branding={site?.branding} />
     <span>{name}</span>
   </a>
@@ -85,7 +55,7 @@ export function SiteLayout({ site, children }: { site?: Site; children: ReactNod
     <main id="site-content">{children}</main>
     <footer className="site-footer">
       <div className="site-container">
-        <a className="site-footer-brand" href="/"><SiteBrandMark branding={site?.branding} /><span>{name}</span><IconArrowUpRight size={32} stroke={1.5} aria-hidden /></a>
+        <a className="site-footer-brand" href={brandDestination(site)} aria-label={t(site?.homepage_enabled === false ? 'nav.brandAccount' : 'nav.brandHome', { name })}><SiteBrandMark branding={site?.branding} /><span>{name}</span><IconArrowUpRight size={32} stroke={1.5} aria-hidden /></a>
         <div className="site-footer-columns">{groups.map(group => <div key={group.id}><h2>{group.label}</h2><ul>{group.links.map(link => <li key={`${link.label}:${link.href}`}><a href={link.href}>{link.label}</a></li>)}</ul></div>)}</div>
       </div>
       <div className="site-footer-bottom"><div className="site-container"><small>© {new Date().getFullYear()} {name}. {t('nav.rights')}</small><a href="#top">{t('nav.top')} <IconArrowUp size={14} aria-hidden /></a></div></div>

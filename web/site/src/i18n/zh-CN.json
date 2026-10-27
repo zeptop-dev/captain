@@ -32,7 +32,8 @@
     "main": "主导航",
     "account": "用户中心",
     "rights": "保留所有权利。",
-    "top": "返回顶部"
+    "top": "返回顶部",
+    "brandAccount": "{{name}} 用户中心"
   },
   "home": {
     "eyebrow": "订阅与连接",

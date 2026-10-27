@@ -2,6 +2,8 @@ import { ActionIcon, Anchor, Group, Menu, Text, Title } from '@mantine/core'
 import { IconArrowLeft, IconArrowUpRight, IconCheck, IconCube, IconDeviceLaptop, IconLanguage, IconServer } from '@tabler/icons-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useLocation } from 'react-router-dom'
+import { referralCode, withReferral } from '../lib/referral'
 import { useSite } from '../lib/theme'
 import { BrandMark } from './BrandMark'
 import { ThemeToggle } from './ThemeToggle'
@@ -17,6 +19,9 @@ export function AuthLayout({ title, description, children, footer }: {
 }) {
   const { t, i18n } = useTranslation()
   const site = useSite()
+  const location = useLocation()
+  const homepage = site.data?.homepage_enabled !== false
+  const brandURL = withReferral(homepage ? '/' : '/portal/', referralCode(location.search))
   const brand = site.data?.theme?.portal_title || site.data?.name || 'Captain'
   const [year] = useState(() => new Date().getFullYear())
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }) }, [])
@@ -24,12 +29,12 @@ export function AuthLayout({ title, description, children, footer }: {
     <div className={styles.shell}>
       <header className={styles.header}>
         <div className={styles.headerInner}>
-          <a href="/" className={styles.brand}>
+          <a href={brandURL} className={styles.brand} aria-label={t(homepage ? 'auth.brandHome' : 'auth.brandPortal', { name: brand })}>
             <BrandMark branding={site.data?.branding} fallbackClassName={styles.brandMark} />
             <span className={styles.brandName}>{brand}</span>
           </a>
           <Group gap={4} wrap="nowrap" className={styles.headerActions}>
-            <Anchor href="/" className={styles.homeLink} aria-label={t('auth.home')}><IconArrowLeft size={16} stroke={1.5} aria-hidden /><span>{t('auth.home')}</span></Anchor>
+            {homepage && <Anchor href={brandURL} className={styles.homeLink} aria-label={t('auth.home')}><IconArrowLeft size={16} stroke={1.5} aria-hidden /><span>{t('auth.home')}</span></Anchor>}
             <ThemeToggle />
             <Menu position="bottom-end" shadow="sm">
               <Menu.Target><ActionIcon size={36} variant="subtle" color="gray" className={styles.language} aria-label={t('portalNav.language')}><IconLanguage size={19} stroke={1.5} aria-hidden /></ActionIcon></Menu.Target>

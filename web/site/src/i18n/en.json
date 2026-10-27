@@ -32,7 +32,8 @@
     "main": "Main navigation",
     "account": "User center",
     "rights": "All rights reserved.",
-    "top": "Back to top"
+    "top": "Back to top",
+    "brandAccount": "{{name}} user center"
   },
   "home": {
     "eyebrow": "SUBSCRIPTION & CONNECTION",

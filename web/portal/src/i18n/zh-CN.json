@@ -51,7 +51,10 @@
     "introHint": "管理订阅、连接设备，在一个地方，找到所需的一切。",
     "introCaption": "设备 · 订阅 · 连接",
     "introFooter": "一个账户，连接你的设备。",
-    "otherMethods": "或"
+    "otherMethods": "或",
+    "brandHome": "{{name}} 首页",
+    "brandPortal": "{{name}} 用户中心",
+    "inviteSaveFailed": "邀请码保存失败，请检查邀请码后重试。"
   },
   "home": {
     "noPlanHint": "选一个套餐开始使用。",

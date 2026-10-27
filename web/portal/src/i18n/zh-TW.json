@@ -51,7 +51,10 @@
     "introHint": "管理訂閱、連接裝置，在一個地方，找到所需的一切。",
     "introCaption": "裝置 · 訂閱 · 連線",
     "introFooter": "一個帳戶，連接你的裝置。",
-    "otherMethods": "或"
+    "otherMethods": "或",
+    "brandHome": "{{name}} 首頁",
+    "brandPortal": "{{name}} 使用者中心",
+    "inviteSaveFailed": "邀請碼儲存失敗，請檢查邀請碼後重試。"
   },
   "home": {
     "noPlanHint": "選一個方案開始使用。",

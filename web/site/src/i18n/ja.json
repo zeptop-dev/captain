@@ -32,7 +32,8 @@
     "main": "メインナビゲーション",
     "account": "ユーザーセンター",
     "rights": "All rights reserved.",
-    "top": "ページ上部へ"
+    "top": "ページ上部へ",
+    "brandAccount": "{{name}} ユーザーセンター"
   },
   "home": {
     "eyebrow": "サブスクリプションと接続",

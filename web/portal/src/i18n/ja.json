@@ -51,7 +51,10 @@
     "introHint": "サブスクリプションとデバイスの接続を、ひとつの場所で管理。",
     "introCaption": "デバイス · サブスクリプション · 接続",
     "introFooter": "ひとつのアカウントで、あなたの接続を。",
-    "otherMethods": "または"
+    "otherMethods": "または",
+    "brandHome": "{{name}} ホーム",
+    "brandPortal": "{{name}} ユーザーセンター",
+    "inviteSaveFailed": "招待コードを保存できませんでした。コードを確認して、もう一度お試しください。"
   },
   "home": {
     "noPlanHint": "プランを選んで始めましょう。",

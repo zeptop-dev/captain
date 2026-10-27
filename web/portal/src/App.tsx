@@ -1,5 +1,6 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { Center, Loader } from '@mantine/core'
+import { referralCode, withReferral } from './lib/referral'
 import { AuthProvider, useAuth } from './lib/auth'
 import { Layout } from './components/Layout'
 import AuthorizePage from './pages/AuthorizePage'
@@ -18,8 +19,9 @@ import ServiceStatusPage from './pages/ServiceStatusPage'
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { me, loading } = useAuth()
+  const location = useLocation()
   if (loading) return <Center h="100vh"><Loader /></Center>
-  if (!me) return <Navigate to="/login" replace />
+  if (!me) return <Navigate to={withReferral('/login', referralCode(location.search))} replace />
   return <>{children}</>
 }
 

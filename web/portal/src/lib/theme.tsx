@@ -7,7 +7,7 @@ import { effectivePortalScheme, parsePortalPreference, portalSchemeStorageKey, r
 import './theme.css'
 
 export interface SiteTheme { primary?: string; radius?: string; scheme?: string; site_scheme?: string; font_family?: string; portal_title?: string }
-export interface SiteInfo { name: string; description?: string; branding?: Branding; theme?: SiteTheme; probe_url?: string }
+export interface SiteInfo { homepage_enabled?: boolean; name: string; description?: string; branding?: Branding; theme?: SiteTheme; probe_url?: string }
 
 const colors = new Set(['cyan', 'blue', 'indigo', 'violet', 'grape', 'pink', 'red', 'orange', 'yellow', 'lime', 'green', 'teal', 'gray'])
 const radii = new Set(['xs', 'sm', 'md', 'lg', 'xl'])

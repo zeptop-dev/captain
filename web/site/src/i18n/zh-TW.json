@@ -32,7 +32,8 @@
     "main": "主要導覽",
     "account": "使用者中心",
     "rights": "保留所有權利。",
-    "top": "回到頂端"
+    "top": "回到頂端",
+    "brandAccount": "{{name}} 使用者中心"
   },
   "home": {
     "eyebrow": "訂閱與連線",
