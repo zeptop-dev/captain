@@ -92,7 +92,7 @@ const probeSave = () => note().locator('xpath=ancestor::form').getByRole('button
 const dirty = () => page.getByRole('status').filter({ hasText: t('workspace.unsaved') })
 const dialog = () => page.getByRole('dialog', { name: t('workspace.unsaved'), exact: true })
 const suppliersLink = () => page.getByRole('link', { name: t('infraLink.manageSuppliers'), exact: true })
-const settingsLink = () => page.getByRole('link', { name: t('nav.settings'), exact: true })
+const settingsLink = () => page.getByRole('link', { name: t('workspace.systemSettings'), exact: true })
 async function openNode(id) { await page.goto(new URL(`nodes/${id}`, base).href); await note().waitFor(); await probeSave().waitFor({ state: 'visible' }); assert.equal(await probeSave().isEnabled(), true) }
 async function saveProbe(id, clean = true) {
   const response = page.waitForResponse(r => new URL(r.url()).pathname === `/api/admin/nodes/${id}/probe` && r.request().method() === 'PUT')
