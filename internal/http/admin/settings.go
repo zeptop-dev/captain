@@ -186,7 +186,7 @@ func (h *handlers) getSite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	v.MapEntryIDs, v.MapRevision = ids, &revision
-	ok(w, v)
+	ok(w, v.Resolved())
 }
 
 func (h *handlers) putSite(w http.ResponseWriter, r *http.Request) {
@@ -198,9 +198,13 @@ func (h *handlers) putSite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	oldBranding := v.Branding
+	oldHomepageEnabled := v.HomepageEnabled
 	v.MapEntryIDs, v.MapRevision = nil, nil
 	if !readJSON(w, r, &v) {
 		return
+	}
+	if v.HomepageEnabled == nil {
+		v.HomepageEnabled = oldHomepageEnabled
 	}
 	// Both omission and null from legacy clients retain the new object. An
 	// explicit empty string clears an asset without clearing unrelated fields.
@@ -251,7 +255,7 @@ func (h *handlers) putSite(w http.ResponseWriter, r *http.Request) {
 	if h.Probe != nil {
 		h.Probe.Invalidate()
 	}
-	ok(w, v)
+	ok(w, v.Resolved())
 }
 
 // getOIDC returns the providers with secrets replaced by a flag.

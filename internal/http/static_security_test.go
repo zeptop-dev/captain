@@ -13,6 +13,7 @@ import (
 
 	"github.com/zeptop-dev/captain/internal/config"
 	"github.com/zeptop-dev/captain/internal/db"
+	"github.com/zeptop-dev/captain/internal/http/site"
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
@@ -41,7 +42,8 @@ func TestStaticRoutesDoNotExposeDataDirectory(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	srv := httptest.NewServer(New(cfg, store.New(conn), slog.New(slog.NewTextHandler(io.Discard, nil))).Handler())
+	st := store.New(conn)
+	srv := httptest.NewServer(New(cfg, st, slog.New(slog.NewTextHandler(io.Discard, nil))).Handler())
 	t.Cleanup(srv.Close)
 	get := func(path string) (int, string) {
 		t.Helper()
@@ -86,26 +88,35 @@ func TestStaticRoutesDoNotExposeDataDirectory(t *testing.T) {
 				}
 			}
 		}
-		t.Run(name, func(t *testing.T) {
-			if code, body := get("/"); code != http.StatusOK || !strings.Contains(strings.ToLower(body), "<html") {
-				t.Fatalf("landing page: status %d", code)
+		for _, enabled := range []bool{true, false} {
+			if err := st.SetSetting(context.Background(), site.SettingSite, site.Settings{HomepageEnabled: &enabled}); err != nil {
+				t.Fatal(err)
 			}
-			if custom {
-				if code, body := get("/assets/audit.txt"); code != http.StatusOK || body != "PUBLIC-ASSET" {
-					t.Fatalf("custom asset: status %d body %q", code, body)
+			variant := name + "/closed"
+			if enabled {
+				variant = name + "/open"
+			}
+			t.Run(variant, func(t *testing.T) {
+				if code, body := get("/"); code != http.StatusOK || !strings.Contains(strings.ToLower(body), "<html") {
+					t.Fatalf("landing page: status %d", code)
 				}
-			}
-			for _, path := range paths {
-				t.Run(path, func(t *testing.T) {
-					code, body := get(path)
-					if strings.Contains(body, private) || strings.Contains(body, "SQLite format 3") {
-						t.Fatalf("private file exposed at %s (status %d)", path, code)
+				if custom {
+					if code, body := get("/assets/audit.txt"); code != http.StatusOK || body != "PUBLIC-ASSET" {
+						t.Fatalf("custom asset: status %d body %q", code, body)
 					}
-					if code >= http.StatusInternalServerError {
-						t.Fatalf("unexpected server failure at %s: %d", path, code)
-					}
-				})
-			}
-		})
+				}
+				for _, path := range paths {
+					t.Run(path, func(t *testing.T) {
+						code, body := get(path)
+						if strings.Contains(body, private) || strings.Contains(body, "SQLite format 3") {
+							t.Fatalf("private file exposed at %s (status %d)", path, code)
+						}
+						if code >= http.StatusInternalServerError {
+							t.Fatalf("unexpected server failure at %s: %d", path, code)
+						}
+					})
+				}
+			})
+		}
 	}
 }

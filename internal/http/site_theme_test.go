@@ -46,7 +46,7 @@ func TestSiteThemeAdminRoundTripAndPublicProjection(t *testing.T) {
 				}
 			}
 			projected := mustJSON[map[string]any](t, raw)
-			allowed := map[string]bool{"name": true, "tagline": true, "description": true, "features": true, "locations": true, "hub": true, "faq": true, "links": true, "show_plans": true, "registration": true, "probe_url": true, "service_status_url": true, "stats": true, "theme": true, "map_source": true, "status_map_source": true, "status_locations": true, "status_hub": true}
+			allowed := map[string]bool{"homepage_enabled": true, "name": true, "tagline": true, "description": true, "features": true, "locations": true, "hub": true, "faq": true, "links": true, "show_plans": true, "registration": true, "probe_url": true, "service_status_url": true, "stats": true, "theme": true, "map_source": true, "status_map_source": true, "status_locations": true, "status_hub": true}
 			for key := range projected {
 				if !allowed[key] {
 					t.Fatalf("unexpected public field %q", key)

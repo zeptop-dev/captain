@@ -14,12 +14,15 @@ import (
 
 // Settings is the landing page content, stored under SettingSite.
 type Settings struct {
-	Name        string     `json:"name"`
-	Tagline     string     `json:"tagline"`
-	Description string     `json:"description"`
-	Features    []Feature  `json:"features"`
-	Locations   []Location `json:"locations"`
-	Hub         *Location  `json:"hub,omitempty"`
+	// Missing on older installations means enabled. Closing the homepage does
+	// not disable shared branding, the portal, downloads or service status.
+	HomepageEnabled *bool      `json:"homepage_enabled,omitempty"`
+	Name            string     `json:"name"`
+	Tagline         string     `json:"tagline"`
+	Description     string     `json:"description"`
+	Features        []Feature  `json:"features"`
+	Locations       []Location `json:"locations"`
+	Hub             *Location  `json:"hub,omitempty"`
 	// Sources default to the legacy manually configured geographic markers.
 	MapSource       string `json:"map_source,omitempty"`
 	StatusMapSource string `json:"status_map_source,omitempty"`
@@ -90,6 +93,16 @@ type Links struct {
 // SettingSite is the settings key.
 const SettingSite = "site"
 
+func (s Settings) HomepageOn() bool { return s.HomepageEnabled == nil || *s.HomepageEnabled }
+
+// Resolved returns the effective switch without changing the stored legacy
+// document. Admin responses always expose a boolean, including before setup.
+func (s Settings) Resolved() Settings {
+	enabled := s.HomepageOn()
+	s.HomepageEnabled = &enabled
+	return s
+}
+
 // Deps wires the handler.
 type Deps struct {
 	ClientCatalog *service.ClientCatalog
@@ -135,13 +148,17 @@ func Register(mux *http.ServeMux, d Deps) {
 	})
 	registerServiceStatus(mux, d)
 	mux.HandleFunc("GET /api/site", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
 		var reg store.RegistrationSettings
 		if err := d.Store.GetSetting(r.Context(), store.SettingRegistration, &reg); err != nil {
 			http.Error(w, "site settings unavailable", http.StatusInternalServerError)
 			return
 		}
 		s := Defaults(d.SiteName)
-		_ = d.Store.GetSetting(r.Context(), SettingSite, &s)
+		if err := d.Store.GetSetting(r.Context(), SettingSite, &s); err != nil {
+			http.Error(w, "site settings unavailable", http.StatusInternalServerError)
+			return
+		}
 		if s.Name == "" {
 			s.Name = d.SiteName
 		}
@@ -179,6 +196,7 @@ func Register(mux *http.ServeMux, d Deps) {
 			statusLocations, statusHub = []Location{}, nil
 		}
 		out := map[string]any{
+			"homepage_enabled":   s.HomepageOn(),
 			"service_status_url": statusURL,
 			"theme":              s.Theme,
 			"name":               s.Name, "tagline": s.Tagline, "description": s.Description, "features": s.Features, "locations": locations,

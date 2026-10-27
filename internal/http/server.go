@@ -220,16 +220,17 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	s.mux.HandleFunc("GET /portal", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/portal/", http.StatusMovedPermanently)
 	})
-	// Landing page at the root (custom design under <data_dir>/site wins);
-	// unknown paths outside the SPAs fall through to it as well.
+	// The optional homepage lives only at the root. A custom design under
+	// <data_dir>/site wins when enabled; other public pages stay independent.
 	web.Inject = func(r *http.Request) (string, string) {
 		var ss site.Settings
 		_ = st.GetSetting(r.Context(), site.SettingSite, &ss)
 		return ss.InjectHead, ss.InjectBody
 	}
-	siteHandler := web.Site(filepath.Join(cfg.DataDir, "site"))
-	s.mux.Handle("GET /{$}", siteHandler)
-	s.mux.Handle("GET /assets/", web.SiteAssets(siteHandler))
+	siteDir := filepath.Join(cfg.DataDir, "site")
+	siteHandler := web.Site(siteDir)
+	s.mux.Handle("GET /{$}", site.Homepage(st, siteHandler))
+	s.mux.Handle("GET /assets/", site.HomepageAssets(st, web.SiteAssets(siteHandler), web.SiteAssetFiles(siteDir)))
 	// A separate service page keeps existing server-monitoring paths unchanged.
 	// Use the built-in page even when the operator supplies a custom homepage.
 	s.mux.Handle("GET /downloads", web.Site(""))

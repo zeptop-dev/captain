@@ -204,6 +204,22 @@ A token carries its owner's role, narrowed by what it was issued with:
 
 ## Theme and page injection
 
+Settings → Site & branding → **Public homepage** has an **Enable public
+homepage** switch. Existing installations keep the homepage enabled. Turning it
+off sends visits to `/` to the customer portal: visitors who are not signed in
+see the login page, while signed-in customers see their overview. This is a
+temporary, non-cacheable redirect, so re-enabling the homepage takes effect
+without changing DNS or restarting Captain. Invitation codes are preserved.
+
+The switch applies to both the built-in homepage and a custom `site/index.html`.
+Homepage content is folded away while disabled and retained for later use.
+Shared branding, portal appearance, registration policy, client downloads,
+public service status and server probes keep their independent settings. The
+built-in public navigation omits homepage section links while it is disabled;
+its brand link opens the portal instead. This switch changes the website's
+entry page, not authentication or authorization. Custom injected navigation is
+still controlled by its author.
+
 Admin → Brand and homepage includes the shared brand name, browser tab title,
 light-background and dark-background logos, and browser icon (favicon). These
 apply to the built-in homepage, public service-status page, customer portal,

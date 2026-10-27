@@ -72,6 +72,34 @@ func SiteAssets(fallback http.Handler) http.Handler {
 	})
 }
 
+// SiteAssetFiles serves real assets without an SPA fallback when the homepage
+// is disabled. Public downloads/status still need the embedded bundles, and a
+// custom homepage's assets may also be used by shared branding.
+func SiteAssetFiles(overrideDir string) http.Handler {
+	sub, _ := fs.Sub(siteFS, "site/dist")
+	builtin := http.FileServer(http.FS(sub))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := strings.TrimPrefix(r.URL.Path, "/")
+		if strings.HasPrefix(name, "assets/") && fs.ValidPath(name) {
+			if st, err := fs.Stat(sub, name); err == nil && st.Mode().IsRegular() {
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+				builtin.ServeHTTP(w, r)
+				return
+			}
+			if overrideDir != "" {
+				index, indexErr := os.Stat(filepath.Join(overrideDir, "index.html"))
+				asset, assetErr := os.Stat(filepath.Join(overrideDir, filepath.FromSlash(name)))
+				if indexErr == nil && index.Mode().IsRegular() && assetErr == nil && asset.Mode().IsRegular() {
+					http.FileServer(http.Dir(overrideDir)).ServeHTTP(w, r)
+					return
+				}
+			}
+		}
+		w.Header().Set("Cache-Control", "no-store")
+		http.NotFound(w, r)
+	})
+}
+
 // Admin serves the admin SPA under prefix (e.g. "/admin/").
 func Admin(prefix string) http.Handler { return spa(adminFS, "admin/dist", prefix, "admin console") }
 
