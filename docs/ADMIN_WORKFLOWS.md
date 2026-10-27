@@ -164,12 +164,33 @@ token scope. bosun's standalone UI offers the same behavior under
 **Infrastructure costs** is administrator-only. Add a supplier, then link an
 asset optionally to a node. Record its currency, amount in minor units,
 monthly interval, anchor day and next due date. Zero months means a one-time
-expense. Importing a node's display details copies descriptive information;
-confirm amount/currency manually because the old price field is free text.
+expense. A server can select a supplier from the shared directory or create one
+from its probe form. Existing free-text provider details remain unchanged until explicitly
+associated with a supplier. A selected supplier supplies the displayed name and
+website; its private contact and notes are not published on the probe.
+
+A server may explicitly choose one **primary bill**. Create it from the saved
+server fee, billing cycle and expiry, or select an existing asset and review the
+asset values that will replace the server values. Existing assets are never
+automatically selected, even when they reference the same server. Other assets
+remain independent expenses. Selecting a supplier alone does not require a
+complete bill.
+
+Once linked, edits to the primary bill or to the server's structured fee, cycle
+and expiry update both in one transaction. Supplier name/website edits also
+update associated servers. Changing these fields records no payment. Financial
+edits and associations require administrator permission; narrower server-editing
+permissions do not grant access to the ledger. Conflicting drafts must be
+reloaded before saving.
+
+Linking a primary bill requires confirmation that online automatic renewal will
+be disabled for that server: an online heartbeat is not proof that its supplier
+has been paid. Unlinked servers retain their existing automatic-renewal behavior.
 
 After paying the supplier outside Captain, use **Record payment**. The server
 writes the immutable supplier/asset/currency/amount snapshot and advances one
-billing period in one transaction. A request key makes retries idempotent;
+billing period in one transaction, including the associated server expiry when
+this is its primary bill. A request key makes retries idempotent;
 the asset revision prevents two tabs from advancing the same period. Paying
 a one-time asset archives it. January 31 advances to February's last day,
 then back to March 31 when the anchor is 31. Dates use UTC calendar days.
@@ -178,8 +199,18 @@ Amounts are integer minor units (USD 500 = $5.00, JPY 500 = ¥500). Totals group
 by currency without exchange-rate conversion. Recorded payments cannot be
 edited/deleted. Assets with history can be archived but not deleted, and
 suppliers with assets cannot be deleted. Deleting a node unlinks the asset
-and retains its history. These records never alter customer balances, orders
-or commissions. Site reset deliberately clears this ledger too.
+and retains its history. Unlinking a primary bill retains the server's current
+displayed information and the asset's history. Archiving a linked bill stops
+reminders and payment recording but keeps information synchronized; unlink it
+to stop synchronization. Only active assets can be newly linked. These records
+never alter customer balances, orders or
+commissions. Site reset deliberately clears this ledger too.
+
+A primary bill must have a recurring cycle that can be represented exactly in
+the server fee settings (one to 120 whole months), a supported currency and an
+amount exactly representable in that currency's minor units. No rounding or
+free-text price parsing is used. One-time expenses and unrepresentable cycles
+remain valid standalone assets; they cannot become a primary server bill.
 
 Due/overdue items remain visible in the console. A configured administrator
 Telegram chat receives daily renewal reminders from the reminder window
