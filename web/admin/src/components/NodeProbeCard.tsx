@@ -163,7 +163,7 @@ function NodeProbeForm({ nodeID, reportedHost }: { nodeID: number; reportedHost?
         <SimpleGrid cols={{ base: 1, sm: 2 }}>
           <Stack gap="xs">
             <TextInput type="date" label={t('nodeProbe.expires')} description={t('nodeCost.expiryHint')} min="0001-01-01" max="9999-12-31" {...form.getInputProps('expires_at')} />
-            <Switch label={t('nodeCost.autoRenewal')} description={t(q.data?.infrastructure_linked ? 'infraLink.linkedRenewal' : renewalReason ?? 'nodeCost.autoRenewalHint')} {...form.getInputProps('AutoRenewal', { type: 'checkbox' })} disabled={billingReadOnly || !!q.data?.infrastructure_linked || !p || q.isError || save.isPending || (!form.values.AutoRenewal && !!renewalReason)} error={form.errors.AutoRenewal && renewalReason ? t(renewalReason) : undefined} />
+            <Switch label={t('nodeCost.autoRenewal')} description={t(renewalReason ?? 'nodeCost.autoRenewalHint')} {...form.getInputProps('AutoRenewal', { type: 'checkbox' })} disabled={billingReadOnly || !p || q.isError || save.isPending || (!form.values.AutoRenewal && !!renewalReason)} error={form.errors.AutoRenewal && renewalReason ? t(renewalReason) : undefined} />
           </Stack>
         </SimpleGrid>
         </Stack></fieldset>

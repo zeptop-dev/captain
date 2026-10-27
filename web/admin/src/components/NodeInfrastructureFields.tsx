@@ -61,7 +61,7 @@ export function NodeBillingLink({ nodeID, infra, disabled, dirty, onApplied }: {
   const eligible = (assets.data?.assets ?? []).filter(asset => eligibleBillingAsset(asset, nodeID))
   const open = (next: typeof action) => { setAction(next); setSnapshot(next ? infra : null); setSelected(null); setName(''); setRemindDays(7); setConfirm(false); setConflict(false) }
   const cancelReads = () => Promise.all([qc.cancelQueries({ queryKey: ['node-probe', nodeID] }), qc.cancelQueries({ queryKey: nodeInfrastructureKey(nodeID) })])
-  const apply = useMutation({ onMutate: cancelReads, mutationFn: () => api.put<NodeInfrastructure>(nodeInfrastructureURL(nodeID), { revision: snapshot?.revision, action, ...(action === 'create_asset' ? { name: name.trim(), remind_days: Number(remindDays) } : {}), ...(action === 'link_asset' ? { asset_id: selected?.id, asset_revision: selected?.revision } : {}), confirm_disable_auto_renewal: confirm }), onSuccess: async result => {
+  const apply = useMutation({ onMutate: cancelReads, mutationFn: () => api.put<NodeInfrastructure>(nodeInfrastructureURL(nodeID), { revision: snapshot?.revision, action, ...(action === 'create_asset' ? { name: name.trim(), remind_days: Number(remindDays) } : {}), ...(action === 'link_asset' ? { asset_id: selected?.id, asset_revision: selected?.revision } : {}) }), onSuccess: async result => {
     await cancelReads()
     qc.setQueryData(nodeInfrastructureKey(nodeID), result)
     qc.invalidateQueries({ queryKey: ['infrastructure'] }); qc.invalidateQueries({ queryKey: ['infra-payments'] })
@@ -90,11 +90,11 @@ export function NodeBillingLink({ nodeID, infra, disabled, dirty, onApplied }: {
             <Text size="xs" c="dimmed">{t('infraLink.eligibleHint')}</Text>
             <SimpleGrid cols={{ base: 1, sm: 2 }}><Card withBorder><Text fw={500} mb="xs">{t('infraLink.currentServer')}</Text>{preview()}</Card>{selected && <Card withBorder><Text fw={500} mb="xs">{t('infraLink.selectedAsset')}</Text>{preview(selected)}</Card>}</SimpleGrid>
           </>}
-          <Alert color="yellow"><Text size="sm">{t('infraLink.renewalWarning')}</Text></Alert>
+          <Text size="sm" c="dimmed">{t('infraLink.renewalPreserved')}</Text>
         </>}
-        <Checkbox label={t(action === 'unlink_asset' ? 'infraLink.confirmUnlink' : 'infraLink.confirmLink')} checked={confirm} disabled={apply.isPending} onChange={event => setConfirm(event.currentTarget.checked)} />
+        {action === 'unlink_asset' && <Checkbox label={t('infraLink.confirmUnlink')} checked={confirm} disabled={apply.isPending} onChange={event => setConfirm(event.currentTarget.checked)} />}
         {conflict && <Alert color="yellow"><Text size="sm">{t('infraLink.conflict')}</Text><Button variant="subtle" size="xs" onClick={() => { open(null); void onApplied() }}>{t('infraLink.reloadFinance')}</Button></Alert>}
-        <Button disabled={!confirm || conflict || action === 'create_asset' && (!name.trim() || !!reason) || action === 'link_asset' && (!selected || assets.isError)} loading={apply.isPending} onClick={() => apply.mutate()}>{t('common.save')}</Button>
+        <Button disabled={action === 'unlink_asset' && !confirm || conflict || action === 'create_asset' && (!name.trim() || !!reason) || action === 'link_asset' && (!selected || assets.isError)} loading={apply.isPending} onClick={() => apply.mutate()}>{t('common.save')}</Button>
       </Stack>
     </Modal>
   </>

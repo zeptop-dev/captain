@@ -2,7 +2,7 @@ import { renewalPeriodMonths, type NodeAutoRenewal } from './node-renewal.ts'
 
 export interface SupplierOption { id: number; name: string; url: string }
 export interface InfraSupplier extends SupplierOption { contact: string; notes: string }
-export interface InfraAsset { id: number; supplier_id: number; supplier_name: string; node_id: number | null; primary_node_id?: number | null; name: string; external_ref: string; currency: string; amount_minor: number; period_months: number; anchor_day: number; next_due: string; remind_days: number; active: boolean; notes: string; revision: number }
+export interface InfraAsset { id: number; supplier_id: number; supplier_name: string; node_id: number | null; primary_node_id?: number | null; auto_renewal_enabled?: boolean; name: string; external_ref: string; currency: string; amount_minor: number; period_months: number; anchor_day: number; next_due: string; remind_days: number; active: boolean; notes: string; revision: number }
 export interface NodeCost { amount: string; currency: string; cycle: string; years?: string }
 export interface NodeInfrastructure { revision: string; supplier: SupplierOption | null; asset: InfraAsset | null; billing: NodeCost | null; price: string; expires_at: string; auto_renewal: NodeAutoRenewal | null }
 export interface FinanceInfo { billing?: NodeCost | null; provider?: string; provider_url?: string; price?: string; expires_at?: string; auto_renewal?: NodeAutoRenewal | null }
