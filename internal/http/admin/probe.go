@@ -304,7 +304,7 @@ func (h *handlers) putNodeProbe(w http.ResponseWriter, r *http.Request) {
 	}
 	guard := store.NodeInfrastructureGuard{Revision: in.InfrastructureRevision, SupplierID: in.SupplierID, CanWrite: h.infrastructureWriteAllowed(r, idOf(r))}
 	if err := h.Store.UpdateNodeProbeWithInfrastructure(r.Context(), idOf(r), in.Hidden, in.Info, in.LimitBytes, in.ResetDay, in.Mode, in.Resources, in.RegionMode, in.ExpectedExpiresAt, guard, in.Storage); err != nil {
-		if errors.Is(err, store.ErrInfrastructureConflict) || errors.Is(err, store.ErrInfrastructurePermission) || errors.Is(err, store.ErrInfrastructureConversion) || errors.Is(err, store.ErrInfrastructureLinked) || errors.Is(err, store.ErrInfrastructureConfirmation) {
+		if errors.Is(err, store.ErrInfrastructureConflict) || errors.Is(err, store.ErrInfrastructurePermission) || errors.Is(err, store.ErrInfrastructureConversion) || errors.Is(err, store.ErrInfrastructureLinked) {
 			infraError(w, err)
 			return
 		}

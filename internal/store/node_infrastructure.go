@@ -17,11 +17,10 @@ import (
 )
 
 var (
-	ErrInfrastructureConflict     = errors.New("server infrastructure changed; reload before saving")
-	ErrInfrastructurePermission   = errors.New("shared server billing requires infrastructure write permission")
-	ErrInfrastructureLinked       = errors.New("unlink the primary asset before deleting or moving it")
-	ErrInfrastructureConversion   = errors.New("linked billing requires an exact currency amount and a supported whole-month cycle from 1 to 120 months")
-	ErrInfrastructureConfirmation = errors.New("confirm disabling online automatic renewal before linking billing")
+	ErrInfrastructureConflict   = errors.New("server infrastructure changed; reload before saving")
+	ErrInfrastructurePermission = errors.New("shared server billing requires infrastructure write permission")
+	ErrInfrastructureLinked     = errors.New("unlink the primary asset before deleting or moving it")
+	ErrInfrastructureConversion = errors.New("linked billing requires an exact currency amount and a supported whole-month cycle from 1 to 120 months")
 )
 
 // This relation never appears in NodeProbeInfo, which can be published.
@@ -40,14 +39,16 @@ type NodeInfrastructure struct {
 	AutoRenewal *NodeAutoRenewal     `json:"auto_renewal"`
 }
 type NodeInfrastructureChange struct {
-	Revision                  string `json:"revision"`
-	Action                    string `json:"action"`
-	SupplierID                *int64 `json:"supplier_id"`
-	AssetID                   int64  `json:"asset_id"`
-	AssetRevision             int64  `json:"asset_revision"`
-	Name                      string `json:"name"`
-	RemindDays                int    `json:"remind_days"`
-	ConfirmDisableAutoRenewal bool   `json:"confirm_disable_auto_renewal"`
+	Revision      string `json:"revision"`
+	Action        string `json:"action"`
+	SupplierID    *int64 `json:"supplier_id"`
+	AssetID       int64  `json:"asset_id"`
+	AssetRevision int64  `json:"asset_revision"`
+	Name          string `json:"name"`
+	RemindDays    int    `json:"remind_days"`
+	// Accepted for pre-release editor compatibility; linking preserves the
+	// server's switch and this old confirmation no longer changes its behavior.
+	ConfirmDisableAutoRenewal bool `json:"confirm_disable_auto_renewal"`
 }
 type NodeInfrastructureGuard struct {
 	Revision   *string
@@ -241,26 +242,42 @@ func infoAsset(info NodeProbeInfo) (InfraAsset, error) {
 		if anchor, e := infraDate(info.AutoRenewal.AnchorDate); e == nil {
 			a.AnchorDay = anchor.Day()
 		}
+		if info.AutoRenewal.AnchorDay >= 1 && info.AutoRenewal.AnchorDay <= 31 {
+			a.AnchorDay = info.AutoRenewal.AnchorDay
+		}
 	}
 	return a, nil
 }
-func assetAnchorDate(a InfraAsset) string {
-	// January has every valid anchor day. Disabled automatic renewal still
-	// supplies the monthly traffic-reset anchor, including after February.
-	year := a.NextDue[:4]
-	return fmt.Sprintf("%s-01-%02d", year, a.AnchorDay)
+func projectAssetRenewal(info *NodeProbeInfo, a InfraAsset) {
+	enabled := info.AutoRenewal != nil && info.AutoRenewal.Enabled
+	info.AutoRenewal = &NodeAutoRenewal{Enabled: enabled, AnchorDate: a.NextDue, AnchorDay: a.AnchorDay}
 }
 func projectAsset(info *NodeProbeInfo, a InfraAsset, supplier InfraSupplierChoice) error {
 	b, err := assetNodeCost(a)
 	if err != nil {
 		return err
 	}
+	old := *info
 	info.Billing = b
 	info.Price = b.Display()
 	info.ExpiresAt = a.NextDue
 	info.Provider = supplier.Name
 	info.ProviderURL = supplier.URL
-	info.AutoRenewal = &NodeAutoRenewal{Enabled: false, AnchorDate: assetAnchorDate(a)}
+	projectAssetRenewal(info, a)
+	// An unchanged bill must not rewrite its equivalent original cycle anchor
+	// after an online extension, especially for notes-only legacy asset edits.
+	if old.AutoRenewal != nil && old.ExpiresAt == a.NextDue && sameNodeBillingCycle(old.Billing, b) {
+		if anchor, e := infraDate(old.AutoRenewal.AnchorDate); e == nil {
+			day := anchor.Day()
+			if old.AutoRenewal.AnchorDay >= 1 && old.AutoRenewal.AnchorDay <= 31 {
+				day = old.AutoRenewal.AnchorDay
+			}
+			if day == a.AnchorDay {
+				r := *old.AutoRenewal
+				info.AutoRenewal = &r
+			}
+		}
+	}
 	return nil
 }
 func persistNodeInfraInfoTx(ctx context.Context, tx *sql.Tx, p *NodeProbe, info NodeProbeInfo) error {
@@ -316,9 +333,6 @@ func (s *Store) ChangeNodeInfrastructure(ctx context.Context, nodeID int64, in N
 	case "create_asset", "link_asset":
 		if l.AssetID.Valid {
 			return nil, ErrInfrastructureLinked
-		}
-		if !in.ConfirmDisableAutoRenewal {
-			return nil, ErrInfrastructureConfirmation
 		}
 		var a InfraAsset
 		if in.Action == "create_asset" {
@@ -454,9 +468,6 @@ func guardNodeInfrastructureTx(ctx context.Context, tx *sql.Tx, nodeID int64, in
 		}
 	}
 	if l.AssetID.Valid {
-		if info.AutoRenewal != nil && info.AutoRenewal.Enabled {
-			return ErrInfrastructureConfirmation
-		}
 		if billingChanged {
 			a, e := infoAsset(*info)
 			if e != nil {
@@ -471,7 +482,7 @@ func guardNodeInfrastructureTx(ctx context.Context, tx *sql.Tx, nodeID int64, in
 			if err != nil {
 				return err
 			}
-			info.AutoRenewal = &NodeAutoRenewal{Enabled: false, AnchorDate: assetAnchorDate(a)}
+			projectAssetRenewal(info, a)
 		}
 	}
 	if change {
@@ -575,4 +586,21 @@ func syncInfraSupplierNodesTx(ctx context.Context, tx *sql.Tx, supplier InfraSup
 		}
 	}
 	return nil
+}
+
+// Accepted online samples move the same due date as the server. This is a
+// scheduling update only: never insert a payment or reactivate an archived bill.
+func renewNodeInfrastructureTx(ctx context.Context, tx *sql.Tx, nodeID int64, info NodeProbeInfo) error {
+	l, err := nodeInfrastructureLinkTx(ctx, tx, nodeID)
+	if err != nil || !l.AssetID.Valid {
+		return err
+	}
+	a, err := infoAsset(info)
+	if err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE infra_assets SET next_due=?,anchor_day=?,revision=revision+1 WHERE id=?`, a.NextDue, a.AnchorDay, l.AssetID.Int64); err != nil {
+		return err
+	}
+	return saveNodeInfrastructureLinkTx(ctx, tx, nodeID, l.SupplierID, l.AssetID)
 }

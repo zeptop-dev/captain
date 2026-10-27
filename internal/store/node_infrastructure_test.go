@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"reflect"
 	"sync"
@@ -93,15 +92,11 @@ func TestNodeInfrastructureSharedPaymentCalendarAndRollback(t *testing.T) {
 	ctx := context.Background()
 	initial := infrastructureView(t, s, id)
 	change := NodeInfrastructureChange{Revision: initial.Revision, Action: "create_asset", SupplierID: &sup.ID, Name: "Server cost"}
-	if _, err := s.ChangeNodeInfrastructure(ctx, id, change); !errors.Is(err, ErrInfrastructureConfirmation) {
-		t.Fatal(err)
+	v, err := s.ChangeNodeInfrastructure(ctx, id, change)
+	if err != nil {
+		t.Fatal("link should preserve renewal without extra confirmation", err)
 	}
-	assets, _ := s.InfraAssets(ctx)
-	if len(assets) != 0 {
-		t.Fatal("failed confirm created asset")
-	}
-	v := linkNewInfrastructure(t, s, id, sup)
-	if v.Asset == nil || v.Asset.AmountMinor != 1000 || v.Asset.PrimaryNodeID == nil || *v.Asset.PrimaryNodeID != id || v.AutoRenewal.Enabled || v.Asset.AnchorDay != 31 {
+	if v.Asset == nil || v.Asset.AmountMinor != 1000 || v.Asset.PrimaryNodeID == nil || *v.Asset.PrimaryNodeID != id || !v.AutoRenewal.Enabled || !v.Asset.AutoRenewalEnabled || v.Asset.AnchorDay != 31 {
 		t.Fatal(v)
 	}
 	if err := s.DeleteInfraAsset(ctx, v.Asset.ID, v.Asset.Revision); !errors.Is(err, ErrInfrastructureLinked) {
@@ -111,7 +106,7 @@ func TestNodeInfrastructureSharedPaymentCalendarAndRollback(t *testing.T) {
 	if err := s.CreateStaff(ctx, staff); err != nil {
 		t.Fatal(err)
 	}
-	in := InfraPaymentInput{RequestKey: "payment_link_test_0001", Revision: v.Asset.Revision, AmountMinor: 1000, PaidDate: "2027-01-31"}
+	in := InfraPaymentInput{RequestKey: "payment_link_test_0001", Revision: v.Asset.Revision, AmountMinor: 1000, PaidDate: "2027-01-31", DateAction: "set_due_date", NextDue: "2027-02-28"}
 	if _, err := s.RecordInfraPayment(ctx, v.Asset.ID, staff.ID, in, false); !errors.Is(err, ErrInfrastructurePermission) {
 		t.Fatal(err)
 	}
@@ -139,34 +134,30 @@ func TestNodeInfrastructureSharedPaymentCalendarAndRollback(t *testing.T) {
 		t.Fatal("retry", second, err)
 	}
 	v = infrastructureView(t, s, id)
-	if v.ExpiresAt != "2027-02-28" || v.Asset.NextDue != v.ExpiresAt || v.Asset.AnchorDay != 31 || v.AutoRenewal.AnchorDate != "2027-01-31" {
+	if v.ExpiresAt != "2027-02-28" || v.Asset.NextDue != v.ExpiresAt || v.Asset.AnchorDay != 31 || v.AutoRenewal.AnchorDate != "2027-02-28" || v.AutoRenewal.AnchorDay != 31 {
 		t.Fatal("short month anchor lost", v)
 	}
 	p, _ := s.NodeProbe(ctx, id)
 	if day, _ := nodePeriodDay(p); day != 31 {
 		t.Fatal("reset anchor shifted", day)
 	}
-	// A malformed old flag must not let a resource heartbeat renew unpaid cost.
-	p.Info.AutoRenewal.Enabled = true
-	raw, _ := json.Marshal(p.Info)
-	if _, err = s.db.Exec(`UPDATE nodes SET probe_info_json=? WHERE id=?`, string(raw), id); err != nil {
-		t.Fatal(err)
-	}
-	at := time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC)
-	if renewed, err := s.RecordNodeBeat(ctx, id, "current-token-hash", renewalHost(at, "linked", 1), at); err != nil || renewed {
-		t.Fatal("online beat renewed ledger", renewed, err)
+	// A real accepted sample advances both views without recording a payment.
+	at := time.Date(2027, 2, 28, 0, 0, 0, 0, time.UTC)
+	if renewed, err := s.RecordNodeBeat(ctx, id, "current-token-hash", renewalHost(at, "linked", 1), at); err != nil || !renewed {
+		t.Fatal("online beat did not synchronize ledger", renewed, err)
 	}
 	v = infrastructureView(t, s, id)
-	if v.ExpiresAt != "2027-02-28" {
+	if v.ExpiresAt != "2027-03-31" || v.Asset.NextDue != v.ExpiresAt {
 		t.Fatal(v)
 	}
 	in.RequestKey = "payment_link_test_0002"
 	in.Revision = v.Asset.Revision
-	if _, err = s.RecordInfraPayment(ctx, v.Asset.ID, staff.ID, in, true); err != nil {
+	in.DateAction, in.NextDue = "record_only", ""
+	if receipt, err := s.RecordInfraPayment(ctx, v.Asset.ID, staff.ID, in, false); err != nil || receipt.PeriodStart != "" || receipt.NextDue != "" || receipt.DateAction != "record_only" {
 		t.Fatal(err)
 	}
 	v = infrastructureView(t, s, id)
-	if v.ExpiresAt != "2027-03-31" || v.AutoRenewal.Enabled {
+	if v.ExpiresAt != "2027-03-31" || !v.AutoRenewal.Enabled {
 		t.Fatal(v)
 	}
 	if _, err = s.ChangeNodeInfrastructure(ctx, id, NodeInfrastructureChange{Revision: v.Revision, Action: "unlink_asset"}); err != nil {
@@ -207,7 +198,7 @@ func TestNodeInfrastructureProbeEditsAndExistingAssetDirection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if v.Billing.Amount != "4321" || v.Billing.Currency != "JPY" || v.ExpiresAt != a.NextDue || v.AutoRenewal.AnchorDate != "2027-01-31" {
+	if v.Billing.Amount != "4321" || v.Billing.Currency != "JPY" || v.ExpiresAt != a.NextDue || v.AutoRenewal.AnchorDate != a.NextDue || v.AutoRenewal.AnchorDay != 31 {
 		t.Fatal("wrong link direction", v)
 	}
 	p, _ := s.NodeProbe(ctx, id)

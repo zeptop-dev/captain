@@ -34,7 +34,7 @@ func infraError(w http.ResponseWriter, e error) {
 		fail(w, 403, e.Error())
 	case errors.Is(e, store.ErrInfrastructureConversion):
 		fail(w, 400, e.Error())
-	case errors.Is(e, store.ErrInfrastructureConflict), errors.Is(e, store.ErrInfrastructureLinked), errors.Is(e, store.ErrInfrastructureConfirmation):
+	case errors.Is(e, store.ErrInfrastructureConflict), errors.Is(e, store.ErrInfrastructureLinked):
 		fail(w, 409, e.Error())
 	default:
 		serverErr(w, e)
