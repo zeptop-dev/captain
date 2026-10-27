@@ -34,7 +34,7 @@ export default function MonitoringPage() {
   return <Stack>
     <Title order={2}>{t('monitoring.title')}</Title>
     <Text c="dimmed">{t('monitoring.hint')}</Text>
-    <Tabs value={tab} onChange={value => value && setTab(value)} keepMounted={false}><Tabs.List><Tabs.Tab value="nodes">{t('monitoring.title')}</Tabs.Tab><Tabs.Tab value="alerts">{t('alerts.title')}</Tabs.Tab><Tabs.Tab value="dns">{t('dnsHealth.title')}</Tabs.Tab></Tabs.List><Tabs.Panel value="nodes" pt="md"><Stack>
+    <Tabs value={tab} onChange={value => value && setTab(value)} keepMounted={false}><Tabs.Panel value="nodes" pt="md"><Stack>
     {q.isLoading && <Loader />}{q.isError && <Alert color="red">{t('monitoring.loadError')}</Alert>}
     <SimpleGrid cols={{ base: 1, sm: 3 }}>{['online', 'offline', 'unpaired'].map((key) => <Card key={key}><Text size="sm" c="dimmed">{t(`monitoring.${key}`)}</Text><Text size="xl" fw={700}>{nodes.filter((n) => key === 'online' ? n.online : key === 'offline' ? n.paired && !n.online : !n.paired).length}</Text></Card>)}</SimpleGrid>
     <Card><Stack>

@@ -157,7 +157,6 @@ function EntriesWorkspace() {
       </Menu.Dropdown></Menu>}
     </Group>} />
     <Tabs value={tab} onChange={value => updateParams({ tab: value === 'lines' ? 'lines' : null, section: null, inbound: null })} keepMounted={false}>
-      <Tabs.List mb="lg"><Tabs.Tab value="entries">{t('entryFlow.nodesTab')}</Tabs.Tab><Tabs.Tab value="lines">{t('lines.tab')}</Tabs.Tab></Tabs.List>
       <Tabs.Panel value="entries">
         {section === 'inbounds' ? <Stack>
           <Group justify="space-between"><Text fw={600}>{t('entryFlow.inbounds')}</Text><Button variant="subtle" onClick={() => updateParams({ section: null, inbound: null })}>{t('entryFlow.backToNodes')}</Button></Group>

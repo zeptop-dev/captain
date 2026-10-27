@@ -24,7 +24,6 @@ import { UserGroupsPanel } from '../components/UserGroupsPanel'
 import { UserDirectory } from '../components/UserDirectory'
 import { UserSubscriptionProfile } from '../components/UserSubscriptionProfile'
 import { MetadataEditor } from '../components/MetadataEditor'
-import { SegmentedControl } from '@mantine/core'
 import { useURLChoice } from '../lib/use-url-choice'
 
 export default function UsersPage() {
@@ -37,7 +36,7 @@ export default function UsersPage() {
   const [sel, setSel] = useState<UserRow | null>(null)
   const [creating, setCreating] = useState(false)
   const [wireGuardModalOpen, setWireGuardModalOpen] = useState(false)
-  const [view, setView] = useURLChoice('tab', canManageGroups ? ['list', 'groups', 'renewals'] : ['list'], 'list')
+  const [view] = useURLChoice('tab', canManageGroups ? ['list', 'groups', 'renewals'] : ['list'], 'list')
   const invalidate = () => qc.invalidateQueries({ queryKey: ['users'] })
 
   const createForm = useForm({
@@ -72,7 +71,7 @@ export default function UsersPage() {
 
   return (
     <>
-      <PageHeader title={t('users.title')} subtitle={t('users.subtitle')} actions={<><SegmentedControl size="xs" value={view} onChange={setView} data={[{ value: 'list', label: t('users.viewList') }, ...(canManageGroups ? [{ value: 'groups', label: t('users.groups') }] : []), ...(canManageGroups ? [{ value: 'renewals', label: t('users.viewRenewals') }] : [])]} />{view !== 'groups' && canManageGroups && <Button leftSection={<IconPlus size={16} />} onClick={() => setCreating(true)}>{t('users.create')}</Button>}</>} />
+      <PageHeader title={t('users.title')} subtitle={t('users.subtitle')} actions={view !== 'groups' && canManageGroups && <Button leftSection={<IconPlus size={16} />} onClick={() => setCreating(true)}>{t('users.create')}</Button>} />
       {view === 'groups' && canManageGroups ? <UserGroupsPanel /> : view === 'renewals' ? <RenewalsPanel /> : <UserDirectory onOpen={open} canManage={canManageGroups} plans={plans.data ?? []} groups={groups.data ?? []} />}
 
       <Modal opened={creating} onClose={() => setCreating(false)} title={t('users.create')}>

@@ -35,11 +35,11 @@ export default function SubTemplatesPage() {
     onSuccess: () => { toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['sub-templates'] }) }, onError: toast.err,
   })
   const names = Object.keys(q.data?.defaults ?? {})
-  const modes = [{ value: 'design', label: t('subTemplates.modeDesign') }, { value: 'text', label: t('subTemplates.modeText') }, { value: 'rules', label: t('subTemplates.modeRules') }, { value: 'library', label: t('subProfiles.library') }, { value: 'profiles', label: t('subProfiles.profiles') }]
+  const editorModes = [{ value: 'design', label: t('subTemplates.modeDesign') }, { value: 'text', label: t('subTemplates.modeText') }]
   const isYaml = format === 'clash' || format === 'stash'
   return (
     <>
-      <PageHeader title={mode === 'profiles' ? t('subProfiles.profiles') : mode === 'rules' ? t('subTemplates.modeRules') : t('workspace.templates')} subtitle={t('subTemplates.subtitle')} actions={<><Select hiddenFrom="sm" w={260} aria-label={t('subTemplates.title')} value={mode} onChange={v => v && setMode(v)} data={modes} allowDeselect={false} /><SegmentedControl visibleFrom="sm" size="xs" value={mode} onChange={setMode} data={modes} /></>} />
+      <PageHeader title={mode === 'profiles' ? t('subProfiles.profiles') : mode === 'rules' ? t('subTemplates.modeRules') : mode === 'library' ? t('subProfiles.library') : t('workspace.templates')} subtitle={t('subTemplates.subtitle')} actions={(mode === 'design' || mode === 'text') && <SegmentedControl size="xs" value={mode} onChange={setMode} data={editorModes} />} />
       {mode === 'library' && <SubTemplateLibrary />}
       {mode === 'profiles' && <SubscriptionProfiles />}
       {mode === 'design' && <SubDesigner />}
