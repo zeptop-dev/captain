@@ -2,6 +2,7 @@ import { Alert, MultiSelect, Button, Card, Group, JsonInput, Select, Stack, Swit
 import { useSettingsForm as useForm } from '../lib/settings-draft'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError, type Entry, type SiteSettings } from '../lib/api'
 import { toast } from '../lib/notify'
@@ -10,21 +11,17 @@ import { SettingsLoadState } from '../components/SettingsLoadState'
 import { SettingsFields } from '../components/SettingsFields'
 import { BrandAssetInput } from '../components/BrandAssetInput'
 import { modals } from '@mantine/modals'
+import { siteValues, sitePayload, missingMapEntryIDs, type SiteValues } from '../components/site/site-form'
 import { publicBrandQueryKey, validBrandAssetInput } from '../lib/branding'
 
-type Values = { map_revision: number; map_source: 'manual' | 'entries'; status_map_source: 'manual' | 'entries'; map_entry_ids: number[]; logo_light: string; logo_dark: string; favicon: string; brand_title: string; name: string; tagline: string; description: string; show_plans: boolean; telegram: string; tos: string; download: string; github: string; hub: string; locations: string; features: string; faq: string; primary: string; radius: string; scheme: string; site_scheme: string | undefined; font_family: string; portal_title: string; inject_head: string; inject_body: string }
-
-function siteValues(s: SiteSettings): Values { return { map_revision: s.map_revision ?? 0, map_source: s.map_source ?? 'manual', status_map_source: s.status_map_source ?? 'manual', map_entry_ids: s.map_entry_ids ?? [], logo_light: s.branding?.logo_light ?? '', logo_dark: s.branding?.logo_dark ?? '', favicon: s.branding?.favicon ?? '', brand_title: s.branding?.title ?? '', name: s.name, tagline: s.tagline, description: s.description, show_plans: s.show_plans, telegram: s.links.telegram ?? '', tos: s.links.tos ?? '', download: s.links.download ?? '', github: s.links.github ?? '',
-      hub: s.hub ? JSON.stringify(s.hub) : '', locations: JSON.stringify(s.locations, null, 2), features: JSON.stringify(s.features, null, 2), faq: JSON.stringify(s.faq, null, 2),
-      primary: s.theme?.primary || 'cyan', radius: s.theme?.radius || 'lg', scheme: s.theme?.scheme || 'light', site_scheme: s.theme?.site_scheme, font_family: s.theme?.font_family ?? '', portal_title: s.theme?.portal_title ?? '', inject_head: s.inject_head ?? '', inject_body: s.inject_body ?? '' } }
-
-export default function SitePage() {
+export default function SitePage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const [mapConflict, setMapConflict] = useState(false)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const entries = useQuery({ queryKey: ['entries'], queryFn: () => api.get<Entry[]>('/api/admin/entries') })
   const q = useQuery({ queryKey: ['site-settings'], queryFn: () => api.get<SiteSettings>('/api/admin/settings/site') })
-  const form = useForm<Values>({
+  const form = useForm<SiteValues>({
     initialValues: { map_revision: 0, map_source: 'manual', status_map_source: 'manual', map_entry_ids: [], logo_light: '', logo_dark: '', favicon: '', brand_title: '', name: '', tagline: '', description: '', show_plans: true, telegram: '', tos: '', download: '', github: '', hub: '', locations: '[]', features: '[]', faq: '[]', primary: 'cyan', radius: 'lg', scheme: 'light', site_scheme: undefined, font_family: '', portal_title: '', inject_head: '', inject_body: '' },
     validate: { logo_light: v => validBrandAssetInput(v) ? null : t('branding.invalidURL'), logo_dark: v => validBrandAssetInput(v) ? null : t('branding.invalidURL'), favicon: v => validBrandAssetInput(v) ? null : t('branding.invalidURL'), locations: json, features: json, faq: json, hub: (v) => (v.trim() === '' ? null : json(v)) },
   })
@@ -34,14 +31,7 @@ export default function SitePage() {
     form.hydrate(siteValues(s))
   }, [q.data]) // eslint-disable-line react-hooks/exhaustive-deps
   const save = useMutation({
-    mutationFn: (v: Values) => api.put<SiteSettings>('/api/admin/settings/site', {
-      map_revision: v.map_revision, map_source: v.map_source, status_map_source: v.status_map_source, map_entry_ids: v.map_entry_ids,
-      branding: { logo_light: v.logo_light, logo_dark: v.logo_dark, favicon: v.favicon, title: v.brand_title },
-      name: v.name, tagline: v.tagline, description: v.description, show_plans: v.show_plans,
-      links: { telegram: v.telegram, tos: v.tos, download: v.download, github: v.github },
-      hub: v.hub.trim() ? JSON.parse(v.hub) : null, locations: JSON.parse(v.locations), features: JSON.parse(v.features), faq: JSON.parse(v.faq),
-      theme: { primary: v.primary, radius: v.radius, scheme: v.scheme, site_scheme: v.site_scheme, font_family: v.font_family, portal_title: v.portal_title }, inject_head: v.inject_head, inject_body: v.inject_body,
-    }),
+    mutationFn: (v: SiteValues) => api.put<SiteSettings>('/api/admin/settings/site', sitePayload(v)),
     onSuccess: (result, submitted) => {
       const revision = result.map_revision ?? submitted.map_revision
       // A slow save must not replace edits made after the submitted snapshot.
@@ -54,18 +44,18 @@ export default function SitePage() {
   })
   const reload = () => modals.openConfirmModal({ title: t('workspace.unsaved'), children: <Text size="sm">{t('mapLocation.siteConflictHint')}</Text>, labels: { confirm: t('serviceStatus.discardReload'), cancel: t('workspace.stay') }, onConfirm: async () => { const result = await q.refetch(); if (!result.isError && result.data) { const fresh = siteValues(result.data); form.setValues(fresh); form.resetDirty(fresh); setMapConflict(false); entries.refetch() } } })
   if (!q.data) return <SettingsLoadState query={q} />
-  const missingIDs = form.values.map_entry_ids.filter(id => !entries.data?.some(entry => entry.ID === id))
+  const missingIDs = missingMapEntryIDs(form.values.map_entry_ids, entries.data)
   const blocked = q.isError || q.isFetching || entries.data === undefined || entries.isError || missingIDs.length > 0 || mapConflict
   const entryChoices = [...(entries.data ?? []).map(entry => ({ value: String(entry.ID), label: entry.Name })), ...missingIDs.map(id => ({ value: String(id), label: t('serviceStatus.deletedEntry', { id }) }))]
   return (
     <>
-      <PageHeader title={t('site.title')} subtitle={t('site.subtitle')} actions={<Button component="a" href="/" target="_blank" variant="default">{t('site.open')}</Button>} />
-      <form onSubmit={form.onSubmit((v) => { if (!blocked && !save.isPending) save.mutate(v) })}>
+      {!embedded && <PageHeader title={t('site.title')} subtitle={t('site.subtitle')} actions={<Button component="a" href="/" target="_blank" variant="default">{t('site.open')}</Button>} />}
+      <form onSubmit={form.onSubmit((v) => { if (!blocked && !save.isPending) save.mutate(v) }, errors => { if (['hub', 'locations', 'features', 'faq'].some(field => errors[field])) setAdvancedOpen(true) })}>
         <Stack>
           {(q.isError || entries.isError) && <Alert color="red"><Text size="sm">{t('workspace.loadError')}</Text><Button variant="light" size="xs" onClick={() => { q.refetch(); entries.refetch() }}>{t('workspace.retry')}</Button></Alert>}
           {mapConflict && <Alert color="yellow"><Text size="sm">{t('mapLocation.siteConflict')}</Text><Button variant="light" size="xs" onClick={reload}>{t('serviceStatus.reload')}</Button></Alert>}
-          <Card>
-            <Title order={5} mb={4}>{t('branding.title')}</Title>
+          <Card component="section" id="site-brand" aria-labelledby="site-brand-title" style={{ scrollMarginTop: 88 }}>
+            <Group justify="space-between" align="center" mb={4}><Title id="site-brand-title" order={5}>{t('branding.title')}</Title>{embedded && <Button component="a" href="/" target="_blank" rel="noopener noreferrer" variant="subtle" size="xs">{t('site.open')}</Button>}</Group>
             <Text size="xs" c="dimmed" mb="sm">{t('branding.hint')}</Text>
             <Stack gap="sm">
               <SettingsFields>
@@ -81,64 +71,75 @@ export default function SitePage() {
               <Text size="xs" c="dimmed">{t('branding.fallbackHint')}</Text>
             </Stack>
           </Card>
-          <Card>
-            <Title order={5} mb="sm">{t('site.copy')}</Title>
+          <Card component="section" id="site-content" aria-labelledby="site-content-title" style={{ scrollMarginTop: 88 }}>
+            <Title id="site-content-title" order={5} mb="sm">{t('site.copy')}</Title>
             <Stack gap="sm">
               <TextInput label={t('site.tagline')} {...form.getInputProps('tagline')} />
               <Textarea label={t('site.description')} autosize minRows={2} {...form.getInputProps('description')} />
-              <Group grow>
+              <SettingsFields>
                 <TextInput label="Telegram" placeholder="https://t.me/..." {...form.getInputProps('telegram')} />
                 <TextInput label={t('site.tos')} {...form.getInputProps('tos')} />
                 <TextInput label={t('site.download')} {...form.getInputProps('download')} />
-              </Group>
+                <TextInput label="GitHub" {...form.getInputProps('github')} />
+              </SettingsFields>
               <Switch label={t('site.showPlans')} {...form.getInputProps('show_plans', { type: 'checkbox' })} />
             </Stack>
           </Card>
-          <Card>
-            <Title order={5} mb={4}>{t('site.theme')}</Title>
+          <Card component="section" id="site-theme" aria-labelledby="site-theme-title" style={{ scrollMarginTop: 88 }}>
+            <Title id="site-theme-title" order={5} mb={4}>{t('site.theme')}</Title>
             <Text size="xs" c="dimmed" mb="sm">{t('site.themeHint')}</Text>
             <Stack gap="sm">
-              <Group grow>
+              <SettingsFields>
                 <Select label={t('site.primary')} data={['cyan', 'blue', 'indigo', 'violet', 'grape', 'pink', 'red', 'orange', 'yellow', 'lime', 'green', 'teal', 'gray']} allowDeselect={false} {...form.getInputProps('primary')} />
                 <Select label={t('site.radius')} data={['xs', 'sm', 'md', 'lg', 'xl']} allowDeselect={false} {...form.getInputProps('radius')} />
                 <Select label={t('site.portalScheme')} data={[{ value: 'light', label: t('site.light') }, { value: 'dark', label: t('site.dark') }, { value: 'auto', label: t('site.auto') }]} allowDeselect={false} {...form.getInputProps('scheme')} />
-              </Group>
+              </SettingsFields>
               <Text size="sm" c="dimmed">{t('site.publicAppearanceHint')}</Text>
-              <Group grow>
+              <SettingsFields>
                 <TextInput label={t('site.portalTitle')} placeholder={form.values.name} {...form.getInputProps('portal_title')} />
                 <TextInput label={t('site.font')} placeholder='"Noto Sans SC", sans-serif' {...form.getInputProps('font_family')} />
-              </Group>
+              </SettingsFields>
             </Stack>
           </Card>
-          <Card>
-            <Title order={5} mb={4}>{t('site.inject')}</Title>
-            <Text size="xs" c="dimmed" mb="sm">{t('site.injectHint')}</Text>
-            <Stack gap="sm">
-              <Textarea label={t('site.injectHead')} placeholder="<script ...></script>" autosize minRows={2} ff="monospace" {...form.getInputProps('inject_head')} />
-              <Textarea label={t('site.injectBody')} autosize minRows={2} ff="monospace" {...form.getInputProps('inject_body')} />
-            </Stack>
-          </Card>
-          <Card>
-            <Title order={5} mb={4}>{t('site.globe')}</Title>
+          <Card component="section" id="site-map" aria-labelledby="site-map-title" style={{ scrollMarginTop: 88 }}>
+            <Title id="site-map-title" order={5} mb={4}>{t('site.globe')}</Title>
             <Text size="xs" c="dimmed" mb="sm">{t('site.globeHint')}</Text>
             <Stack gap="sm">
-              <Select label={t('mapLocation.homeSource')} allowDeselect={false} data={[{ value: 'manual', label: t('mapLocation.manualMap') }, { value: 'entries', label: t('mapLocation.entryMap') }]} {...form.getInputProps('map_source')} />
-              {form.values.map_source === 'entries' && <><MultiSelect label={t('mapLocation.homeEntries')} description={t('mapLocation.homeEntriesHint')} searchable clearable data={entryChoices} value={form.values.map_entry_ids.map(String)} onChange={ids => form.setFieldValue('map_entry_ids', ids.map(Number))} disabled={!entries.data || entries.isError} /><Text size="xs" c="dimmed">{t('mapLocation.emptyMapHint')}</Text></>}
-              <Select label={t('mapLocation.statusSource')} description={t('mapLocation.statusSourceHint')} allowDeselect={false} data={[{ value: 'manual', label: t('mapLocation.manualMap') }, { value: 'entries', label: t('mapLocation.publicEntryMap') }]} {...form.getInputProps('status_map_source')} />
+              <SettingsFields>
+                <Select label={t('mapLocation.homeSource')} allowDeselect={false} data={[{ value: 'manual', label: t('mapLocation.manualMap') }, { value: 'entries', label: t('mapLocation.entryMap') }]} {...form.getInputProps('map_source')} />
+                <Select label={t('mapLocation.statusSource')} description={t('mapLocation.statusSourceHint')} allowDeselect={false} data={[{ value: 'manual', label: t('mapLocation.manualMap') }, { value: 'entries', label: t('mapLocation.publicEntryMap') }]} {...form.getInputProps('status_map_source')} />
+              </SettingsFields>
+              {(form.values.map_source === 'entries' || missingIDs.length > 0) && <><MultiSelect label={t('mapLocation.homeEntries')} description={t('mapLocation.homeEntriesHint')} searchable clearable data={entryChoices} value={form.values.map_entry_ids.map(String)} onChange={ids => form.setFieldValue('map_entry_ids', ids.map(Number))} disabled={!entries.data || entries.isError} /><Text size="xs" c="dimmed">{t('mapLocation.emptyMapHint')}</Text></>}
               {missingIDs.length > 0 && entries.data && <Alert color="yellow">{t('serviceStatus.deletedHint')}</Alert>}
-              <TextInput label={t('site.hub')} placeholder='{"name":"Shanghai","lat":31.23,"lng":121.47}' {...form.getInputProps('hub')} />
-              <JsonInput label={t('site.locations')} description={t('mapLocation.manualMapHint')} autosize minRows={4} formatOnBlur {...form.getInputProps('locations')} />
+              <Anchor component={Link} to="/settings/category/monitoring#service-status" size="sm">{t('serviceStatus.title')}</Anchor>
             </Stack>
           </Card>
-          <Card>
-            <Title order={5} mb="sm">{t('site.sections')}</Title>
-            <Stack gap="sm">
-              <JsonInput label={t('site.features')} description={t('site.featuresHint')} autosize minRows={4} formatOnBlur {...form.getInputProps('features')} />
-              <JsonInput label={t('site.faq')} autosize minRows={3} formatOnBlur {...form.getInputProps('faq')} />
-            </Stack>
+          <Card component="section" id="site-advanced" aria-labelledby="site-advanced-title" style={{ scrollMarginTop: 88 }}>
+            <details open={advancedOpen} onToggle={event => setAdvancedOpen(event.currentTarget.open)}>
+              <summary style={{ cursor: 'pointer', fontWeight: 600 }}><Text component="span" id="site-advanced-title" fw={600}>{t('settingsLayout.advanced')}</Text></summary>
+              <Text size="xs" c="dimmed" mt={4}>{t('settingsLayout.advancedHint')}</Text>
+              <Stack mt="md" gap="lg">
+                <Stack gap="sm">
+                  <Title order={6}>{t('site.sections')}</Title>
+                  <JsonInput label={t('site.features')} description={t('site.featuresHint')} autosize minRows={4} formatOnBlur {...form.getInputProps('features')} />
+                  <JsonInput label={t('site.faq')} autosize minRows={3} formatOnBlur {...form.getInputProps('faq')} />
+                </Stack>
+                <Stack gap="sm">
+                  <Title order={6}>{t('mapLocation.manualMap')}</Title>
+                  <TextInput label={t('site.hub')} placeholder='{"name":"Example city","lat":35,"lng":135}' {...form.getInputProps('hub')} />
+                  <JsonInput label={t('site.locations')} description={t('mapLocation.manualMapHint')} autosize minRows={4} formatOnBlur {...form.getInputProps('locations')} />
+                </Stack>
+                <Stack gap="sm">
+                  <Title order={6}>{t('site.inject')}</Title>
+                  <Text size="xs" c="dimmed">{t('site.injectHint')}</Text>
+                  <Textarea label={t('site.injectHead')} placeholder="<script ...></script>" autosize minRows={2} ff="monospace" {...form.getInputProps('inject_head')} />
+                  <Textarea label={t('site.injectBody')} autosize minRows={2} ff="monospace" {...form.getInputProps('inject_body')} />
+                </Stack>
+                <Text size="xs" c="dimmed">{t('site.overrideHint')} <Anchor href="https://github.com/zeptop-dev/captain" target="_blank" rel="noopener noreferrer" size="xs">README</Anchor></Text>
+              </Stack>
+            </details>
           </Card>
-          <Text size="xs" c="dimmed">{t('site.overrideHint')} <Anchor href="https://github.com/zeptop-dev/captain" target="_blank" size="xs">README</Anchor></Text>
-          <Group justify="flex-end"><Button type="submit" loading={save.isPending} disabled={blocked}>{t('common.save')}</Button></Group>
+          <Group justify="flex-end"><Button type="submit" loading={save.isPending} disabled={blocked}>{t('settingsLayout.saveSection', { section: t('settingsLayout.categories.site') })}</Button></Group>
         </Stack>
       </form>
     </>
