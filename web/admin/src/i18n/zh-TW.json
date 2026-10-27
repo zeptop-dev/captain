@@ -1303,7 +1303,6 @@
     "carriersICMPHint": "每行一個：名稱 網域或 IP（不含連接埠）。留空使用該 IP 版本的 NextTrace 北京三網預設目標；填寫後整體取代。"
   },
   "nodeProbe": {
-    "title": "探針與月流量",
     "used": "本週期已用",
     "prev": "上週期",
     "since": "週期起始",
@@ -1329,7 +1328,6 @@
     "price": "價格",
     "expires": "到期日",
     "note": "備註",
-    "hidden": "不在狀態頁顯示",
     "reset": "重設本週期"
   },
   "renewals": {

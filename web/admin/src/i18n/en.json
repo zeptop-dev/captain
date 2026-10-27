@@ -953,7 +953,6 @@
     "carriersICMPHint": "One per line: name hostname or IP (no port). Empty uses the NextTrace Beijing defaults for this IP version; a custom list replaces all three."
   },
   "nodeProbe": {
-    "title": "Probe & monthly traffic",
     "used": "Used this period",
     "prev": "Last period",
     "since": "since",
@@ -979,7 +978,6 @@
     "price": "Price",
     "expires": "Expires",
     "note": "Note",
-    "hidden": "Hide from the status page",
     "reset": "Reset this period"
   },
   "external": {

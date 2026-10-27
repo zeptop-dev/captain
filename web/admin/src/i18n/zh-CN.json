@@ -953,7 +953,6 @@
     "carriersICMPHint": "每行一个：名称 域名或 IP（不含端口）。留空使用该 IP 版本的 NextTrace 北京三网默认目标；填写后整体替换。"
   },
   "nodeProbe": {
-    "title": "探针与月流量",
     "used": "本周期已用",
     "prev": "上周期",
     "since": "周期起始",
@@ -979,7 +978,6 @@
     "price": "价格",
     "expires": "到期日",
     "note": "备注",
-    "hidden": "不在状态页显示",
     "reset": "重置本周期"
   },
   "external": {
