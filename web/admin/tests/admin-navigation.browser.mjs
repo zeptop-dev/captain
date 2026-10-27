@@ -284,6 +284,7 @@ const scenarios = {
       }
       if (role === 'operator') {
         await open(run, '/nodes')
+        await selected(run, '/nodes', 'workspace.serverList')
         assert.equal(await sections(run).getByRole('link').count(), 2)
         assert.equal(await sectionLink(run, 'nav.infrastructure').count(), 0)
       }
