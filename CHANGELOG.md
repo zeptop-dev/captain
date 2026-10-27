@@ -6,6 +6,13 @@ Merge commits and formatting-only commits are left out. Binaries and
 `SHA256SUMS` for every tag are on the GitHub Release; the in-app updater
 installs them (Settings → System maintenance → Version and updates).
 
+- **v1.47.0** (2026-10-27) — Open server details as a monitoring overview, with separate Information, Diagnostics and Settings destinations. Keep resource tables and network history expandable, preserve sampling timestamps and distinguish host-cycle traffic from UTC-day proxy traffic.
+  - Group manual specifications, supplier and primary-bill details, traffic interface/direction/reset options and the per-server probe visibility switch in Information. Use an explicit edit/save/cancel workflow while retaining full probe payloads, financial revision checks and independent unsaved drafts. Preserve old server bookmarks and diagnostic/billing/settings deep links.
+  - Run diagnostic views and maintenance tools only when selected. Preserve monitor-only behavior and administrator/operator boundaries; separate basic-profile and proxy-policy editors without clearing unedited fields.
+  - Organize administration into eight business workspaces and a fixed system-settings destination, with shared in-page navigation, role-filtered destinations and no intermediate directory pages. Preserve legacy links and protect settings/template drafts across navigation.
+  - Simplify public header/footer navigation and remove server-monitoring links from customer-facing pages. Customer service status remains separate; global server-probe visibility settings are unchanged.
+  - No migration, agent-protocol, subscription, traffic-accounting or billing changes. Keep the formal bosun v0.82.0 dependency; managed nodes do not need an upgrade.
+
 - **v1.46.0** (2026-10-27) — Replace nested settings directories with eight direct editing categories, searchable section links, per-module saves and unsaved-change protection. Keep legacy bookmarks and administrator permissions; distinguish server probes from customer service status and fold advanced site configuration.
   - Move the single-plan purchase policy beside transaction rules without changing the subscription API. Serialize partial subscription-setting saves so concurrent edits preserve both modules; protect unsaved maintenance drafts before upgrade, restart or reset.
   - Add an administrator switch for the public homepage, enabled by default. When disabled, send root visits to login or the signed-in customer's portal, preserve invitation codes and saved homepage content, and adjust public navigation. Shared branding, downloads, service status and server probes remain independent; legacy settings updates preserve the switch.
