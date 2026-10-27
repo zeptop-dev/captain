@@ -405,7 +405,6 @@
   },
   "serviceStatus": {
     "title": "서비스 상태",
-    "serverMonitoring": "서버 모니터링",
     "scope": "현재 사용할 수 있는 구독 노드와 접속 경로의 작동 상태입니다.",
     "refresh": "새로 고침",
     "all": "전체",

@@ -25,7 +25,7 @@
 @media (max-width: 62em) {
   .headerInner { min-height: 68px; gap: 10px; }
   .brandName { max-width: min(36vw, 210px); }
-  .desktopNav, .statusLink { display: none; }
+  .desktopNav { display: none; }
   .tool { width: 44px; height: 44px; }
   .main { padding-top: 28px; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
   .mobileNav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; z-index: 100; bottom: 0; left: 0; right: 0; padding: 0 8px env(safe-area-inset-bottom, 0px); background: var(--portal-bg); border-top: 1px solid var(--portal-line); }

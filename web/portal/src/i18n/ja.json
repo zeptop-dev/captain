@@ -405,7 +405,6 @@
   },
   "serviceStatus": {
     "title": "サービス状況",
-    "serverMonitoring": "サーバー監視",
     "scope": "現在利用できるサブスクリプションノードと接続経路の稼働状況です。",
     "refresh": "更新",
     "all": "すべて",

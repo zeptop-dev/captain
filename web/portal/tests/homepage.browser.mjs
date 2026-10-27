@@ -13,8 +13,9 @@ await context.route('**/*', async route => {
   if (url.origin !== new URL(base).origin) return route.abort()
   if (!url.pathname.startsWith('/api/')) return route.continue()
   const send = (body, status = 200, headers = {}) => route.fulfill({ status, headers, contentType: 'application/json', body: JSON.stringify(body) })
-  if (url.pathname === '/api/site') return send({ name: 'Example', homepage_enabled: state.homepage })
+  if (url.pathname === '/api/site') return send({ name: 'Example', homepage_enabled: state.homepage, probe_url: 'https://example.com/server-monitoring' })
   if (url.pathname === '/api/portal/me') return state.loggedIn ? send({ id: 1, email: 'user@example.com', balance_cents: 0, subscriptions: [], subscription_url: '', online_devices: 0 }) : send({ error: 'Unauthorized' }, 401)
+  if (url.pathname === '/api/portal/service-status') return send({ generated_at: Date.now() / 1000, refresh_seconds: 60, entries: [] })
   if (url.pathname === '/api/portal/notice') return send({ enabled: false })
   if (url.pathname === '/api/portal/me/lang') return send({})
   if (url.pathname === '/api/portal/register/policy') return send({ open: true, verify: false, reset: true, invite_only: false, email_suffixes: [] })
@@ -57,6 +58,23 @@ try {
   await page.goto(base)
   await page.locator('#portal-main').waitFor()
   assert.equal(new URL(page.url()).pathname, '/portal/')
+  // Customer navigation never advertises the server probe, even when its URL
+  // remains in the compatible site API. Keep service status usable on both sizes.
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 })
+    await page.getByRole('button', { name: 'Account', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'Service status', exact: true }).waitFor()
+    assert.equal(await page.getByRole('menuitem', { name: 'Account', exact: true }).getAttribute('href'), '/portal/account')
+    assert.equal(await page.getByRole('menuitem', { name: 'Log out', exact: true }).count(), 1)
+    assert.equal(await page.getByRole('menuitem', { name: 'Server monitoring', exact: true }).count(), 0)
+    assert.equal(await page.locator('a[href="https://example.com/server-monitoring"]').count(), 0)
+    await page.getByRole('menuitem', { name: 'Service status', exact: true }).click()
+    await page.getByRole('heading', { name: 'Service status', exact: true }).waitFor()
+    assert.equal(new URL(page.url()).pathname, '/portal/status')
+    await page.goto(base)
+    await page.locator('#portal-main').waitFor()
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 })
   state.loggedIn = false
   let releaseRef
   state.refGate = new Promise(resolve => { releaseRef = resolve })
@@ -109,5 +127,5 @@ try {
   await page.getByRole('link', { name: 'Back to the site', exact: true }).waitFor()
   assert.equal(await page.getByRole('link', { name: 'Example home', exact: true }).getAttribute('href'), '/')
   assert.deepEqual(errors, [])
-  console.log('PASS: anonymous/authenticated entry, ref registration and forgot paths, ordered OAuth cookie, failure retry, missing invite OAuth, navigation cancellation, legacy enabled default')
+  console.log('PASS: desktop/mobile customer-only navigation and service status, anonymous/authenticated entry, ref registration and forgot paths, ordered OAuth cookie, failure retry, missing invite OAuth, navigation cancellation, legacy enabled default')
 } finally { await browser.close() }

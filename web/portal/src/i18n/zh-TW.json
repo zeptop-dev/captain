@@ -405,7 +405,6 @@
   },
   "serviceStatus": {
     "title": "服務狀態",
-    "serverMonitoring": "伺服器監控",
     "scope": "查看你目前可用的訂閱節點及其連線路徑運行狀態。",
     "refresh": "重新整理",
     "all": "全部",

@@ -405,7 +405,6 @@
   },
   "serviceStatus": {
     "title": "Service status",
-    "serverMonitoring": "Server monitoring",
     "scope": "Runtime status of the subscription nodes and access paths available to your account.",
     "refresh": "Refresh",
     "all": "All",

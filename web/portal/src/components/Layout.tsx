@@ -1,5 +1,5 @@
 import { ActionIcon, Avatar, Container, Group, Menu, Text, UnstyledButton } from '@mantine/core'
-import { IconActivity, IconArrowUpRight, IconCreditCard, IconCheck, IconHelpCircle, IconHome, IconLanguage, IconLogout, IconPlugConnected, IconUser } from '@tabler/icons-react'
+import { IconActivity, IconCreditCard, IconCheck, IconHelpCircle, IconHome, IconLanguage, IconLogout, IconPlugConnected, IconUser } from '@tabler/icons-react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -63,7 +63,6 @@ export function Layout() {
           <nav className={styles.desktopNav} aria-label={t('portalNav.navigation')}>{links}</nav>
           <Group gap={4} wrap="nowrap">
             <ThemeToggle />
-            {site.data?.probe_url && <ActionIcon className={styles.statusLink} variant="subtle" color="gray" component="a" href={site.data.probe_url} target="_blank" rel="noreferrer" aria-label={t('serviceStatus.serverMonitoring')}><IconActivity size={20} /></ActionIcon>}
             <Menu shadow="md" position="bottom-end">
               <Menu.Target><ActionIcon variant="subtle" color="gray" size="lg" className={styles.tool} aria-label={t('portalNav.language')}><IconLanguage size={20} /></ActionIcon></Menu.Target>
               <Menu.Dropdown>{LANGS.map(([code, label]) => <Menu.Item key={code} onClick={() => pickLanguage(code)} rightSection={i18n.resolvedLanguage === code ? <IconCheck size={14} aria-hidden /> : undefined}>{label}</Menu.Item>)}</Menu.Dropdown>
@@ -73,7 +72,6 @@ export function Layout() {
               <Menu.Dropdown>
                 <Menu.Label style={{ overflowWrap: 'anywhere' }}>{me?.email}</Menu.Label>
                 <Menu.Item component={Link} to="/account" leftSection={<IconUser size={16} />}>{t('portalNav.account')}</Menu.Item>
-                {site.data?.probe_url && <Menu.Item component="a" href={site.data.probe_url} target="_blank" rel="noreferrer" leftSection={<IconActivity size={16} />} rightSection={<IconArrowUpRight size={14} />}>{t('serviceStatus.serverMonitoring')}</Menu.Item>}
                 <Menu.Item component={Link} to="/status" leftSection={<IconActivity size={16} />}>{t('serviceStatus.title')}</Menu.Item>
                 <Menu.Divider />
                 <Menu.Item color="red" leftSection={<IconLogout size={16} />} onClick={async () => { await logout(); nav('/login') }}>{t('nav.logout')}</Menu.Item>
