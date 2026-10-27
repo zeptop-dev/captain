@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
@@ -33,6 +34,8 @@ func TestLinkedOnlineRenewalCalendarAndArchivedBill(t *testing.T) {
 	}{
 		{"monthly", "2027-01-31", "2027-01-31", "2027-02-28", 1, 31, false},
 		{"quarterly clamped", "2027-02-28", "2027-02-28", "2027-05-31", 3, 31, false},
+		{"quarterly independent day", "2027-02-15", "2027-02-15", "2027-05-31", 3, 31, false},
+		{"yearly independent day", "2027-02-15", "2027-02-15", "2028-02-29", 12, 31, false},
 		{"leap year", "2024-02-29", "2025-02-28", "2026-02-28", 12, 29, false},
 		{"multiple periods", "2027-02-28", "2028-07-01", "2028-08-31", 3, 31, false},
 		{"archived remains archived", "2027-02-28", "2027-02-28", "2027-05-31", 3, 31, true},
@@ -151,7 +154,7 @@ func TestLinkedRenewalSwitchCASAndRollback(t *testing.T) {
 	}
 }
 
-func TestInfraPaymentDateActionsAndHistoricalFloor(t *testing.T) {
+func TestInfraPaymentDateActionsAndHistoricalSnapshots(t *testing.T) {
 	s, id, sup := infrastructureRig(t)
 	ctx := context.Background()
 	v := linkNewInfrastructure(t, s, id, sup)
@@ -182,18 +185,42 @@ func TestInfraPaymentDateActionsAndHistoricalFloor(t *testing.T) {
 	if _, err = s.RecordInfraPayment(ctx, v.Asset.ID, staff, request); !errors.Is(err, ErrAssetInput) {
 		t.Fatal("backward date", err)
 	}
-	// Even after a deliberate manual correction, later payment history cannot
-	// claim a due-date move behind an already recorded date.
+	// A deliberate manual correction establishes the current date. A new
+	// confirmation may use that corrected value without rewriting old history.
+	history, _, err := s.InfraPayments(ctx, v.Asset.ID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
 	a := *v.Asset
 	a.NextDue = "2027-02-15"
 	if err = s.SaveInfraAsset(ctx, &a); err != nil {
 		t.Fatal(err)
 	}
 	request.Revision = a.Revision
-	request.NextDue = "2027-03-15"
-	if _, err = s.RecordInfraPayment(ctx, a.ID, staff, request); !errors.Is(err, ErrAssetInput) {
-		t.Fatal("payment history regressed", err)
+	request.NextDue = "2027-02-15"
+	if _, err = s.RecordInfraPayment(ctx, a.ID, staff, request); err != nil {
+		t.Fatal("corrected current date confirmation rejected", err)
 	}
+	updated, _, err := s.InfraPayments(ctx, a.ID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, old := range history {
+		found := false
+		for _, saved := range updated {
+			if saved.ID == old.ID {
+				found = true
+				if !reflect.DeepEqual(saved, old) {
+					t.Fatal("historical snapshot changed", old, saved)
+				}
+			}
+		}
+		if !found {
+			t.Fatal("historical payment removed")
+		}
+	}
+	a = *infrastructureView(t, s, id).Asset
+	request.Revision = a.Revision
 	request.DateAction = "record_only"
 	request.NextDue = ""
 	request.RequestKey = "record_only_0000001"
@@ -207,6 +234,61 @@ func TestInfraPaymentDateActionsAndHistoricalFloor(t *testing.T) {
 	request.NextDue = "2027-03-15"
 	if _, err = s.RecordInfraPayment(ctx, a.ID, staff, request, false); !errors.Is(err, ErrAssetInput) {
 		t.Fatal("ignored extra target date", err)
+	}
+}
+
+func TestPrimaryDetachmentInvalidatesPaymentDraft(t *testing.T) {
+	for _, operation := range []string{"unlink", "delete"} {
+		t.Run(operation, func(t *testing.T) {
+			s, id, sup := infrastructureRig(t)
+			ctx := context.Background()
+			v := linkNewInfrastructure(t, s, id, sup)
+			staff := financeStaff(t, s)
+			input := InfraPaymentInput{RequestKey: "draft_before_detach_001", Revision: v.Asset.Revision, AmountMinor: 1000, PaidDate: "2027-01-31"}
+			loose := InfraAsset{SupplierID: sup.ID, NodeID: &id, Name: "Loose independent cost", Currency: "USD", AmountMinor: 500, PeriodMonths: 1, AnchorDay: 1, NextDue: "2027-02-01", Active: true}
+			if err := s.SaveInfraAsset(ctx, &loose); err != nil {
+				t.Fatal(err)
+			}
+			if operation == "unlink" {
+				if _, err := s.ChangeNodeInfrastructure(ctx, id, NodeInfrastructureChange{Revision: v.Revision, Action: "unlink_asset"}); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				if _, err := s.db.Exec(`CREATE TRIGGER fail_node_delete BEFORE DELETE ON nodes BEGIN SELECT RAISE(FAIL,'injected'); END`); err != nil {
+					t.Fatal(err)
+				}
+				if err := s.DeleteNode(ctx, id); err == nil {
+					t.Fatal("injected deletion succeeded")
+				}
+				if got := infrastructureView(t, s, id); got.Asset.Revision != v.Asset.Revision {
+					t.Fatal("failed deletion changed revision")
+				}
+				if _, err := s.db.Exec(`DROP TRIGGER fail_node_delete`); err != nil {
+					t.Fatal(err)
+				}
+				if err := s.DeleteNode(ctx, id); err != nil {
+					t.Fatal(err)
+				}
+			}
+			assets, err := s.InfraAssets(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, asset := range assets {
+				if asset.ID == v.Asset.ID && (asset.Revision != v.Asset.Revision+1 || asset.PrimaryNodeID != nil || asset.AutoRenewalEnabled || asset.NextDue != v.Asset.NextDue) {
+					t.Fatal("detachment did not invalidate payment", asset)
+				}
+				if asset.ID == loose.ID && asset.Revision != loose.Revision {
+					t.Fatal("loose association affected", asset)
+				}
+			}
+			if _, err = s.RecordInfraPayment(ctx, v.Asset.ID, staff, input); !errors.Is(err, ErrAssetConflict) {
+				t.Fatal("stale empty action changed from record-only to advance", err)
+			}
+			if _, total, err := s.InfraPayments(ctx, v.Asset.ID, 0); err != nil || total != 0 {
+				t.Fatal(total, err)
+			}
+		})
 	}
 }
 

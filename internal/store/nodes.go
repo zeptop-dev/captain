@@ -276,6 +276,9 @@ func (s *Store) DeleteNode(ctx context.Context, id int64) error {
 	} else if used {
 		return ErrLineInUse
 	}
+	if err := bumpDetachedInfraAssetTx(ctx, tx, id); err != nil {
+		return err
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM nodes WHERE id = ?`, id); err != nil {
 		return err
 	}

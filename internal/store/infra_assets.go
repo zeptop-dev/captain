@@ -409,11 +409,7 @@ func (s *Store) RecordInfraPayment(ctx context.Context, assetID, staffID int64, 
 			active = true
 		}
 	case "set_due_date":
-		var historical string
-		if e = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(next_due),'') FROM infra_payments WHERE asset_id=?`, a.ID).Scan(&historical); e != nil {
-			return empty, e
-		}
-		if in.NextDue < a.NextDue || in.NextDue < historical {
+		if in.NextDue < a.NextDue {
 			return empty, ErrAssetInput
 		}
 		next = in.NextDue

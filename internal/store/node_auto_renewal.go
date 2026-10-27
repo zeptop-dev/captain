@@ -107,8 +107,8 @@ func nodeExpiryAt(anchor time.Time, months int, days ...int) time.Time {
 	return first.AddDate(0, 0, min(day, last)-1)
 }
 
-// Calculate from the original calendar anchor, not the last clamped date or the
-// reconnect time. Work is bounded even after many years without a report.
+// Advance whole billing periods from the current due month, retaining the
+// original unclamped day. Work stays bounded after years without a report.
 func nextNodeExpiry(info NodeProbeInfo, at time.Time) (string, bool) {
 	r := info.AutoRenewal
 	if r == nil || !r.Enabled {
@@ -124,11 +124,18 @@ func nextNodeExpiry(info NodeProbeInfo, at time.Time) (string, bool) {
 		return "", false
 	}
 	at = at.UTC()
-	elapsed := (at.Year()-anchor.Year())*12 + int(at.Month()-anchor.Month())
-	periods := max(0, elapsed/months)
-	next := nodeExpiryAt(anchor, periods*months, r.AnchorDay)
+	day := anchor.Day()
+	if r.AnchorDay >= 1 && r.AnchorDay <= 31 {
+		day = r.AnchorDay
+	}
+	elapsed := (at.Year()-expiry.Year())*12 + int(at.Month()-expiry.Month())
+	// The current due date and configured day may differ intentionally (for
+	// example Feb 15, quarterly, day 31). Never turn that into a partial period
+	// ending later this month: its next full period ends on May 31.
+	periods := max(1, elapsed/months)
+	next := nodeExpiryAt(expiry, periods*months, day)
 	if !next.After(at) {
-		next = nodeExpiryAt(anchor, (periods+1)*months, r.AnchorDay)
+		next = nodeExpiryAt(expiry, (periods+1)*months, day)
 	}
 	if next.Year() > 9999 {
 		return "", false

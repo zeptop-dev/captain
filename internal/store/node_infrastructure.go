@@ -329,6 +329,9 @@ func (s *Store) ChangeNodeInfrastructure(ctx context.Context, nodeID int64, in N
 			return nil, err
 		}
 	case "unlink_asset":
+		if err = bumpDetachedInfraAssetTx(ctx, tx, nodeID); err != nil {
+			return nil, err
+		}
 		l.AssetID = sql.NullInt64{}
 	case "create_asset", "link_asset":
 		if l.AssetID.Valid {
@@ -603,4 +606,12 @@ func renewNodeInfrastructureTx(ctx context.Context, tx *sql.Tx, nodeID int64, in
 		return err
 	}
 	return saveNodeInfrastructureLinkTx(ctx, tx, nodeID, l.SupplierID, l.AssetID)
+}
+
+// Removing a primary association changes the legacy empty payment action from
+// record-only to period advancement when online renewal was enabled. Invalidate
+// open payment drafts even though the retained asset's due date is unchanged.
+func bumpDetachedInfraAssetTx(ctx context.Context, tx *sql.Tx, nodeID int64) error {
+	_, err := tx.ExecContext(ctx, `UPDATE infra_assets SET revision=revision+1 WHERE id IN (SELECT asset_id FROM node_infrastructure WHERE node_id=?)`, nodeID)
+	return err
 }
