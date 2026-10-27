@@ -183,17 +183,31 @@ edits and associations require administrator permission; narrower server-editing
 permissions do not grant access to the ledger. Conflicting drafts must be
 reloaded before saving.
 
-Linking a primary bill requires confirmation that online automatic renewal will
-be disabled for that server: an online heartbeat is not proof that its supplier
-has been paid. Unlinked servers retain their existing automatic-renewal behavior.
+Linking preserves the server's **Automatically extend expiry while online**
+setting. When enabled, a fresh accepted resource report after expiry advances
+the shared server and bill date together. This is a date estimate, not proof of
+payment, and it creates no payment record. When disabled, dates are maintained
+manually. Selecting a supplier without a bill keeps the existing behavior too.
 
-After paying the supplier outside Captain, use **Record payment**. The server
-writes the immutable supplier/asset/currency/amount snapshot and advances one
-billing period in one transaction, including the associated server expiry when
-this is its primary bill. A request key makes retries idempotent;
-the asset revision prevents two tabs from advancing the same period. Paying
-a one-time asset archives it. January 31 advances to February's last day,
-then back to March 31 when the anchor is 31. Dates use UTC calendar days.
+After paying the supplier outside Captain, use **Record payment**. Choose how
+to handle the expiry date:
+
+- **Record payment only** leaves the date and automatic setting unchanged. This
+  is the default when online date extension is enabled. For example, if the
+  date has already advanced from October 31 to November 30, recording that
+  payment leaves it at November 30.
+- **Update expiry date** records an explicit target date. In manual mode the
+  form suggests the next billing date for confirmation. A target equal to the
+  current date is allowed; an earlier target is rejected. A correction to an
+  earlier expiry is a separate metadata edit, not a renewal payment.
+
+The immutable payment snapshot and any explicit date change commit together.
+Payment history distinguishes bookkeeping-only records from date changes;
+bookkeeping alone does not claim a paid coverage period. Request keys make
+retries idempotent, and revisions reject stale forms after a report, edit or
+other payment. Recording an independent one-time expense retains its existing
+archive behavior. January 31 advances to February's last day, then back to
+March 31 when the anchor is 31. Dates use UTC calendar days.
 
 Amounts are integer minor units (USD 500 = $5.00, JPY 500 = ¥500). Totals group
 by currency without exchange-rate conversion. Recorded payments cannot be

@@ -20,12 +20,33 @@ drafts. Public probes retain the existing provider, fee and expiry projection,
 without ledger IDs, contact details or payment history. No customer billing,
 subscription rendering, agent protocol or bosun upgrade changes are involved.
 
-Linking a primary bill explicitly disables online automatic renewal. Actual
-payment recording advances the ledger and server expiry atomically. Unlinking
-keeps their current values and never manufactures a payment. Older Captain
-versions do not maintain these associations: before downgrading, restore the
-matching pre-upgrade database backup rather than editing shared values with an
-older binary.
+Linking preserves the online expiry-extension setting. Accepted fresh resource
+reports can advance both shared dates atomically without recording a payment.
+The server-maintained additive `auto_renewal.anchor_day` preserves month-end
+days separately from the real cycle month; callers cannot supply an arbitrary
+anchor. Unlinking keeps the current values and date-maintenance setting.
+
+Migration 95 records the payment's date action. Payment input adds optional
+`date_action` (`record_only` or `set_due_date`) and `next_due` for an explicit
+target. Recording only a payment changes no expiry or active status, and keeps
+the existing ledger permission. Changing shared dates additionally requires
+`infrastructure` permission. Explicit targets cannot precede the current expiry;
+past payment snapshots are preserved even after a manual date correction.
+Asset responses add read-only
+`auto_renewal_enabled` for form defaults; changing that setting invalidates open
+payment drafts. Payment history leaves date fields empty for bookkeeping-only
+records, rather than inventing a coverage period.
+
+Omitted actions retain the old period-advance/one-time behavior for existing
+independent assets and manually maintained primary bills. A newly linked primary
+bill with automatic date extension defaults to bookkeeping only. Optional
+fields are omitted from legacy request hashes so successful pre-upgrade payment
+retries remain idempotent. Old history remains distinguishable as legacy
+period-advance records. No report or association manufactures a payment.
+
+Older Captain versions do not maintain these associations or payment actions:
+before downgrading, restore the matching pre-upgrade database backup rather than
+editing shared values with an older binary.
 
 ## Curated client downloads
 
