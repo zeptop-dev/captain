@@ -68,7 +68,7 @@ export function NodeBillingLink({ nodeID, infra, disabled, dirty, onApplied }: {
     setAction(null); toast.ok(t('common.saved'))
     setRefreshFailed(!await onApplied())
   }, onError: error => { if (error instanceof ApiError && error.status === 409) setConflict(true); else toast.err(error) } })
-  const reason = createBillingReason(snapshot ?? infra)
+  const reason = createBillingReason(action ? snapshot ?? infra : infra)
   const previewInfra = snapshot ?? infra
   const preview = (asset?: InfraAsset | null) => <Stack gap={3}><Text size="sm">{t('infra.supplier')}: {asset?.supplier_name ?? previewInfra.supplier?.name ?? '—'}</Text><Text size="sm">{t('infra.amount')}: {asset ? infraMoney(asset.amount_minor, asset.currency, i18n.language) : previewInfra.billing ? `${previewInfra.billing.currency} ${previewInfra.billing.amount}` : previewInfra.price || '—'}</Text><Text size="sm">{t('nodeCost.cycle')}: {asset ? t('infra.everyMonths', { count: asset.period_months }) : previewInfra.billing ? `${t(`nodeCost.${previewInfra.billing.cycle}`)}${previewInfra.billing.cycle === 'custom' ? ` (${previewInfra.billing.years})` : ''}` : '—'}</Text><Text size="sm">{t('nodeProbe.expires')}: {asset?.next_due ?? (previewInfra.expires_at || '—')}</Text></Stack>
   return <>

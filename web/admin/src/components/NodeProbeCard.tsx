@@ -165,7 +165,6 @@ function NodeProbeForm({ nodeID, reportedHost }: { nodeID: number; reportedHost?
             <TextInput type="date" label={t('nodeProbe.expires')} description={t('nodeCost.expiryHint')} min="0001-01-01" max="9999-12-31" {...form.getInputProps('expires_at')} />
             <Switch label={t('nodeCost.autoRenewal')} description={t(q.data?.infrastructure_linked ? 'infraLink.linkedRenewal' : renewalReason ?? 'nodeCost.autoRenewalHint')} {...form.getInputProps('AutoRenewal', { type: 'checkbox' })} disabled={billingReadOnly || !!q.data?.infrastructure_linked || !p || q.isError || save.isPending || (!form.values.AutoRenewal && !!renewalReason)} error={form.errors.AutoRenewal && renewalReason ? t(renewalReason) : undefined} />
           </Stack>
-          <Text size="xs" c="dimmed">{q.data?.infrastructure_linked && t('infraLink.linkedHint')}</Text>
         </SimpleGrid>
         </Stack></fieldset>
         <TextInput label={t('nodeProbe.note')} {...form.getInputProps('note')} />

@@ -3358,7 +3358,7 @@
     "supplierCreated": "Supplier created; save the server to apply it.",
     "linkedTitle": "Primary infrastructure bill linked",
     "unlinkedTitle": "Infrastructure billing",
-    "linkedHint": "Supplier, price, payment cycle and expiry are shared with this bill. Editing either page updates both. Recording a payment advances the server expiry; no payment is created automatically.",
+    "linkedHint": "Supplier, price, payment cycle and expiry are shared with this bill. Editing either page updates both without creating a payment record. Recording an actual payment advances the server expiry.",
     "unlinkedHint": "These server details are independent of infrastructure bills until you explicitly link a primary bill. Other assets remain independent.",
     "openAsset": "Open primary bill",
     "unlink": "Unlink primary bill",
