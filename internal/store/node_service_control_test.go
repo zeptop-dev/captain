@@ -105,6 +105,10 @@ func TestServiceControlAutomaticManualAndExemption(t *testing.T) {
 	if restored.Effective.Mode != "normal" || !restored.Automatic.ExemptCurrentPeriod || restored.Automatic.Active {
 		t.Fatal(restored)
 	}
+	unchanged := serviceControlPut(t, s, id, at.Add(2*time.Second), ServiceControlChange{Policy: &policy})
+	if unchanged.Revision != restored.Revision || !unchanged.Automatic.ExemptCurrentPeriod || unchanged.Automatic.Active {
+		t.Fatal("saving the same policy revoked the period exemption", unchanged)
+	}
 	serviceControlBeat(t, s, id, at.Add(3*time.Second), 5, 1500)
 	if next := serviceControlGet(t, s, id, at.Add(3*time.Second)); next.Automatic.Active {
 		t.Fatal("exemption ignored", next)
@@ -161,6 +165,11 @@ func TestServiceControlRolloverManualResetAndFreshEvidence(t *testing.T) {
 			v = serviceControlGet(t, s, id, next.Add(2*time.Second))
 			if v.Automatic.Active == autoResume || v.Manual.Mode != "pause" || v.Effective.Mode != "pause" {
 				t.Fatal("incorrect rollover composition", v)
+			}
+			serviceControlReport(t, s, id, next.Add(2*time.Second), &agentproto.ServiceControlReport{Supported: true, CheckedAt: next.Add(2 * time.Second).Unix(), Mode: "pause"})
+			unchanged := serviceControlPut(t, s, id, next.Add(2*time.Second), ServiceControlChange{Policy: &policy})
+			if unchanged.Revision != v.Revision || unchanged.Automatic.Active != v.Automatic.Active {
+				t.Fatal("same policy save changed a retained prior-period hold", unchanged)
 			}
 		})
 	}

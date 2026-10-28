@@ -381,9 +381,11 @@ func (s *Store) UpdateNodeServiceControl(ctx context.Context, id int64, c Servic
 				return nil, fmt.Errorf("%w: automatic protection requires enabled monitoring, a positive quota and a fresh measured traffic sample", ErrServiceControl)
 			}
 		}
-		r.state.Policy = *c.Policy
-		r.state.ExemptCycle = 0
-		evaluateServiceControl(&r, usage, at, true)
+		if r.state.Policy != *c.Policy {
+			r.state.Policy = *c.Policy
+			r.state.ExemptCycle = 0
+			evaluateServiceControl(&r, usage, at, true)
+		}
 	}
 	if c.ExemptCurrentPeriod != nil {
 		if *c.ExemptCurrentPeriod {
