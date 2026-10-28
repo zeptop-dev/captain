@@ -99,6 +99,21 @@ try {
   const v6Only = page.getByRole('row').filter({ has: page.getByRole('link', { name: 'Example server 4', exact: true }) })
   assert.equal(await v6Only.getByText('2001:db8::40', { exact: true }).count(), 1, 'Legacy IPv6 in PublicAddr is not duplicated or called IPv4')
   await v6Only.getByText(t('nodeAddresses.unregistered'), { exact: true }).waitFor()
+  for (const label of [t('nodes.online'), t('nodes.unpaired'), t('nodeMode.monitor')]) {
+    const badges = page.getByRole('table').getByText(label, { exact: true })
+    assert.ok(await badges.count(), `Expected visible ${label} badges`)
+    for (const badge of await badges.all()) assert.ok(await badge.evaluate(element => element.scrollWidth <= element.clientWidth + 1), `${label} must be fully readable without ellipsis`)
+  }
+  assert.ok(await dual.getByRole('cell').first().evaluate(element => element.getBoundingClientRect().width >= 220), 'Name column keeps a readable minimum width')
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Wide server table must scroll inside its container, not the page')
+  assert.ok(await page.getByRole('table').evaluate(element => {
+    let parent = element.parentElement
+    while (parent) {
+      if (parent.scrollWidth > parent.clientWidth + 1 && ['auto', 'scroll'].includes(getComputedStyle(parent).overflowX)) return true
+      parent = parent.parentElement
+    }
+    return false
+  }), 'Additional column width is handled by horizontal table scrolling')
   await page.screenshot({ path: resolve(artifacts, 'server-addresses.png'), fullPage: true })
 
   await admin.go('nodes/1/information')

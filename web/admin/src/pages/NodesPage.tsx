@@ -90,9 +90,9 @@ export default function NodesPage() {
             <Table.Tbody>
               {filtered.map((n) => (
                 <Table.Tr key={n.id}>
-                  <Table.Td><Anchor component={Link} to={`/nodes/${n.id}`} fw={600}>{n.name}</Anchor>{n.mode === 'monitor' && <Badge ml="xs" size="xs" color="cyan">{t('nodeMode.monitor')}</Badge>}<Text size="xs" c="dimmed">{n.hostname}</Text></Table.Td>
+                  <Table.Td miw={220}><Anchor component={Link} to={`/nodes/${n.id}`} fw={600}>{n.name}</Anchor>{n.mode === 'monitor' && <Badge ml="xs" size="xs" color="cyan" style={{ maxWidth: 'none' }}>{t('nodeMode.monitor')}</Badge>}<Text size="xs" c="dimmed">{n.hostname}</Text></Table.Td>
                   <Table.Td><Text size="sm">{n.monitor_group || t('nodeLayout.ungrouped')}</Text></Table.Td>
-                  <Table.Td miw={84}><Group gap={4}><NodeStatus n={n} />{n.cert_problem && <Badge color="red" size="xs" title={t('nodes.certProblem')}>TLS</Badge>}{n.doctor_fail && <Badge color="red" size="xs" variant="light" title={t('nodes.doctorFailHint')}>{t('nodes.doctor')}</Badge>}</Group></Table.Td>
+                  <Table.Td miw={140}><Group gap={4} style={{ minWidth: 'max-content' }}><NodeStatus n={n} />{n.cert_problem && <Badge color="red" size="xs" title={t('nodes.certProblem')}>TLS</Badge>}{n.doctor_fail && <Badge color="red" size="xs" variant="light" title={t('nodes.doctorFailHint')}>{t('nodes.doctor')}</Badge>}</Group></Table.Td>
                   <Table.Td><NodePublicAddresses node={n} /></Table.Td>
                   <Table.Td>{n.inbounds}</Table.Td>
                   <Table.Td><HostTrafficSummary traffic={n.host_traffic} /></Table.Td>
