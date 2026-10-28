@@ -87,3 +87,32 @@ func TestThemeActivationHostIsolation(t *testing.T) {
 		}
 	}
 }
+
+func TestThemeActivationNormalizesOriginAliases(t *testing.T) {
+	for _, tc := range []struct {
+		name, base, request string
+		hosts               []string
+		want                bool
+	}{
+		{"IDNA main alias", "https://bücher.example", "main.example.com", []string{"xn--bcher-kva.example"}, false},
+		{"Unicode main alias", "https://xn--bcher-kva.example", "main.example.com", []string{"BÜCHER.EXAMPLE."}, false},
+		{"IDNA request alias", "https://main.example.com", "bücher.example:8443", []string{"xn--bcher-kva.example"}, false},
+		{"compressed main IPv6", "https://[2001:0db8:0:0::1]:8443", "main.example.com", []string{"2001:db8::1"}, false},
+		{"expanded main IPv6", "https://[2001:db8::1]", "main.example.com", []string{"2001:0db8:0:0::1"}, false},
+		{"compressed request IPv6", "https://main.example.com", "[2001:0db8:0:0::1]:8443", []string{"2001:db8::1"}, false},
+		{"bracketed request IPv6", "https://main.example.com", "[2001:db8::1]", []string{"2001:0db8:0:0::1"}, false},
+		{"different IDNA origin", "https://main.example.com", "main.example.com", []string{"bücher.example"}, true},
+		{"different IPv6 origin", "https://[2001:db8::1]", "[2001:db8::1]:8443", []string{"2001:db8::2"}, true},
+		{"host port rejected", "https://main.example.com", "main.example.com", []string{"probe.example.com:443"}, false},
+		{"host URL rejected", "https://main.example.com", "main.example.com", []string{"https://probe.example.com"}, false},
+		{"missing base", "", "main.example.com", []string{"probe.example.com"}, false},
+		{"invalid base", "file://main.example.com", "main.example.com", []string{"probe.example.com"}, false},
+		{"invalid request", "https://main.example.com", "main.example.com/path", []string{"probe.example.com"}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := themeDedicatedHost(tc.hosts, tc.base, tc.request); got != tc.want {
+				t.Fatalf("got %v, want %v", got, tc.want)
+			}
+		})
+	}
+}

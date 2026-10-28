@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -121,23 +122,29 @@ func themeFail(w http.ResponseWriter, err error) {
 	fail(w, code, err.Error())
 }
 func themeDedicatedHost(hosts []string, baseURL, requestHost string) bool {
-	u, _ := url.Parse(baseURL)
-	base := ""
-	if u != nil {
-		base = strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
+	u, err := url.Parse(baseURL)
+	if err != nil || u == nil || u.User != nil || (u.Scheme != "https" && u.Scheme != "http") {
+		return false
 	}
-	request, _ := url.Parse("https://" + requestHost)
-	current := ""
-	if request != nil {
-		current = strings.TrimSuffix(strings.ToLower(request.Hostname()), ".")
+	base, err := store.NormalizeProbeOrigin(u.Hostname())
+	if err != nil {
+		return false
+	}
+	if host, _, err := net.SplitHostPort(requestHost); err == nil {
+		requestHost = host
+	} else if strings.HasPrefix(requestHost, "[") && strings.HasSuffix(requestHost, "]") {
+		requestHost = strings.TrimSuffix(strings.TrimPrefix(requestHost, "["), "]")
+	}
+	current, err := store.NormalizeProbeOrigin(requestHost)
+	if err != nil {
+		return false
 	}
 	for _, host := range hosts {
-		h, _ := url.Parse("https://" + host)
-		if h == nil {
+		name, err := store.NormalizeProbeOrigin(host)
+		if err != nil {
 			continue
 		}
-		name := strings.TrimSuffix(strings.ToLower(h.Hostname()), ".")
-		if name != "" && name != base && name != current {
+		if name != base && name != current {
 			return true
 		}
 	}
