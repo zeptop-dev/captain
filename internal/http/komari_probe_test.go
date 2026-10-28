@@ -201,6 +201,12 @@ func TestKomariThemeServingAndFilteredConfiguration(t *testing.T) {
 			t.Fatalf("theme %s: %d %s", path, code, b)
 		}
 	}
+	for _, path := range []string{"/images/flags/.svg", "/assets/flags/.svg"} {
+		code, b, headers := probeRequest(t, r, "GET", path, "probe.example.com", nil, nil, nil)
+		if code != 200 || !strings.Contains(string(b), "Unknown region") || !strings.HasPrefix(headers.Get("Content-Type"), "image/svg+xml") {
+			t.Fatalf("neutral region icon %s: %d %s", path, code, b)
+		}
+	}
 	code, b, _ := probeRequest(t, r, "GET", "/status/", "test", nil, nil, nil)
 	if code != 200 || strings.Contains(string(b), "original-theme-fixture") {
 		t.Fatalf("third party theme on panel origin: %d %s", code, b)

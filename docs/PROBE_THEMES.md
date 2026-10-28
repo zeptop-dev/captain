@@ -38,7 +38,8 @@ entries, with at most 12 installed versions and 160 MiB total. Archives are
 validated and stored in SQLite without extracting executable files. Duplicate
 paths, traversal, symlinks, corrupt entries and conflicting contents for the
 same theme/version are rejected. Existing licensed flag and OS icons provide
-compatibility paths when the package does not include its own files.
+compatibility paths when the package does not include its own files. Empty
+region icons use a neutral globe instead of inventing a country.
 
 ## Private access and origin isolation
 
@@ -86,9 +87,10 @@ Komari responses preserve their expected field names and add a `captain`
 namespace for the richer values. These fields are optional for an original
 theme; its code will not automatically display every Captain extension.
 
-- Unknown/hidden measurements remain null; unknown optional Komari ping
-  statistics are omitted according to that wire contract. Measured zero is
-  still zero.
+- Unknown/hidden measurements remain null in the native model; unknown
+  optional Komari load and ping statistics are omitted according to that wire
+  contract. Measured zero is still zero. Nodes that have never reported stay
+  in the directory without a fabricated latest report.
 - Presence, sample receipt and freshness are separate. A resource heartbeat
   does not refresh unrelated runtime evidence or the NIC metering timestamp.
 - `net_total_up/down` retain interface-lifetime semantics.

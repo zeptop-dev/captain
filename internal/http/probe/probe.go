@@ -623,7 +623,7 @@ func (rt *Router) Wrap(next http.Handler) http.Handler {
 					return
 				}
 				if p != nil {
-					if h.ThemeAssets != nil && !p.HasAsset(path) && (strings.HasPrefix(path, "/assets/flags/") || strings.HasPrefix(path, "/assets/logo/")) {
+					if h.ThemeAssets != nil && !p.HasAsset(path) && (strings.HasPrefix(path, "/assets/flags/") || strings.HasPrefix(path, "/assets/logo/") || path == "/images/flags/.svg") {
 						h.ThemeAssets.ServeHTTP(w, r)
 						return
 					}
