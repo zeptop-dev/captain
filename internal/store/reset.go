@@ -26,6 +26,8 @@ func (s *Store) ResetPreview(ctx context.Context) (map[string]int64, error) {
 // The caller must hold Accounts exclusively through cache invalidation.
 // No files or remote services are removed. The entire database change rolls
 // back on failure; migrations are deliberately neither deleted nor replayed.
+// The probe-only origin registry is retained: browsers may still have a former
+// theme's service worker, so reset cannot turn that host into a privileged site.
 func (s *Store) ResetSite(ctx context.Context, adminID int64) (*domain.User, error) {
 	s.Topology.Lock()
 	defer s.Topology.Unlock()
@@ -66,6 +68,11 @@ func (s *Store) ResetSite(ctx context.Context, adminID int64) (*domain.User, err
 	// Discover tables instead of maintaining a deletion list that could leave
 	// a future feature's credentials or historical rows behind.
 	for _, table := range tables {
+		// This append-only security boundary contains only canonical hostnames,
+		// never credentials or settings, and must outlive every theme package.
+		if table == "probe_origins" {
+			continue
+		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM "`+strings.ReplaceAll(table, `"`, `""`)+`"`); err != nil {
 			return nil, fmt.Errorf("reset %s: %w", table, err)
 		}
