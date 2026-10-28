@@ -76,6 +76,7 @@ func client(n probedata.Node, weight int, publicREST bool) map[string]any {
 
 var recordKeys = map[string]string{
 	"cpu": "cpu.usage", "gpu": "gpu.usage", "ram": "memory.used", "swap": "swap.used", "load": "load.average",
+	"ram_total": "captain.memory.total", "swap_total": "captain.swap.total", "disk_total": "captain.disk.total",
 	"load5": "captain.load.5", "load15": "captain.load.15", "disk": "disk.used", "net_in": "net.in.rate", "net_out": "net.out.rate",
 	"net_total_up": "net.total.up", "net_total_down": "net.total.down", "traffic_up": "traffic.up", "traffic_down": "traffic.down",
 	"process": "process.count", "connections": "connections.tcp", "connections_udp": "connections.udp", "uptime": "captain.uptime",
@@ -141,6 +142,21 @@ func report(n probedata.Node, t *time.Time, values map[string]*float64) map[stri
 		"uptime":      values["captain.uptime"], "process": values["process.count"], "message": "", "updated_at": t,
 		"captain": map[string]any{"status": n.Status, "traffic": n.Traffic, "pings": n.Pings, "storage": n.Storage},
 	}
+}
+
+func recentReport(n probedata.Node, sample probedata.Recent) map[string]any {
+	out := report(n, &sample.Time, sample.Values)
+	// Current inventory is not evidence of the hardware totals at the sample
+	// time (a server may have been resized). Only recorded totals can be used.
+	out["ram"].(map[string]any)["total"] = sample.Values["captain.memory.total"]
+	out["swap"].(map[string]any)["total"] = sample.Values["captain.swap.total"]
+	out["disk"].(map[string]any)["total"] = sample.Values["captain.disk.total"]
+	valid := map[string]bool{}
+	for key, value := range sample.Values {
+		valid[key] = value != nil
+	}
+	out["captain"] = map[string]any{"received_at": sample.Time, "valid": valid, "historical": true}
+	return out
 }
 
 func legacyTaskID(id string, tasks []probedata.PingTask) int64 {

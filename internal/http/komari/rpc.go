@@ -230,7 +230,7 @@ func (h *Handler) call(r *http.Request, method string, raw json.RawMessage) (any
 		out := make([]map[string]any, 0, len(n.Recent))
 		for _, v := range n.Recent {
 			if method == "public:getClientRecentRecords" {
-				out = append(out, report(n, &v.Time, v.Values))
+				out = append(out, recentReport(n, v))
 			} else {
 				row := flatRecord(n, &v.Time, v.Values, false)
 				row["connections"] = connectionTotal(v.Values)
@@ -281,7 +281,7 @@ func (h *Handler) call(r *http.Request, method string, raw json.RawMessage) (any
 				if stat.EntityID != n.UUID {
 					continue
 				}
-				ping[strconv.FormatInt(legacyTaskID(stat.TaskID, s.PingTasks), 10)] = map[string]any{"name": stat.Name, "latest": stat.Latest, "avg": stat.Avg, "tail": stat.P99P50Ratio, "loss": stat.Loss, "min": stat.Min, "max": stat.Max}
+				ping[strconv.FormatInt(legacyTaskID(stat.TaskID, s.PingTasks), 10)] = map[string]any{"name": stat.Name, "latest": stat.Latest, "avg": stat.Avg, "tail": latencyTail(stat.P50, stat.P99, false), "loss": lossPercent(stat.Loss), "min": stat.Min, "max": stat.Max}
 			}
 			out[n.UUID] = row
 		}

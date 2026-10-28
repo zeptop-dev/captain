@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/zeptop-dev/captain/internal/probedata"
@@ -111,7 +112,7 @@ func (h *Handler) queryMetrics(r *http.Request, raw json.RawMessage) (any, *rpcE
 	if len(keys) == 0 || len(keys) > 32 {
 		return nil, invalid("Select 1 to 32 metrics")
 	}
-	start, end, e := h.window(firstTime(p.Start, p.StartTime), firstTime(p.End, p.EndTime), p.Hours, 1)
+	start, end, e := h.window(firstTime(p.Start, p.StartTime), firstTime(p.End, p.EndTime), p.Hours, 4)
 	if e != nil {
 		return nil, e
 	}
@@ -165,6 +166,7 @@ func (h *Handler) queryMetrics(r *http.Request, raw json.RawMessage) (any, *rpcE
 		if v, ok := p.AggregationByMetric[key]; ok {
 			aggs[key] = v
 		}
+		aggs[key] = normalizeAggregation(aggs[key])
 	}
 	if budget > maxQueryPoints {
 		return nil, invalid("Query exceeds the 32000 point budget; select fewer nodes, metrics or points")
@@ -173,7 +175,8 @@ func (h *Handler) queryMetrics(r *http.Request, raw json.RawMessage) (any, *rpcE
 	if agg == "" {
 		agg = p.Algorithm
 	}
-	fill := true
+	agg = normalizeAggregation(agg)
+	fill := false
 	if p.FillEmpty != nil {
 		fill = *p.FillEmpty
 	}
@@ -238,7 +241,7 @@ func (h *Handler) pingStats(r *http.Request, raw json.RawMessage) (any, *rpcErro
 	if bind(raw, &p) != nil || len(p.TaskIDs) > 128 {
 		return nil, invalid("Invalid ping parameters")
 	}
-	start, end, e := h.window(firstTime(p.Start, p.StartTime), firstTime(p.End, p.EndTime), p.Hours, 1)
+	start, end, e := h.window(firstTime(p.Start, p.StartTime), firstTime(p.End, p.EndTime), p.Hours, 4)
 	if e != nil {
 		return nil, e
 	}
@@ -278,13 +281,43 @@ func (h *Handler) pingStats(r *http.Request, raw json.RawMessage) (any, *rpcErro
 			"entity_id": st.EntityID, "task_id": strconv.FormatInt(legacyTaskID(st.TaskID, s.PingTasks), 10),
 			"name": st.Name, "type": st.Type, "interval": st.Interval,
 			"tags": wireTaskTags(st.Tags, s.PingTasks), "total": st.Total, "valid": st.Valid,
-			"loss": st.Loss, "loss_approximate": st.LossApproximate, "min": st.Min, "max": st.Max,
+			"loss": lossPercent(st.Loss), "loss_approximate": st.LossApproximate, "min": st.Min, "max": st.Max,
 			"avg": st.Avg, "latest": st.Latest, "p50": st.P50, "p99": st.P99,
-			"stddev": st.Stddev, "p99_p50_ratio": st.P99P50Ratio,
-			"captain": map[string]any{"task_id": st.TaskID, "quality": st.Quality},
+			"stddev": st.Stddev, "p99_p50_ratio": latencyTail(st.P50, st.P99, true),
+			"captain": map[string]any{"task_id": st.TaskID, "quality": st.Quality, "loss_ratio": st.Loss, "p99_p50_ratio": st.P99P50Ratio},
 		})
 	}
 	return map[string]any{"start": start, "end": end, "stats": wireStats, "count": len(wireStats)}, nil
+}
+
+func normalizeAggregation(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	switch value {
+	case "average", "mean":
+		return "avg"
+	case "std_dev", "stddev_pop", "std_dev_pop":
+		return "stddev"
+	}
+	return value
+}
+
+func lossPercent(ratio *float64) *float64 {
+	if ratio == nil {
+		return nil
+	}
+	percent := *ratio * 100
+	return &percent
+}
+func latencyTail(p50, p99 *float64, adjust bool) *float64 {
+	if p50 == nil || p99 == nil || *p50 <= 0 || *p99 < *p50 {
+		return nil
+	}
+	base := *p50
+	if adjust {
+		base = math.Max(math.Min(base, 50), 10)
+	}
+	tail := (*p99 - *p50) / base
+	return &tail
 }
 
 func wireTaskTags(tags map[string]string, tasks []probedata.PingTask) map[string]string {

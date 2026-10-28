@@ -7,13 +7,17 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/zeptop-dev/bosun/pkg/spec"
+	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/probedata"
+	"github.com/zeptop-dev/captain/internal/store"
 	"golang.org/x/net/websocket"
 )
 
@@ -70,7 +74,7 @@ func (f *fixtureReader) PingStats(_ context.Context, _ probedata.Scope, q probed
 	f.mu.Lock()
 	f.pingQueries = append(f.pingQueries, q)
 	f.mu.Unlock()
-	return []probedata.PingStat{{EntityID: fixtureUUID, TaskID: "carrier:abc", Name: "Carrier", Total: 10, Valid: 9, Loss: number(10), Min: number(20), Max: number(30), Avg: number(25)}}, nil
+	return []probedata.PingStat{{EntityID: fixtureUUID, TaskID: "carrier:abc", Name: "Carrier", Total: 10, Valid: 9, Loss: number(.1), Min: number(20), Max: number(30), Avg: number(25), P50: number(20), P99: number(30), P99P50Ratio: number(1.5)}}, nil
 }
 func fixtureHandler(f *fixtureReader) *Handler {
 	return New(Deps{Reader: f, Gate: func(*http.Request) bool { return true }, Now: func() time.Time { return fixtureTime }, Version: "1.48.0", Hash: "test"})
@@ -146,6 +150,9 @@ func TestRecentAndTaskWireShapes(t *testing.T) {
 	recent := jsonObject(t, w.Body.Bytes())["data"].([]any)[0].(map[string]any)
 	if recent["cpu"].(map[string]any)["usage"] != float64(0) || recent["network"].(map[string]any)["up"] != float64(123) {
 		t.Fatal("nested recent shape changed")
+	}
+	if recent["ram"].(map[string]any)["total"] != nil || recent["captain"].(map[string]any)["historical"] != true {
+		t.Fatal("nested history borrowed current inventory or freshness")
 	}
 	flat := rpc(t, h, "common:getNodeRecentStatus", []any{fixtureUUID})["result"].(map[string]any)
 	if flat["count"] != float64(1) || flat["records"].([]any)[0].(map[string]any)["ram_total"] != nil {
@@ -364,5 +371,91 @@ func TestHTTPResponseIsNeverCacheable(t *testing.T) {
 	raw, _ := io.ReadAll(resp.Body)
 	if resp.Header.Get("Cache-Control") != "no-store" || !bytes.Contains(raw, []byte(fixtureUUID)) {
 		t.Fatal("read response missing no-store")
+	}
+}
+
+func TestModernPingPercentilesAndMetricDefaults(t *testing.T) {
+	f := &fixtureReader{}
+	h := fixtureHandler(f)
+	stats := rpc(t, h, "public:getPingMetricStats", map[string]any{"uuid": fixtureUUID, "task_id": 9000001})["result"].(map[string]any)["stats"].([]any)[0].(map[string]any)
+	if stats["task_id"] != "9000001" || stats["loss"] != float64(10) || stats["p99_p50_ratio"] != float64(.5) {
+		t.Fatalf("stats units/IDs changed: %#v", stats)
+	}
+	if stats["captain"].(map[string]any)["p99_p50_ratio"] != float64(1.5) {
+		t.Fatal("native quotient must remain separately available")
+	}
+	out := rpc(t, h, "public:queryMetrics", map[string]any{"metric_key": "ping.latency_ms", "entity_id": fixtureUUID, "tags": map[string]string{"task_id": "9000001"}, "algorithm": " Mean "})
+	ser := out["result"].(map[string]any)["series"].([]any)[0].(map[string]any)
+	if ser["tags"].(map[string]any)["task_id"] != "9000001" {
+		t.Fatal("metric task does not match public catalog")
+	}
+	q := f.queries[len(f.queries)-1]
+	if q.FillEmpty || q.End.Sub(q.Start) != 4*time.Hour || q.Aggregation != "avg" {
+		t.Fatalf("Komari query defaults changed: %#v", q)
+	}
+}
+
+func TestCanonicalReaderThroughRealRESTAndRPC(t *testing.T) {
+	ctx := context.Background()
+	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "probe.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if err = db.Migrate(ctx, conn, "sqlite"); err != nil {
+		t.Fatal(err)
+	}
+	st := store.New(conn)
+	settings := store.ProbeSettings{Enabled: true, Title: "Example", Visibility: "public"}
+	settings.Normalize()
+	if err = st.SetSetting(ctx, store.SettingProbe, settings); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = conn.Exec(`INSERT INTO nodes(id,name,token_hash,public_addr,created_at,updated_at) VALUES(1,'Public','paired','192.0.2.10',0,0),(2,'Hidden','paired2','192.0.2.11',0,0)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = conn.Exec(`UPDATE nodes SET probe_hidden=1 WHERE id=2`); err != nil {
+		t.Fatal(err)
+	}
+	at := fixtureTime.Add(-2 * time.Minute)
+	status := spec.SystemStatus{Valid: &spec.MetricValidity{CPU: true, Memory: true, Network: true}, CPUPercent: 0, MemTotal: 2048, MemUsed: 1024, NetUp: 50, NetDown: 60, NetTotalUp: 9000, NetTotalDown: 8000}
+	if err = st.RecordBeat(ctx, 1, status, at); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(status)
+	if _, err = conn.Exec(`UPDATE nodes SET monitor_at=?,monitor_host_json=?,last_seen_at=? WHERE id=1`, at.Unix(), string(raw), fixtureTime.Unix()); err != nil {
+		t.Fatal(err)
+	}
+	engine := &probedata.Engine{Store: st, SiteName: "Example", Now: func() time.Time { return fixtureTime }}
+	h := New(Deps{Reader: engine, Gate: func(*http.Request) bool { return true }, Now: func() time.Time { return fixtureTime }})
+	w := doHTTP(t, h, "GET", "/api/nodes", "")
+	body := jsonObject(t, w.Body.Bytes())
+	nodes := body["data"].([]any)
+	if len(nodes) != 1 || strings.Contains(w.Body.String(), "192.0.2.") || strings.Contains(w.Body.String(), "paired") {
+		t.Fatal("projection leaked private inventory")
+	}
+	id := nodes[0].(map[string]any)["uuid"].(string)
+	latest := rpc(t, h, "common:getNodesLatestStatus", map[string]any{"uuid": id})["result"].(map[string]any)
+	if latest["cpu"] != float64(0) || latest["net_total_up"] != float64(9000) || latest["ram_total"] != float64(2048) {
+		t.Fatalf("actual current metrics %#v", latest)
+	}
+	w = doHTTP(t, h, "GET", "/api/recent/"+id, "")
+	recent := jsonObject(t, w.Body.Bytes())["data"].([]any)
+	if len(recent) != 1 || recent[0].(map[string]any)["ram"].(map[string]any)["total"] != float64(2048) {
+		t.Fatalf("recorded historical totals lost %s", w.Body.String())
+	}
+	query := rpc(t, h, "public:queryMetrics", map[string]any{"metric_key": "cpu.usage", "entity_id": id, "hours": 1, "max_points": 20})
+	if query["error"] != nil {
+		t.Fatalf("real metric query failed %#v", query)
+	}
+	series := query["result"].(map[string]any)["series"].([]any)
+	if len(series) != 1 || series[0].(map[string]any)["points"].([]any)[0].(map[string]any)["value"] != float64(0) {
+		t.Fatal("recorded zero lost in RPC")
+	}
+	w = doHTTP(t, h, "GET", "/api/records/load?uuid="+id+"&load_type=ram", "")
+	data := jsonObject(t, w.Body.Bytes())["data"].(map[string]any)
+	rows := data["records"].([]any)
+	if len(rows) != 1 || rows[0].(map[string]any)["ram_total"] != float64(2048) {
+		t.Fatalf("stored historical capacity not projected %s", w.Body.String())
 	}
 }
