@@ -3,6 +3,38 @@
 What an operator can rely on across releases, which bosun a Captain works
 with, what the database is good for, and what is deliberately not there.
 
+## Server traffic controls (unreleased)
+
+Server traffic policies are opt-in and independent of customer allowances,
+inbound enablement and subscription publication. Existing servers keep the
+alert-only behavior. A new private, foreign-keyed record stores automatic and
+manual controls separately; existing probe/profile updates preserve it.
+The administrator-only `node-service-control` API token scope is separate
+from existing node and monitoring permissions. Writes require an optimistic
+revision so a stale form cannot overwrite a later manual pause or quota hold.
+
+The optional `Node.service_control` and `Report.service_control` protocol
+objects are additive. Enabling restrictions requires a fresh capability report
+from a supporting bosun; upgrading Captain alone does not add enforcement to
+older agents. Saving desired state is not an application acknowledgement.
+The management page distinguishes pending, applied, failed and unknown state.
+Configuration, billing and private control details are not published on the
+server probe or customer status pages.
+
+Automatic decisions use accepted server-network counter deltas and the configured
+cycle/direction, not user proxy billing. Monitoring must remain enabled for an
+active automatic policy. Delayed, missing or duplicate samples cannot establish
+a new healthy period. A manual hold survives cycle rollover, and restoring a
+server that is still over quota requires an explicit exemption for that cycle
+or a policy/allowance change. Traffic samples and configuration delivery are
+asynchronous: this is not a byte-exact supplier-side spending cap.
+
+The first planned releases containing this feature are Captain v1.48.0 and
+bosun v0.83.0; their built-in rollback floors retain those versions. Older
+panels or agents can ignore controls or stop maintaining them. Manual downgrade
+requires restoring compatible backups and explicitly arranging replacement
+traffic protection. No existing release tag is changed.
+
 ## Server suppliers and primary infrastructure bills (Captain v1.46.0)
 
 Migration 94 stores explicit server-to-supplier and primary-asset associations

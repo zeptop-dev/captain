@@ -589,11 +589,11 @@ func limitBodies(next http.Handler) http.Handler {
 
 func (s *Server) DNSHealth() *service.DNSHealth { return s.dnsHealth }
 
-// Older panels ignore linked supplier bills, payment date actions and the
-// homepage switch. Preserve these semantics and earlier access-policy protections.
+// Older panels cannot retain server traffic-control policies and holds. Preserve
+// their enforcement as well as earlier billing and access-policy protections.
 func captainUpdateFloor(configured string) string {
-	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.46.0", configured) {
-		return "v1.46.0"
+	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.48.0", configured) {
+		return "v1.48.0"
 	}
 	return configured
 }

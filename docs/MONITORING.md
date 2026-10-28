@@ -105,6 +105,45 @@ do not refresh it. Offline servers keep the last observed cycle and totals;
 unavailable readings remain unknown. An interface's cumulative counters in
 resource details instead cover its lifetime or last counter reset.
 
+### Server automatic and manual controls
+
+In server **Information**, save the network-interface selection, counting
+direction, cycle and allowance first. The adjacent **Automatic traffic control**
+form chooses alert only (the default), limit or pause, a percentage threshold,
+and whether to release automatic restrictions after a new measured cycle.
+This form has its own save and does not modify supplier or billing records.
+Active automatic policies require monitoring and a positive allowance.
+
+In **Overview**, **Service control** provides manual pause, limit and restore.
+The traffic card shows the effective restriction and its cause. Automatic and
+manual restrictions are independent: pause wins, otherwise the lower active
+rate wins. A new cycle never clears a manual pause. Restoring while an automatic
+quota hold remains requires an explicit current-cycle exemption or a deliberate
+policy/allowance change. Original inbound, forwarding and reverse-connection
+settings are retained, so restoration does not enable previously disabled
+resources.
+
+Controls cover bosun-managed proxy traffic and forwarding, including reverse
+WireGuard exits and VLESS Reverse bridges. They do not shut down the server,
+stop the management agent or intentionally restrict SSH and unrelated host
+applications. A supporting Linux bosun with the required network privileges,
+nftables and a dedicated non-root proxy account is required. Missing capability
+or an apply failure is displayed instead of a successful restriction.
+
+The limit is **combined transmitted/forwarded managed traffic**, shared by
+users and connections, in decimal Mbps. The two directions share one nftables
+byte-rate limiter. It drops excess packets rather than queuing them as a smooth
+traffic shaper; bursts and real-time applications may be affected. It does not
+replace per-user limits or the allowance's selected-NIC accounting. Existing
+host qdiscs and unrelated firewall tables are not replaced.
+
+The panel evaluates quota from accepted counter samples and the agent applies
+the resulting state. Displayed pending/offline/error states are not confirmation
+that a restriction has taken effect. A disconnected panel cannot detect a new
+threshold crossing; keep headroom for sampling, delivery delays and differences
+from provider accounting. A restriction already installed on a running agent
+remains until it receives a valid replacement state.
+
 Proxy traffic is collected on the server hosting the authenticated inbound.
 For managed reverse WireGuard and VLESS Reverse, the server view attributes
 those bytes to the configured exit B while front A continues authentication
