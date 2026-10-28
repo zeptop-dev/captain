@@ -27,12 +27,22 @@ async function setup(role = 'admin', { locale = 'en', scheme = 'light', viewport
   const context = await browser.newContext({ viewport, serviceWorkers: 'block', colorScheme: scheme })
   await context.addInitScript(({ locale, scheme }) => { localStorage.setItem('i18nextLng', locale); localStorage.setItem('mantine-color-scheme-value', scheme) }, { locale, scheme })
   await context.routeWebSocket('**/*', socket => socket.close())
-  const state = { reads: [], writes: [], unexpected: [], external: [], errors: [], blockerWarnings: [] }
+  const state = { reads: [], writes: [], unexpected: [], external: [], errors: [], blockerWarnings: [], controlConflict: false }
   const nodes = structuredClone(seedNodes)
   const probes = Object.fromEntries(nodes.map(node => [node.id, {
     infrastructure_revision: 'fixture-1', infrastructure_linked: role === 'operator', infrastructure_supplier_linked: true, region_countries: ['US'], storage_candidates: [], billed: 3072,
     live: { at: new Date(timestamp).toISOString(), host },
     probe: { node_id: node.id, hidden: false, region_mode: 'off', region_detection: {}, info: { provider: supplier.name, provider_url: supplier.url, note: 'Saved note', billing: { amount: '12.5', currency: 'USD', cycle: 'monthly' }, price: 'USD 12.5 / month', expires_at: '2028-01-31', auto_renewal: { enabled: true, anchor_date: '2028-01-31', anchor_day: 31 }, traffic_reset: { mode: 'manual' }, location_settings: { mode: 'off' } }, limit_bytes: 1073741824, reset_day: 1, mode: 'sum', used_up: 1024, used_down: 2048, prev_used: 0, period_start: '2027-12-31T00:00:00Z' },
+  }]))
+  const controls = Object.fromEntries(nodes.map(node => [node.id, {
+    node_id: node.id, revision: 'control-1',
+    policy: { action: 'alert', threshold_percent: 100, limit_mbps: 0, auto_resume: true },
+    manual: { mode: 'normal', limit_mbps: 0 },
+    automatic: { active: false, mode: 'normal', limit_mbps: 0, exempt_current_period: false },
+    effective: { mode: 'normal', limit_mbps: 0, revision: 'effective-1', reasons: [] },
+    traffic: { monitoring_enabled: true, limit_bytes: 1073741824, used_bytes: 3072, period_start: '2027-12-31T00:00:00Z', period_end: '2028-01-31T00:00:00Z', observed_at: new Date(timestamp).toISOString(), fresh: true },
+    capability: { supported: node.id === 1, reason: node.id === 1 ? '' : node.id === 2 ? 'monitor_only' : 'unpaired' },
+    runtime: { status: node.id === 1 ? 'applied' : 'unsupported', mode: 'normal', limit_mbps: 0, observed_at: new Date(timestamp).toISOString() },
   }]))
   await context.route('**/*', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname, method = request.method()
@@ -43,6 +53,22 @@ async function setup(role = 'admin', { locale = 'en', scheme = 'light', viewport
     }
     const send = (data, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) })
     const match = path.match(/^\/api\/admin\/nodes\/([123])(?:\/(.*))?$/)
+    if (method === 'PUT' && match?.[2] === 'service-control') {
+      assert.equal(role, 'admin', 'Only administrators may control services')
+      const body = request.postDataJSON(), value = controls[Number(match[1])]
+      state.writes.push({ method, path, body })
+      assert.ok(Object.keys(body).every(key => ['revision', 'policy', 'manual', 'exempt_current_period'].includes(key)), 'Control writes cannot overwrite information drafts')
+      if (state.controlConflict) { state.controlConflict = false; value.revision += '-external'; return send({ error: 'Control revision changed' }, 409) }
+      if (body.revision !== value.revision) return send({ error: 'Stale control revision' }, 409)
+      if (body.manual?.mode === 'normal' && value.automatic.active && !body.exempt_current_period) return send({ error: 'Exemption required' }, 409)
+      if (body.policy) value.policy = body.policy
+      if (body.manual) value.manual = body.manual
+      if (body.exempt_current_period !== undefined) { value.automatic.exempt_current_period = body.exempt_current_period; if (body.exempt_current_period) value.automatic.active = false }
+      value.revision += '-saved'
+      value.effective = { ...value.effective, mode: value.manual.mode !== 'normal' ? value.manual.mode : value.automatic.active ? value.automatic.mode : 'normal', limit_mbps: value.manual.limit_mbps, revision: value.revision }
+      value.runtime = { ...value.runtime, status: 'pending', error: undefined }
+      return send(value)
+    }
     if (method === 'PUT' && match?.[2] === 'probe') {
       const body = request.postDataJSON(), value = probes[Number(match[1])]
       state.writes.push({ method, path, body })
@@ -57,6 +83,7 @@ async function setup(role = 'admin', { locale = 'en', scheme = 'light', viewport
       const id = Number(match[1]), suffix = match[2]
       if (!suffix) return send({ node: nodes[id - 1], status: { host, cores: {}, certs: [], doctor: { at: new Date(timestamp).toISOString(), summary: { ok: 1, warn: 0, fail: 0 }, checks: [] } }, inbounds: [], ingresses: [], traffic: {} })
       if (suffix === 'probe') return send(probes[id])
+      if (suffix === 'service-control') { assert.equal(role, 'admin', 'Operators must not fetch service controls'); return send(controls[id]) }
       if (['overrides', 'metadata', 'core-options'].includes(suffix)) return send({})
       if (suffix === 'internal-address-usage') return send({ uses: [] })
       if (suffix === 'routing') return send({ outbounds: [], routes: [], default_outbound: '' })
@@ -157,7 +184,7 @@ async function setup(role = 'admin', { locale = 'en', scheme = 'light', viewport
     assert.deepEqual(state.errors, [], 'No runtime JavaScript errors')
     assert.deepEqual(state.blockerWarnings, [], 'Exactly one navigation blocker per editing page')
   }
-  return { context, page, state, probes, note, amount, visibility, editor, probeSave, dirty, dialog, link, destination, open, information, navigateAndCancel, discard, save, clean }
+  return { context, page, state, probes, controls, note, amount, visibility, editor, probeSave, dirty, dialog, link, destination, open, information, navigateAndCancel, discard, save, clean }
 }
 
 function overviewOnly(reads) {
@@ -307,11 +334,111 @@ try {
   const unpairedReads = await admin.open(3)
   assert.ok(!unpairedReads.some(path => /\/(availability|network-quality|resource-history|network-diagnostics|return-routes)$/.test(path)), 'Unpaired overview does not mount monitoring or diagnostic tools')
   assert.equal(await admin.note().count(), 0)
+  // Automatic control has a separate CAS draft and never submits the probe form.
+  await admin.information(1)
+  const policyCard = page.getByTestId('traffic-control-policy')
+  const policyAction = () => policyCard.getByRole('textbox', { name: t('serviceControl.policyAction'), exact: true })
+  const threshold = () => policyCard.getByRole('textbox', { name: t('serviceControl.threshold'), exact: true })
+  const policySave = () => policyCard.getByRole('button', { name: t('serviceControl.savePolicy'), exact: true })
+  async function choose(select, label) { await select.click(); await page.getByRole('option', { name: label, exact: true }).click() }
+  async function saveControl(button, expectedStatus = 200) {
+    const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/admin/nodes/1/service-control' && r.request().method() === 'PUT')
+    await button.click(); assert.equal((await response).status(), expectedStatus)
+    await page.waitForLoadState('networkidle')
+  }
+  await admin.note().fill('Information draft survives control save')
+  await choose(policyAction(), t('serviceControl.modes.pause'))
+  await threshold().fill('95')
+  await saveControl(policySave())
+  assert.equal(admin.controls[1].policy.threshold_percent, 95)
+  assert.equal(admin.probes[1].probe.info.note, 'Saved while group stays dirty')
+  assert.equal(await admin.note().inputValue(), 'Information draft survives control save')
+  await admin.dirty().waitFor()
+  await admin.navigateAndCancel(1, '')
+  await threshold().fill('90')
+  const informationResponse = page.waitForResponse(r => new URL(r.url()).pathname === '/api/admin/nodes/1/probe' && r.request().method() === 'PUT')
+  await admin.probeSave().click(); assert.equal((await informationResponse).status(), 200)
+  await admin.editor().waitFor({ state: 'hidden' })
+  assert.equal(await threshold().inputValue(), '90 %')
+  assert.equal(admin.controls[1].policy.threshold_percent, 95)
+  await admin.dirty().waitFor()
+  state.controlConflict = true
+  await saveControl(policySave(), 409)
+  await policyCard.getByText(t('serviceControl.conflict'), { exact: true }).waitFor()
+  assert.equal(await threshold().inputValue(), '90 %')
+  await policyCard.getByRole('button', { name: t('serviceControl.reload'), exact: true }).click()
+  await policySave().locator('xpath=self::button[not(@disabled)]').waitFor(); assert.ok(await policySave().isEnabled())
+  assert.equal(await threshold().inputValue(), '90 %', 'CAS refresh retains the local policy draft')
+  await saveControl(policySave())
+  assert.equal(admin.controls[1].policy.threshold_percent, 90)
+  assert.match(state.writes.at(-1).body.revision, /external$/)
+  assert.equal('manual' in state.writes.at(-1).body, false)
+  await admin.dirty().waitFor({ state: 'hidden' })
+
+  // Saved commands remain pending; restoring active automatic restrictions
+  // requires an explicit exemption for this cycle.
+  await admin.open(1)
+  const controlButton = () => page.getByRole('button', { name: t('serviceControl.title'), exact: true })
+  const controlModal = () => page.getByRole('dialog', { name: t('serviceControl.title'), exact: true })
+  const action = () => controlModal().getByRole('textbox', { name: t('serviceControl.manualAction'), exact: true })
+  const applyControl = () => controlModal().getByRole('button', { name: t('serviceControl.apply'), exact: true })
+  await controlButton().click()
+  await choose(action(), t('serviceControl.modes.pause'))
+  await controlModal().getByRole('button', { name: t('serviceControl.close'), exact: true }).click()
+  const discardControl = page.getByRole('dialog', { name: t('workspace.unsaved'), exact: true })
+  await discardControl.getByRole('button', { name: t('workspace.stay'), exact: true }).click()
+  assert.equal(await action().inputValue(), t('serviceControl.modes.pause'))
+  await saveControl(applyControl())
+  await controlModal().waitFor({ state: 'hidden' })
+  await page.getByTestId('service-control-state').getByText(t('serviceControl.status.pending'), { exact: true }).waitFor()
+  assert.equal(await page.getByTestId('service-control-state').getByText(t('serviceControl.status.applied'), { exact: true }).count(), 0, 'Saved does not mean applied')
+  assert.equal(admin.controls[1].manual.mode, 'pause')
+  assert.equal(admin.controls[1].policy.action, 'pause')
+  assert.equal('policy' in state.writes.at(-1).body, false)
+  admin.controls[1].automatic = { active: true, mode: 'pause', limit_mbps: 0, exempt_current_period: false, triggered_at: new Date(timestamp).toISOString() }
+  admin.controls[1].runtime = { status: 'error', error: 'Fixture application failure' }
+  await admin.open(1)
+  await page.getByText('Fixture application failure', { exact: true }).waitFor()
+  await controlButton().click()
+  await choose(action(), t('serviceControl.restore'))
+  assert.ok(await applyControl().isDisabled())
+  await controlModal().getByText(t('serviceControl.exemptionRequired'), { exact: true }).waitFor()
+  await controlModal().getByRole('checkbox', { name: t('serviceControl.exempt'), exact: true }).check()
+  await saveControl(applyControl())
+  assert.equal(state.writes.at(-1).body.exempt_current_period, true)
+  assert.equal(admin.controls[1].manual.mode, 'normal')
+  assert.equal(admin.controls[1].policy.action, 'pause', 'A temporary exemption must not disable future policy')
+
+  await admin.open(2)
+  const priorWrites = state.writes.length
+  await controlButton().click()
+  await controlModal().getByText(t('serviceControl.monitorOnly'), { exact: true }).waitFor()
+  assert.ok(await action().isDisabled()); assert.ok(await applyControl().isDisabled())
+  await controlModal().getByRole('button', { name: 'Close' }).click()
+  await admin.open(2, '/information')
+  assert.ok(await policyAction().isDisabled())
+  assert.equal(state.writes.length, priorWrites)
+  admin.controls[1].capability = { supported: false, reason: 'upgrade_required' }
+  admin.controls[1].runtime = { status: 'unsupported' }
+  await admin.open(1)
+  await controlButton().click()
+  await controlModal().getByText(t('serviceControl.upgradeRequired'), { exact: true }).waitFor()
+  await action().click()
+  const disabledPause = page.getByRole('option', { name: t('serviceControl.modes.pause'), exact: true })
+  assert.notEqual(await disabledPause.getAttribute('data-combobox-disabled'), null)
+  await disabledPause.click({ force: true })
+  assert.equal(await action().inputValue(), t('serviceControl.restore'), 'Unsupported actions cannot be selected')
+  await page.keyboard.press('Escape')
+  await controlModal().getByRole('button', { name: 'Close' }).click()
+
   admin.clean(); await admin.context.close()
 
   const operator = await setup('operator')
   overviewOnly(await operator.open(1))
+  assert.equal(await operator.page.getByRole('button', { name: t('serviceControl.title'), exact: true }).count(), 0)
   await operator.information(1)
+  assert.equal(await operator.page.getByTestId('traffic-control-policy').count(), 0)
+  assert.ok(!operator.state.reads.some(path => path.endsWith('/service-control')))
   assert.ok(await operator.amount().isDisabled(), 'Linked bill remains read-only for operators')
   assert.equal(await operator.page.getByRole('link', { name: t('infraLink.manageSuppliers'), exact: true }).count(), 0)
   await operator.note().fill('Operator information draft')
@@ -342,10 +469,11 @@ try {
       await visual.link(1, '/information').focus(); await visual.page.keyboard.press('Enter')
       await visual.page.getByTestId('node-information').waitFor()
       await visual.page.screenshot({ path: resolve(artifacts, 'information-mobile-zh-light.png'), fullPage: true, animations: 'disabled' })
+      await visual.page.getByTestId('traffic-control-policy').screenshot({ path: resolve(artifacts, 'control-policy-mobile-zh-light.png') })
     }
     visual.clean(); await visual.context.close()
   }
-  console.log('PASS: overview query isolation, information save/discard, sibling and modal drafts, legacy links, monitor/operator/unpaired boundaries, Chinese dark/mobile screenshots and keyboard navigation')
+  console.log('PASS: overview query isolation, information save/discard, sibling and modal drafts, legacy links, monitor/operator/unpaired boundaries, independent control/probe drafts, CAS recovery, pending/error/manual/exemption states, capability and role gates, Chinese dark/mobile screenshots and keyboard navigation')
 } catch (error) {
   if (currentPage && !currentPage.isClosed()) {
     await currentPage.screenshot({ path: resolve(artifacts, 'failure.png'), fullPage: true })

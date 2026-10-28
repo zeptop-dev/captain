@@ -14,6 +14,7 @@ import { ProxyTrafficSummary } from './ProxyTrafficSummary'
 import { NodeProbeTrafficSummary } from './NodeInformationSummary'
 import { NodeWorkflow } from './NodeWorkflow'
 import { NodeServices } from './NodeServices'
+import { NodeServiceControlSummary } from './NodeServiceControl'
 
 export function NodeOverview({ detail: d }: { detail: NodeDetail }) {
   const n = d.node
@@ -33,7 +34,7 @@ export function NodeOverview({ detail: d }: { detail: NodeDetail }) {
     {(d.status?.doctor?.summary.fail ?? 0) + (d.status?.doctor?.summary.warn ?? 0) > 0 && <Alert mb="md" color="yellow">{t('serverDetail.diagnosticWarning')} <Button component={Link} to={`/nodes/${n.id}/diagnostics`} variant="subtle" size="xs">{t('serverDetail.tabs.diagnostics')}</Button></Alert>}
     <ResourcesCard host={host} compact />
     <SimpleGrid cols={{ base: 1, md: 2 }} mb="lg">
-      <Card><Text fw={600} mb="sm">{t('nodes.hostTraffic')}</Text><HostTrafficSummary traffic={n.host_traffic} /><Text size="xs" c="dimmed" mt="sm">{t('nodes.hostTrafficHint')}</Text>{q.data && <NodeProbeTrafficSummary data={q.data} />}</Card>
+      <Card><Text fw={600} mb="sm">{t('nodes.hostTraffic')}</Text><HostTrafficSummary traffic={n.host_traffic} /><Text size="xs" c="dimmed" mt="sm">{t('nodes.hostTrafficHint')}</Text>{q.data && <NodeProbeTrafficSummary data={q.data} />}<NodeServiceControlSummary nodeID={n.id} /></Card>
       <Card><Text fw={600} mb="sm">{t('nodes.trafficToday')}</Text><ProxyTrafficSummary traffic={n.proxy_traffic} collectedBytes={n.traffic_today_bytes} /><Text size="xs" c="dimmed" mt="sm">{t('nodes.proxyTrafficHint')}</Text></Card>
     </SimpleGrid>
     {q.isError && <Alert mb="md" color="orange">{t('workspace.loadError')} <Button variant="subtle" size="xs" onClick={() => q.refetch()}>{t('workspace.retry')}</Button></Alert>}

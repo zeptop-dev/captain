@@ -14,6 +14,8 @@ import { NodeGroupCard } from '../components/NodeGroupCard'
 import { MetadataEditor } from '../components/MetadataEditor'
 import { NodeDiagnostics } from '../components/NodeDiagnostics'
 import { NodeSettings } from '../components/NodeSettings'
+import { NodeServiceControlButton } from '../components/NodeServiceControl'
+import { NodeTrafficControlPolicy } from '../components/NodeTrafficControlPolicy'
 
 export default function NodePage() {
   const { id = '' } = useParams()
@@ -30,6 +32,7 @@ export default function NodePage() {
   // replacing its drafts; other destinations aren't mounted or running effects.
   return <SettingsDraftBoundary key={`${n.id}:${location.key}`}>
     <PageHeader title={n.name} subtitle={[n.hostname, n.platform, n.version].filter(Boolean).join(' · ')} actions={<>
+      {route.tab === 'overview' && <NodeServiceControlButton node={n} />}
       <NodeStatus n={n} /><Badge color={n.mode === 'monitor' ? 'cyan' : 'indigo'}>{t(n.mode === 'monitor' ? 'nodeMode.monitor' : 'nodeMode.full')}</Badge>
       <Button component={Link} to="/nodes" variant="default" size="xs">{t('serverDetail.back')}</Button>
     </>} />
@@ -44,6 +47,7 @@ export default function NodePage() {
     {route.tab === 'information' && <>
       <NodeDetailsCard node={n} section="profile" />
       <NodeInformationCard nodeID={n.id} reportedHost={d.status?.host} />
+      <NodeTrafficControlPolicy node={n} />
       <NodeGroupCard node={n} />
       <Card mb="lg"><MetadataEditor endpoint={`/api/admin/nodes/${n.id}/metadata`} /></Card>
     </>}

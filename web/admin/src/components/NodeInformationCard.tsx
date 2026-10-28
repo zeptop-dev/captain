@@ -23,6 +23,7 @@ import { trafficLimitBytes, trafficLimitFactors, trafficLimitInput, validTraffic
 import { toast } from '../lib/notify'
 import { renewalAnchorDay, renewalPeriodMonths, renewalUnavailable } from '../lib/node-renewal'
 import { currencyOptions } from '../lib/currency-options'
+import { serviceControlKey } from '../lib/node-service-control'
 
 // One draft and one save keep visibility, accounting and infrastructure revisions coherent.
 export function NodeInformationCard({ nodeID, reportedHost }: { nodeID: number; reportedHost?: ResourceHost | null }) {
@@ -55,7 +56,7 @@ export function NodeInformationCard({ nodeID, reportedHost }: { nodeID: number; 
     if (JSON.stringify(current) === JSON.stringify(saved)) setEditing(false)
     setExpiryConflict(false); setFinanceConflict(false)
     qc.setQueryData(['node-probe', nodeID], data)
-    qc.invalidateQueries({ queryKey: nodeInfrastructureKey(nodeID) }); qc.invalidateQueries({ queryKey: ['infrastructure'] })
+    qc.invalidateQueries({ queryKey: serviceControlKey(nodeID) }); qc.invalidateQueries({ queryKey: nodeInfrastructureKey(nodeID) }); qc.invalidateQueries({ queryKey: ['infrastructure'] })
     toast.ok(t('common.saved'))
   }, onError: error => {
     if (error instanceof ApiError && error.status === 409) { setExpiryConflict(true); if (admin) setFinanceConflict(true) }
@@ -90,7 +91,7 @@ export function NodeInformationCard({ nodeID, reportedHost }: { nodeID: number; 
   const editingDisabled = !loaded || sourceError || save.isPending || reload.isPending
   const billingReadOnly = !admin && !!q.data?.infrastructure_linked
   const detect = useMutation({ mutationFn: () => api.post<NodeProbe>(`/api/admin/nodes/${nodeID}/region-detect`), onSuccess: data => qc.setQueryData(['node-probe', nodeID], data), onError: toast.err })
-  const reset = useMutation({ mutationFn: () => api.post(`/api/admin/nodes/${nodeID}/probe/reset-traffic`), onSuccess: () => { toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['node-probe', nodeID] }) }, onError: toast.err })
+  const reset = useMutation({ mutationFn: () => api.post(`/api/admin/nodes/${nodeID}/probe/reset-traffic`), onSuccess: () => { toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['node-probe', nodeID] }); qc.invalidateQueries({ queryKey: serviceControlKey(nodeID) }) }, onError: toast.err })
   const p = q.data?.probe
   const renewalReason = renewalUnavailable(form.values.expires_at, form.values.costMode, form.values.cycle, form.values.years)
   const draftMonths = renewalPeriodMonths(form.values.cycle, form.values.years)
