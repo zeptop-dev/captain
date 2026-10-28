@@ -159,9 +159,20 @@ func (e *Engine) Query(ctx context.Context, scope Scope, q Query) ([]Series, err
 		if points < 1 || points > 5000 {
 			return nil, ErrInvalidQuery
 		}
-		totalPoints += points
+		seriesCount := len(nodes)
+		if k == "ping.latency_ms" || k == "ping.loss" {
+			seriesCount = 0
+			for _, n := range nodes {
+				for _, task := range snap.PingTasks {
+					if taskSelected(task, n, nil) && (q.Tags["task_id"] == "" || q.Tags["task_id"] == task.ID) {
+						seriesCount++
+					}
+				}
+			}
+		}
+		totalPoints += points * seriesCount
 	}
-	if len(nodes)*totalPoints > 500000 {
+	if totalPoints > 500000 {
 		return nil, ErrInvalidQuery
 	}
 	res, step := historyResolution(q.Start, q.End, snap.Now)
@@ -214,7 +225,16 @@ func (e *Engine) Query(ctx context.Context, scope Scope, q Query) ([]Series, err
 			if (key == "disk.used" || key == "captain.disk.total") && !n.RootDiskPublic {
 				continue
 			}
-			series, err := makeSeries(n.UUID, def, nil, buckets, key, q, maxPoints, step, algorithm)
+			effectiveStep := step
+			if res == "r" {
+				for _, b := range buckets {
+					if b.Legacy {
+						effectiveStep = 60
+						break
+					}
+				}
+			}
+			series, err := makeSeries(n.UUID, def, nil, buckets, key, q, maxPoints, effectiveStep, algorithm)
 			if err != nil {
 				return nil, err
 			}
@@ -363,7 +383,16 @@ func aggregateValue(a store.ProbeMetricAggregate, algorithm string) *float64 {
 	return number(v, true)
 }
 func makeSeries(entity string, d Definition, tags map[string]string, buckets []metricBucket, key string, q Query, maxPoints, step int, algorithm string) (Series, error) {
-	series := Series{MetricKey: d.Key, EntityID: entity, Type: d.Type, Unit: d.Unit, RetentionDays: d.RetentionDays, Tags: tags, Aggregation: algorithm, FillEmpty: q.FillEmpty, MaxPoints: maxPoints, IntervalSeconds: step, Points: []Point{}}
+	series := Series{Source: "accepted_samples", MetricKey: d.Key, EntityID: entity, Type: d.Type, Unit: d.Unit, RetentionDays: d.RetentionDays, Tags: tags, Aggregation: algorithm, FillEmpty: q.FillEmpty, MaxPoints: maxPoints, IntervalSeconds: step, Points: []Point{}}
+	if step > 1 {
+		series.Source = "rollup"
+	}
+	for _, b := range buckets {
+		if b.Legacy {
+			series.Source = "legacy_average"
+			break
+		}
+	}
 	duration := q.End.Sub(q.Start).Seconds()
 	interval := max(step, int((duration+float64(maxPoints)-1)/float64(maxPoints)))
 	interval = ((interval + step - 1) / step) * step

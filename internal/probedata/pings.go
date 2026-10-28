@@ -124,6 +124,17 @@ func (e *Engine) PingStats(ctx context.Context, scope Scope, q PingQuery) ([]Pin
 	if len(nodes) > 256 {
 		return nil, ErrInvalidQuery
 	}
+	combinations := 0
+	for _, n := range nodes {
+		for _, task := range snap.PingTasks {
+			if taskSelected(task, n, q.TaskIDs) {
+				combinations++
+			}
+		}
+	}
+	if combinations > 10000 {
+		return nil, ErrInvalidQuery
+	}
 	out := []PingStat{}
 	for _, n := range nodes {
 		points, err := e.Store.NodePingStats(ctx, n.ID, res, q.Start, q.End)
@@ -174,6 +185,7 @@ func (e *Engine) PingStats(ctx context.Context, scope Scope, q PingQuery) ([]Pin
 			}
 			// Partial histograms cannot describe the requested complete window.
 			if histCount(hist) == p.Valid && p.Valid > 0 {
+				quality.QuantilesApproximate = true
 				p.P50 = histogramQuantile(hist, .5, p.Max)
 				p.P99 = histogramQuantile(hist, .99, p.Max)
 				quality.P95 = histogramQuantile(hist, .95, p.Max)

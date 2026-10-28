@@ -153,15 +153,17 @@ type Ping struct {
 	Quality *PingQuality `json:"quality,omitempty"`
 }
 type PingQuality struct {
-	Attempts  int            `json:"attempts"`
-	Successes int            `json:"successes"`
-	Outcomes  map[string]int `json:"outcomes,omitempty"`
-	Min       *float64       `json:"min_ms"`
-	Max       *float64       `json:"max_ms"`
-	P50       *float64       `json:"p50_ms"`
-	P95       *float64       `json:"p95_ms"`
-	Jitter    *float64       `json:"jitter_ms"`
-	Skipped   uint64         `json:"skipped"`
+	// Stored histogram quantiles are upper bounds with at most 5% or 0.1 ms error.
+	QuantilesApproximate bool           `json:"quantiles_approximate,omitempty"`
+	Attempts             int            `json:"attempts"`
+	Successes            int            `json:"successes"`
+	Outcomes             map[string]int `json:"outcomes,omitempty"`
+	Min                  *float64       `json:"min_ms"`
+	Max                  *float64       `json:"max_ms"`
+	P50                  *float64       `json:"p50_ms"`
+	P95                  *float64       `json:"p95_ms"`
+	Jitter               *float64       `json:"jitter_ms"`
+	Skipped              uint64         `json:"skipped"`
 }
 type Definition struct {
 	Key           string   `json:"key"`
@@ -192,6 +194,7 @@ type Point struct {
 	Labels map[string]string `json:"labels,omitempty"`
 }
 type Series struct {
+	Source          string            `json:"captain_source,omitempty"`
 	MetricKey       string            `json:"metric_key"`
 	EntityID        string            `json:"entity_id"`
 	Type            string            `json:"type"`
@@ -212,24 +215,28 @@ type PingQuery struct {
 	Start     time.Time
 	End       time.Time
 }
+
+// PingStat.Loss is a ratio in [0,1]. P99P50Ratio is literally p99/p50;
+// compatibility transports may use different legacy display formulas.
 type PingStat struct {
-	EntityID        string            `json:"entity_id"`
-	TaskID          string            `json:"task_id"`
-	Name            string            `json:"name"`
-	Type            string            `json:"type"`
-	Interval        int               `json:"interval"`
-	Tags            map[string]string `json:"tags,omitempty"`
-	Total           int               `json:"total"`
-	Valid           int               `json:"valid"`
-	Loss            *float64          `json:"loss"`
-	LossApproximate bool              `json:"loss_approximate"`
-	Min             *float64          `json:"min"`
-	Max             *float64          `json:"max"`
-	Avg             *float64          `json:"avg"`
-	Latest          *float64          `json:"latest"`
-	P50             *float64          `json:"p50"`
-	P99             *float64          `json:"p99"`
-	Stddev          *float64          `json:"stddev"`
-	P99P50Ratio     *float64          `json:"p99_p50_ratio"`
-	Quality         *PingQuality      `json:"captain_quality,omitempty"`
+	EntityID string            `json:"entity_id"`
+	TaskID   string            `json:"task_id"`
+	Name     string            `json:"name"`
+	Type     string            `json:"type"`
+	Interval int               `json:"interval"`
+	Tags     map[string]string `json:"tags,omitempty"`
+	Total    int               `json:"total"`
+	Valid    int               `json:"valid"`
+	// Loss is the failed-attempt ratio in [0,1], not a percentage.
+	Loss            *float64     `json:"loss"`
+	LossApproximate bool         `json:"loss_approximate"`
+	Min             *float64     `json:"min"`
+	Max             *float64     `json:"max"`
+	Avg             *float64     `json:"avg"`
+	Latest          *float64     `json:"latest"`
+	P50             *float64     `json:"p50"`
+	P99             *float64     `json:"p99"`
+	Stddev          *float64     `json:"stddev"`
+	P99P50Ratio     *float64     `json:"p99_p50_ratio"`
+	Quality         *PingQuality `json:"captain_quality,omitempty"`
 }

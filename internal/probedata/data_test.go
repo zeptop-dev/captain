@@ -426,3 +426,47 @@ func TestMergedPingHistogramDoesNotAveragePercentiles(t *testing.T) {
 		t.Fatalf("bad merged quantiles %+v", got)
 	}
 }
+
+func TestRootDiskSelectionAppliesToCurrentRecentAndHistory(t *testing.T) {
+	e := fixture(t)
+	ctx := context.Background()
+	record(t, e, spec.SystemStatus{DiskUsed: 10, DiskTotal: 100}, e.clock().Add(-time.Minute))
+	if _, err := e.Store.DB().Exec(`UPDATE nodes SET probe_storage_json='{"mode":"manual","items":[{"mount":"/mnt/private","name":"Data"}]}' WHERE id=1`); err != nil {
+		t.Fatal(err)
+	}
+	snap, err := e.Snapshot(ctx, Scope{Staff: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := snap.Nodes[0]
+	if n.RootDiskPublic || n.Inventory.DiskTotal != nil || n.Status.Values["disk.used"] != nil {
+		t.Fatalf("root current leaked: %+v", n)
+	}
+	for _, r := range n.Recent {
+		if r.Values["disk.used"] != nil || r.Values["captain.disk.total"] != nil {
+			t.Fatal("root recent leaked")
+		}
+	}
+	got, err := e.Query(ctx, Scope{Staff: true}, Query{MetricKeys: []string{"disk.used", "captain.disk.total"}, Start: e.clock().Add(-time.Hour), End: e.clock()})
+	if err != nil || len(got) > 0 {
+		t.Fatalf("root history leaked: %+v %v", got, err)
+	}
+	raw, _ := json.Marshal(snap)
+	if strings.Contains(string(raw), "/mnt/private") {
+		t.Fatal("storage path leaked")
+	}
+}
+func TestMetricPointLimitIncludesEndBoundary(t *testing.T) {
+	e := fixture(t)
+	ctx := context.Background()
+	base := e.clock().Add(-time.Minute)
+	record(t, e, spec.SystemStatus{CPUPercent: 10}, base)
+	record(t, e, spec.SystemStatus{CPUPercent: 20}, e.clock())
+	got, err := e.Query(ctx, Scope{}, Query{MetricKeys: []string{"cpu.usage"}, Start: base, End: e.clock(), MaxPoints: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || len(got[0].Points) != 1 || got[0].Points[0].Count != 2 || *got[0].Points[0].Value != 15 {
+		t.Fatalf("inclusive end exceeded maxpoints or dropped measurement: %+v", got)
+	}
+}
