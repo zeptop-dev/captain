@@ -39,6 +39,7 @@ type fixtureReader struct {
 func (f *fixtureReader) Snapshot(context.Context, probedata.Scope) (probedata.Snapshot, error) {
 	return probedata.Snapshot{Now: fixtureTime, Schema: "captain.probe.v2", Settings: probedata.Settings{Title: "Example probe", Visibility: "public", BeatSeconds: 5}, Nodes: []probedata.Node{{
 		UUID: fixtureUUID, Name: "Test server", Group: "Example", Inventory: probedata.Inventory{CPUModel: "Test CPU", CPUCores: 2, MemTotal: uintNumber(1024), IPv4: "192.0.2.10"},
+		CreatedAt: fixtureTime.Add(-72 * time.Hour), UpdatedAt: fixtureTime.Add(-3 * time.Hour),
 		Status:  probedata.Status{Online: true, Fresh: true, LastSeen: &fixtureTime, ReceivedAt: &fixtureTime, Values: map[string]*float64{"cpu.usage": number(0), "memory.used": number(512), "net.out.rate": number(123), "net.in.rate": number(456), "net.total.up": number(9000), "net.total.down": number(8000), "connections.tcp": number(3), "connections.udp": number(2)}},
 		Traffic: &probedata.Traffic{Valid: true, UsedUp: 100, UsedDown: 200, Used: 300, Limit: 10000, Mode: "sum"},
 		Info:    &probedata.Info{Region: "US", Cost: &probedata.Cost{Amount: "3.95", Currency: "USD", Cycle: "monthly"}},
@@ -145,6 +146,27 @@ func TestRESTAndCommonWireShapes(t *testing.T) {
 	}
 	if _, ok := identity["data"]; ok {
 		t.Fatal("/api/me must not be wrapped")
+	}
+}
+
+func TestNodeMetadataTimestampsStayDistinctFromMeasurements(t *testing.T) {
+	h := fixtureHandler(&fixtureReader{})
+	legacy := doHTTP(t, h, "GET", "/api/nodes", "")
+	nodes := jsonObject(t, legacy.Body.Bytes())["data"].([]any)
+	common := rpc(t, h, "common:getNodes", map[string]any{"uuid": fixtureUUID})["result"].(map[string]any)
+	for _, n := range []map[string]any{nodes[0].(map[string]any), common} {
+		if n["created_at"] != fixtureTime.Add(-72*time.Hour).Format(time.RFC3339) || n["updated_at"] != fixtureTime.Add(-3*time.Hour).Format(time.RFC3339) {
+			t.Fatalf("node metadata must preserve stored row times: %#v", n)
+		}
+	}
+	latest := rpc(t, h, "common:getNodesLatestStatus", map[string]any{"uuid": fixtureUUID})["result"].(map[string]any)
+	if latest["time"] != fixtureTime.Format(time.RFC3339) {
+		t.Fatalf("runtime timestamp must remain the accepted measurement time: %#v", latest)
+	}
+	recent := doHTTP(t, h, "GET", "/api/recent/"+fixtureUUID, "")
+	report := jsonObject(t, recent.Body.Bytes())["data"].([]any)[0].(map[string]any)
+	if report["updated_at"] != fixtureTime.Format(time.RFC3339) {
+		t.Fatalf("report timestamp borrowed node modification time: %#v", report)
 	}
 }
 

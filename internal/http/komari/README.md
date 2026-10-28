@@ -35,6 +35,9 @@ In addition to the eight REST-equivalent public methods, RPC exposes:
 - `common:getNodes`, `common:getNodesLatestStatus`, `common:getMe`,
   `common:getPublicInfo`, `common:getVersion`, `common:getNodeRecentStatus`,
   `common:getRecords`.
+- Framework reads `rpc.ping`, `rpc.version`, `rpc.methods` and `rpc.help`.
+  Discovery lists only the methods this handler actually exposes; management
+  methods are never advertised. Upstream 1.6.1 has no `rpc.discover` method.
 
 Named parameters and the documented positional argument orders are accepted.
 Legacy REST numeric strings and modern numeric JSON are accepted for hours
@@ -61,6 +64,9 @@ modern metric tags; their original Captain series identity stays namespaced.
   and the semantic label are explicit under `captain`.
 - Historical RAM/swap/disk totals are returned only when recorded with the
   historical sample. Current inventory is never used to manufacture them.
+- Node metadata `created_at` / `updated_at` preserve the stored node row's
+  timestamps. Runtime `time` and recent report `updated_at` remain the accepted
+  measurement timestamp, independent of later node configuration edits.
 - Ping means and loss use accepted attempt counts from the canonical reader.
   Unknown percentiles, jitter or standard deviation remain unknown. An
   aggregate point with complete loss uses the legacy `-1` marker; partial
@@ -78,7 +84,11 @@ HTTP and WebSocket messages are limited to 64 KiB. Batches contain at most
 32 requests; a query selects at most 128 nodes and 32 metrics, with at most
 4,000 points per series and a 32,000-point aggregate query budget. History
 windows are bounded to 730 days. Legacy unlimited `maxCount=-1` is bounded
-to 4,000 output records. There are at most 32 concurrent WebSocket sessions
+to 4,000 output records. Larger positive per-series requests are clamped to
+4,000 before reading history; the requested and effective limits are reported
+under `captain`. The aggregate budget includes the selected node/task pairs
+for ping metrics, and still rejects an oversized expanded query. There are at
+most 32 concurrent WebSocket sessions
 per handler, a two-minute idle timeout, a 15-second query deadline, and a
 five-second write deadline.
 

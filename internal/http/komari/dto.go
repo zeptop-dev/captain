@@ -19,6 +19,7 @@ func client(n probedata.Node, weight int, publicREST bool) map[string]any {
 	}
 	out := map[string]any{
 		"uuid": n.UUID, "name": n.Name, "cpu_name": i.CPUModel, "virtualization": i.Virtualization,
+		"created_at": n.CreatedAt, "updated_at": n.UpdatedAt,
 		"arch": i.Arch, "cpu_cores": i.CPUCores, "cpu_physical_cores": i.CPUPhysicalCores,
 		"os": i.OS, "kernel_version": i.Kernel, "gpu_name": "", "region": "",
 		"mem_total": i.MemTotal, "swap_total": i.SwapTotal, "disk_total": i.DiskTotal,
