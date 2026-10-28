@@ -3552,5 +3552,26 @@
     "discard": "Discard policy changes",
     "savePolicy": "Save automatic policy",
     "close": "Close"
+  },
+  "probeThemes": {
+    "title": "Komari themes",
+    "upload": "Upload release ZIP",
+    "hint": "Install an original built Komari theme package. Each version is kept separately, so you can switch back without losing its settings.",
+    "isolation": "Third-party themes run only on the dedicated probe domain. Save that domain above first; the main-site probe path keeps the built-in theme.",
+    "current": "Active theme",
+    "builtin": "Captain built-in",
+    "version": "Installed version",
+    "remove": "Remove version",
+    "activate": "Activate this version",
+    "restore": "Restore built-in theme",
+    "settings": "Theme settings",
+    "publicSettings": "Settings are public. Do not include credentials or private URLs.",
+    "customSettings": "This theme supplies a custom administrator interface. Captain does not execute it in the admin console; edit its public settings as JSON instead.",
+    "noSettings": "This theme declares no managed settings.",
+    "saveSettings": "Save theme settings",
+    "sizeLimit": "Theme ZIP must be at most 32 MiB.",
+    "installed": "Theme installed; select and activate it when ready.",
+    "objectRequired": "Settings must be a JSON object.",
+    "optionsFailed": "Could not load available choices. Reload before saving."
   }
 }

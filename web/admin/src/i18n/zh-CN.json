@@ -3552,5 +3552,26 @@
     "discard": "放弃策略修改",
     "savePolicy": "保存自动策略",
     "close": "关闭"
+  },
+  "probeThemes": {
+    "title": "Komari 主题",
+    "upload": "上传主题 ZIP",
+    "hint": "上传 Komari 官方格式的已构建主题包。每个版本分别保留，可以切回旧版本及其设置。",
+    "isolation": "第三方主题仅在独立探针域名运行。请先保存上方的独立域名；主站路径继续使用内置探针主题。",
+    "current": "当前主题",
+    "builtin": "Captain 内置主题",
+    "version": "已安装版本",
+    "remove": "移除此版本",
+    "activate": "启用此版本",
+    "restore": "恢复内置主题",
+    "settings": "主题设置",
+    "publicSettings": "这些设置公开可读，请勿填写凭据或私密链接。",
+    "customSettings": "此主题自带管理界面。Captain 不会在管理后台执行它，可通过 JSON 编辑其公开设置。",
+    "noSettings": "此主题没有声明托管配置项。",
+    "saveSettings": "保存主题设置",
+    "sizeLimit": "主题 ZIP 不能超过 32 MiB。",
+    "installed": "主题已安装，可选择并启用。",
+    "objectRequired": "设置必须是 JSON 对象。",
+    "optionsFailed": "无法加载可用选项，请重新加载后保存。"
   }
 }

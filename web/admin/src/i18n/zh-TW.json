@@ -3552,5 +3552,26 @@
     "discard": "放棄策略變更",
     "savePolicy": "儲存自動策略",
     "close": "關閉"
+  },
+  "probeThemes": {
+    "title": "Komari 主題",
+    "upload": "上傳主題 ZIP",
+    "hint": "上傳 Komari 官方格式的已建置主題包。每個版本分別保留，可以切回舊版本及其設定。",
+    "isolation": "第三方主題僅在獨立探針網域執行。請先儲存上方的獨立網域；主站路徑繼續使用內建探針主題。",
+    "current": "目前主題",
+    "builtin": "Captain 內建主題",
+    "version": "已安裝版本",
+    "remove": "移除此版本",
+    "activate": "啟用此版本",
+    "restore": "恢復內建主題",
+    "settings": "主題設定",
+    "publicSettings": "這些設定公開可讀，請勿填寫憑證或私人連結。",
+    "customSettings": "此主題自帶管理介面。Captain 不會在管理後台執行它，可透過 JSON 編輯其公開設定。",
+    "noSettings": "此主題沒有宣告託管設定項目。",
+    "saveSettings": "儲存主題設定",
+    "sizeLimit": "主題 ZIP 不能超過 32 MiB。",
+    "installed": "主題已安裝，可選擇並啟用。",
+    "objectRequired": "設定必須是 JSON 物件。",
+    "optionsFailed": "無法載入可用選項，請重新載入後儲存。"
   }
 }

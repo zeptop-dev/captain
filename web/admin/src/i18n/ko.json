@@ -3552,5 +3552,26 @@
     "discard": "정책 변경 취소",
     "savePolicy": "자동 정책 저장",
     "close": "닫기"
+  },
+  "probeThemes": {
+    "title": "Komari 테마",
+    "upload": "테마 ZIP 업로드",
+    "hint": "빌드된 Komari 테마 패키지를 업로드하세요. 버전별 설정을 유지하므로 이전 버전으로 돌아갈 수 있습니다.",
+    "isolation": "외부 테마는 전용 모니터링 도메인에서만 실행됩니다. 위에서 전용 도메인을 먼저 저장하세요. 메인 사이트 경로는 기본 테마를 유지합니다.",
+    "current": "현재 테마",
+    "builtin": "Captain 기본 테마",
+    "version": "설치된 버전",
+    "remove": "이 버전 제거",
+    "activate": "이 버전 활성화",
+    "restore": "기본 테마로 복원",
+    "settings": "테마 설정",
+    "publicSettings": "설정은 공개됩니다. 인증 정보나 비공개 URL을 넣지 마세요.",
+    "customSettings": "이 테마는 자체 관리 화면을 제공합니다. Captain 관리 화면에서는 실행하지 않으며 공개 설정을 JSON으로 편집할 수 있습니다.",
+    "noSettings": "이 테마에는 관리형 설정 항목이 없습니다.",
+    "saveSettings": "테마 설정 저장",
+    "sizeLimit": "테마 ZIP은 32 MiB 이하여야 합니다.",
+    "installed": "테마가 설치되었습니다. 선택하여 활성화할 수 있습니다.",
+    "objectRequired": "설정은 JSON 객체여야 합니다.",
+    "optionsFailed": "선택 항목을 불러올 수 없습니다. 다시 불러온 후 저장하세요."
   }
 }

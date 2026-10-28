@@ -10,6 +10,7 @@ import { api, type Node } from '../lib/api'
 import { validBrandAssetInput } from '../lib/branding'
 import { BrandAssetInput } from './BrandAssetInput'
 import { ProbeAppearanceFields } from './ProbeAppearanceFields'
+import { ProbeThemes } from './ProbeThemes'
 import { toast } from '../lib/notify'
 import { currencyOptions } from '../lib/currency-options'
 import { carrierProbeDraft, carrierProbePayload, carrierTargetPlaceholder, type CarrierProbe, type CarrierTargetTexts, type CarrierFamily } from '../lib/carrier-probe'
@@ -98,7 +99,7 @@ export function ProbeCard() {
         </SettingsFields>
         <Group justify="flex-end"><Button type="submit" size="xs" loading={save.isPending}>{t('settingsLayout.saveSection', { section: t('settingsLayout.probeTitle') })}</Button></Group>
       </Stack></form>
-
+      <ProbeThemes />
     </Card>
   )
 }
