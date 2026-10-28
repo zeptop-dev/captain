@@ -490,6 +490,20 @@ func TestThemeSettingsReadFailureDoesNotReturnDefaults(t *testing.T) {
 	}
 }
 
+func TestConcurrentPolicyChangeFailsClosed(t *testing.T) {
+	h := fixtureHandler(&fixtureReader{})
+	h.d.PublicSettings = func(*http.Request) (map[string]any, error) { return nil, probedata.ErrPolicyChanged }
+	w := doHTTP(t, h, "GET", "/api/public", "")
+	if w.Code != http.StatusServiceUnavailable || jsonObject(t, w.Body.Bytes())["data"] != nil {
+		t.Fatalf("policy change returned a stale success: %d %s", w.Code, w.Body.String())
+	}
+	result := rpc(t, h, "public:getPublicSettings", nil)
+	e := result["error"].(map[string]any)
+	if result["result"] != nil || e["code"] != float64(-32004) || e["data"].(map[string]any)["reason"] != "policy_changed" {
+		t.Fatalf("policy change must be a typed retryable error: %#v", result)
+	}
+}
+
 func TestHTTPResponseIsNeverCacheable(t *testing.T) {
 	h := fixtureHandler(&fixtureReader{})
 	s := httptest.NewServer(h)

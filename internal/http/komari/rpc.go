@@ -35,6 +35,9 @@ type rpcRequest struct {
 
 func invalid(msg string) *rpcError { return &rpcError{Code: -32602, Message: msg} }
 func fromError(err error) *rpcError {
+	if errors.Is(err, probedata.ErrPolicyChanged) {
+		return &rpcError{Code: -32004, Message: "Probe visibility changed; retry the request", Data: map[string]string{"reason": "policy_changed"}}
+	}
 	if errors.Is(err, probedata.ErrNotFound) {
 		return invalid("Node or metric not found")
 	}

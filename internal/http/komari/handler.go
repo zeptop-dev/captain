@@ -159,6 +159,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if e.Code == -32603 {
 			status = 500
 		}
+		if e.Code == -32004 {
+			status = http.StatusServiceUnavailable
+		}
 		if e.Code == -32003 {
 			status = 403
 		}
