@@ -89,7 +89,8 @@
     "behavior": "现有入口默认固定。开启后，连续两次探测确认才更新该地址及符合条件的自动 DNS；探测失败保留旧值。手动修改服务器地址会关闭对应跟随。单独设置的 NAT/专线入口、订阅地址和 WG 端点保持不变。",
     "dnsPending": "地址已更新，DNS 同步待处理或重试；可查看 DNS 健康与变更历史。",
     "confirming": "已检测到地址，等待下一次独立采样确认。",
-    "applying": "地址已确认，等待更新入口和同步 DNS。"
+    "applying": "地址已确认，等待更新入口和同步 DNS。",
+    "unregistered": "未登记"
   },
   "app": {
     "logout": "退出登录"
@@ -2430,14 +2431,14 @@
     "hint": "Captain 每 5 分钟通过面板解析器和 Cloudflare（1.1.1.1）检查。NAT／专线域名按公网入口 IP 核对，共享域名只检查能否解析。开启监控后，三次失败且持续至少 10 分钟才会告警。检查不会修改 DNS。",
     "checked": "检查时间：{{at}}",
     "stale": "等待新检查",
-    "recheck": "立即检查",
+    "recheck": "重新检查解析",
     "empty": "没有需要检查的域名；纯 IP 地址无需 DNS 检查。",
-    "expected": "预期 A / AAAA",
+    "expected": "预期地址",
     "resolveOnly": "仅检查能否解析，不核对固定 IP",
     "inconsistentHint": "两处解析结果不一致，可能与缓存、DNS 传播或地区有关，暂不判定为故障或恢复。",
     "loadError": "无法加载 DNS 数据。",
-    "history": "自动 DNS 变更历史",
-    "historyHint": "自动 A/AAAA 写入前先保存旧值，历史保留 180 天。启用前或 Captain 之外的修改不在记录中。“结果待核实”包含进行中或中断的写入，请先到服务商核实再重试。旧值供手动恢复参考，不会自动回滚。",
+    "history": "DNS 变更历史",
+    "historyHint": "自动和手动写入 A/AAAA 前会保存旧值，保留 180 天。不包含更早或 Captain 外部的修改。“结果未知”可能是请求进行中或被中断；重试前请核对服务商记录。旧值供手动恢复参考，不会自动回滚。",
     "noHistory": "暂无 DNS 写入记录。",
     "auto": "自动",
     "proxy": "代理",
@@ -2465,14 +2466,21 @@
       "unknown": "未确认",
       "conflict": "域名冲突",
       "invalid": "域名无效",
-      "problem": "需要检查"
+      "problem": "需要检查",
+      "resolved": "已解析",
+      "unconfigured": "未配置",
+      "unexpected": "有未登记记录",
+      "propagating": "等待传播",
+      "stale": "待重新检查",
+      "query_failed": "查询失败",
+      "no_record": "无记录"
     },
     "sources": {
       "panel": "面板解析器",
       "cloudflare": "Cloudflare · 1.1.1.1"
     },
     "errors": {
-      "not_found": "未找到 A/AAAA 记录",
+      "not_found": "此地址族没有记录",
       "timeout": "查询超时",
       "unavailable": "解析器不可用"
     },
@@ -2485,7 +2493,57 @@
       "created": "新增",
       "updated": "更新"
     },
-    "propagationPending": "DNS 已写入，等待解析生效；近期写入会加快复查，缓存可能仍返回旧结果。"
+    "propagationPending": "DNS 已写入，等待解析生效；近期写入会加快复查，缓存可能仍返回旧结果。",
+    "record": "记录",
+    "badgeHint": "仅表示 DNS 解析，不代表网络连通。检查时间：{{at}}。点击查看 DNS 诊断详情。",
+    "scopeHint": "分别检查 A 和 AAAA。记录正确不代表代理端口或 IPv6 网络可达。“同步 DNS 记录”是另一个操作，会使用服务器已保存的地址写入服务商。",
+    "unexpectedHint": "DNS 中存在尚未登记预期地址的记录类型，请核对服务器资料和服务商记录。",
+    "sync": {
+      "title": "同步 DNS 记录",
+      "hint": "先对比服务器已保存的域名、地址和 Cloudflare 当前记录，再应用变更。仅创建或更新符合条件的 DNS-only A/AAAA；不删除记录，也不修改入口映射、订阅连接地址或尚未保存的资料。 本次手动同步不会改变自动 DNS 设置。",
+      "loading": "正在读取已保存配置和服务商记录…",
+      "loadError": "无法读取同步预览，未写入任何记录。",
+      "record": "记录",
+      "before": "服务商当前值",
+      "expected": "服务器已保存地址",
+      "action": "计划操作",
+      "nothing": "没有可应用的记录变更。",
+      "changed": "服务器配置或服务商记录已发生变化，请重新载入预览后再应用。",
+      "requestUnknown": "请求未能确认最终结果。再次操作前，请查看 DNS 变更历史并重新读取服务商记录。",
+      "result": "同步结果",
+      "resultHint": "写入成功不代表解析或连通检查通过。DNS 缓存可能需要时间更新，请另外重新检查解析。",
+      "reload": "重新载入预览",
+      "apply": "应用 DNS 同步",
+      "close": "关闭",
+      "actions": {
+        "created": "创建",
+        "updated": "更新",
+        "unchanged": "已一致",
+        "skipped": "跳过"
+      },
+      "outcomes": {
+        "success": "已确认",
+        "failed": "写入被拒绝",
+        "unknown": "结果未知",
+        "skipped": "已跳过"
+      },
+      "reasons": {
+        "no_domain": "尚未配置服务器域名。",
+        "invalid_domain": "服务器域名无效。",
+        "no_address": "尚未登记有效的公网地址。",
+        "shared_domain": "此域名由多台服务器共享或外部管理，Captain 不会覆盖其记录。",
+        "domain_address_conflict": "域名归属或预期地址存在冲突，请先处理冲突。",
+        "unmanaged_domain": "此域名尚未通过 Captain 的 Cloudflare 配置管理。",
+        "auto_dns_disabled": "自动 DNS 已关闭，手动同步不会开启它。",
+        "missing_token": "缺少 Cloudflare DNS 凭据。",
+        "external_records": "已有记录开启了代理或包含多个值，请在服务商处管理。",
+        "provider_unavailable": "无法读取服务商记录，请稍后重试。",
+        "invalid_address": "登记的地址无效。",
+        "unknown": "没有可以安全应用的变更，请核对域名设置和服务商记录。"
+      }
+    },
+    "manualSource": "手动同步",
+    "automaticSource": "自动同步"
   },
   "nodeMode": {
     "title": "服务器模式",

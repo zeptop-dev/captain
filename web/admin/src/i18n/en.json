@@ -89,7 +89,8 @@
     "behavior": "Existing entries stay fixed by default. Following requires two consecutive confirmed probes before updating this address and eligible automatic DNS. Failed probes retain old values. Manually editing a server address disables following for that family. Explicit NAT/line entries, subscription addresses and WG endpoints stay unchanged.",
     "dnsPending": "Address updated; DNS sync is pending or retrying. See DNS health and change history.",
     "confirming": "Address detected; waiting for another independent sample to confirm it.",
-    "applying": "Address confirmed; waiting to update the entry address and synchronize DNS."
+    "applying": "Address confirmed; waiting to update the entry address and synchronize DNS.",
+    "unregistered": "Not registered"
   },
   "app": {
     "logout": "Log out"
@@ -2430,14 +2431,14 @@
     "hint": "Captain checks every 5 minutes using the panel resolver and Cloudflare (1.1.1.1). NAT and dedicated-line names use the public entry IP; shared names only need to resolve. With monitoring enabled, three failures over at least 10 minutes trigger an alert. Checks never modify DNS.",
     "checked": "Checked: {{at}}",
     "stale": "Awaiting fresh check",
-    "recheck": "Check now",
+    "recheck": "Recheck DNS resolution",
     "empty": "No domains to check. IP-only addresses do not need DNS checks.",
-    "expected": "Expected A / AAAA",
+    "expected": "Expected address",
     "resolveOnly": "Resolution only; no fixed IP comparison",
     "inconsistentHint": "Answers differ: caching, propagation or location-based DNS may be involved. Failure or recovery is not confirmed.",
     "loadError": "Could not load DNS data.",
-    "history": "Automatic DNS change history",
-    "historyHint": "Previous values are saved before automatic A/AAAA writes and retained for 180 days. Earlier changes and changes outside Captain are not included. Unknown outcomes include in-progress or interrupted writes: verify with the provider before retrying. Previous values are for manual recovery; there is no automatic rollback.",
+    "history": "DNS change history",
+    "historyHint": "Previous values are saved before automatic and manual A/AAAA writes and retained for 180 days. Earlier changes and changes outside Captain are not included. Unknown outcomes include in-progress or interrupted writes: verify with the provider before retrying. Previous values are for manual recovery; there is no automatic rollback.",
     "noHistory": "No recorded DNS writes.",
     "auto": "Automatic",
     "proxy": "Proxy",
@@ -2465,14 +2466,21 @@
       "unknown": "Not confirmed",
       "conflict": "Domain conflict",
       "invalid": "Invalid domain",
-      "problem": "Needs attention"
+      "problem": "Needs attention",
+      "resolved": "Resolved",
+      "unconfigured": "Not configured",
+      "unexpected": "Unexpected record",
+      "propagating": "Propagating",
+      "stale": "Awaiting fresh check",
+      "query_failed": "Query failed",
+      "no_record": "No record"
     },
     "sources": {
       "panel": "Panel resolver",
       "cloudflare": "Cloudflare · 1.1.1.1"
     },
     "errors": {
-      "not_found": "No A/AAAA record",
+      "not_found": "No record for this address family",
       "timeout": "Query timed out",
       "unavailable": "Resolver unavailable"
     },
@@ -2485,7 +2493,57 @@
       "created": "Create",
       "updated": "Update"
     },
-    "propagationPending": "DNS records written; waiting for resolution to reflect the change. Recent writes are checked more frequently; caches may still return old answers."
+    "propagationPending": "DNS records written; waiting for resolution to reflect the change. Recent writes are checked more frequently; caches may still return old answers.",
+    "record": "Record",
+    "badgeHint": "DNS resolution only, not connectivity. Checked: {{at}}. Open DNS diagnostics for details.",
+    "scopeHint": "A and AAAA are checked separately. A matching record does not prove the proxy port or IPv6 network is reachable. Sync DNS records is a separate provider write using saved server addresses.",
+    "unexpectedHint": "DNS has records for an address family without a registered expected address. Verify the server information and records at the provider.",
+    "sync": {
+      "title": "Sync DNS records",
+      "hint": "Review the saved server domain and addresses against Cloudflare before applying. This only creates or updates eligible DNS-only A/AAAA records. It does not delete records or change ingress mappings, client subscription addresses, or unsaved information. This manual sync does not change automatic DNS settings.",
+      "loading": "Reading saved configuration and provider records…",
+      "loadError": "Could not read the DNS sync plan. No records have been written.",
+      "record": "Record",
+      "before": "Current provider value",
+      "expected": "Saved server address",
+      "action": "Planned action",
+      "nothing": "No eligible record changes to apply.",
+      "changed": "The server configuration or provider records changed. Reload the preview before applying.",
+      "requestUnknown": "The request could not confirm the final result. Review DNS change history and reload provider records before trying again.",
+      "result": "Sync results",
+      "resultHint": "A successful write is not a resolution or connectivity check. DNS caches may take time to update; recheck resolution separately.",
+      "reload": "Reload preview",
+      "apply": "Apply DNS sync",
+      "close": "Close",
+      "actions": {
+        "created": "Create",
+        "updated": "Update",
+        "unchanged": "Already matches",
+        "skipped": "Skip"
+      },
+      "outcomes": {
+        "success": "Confirmed",
+        "failed": "Write rejected",
+        "unknown": "Outcome unknown",
+        "skipped": "Skipped"
+      },
+      "reasons": {
+        "no_domain": "No server domain is configured.",
+        "invalid_domain": "The server domain is invalid.",
+        "no_address": "No valid public address is registered.",
+        "shared_domain": "This domain is shared or externally managed; Captain will not overwrite its records.",
+        "domain_address_conflict": "Domain ownership or expected addresses conflict. Resolve the conflict first.",
+        "unmanaged_domain": "This domain is not managed through Cloudflare in Captain.",
+        "auto_dns_disabled": "Automatic DNS is disabled. Manual sync does not enable it.",
+        "missing_token": "Cloudflare DNS credentials are missing.",
+        "external_records": "The existing records are proxied or have multiple values. Manage them at the provider.",
+        "provider_unavailable": "Provider records could not be read. Try again later.",
+        "invalid_address": "The registered address is invalid.",
+        "unknown": "No safe record change is available. Check domain settings and provider records."
+      }
+    },
+    "manualSource": "Manual sync",
+    "automaticSource": "Automatic sync"
   },
   "nodeMode": {
     "title": "Server mode",

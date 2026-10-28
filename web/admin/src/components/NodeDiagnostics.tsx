@@ -16,7 +16,7 @@ export function NodeDiagnostics({ detail: d }: { detail: NodeDetail }) {
   const [params] = useSearchParams()
   const view = params.get('view') ?? 'health'
   const n = d.node
-  if (!n.paired) return <Alert color="orange">{t('nodes.unpaired')}</Alert>
+  if (!n.paired) return <><Alert color="orange" mb="lg">{t('nodes.unpaired')}</Alert><DNSHealthCard nodeID={n.id} /></>
   return <>
     <Group mb="lg">{['health', ...(me?.role === 'admin' ? ['network', 'routes'] : [])].map(key => <Button key={key} component={Link} variant={view === key ? 'light' : 'subtle'} aria-current={view === key ? 'page' : undefined} to={`/nodes/${n.id}/diagnostics?view=${key}`} onClick={e => { if (view === key) e.preventDefault() }}>{t(`serverDetail.diagnostics.${key}`)}</Button>)}</Group>
     {view === 'network' && me?.role === 'admin' ? <NetworkDiagnosticsCard nodeID={n.id} /> : view === 'routes' && me?.role === 'admin' ? <ReturnRoutesCard nodeID={n.id} /> : <>

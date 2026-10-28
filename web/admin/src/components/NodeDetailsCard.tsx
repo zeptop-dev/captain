@@ -15,6 +15,7 @@ import { NodeAddressesCard } from './NodeAddressesCard'
 import { supplierURL } from '../lib/node-infrastructure'
 import { useAuth } from '../lib/auth'
 import { InfoGrid, InfoTile } from './InfoTile'
+import { NodeDNSBadges } from './NodeDNSBadges'
 
 export function NodeDetailsCard({ node: n, section }: { node: Node; section: NodeEditSection }) {
   const { t } = useTranslation()
@@ -48,7 +49,7 @@ export function NodeDetailsCard({ node: n, section }: { node: Node; section: Nod
     <Card mb="lg"><Group justify="space-between" mb="md"><Text fw={600}>{t(section === 'profile' ? 'serverDetail.profile' : 'serverDetail.settings.proxy')}</Text><Button size="xs" variant="light" onClick={() => { const values = nodeEditValues(n); setBaseline(values); nodeForm.setValues(values); nodeForm.resetDirty(values); setEditNode(true) }}>{t('common.edit')}</Button></Group>
       {section === 'profile' ? <InfoGrid>
         <InfoTile label={t('nodes.name')} value={n.name} /><InfoTile label={t('nodes.hostname')} value={n.hostname} mono /><InfoTile label={t('nodes.platform')} value={n.platform} /><InfoTile label={t('nodes.version')} value={n.version} />
-        <InfoTile label={t('nodes.publicAddr')} value={n.public_addr} mono /><InfoTile label={t('nodes.internalAddr')} value={n.internal_addr} mono hint={t('nodeAddresses.internalHint')} /><InfoTile label={t('nodes.v6Addr')} value={n.v6_addr} mono /><InfoTile label={t('nodes.nodeDomain')} value={n.domain} mono />
+        <InfoTile label={t('nodes.publicAddr')} value={n.public_addr} mono /><InfoTile label={t('nodes.internalAddr')} value={n.internal_addr} mono hint={t('nodeAddresses.internalHint')} /><InfoTile label={t('nodes.v6Addr')} value={n.v6_addr} mono /><InfoTile label={t('nodes.nodeDomain')} value={<><Text size="sm" fw={600} ff="monospace" style={{ overflowWrap: 'anywhere' }}>{n.domain || '—'}</Text><NodeDNSBadges node={n} /></>} />
         <InfoTile label={t('nodes.monitorUrl')} value={supplierURL(n.monitor_url) ? <a href={supplierURL(n.monitor_url)} target="_blank" rel="noopener noreferrer">{t('nodes.open')}</a> : n.monitor_url || '—'} />
       </InfoGrid> : <InfoGrid>
         <InfoTile label={t('nodes.speedLimit')} value={`${n.user_speed_limit_mbps ?? 0} Mbps`} hint={t('nodes.speedLimitHint')} />

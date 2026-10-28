@@ -20,6 +20,7 @@ import { useURLChoice } from '../lib/use-url-choice'
 import { NodeDomainFields } from '../components/NodeDomainFields'
 import { useNodeDomainCheck } from '../lib/use-node-domain-check'
 import { useAuth } from '../lib/auth'
+import { NodePublicAddresses } from '../components/NodePublicAddresses'
 
 export function PairCodeBox({ code, mode = 'full' }: { code: string; mode?: 'full' | 'monitor' }) {
   const { t } = useTranslation()
@@ -92,7 +93,7 @@ export default function NodesPage() {
                   <Table.Td><Anchor component={Link} to={`/nodes/${n.id}`} fw={600}>{n.name}</Anchor>{n.mode === 'monitor' && <Badge ml="xs" size="xs" color="cyan">{t('nodeMode.monitor')}</Badge>}<Text size="xs" c="dimmed">{n.hostname}</Text></Table.Td>
                   <Table.Td><Text size="sm">{n.monitor_group || t('nodeLayout.ungrouped')}</Text></Table.Td>
                   <Table.Td miw={84}><Group gap={4}><NodeStatus n={n} />{n.cert_problem && <Badge color="red" size="xs" title={t('nodes.certProblem')}>TLS</Badge>}{n.doctor_fail && <Badge color="red" size="xs" variant="light" title={t('nodes.doctorFailHint')}>{t('nodes.doctor')}</Badge>}</Group></Table.Td>
-                  <Table.Td><Code>{n.public_addr || '—'}</Code><Text size="xs" c="dimmed">{n.domain}</Text>{(n.domain_shared || n.domain_conflict) && <Tooltip label={t(n.domain_shared ? 'nodes.domainSharedHint' : 'nodes.domainLegacyHint')}><Badge size="xs" color={n.domain_shared ? 'blue' : 'orange'}>{t(n.domain_shared ? 'nodes.domainExternal' : 'nodes.domainDuplicate')}</Badge></Tooltip>}</Table.Td>
+                  <Table.Td><NodePublicAddresses node={n} /></Table.Td>
                   <Table.Td>{n.inbounds}</Table.Td>
                   <Table.Td><HostTrafficSummary traffic={n.host_traffic} /></Table.Td>
                   <Table.Td><ProxyTrafficSummary traffic={n.proxy_traffic} collectedBytes={n.traffic_today_bytes} /></Table.Td>
