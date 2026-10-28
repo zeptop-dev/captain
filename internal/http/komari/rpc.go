@@ -256,6 +256,9 @@ func (h *Handler) call(r *http.Request, method string, raw json.RawMessage) (any
 	if method == "common:getNodesLatestStatus" && len(s.PingTasks) > 0 {
 		selected := []string{}
 		for _, n := range s.Nodes {
+			if n.Status.ReceivedAt == nil {
+				continue
+			}
 			if params.UUID != "" && n.UUID != params.UUID {
 				continue
 			}
@@ -280,6 +283,11 @@ func (h *Handler) call(r *http.Request, method string, raw json.RawMessage) (any
 		if method == "common:getNodes" {
 			out[n.UUID] = client(n, i, false)
 		} else {
+			// Komari's latest map contains accepted reports, not every inventory
+			// entry. A never-observed server belongs only in the node catalog.
+			if n.Status.ReceivedAt == nil {
+				continue
+			}
 			row := latest(n, s.PingTasks)
 			ping := row["ping"].(map[string]any)
 			for _, stat := range pingStats {

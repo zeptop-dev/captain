@@ -170,6 +170,53 @@ func TestNodeMetadataTimestampsStayDistinctFromMeasurements(t *testing.T) {
 	}
 }
 
+type observationReader struct{ *fixtureReader }
+
+func (r observationReader) Snapshot(ctx context.Context, scope probedata.Scope) (probedata.Snapshot, error) {
+	s, err := r.fixtureReader.Snapshot(ctx, scope)
+	if err != nil {
+		return s, err
+	}
+	s.Nodes[0].Status.Values["load.average"] = number(0)
+	s.Nodes[0].Status.Values["captain.load.5"] = nil
+	old := fixtureTime.Add(-24 * time.Hour)
+	s.Nodes = append(s.Nodes,
+		probedata.Node{UUID: "never-observed", Name: "New server", Status: probedata.Status{Values: map[string]*float64{"load.average": nil}}},
+		probedata.Node{UUID: "stale-observation", Name: "Offline server", Status: probedata.Status{ReceivedAt: &old, Values: map[string]*float64{"load.average": number(1)}}},
+	)
+	return s, nil
+}
+
+func TestLatestContainsOnlyObservedReportsAndOmitsUnknownLoads(t *testing.T) {
+	h := fixtureHandler(&fixtureReader{})
+	h.d.Reader = observationReader{&fixtureReader{}}
+	catalog := rpc(t, h, "common:getNodes", nil)["result"].(map[string]any)
+	if len(catalog) != 3 || catalog["never-observed"] == nil {
+		t.Fatalf("node inventory lost an unobserved server: %#v", catalog)
+	}
+	latest := rpc(t, h, "common:getNodesLatestStatus", nil)["result"].(map[string]any)
+	if len(latest) != 2 || latest["never-observed"] != nil || latest["stale-observation"] == nil {
+		t.Fatalf("latest map must distinguish never observed from old observations: %#v", latest)
+	}
+	current := latest[fixtureUUID].(map[string]any)
+	if current["load"] != float64(0) {
+		t.Fatal("a measured zero load was omitted")
+	}
+	for _, field := range []string{"load5", "load15"} {
+		if value, exists := current[field]; exists {
+			t.Fatalf("unknown optional %s is present: %#v", field, value)
+		}
+	}
+	nativeValues := current["captain"].(map[string]any)["status"].(map[string]any)["values"].(map[string]any)
+	if value, exists := nativeValues["captain.load.5"]; !exists || value != nil {
+		t.Fatal("canonical load lost its explicit unknown state")
+	}
+	single := rpc(t, h, "common:getNodesLatestStatus", map[string]any{"uuid": "never-observed"})
+	if single["error"] == nil {
+		t.Fatalf("unobserved UUID acquired a fabricated report: %#v", single)
+	}
+}
+
 func TestRecentAndTaskWireShapes(t *testing.T) {
 	h := fixtureHandler(&fixtureReader{})
 	w := doHTTP(t, h, "GET", "/api/recent/"+fixtureUUID, "")

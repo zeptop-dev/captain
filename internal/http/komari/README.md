@@ -72,6 +72,9 @@ modern metric tags; their original Captain series identity stays namespaced.
 - Node metadata `created_at` / `updated_at` preserve the stored node row's
   timestamps. Runtime `time` and recent report `updated_at` remain the accepted
   measurement timestamp, independent of later node configuration edits.
+  The latest-report map omits never-observed nodes while the node catalog
+  retains them. Unknown latest load values are omitted as optional fields;
+  the canonical status still carries their explicit unknown state.
 - Ping means and loss use accepted attempt counts from the canonical reader.
   Unknown percentiles, jitter or standard deviation remain unknown. An
   aggregate point with complete loss uses the legacy `-1` marker; partial

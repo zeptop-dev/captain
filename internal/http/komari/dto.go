@@ -104,6 +104,15 @@ func flatRecord(n probedata.Node, t *time.Time, values map[string]*float64, inve
 
 func latest(n probedata.Node, tasks []probedata.PingTask) map[string]any {
 	out := flatRecord(n, n.Status.ReceivedAt, n.Status.Values, true)
+	// Original themes invoke numeric methods on load fields when present.
+	// Omit unobserved/hidden optional loads instead of inventing a zero or
+	// overriding a theme's no-observation fallback with null. The canonical
+	// status below still retains each explicit unknown measurement.
+	for field, metric := range map[string]string{"load": "load.average", "load5": "captain.load.5", "load15": "captain.load.15"} {
+		if n.Status.Values[metric] == nil {
+			delete(out, field)
+		}
+	}
 	out["online"] = n.Status.Online
 	// Komari latest/recent use TCP+UDP in connections; its stored records use
 	// TCP alone. Retain that wire contract and name the distinction explicitly.
