@@ -2,7 +2,9 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/zeptop-dev/captain/internal/dns"
@@ -129,6 +131,16 @@ type DNSAnswer struct {
 	Error     string   `json:"error,omitempty"` // not_found | timeout | unavailable
 }
 
+// DNSFamily is an independently queried A or AAAA view. A healthy sibling
+// family is never evidence that this family resolved or matched its address.
+type DNSFamily struct {
+	Type               string      `json:"type"`
+	Expected           []string    `json:"expected"`
+	Status             string      `json:"status"`
+	Answers            []DNSAnswer `json:"answers"`
+	PropagationPending bool        `json:"propagation_pending,omitempty"`
+}
+
 type DNSTarget struct {
 	PropagationPending bool        `json:"propagation_pending,omitempty"` // response-only, derived from successful write history
 	Key                string      `json:"key"`
@@ -138,6 +150,7 @@ type DNSTarget struct {
 	Expected           []string    `json:"expected"`
 	Status             string      `json:"status"` // ok | mismatch | missing | inconsistent | unknown | conflict | invalid
 	Answers            []DNSAnswer `json:"answers"`
+	Families           []DNSFamily `json:"families"`
 }
 
 type DNSHealth struct {
@@ -180,4 +193,28 @@ func (s *Store) SaveDNSHealth(ctx context.Context, h *DNSHealth) error {
 	}
 	_, err = s.db.ExecContext(ctx, `INSERT INTO node_dns_health(node_id,snapshot_json) VALUES(?,?) ON CONFLICT(node_id) DO UPDATE SET snapshot_json=excluded.snapshot_json`, h.NodeID, string(raw))
 	return err
+}
+
+// InvalidateDNSHealth ensures a manual synchronization cannot reuse a green
+// pre-write snapshot (or its check cooldown) after changing provider records.
+func (s *Store) InvalidateDNSHealth(ctx context.Context, id int64) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM node_dns_health WHERE node_id=?`, id)
+	return err
+}
+
+// DNSObservationRevision prevents a query started before a provider write from
+// restoring an obsolete snapshot after that write invalidated its cache.
+func (s *Store) DNSObservationRevision(ctx context.Context, id int64) (string, error) {
+	var revision string
+	err := s.db.QueryRowContext(ctx, `SELECT CAST(id AS TEXT)||':'||outcome||':'||CAST(finished_at AS TEXT) FROM dns_changes WHERE node_id=? ORDER BY id DESC LIMIT 1`, id).Scan(&revision)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return revision, err
+}
+
+func (s *Store) DNSNodeIdentity(ctx context.Context, id int64) (string, error) {
+	var identity string
+	err := s.db.QueryRowContext(ctx, `SELECT COALESCE(token_hash,'')||':'||COALESCE(pair_code,'') FROM nodes WHERE id=?`, id).Scan(&identity)
+	return identity, wrapNotFound(err)
 }

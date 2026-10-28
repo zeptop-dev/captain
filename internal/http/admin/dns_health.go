@@ -11,6 +11,9 @@ import (
 )
 
 func (h *handlers) registerDNSHealth(mux *http.ServeMux) {
+	// These handlers own account locks around provider reads and mutations.
+	mux.HandleFunc("GET /api/admin/nodes/{id}/dns-sync", h.nodeDNSSync)
+	mux.HandleFunc("POST /api/admin/nodes/{id}/dns-sync", h.nodeDNSSync)
 	mux.HandleFunc("GET /api/admin/nodes/{id}/dns-health", h.requireAdmin(h.getDNSHealth))
 	mux.HandleFunc("POST /api/admin/nodes/{id}/dns-health/check", h.requireAdmin(h.checkDNSHealth))
 	mux.HandleFunc("GET /api/admin/monitoring/dns", h.requireAdmin(h.listDNSHealth))
@@ -22,6 +25,8 @@ func dnsHealthError(w http.ResponseWriter, err error) {
 		fail(w, 404, "node not found")
 	case errors.Is(err, service.ErrDNSBusy):
 		fail(w, 429, "DNS check busy; retry shortly")
+	case errors.Is(err, service.ErrDNSSyncDisabled):
+		fail(w, 409, "DNS synchronization is unavailable; review the current plan")
 	case errors.Is(err, service.ErrDNSConfigChanged):
 		fail(w, 409, "DNS configuration changed; retry check")
 	default:

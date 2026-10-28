@@ -111,6 +111,7 @@ type handlers struct {
 	passkeyStarts        ratelimit.Limiter
 	subPresetSync        sync.Mutex
 	claudeRuleSync       sync.Mutex
+	dnsSync              sync.Mutex
 	subscriptionSettings sync.Mutex
 }
 
@@ -571,6 +572,9 @@ func fail(w http.ResponseWriter, code int, msg string) {
 // Operator: everything except settings, system, staff management and the
 // landing page. Support: tickets, plus read-only users, orders, dashboard.
 func allowed(role, method, path string) bool {
+	if strings.HasPrefix(path, "/api/admin/nodes/") && strings.HasSuffix(path, "/dns-sync") && role != domain.RoleAdmin {
+		return false
+	}
 	if strings.HasPrefix(path, "/api/admin/nodes/") && strings.HasSuffix(path, "/service-control") && role != domain.RoleAdmin {
 		return false
 	}

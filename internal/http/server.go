@@ -346,7 +346,8 @@ func (s *Server) Handler() http.Handler {
 		presetSync := r.Method == http.MethodPost && (r.URL.Path == "/api/admin/settings/sub-design/presets/sync" || r.URL.Path == "/api/admin/settings/sub-design/claude-rules/sync")
 		catalogIO := r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/admin/settings/client-catalog/") && (strings.HasSuffix(r.URL.Path, "/check") || strings.HasSuffix(r.URL.Path, "/download"))
 		clientDownload := (r.Method == http.MethodGet || r.Method == http.MethodHead) && strings.HasPrefix(r.URL.Path, "/downloads/clients/")
-		if r.URL.Path != "/api/agent/state" && !presetSync && !catalogIO && !clientDownload {
+		dnsSyncIO := (r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodPost) && strings.HasPrefix(r.URL.Path, "/api/admin/nodes/") && strings.HasSuffix(r.URL.Path, "/dns-sync")
+		if r.URL.Path != "/api/agent/state" && !presetSync && !catalogIO && !clientDownload && !dnsSyncIO {
 			accounts := &s.state.Store.Accounts
 			renumber := r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, "/id") && (strings.HasPrefix(r.URL.Path, "/api/admin/users/") || strings.HasPrefix(r.URL.Path, "/api/admin/admins/"))
 			reset := r.Method == http.MethodPost && r.URL.Path == "/api/admin/system/reset"
