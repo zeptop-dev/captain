@@ -654,6 +654,38 @@ func TestModernPingPercentilesAndMetricDefaults(t *testing.T) {
 	}
 }
 
+type summaryReader struct {
+	*fixtureReader
+	stats []probedata.PingStat
+}
+
+func (r summaryReader) PingStats(context.Context, probedata.Scope, probedata.PingQuery) ([]probedata.PingStat, error) {
+	return r.stats, nil
+}
+
+func TestUnknownOptionalPingStatisticsAreAbsentWithoutFabricatingZero(t *testing.T) {
+	r := summaryReader{fixtureReader: &fixtureReader{}, stats: []probedata.PingStat{{
+		EntityID: fixtureUUID, TaskID: "carrier:abc", Name: "Carrier", Total: 10, Valid: 10,
+		Loss: number(0), Avg: number(0), Latest: number(0),
+	}}}
+	h := fixtureHandler(r.fixtureReader)
+	h.d.Reader = r
+	stats := rpc(t, h, "public:getPingMetricStats", map[string]any{"uuid": fixtureUUID})["result"].(map[string]any)["stats"].([]any)[0].(map[string]any)
+	for _, key := range []string{"min", "max", "p50", "p99", "stddev", "p99_p50_ratio"} {
+		if value, exists := stats[key]; exists {
+			t.Fatalf("unknown optional %s must be absent, got %#v", key, value)
+		}
+	}
+	for _, key := range []string{"loss", "avg", "latest"} {
+		if value, exists := stats[key]; !exists || value != float64(0) {
+			t.Fatalf("measured zero %s must remain present: %#v", key, stats)
+		}
+	}
+	if value, exists := stats["captain"].(map[string]any)["p99_p50_ratio"]; !exists || value != nil {
+		t.Fatal("Captain must retain the explicit unknown percentile state")
+	}
+}
+
 func TestCanonicalReaderThroughRealRESTAndRPC(t *testing.T) {
 	ctx := context.Background()
 	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "probe.db"))

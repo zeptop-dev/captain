@@ -53,6 +53,9 @@ modern metric tags; their original Captain series identity stays namespaced.
   version is under `captain.version`, avoiding a false future-Komari feature
   capability inferred from Captain's independent release number.
 - Missing/hidden/unsupported measurements are `null`, not measured zero.
+  Optional Ping summary measurements follow Komari's omission convention;
+  unknown percentiles, standard deviation and derived tail are absent instead
+  of `null`. Canonical Captain fields retain their explicit unknown state.
   Real CPU zero remains zero. Unsupported history aggregations return a typed
   `unsupported_aggregation` error. Metric definitions describe history and
   aggregation availability.

@@ -304,15 +304,27 @@ func (h *Handler) pingStats(r *http.Request, raw json.RawMessage) (any, *rpcErro
 	}
 	wireStats := make([]map[string]any, 0, len(stats))
 	for _, st := range stats {
-		wireStats = append(wireStats, map[string]any{
+		item := map[string]any{
 			"entity_id": st.EntityID, "task_id": strconv.FormatInt(legacyTaskID(st.TaskID, s.PingTasks), 10),
 			"name": st.Name, "type": st.Type, "interval": st.Interval,
 			"tags": wireTaskTags(st.Tags, s.PingTasks), "total": st.Total, "valid": st.Valid,
-			"loss": lossPercent(st.Loss), "loss_approximate": st.LossApproximate, "min": st.Min, "max": st.Max,
-			"avg": st.Avg, "latest": st.Latest, "p50": st.P50, "p99": st.P99,
-			"stddev": st.Stddev, "p99_p50_ratio": latencyTail(st.P50, st.P99, true),
+			"loss": lossPercent(st.Loss), "loss_approximate": st.LossApproximate,
 			"captain": map[string]any{"task_id": st.TaskID, "quality": st.Quality, "loss_ratio": st.Loss, "p99_p50_ratio": st.P99P50Ratio},
-		})
+		}
+		// Upstream's optional measurements are omitted when unknown. Themes
+		// guard against undefined before calling toFixed, not against null.
+		// The derived tail is likewise absent without percentile evidence;
+		// zero would falsely claim that an unmeasured latency is stable.
+		for key, value := range map[string]*float64{
+			"min": st.Min, "max": st.Max, "avg": st.Avg, "latest": st.Latest,
+			"p50": st.P50, "p99": st.P99, "stddev": st.Stddev,
+			"p99_p50_ratio": latencyTail(st.P50, st.P99, true),
+		} {
+			if value != nil {
+				item[key] = *value
+			}
+		}
+		wireStats = append(wireStats, item)
 	}
 	return map[string]any{"start": start, "end": end, "stats": wireStats, "count": len(wireStats)}, nil
 }
