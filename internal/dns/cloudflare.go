@@ -17,6 +17,8 @@ import (
 )
 
 // DefaultBase is Cloudflare's v4 API.
+var ErrExternalRecords = errors.New("existing DNS records use multiple addresses or a proxy; manage this name externally")
+
 const DefaultBase = "https://api.cloudflare.com/client/v4"
 
 // Cloudflare is a minimal client: zone lookup, record upsert.
@@ -156,7 +158,7 @@ func (c *Cloudflare) PlanAddress(ctx context.Context, zone, fqdn, ip string) (Ad
 		return p, nil
 	}
 	if len(recs) > 1 || recs[0].Proxied {
-		return p, errors.New("existing DNS records use multiple addresses or a proxy; manage this name externally")
+		return p, ErrExternalRecords
 	}
 	p.Before = &recs[0]
 	p.Action = "updated"

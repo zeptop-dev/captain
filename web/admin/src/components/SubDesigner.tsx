@@ -84,6 +84,7 @@ function Designer() {
   const selectedFormats = selectedDesignFormats(support, formatSelection)
   const unsupported = support.filter(item => !item.supported)
   const supportReasons = designSupportReasons(support, {
+    node_dual_stack_mihomo: t('subDesign.supportNodeDualStack'),
     imported_rules_mihomo: t('subDesign.supportImported'),
     dns_mihomo: t('subDesign.supportDNS'),
     claude_mihomo: t('subDesign.supportClaude'),

@@ -28,13 +28,14 @@ var ErrDNSConfigChanged = errors.New("DNS configuration changed during check")
 // DNSHealth uses only configured node/entry names. It never changes DNS. The
 // resolver is injectable so tests don't depend on public network availability.
 type DNSHealth struct {
-	Store  *store.Store
-	Probe  *Probe
-	Log    *slog.Logger
-	Lookup func(context.Context, string, string) ([]string, error)
-	Now    func() time.Time
-	mu     sync.Mutex
-	active map[int64]bool
+	Store        *store.Store
+	Probe        *Probe
+	Log          *slog.Logger
+	Lookup       func(context.Context, string, string) ([]string, error)         // legacy test hook
+	LookupFamily func(context.Context, string, string, string) ([]string, error) // source, host, ip4/ip6
+	Now          func() time.Time
+	mu           sync.Mutex
+	active       map[int64]bool
 }
 
 func (d *DNSHealth) now() time.Time {
@@ -48,6 +49,19 @@ func dnsFingerprint(v any) string {
 	b, _ := json.Marshal(v)
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:])
+}
+func (d *DNSHealth) fingerprint(ctx context.Context, id int64, targets []store.DNSTarget) (string, error) {
+	revision, err := d.Store.DNSObservationRevision(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	// Version the observation algorithm so a legacy combined answer cannot
+	// masquerade as fresh independent family evidence after upgrading.
+	return dnsFingerprint(struct {
+		Version int
+		Targets []store.DNSTarget
+		Writes  string
+	}{2, targets, revision}), nil
 }
 func dnsIPs(values ...string) []string {
 	out := []string{}
@@ -75,6 +89,7 @@ func (d *DNSHealth) targets(ctx context.Context, id int64) (*domain.Node, []stor
 		normalized, e := domain.NormalizeNodeDomain(host)
 		if e != nil {
 			t.Status = "invalid"
+			t.Families = dnsFamilies(t)
 			targets = append(targets, t)
 			return nil
 		}
@@ -95,6 +110,7 @@ func (d *DNSHealth) targets(ctx context.Context, id int64) (*domain.Node, []stor
 		case len(expected) == 0:
 			t.Mode = "resolve_only"
 		}
+		t.Families = dnsFamilies(t)
 		targets = append(targets, t)
 		return nil
 	}
@@ -125,7 +141,10 @@ func (d *DNSHealth) Snapshot(ctx context.Context, id int64) (*store.DNSHealth, e
 	if err != nil {
 		return nil, err
 	}
-	fingerprint := dnsFingerprint(targets)
+	fingerprint, err := d.fingerprint(ctx, id, targets)
+	if err != nil {
+		return nil, err
+	}
 	h, err := d.Store.DNSHealth(ctx, id)
 	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		return nil, err
@@ -167,24 +186,25 @@ func (d *DNSHealth) markPropagation(ctx context.Context, h *store.DNSHealth) {
 	for i := range h.Targets {
 		t := &h.Targets[i]
 		t.PropagationPending = false
-		if t.Mode != "direct" || len(t.Expected) == 0 || (!h.Stale && t.Status == "ok") {
-			continue
-		}
-		pending := true
-		for _, expected := range t.Expected {
-			ip := net.ParseIP(expected)
-			kind := "AAAA"
-			if ip.To4() != nil {
-				kind = "A"
+		for j := range t.Families {
+			f := &t.Families[j]
+			f.PropagationPending = false
+			if t.Mode != "direct" || len(f.Expected) == 0 || (!h.Stale && f.Status == "ok") {
+				continue
 			}
-			c, exists := latest[t.Host+"/"+kind]
-			age := d.now().Sub(time.Unix(c.FinishedAt, 0))
-			if !exists || c.Outcome != "success" || c.After == nil || c.After.Proxied || ip == nil || !ip.Equal(net.ParseIP(c.After.Content)) || age < 0 || age > 10*time.Minute {
-				pending = false
-				break
+			pending := true
+			for _, expected := range f.Expected {
+				ip := net.ParseIP(expected)
+				c, exists := latest[t.Host+"/"+f.Type]
+				age := d.now().Sub(time.Unix(c.FinishedAt, 0))
+				if !exists || c.Outcome != "success" || c.After == nil || c.After.Proxied || ip == nil || !ip.Equal(net.ParseIP(c.After.Content)) || age < 0 || age > 10*time.Minute {
+					pending = false
+					break
+				}
 			}
+			f.PropagationPending = pending
+			t.PropagationPending = t.PropagationPending || pending
 		}
-		t.PropagationPending = pending
 	}
 }
 func dnsCheckInterval(h *store.DNSHealth) time.Duration {
@@ -217,24 +237,35 @@ func (d *DNSHealth) Snapshots(ctx context.Context) ([]store.DNSHealth, error) {
 	return out, nil
 }
 
-func lookupDNS(ctx context.Context, source, host string) ([]string, error) {
+func lookupDNSFamily(ctx context.Context, source, host, family string) ([]string, error) {
 	r := &net.Resolver{PreferGo: true, StrictErrors: true}
 	if source == "cloudflare" {
 		r.Dial = func(ctx context.Context, network, _ string) (net.Conn, error) {
 			return (&net.Dialer{}).DialContext(ctx, network, "1.1.1.1:53")
 		}
 	}
-	ips, err := r.LookupIP(ctx, "ip", host+".")
+	ips, err := r.LookupIP(ctx, family, host+".")
 	values := []string{}
 	for _, ip := range ips {
 		values = append(values, ip.String())
 	}
 	return dnsIPs(values...), err
 }
+func lookupDNS(ctx context.Context, source, host string) ([]string, error) {
+	return lookupDNSFamily(ctx, source, host, "ip")
+}
 func (d *DNSHealth) resolve(ctx context.Context, host string) []store.DNSAnswer {
-	lookup := d.Lookup
-	if lookup == nil {
-		lookup = lookupDNS
+	return d.resolveFamily(ctx, host, "ip")
+}
+func (d *DNSHealth) resolveFamily(ctx context.Context, host, family string) []store.DNSAnswer {
+	lookup := func(ctx context.Context, source, host string) ([]string, error) {
+		if d.LookupFamily != nil {
+			return d.LookupFamily(ctx, source, host, family)
+		}
+		if d.Lookup != nil {
+			return d.Lookup(ctx, source, host)
+		}
+		return lookupDNSFamily(ctx, source, host, family)
 	}
 	answers := make([]store.DNSAnswer, 2)
 	var wg sync.WaitGroup
@@ -245,6 +276,9 @@ func (d *DNSHealth) resolve(ctx context.Context, host string) []store.DNSAnswer 
 			limited, cancel := context.WithTimeout(ctx, 4*time.Second)
 			defer cancel()
 			ips, err := lookup(limited, source, host)
+			if family != "ip" {
+				ips = dnsFamilyIPs(ips, family)
+			}
 			a := store.DNSAnswer{Source: source, Addresses: dnsIPs(ips...)}
 			if err != nil {
 				a.Addresses = []string{}
@@ -280,6 +314,9 @@ func dnsTargetStatus(t store.DNSTarget) string {
 		if a.Error != "" && a.Error != "not_found" {
 			return "unknown"
 		}
+	}
+	if len(t.Answers) != 2 {
+		return "unknown"
 	}
 	a, b := t.Answers[0], t.Answers[1]
 	// CDN answers may deliberately differ by resolver location. Only direct
@@ -328,6 +365,7 @@ func (d *DNSHealth) Check(ctx context.Context, id int64) (*store.DNSHealth, erro
 	d.Store.Topology.Lock()
 	n, targets, err := d.targets(ctx, id)
 	old, oldErr := d.Store.DNSHealth(ctx, id)
+	fingerprint, fingerprintErr := d.fingerprint(ctx, id, targets)
 	d.Store.Topology.Unlock()
 	if err != nil {
 		return nil, err
@@ -335,22 +373,35 @@ func (d *DNSHealth) Check(ctx context.Context, id int64) (*store.DNSHealth, erro
 	if oldErr != nil && !errors.Is(oldErr, store.ErrNotFound) {
 		return nil, oldErr
 	}
-	fingerprint := dnsFingerprint(targets)
+	if fingerprintErr != nil {
+		return nil, fingerprintErr
+	}
 	if old != nil && old.Fingerprint == fingerprint && d.now().Unix() >= old.CheckedAt && d.now().Sub(time.Unix(old.CheckedAt, 0)) < 30*time.Second {
 		old.Node = n.Name
 		return old, nil
 	}
 	for i := range targets {
-		if targets[i].Status == "invalid" {
+		t := &targets[i]
+		t.Families = dnsFamilies(*t)
+		if t.Status == "invalid" {
 			continue
 		}
-		if ctx.Err() != nil {
-			targets[i].Answers = []store.DNSAnswer{{Source: "panel", Addresses: []string{}, Error: "timeout"}, {Source: "cloudflare", Addresses: []string{}, Error: "timeout"}}
-			targets[i].Status = "unknown"
-			continue
+		var wg sync.WaitGroup
+		for f := range t.Families {
+			wg.Add(1)
+			go func(f int) {
+				defer wg.Done()
+				family := "ip4"
+				if t.Families[f].Type == "AAAA" {
+					family = "ip6"
+				}
+				t.Families[f].Answers = d.resolveFamily(ctx, t.Host, family)
+				t.Families[f].Status = dnsFamilyStatus(*t, t.Families[f])
+			}(f)
 		}
-		targets[i].Answers = d.resolve(ctx, targets[i].Host)
-		targets[i].Status = dnsTargetStatus(targets[i])
+		wg.Wait()
+		t.Answers = combinedDNSAnswers(t.Families)
+		t.Status = dnsFamiliesStatus(*t)
 	}
 	if err := callerCtx.Err(); err != nil {
 		return nil, err
@@ -366,7 +417,14 @@ func (d *DNSHealth) Check(ctx context.Context, id int64) (*store.DNSHealth, erro
 	allOK := true
 	for _, t := range targets {
 		if dnsFailure(t.Status) {
-			failures = append(failures, t.Key+":"+t.Status)
+			for _, f := range t.Families {
+				if dnsFailure(f.Status) {
+					failures = append(failures, t.Key+":"+f.Type+":"+f.Status)
+				}
+			}
+			if len(t.Families) == 0 {
+				failures = append(failures, t.Key+":"+t.Status)
+			}
 		}
 		if t.Status != "ok" {
 			allOK = false
@@ -394,7 +452,11 @@ func (d *DNSHealth) Check(ctx context.Context, id int64) (*store.DNSHealth, erro
 	if err != nil {
 		return nil, err
 	}
-	if dnsFingerprint(current) != fingerprint {
+	currentFingerprint, err := d.fingerprint(ctx, id, current)
+	if err != nil {
+		return nil, err
+	}
+	if currentFingerprint != fingerprint {
 		return nil, ErrDNSConfigChanged
 	}
 	if err := d.Store.SaveDNSHealth(ctx, h); err != nil {

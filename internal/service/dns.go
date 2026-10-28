@@ -24,11 +24,12 @@ type DNS struct {
 
 // Result is one record's outcome, returned to the console.
 type Result struct {
-	Name   string `json:"name"`
-	IP     string `json:"ip"`
-	Action string `json:"action"` // created | updated | unchanged | skipped
-	Error  string `json:"error,omitempty"`
-	Reason string `json:"reason,omitempty"` // shared_domain | domain_address_conflict
+	Name    string `json:"name"`
+	IP      string `json:"ip"`
+	Action  string `json:"action"` // created | updated | unchanged | skipped
+	Error   string `json:"error,omitempty"`
+	Outcome string `json:"outcome,omitempty"` // success | failed | unknown for attempted manual writes
+	Reason  string `json:"reason,omitempty"`  // shared_domain | domain_address_conflict
 }
 
 type dnsOriginKey struct{}
@@ -101,12 +102,24 @@ func (d *DNS) Ensure(ctx context.Context, fqdn, ip string) Result {
 		res.Action = plan.Action
 		return res
 	}
+	return d.applyPlan(ctx, cf, dom.Name, plan, res)
+}
+
+// applyPlan journals intent before any external mutation. Callers hold the
+// topology stable, so the addresses reviewed still belong to this server.
+func (d *DNS) applyPlan(ctx context.Context, cf *dns.Cloudflare, zone string, plan dns.AddressPlan, res Result) Result {
+	if plan.Action == "unchanged" {
+		res.Action = "unchanged"
+		res.Outcome = "success"
+		return res
+	}
 	origin, _ := ctx.Value(dnsOriginKey{}).(DNSOrigin)
-	change := store.DNSChange{Source: origin.Source, Actor: origin.Actor, Zone: dom.Name, Name: res.Name, Action: plan.Action, Before: plan.Before, Wanted: plan.Wanted}
+	change := store.DNSChange{Source: origin.Source, Actor: origin.Actor, Zone: zone, Name: res.Name, Action: plan.Action, Before: plan.Before, Wanted: plan.Wanted}
 	if origin.NodeID > 0 {
 		change.NodeID = &origin.NodeID
 	}
 	if err := d.Store.BeginDNSChange(ctx, &change); err != nil {
+		res.Outcome = "failed"
 		res.Error = "could not save DNS history; no DNS write sent"
 		return res
 	}
@@ -123,6 +136,7 @@ func (d *DNS) Ensure(ctx context.Context, fqdn, ip string) Result {
 	finishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer cancel()
 	finishErr := d.Store.FinishDNSChange(finishCtx, change.ID, outcome, after)
+	res.Outcome = outcome
 	if writeErr != nil {
 		res.Error = "DNS write outcome unknown; check DNS history and provider records before retrying"
 		if outcome == "failed" {
@@ -132,6 +146,7 @@ func (d *DNS) Ensure(ctx context.Context, fqdn, ip string) Result {
 	}
 	res.Action = plan.Action
 	if finishErr != nil {
+		res.Outcome = "unknown"
 		res.Error = "DNS write succeeded but history completion failed; saved previous record remains available"
 	}
 	if d.Log != nil {

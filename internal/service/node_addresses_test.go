@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -148,10 +150,22 @@ func TestNodeAddressesInitialIPv4OnlyDNS(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"success": true, "result": result})
 	}))
 	defer srv.Close()
-	var checks atomic.Int32
-	health := &DNSHealth{Store: st, Lookup: func(_ context.Context, _, _ string) ([]string, error) {
-		checks.Add(1)
-		return []string{"198.51.100.20"}, nil
+	var checkMu sync.Mutex
+	checks := map[string]int{}
+	health := &DNSHealth{Store: st, LookupFamily: func(_ context.Context, source, host, family string) ([]string, error) {
+		checkMu.Lock()
+		checks[source+"/"+family]++
+		checkMu.Unlock()
+		if host != n.Domain {
+			t.Errorf("unexpected health target %q", host)
+		}
+		if family == "ip4" {
+			return []string{"198.51.100.20"}, nil
+		}
+		if family != "ip6" {
+			t.Errorf("unexpected health query family %q", family)
+		}
+		return nil, &net.DNSError{IsNotFound: true}
 	}}
 	worker := &NodeAddresses{Store: st, DNS: &DNS{Store: st, Base: srv.URL}, Health: health}
 	at := time.Now().Truncate(time.Second)
@@ -167,8 +181,22 @@ func TestNodeAddressesInitialIPv4OnlyDNS(t *testing.T) {
 	worker.Tick(ctx, at.Add(5*time.Minute))
 	got, err := st.NodeAddresses(ctx, n.ID)
 	must(err)
-	if checks.Load() != 2 {
-		t.Fatalf("health lookups: %d", checks.Load())
+	checkMu.Lock()
+	defer checkMu.Unlock()
+	if len(checks) != 4 {
+		t.Fatalf("independent health lookups: %v", checks)
+	}
+	for _, source := range []string{"panel", "cloudflare"} {
+		for _, family := range []string{"ip4", "ip6"} {
+			if checks[source+"/"+family] != 1 {
+				t.Errorf("expected one %s/%s query: %v", source, family, checks)
+			}
+		}
+	}
+	h, err := st.DNSHealth(ctx, n.ID)
+	must(err)
+	if len(h.Targets) != 1 || h.Targets[0].Status != "ok" || len(h.Targets[0].Families) != 2 || h.Targets[0].Families[0].Status != "ok" || h.Targets[0].Families[1].Status != "unconfigured" {
+		t.Fatalf("IPv4-only initial DNS health: %+v", h)
 	}
 	if writes.Load() != 1 || got.EntryIPv4 != "198.51.100.20" || got.EntryIPv6 != "" || got.DNSPending {
 		t.Fatalf("initial sync: writes=%d addresses=%+v", writes.Load(), got)
