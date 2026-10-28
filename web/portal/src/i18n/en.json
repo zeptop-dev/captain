@@ -447,7 +447,8 @@
       "partial_unknown": "A usable path remains, but some candidate paths have unknown status.",
       "unsupported": "Available data or capabilities cannot confirm the status.",
       "external_path": "The path includes unmanaged forwarding; its full status cannot be confirmed.",
-      "maintenance": "The administrator is maintaining this node."
+      "maintenance": "The administrator is maintaining this node.",
+      "service_paused": "Service is paused."
     },
     "evidence": {
       "inbound": "Inbound runtime",

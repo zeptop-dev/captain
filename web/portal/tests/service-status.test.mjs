@@ -53,3 +53,16 @@ test('failed or malformed API payloads reject rather than produce an empty healt
     assert.equal((await fetchServiceStatus('/example', new AbortController().signal)).entries.length, 1)
   } finally { globalThis.fetch = original }
 })
+
+// Pausing is only an applied service state; it must not bypass the freshness
+// rules or reveal the private manual / quota cause in a public reason.
+test('confirmed service pauses remain down only while their evidence is fresh', () => {
+  const data = snapshot([entry({ state: 'down', reason: 'service_paused' })])
+  const current = currentEntries(data, now)[0]
+  assert.equal(current.state, 'down')
+  assert.equal(current.reason, 'service_paused')
+  assert.equal(summarize([current]).down, 1)
+  assert.equal(currentEntries(data, now + 180)[0].reason, 'stale')
+  assert.equal(currentEntries(snapshot([entry({ state: 'down', reason: 'service_paused', observed_at: null })]), now)[0].reason, 'no_data')
+  assert.equal(currentEntries(snapshot([entry({ state: 'down', reason: 'traffic_quota' })]), now)[0].reason, 'unsupported')
+})

@@ -458,6 +458,7 @@ try {
     ['overview-mobile-zh-light', { locale: 'zh-CN', viewport: { width: 390, height: 844 } }],
   ]) {
     const visual = await setup('admin', options)
+    if (options.viewport) visual.controls[1].policy = { action: 'limit', threshold_percent: 95, limit_mbps: 20, auto_resume: true }
     overviewOnly(await visual.open(1))
     await visual.page.locator('.mantine-Loader-root').first().waitFor({ state: 'hidden' })
     await visual.page.locator('.recharts-line-curve').first().waitFor()
@@ -469,7 +470,18 @@ try {
       await visual.link(1, '/information').focus(); await visual.page.keyboard.press('Enter')
       await visual.page.getByTestId('node-information').waitFor()
       await visual.page.screenshot({ path: resolve(artifacts, 'information-mobile-zh-light.png'), fullPage: true, animations: 'disabled' })
+      await visual.page.getByTestId('traffic-control-policy').getByRole('textbox', { name: '托管流量限速（Mbps）', exact: true }).waitFor()
       await visual.page.getByTestId('traffic-control-policy').screenshot({ path: resolve(artifacts, 'control-policy-mobile-zh-light.png') })
+      assert.ok(await visual.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'The complete control policy fits a mobile viewport')
+      await visual.link(1).click()
+      await visual.page.getByRole('button', { name: '服务控制', exact: true }).click()
+      const mobileControl = visual.page.getByRole('dialog', { name: '服务控制', exact: true })
+      await mobileControl.getByRole('textbox', { name: '手动操作', exact: true }).click()
+      await visual.page.getByRole('option', { name: '限制带宽', exact: true }).click()
+      await mobileControl.getByRole('textbox', { name: '托管流量限速（Mbps）', exact: true }).fill('20')
+      await mobileControl.getByRole('button', { name: '应用控制', exact: true }).scrollIntoViewIfNeeded()
+      await visual.page.screenshot({ path: resolve(artifacts, 'control-modal-mobile-zh-light.png'), animations: 'disabled' })
+      assert.ok(await mobileControl.evaluate(element => element.scrollWidth <= element.clientWidth + 1), 'The manual control dialog fits its viewport')
     }
     visual.clean(); await visual.context.close()
   }

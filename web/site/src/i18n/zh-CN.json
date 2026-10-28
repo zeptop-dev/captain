@@ -217,7 +217,8 @@
       "partial_unknown": "仍有可用路径，部分候选路径状态未知。",
       "unsupported": "当前数据或能力不足以判断状态。",
       "external_path": "路径包含未托管的转发，暂时无法确认整条路径。",
-      "maintenance": "管理员正在维护此节点。"
+      "maintenance": "管理员正在维护此节点。",
+      "service_paused": "服务已暂停。"
     },
     "evidence": {
       "inbound": "入站运行",

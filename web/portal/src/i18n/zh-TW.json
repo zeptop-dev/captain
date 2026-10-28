@@ -447,7 +447,8 @@
       "partial_unknown": "仍有可用路徑，部分候選路徑狀態未知。",
       "unsupported": "目前資料或能力不足以判斷狀態。",
       "external_path": "路徑包含未託管的轉發，暫時無法確認整條路徑。",
-      "maintenance": "管理員正在維護此節點。"
+      "maintenance": "管理員正在維護此節點。",
+      "service_paused": "服務已暫停。"
     },
     "evidence": {
       "inbound": "入站運行",
