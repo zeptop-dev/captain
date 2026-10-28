@@ -40,6 +40,7 @@ export const claudeRulesEndpoint = '/api/admin/settings/sub-design/claude-rules'
 export const claudeRulesQueryKey = ['sub-design-claude-rules'] as const
 export interface DesignEnhancements {
   regions?: boolean
+  node_dual_stack?: boolean
   dns_protection?: boolean
   claude?: boolean
   webrtc?: boolean

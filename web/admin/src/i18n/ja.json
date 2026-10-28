@@ -1142,7 +1142,15 @@
     "warningRemoteProcessMacOS": "このルールソースには macOS でのみ機能するプロセスルールが含まれています。iOS/tvOS では無視されます。",
     "warningRemoteNativeUnsupported": "互換性のため既存の Mihomo リモートルールソースを保持します。ただし、Mihomo が対応していない URL-REGEX が含まれるため、完全に同等の動作は保証できません。",
     "regionMembersHint": "地域は購読ノードに登録された地域を優先し、未登録の場合はノード名から判定します。既存の名前パターン条件は元の動作を維持します。",
-    "nameMatchRegion": "{{region}} · 名前で判定"
+    "nameMatchRegion": "{{region}} · 名前で判定",
+    "nodeDualStackOption": "ノードのデュアルスタック接続選択（Mihomo）",
+    "nodeDualStackHint": "IPv6 と並行接続を有効にし、対応ノードで IPv4/IPv6 のうち先に接続できた経路を使用します。Mihomo 全体の接続設定のため、直接接続にも影響する場合があります。",
+    "nodeDualStackRequirements": "接続先には A/AAAA レコードを持つドメインを使い、両方のリスナーとポートに到達できる必要があります。固定 IP や明示的な単一スタック指定は保持します。TUN やアプリの DNS AAAA 応答は強制しません。",
+    "supportNodeDualStack": "デュアルスタック接続選択は現在 Mihomo のみ対応しています。他形式の公開済みテンプレートは変更されません。",
+    "nodeDualStackProtocols": "デュアルスタック対応プロトコル",
+    "nodeDualStackTCP": "TCP 接続：VLESS、VMess、Trojan、Shadowsocks（ShadowTLS を含む）、AnyTLS、Snell、SOCKS5、HTTP(S)。クライアントが対応する公開済みノードに適用されます。",
+    "nodeDualStackQUIC": "Hysteria2、TUIC：現在の Mihomo は QUIC 接続を並行して試みます。具体的な動作はコアのバージョンに依存します。",
+    "nodeDualStackOther": "Mieru と WireGuard は IPv4 または IPv6 を使えますが、この設定で接続競争は保証されません。現在の Mihomo サブスクリプション出力は SSH と Naive に対応していません。"
   },
   "forwards": {
     "backendRealm": "Realm（別プロセス）",

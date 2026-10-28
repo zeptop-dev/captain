@@ -11,8 +11,10 @@ import (
 )
 
 type subDesignDeliveryDocument struct {
-	MixedPort int `yaml:"mixed-port"`
-	Proxies   []struct {
+	MixedPort     int   `yaml:"mixed-port"`
+	IPv6          *bool `yaml:"ipv6"`
+	TCPConcurrent *bool `yaml:"tcp-concurrent"`
+	Proxies       []struct {
 		Name   string `yaml:"name"`
 		Server string `yaml:"server"`
 		Dialer string `yaml:"dialer-proxy"`
@@ -48,7 +50,7 @@ func applySubDesignDelivery(t *testing.T, c *client) {
 		t.Fatalf("load basic: %d %s", status, b)
 	}
 	d := mustJSON[subdesign.Design](t, b)
-	d.Enhancements = subdesign.Enhancements{Regions: true, DNSProtection: true, Claude: true, WebRTC: true, QUIC: true}
+	d.Enhancements = subdesign.Enhancements{Regions: true, DNSProtection: true, Claude: true, WebRTC: true, QUIC: true, NodeDualStack: true}
 	if status, b, _ = c.do("POST", "/api/admin/settings/sub-design/apply", map[string]any{"design": d, "formats": []string{"clash"}}, nil); status != 200 {
 		t.Fatalf("apply enhancements: %d %s", status, b)
 	}
@@ -78,6 +80,9 @@ func TestSubDesignDeliveryEnhancementsAndClientChain(t *testing.T) {
 		t.Fatalf("subscription: %d %s", status, b)
 	}
 	doc := decodeSubDesignDelivery(t, b)
+	if doc.IPv6 == nil || !*doc.IPv6 || doc.TCPConcurrent == nil || !*doc.TCPConcurrent {
+		t.Fatal("dual-stack enhancement missing from the actual subscription")
+	}
 	if len(doc.Proxies) != 2 {
 		t.Fatalf("expected front and chain, got %d proxies", len(doc.Proxies))
 	}
@@ -242,7 +247,7 @@ func TestSubDesignDeliveryRespectsProfileAndResponseRulePrecedence(t *testing.T)
 			if action == "serve" {
 				port, interval = 27891, "6"
 			}
-			if doc.MixedPort != port || headers.Get("Profile-Update-Interval") != interval || doc.DNS.Enable || strings.Contains(string(b), "🤖 Claude") {
+			if doc.MixedPort != port || headers.Get("Profile-Update-Interval") != interval || doc.DNS.Enable || doc.IPv6 != nil || doc.TCPConcurrent != nil || strings.Contains(string(b), "🤖 Claude") {
 				t.Fatal("global generator bypassed the higher-priority template or headers")
 			}
 			if len(doc.Proxies) != 1 || doc.Proxies[0].Name != "VIP Example" {
@@ -262,7 +267,7 @@ func TestSubDesignDeliveryWireGuardDeviceIgnoresEnhancements(t *testing.T) {
 		t.Fatalf("WG device subscription: %d %s", status, b)
 	}
 	doc := decodeSubDesignDelivery(t, b)
-	if doc.DNS.Enable || strings.Contains(string(b), "🤖 Claude") || strings.Contains(string(b), "🇯🇵 日本") {
+	if doc.DNS.Enable || doc.IPv6 != nil || doc.TCPConcurrent != nil || strings.Contains(string(b), "🤖 Claude") || strings.Contains(string(b), "🇯🇵 日本") {
 		t.Fatal("WG device inherited the ordinary subscription template")
 	}
 	if len(doc.Proxies) != 1 || doc.Proxies[0].Name != "Native WG" || !strings.Contains(string(b), "type: wireguard") {

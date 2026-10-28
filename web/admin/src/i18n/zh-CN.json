@@ -1516,7 +1516,15 @@
     "warningRemoteProcessMacOS": "此规则源包含仅在 macOS 生效的进程规则，iOS/tvOS 会忽略这些规则。",
     "warningRemoteNativeUnsupported": "为保持兼容，保留原有 Mihomo 远程规则源；但该源含有 Mihomo 不支持的 URL-REGEX，不能保证完整等价。",
     "regionMembersHint": "地区条件优先使用订阅节点登记的地区，未登记时按节点名称识别；原有名称匹配条件保持不变。",
-    "nameMatchRegion": "{{region}} · 名称匹配"
+    "nameMatchRegion": "{{region}} · 名称匹配",
+    "nodeDualStackOption": "节点双栈连接优选（Mihomo）",
+    "nodeDualStackHint": "启用 IPv6 与并发拨号，让支持的节点在 IPv4/IPv6 地址间选择先连通的路径。这是 Mihomo 的全局拨号选项，也可能影响直连连接。",
+    "nodeDualStackRequirements": "节点连接地址须使用具有 A/AAAA 记录的域名，两边监听和端口均需可达。固定 IP 或显式指定单栈的节点保持原设置；不强制开启 TUN 或应用 DNS 的 AAAA 应答。",
+    "supportNodeDualStack": "节点双栈连接优选目前仅支持 Mihomo；其他格式的已发布模板保持不变。",
+    "nodeDualStackProtocols": "双栈协议支持范围",
+    "nodeDualStackTCP": "TCP 拨号：VLESS、VMess、Trojan、Shadowsocks（含 ShadowTLS）、AnyTLS、Snell、SOCKS5、HTTP(S)。对客户端支持且已发布的节点生效。",
+    "nodeDualStackQUIC": "Hysteria2、TUIC：当前 Mihomo 通过 QUIC 连接竞争选路，具体行为取决于内核版本。",
+    "nodeDualStackOther": "Mieru、WireGuard：可使用 IPv4 或 IPv6，但此开关不保证双栈竞争。SSH、Naive 不在当前 Mihomo 订阅支持范围内。"
   },
   "hwid": {
     "title": "设备（HWID）",

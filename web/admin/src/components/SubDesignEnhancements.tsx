@@ -38,9 +38,22 @@ export function SubDesignEnhancements({ design, onChange }: { design: SubDesign;
         <Checkbox label={t('subDesign.webrtcOption')} checked={!!options.webrtc} onChange={event => set('webrtc', event.currentTarget.checked)} />
         <Text size="xs" c="dimmed">{t('subDesign.webrtcHint')}</Text>
       </Stack>
+      <Stack gap={4}>
+        <Checkbox label={t('subDesign.nodeDualStackOption')} checked={!!options.node_dual_stack} onChange={event => set('node_dual_stack', event.currentTarget.checked)} />
+        <Text size="xs" c="dimmed">{t('subDesign.nodeDualStackHint')}</Text>
+        {options.node_dual_stack && <Text size="xs" c="dimmed">{t('subDesign.nodeDualStackRequirements')}</Text>}
+      </Stack>
     </SimpleGrid>
     {options.claude && <SubDesignClaudeRules design={design} onChange={onChange} data={claudeRules.data} loading={claudeRules.isPending} error={claudeRules.error} onRetry={() => { void claudeRules.refetch() }} />}
     <Accordion variant="contained">
+      {options.node_dual_stack && <Accordion.Item value="dual-stack-protocols">
+        <Accordion.Control>{t('subDesign.nodeDualStackProtocols')}</Accordion.Control>
+        <Accordion.Panel><Stack gap="xs">
+          <Text size="xs">{t('subDesign.nodeDualStackTCP')}</Text>
+          <Text size="xs">{t('subDesign.nodeDualStackQUIC')}</Text>
+          <Text size="xs">{t('subDesign.nodeDualStackOther')}</Text>
+        </Stack></Accordion.Panel>
+      </Accordion.Item>}
       <Accordion.Item value="advanced">
         <Accordion.Control>{t('subDesign.advancedOptions')}</Accordion.Control>
         <Accordion.Panel>

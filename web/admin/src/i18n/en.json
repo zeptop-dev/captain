@@ -1516,7 +1516,15 @@
     "warningRemoteProcessMacOS": "This rule resource includes process rules that only work on macOS; iOS/tvOS ignore them.",
     "warningRemoteNativeUnsupported": "The existing Mihomo rule resource is retained for compatibility, but it contains URL-REGEX, which Mihomo does not support; this resource is not fully equivalent.",
     "regionMembersHint": "Region matching uses the subscription node’s registered region first, or its name when no region is set. Existing name-pattern conditions keep their original behavior.",
-    "nameMatchRegion": "{{region}} · name match"
+    "nameMatchRegion": "{{region}} · name match",
+    "nodeDualStackOption": "Dual-stack connection selection (Mihomo)",
+    "nodeDualStackHint": "Enable IPv6 and concurrent dialing so supported nodes can use the first working IPv4/IPv6 connection. These are global Mihomo dialer options and may also affect direct connections.",
+    "nodeDualStackRequirements": "The node endpoint must be a domain with A and AAAA records and reachable listeners on both families. Literal IPs and explicit single-stack overrides are preserved. Does not force TUN or application DNS AAAA responses.",
+    "supportNodeDualStack": "Dual-stack connection selection currently supports Mihomo only; published templates for other formats remain unchanged.",
+    "nodeDualStackProtocols": "Dual-stack protocol support",
+    "nodeDualStackTCP": "TCP dialing: VLESS, VMess, Trojan, Shadowsocks (including ShadowTLS), AnyTLS, Snell, SOCKS5 and HTTP(S). Applies to published nodes supported by the client.",
+    "nodeDualStackQUIC": "Hysteria2 and TUIC: current Mihomo versions race QUIC connections; exact behavior depends on the core version.",
+    "nodeDualStackOther": "Mieru and WireGuard can use IPv4 or IPv6, but this option does not guarantee connection racing. SSH and Naive are not supported by the current Mihomo subscription renderer."
   },
   "hwid": {
     "title": "Devices (HWID)",

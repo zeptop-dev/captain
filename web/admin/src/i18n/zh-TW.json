@@ -1142,7 +1142,15 @@
     "warningRemoteProcessMacOS": "此規則來源包含僅在 macOS 生效的程序規則，iOS/tvOS 會忽略這些規則。",
     "warningRemoteNativeUnsupported": "為保持相容，保留原有 Mihomo 遠端規則來源；但該來源含有 Mihomo 不支援的 URL-REGEX，不能保證完整等價。",
     "regionMembersHint": "地區條件優先使用訂閱節點登記的地區，未登記時按節點名稱識別；原有名稱比對條件保持不變。",
-    "nameMatchRegion": "{{region}} · 名稱比對"
+    "nameMatchRegion": "{{region}} · 名稱比對",
+    "nodeDualStackOption": "節點雙棧連線優選（Mihomo）",
+    "nodeDualStackHint": "啟用 IPv6 與並行撥號，讓支援的節點在 IPv4/IPv6 位址間選擇先連通的路徑。這是 Mihomo 的全域撥號選項，也可能影響直連連線。",
+    "nodeDualStackRequirements": "節點連線位址須使用具有 A/AAAA 記錄的網域，兩邊監聽和連接埠均需可達。固定 IP 或明確指定單棧的節點保留原設定；不強制啟用 TUN 或應用程式 DNS 的 AAAA 回應。",
+    "supportNodeDualStack": "節點雙棧連線優選目前僅支援 Mihomo；其他格式的已發佈範本保持不變。",
+    "nodeDualStackProtocols": "雙棧協定支援範圍",
+    "nodeDualStackTCP": "TCP 撥號：VLESS、VMess、Trojan、Shadowsocks（含 ShadowTLS）、AnyTLS、Snell、SOCKS5、HTTP(S)。對客戶端支援且已發佈的節點生效。",
+    "nodeDualStackQUIC": "Hysteria2、TUIC：目前 Mihomo 透過 QUIC 連線競爭選路，具體行為取決於核心版本。",
+    "nodeDualStackOther": "Mieru、WireGuard：可使用 IPv4 或 IPv6，但此開關不保證雙棧競爭。SSH、Naive 不在目前 Mihomo 訂閱支援範圍內。"
   },
   "forwards": {
     "backendRealm": "Realm（獨立行程）",
