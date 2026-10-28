@@ -3,7 +3,7 @@
 What an operator can rely on across releases, which bosun a Captain works
 with, what the database is good for, and what is deliberately not there.
 
-## Public probe model and Komari themes (unreleased)
+## Public probe model and Komari themes (Captain v1.48.0)
 
 The original `/api/probe` API remains available. Additive `/api/probe/v2`
 reads and Komari 1.6.1 public REST/WS/JSON-RPC reads share a typed public
@@ -24,7 +24,7 @@ be interpreted as Captain's billing-period allowance. Older average-only
 history cannot supply invented extrema. See [theme operation and data
 semantics](PROBE_THEMES.md) for the target contract and installation limits.
 
-## Server traffic controls (unreleased)
+## Server traffic controls (Captain v1.48.0 / bosun v0.83.0)
 
 Server traffic policies are opt-in and independent of customer allowances,
 inbound enablement and subscription publication. Existing servers keep the
@@ -51,7 +51,7 @@ server that is still over quota requires an explicit exemption for that cycle
 or a policy/allowance change. Traffic samples and configuration delivery are
 asynchronous: this is not a byte-exact supplier-side spending cap.
 
-The first planned releases containing this feature are Captain v1.48.0 and
+The first releases containing this feature are Captain v1.48.0 and
 bosun v0.83.0; their built-in rollback floors retain those versions. Older
 panels or agents can ignore controls or stop maintaining them. Manual downgrade
 requires restoring compatible backups and explicitly arranging replacement
@@ -492,6 +492,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
+| 1.48.0 | ≥ 0.83.0 for server traffic enforcement | Opt-in server pause/aggregate rate protection with independent application evidence; original agents remain compatible. Komari public themes and panel-side DNS controls do not require a node upgrade. Mihomo dual-stack design generation uses the formal shared module. |
 | 1.46.0 | Unchanged; shared module v0.82.0 | Server supplier/primary-bill associations, independent payment date actions, settings navigation and an optional homepage; migrations 94–95. Existing managed nodes do not need an upgrade. Captain rollback floor is v1.46.0 to retain shared dates and payment semantics. |
 | 1.45.0 | Unchanged; shared module v0.82.0 | City locations and explicit map publication, multiple inbound access groups and curated client downloads; migrations 91–93. Existing managed nodes do not need an upgrade. Captain rollback floor is v1.45.0 to retain access policies. |
 | 1.35.0 | ≥ 0.77.0 and explicitly activated Xray `26.7.28-r3` for native WG devices | Independent WG-only device subscriptions and parent-account limits; migration 85. Managed reverse exit display uses existing traffic reports and migration 84 without requiring a fleet upgrade. Existing fields and ordinary subscriptions remain compatible; Captain rollback floor becomes 1.35.0. |
@@ -533,8 +534,8 @@ features it has never heard of, which the node page shows as an orange
 
 `min_version` in both `config.yaml` files is the floor a self-update or
 rollback may not go below; set it to the version you have tested. Captain's
-built-in floor is v1.46.0 for shared infrastructure dates and payment actions;
-this also preserves the homepage switch and inbound access policies, and
+built-in floor is v1.48.0 for server traffic protection and isolated probe origins;
+this also preserves shared infrastructure dates, payment actions, the homepage switch and inbound access policies, and
 retains device credentials, exit attribution and the earlier protections for line ownership, client chains, internal
 forwarding and public storage selection. A higher configured floor still wins.
 This protects the built-in updater, not manual replacement of the executable.

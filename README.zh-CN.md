@@ -53,6 +53,10 @@ mita（mieru）、Hysteria、snell-server 和 realm 作为子进程拉起来。
 
 ## 功能特性
 
+- 可在独立探针域名安装原版 Komari 主题 ZIP，按版本配置并提供私有只读授权。兼容 Komari 1.6.1 公共探针 API，同时保留 Captain 的真实周期流量、采样新鲜度与未知数据语义，旧探针 API 继续兼容。[主题安装与边界](docs/PROBE_THEMES.md)。
+- 单服务器可选自动周期流量保护及独立手动暂停／限速，执行需要 bosun v0.83.0；管理连接、用户套餐额度和计费保持独立。[服务器流量控制](docs/COMPATIBILITY.md#server-traffic-controls-captain-v1480--bosun-v0830)。
+- 独立查看 IPv4/IPv6 DNS 健康，预览后手动同步记录，并可在订阅设计器启用 Mihomo 双栈连接优选。保留已有 DNS 归属、监听与模板配置。[双栈操作说明](docs/DUAL_STACK_DNS.md)。
+
 - 客户端管理提供官方版本检查、可选安装包缓存和明确发布；按平台设置推荐项及首页/用户中心展示，保留自定义链接。Apple 客户端跳转官方页面或商店，检查更新不会自动替换已发布版本。[客户端下载](docs/CLIENT_DOWNLOADS.md)。
 - 全站网页品牌支持浅/深色 Logo、favicon 与浏览器标题，供首页、公开服务状态、门户、认证页和后台共用。服务器探针可选择跟随主站或使用独立品牌，切换时保留独立资料；上传图片随数据库备份保存，网页名称不改写邮件和通知配置。[品牌设置](docs/ADMIN.md#theme-and-page-injection)。
 - 用户登录和门户统一首页的明暗风格，提供紧凑的主题与六语言按钮、浏览器主题记忆及移动端底栏。每个套餐分别显示余量、重置和到期，排队套餐可展开；连接、订阅、设备、认证和支付继续沿用既有流程。[用户门户](docs/BILLING.md#the-portal)。
