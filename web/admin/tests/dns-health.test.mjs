@@ -74,6 +74,21 @@ test('recheck cooldown matches accepted observation time and handles a clock jum
   assert.equal(dnsCheckWait(1000, 999), 0)
 })
 
+test('info badges reject obsolete ownership modes and honor shared-domain precedence', () => {
+  const snapshot = mode => ({ ...health, targets: [{ ...target, mode, expected: mode === 'shared' || mode === 'resolve_only' ? [] : target.expected }] })
+  for (const mode of ['shared', 'conflict', 'resolve_only']) assert.equal(nodeDNSTarget(snapshot(mode), node), undefined)
+  const shared = snapshot('shared')
+  assert.equal(nodeDNSTarget(shared, { ...node, domain_shared: true, domain_conflict: true }), shared.targets[0])
+  // A different server sharing this domain may have enabled shared mode.
+  assert.equal(nodeDNSTarget(shared, { ...node, domain_conflict: true }), shared.targets[0])
+  const conflict = snapshot('conflict')
+  assert.equal(nodeDNSTarget(conflict, { ...node, domain_conflict: true }), conflict.targets[0])
+  assert.equal(nodeDNSTarget(conflict, { ...node, domain_shared: true, domain_conflict: true }), undefined)
+  const resolveOnly = snapshot('resolve_only')
+  assert.equal(nodeDNSTarget(resolveOnly, { ...node, public_addr: '', v6_addr: '' }), resolveOnly.targets[0])
+  assert.equal(nodeDNSTarget(health, { ...node, public_addr: '', v6_addr: '' }), undefined)
+})
+
 test('sync apply requires an enabled versioned plan containing an actual write', () => {
   const plan = { enabled: true, revision: 'config-and-record-revision', records: [{ action: 'created' }] }
   assert.equal(syncHasChanges(plan), true)

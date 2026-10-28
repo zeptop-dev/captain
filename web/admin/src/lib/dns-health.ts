@@ -80,9 +80,13 @@ export function nodeDNSTarget(health: DNSHealth | undefined, node: { id: number;
   if (!health || health.node_id !== node.id || !node.domain) return undefined
   const target = health.targets.find(value => value.key === 'node' && normalizedHost(value.host) === normalizedHost(node.domain))
   if (!target) return undefined
-  if (node.domain_shared && target.mode !== 'shared' || node.domain_conflict && target.mode !== 'conflict') return undefined
+  const registered = registeredAddresses(node)
+  // The API's conflict flag counts duplicate names even when they are shared.
+  // DNS checks give shared mode priority, including another owner's setting.
+  // Reject old ownership modes in both directions while fresh health loads.
+  const modes = node.domain_shared ? ['shared'] : node.domain_conflict ? ['shared', 'conflict'] : [registered.A.length || registered.AAAA.length ? 'direct' : 'resolve_only']
+  if (!modes.includes(target.mode)) return undefined
   if (target.mode === 'direct') {
-    const registered = registeredAddresses(node)
     const expected = [...registered.A, ...registered.AAAA].map(normalizedIP).sort()
     if (JSON.stringify(expected) !== JSON.stringify(target.expected.map(normalizedIP).sort())) return undefined
   }
