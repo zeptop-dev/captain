@@ -86,7 +86,9 @@ Komari responses preserve their expected field names and add a `captain`
 namespace for the richer values. These fields are optional for an original
 theme; its code will not automatically display every Captain extension.
 
-- Unknown/hidden measurements remain null; measured zero is still zero.
+- Unknown/hidden measurements remain null; unknown optional Komari ping
+  statistics are omitted according to that wire contract. Measured zero is
+  still zero.
 - Presence, sample receipt and freshness are separate. A resource heartbeat
   does not refresh unrelated runtime evidence or the NIC metering timestamp.
 - `net_total_up/down` retain interface-lifetime semantics.
