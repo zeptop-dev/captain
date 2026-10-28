@@ -359,6 +359,39 @@ func TestRPCWebSocketAndCrossOrigin(t *testing.T) {
 	}
 }
 
+func TestIdleSocketRevokesWithoutAnotherMessage(t *testing.T) {
+	var enabled atomic.Bool
+	enabled.Store(true)
+	h := fixtureHandler(&fixtureReader{})
+	h.d.Gate = func(*http.Request) bool { return enabled.Load() }
+	s := httptest.NewServer(h)
+	defer s.Close()
+	ws, err := websocket.Dial("ws"+strings.TrimPrefix(s.URL, "http")+"/api/clients", "", s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ws.Close()
+	enabled.Store(false)
+	start := time.Now()
+	_ = ws.SetReadDeadline(start.Add(8 * time.Second))
+	var out []byte
+	if err = websocket.Message.Receive(ws, &out); err == nil {
+		t.Fatal("idle revoked connection was not closed")
+	}
+	if time.Since(start) > 7*time.Second {
+		t.Fatal("idle connection only closed at the client deadline")
+	}
+}
+
+func TestThemeSettingsReadFailureDoesNotReturnDefaults(t *testing.T) {
+	h := fixtureHandler(&fixtureReader{})
+	h.d.PublicSettings = func(*http.Request) (map[string]any, error) { return nil, io.ErrUnexpectedEOF }
+	w := doHTTP(t, h, "GET", "/api/public", "")
+	if w.Code != 500 || jsonObject(t, w.Body.Bytes())["status"] != "error" {
+		t.Fatalf("settings failure rendered fake defaults: %d %s", w.Code, w.Body.String())
+	}
+}
+
 func TestHTTPResponseIsNeverCacheable(t *testing.T) {
 	h := fixtureHandler(&fixtureReader{})
 	s := httptest.NewServer(h)
