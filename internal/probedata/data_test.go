@@ -13,6 +13,7 @@ import (
 
 	"github.com/zeptop-dev/bosun/pkg/spec"
 	"github.com/zeptop-dev/captain/internal/db"
+	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
@@ -293,5 +294,135 @@ func TestHistoryFillAndQueryBounds(t *testing.T) {
 	}
 	if len(defs) != 1 || defs[0].History || slices.Contains(defs[0].Aggregations, "avg") {
 		t.Fatal("disabled history advertised")
+	}
+}
+
+func TestAcceptedSequenceAndNICDeltasShareTransaction(t *testing.T) {
+	e := fixture(t)
+	ctx := context.Background()
+	at := e.clock().Add(-time.Minute)
+	h := spec.SystemStatus{Valid: &spec.MetricValidity{CPU: true, Network: true}, CPUPercent: 25, Resources: &spec.Resources{Epoch: "test-epoch", Sequence: 1, At: at.UnixMilli(), Networks: []spec.NetworkResource{{Name: "eth0", ID: "boot-interface-1", Included: true, Up: 100, Down: 200}}}}
+	if _, err := e.Store.RecordNodeBeat(ctx, 1, "paired", h, at); err != nil {
+		t.Fatal(err)
+	}
+	h.Resources.Sequence = 2
+	h.Resources.At = at.Add(10 * time.Second).UnixMilli()
+	h.Resources.Networks[0].Up = 150
+	h.Resources.Networks[0].Down = 280
+	if _, err := e.Store.RecordNodeBeat(ctx, 1, "paired", h, at.Add(10*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Store.RecordNodeBeat(ctx, 1, "paired", h, at.Add(20*time.Second)); !errors.Is(err, store.ErrStaleBeat) {
+		t.Fatalf("replay accepted: %v", err)
+	}
+	points, err := e.Store.ProbeMetricHistory(ctx, 1, "m", at, at.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(points) != 1 || points[0].Values["cpu.usage"].Count != 2 || points[0].Values["traffic.up"].Sum != 50 || points[0].Values["traffic.down"].Sum != 80 {
+		t.Fatalf("metric receipt/deltas mismatch: %+v", points)
+	}
+	h.Resources.Sequence = 3
+	if _, err = e.Store.RecordNodeBeat(ctx, 1, "revoked", h, at.Add(30*time.Second)); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("old token accepted: %v", err)
+	}
+	again, err := e.Store.ProbeMetricHistory(ctx, 1, "m", at, at.Add(time.Minute))
+	if err != nil || again[0].Values["cpu.usage"].Count != 2 {
+		t.Fatalf("rejected token wrote metrics: %+v %v", again, err)
+	}
+}
+func TestSiteResetClearsPublicIdentityAndMetricRows(t *testing.T) {
+	e := fixture(t)
+	ctx := context.Background()
+	old := publicID(t, e)
+	record(t, e, spec.SystemStatus{CPUPercent: 12}, e.clock())
+	admin := &domain.User{Email: "admin@example.com", PasswordHash: "test-hash", Role: domain.RoleAdmin, Status: "active"}
+	if err := e.Store.CreateStaff(ctx, admin); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Store.ResetSite(ctx, admin.ID); err != nil {
+		t.Fatal(err)
+	}
+	for _, table := range []string{"probe_public_ids", "node_probe_metric_stats"} {
+		var count int
+		if err := e.Store.DB().QueryRow(`SELECT COUNT(*) FROM ` + table).Scan(&count); err != nil || count != 0 {
+			t.Fatalf("reset %s count=%d err=%v", table, count, err)
+		}
+	}
+	replacement := &domain.Node{Name: "New install"}
+	if err := e.Store.CreateNode(ctx, replacement, "test-pair-code", time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	ids, err := e.Store.ProbePublicIDs(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ids[replacement.ID] == old || ids[replacement.ID] == "" {
+		t.Fatalf("reset reused public identity %+v", ids)
+	}
+}
+func TestMetricRetentionAndWriteCost(t *testing.T) {
+	e := fixture(t)
+	ctx := context.Background()
+	for id := 4; id <= 10; id++ {
+		if _, err := e.Store.DB().Exec(`INSERT INTO nodes(id,name,created_at,updated_at) VALUES(?,'Load test',0,0)`, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	at := e.clock().Add(-time.Hour)
+	h := spec.SystemStatus{CPUPercent: 12, MemUsed: 1 << 29, MemTotal: 1 << 30, DiskUsed: 1 << 30, DiskTotal: 1 << 32, NetUp: 100, NetDown: 200, Load1: .5, TCP: 10, UDP: 2, Processes: 50, Uptime: 3600}
+	started := time.Now()
+	for i := 0; i < 100; i++ {
+		if err := e.Store.RecordBeat(ctx, int64(i%10+1), h, at.Add(time.Duration(i)*5*time.Second)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	elapsed := time.Since(started)
+	var count, bytes int
+	if err := e.Store.DB().QueryRow(`SELECT count(*),sum(length(values_json)) FROM node_probe_metric_stats`).Scan(&count, &bytes); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("100 accepted beats / 10 nodes: %s, %d rollup rows, %d JSON bytes", elapsed, count, bytes)
+	// Ensure pruning is wired to the existing scheduled PruneStats operation.
+	for _, r := range []struct {
+		res string
+		age time.Duration
+	}{{"r", 3 * time.Hour}, {"m", 49 * time.Hour}, {"h", 61 * 24 * time.Hour}, {"d", 731 * 24 * time.Hour}} {
+		if _, err := e.Store.DB().Exec(`INSERT INTO node_probe_metric_stats(node_id,res,ts,values_json) VALUES(1,?,?,'{}')`, r.res, e.clock().Add(-r.age).Unix()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := e.Store.PruneStats(ctx, e.clock()); err != nil {
+		t.Fatal(err)
+	}
+	var after int
+	if err := e.Store.DB().QueryRow(`SELECT count(*) FROM node_probe_metric_stats`).Scan(&after); err != nil || after != count {
+		t.Fatalf("retention removed valid data or kept expired rows: before=%d after=%d err=%v", count, after, err)
+	}
+}
+func TestMergedPingHistogramDoesNotAveragePercentiles(t *testing.T) {
+	e := fixture(t)
+	ctx := context.Background()
+	task := store.PingTask{Name: "Latency", Type: "tcp", Target: "example.com:443", Enabled: true, IntervalSeconds: 10}
+	if err := e.Store.SavePingTask(ctx, &task); err != nil {
+		t.Fatal(err)
+	}
+	base := e.clock().Add(-time.Hour)
+	for i, row := range []struct {
+		count int
+		ms    float64
+	}{{90, 10}, {10, 100}} {
+		bin := 1 + max(0, int(math.Ceil(math.Log(row.ms/.1)/math.Log(1.05))))
+		quality, _ := json.Marshal(map[string]any{"n": row.count, "histogram": map[int]int{bin: row.count}, "min": row.ms, "max": row.ms, "outcomes": map[string]int{"ok": row.count}})
+		if _, err := e.Store.DB().Exec(`INSERT INTO node_ping_stats(node_id,res,ts,task_id,name,samples,lost,sum_ms,quality_json) VALUES(1,'m',?,?,?,?,0,?,?)`, base.Add(time.Duration(i)*time.Minute).Unix(), task.ID, task.Name, row.count, float64(row.count)*row.ms, string(quality)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := e.PingStats(ctx, Scope{}, PingQuery{Start: base, End: base.Add(2 * time.Minute)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].P50 == nil || *got[0].P50 < 10 || *got[0].P50 > 10.5 || got[0].P99 == nil || *got[0].P99 != 100 || *got[0].Avg != 19 {
+		t.Fatalf("bad merged quantiles %+v", got)
 	}
 }

@@ -379,7 +379,8 @@ func makeSeries(entity string, d Definition, tags map[string]string, buckets []m
 		if b.Legacy && algorithm != "avg" && algorithm != "sum" && algorithm != "count" {
 			return series, ErrUnsupportedAggregation
 		}
-		ts := start + ((b.TS-start)/int64(interval))*int64(interval)
+		index := min((b.TS-start)/int64(interval), int64(maxPoints-1))
+		ts := start + index*int64(interval)
 		grouped[ts] = mergeAggregate(grouped[ts], a)
 	}
 	times := []int64{}

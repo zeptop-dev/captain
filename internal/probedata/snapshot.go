@@ -316,11 +316,14 @@ func projectHost(n *Node, h spec.SystemStatus, s store.ProbeSettings, rootDisk b
 	if s.PublicShows("memory") {
 		n.Inventory.MemTotal = unsigned(h.MemTotal, v.Memory)
 		n.Inventory.SwapTotal = unsigned(h.SwapTotal, v.Swap)
+		values["captain.memory.total"] = number(float64(h.MemTotal), v.Memory)
+		values["captain.swap.total"] = number(float64(h.SwapTotal), v.Swap)
 		values["memory.used"] = number(float64(h.MemUsed), v.Memory)
 		values["swap.used"] = number(float64(h.SwapUsed), v.Swap)
 	}
 	if s.PublicShows("disk") && rootDisk {
 		n.Inventory.DiskTotal = unsigned(h.DiskTotal, v.Disk)
+		values["captain.disk.total"] = number(float64(h.DiskTotal), v.Disk)
 		values["disk.used"] = number(float64(h.DiskUsed), v.Disk)
 	}
 	if s.PublicShows("network") {
