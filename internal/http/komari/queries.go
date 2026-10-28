@@ -123,9 +123,12 @@ func (h *Handler) queryMetrics(r *http.Request, raw json.RawMessage) (any, *rpcE
 	if p.MaxPoints == 0 {
 		p.MaxPoints = 500
 	}
-	if p.MaxPoints < 1 || p.MaxPoints > 4000 {
-		return nil, invalid("max_points must be between 1 and 4000")
+	if p.MaxPoints < 1 {
+		return nil, invalid("max_points must be positive")
 	}
+	requestedMaxPoints := p.MaxPoints
+	limited := p.MaxPoints > 4000
+	p.MaxPoints = min(p.MaxPoints, 4000)
 	if len(p.Tags) > 16 {
 		return nil, invalid("Too many tags")
 	}
@@ -155,9 +158,11 @@ func (h *Handler) queryMetrics(r *http.Request, raw json.RawMessage) (any, *rpcE
 		if v, ok := p.MaxPointsByMetric[key]; ok {
 			n = v
 		}
-		if n < 1 || n > 4000 {
-			return nil, invalid("Metric point limit must be between 1 and 4000")
+		if n < 1 {
+			return nil, invalid("Metric point limit must be positive")
 		}
+		limited = limited || n > 4000
+		n = min(n, 4000)
 		points[key] = n
 		seriesCount := len(ids)
 		if key == "ping.latency_ms" || key == "ping.loss" {
@@ -205,7 +210,7 @@ func (h *Handler) queryMetrics(r *http.Request, raw json.RawMessage) (any, *rpcE
 			series[i].Points[j].Tags = wireTaskTags(series[i].Points[j].Tags, s.PingTasks)
 		}
 	}
-	return map[string]any{"start": start, "end": end, "server_downsample_default": true, "default_points": 500, "series": series, "count": len(series)}, nil
+	return map[string]any{"start": start, "end": end, "server_downsample_default": true, "default_points": 500, "series": series, "count": len(series), "captain": map[string]any{"request_limited": limited, "requested_max_points": requestedMaxPoints, "effective_max_points": p.MaxPoints, "series_point_limit": 4000, "total_point_limit": maxQueryPoints}}, nil
 }
 
 // Ping metrics expand once per actual node/task assignment, not once per node.
@@ -441,13 +446,21 @@ func (h *Handler) records(r *http.Request, method string, raw json.RawMessage) (
 	if maxCount == 0 || maxCount == -1 {
 		maxCount = 4000
 	}
-	if maxCount < 1 || maxCount > 4000 || math.Trunc(float64(maxCount)) != float64(maxCount) {
-		return nil, invalid("maxCount must be between 1 and 4000")
+	if maxCount < 1 || math.Trunc(float64(maxCount)) != float64(maxCount) {
+		return nil, invalid("maxCount must be a positive integer")
 	}
+	requestedMaxCount := maxCount
+	maxCount = min(maxCount, 4000)
+	var result any
 	if p.Type == "ping" {
-		return h.pingRecords(r, s, ids, taskID, start, end, int(maxCount), method == "common:getRecords")
+		result, e = h.pingRecords(r, s, ids, taskID, start, end, int(maxCount), method == "common:getRecords")
+	} else {
+		result, e = h.loadRecords(r, s, ids, p.LoadType, start, end, int(maxCount), method == "common:getRecords")
 	}
-	return h.loadRecords(r, s, ids, p.LoadType, start, end, int(maxCount), method == "common:getRecords")
+	if out, ok := result.(map[string]any); ok && e == nil {
+		out["captain"] = map[string]any{"request_limited": requestedMaxCount > maxCount, "requested_max_count": requestedMaxCount, "effective_max_count": maxCount, "total_point_limit": maxQueryPoints}
+	}
+	return result, e
 }
 
 var loadFields = map[string][]string{

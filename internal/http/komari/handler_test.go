@@ -321,6 +321,53 @@ func TestMetricBudgetIncludesSelectedPingTaskExpansion(t *testing.T) {
 	if got := selectedPingSeries([]probedata.PingTask{{ID: "one", EntityIDs: []string{"a"}}, {ID: "two", EntityIDs: []string{"b"}}}, []string{"a", "b"}, ""); got != 2 {
 		t.Fatalf("sparse assignments expanded to a Cartesian product: %d", got)
 	}
+	result = rpc(t, h, "public:queryMetrics", map[string]any{"metric_key": "ping.latency_ms", "max_points": 6000})
+	if result["error"] == nil || len(f.queries) != 2 {
+		t.Fatalf("clamping bypassed the expanded aggregate budget: %#v", result)
+	}
+}
+
+func TestLargeThemePointRequestsClampWithoutUnboundedQueries(t *testing.T) {
+	f := &fixtureReader{}
+	h := fixtureHandler(f)
+	for _, params := range []map[string]any{
+		{"metric_key": "ping.latency_ms", "entity_id": fixtureUUID, "max_points": 6000},
+		{"metric_key": "cpu.usage", "entity_id": fixtureUUID, "max_points_by_metric": map[string]int{"cpu.usage": 1000000000}},
+	} {
+		out := rpc(t, h, "public:queryMetrics", params)
+		if out["error"] != nil {
+			t.Fatalf("original theme request rejected: %#v", out)
+		}
+		result := out["result"].(map[string]any)
+		if result["captain"].(map[string]any)["request_limited"] != true {
+			t.Fatal("clamping metadata missing")
+		}
+		q := f.queries[len(f.queries)-1]
+		if q.MaxPoints > 4000 || q.MaxPointsByMetric[q.MetricKeys[0]] != 4000 {
+			t.Fatalf("unbounded backend query: %#v", q)
+		}
+	}
+	for _, kind := range []string{"load", "ping"} {
+		out := rpc(t, h, "common:getRecords", map[string]any{"type": kind, "uuid": fixtureUUID, "load_type": "cpu", "maxCount": 6000, "max_count": 6000})
+		if out["error"] != nil {
+			t.Fatalf("legacy theme request rejected: %#v", out)
+		}
+		metadata := out["result"].(map[string]any)["captain"].(map[string]any)
+		if metadata["request_limited"] != true || metadata["effective_max_count"] != float64(4000) {
+			t.Fatalf("legacy clamp metadata: %#v", metadata)
+		}
+		if q := f.queries[len(f.queries)-1]; q.MaxPoints > 4000 {
+			t.Fatalf("unbounded legacy query: %#v", q)
+		}
+	}
+	for _, value := range []any{-2, 1.5} {
+		if rpc(t, h, "public:queryMetrics", map[string]any{"metric_key": "cpu.usage", "max_points": value})["error"] == nil {
+			t.Fatal("invalid point count accepted")
+		}
+		if rpc(t, h, "common:getRecords", map[string]any{"uuid": fixtureUUID, "maxCount": value})["error"] == nil {
+			t.Fatal("invalid record count accepted")
+		}
+	}
 }
 
 func TestJSONRPCValidationAndReadOnlyAllowlist(t *testing.T) {
