@@ -219,6 +219,43 @@ func TestLegacyAveragesUsePerMetricCountsAndRejectInventedExtrema(t *testing.T) 
 		t.Fatalf("invented historical minimum: %v", err)
 	}
 }
+func TestMixedUpgradeBucketKeepsPerMetricEvidence(t *testing.T) {
+	e := fixture(t)
+	ctx := context.Background()
+	base := e.clock().Add(-3 * time.Hour).Truncate(time.Minute)
+	// The first CPU sample predates sufficient statistics. Memory and counters
+	// are first observed after the upgrade, in the same minute bucket.
+	if _, err := e.Store.DB().Exec(`INSERT INTO node_stats(node_id,res,ts,samples,cpu,cpu_n) VALUES(1,'m',?,1,10,1)`, base.Unix()); err != nil {
+		t.Fatal(err)
+	}
+	record(t, e, spec.SystemStatus{Valid: &spec.MetricValidity{CPU: true, Memory: true, Network: true}, CPUPercent: 20, MemUsed: 12, MemTotal: 100, NetTotalUp: 900, NetTotalDown: 1000}, base.Add(10*time.Second))
+	q := Query{MetricKeys: []string{"cpu.usage", "memory.used", "net.total.up"}, Start: base, End: base.Add(time.Minute), MaxPoints: 1, Aggregation: "avg", AggregationByMetric: map[string]string{"memory.used": "min", "net.total.up": "last"}}
+	got, err := e.Query(ctx, Scope{}, q)
+	if err != nil {
+		t.Fatalf("unrelated legacy CPU evidence rejected fresh observations: %v", err)
+	}
+	want := map[string]struct {
+		value  float64
+		count  int
+		source string
+	}{"cpu.usage": {15, 2, "legacy_average"}, "memory.used": {12, 1, "rollup"}, "net.total.up": {900, 1, "rollup"}}
+	if len(got) != len(want) {
+		t.Fatalf("series=%+v", got)
+	}
+	for _, series := range got {
+		w, ok := want[series.MetricKey]
+		if !ok || series.Source != w.source || len(series.Points) != 1 || series.Points[0].Value == nil || *series.Points[0].Value != w.value || series.Points[0].Count != w.count {
+			t.Fatalf("incorrect per-metric evidence: %+v", series)
+		}
+	}
+	q.MetricKeys = []string{"cpu.usage"}
+	q.Aggregation = "last"
+	q.AggregationByMetric = nil
+	if _, err = e.Query(ctx, Scope{}, q); !errors.Is(err, ErrUnsupportedAggregation) {
+		t.Fatalf("legacy CPU last must remain unknown: %v", err)
+	}
+}
+
 func TestPingStatsWeightSuccessesAndKeepUnknownDistribution(t *testing.T) {
 	e := fixture(t)
 	ctx := context.Background()

@@ -56,7 +56,7 @@ func (e *Engine) pingSeries(ctx context.Context, n Node, tasks []PingTask, q Que
 			if algorithm == "first" || algorithm == "last" {
 				return nil, ErrUnsupportedAggregation
 			}
-			buckets = append(buckets, metricBucket{TS: p.TS, Values: map[string]store.ProbeMetricAggregate{d.Key: a}, Legacy: legacy})
+			buckets = append(buckets, metricBucket{TS: p.TS, Values: map[string]store.ProbeMetricAggregate{d.Key: a}, Legacy: map[string]bool{d.Key: legacy}})
 		}
 		series, err := makeSeries(n.UUID, d, map[string]string{"task_id": t.ID}, buckets, d.Key, q, maxPoints, step, algorithm)
 		if err != nil {

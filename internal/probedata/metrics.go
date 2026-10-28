@@ -235,7 +235,7 @@ func (e *Engine) Query(ctx context.Context, scope Scope, q Query) ([]Series, err
 			effectiveStep := step
 			if res == "r" {
 				for _, b := range buckets {
-					if b.Legacy {
+					if b.Legacy[key] {
 						effectiveStep = 60
 						break
 					}
@@ -292,7 +292,9 @@ func (e *Engine) Query(ctx context.Context, scope Scope, q Query) ([]Series, err
 type metricBucket struct {
 	TS     int64
 	Values map[string]store.ProbeMetricAggregate
-	Legacy bool
+	// A mixed upgrade bucket can have legacy CPU averages alongside complete
+	// new counter observations. Evidence quality belongs to each metric.
+	Legacy map[string]bool
 }
 
 func (e *Engine) loadMetricBuckets(ctx context.Context, n Node, res string, start, end time.Time) ([]metricBucket, error) {
@@ -335,19 +337,24 @@ func (e *Engine) loadMetricBuckets(ctx context.Context, n Node, res string, star
 			for k, v := range map[string]float64{"cpu.usage": p.CPU, "memory.used": p.MemUsed, "swap.used": p.SwapUsed, "disk.used": p.DiskUsed, "net.in.rate": p.NetDown, "net.out.rate": p.NetUp, "load.average": p.Load1, "connections.tcp": p.TCP, "connections.udp": p.UDP, "process.count": p.Procs} {
 				if c := p.Counts[k]; c > out[index].Values[k].Count {
 					out[index].Values[k] = store.ProbeMetricAggregate{Count: c, Sum: v * float64(c)}
-					out[index].Legacy = true
+					if out[index].Legacy == nil {
+						out[index].Legacy = map[string]bool{}
+					}
+					out[index].Legacy[k] = true
 				}
 			}
 			continue
 		}
 
 		values := map[string]store.ProbeMetricAggregate{}
+		legacy := map[string]bool{}
 		for k, v := range map[string]float64{"cpu.usage": p.CPU, "memory.used": p.MemUsed, "swap.used": p.SwapUsed, "disk.used": p.DiskUsed, "net.in.rate": p.NetDown, "net.out.rate": p.NetUp, "load.average": p.Load1, "connections.tcp": p.TCP, "connections.udp": p.UDP, "process.count": p.Procs} {
 			if c := p.Counts[k]; c > 0 {
 				values[k] = store.ProbeMetricAggregate{Count: c, Sum: v * float64(c)}
+				legacy[k] = true
 			}
 		}
-		out = append(out, metricBucket{TS: p.TS, Values: values, Legacy: true})
+		out = append(out, metricBucket{TS: p.TS, Values: values, Legacy: legacy})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].TS < out[j].TS })
 	return out, nil
@@ -402,7 +409,7 @@ func makeSeries(entity string, d Definition, tags map[string]string, buckets []m
 		series.Source = "rollup"
 	}
 	for _, b := range buckets {
-		if b.Legacy {
+		if b.Legacy[key] {
 			series.Source = "legacy_average"
 			break
 		}
@@ -419,7 +426,7 @@ func makeSeries(entity string, d Definition, tags map[string]string, buckets []m
 		if !ok || a.Count == 0 {
 			continue
 		}
-		if b.Legacy && algorithm != "avg" && algorithm != "sum" && algorithm != "count" {
+		if b.Legacy[key] && algorithm != "avg" && algorithm != "sum" && algorithm != "count" {
 			return series, ErrUnsupportedAggregation
 		}
 		index := min((b.TS-start)/int64(interval), int64(maxPoints-1))
