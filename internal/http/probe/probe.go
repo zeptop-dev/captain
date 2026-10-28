@@ -5,7 +5,10 @@
 package probe
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"net"
 	"net/http"
 	"slices"
 	"strconv"
@@ -16,16 +19,25 @@ import (
 	"github.com/zeptop-dev/bosun/pkg/spec"
 	"github.com/zeptop-dev/captain/internal/branding"
 	"github.com/zeptop-dev/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/http/komari"
+	"github.com/zeptop-dev/captain/internal/http/probeaccess"
 	"github.com/zeptop-dev/captain/internal/http/site"
+	"github.com/zeptop-dev/captain/internal/probedata"
+	"github.com/zeptop-dev/captain/internal/probetheme"
 	"github.com/zeptop-dev/captain/internal/service"
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
 // Deps are the handler dependencies.
 type Deps struct {
-	Store    *store.Store
-	Probe    *service.Probe
-	SiteName string
+	ThemeAssets http.Handler
+	Data        probedata.Reader
+	Access      *probeaccess.Access
+	Themes      *probetheme.Manager
+	Version     string
+	Store       *store.Store
+	Probe       *service.Probe
+	SiteName    string
 	// Resolve returns the signed-in user for a request, nil when none.
 	Resolve func(r *http.Request) *domain.User
 	// Page serves the built status SPA (index + assets) relative to "/".
@@ -35,6 +47,7 @@ type Deps struct {
 
 type handlers struct {
 	Deps
+	compat    http.Handler
 	mu        sync.Mutex
 	cached    []byte
 	cachedT   time.Time
@@ -44,6 +57,8 @@ type handlers struct {
 // Register mounts the JSON API under /api/probe.
 func Register(mux *http.ServeMux, d Deps) *Router {
 	h := &handlers{Deps: d}
+	h.registerV2(mux)
+	h.registerCompatibility()
 	mux.HandleFunc("GET /api/probe/nodes/{id}/availability", h.gate(h.availability))
 	mux.HandleFunc("GET /api/probe", h.gate(h.snapshot))
 	mux.HandleFunc("GET /api/probe/nodes/{id}/history", h.gate(h.history))
@@ -59,17 +74,17 @@ func (h *handlers) allowed(r *http.Request, s store.ProbeSettings) (bool, int) {
 	}
 	switch s.Visibility {
 	case "users":
-		if h.Resolve == nil {
+		if h.Resolve == nil && h.Access == nil {
 			return false, http.StatusUnauthorized
 		}
-		if u := h.Resolve(r); u == nil || u.Status != "active" {
+		if u := h.resolve(r); u == nil || u.Status != "active" {
 			return false, http.StatusUnauthorized
 		}
 	case "admins":
-		if h.Resolve == nil {
+		if h.Resolve == nil && h.Access == nil {
 			return false, http.StatusForbidden
 		}
-		if u := h.Resolve(r); u == nil || u.Status != "active" || !u.IsStaff() {
+		if u := h.resolve(r); u == nil || u.Status != "active" || !u.IsStaff() {
 			return false, http.StatusForbidden
 		}
 	}
@@ -78,7 +93,7 @@ func (h *handlers) allowed(r *http.Request, s store.ProbeSettings) (bool, int) {
 
 func (h *handlers) gate(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		s := h.Probe.Settings(r.Context())
+		s := h.currentSettings(r.Context())
 		if ok, code := h.allowed(r, s); !ok {
 			http.Error(w, http.StatusText(code), code)
 			return
@@ -87,12 +102,36 @@ func (h *handlers) gate(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// Public access checks do not reuse the collector's short settings cache:
+// disabling or restricting a page must also revoke long-lived theme sockets.
+func (h *handlers) currentSettings(ctx context.Context) store.ProbeSettings {
+	var s store.ProbeSettings
+	if err := h.Store.GetSetting(ctx, store.SettingProbe, &s); err != nil {
+		return s
+	}
+	s.Normalize()
+	return s
+}
+
 func (h *handlers) isStaff(r *http.Request) bool {
+	if h.Access != nil && (readonlyRequest(r) || h.Access.Dedicated(r.Context(), r.Host)) {
+		return false // isolated probe origins never acquire a staff projection
+	}
 	if h.Resolve == nil {
 		return false
 	}
 	u := h.Resolve(r)
 	return u != nil && u.Status == "active" && u.IsStaff()
+}
+
+func (h *handlers) resolve(r *http.Request) *domain.User {
+	if h.Access != nil && (readonlyRequest(r) || h.Access.Dedicated(r.Context(), r.Host)) {
+		return h.Access.Resolve(r)
+	}
+	if h.Resolve != nil {
+		return h.Resolve(r)
+	}
+	return nil
 }
 
 // nodeView is one server on the page.
@@ -464,29 +503,104 @@ func firstNonEmpty(a, b string) string {
 // served under the configured path.
 type Router struct{ h *handlers }
 
+type routeKey struct{}
+type routeState struct {
+	settings                  store.ProbeSettings
+	onHost, isolated, retired bool
+	err                       error
+}
+
+func requestHostname(host string) string {
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	name, _ := store.NormalizeProbeOrigin(strings.Trim(host, "[]"))
+	return name
+}
+func readonlyRequest(r *http.Request) bool {
+	v, _ := r.Context().Value(routeKey{}).(*routeState)
+	return v != nil && (v.isolated || v.retired)
+}
+
+// Prepare pins origin routing before account locks are selected. Visibility is
+// still rechecked on each data access, but a settings edit cannot switch a
+// request from a read-only origin to a management origin halfway through it.
+func (rt *Router) Prepare(r *http.Request) *http.Request {
+	if _, ok := r.Context().Value(routeKey{}).(*routeState); ok {
+		return r
+	}
+	h := rt.h
+	v := &routeState{}
+	err := h.Store.GetSetting(r.Context(), store.SettingProbe, &v.settings)
+	if err == nil {
+		v.settings.Normalize()
+	} else if !errors.Is(err, store.ErrNotFound) {
+		v.err = err
+	}
+	host := requestHostname(r.Host)
+	for _, registered := range v.settings.Hosts {
+		if requestHostname(registered) == host {
+			v.onHost = true
+			break
+		}
+	}
+	remembered, originErr := h.Store.IsProbeOrigin(r.Context(), host)
+	if originErr != nil {
+		v.err = originErr
+	}
+	main := h.Access != nil && h.Access.MainHost(r.Host)
+	v.isolated = v.onHost && h.Access != nil && !main
+	if v.isolated && !remembered && v.err == nil {
+		if err := h.Store.RememberProbeOrigins(r.Context(), []string{host}); err != nil {
+			v.err = err
+		} else {
+			remembered = true
+		}
+	}
+	v.retired = remembered && !v.onHost
+	// Never turn a previously untrusted origin into a management site, even if
+	// base_url is later pointed at it. The operator must use a clean origin.
+	if remembered && main {
+		v.retired = true
+	}
+	if main && !remembered && originErr == nil {
+		v.err = nil
+	}
+	return r.WithContext(context.WithValue(r.Context(), routeKey{}, v))
+}
+func (rt *Router) Dedicated(r *http.Request) bool { return readonlyRequest(rt.Prepare(r)) }
+
 // Wrap returns the outer handler.
 func (rt *Router) Wrap(next http.Handler) http.Handler {
 	h := rt.h
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		s := h.Probe.Settings(r.Context())
-		host := strings.ToLower(r.Host)
-		if i := strings.LastIndexByte(host, ':'); i >= 0 && !strings.Contains(host[i:], "]") {
-			host = host[:i]
+		r = rt.Prepare(r)
+		routing := r.Context().Value(routeKey{}).(*routeState)
+		if routing.err != nil {
+			http.Error(w, "Probe routing unavailable", http.StatusServiceUnavailable)
+			return
 		}
-		onHost := false
-		for _, hh := range s.Hosts {
-			if strings.EqualFold(strings.TrimSpace(hh), host) {
-				onHost = true
-				break
-			}
+		if routing.retired {
+			http.NotFound(w, r)
+			return
 		}
+		s, onHost := routing.settings, routing.onHost
 		path := r.URL.Path
 		if onHost {
+			isolated := routing.isolated
+			if isolated && (path == probeaccess.LoginPath || path == probeaccess.ExchangePath || path == "/api/login" || path == "/api/logout") {
+				h.Access.Serve(w, r)
+				return
+			}
+			if isolated && h.compat != nil && komari.Handles(path) {
+				h.compat.ServeHTTP(w, r)
+				return
+			}
 			if strings.HasPrefix(path, branding.AssetPrefix) {
 				next.ServeHTTP(w, r)
 				return
 			}
-			if strings.HasPrefix(path, "/api/probe") || path == "/api/health" || strings.HasPrefix(path, "/api/portal/login") || strings.HasPrefix(path, "/api/portal/me") {
+			if path == "/api/probe" || strings.HasPrefix(path, "/api/probe/nodes/") || path == "/api/probe/v2" || strings.HasPrefix(path, "/api/probe/v2/") || path == "/api/health" {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -495,8 +609,28 @@ func (rt *Router) Wrap(next http.Handler) http.Handler {
 				return
 			}
 			if ok, code := h.allowed(r, s); !ok {
+				if isolated && (code == http.StatusUnauthorized || code == http.StatusForbidden) && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
+					h.Access.Required(w, r)
+					return
+				}
 				http.Error(w, http.StatusText(code), code)
 				return
+			}
+			if isolated && h.Themes != nil {
+				p, err := h.Themes.Active(r.Context())
+				if err != nil {
+					http.Error(w, "Theme unavailable", http.StatusServiceUnavailable)
+					return
+				}
+				if p != nil {
+					if h.ThemeAssets != nil && !p.HasAsset(path) && (strings.HasPrefix(path, "/assets/flags/") || strings.HasPrefix(path, "/assets/logo/")) {
+						h.ThemeAssets.ServeHTTP(w, r)
+						return
+					}
+					title, description := h.themePresentation(r, s)
+					p.ServePage(w, r, title, description)
+					return
+				}
 			}
 			h.page(s).ServeHTTP(w, r)
 			return

@@ -6,6 +6,10 @@ Merge commits and formatting-only commits are left out. Binaries and
 `SHA256SUMS` for every tag are on the GitHub Release; the in-app updater
 installs them (Settings → System maintenance → Version and updates).
 
+- **Unreleased — Komari probe themes** — Add a typed public probe model, stable node UUIDs, metric discovery/history and Komari 1.6.1 public REST, WebSocket and JSON-RPC compatibility. Preserve original probe APIs and Captain's missing-data, freshness, billing-period and observation-quality semantics.
+  - Install and configure original theme ZIPs on isolated probe domains, retain per-version settings, and restore bundled themes without deleting packages. Keep private probes behind host-bound read-only access; retired probe domains remain isolated even after a site reset. No agent, terminal or Komari management API is exposed.
+  - Migrations 97–99 add public identities, sufficient history statistics, theme storage and origin reservations. No bosun protocol or customer billing change.
+
 - **v1.47.0** (2026-10-27) — Open server details as a monitoring overview, with separate Information, Diagnostics and Settings destinations. Keep resource tables and network history expandable, preserve sampling timestamps and distinguish host-cycle traffic from UTC-day proxy traffic.
   - Group manual specifications, supplier and primary-bill details, traffic interface/direction/reset options and the per-server probe visibility switch in Information. Use an explicit edit/save/cancel workflow while retaining full probe payloads, financial revision checks and independent unsaved drafts. Preserve old server bookmarks and diagnostic/billing/settings deep links.
   - Run diagnostic views and maintenance tools only when selected. Preserve monitor-only behavior and administrator/operator boundaries; separate basic-profile and proxy-policy editors without clearing unedited fields.

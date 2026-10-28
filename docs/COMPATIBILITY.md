@@ -3,6 +3,27 @@
 What an operator can rely on across releases, which bosun a Captain works
 with, what the database is good for, and what is deliberately not there.
 
+## Public probe model and Komari themes (unreleased)
+
+The original `/api/probe` API remains available. Additive `/api/probe/v2`
+reads and Komari 1.6.1 public REST/WS/JSON-RPC reads share a typed public
+projection. The compatibility API is only mounted on a dedicated probe host;
+Komari agents, administration, terminals and account APIs are not enabled.
+Unknown measurements, stale sampling evidence, actual NIC billing periods and
+historical aggregation quality remain explicit in Captain extensions.
+
+Migrations 97–99 add stable public identities, bounded metric history, validated
+theme ZIPs/settings and an append-only probe hostname safety registry. The
+registry survives site reset: a previously untrusted theme origin must never
+fall back to the management site. It contains hostnames only. Restoring an older
+database must not repurpose a theme hostname as an administration hostname.
+
+No bosun protocol or customer billing change is required. Original themes may
+ignore richer Captain fields, so a theme's lifetime traffic display must not
+be interpreted as Captain's billing-period allowance. Older average-only
+history cannot supply invented extrema. See [theme operation and data
+semantics](PROBE_THEMES.md) for the target contract and installation limits.
+
 ## Server traffic controls (unreleased)
 
 Server traffic policies are opt-in and independent of customer allowances,

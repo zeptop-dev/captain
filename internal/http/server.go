@@ -28,10 +28,13 @@ import (
 	"github.com/zeptop-dev/captain/internal/http/mcp"
 	"github.com/zeptop-dev/captain/internal/http/oauth"
 	"github.com/zeptop-dev/captain/internal/http/probe"
+	"github.com/zeptop-dev/captain/internal/http/probeaccess"
 	"github.com/zeptop-dev/captain/internal/http/ratelimit"
 	"github.com/zeptop-dev/captain/internal/http/site"
 	"github.com/zeptop-dev/captain/internal/mail"
 	"github.com/zeptop-dev/captain/internal/notify"
+	"github.com/zeptop-dev/captain/internal/probedata"
+	"github.com/zeptop-dev/captain/internal/probetheme"
 	"github.com/zeptop-dev/captain/internal/telegram"
 	"github.com/zeptop-dev/captain/internal/webhook"
 
@@ -205,12 +208,40 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 		s.backups = &backup.Manager{Store: st, Dir: filepath.Join(cfg.DataDir, "backups"), Log: log, ConfigPath: cfg.Path}
 	}
 	s.certs = &service.Certs{Store: st, Issuer: certIssuer, Log: log, Notify: notifier}
-	s.probe = probe.Register(s.mux, probe.Deps{Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe(), GlassPage: web.ProbeGlass()})
+	probeData := &probedata.Engine{Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName}
+	probeThemes := probetheme.New(st)
+	probeAccess := probeaccess.New(probeaccess.Deps{BaseURL: base, Settings: func(ctx context.Context) store.ProbeSettings {
+		var v store.ProbeSettings
+		if st.GetSetting(ctx, store.SettingProbe, &v) == nil {
+			v.Normalize()
+		}
+		return v
+	}, ResolveSession: func(ctx context.Context, token string) (*domain.User, bool, error) {
+		st.Accounts.RLock()
+		defer st.Accounts.RUnlock()
+		u, adminAuthenticated, err := sessions.Resolve(ctx, token)
+		return u, adminAuthenticated, err
+	}})
+	s.mux.HandleFunc("GET "+probeaccess.MainPath, probeAccess.Main)
+	s.mux.HandleFunc("POST "+probeaccess.MainPath, probeAccess.Main)
+	s.probe = probe.Register(s.mux, probe.Deps{ThemeAssets: web.ProbeThemeAssets(), Data: probeData, Access: probeAccess, Themes: probeThemes, Version: cfg.Version, Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe(), GlassPage: web.ProbeGlass()})
 	dyn := &service.DynLimit{Store: st, State: s.state, Notify: notifier, Hooks: s.hooks, Log: log, PushSeconds: cfg.Agent.PushSeconds}
-	admin.Register(s.mux, admin.Deps{ClientCatalog: clients, ServiceStatus: serviceStatus, ClaudeRules: claudeFetcher, SubPresets: presetFetcher, NodeRegions: s.nodeRegions, Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, DNSHealth: s.dnsHealth, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external, Allow: allow, Heartbeat: s.heartbeat,
+	adminDeps := admin.Deps{ClientCatalog: clients, ServiceStatus: serviceStatus, ClaudeRules: claudeFetcher, SubPresets: presetFetcher, NodeRegions: s.nodeRegions, Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, DNSHealth: s.dnsHealth, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external, Allow: allow, Heartbeat: s.heartbeat,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version, MinVersion: captainUpdateFloor(cfg.MinVersion)},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 		Registration:  cfg.Portal.Registration,
+	}
+	admin.Register(s.mux, adminDeps)
+	admin.RegisterProbeThemes(s.mux, adminDeps, probeThemes, func(ctx context.Context) (probetheme.SelectorOptions, error) {
+		snapshot, err := probeData.Snapshot(ctx, probedata.Scope{})
+		out := probetheme.SelectorOptions{Nodes: []probetheme.SelectorOption{}, PingTasks: []probetheme.SelectorOption{}}
+		for _, n := range snapshot.Nodes {
+			out.Nodes = append(out.Nodes, probetheme.SelectorOption{Value: n.UUID, Label: n.Name})
+		}
+		for _, t := range snapshot.PingTasks {
+			out.PingTasks = append(out.PingTasks, probetheme.SelectorOption{Value: strconv.FormatInt(t.LegacyID, 10), Label: t.Name})
+		}
+		return out, err
 	})
 	s.mux.Handle("/admin/", web.Admin("/admin/"))
 	s.mux.HandleFunc("GET /admin", func(w http.ResponseWriter, r *http.Request) {
@@ -339,6 +370,7 @@ func (s *Server) Handler() http.Handler {
 	// Any write under /api/admin (whichever package registered it) may
 	// change what nodes should run: drop the cached node state after it.
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r = s.probe.Prepare(r)
 		// Long polling only builds an immutable agent identity snapshot. Holding
 		// the read lock across its wait would needlessly stall ID edits.
 		// Official preset synchronization authenticates under a short read
@@ -346,7 +378,7 @@ func (s *Server) Handler() http.Handler {
 		presetSync := r.Method == http.MethodPost && (r.URL.Path == "/api/admin/settings/sub-design/presets/sync" || r.URL.Path == "/api/admin/settings/sub-design/claude-rules/sync")
 		catalogIO := r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/admin/settings/client-catalog/") && (strings.HasSuffix(r.URL.Path, "/check") || strings.HasSuffix(r.URL.Path, "/download"))
 		clientDownload := (r.Method == http.MethodGet || r.Method == http.MethodHead) && strings.HasPrefix(r.URL.Path, "/downloads/clients/")
-		if r.URL.Path != "/api/agent/state" && !presetSync && !catalogIO && !clientDownload {
+		if r.URL.Path != "/api/agent/state" && r.URL.Path != probeaccess.MainPath && !s.probe.Dedicated(r) && !presetSync && !catalogIO && !clientDownload {
 			accounts := &s.state.Store.Accounts
 			renumber := r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, "/id") && (strings.HasPrefix(r.URL.Path, "/api/admin/users/") || strings.HasPrefix(r.URL.Path, "/api/admin/admins/"))
 			reset := r.Method == http.MethodPost && r.URL.Path == "/api/admin/system/reset"
@@ -580,6 +612,8 @@ func limitBodies(next http.Handler) http.Handler {
 				limit = agentBodyLimit
 			} else if r.Method == http.MethodPost && r.URL.Path == "/api/admin/settings/branding/assets" {
 				limit = branding.MaxInputBytes
+			} else if r.Method == http.MethodPost && r.URL.Path == "/api/admin/settings/probe/themes" {
+				limit = probetheme.MaxArchiveBytes
 			}
 			r.Body = http.MaxBytesReader(w, r.Body, limit)
 		}
