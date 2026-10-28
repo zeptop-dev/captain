@@ -134,6 +134,35 @@ func TestPublicProjectionPrivacyValidityAndFreshness(t *testing.T) {
 		t.Fatalf("defs=%+v err=%v", defs, err)
 	}
 }
+func TestNodeRecordTimestampsRemainSeparateFromMetricReceipt(t *testing.T) {
+	e := fixture(t)
+	created, updated, received := e.clock().Add(-24*time.Hour), e.clock().Add(-time.Hour), e.clock().Add(-time.Minute)
+	if _, err := e.Store.DB().Exec(`UPDATE nodes SET created_at=?,updated_at=? WHERE id=1`, created.Unix(), updated.Unix()); err != nil {
+		t.Fatal(err)
+	}
+	record(t, e, spec.SystemStatus{Valid: &spec.MetricValidity{CPU: true}, CPUPercent: 12}, received)
+	snap, err := e.Snapshot(context.Background(), Scope{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := snap.Nodes[0]
+	if !n.CreatedAt.Equal(created) || !n.UpdatedAt.Equal(updated) || n.Status.ReceivedAt == nil || !n.Status.ReceivedAt.Equal(received) {
+		t.Fatalf("node row timestamps conflated with metrics: %+v", n)
+	}
+	updated = e.clock()
+	if _, err = e.Store.DB().Exec(`UPDATE nodes SET updated_at=? WHERE id=1`, updated.Unix()); err != nil {
+		t.Fatal(err)
+	}
+	snap, err = e.Snapshot(context.Background(), Scope{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	n = snap.Nodes[0]
+	if !n.CreatedAt.Equal(created) || !n.UpdatedAt.Equal(updated) || !n.Status.ReceivedAt.Equal(received) {
+		t.Fatalf("row update changed metric evidence: %+v", n)
+	}
+}
+
 func TestStableIdentitySurvivesRenameButNotReuse(t *testing.T) {
 	e := fixture(t)
 	id := publicID(t, e)

@@ -117,7 +117,7 @@ func (e *Engine) snapshot(ctx context.Context) (Snapshot, error) {
 	if err != nil {
 		return out, err
 	}
-	ids, err := e.Store.ProbePublicIDs(ctx)
+	records, err := e.Store.ProbePublicRecords(ctx)
 	if err != nil {
 		return out, err
 	}
@@ -145,11 +145,12 @@ func (e *Engine) snapshot(ctx context.Context) (Snapshot, error) {
 		if !n.Paired || np == nil || np.Hidden {
 			continue
 		}
-		uuid := ids[n.ID]
+		record := records[n.ID]
+		uuid := record.UUID
 		if uuid == "" {
 			return out, fmt.Errorf("missing probe identity")
 		}
-		v := Node{RootDiskPublic: np.Storage.RootVisible(), ID: n.ID, UUID: uuid, Name: n.Name, Group: n.MonitorGroup, Storage: []Storage{}, Pings: []Ping{}, Recent: []Recent{}, Status: Status{LastSeen: n.LastSeenAt, Values: map[string]*float64{}}}
+		v := Node{RootDiskPublic: np.Storage.RootVisible(), ID: n.ID, UUID: uuid, Name: n.Name, Group: n.MonitorGroup, CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt, Storage: []Storage{}, Pings: []Ping{}, Recent: []Recent{}, Status: Status{LastSeen: n.LastSeenAt, Values: map[string]*float64{}}}
 		if s.ShowIP {
 			v.Inventory.Address = n.PublicAddr
 			if ip, err := netip.ParseAddr(n.PublicAddr); err == nil {
