@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -662,6 +663,37 @@ func TestConcurrentPolicyChangeFailsClosed(t *testing.T) {
 	e := result["error"].(map[string]any)
 	if result["result"] != nil || e["code"] != float64(-32004) || e["data"].(map[string]any)["reason"] != "policy_changed" {
 		t.Fatalf("policy change must be a typed retryable error: %#v", result)
+	}
+}
+
+type failedSummaryReader struct {
+	*fixtureReader
+	err error
+}
+
+func (r failedSummaryReader) PingStats(context.Context, probedata.Scope, probedata.PingQuery) ([]probedata.PingStat, error) {
+	return nil, r.err
+}
+
+func TestLatestPrivacyChangeDoesNotFallBackToEarlierSnapshot(t *testing.T) {
+	for _, err := range []error{probedata.ErrPolicyChanged, errors.Join(io.ErrUnexpectedEOF, probedata.ErrPolicyChanged)} {
+		h := fixtureHandler(&fixtureReader{})
+		h.d.Reader = failedSummaryReader{&fixtureReader{}, err}
+		out := rpc(t, h, "common:getNodesLatestStatus", nil)
+		failure, ok := out["error"].(map[string]any)
+		if !ok || out["result"] != nil || failure["code"] != float64(-32004) || failure["data"].(map[string]any)["reason"] != "policy_changed" {
+			t.Fatalf("privacy change served an earlier snapshot: %#v", out)
+		}
+	}
+	h := fixtureHandler(&fixtureReader{})
+	h.d.Reader = failedSummaryReader{&fixtureReader{}, io.ErrUnexpectedEOF}
+	out := rpc(t, h, "common:getNodesLatestStatus", nil)
+	if out["error"] != nil {
+		t.Fatalf("ordinary history outage removed independent current data: %#v", out)
+	}
+	current := out["result"].(map[string]any)[fixtureUUID].(map[string]any)
+	if current["cpu"] != float64(0) || current["net_out"] != float64(123) || current["time"] != fixtureTime.Format(time.RFC3339) {
+		t.Fatalf("ordinary history outage damaged current data: %#v", current)
 	}
 }
 

@@ -269,8 +269,16 @@ func (h *Handler) call(r *http.Request, method string, raw json.RawMessage) (any
 		}
 		if len(selected) > 0 && len(selected) <= 128 {
 			// A history outage must not hide independent current measurements.
-			// Missing statistics remain null in the snapshot fallback below.
-			pingStats, _ = h.d.Reader.PingStats(r.Context(), probedata.Scope{}, probedata.PingQuery{EntityIDs: selected, Start: h.now().Add(-time.Hour), End: h.now()})
+			// A concurrent privacy change must invalidate the earlier snapshot,
+			// rather than falling back to data projected under the old policy.
+			var err error
+			pingStats, err = h.d.Reader.PingStats(r.Context(), probedata.Scope{}, probedata.PingQuery{EntityIDs: selected, Start: h.now().Add(-time.Hour), End: h.now()})
+			if errors.Is(err, probedata.ErrPolicyChanged) {
+				return nil, fromError(err)
+			}
+			if err != nil {
+				pingStats = nil
+			}
 		}
 	}
 	for i, n := range s.Nodes {
