@@ -186,6 +186,105 @@ func TestSettingsValidation(t *testing.T) {
 	}
 }
 
+func TestPublicConfigurationUsesActiveVersionSchema(t *testing.T) {
+	m := manager(t)
+	ctx := context.Background()
+	// The same short identifier is deliberately reused while a text field turns
+	// into a node selector. Filtering v2 settings with v1's schema would miss it.
+	a, err := m.Install(ctx, archive(t, "1", map[string]string{"komari-theme.json": `{"name":"Test","short":"Test","version":"1","configuration":{"type":"managed","data":[{"key":"selection","type":"string"}]}}`}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := m.Install(ctx, archive(t, "2", map[string]string{"komari-theme.json": `{"name":"Test","short":"Test","version":"2","configuration":{"type":"managed","data":[{"key":"selection","type":"nodes"}]}}`}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = m.SaveSettings(ctx, a.Digest, 1, map[string]any{"selection": "text setting"}); err != nil {
+		t.Fatal(err)
+	}
+	if err = m.SaveSettings(ctx, b.Digest, 1, map[string]any{"selection": []any{"node-public-id"}}); err != nil {
+		t.Fatal(err)
+	}
+	check := func(c PublicConfiguration) {
+		t.Helper()
+		fields, err := c.Manifest.Fields()
+		if err != nil || len(fields) != 1 || c.Manifest.Short != "Test" || c.SettingsRevision != 2 {
+			t.Fatalf("invalid configuration snapshot: %+v, %v", c, err)
+		}
+		switch c.Digest {
+		case a.Digest:
+			if c.Manifest.Version != "1" || fields[0].Type != "string" || c.Settings["selection"] != "text setting" || c.Revision%2 != 1 {
+				t.Fatalf("mixed v1 configuration: %+v", c)
+			}
+		case b.Digest:
+			values, ok := c.Settings["selection"].([]any)
+			if c.Manifest.Version != "2" || fields[0].Type != "nodes" || !ok || len(values) != 1 || values[0] != "node-public-id" || c.Revision%2 != 0 {
+				t.Fatalf("mixed v2 configuration: %+v", c)
+			}
+		default:
+			t.Fatalf("unexpected package %s", c.Digest)
+		}
+	}
+	if err = m.Activate(ctx, a.Digest, 0); err != nil {
+		t.Fatal(err)
+	}
+	old, err := m.PublicConfiguration(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = m.Activate(ctx, b.Digest, 1); err != nil {
+		t.Fatal(err)
+	}
+	current, err := m.PublicConfiguration(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(old)
+	check(current)
+	// Filtering a returned selector must not mutate the saved configuration.
+	current.Settings["selection"] = []any{}
+	current.Manifest.Configuration.Data[0] = ' '
+	current, err = m.PublicConfiguration(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(current)
+
+	// Activation and configuration retrieval may race. The state revision and
+	// package data must always come from the same transaction, not two reads.
+	done := make(chan error, 1)
+	go func() {
+		for i := int64(0); i < 100; i++ {
+			digest := a.Digest
+			if i%2 == 1 {
+				digest = b.Digest
+			}
+			if err := m.Store.ActivateProbeTheme(ctx, digest, i+2); err != nil {
+				done <- err
+				return
+			}
+		}
+		done <- nil
+	}()
+	for i := 0; i < 100; i++ {
+		c, err := m.PublicConfiguration(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		check(c)
+	}
+	if err = <-done; err != nil {
+		t.Fatal(err)
+	}
+	if err = m.Activate(ctx, "", 102); err != nil {
+		t.Fatal(err)
+	}
+	builtin, err := m.PublicConfiguration(ctx)
+	if err != nil || builtin.Digest != "" || builtin.Manifest.Short != "default" || len(builtin.Settings) != 0 || builtin.Revision != 103 {
+		t.Fatalf("invalid built-in configuration: %+v, %v", builtin, err)
+	}
+}
+
 // Optional original release package smoke. ZIPs stay outside the repository.
 func TestOriginalReleasePackages(t *testing.T) {
 	dir := os.Getenv("CAPTAIN_THEME_RELEASE_DIR")

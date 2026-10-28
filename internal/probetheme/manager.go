@@ -98,15 +98,28 @@ func (m *Manager) SaveSettings(ctx context.Context, digest string, revision int6
 	return store.ErrNotFound
 }
 
-// PublicSettings is the Komari theme short name and public dynamic settings.
-// These values are intentionally not secrets and never contain admin sessions.
-func (m *Manager) PublicSettings(ctx context.Context) (string, map[string]any, error) {
+// PublicConfiguration keeps the active version, its selector schema and its
+// settings in one database snapshot. A short name alone cannot identify a schema:
+// two installed versions of the same theme may declare different selectors.
+type PublicConfiguration struct {
+	Digest           string
+	Manifest         Manifest
+	Settings         map[string]any
+	Revision         int64
+	SettingsRevision int64
+}
+
+// PublicConfiguration returns detached metadata without loading the ZIP. An
+// empty Digest means the built-in theme, with Manifest.Short set to "default".
+// Callers must filter public selectors using this result's Manifest, rather than
+// separately calling Active, which could observe a different active version.
+func (m *Manager) PublicConfiguration(ctx context.Context) (PublicConfiguration, error) {
 	rows, state, err := m.Store.ProbeThemes(ctx)
 	if err != nil {
-		return "", nil, err
+		return PublicConfiguration{}, err
 	}
 	if state.Active == "" {
-		return "default", map[string]any{}, nil
+		return PublicConfiguration{Manifest: Manifest{Short: "default"}, Settings: map[string]any{}, Revision: state.Revision}, nil
 	}
 	for _, p := range rows {
 		if p.Digest != state.Active {
@@ -115,15 +128,28 @@ func (m *Manager) PublicSettings(ctx context.Context) (string, map[string]any, e
 		var manifest Manifest
 		var settings map[string]any
 		if err = json.Unmarshal(p.Manifest, &manifest); err != nil {
-			return "", nil, err
+			return PublicConfiguration{}, err
 		}
 		if err = json.Unmarshal(p.Settings, &settings); err != nil {
-			return "", nil, err
+			return PublicConfiguration{}, err
 		}
 		out, err := manifest.Settings(settings)
-		return p.Short, out, err
+		if err != nil {
+			return PublicConfiguration{}, err
+		}
+		return PublicConfiguration{Digest: p.Digest, Manifest: manifest, Settings: out, Revision: state.Revision, SettingsRevision: p.Revision}, nil
 	}
-	return "", nil, fmt.Errorf("active theme is unavailable")
+	return PublicConfiguration{}, fmt.Errorf("active theme is unavailable")
+}
+
+// PublicSettings is the Komari theme short name and public dynamic settings.
+// These values are intentionally not secrets and never contain admin sessions.
+func (m *Manager) PublicSettings(ctx context.Context) (string, map[string]any, error) {
+	configuration, err := m.PublicConfiguration(ctx)
+	if err != nil {
+		return "", nil, err
+	}
+	return configuration.Manifest.Short, configuration.Settings, nil
 }
 func IsConflict(err error) bool { return errors.Is(err, store.ErrProbeThemeConflict) }
 
