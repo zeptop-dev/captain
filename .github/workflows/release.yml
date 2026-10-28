@@ -26,7 +26,13 @@ jobs:
       - run: cd web/site && pnpm install --frozen-lockfile && pnpm test && pnpm exec oxlint src && pnpm build
       - run: cd web/probe && pnpm install --frozen-lockfile && pnpm build
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with: { go-version-file: go.mod }
+        with:
+          go-version-file: go.mod
+          # Keep release test results separate from CI's coverage-instrumented cache.
+          cache-dependency-path: |
+            go.mod
+            go.sum
+            .github/workflows/release.yml
       # A tag must clear the same gates as master: a red commit may not ship.
       - run: git ls-files '*.go' | xargs gofmt -l | tee /dev/stderr | test -z "$(cat)"
       - run: go vet ./...
