@@ -441,7 +441,15 @@ func recordServiceControlTrafficTx(ctx context.Context, tx *sql.Tx, id int64, p 
 		}
 		evaluateServiceControl(&r, usage, at, false)
 	}
-	return saveServiceControlTx(ctx, tx, id, &r, old)
+	if err = saveServiceControlTx(ctx, tx, id, &r, old); err != nil {
+		return err
+	}
+	if !reflect.DeepEqual(old.state.Automatic, r.state.Automatic) {
+		// Commit the observation, desired action and audit together. Repeat or
+		// unchanged NIC samples must not create another transition record.
+		_, err = tx.ExecContext(ctx, `INSERT INTO admin_log(at,role,method,path,target,status,via) VALUES(?,?,?,?,?,?,?)`, at.Unix(), "system", "AUTO", fmt.Sprintf("/api/admin/nodes/%d/service-control", id), fmt.Sprintf("automatic %s/%d Mbps → %s/%d Mbps", old.state.Automatic.Mode, old.state.Automatic.LimitMbps, r.state.Automatic.Mode, r.state.Automatic.LimitMbps), 200, "server_traffic_control")
+	}
+	return err
 }
 
 // DesiredNodeServiceControl is private state. A prior command is retained while

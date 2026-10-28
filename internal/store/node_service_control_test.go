@@ -86,6 +86,10 @@ func TestServiceControlAutomaticManualAndExemption(t *testing.T) {
 	if next := serviceControlGet(t, s, id, at.Add(2*time.Second)); next.Revision != triggered.Revision || next.Effective.Revision != triggered.Effective.Revision {
 		t.Fatal("threshold flapped", next)
 	}
+	var audits int
+	if err := s.db.QueryRowContext(ctx, `SELECT count(*) FROM admin_log WHERE via='server_traffic_control'`).Scan(&audits); err != nil || audits != 1 {
+		t.Fatal("automatic transition audit missing or repeated", audits, err)
+	}
 	manual := ServiceControlManual{Mode: "limit", LimitMbps: 5}
 	lower := serviceControlPut(t, s, id, at.Add(2*time.Second), ServiceControlChange{Manual: &manual})
 	if lower.Effective.LimitMbps != 5 || !reflect.DeepEqual(lower.Effective.Reasons, []string{"manual", "traffic_quota"}) {
@@ -339,5 +343,32 @@ func TestServiceControlInfrastructureLinkRequiresBoundaryPermission(t *testing.T
 	}
 	if after := serviceControlGet(t, s, id, at); !after.Automatic.Active {
 		t.Fatal("link erased hold", after)
+	}
+}
+
+func TestServiceControlAutomaticAuditIsAtomic(t *testing.T) {
+	s, id, at := serviceControlRig(t)
+	ctx := context.Background()
+	policy := ServiceControlPolicy{Action: "pause", ThresholdPercent: 80, AutoResume: true}
+	serviceControlPut(t, s, id, at, ServiceControlChange{Policy: &policy})
+	if _, err := s.db.Exec(`CREATE TRIGGER fail_control_audit BEFORE INSERT ON admin_log WHEN NEW.via='server_traffic_control' BEGIN SELECT RAISE(FAIL,'audit failed'); END`); err != nil {
+		t.Fatal(err)
+	}
+	host := spec.SystemStatus{Resources: &spec.Resources{Epoch: "service-control", Sequence: 3, Networks: []spec.NetworkResource{{Name: "eth0", ID: "boot:1", Included: true, Up: 500, Down: 500}}}}
+	if err := s.RecordBeat(ctx, id, host, at.Add(time.Second)); err == nil {
+		t.Fatal("audit failure allowed partial control commit")
+	}
+	after := serviceControlGet(t, s, id, at)
+	if after.Automatic.Active || after.Traffic.UsedBytes != 200 {
+		t.Fatal("failed audit left partial accounting/control", after)
+	}
+	if _, err := s.db.Exec(`DROP TRIGGER fail_control_audit`); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RecordBeat(ctx, id, host, at.Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if after := serviceControlGet(t, s, id, at.Add(time.Second)); !after.Automatic.Active || after.Traffic.UsedBytes != 800 {
+		t.Fatal("retry lost accepted traffic/control", after)
 	}
 }
