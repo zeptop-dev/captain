@@ -1,0 +1,51 @@
+package web
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"fmt"
+	"io/fs"
+	"mime"
+	"net/http"
+	"path"
+	"strings"
+	"time"
+)
+
+// ProbeThemeAssets exposes the shared icon paths expected by Komari themes.
+// It reuses the already bundled Glassmorphism images and their existing licence
+// notices in web/probe/glass/{LICENSE,ICON-LICENSES.json,licenses}; no assets are
+// downloaded or added. Mount only behind the isolated probe origin/page gate.
+// Callers must first prefer a real asset supplied by the active theme package.
+func ProbeThemeAssets() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			w.Header().Set("Allow", "GET, HEAD")
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		parts := strings.Split(r.URL.Path, "/")
+		if len(parts) != 4 || parts[0] != "" || parts[1] != "assets" || (parts[2] != "flags" && parts[2] != "logo") || !fs.ValidPath(parts[3]) || strings.ContainsAny(parts[3], `\%`) {
+			http.NotFound(w, r)
+			return
+		}
+		extension := strings.ToLower(path.Ext(parts[3]))
+		switch extension {
+		case ".svg", ".png", ".webp", ".jpg", ".jpeg", ".gif", ".avif":
+		default:
+			http.NotFound(w, r)
+			return
+		}
+		data, err := fs.ReadFile(probeFS, "probe/dist/glass/images/"+parts[2]+"/"+parts[3])
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", mime.TypeByExtension(extension))
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
+		w.Header().Set("Cache-Control", "private, no-cache")
+		w.Header().Set("ETag", fmt.Sprintf(`"%x"`, sha256.Sum256(data)))
+		http.ServeContent(w, r, parts[3], time.Time{}, bytes.NewReader(data))
+	})
+}

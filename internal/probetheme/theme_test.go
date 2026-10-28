@@ -109,6 +109,27 @@ func TestPackageServingIsolationAndRoutes(t *testing.T) {
 		})
 	}
 }
+
+func TestPackageHasAssetRequiresRealDistributionFile(t *testing.T) {
+	p, err := Parse(archive(t, "1", map[string]string{"dist/assets/flags/JP.svg": "theme flag", "dist/_next/app.js": "theme script", "dist/api/private.txt": "never public"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/assets/flags/JP.svg", "/assets/app.js", "/_next/app.js", "/details.html", "/themes/Test/dist/assets/flags/JP.svg"} {
+		if !p.HasAsset(path) {
+			t.Error("real theme asset not found", path)
+		}
+	}
+	for _, path := range []string{"/", "/details", "/instance/server", "/assets/flags/", "/assets/flags/JP.svg/", "/assets/flags/missing.svg", "/api/private.txt", "/assets/../index.html", "/themes/Other/dist/assets/flags/JP.svg", "/themes/Test/LICENSE", "/themes/Test/komari-theme.json", "assets/app.js", "//assets/app.js"} {
+		if p.HasAsset(path) {
+			t.Error("non-asset incorrectly found", path)
+		}
+	}
+	var absent *Package
+	if absent.HasAsset("/assets/app.js") {
+		t.Fatal("nil package has an asset")
+	}
+}
 func TestManagerVersionsCASAndReset(t *testing.T) {
 	m := manager(t)
 	ctx := context.Background()

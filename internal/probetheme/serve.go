@@ -12,6 +12,34 @@ import (
 	"time"
 )
 
+// HasAsset reports only an exact regular file in this package's dist directory.
+// It never resolves SPA routes or falls back to another package. The probe
+// router can use it to prefer a theme's own icons over Captain's shared icons.
+func (p *Package) HasAsset(requestPath string) bool {
+	if p == nil || !strings.HasPrefix(requestPath, "/") {
+		return false
+	}
+	requestPath = strings.TrimPrefix(requestPath, "/")
+	if !safePath(requestPath) {
+		return false
+	}
+	first := strings.Split(requestPath, "/")[0]
+	switch first {
+	case "api", "admin", "portal", "terminal", "sub", ".well-known":
+		return false
+	}
+	file := "dist/" + requestPath
+	if strings.HasPrefix(requestPath, "themes/") {
+		prefix := "themes/" + p.Manifest.Short + "/dist/"
+		if !strings.HasPrefix(requestPath, prefix) {
+			return false
+		}
+		file = "dist/" + strings.TrimPrefix(requestPath, prefix)
+	}
+	_, ok := p.files[file]
+	return ok
+}
+
 // ServePage must only be reached on an isolated probe origin, after checking
 // the probe's visibility policy. It deliberately never falls back to another
 // package, and cannot serve Captain API, administration, or terminal routes.
