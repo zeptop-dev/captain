@@ -1146,7 +1146,7 @@
     "nameMatchRegion": "{{region}} · 名稱比對",
     "nodeDualStackOption": "節點雙棧連線優選（Mihomo）",
     "nodeDualStackHint": "啟用 IPv6 與並行撥號，讓支援的節點在 IPv4/IPv6 位址間選擇先連通的路徑。這是 Mihomo 的全域撥號選項，也可能影響直連連線。",
-    "nodeDualStackRequirements": "節點連線位址須使用具有 A/AAAA 記錄的網域，兩邊監聽和連接埠均需可達。固定 IP 或明確指定單棧的節點保留原設定；不強制啟用 TUN 或應用程式 DNS 的 AAAA 回應。",
+    "nodeDualStackRequirements": "節點連線位址使用具有 A/AAAA 記錄的網域；一邊連線失敗時，仍可使用另一條可達路徑。固定 IP 或明確指定單棧的節點保留原設定；不強制啟用 TUN 或應用程式 DNS 的 AAAA 回應。",
     "supportNodeDualStack": "節點雙棧連線優選目前僅支援 Mihomo；其他格式的已發佈範本保持不變。",
     "nodeDualStackProtocols": "雙棧協定支援範圍",
     "nodeDualStackTCP": "TCP 撥號：VLESS、VMess、Trojan、Shadowsocks（含 ShadowTLS）、AnyTLS、Snell、SOCKS5、HTTP(S)。對客戶端支援且已發佈的節點生效。",
@@ -2523,7 +2523,7 @@
       },
       "outcomes": {
         "success": "已確認",
-        "failed": "寫入遭拒",
+        "failed": "寫入失敗",
         "unknown": "結果未知",
         "skipped": "已略過"
       },

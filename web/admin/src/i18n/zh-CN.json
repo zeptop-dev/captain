@@ -1520,7 +1520,7 @@
     "nameMatchRegion": "{{region}} · 名称匹配",
     "nodeDualStackOption": "节点双栈连接优选（Mihomo）",
     "nodeDualStackHint": "启用 IPv6 与并发拨号，让支持的节点在 IPv4/IPv6 地址间选择先连通的路径。这是 Mihomo 的全局拨号选项，也可能影响直连连接。",
-    "nodeDualStackRequirements": "节点连接地址须使用具有 A/AAAA 记录的域名，两边监听和端口均需可达。固定 IP 或显式指定单栈的节点保持原设置；不强制开启 TUN 或应用 DNS 的 AAAA 应答。",
+    "nodeDualStackRequirements": "节点连接地址使用具有 A/AAAA 记录的域名；一边连接失败时，仍可使用另一条可达路径。固定 IP 或显式指定单栈的节点保持原设置；不强制开启 TUN 或应用 DNS 的 AAAA 应答。",
     "supportNodeDualStack": "节点双栈连接优选目前仅支持 Mihomo；其他格式的已发布模板保持不变。",
     "nodeDualStackProtocols": "双栈协议支持范围",
     "nodeDualStackTCP": "TCP 拨号：VLESS、VMess、Trojan、Shadowsocks（含 ShadowTLS）、AnyTLS、Snell、SOCKS5、HTTP(S)。对客户端支持且已发布的节点生效。",
@@ -2523,7 +2523,7 @@
       },
       "outcomes": {
         "success": "已确认",
-        "failed": "写入被拒绝",
+        "failed": "写入失败",
         "unknown": "结果未知",
         "skipped": "已跳过"
       },

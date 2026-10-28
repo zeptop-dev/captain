@@ -1520,7 +1520,7 @@
     "nameMatchRegion": "{{region}} · name match",
     "nodeDualStackOption": "Dual-stack connection selection (Mihomo)",
     "nodeDualStackHint": "Enable IPv6 and concurrent dialing so supported nodes can use the first working IPv4/IPv6 connection. These are global Mihomo dialer options and may also affect direct connections.",
-    "nodeDualStackRequirements": "The node endpoint must be a domain with A and AAAA records and reachable listeners on both families. Literal IPs and explicit single-stack overrides are preserved. Does not force TUN or application DNS AAAA responses.",
+    "nodeDualStackRequirements": "Use a node domain with A and AAAA records. If one address family fails, the other reachable path can still connect. Literal IPs and explicit single-stack overrides are preserved. Does not force TUN or application DNS AAAA responses.",
     "supportNodeDualStack": "Dual-stack connection selection currently supports Mihomo only; published templates for other formats remain unchanged.",
     "nodeDualStackProtocols": "Dual-stack protocol support",
     "nodeDualStackTCP": "TCP dialing: VLESS, VMess, Trojan, Shadowsocks (including ShadowTLS), AnyTLS, Snell, SOCKS5 and HTTP(S). Applies to published nodes supported by the client.",
@@ -2523,7 +2523,7 @@
       },
       "outcomes": {
         "success": "Confirmed",
-        "failed": "Write rejected",
+        "failed": "Write failed",
         "unknown": "Outcome unknown",
         "skipped": "Skipped"
       },
