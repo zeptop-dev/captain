@@ -470,3 +470,26 @@ func TestMetricPointLimitIncludesEndBoundary(t *testing.T) {
 		t.Fatalf("inclusive end exceeded maxpoints or dropped measurement: %+v", got)
 	}
 }
+
+func TestPublicMetadataKeepsPrecisionAndPrivateBandwidthHidden(t *testing.T) {
+	e := fixture(t)
+	ctx := context.Background()
+	info := `{"billing":{"amount":"12.3456","currency":"USD","cycle":"monthly"},"bandwidth":{"inbound_mbps":500,"outbound_mbps":200,"public":false},"auto_renewal":{"enabled":true,"anchor_date":"2026-01-31","anchor_day":31},"location_settings":{"mode":"manual","manual":{"country":"US","city":"Example city","lat":0,"lng":0,"precision":"city"}}}`
+	if _, err := e.Store.DB().Exec(`UPDATE nodes SET probe_info_json=? WHERE id=1`, info); err != nil {
+		t.Fatal(err)
+	}
+	snap, err := e.Snapshot(ctx, Scope{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := snap.Nodes[0]
+	if n.Info == nil || n.Info.Cost == nil || n.Info.Cost.Amount != "12.3456" || n.Info.Bandwidth != nil || n.Info.Location == nil || n.Info.Location.Precision != "city" || n.Info.Latitude == nil || *n.Info.Latitude != 0 {
+		t.Fatalf("metadata lost precision or privacy: %+v", n.Info)
+	}
+	raw, _ := json.Marshal(n.Info)
+	for _, field := range []string{"anchor_date", "anchor_day", "location_settings"} {
+		if strings.Contains(string(raw), field) {
+			t.Fatalf("private metadata %s leaked", field)
+		}
+	}
+}

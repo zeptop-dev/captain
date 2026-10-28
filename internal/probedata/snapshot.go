@@ -236,7 +236,11 @@ func (e *Engine) snapshot(ctx context.Context) (Snapshot, error) {
 				b := p.AutoRenewal.Enabled
 				v.Info.AutoRenewal = &b
 			}
+			if p.Bandwidth != nil {
+				v.Info.Bandwidth = &Bandwidth{InboundMbps: p.Bandwidth.InboundMbps, OutboundMbps: p.Bandwidth.OutboundMbps}
+			}
 			if p.Location != nil {
+				v.Info.Location = &Location{Country: p.Location.Country, Subdivision: p.Location.Subdivision, City: p.Location.City, Latitude: p.Location.Lat, Longitude: p.Location.Lng, Precision: p.Location.Precision}
 				v.Info.Latitude = p.Location.Lat
 				v.Info.Longitude = p.Location.Lng
 			}

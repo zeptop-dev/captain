@@ -93,16 +93,30 @@ type Status struct {
 	Values map[string]*float64 `json:"values"`
 }
 type Info struct {
-	Region      string   `json:"region,omitempty"`
-	Provider    string   `json:"provider,omitempty"`
-	ProviderURL string   `json:"provider_url,omitempty"`
-	Note        string   `json:"note,omitempty"`
-	Price       string   `json:"price,omitempty"`
-	ExpiresAt   string   `json:"expires_at,omitempty"`
-	Cost        *Cost    `json:"cost,omitempty"`
-	AutoRenewal *bool    `json:"auto_renewal,omitempty"`
-	Latitude    *float64 `json:"latitude,omitempty"`
-	Longitude   *float64 `json:"longitude,omitempty"`
+	Location    *Location  `json:"location,omitempty"`
+	Bandwidth   *Bandwidth `json:"bandwidth,omitempty"`
+	Region      string     `json:"region,omitempty"`
+	Provider    string     `json:"provider,omitempty"`
+	ProviderURL string     `json:"provider_url,omitempty"`
+	Note        string     `json:"note,omitempty"`
+	Price       string     `json:"price,omitempty"`
+	ExpiresAt   string     `json:"expires_at,omitempty"`
+	Cost        *Cost      `json:"cost,omitempty"`
+	AutoRenewal *bool      `json:"auto_renewal,omitempty"`
+	Latitude    *float64   `json:"latitude,omitempty"`
+	Longitude   *float64   `json:"longitude,omitempty"`
+}
+type Location struct {
+	Country     string   `json:"country"`
+	Subdivision string   `json:"subdivision,omitempty"`
+	City        string   `json:"city,omitempty"`
+	Latitude    *float64 `json:"lat,omitempty"`
+	Longitude   *float64 `json:"lng,omitempty"`
+	Precision   string   `json:"precision"`
+}
+type Bandwidth struct {
+	InboundMbps  float64 `json:"inbound_mbps"`
+	OutboundMbps float64 `json:"outbound_mbps"`
 }
 type Cost struct {
 	Amount   string `json:"amount"`
