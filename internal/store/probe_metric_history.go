@@ -74,43 +74,57 @@ func mergeProbeMetric(a, b ProbeMetricAggregate) ProbeMetricAggregate {
 	}
 	return a
 }
-func recordProbeMetricHistory(ctx context.Context, tx *sql.Tx, nodeID int64, h spec.SystemStatus, at time.Time) error {
-	return recordProbeMetricValues(ctx, tx, nodeID, probeMetricValues(h, at), at)
-}
 func recordProbeMetricValues(ctx context.Context, tx *sql.Tx, nodeID int64, values map[string]ProbeMetricAggregate, at time.Time) error {
 	if len(values) == 0 {
 		return nil
 	}
-	// Keep a bounded exact recent window as well as long-term rollups. All are
-	// written in the accepted-beat transaction, including token/sequence checks.
-	for _, b := range []struct {
-		res  string
-		step time.Duration
-	}{{"r", time.Second}, {"m", time.Minute}, {"h", time.Hour}, {"d", 24 * time.Hour}} {
-		ts := at.UTC().Truncate(b.step).Unix()
-		merged := map[string]ProbeMetricAggregate{}
-		var raw string
-		err := tx.QueryRowContext(ctx, `SELECT values_json FROM node_probe_metric_stats WHERE node_id=? AND res=? AND ts=?`, nodeID, b.res, ts).Scan(&raw)
-		if err != nil && err != sql.ErrNoRows {
+	// Match the legacy calendar-day boundary, including its timezone. Otherwise
+	// old and new buckets for the same day appear disjoint during fallback.
+	year, month, day := at.Date()
+	stamps := []int64{at.Truncate(time.Second).Unix(), at.Truncate(time.Minute).Unix(), at.Truncate(time.Hour).Unix(), time.Date(year, month, day, 0, 0, 0, 0, at.Location()).Unix()}
+	resolutions := []string{"r", "m", "h", "d"}
+	buckets := map[string]map[string]ProbeMetricAggregate{}
+	// Four fixed buckets share one read and one UPSERT. Do not perform one
+	// SQL transaction round-trip per metric or per resolution on each beat.
+	rows, err := tx.QueryContext(ctx, `SELECT res,values_json FROM node_probe_metric_stats WHERE node_id=? AND ((res='r' AND ts=?) OR (res='m' AND ts=?) OR (res='h' AND ts=?) OR (res='d' AND ts=?))`, nodeID, stamps[0], stamps[1], stamps[2], stamps[3])
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var res, raw string
+		if err = rows.Scan(&res, &raw); err != nil {
+			rows.Close()
 			return err
 		}
-		if raw != "" {
-			if err = json.Unmarshal([]byte(raw), &merged); err != nil {
-				return err
-			}
+		var bucket map[string]ProbeMetricAggregate
+		if err = json.Unmarshal([]byte(raw), &bucket); err != nil {
+			rows.Close()
+			return err
 		}
-		for k, v := range values {
-			merged[k] = mergeProbeMetric(merged[k], v)
+		buckets[res] = bucket
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	args := make([]any, 0, 16)
+	for i, res := range resolutions {
+		merged := buckets[res]
+		if merged == nil {
+			merged = map[string]ProbeMetricAggregate{}
+		}
+		for key, value := range values {
+			merged[key] = mergeProbeMetric(merged[key], value)
 		}
 		encoded, err := json.Marshal(merged)
 		if err != nil {
 			return err
 		}
-		if _, err = tx.ExecContext(ctx, `INSERT INTO node_probe_metric_stats(node_id,res,ts,values_json) VALUES(?,?,?,?) ON CONFLICT(node_id,res,ts) DO UPDATE SET values_json=excluded.values_json`, nodeID, b.res, ts, string(encoded)); err != nil {
-			return err
-		}
+		args = append(args, nodeID, res, stamps[i], string(encoded))
 	}
-	return nil
+	_, err = tx.ExecContext(ctx, `INSERT INTO node_probe_metric_stats(node_id,res,ts,values_json) VALUES(?,?,?,?),(?,?,?,?),(?,?,?,?),(?,?,?,?) ON CONFLICT(node_id,res,ts) DO UPDATE SET values_json=excluded.values_json`, args...)
+	return err
 }
 func (s *Store) ProbeMetricHistory(ctx context.Context, nodeID int64, res string, from, to time.Time) ([]ProbeMetricBucket, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT ts,values_json FROM node_probe_metric_stats WHERE node_id=? AND res=? AND ts>=? AND ts<=? ORDER BY ts`, nodeID, res, from.Unix(), to.Unix())

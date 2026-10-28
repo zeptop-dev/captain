@@ -511,9 +511,7 @@ func (s *Store) recordBeat(ctx context.Context, nodeID int64, h spec.SystemStatu
 	if err := recordResourceHistory(ctx, tx, nodeID, h, at, p.counters); err != nil {
 		return false, err
 	}
-	if err := recordProbeMetricHistory(ctx, tx, nodeID, h, at); err != nil {
-		return false, err
-	}
+	publicMetricValues := probeMetricValues(h, at)
 	valid := h.Validity()
 	h = validHost(h)
 	for _, b := range []struct {
@@ -576,15 +574,16 @@ func (s *Store) recordBeat(ctx context.Context, nodeID int64, h spec.SystemStatu
 		p.lastUp, p.lastDown = up, down
 	}
 	if measured {
-		deltas := map[string]ProbeMetricAggregate{}
+
 		for key, delta := range map[string]int64{"traffic.up": usedUp - beforeUp, "traffic.down": usedDown - beforeDown} {
 			value := float64(delta)
-			deltas[key] = ProbeMetricAggregate{Count: 1, Sum: value, Min: value, Max: value, First: value, Last: value, FirstAt: at.UnixMilli(), LastAt: at.UnixMilli()}
+			publicMetricValues[key] = ProbeMetricAggregate{Count: 1, Sum: value, Min: value, Max: value, First: value, Last: value, FirstAt: at.UnixMilli(), LastAt: at.UnixMilli()}
 		}
-		if err := recordProbeMetricValues(ctx, tx, nodeID, deltas, at); err != nil {
-			return false, err
-		}
+
 		p.counters.TrafficKnown, p.counters.TrafficAt = true, at.Unix()
+	}
+	if err := recordProbeMetricValues(ctx, tx, nodeID, publicMetricValues, at); err != nil {
+		return false, err
 	}
 	counterJSON, _ := json.Marshal(p.counters)
 	if _, err := tx.ExecContext(ctx, `UPDATE nodes SET traffic_period_start = ?, traffic_used_up = ?, traffic_used_down = ?, traffic_last_up = ?, traffic_last_down = ?, traffic_prev_used = ?, probe_counters_json = ?, last_seen_at = ? WHERE id = ?`,

@@ -5,7 +5,10 @@ allowlist. A signed-in staff identity does not expose hidden/unpaired servers,
 IP addresses when disabled, probe targets, device identifiers, paths, process
 lists, collector epochs, credentials, or disabled public categories. Management
 inspection continues to use the existing management API. Public UUIDs are
-persisted per node incarnation; deletion and site reset remove them.
+persisted per node incarnation; deletion and site reset remove them. A private
+stable-policy fingerprint detects identity/privacy changes during reads. Snapshot
+reads retry at most three times and then fail closed. Ordinary heartbeats and
+metric timestamps do not change that fingerprint.
 
 Inventory is separate from runtime observations. `last_seen` is presence;
 `received_at` is the accepted metric receipt time. `fresh=false` leaves historical
@@ -23,7 +26,9 @@ same accepted, reset-aware counters as server traffic. There are no inferred
 historical deltas from a present cumulative total.
 
 Retention follows the existing prune job: recent second buckets 2 hours, minute
-buckets 48 hours, hourly buckets 60 days and daily buckets 730 days. The public
+buckets 48 hours, hourly buckets 60 days and daily buckets 730 days. Daily
+boundaries match the existing receipt-time calendar so old and new history
+cannot be double-counted on non-UTC hosts. The public
 snapshot includes the most recent 10 minutes. Query output is bounded by entity,
 metric and point counts and fills missing observations with null, never zero.
 The per-series `captain_source` identifies accepted samples, rollups or legacy

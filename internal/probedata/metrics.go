@@ -57,6 +57,9 @@ func (e *Engine) Definitions(ctx context.Context, scope Scope) ([]Definition, er
 		if d.History {
 			d.RetentionDays = 730
 			d.Aggregations = []string{"avg", "sum", "count", "min", "max", "first", "last"}
+			if d.Key == "ping.latency_ms" {
+				d.Aggregations = []string{"avg", "sum", "count", "min", "max"}
+			}
 			if d.Key == "ping.loss" {
 				d.Aggregations = []string{"avg", "sum", "count"}
 			}
@@ -106,6 +109,10 @@ func (e *Engine) Query(ctx context.Context, scope Scope, q Query) ([]Series, err
 	}
 	var err error
 	q.Start, q.End, err = e.normalizeWindow(q.Start, q.End)
+	if err != nil {
+		return nil, err
+	}
+	policy, err := e.Store.ProbePublicPolicyFingerprint(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -271,6 +278,13 @@ func (e *Engine) Query(ctx context.Context, scope Scope, q Query) ([]Series, err
 		if allowed[s.EntityID] && visible[s.MetricKey] && ((s.MetricKey != "disk.used" && s.MetricKey != "captain.disk.total") || rootDisk[s.EntityID]) && (s.Tags["task_id"] == "" || tasksAllowed[s.EntityID+"/"+s.Tags["task_id"]]) {
 			filtered = append(filtered, s)
 		}
+	}
+	after, err := e.Store.ProbePublicPolicyFingerprint(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if policy != after {
+		return nil, ErrPolicyChanged
 	}
 	return filtered, nil
 }

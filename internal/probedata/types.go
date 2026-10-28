@@ -11,6 +11,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
+var ErrPolicyChanged = errors.New("probe public policy changed during read")
 var ErrNotFound = errors.New("probe data not found")
 var ErrInvalidQuery = errors.New("invalid probe query")
 var ErrUnsupportedAggregation = errors.New("aggregation unavailable for stored observations")

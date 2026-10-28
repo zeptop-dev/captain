@@ -109,6 +109,10 @@ func (e *Engine) PingStats(ctx context.Context, scope Scope, q PingQuery) ([]Pin
 	if err != nil {
 		return nil, err
 	}
+	policy, err := e.Store.ProbePublicPolicyFingerprint(ctx)
+	if err != nil {
+		return nil, err
+	}
 	snap, err := e.Snapshot(ctx, scope)
 	if err != nil {
 		return nil, err
@@ -226,6 +230,13 @@ func (e *Engine) PingStats(ctx context.Context, scope Scope, q PingQuery) ([]Pin
 		if allowed[p.EntityID+"/"+p.TaskID] {
 			filtered = append(filtered, p)
 		}
+	}
+	after, err := e.Store.ProbePublicPolicyFingerprint(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if policy != after {
+		return nil, ErrPolicyChanged
 	}
 	return filtered, nil
 }

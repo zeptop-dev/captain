@@ -493,3 +493,86 @@ func TestPublicMetadataKeepsPrecisionAndPrivateBandwidthHidden(t *testing.T) {
 		}
 	}
 }
+
+func TestNonUTCDailyRollupDoesNotDuplicateLegacyFallback(t *testing.T) {
+	e := fixture(t)
+	ctx := context.Background()
+	zone := time.FixedZone("test-zone", 8*3600)
+	at := e.clock().Add(-70 * 24 * time.Hour).In(zone)
+	record(t, e, spec.SystemStatus{CPUPercent: 17}, at)
+	year, month, day := at.Date()
+	start := time.Date(year, month, day, 0, 0, 0, 0, zone)
+	got, err := e.Query(ctx, Scope{}, Query{MetricKeys: []string{"cpu.usage"}, Start: start, End: start.Add(24 * time.Hour), MaxPoints: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || len(got[0].Points) != 1 || got[0].Points[0].Count != 1 || *got[0].Points[0].Value != 17 || got[0].Source != "rollup" {
+		t.Fatalf("daily bucket duplicated across timezone: %+v", got)
+	}
+}
+
+func TestPublicPolicyFingerprintIgnoresBeatsButDetectsVisibility(t *testing.T) {
+	e := fixture(t)
+	ctx := context.Background()
+	before, err := e.Store.ProbePublicPolicyFingerprint(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	record(t, e, spec.SystemStatus{CPUPercent: 17}, e.clock())
+	after, err := e.Store.ProbePublicPolicyFingerprint(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before != after {
+		t.Fatal("ordinary heartbeat changed public policy fingerprint")
+	}
+	if _, err := e.Store.DB().Exec(`UPDATE nodes SET probe_hidden=1 WHERE id=1`); err != nil {
+		t.Fatal(err)
+	}
+	after, err = e.Store.ProbePublicPolicyFingerprint(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before == after {
+		t.Fatal("hiding a server did not change public policy fingerprint")
+	}
+}
+func TestSnapshotBoundsPolicyRetriesWithoutServiceGeneration(t *testing.T) {
+	e := fixture(t)
+	ctx := context.Background()
+	at := e.clock()
+	calls := 0
+	e.Now = func() time.Time {
+		calls++
+		s, err := e.settings(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.ShowIP = !s.ShowIP
+		if err = e.Store.SetSetting(ctx, store.SettingProbe, s); err != nil {
+			t.Fatal(err)
+		}
+		return at
+	}
+	got, err := e.Snapshot(ctx, Scope{Staff: true})
+	if !errors.Is(err, ErrPolicyChanged) || len(got.Nodes) > 0 || calls != 3 {
+		t.Fatalf("changing privacy did not fail closed in bounded retries: calls=%d nodes=%d err=%v", calls, len(got.Nodes), err)
+	}
+}
+func TestSnapshotDoesNotRetryForContinuousPresenceUpdates(t *testing.T) {
+	e := fixture(t)
+	ctx := context.Background()
+	at := e.clock()
+	calls := 0
+	e.Now = func() time.Time {
+		calls++
+		if _, err := e.Store.DB().Exec(`UPDATE nodes SET last_seen_at=?,monitor_at=?,monitor_host_json='{"cpu_percent":17}' WHERE id=1`, at.Unix(), at.Unix()); err != nil {
+			t.Fatal(err)
+		}
+		return at
+	}
+	got, err := e.Snapshot(ctx, Scope{})
+	if err != nil || calls != 1 || len(got.Nodes) != 1 {
+		t.Fatalf("heartbeat caused policy retry: calls=%d err=%v", calls, err)
+	}
+}

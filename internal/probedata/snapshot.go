@@ -43,15 +43,23 @@ func (e *Engine) generation() uint64 {
 func (e *Engine) Snapshot(ctx context.Context, scope Scope) (Snapshot, error) {
 	for attempt := 0; attempt < 3; attempt++ {
 		gen := e.generation()
+		policy, err := e.Store.ProbePublicPolicyFingerprint(ctx)
+		if err != nil {
+			return Snapshot{}, err
+		}
 		out, err := e.snapshot(ctx)
 		if err != nil {
 			return Snapshot{}, err
 		}
-		if gen == e.generation() {
+		after, err := e.Store.ProbePublicPolicyFingerprint(ctx)
+		if err != nil {
+			return Snapshot{}, err
+		}
+		if gen == e.generation() && policy == after {
 			return out, nil
 		}
 	}
-	return Snapshot{}, fmt.Errorf("probe visibility changed during read")
+	return Snapshot{}, ErrPolicyChanged
 }
 func (e *Engine) snapshot(ctx context.Context) (Snapshot, error) {
 	out := Snapshot{Schema: "captain.probe.v2", Now: e.clock(), Nodes: []Node{}, PingTasks: []PingTask{}}
