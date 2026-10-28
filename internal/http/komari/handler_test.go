@@ -116,6 +116,9 @@ func TestRESTAndCommonWireShapes(t *testing.T) {
 	if _, ok := n["ipv4"]; ok {
 		t.Fatal("legacy public nodes exposed IP")
 	}
+	if strings.Contains(w.Body.String(), "192.0.2.10") {
+		t.Fatal("legacy node extension bypassed address projection")
+	}
 	common := rpc(t, h, "common:getNodes", map[string]any{"uuid": fixtureUUID})["result"].(map[string]any)
 	if common["ipv4"] != "192.0.2.10" {
 		t.Fatal("common nodes should preserve explicitly public address")

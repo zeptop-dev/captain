@@ -14,6 +14,9 @@ import (
 // is available under captain.traffic, never substituted into those counters.
 func client(n probedata.Node, weight int, publicREST bool) map[string]any {
 	i := n.Inventory
+	if publicREST {
+		i.Address, i.IPv4, i.IPv6 = "", "", ""
+	}
 	out := map[string]any{
 		"uuid": n.UUID, "name": n.Name, "cpu_name": i.CPUModel, "virtualization": i.Virtualization,
 		"arch": i.Arch, "cpu_cores": i.CPUCores, "cpu_physical_cores": i.CPUPhysicalCores,
