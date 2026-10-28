@@ -545,3 +545,76 @@ func TestServiceStatusFailureConfirmationAllowsSkippedReportsAndResetsUnknown(t 
 	send(nextEpoch)
 	assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "component_failure")
 }
+
+func TestServiceStatusControlRequiresIndependentFreshApply(t *testing.T) {
+	for _, mode := range []string{"pause", "limit"} {
+		t.Run(mode, func(t *testing.T) {
+			r := newRuntimeRig(t)
+			n := r.node("controlled", "192.0.2.10")
+			ib := r.inbound(n, "controlled-listener")
+			entry := r.entry(n, ib)
+			r.report(n, func(rep *agentproto.Report) {
+				rep.ServiceControl = &agentproto.ServiceControlReport{Supported: true, CheckedAt: r.at.Unix(), Mode: "normal"}
+			})
+			control, err := r.store.NodeServiceControl(r.ctx, n.ID, r.at)
+			if err != nil {
+				t.Fatal(err)
+			}
+			manual := &store.ServiceControlManual{Mode: mode}
+			if mode == "limit" {
+				manual.LimitMbps = 5
+			}
+			control, err = r.store.UpdateNodeServiceControl(r.ctx, n.ID, store.ServiceControlChange{Revision: control.Revision, Manual: manual}, r.at)
+			if err != nil {
+				t.Fatal(err)
+			}
+			r.state.Invalidate()
+			assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "config_pending")
+			r.report(n, nil)
+			assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", "unsupported")
+			good := agentproto.ServiceControlReport{Supported: true, CheckedAt: r.at.Unix(), Mode: mode, LimitMbps: manual.LimitMbps, DesiredRevision: control.Effective.Revision, AppliedRevision: control.Effective.Revision}
+			for _, bad := range []struct {
+				name, reason string
+				edit         func(*agentproto.ServiceControlReport)
+			}{
+				{"pending", "config_pending", func(c *agentproto.ServiceControlReport) { c.AppliedRevision = "" }},
+				{"different desired", "config_pending", func(c *agentproto.ServiceControlReport) { c.DesiredRevision = "other" }},
+				{"failed", "config_pending", func(c *agentproto.ServiceControlReport) { c.Error = "private details" }},
+				{"stale check", "stale", func(c *agentproto.ServiceControlReport) { c.CheckedAt = r.at.Add(-4 * time.Minute).Unix() }},
+				{"wrong mode", "config_pending", func(c *agentproto.ServiceControlReport) { c.Mode = "normal" }},
+			} {
+				t.Run(bad.name, func(t *testing.T) {
+					r.report(n, func(rep *agentproto.Report) { c := good; bad.edit(&c); rep.ServiceControl = &c })
+					assertRuntime(t, r.evaluate(entry)[entry.ID], "unknown", bad.reason)
+				})
+			}
+			r.report(n, func(rep *agentproto.Report) {
+				c := good
+				rep.ServiceControl = &c
+				if mode == "pause" {
+					stopCore(rep)
+				}
+			})
+			expected, reason := "healthy", "healthy"
+			if mode == "pause" {
+				expected, reason = "down", "service_paused"
+			}
+			result := r.evaluate(entry)[entry.ID]
+			assertRuntime(t, result, expected, reason)
+			raw, _ := json.Marshal(result)
+			if strings.Contains(string(raw), control.Effective.Revision) || strings.Contains(string(raw), "traffic_quota") || strings.Contains(string(raw), "manual") {
+				t.Fatal("private control details escaped", string(raw))
+			}
+			// The same protected node can be an invisible client-chain dependency.
+			exit := r.node("other-exit", "203.0.113.30")
+			ei := r.inbound(exit, "other-listener")
+			ee := r.entry(exit, ei)
+			ee.ClientDialerEntryID = &entry.ID
+			if err := r.store.UpdateEntry(r.ctx, ee); err != nil {
+				t.Fatal(err)
+			}
+			r.report(exit, nil)
+			assertRuntime(t, r.evaluate(ee)[ee.ID], expected, reason)
+		})
+	}
+}

@@ -167,6 +167,27 @@ func (e *runtimeEvaluation) node(id int64) *runtimeNode {
 	if n.report.AppliedRevision != n.desired.Revision {
 		return n
 	}
+	if desired := n.desired.Node.ServiceControl; desired != nil {
+		control := n.report.ServiceControl
+		if control == nil || !control.Supported {
+			n.status = observedStatus("unknown", "unsupported", n.report.ObservedAt)
+			return n
+		}
+		checked := time.Unix(control.CheckedAt, 0)
+		if !freshRuntime(checked, e.at) {
+			n.status = observedStatus("unknown", "stale", checked)
+			return n
+		}
+		if control.Error != "" || control.DesiredRevision != desired.Revision || control.AppliedRevision != desired.Revision || control.Mode != desired.Mode || control.LimitMbps != desired.LimitMbps {
+			return n
+		}
+		if control.Mode == "pause" {
+			// An explicit, independently confirmed pause is not a failed core.
+			// Publish only the service consequence, never its quota or operator.
+			n.status = observedStatus("down", "service_paused", checked)
+			return n
+		}
+	}
 	n.status = observedStatus("healthy", "healthy", n.report.ObservedAt)
 	return n
 }
