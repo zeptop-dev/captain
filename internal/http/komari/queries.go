@@ -304,6 +304,11 @@ func (h *Handler) pingStats(r *http.Request, raw json.RawMessage) (any, *rpcErro
 	}
 	wireStats := make([]map[string]any, 0, len(stats))
 	for _, st := range stats {
+		// The task catalog describes assignments; this endpoint describes
+		// observations. A task with no attempts has no numeric loss summary.
+		if st.Total <= 0 || st.Loss == nil {
+			continue
+		}
 		item := map[string]any{
 			"entity_id": st.EntityID, "task_id": strconv.FormatInt(legacyTaskID(st.TaskID, s.PingTasks), 10),
 			"name": st.Name, "type": st.Type, "interval": st.Interval,
@@ -741,12 +746,20 @@ func (h *Handler) pingRecords(r *http.Request, s probedata.Snapshot, ids []strin
 			min = lower(min, st.Min)
 			maxValue = higher(maxValue, st.Max)
 		}
+		// Keep unobserved assignments in /api/task/ping, not as a fabricated
+		// zero-loss history summary. Themes can then show their empty state.
+		if total <= 0 {
+			continue
+		}
 		item := taskDTO(task, 0)
 		item["total"] = total
 		item["loss"] = percentage(total-valid, total)
-		item["min"] = min
-		item["max"] = maxValue
-		item["avg"] = nil
+		if min != nil {
+			item["min"] = *min
+		}
+		if maxValue != nil {
+			item["max"] = *maxValue
+		}
 		if valid > 0 {
 			item["avg"] = sum / float64(valid)
 		}

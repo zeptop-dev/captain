@@ -56,6 +56,8 @@ modern metric tags; their original Captain series identity stays namespaced.
   Optional Ping summary measurements follow Komari's omission convention;
   unknown percentiles, standard deviation and derived tail are absent instead
   of `null`. Canonical Captain fields retain their explicit unknown state.
+  History summaries omit tasks without observed attempts; the public task
+  catalog still retains those assignments. No attempts never means 0% loss.
   Real CPU zero remains zero. Unsupported history aggregations return a typed
   `unsupported_aggregation` error. Metric definitions describe history and
   aggregation availability.

@@ -686,6 +686,32 @@ func TestUnknownOptionalPingStatisticsAreAbsentWithoutFabricatingZero(t *testing
 	}
 }
 
+type emptyHistoryReader struct{ summaryReader }
+
+func (r emptyHistoryReader) Query(context.Context, probedata.Scope, probedata.Query) ([]probedata.Series, error) {
+	return []probedata.Series{}, nil
+}
+
+func TestEmptyPingWindowKeepsAssignmentsWithoutFakeHistorySummaries(t *testing.T) {
+	for _, stats := range [][]probedata.PingStat{nil, {{EntityID: fixtureUUID, TaskID: "carrier:abc", Name: "Carrier"}}} {
+		r := emptyHistoryReader{summaryReader{fixtureReader: &fixtureReader{}, stats: stats}}
+		h := fixtureHandler(r.fixtureReader)
+		h.d.Reader = r
+		modern := rpc(t, h, "public:getPingMetricStats", map[string]any{"uuid": fixtureUUID})["result"].(map[string]any)
+		if modern["count"] != float64(0) || len(modern["stats"].([]any)) != 0 {
+			t.Fatalf("empty window acquired statistics: %#v", modern)
+		}
+		legacy := rpc(t, h, "common:getRecords", map[string]any{"type": "ping", "uuid": fixtureUUID})["result"].(map[string]any)
+		if legacy["count"] != float64(0) || len(legacy["records"].([]any)) != 0 || len(legacy["tasks"].([]any)) != 0 {
+			t.Fatalf("empty window acquired a task with unknown loss: %#v", legacy)
+		}
+		catalog := rpc(t, h, "public:getPublicPingTasks", nil)["result"].([]any)
+		if len(catalog) != 1 || catalog[0].(map[string]any)["id"] != float64(9000001) {
+			t.Fatalf("empty history removed an assigned task: %#v", catalog)
+		}
+	}
+}
+
 func TestCanonicalReaderThroughRealRESTAndRPC(t *testing.T) {
 	ctx := context.Background()
 	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "probe.db"))
