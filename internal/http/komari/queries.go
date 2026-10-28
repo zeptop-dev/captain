@@ -159,7 +159,11 @@ func (h *Handler) queryMetrics(r *http.Request, raw json.RawMessage) (any, *rpcE
 			return nil, invalid("Metric point limit must be between 1 and 4000")
 		}
 		points[key] = n
-		budget += n * len(ids)
+		seriesCount := len(ids)
+		if key == "ping.latency_ms" || key == "ping.loss" {
+			seriesCount = selectedPingSeries(s.PingTasks, ids, p.Tags["task_id"])
+		}
+		budget += n * seriesCount
 		if v, ok := p.AlgorithmByMetric[key]; ok {
 			aggs[key] = v
 		}
@@ -202,6 +206,24 @@ func (h *Handler) queryMetrics(r *http.Request, raw json.RawMessage) (any, *rpcE
 		}
 	}
 	return map[string]any{"start": start, "end": end, "server_downsample_default": true, "default_points": 500, "series": series, "count": len(series)}, nil
+}
+
+// Ping metrics expand once per actual node/task assignment, not once per node.
+// Count only the selected public task and selected nodes. A Cartesian product
+// both underestimates fan-out for a single node and overcounts unrelated tasks.
+func selectedPingSeries(tasks []probedata.PingTask, ids []string, taskID string) int {
+	count := 0
+	for _, task := range tasks {
+		if taskID != "" && task.ID != taskID {
+			continue
+		}
+		for _, id := range ids {
+			if contains(task.EntityIDs, id) {
+				count++
+			}
+		}
+	}
+	return count
 }
 
 type pingParams struct {
@@ -575,26 +597,22 @@ func (h *Handler) pingRecords(r *http.Request, s probedata.Snapshot, ids []strin
 		tags["task_id"] = id
 		taskIDs = append(taskIDs, id)
 	}
-	taskCount := len(s.PingTasks)
-	if len(taskIDs) > 0 {
-		taskCount = 1
-	}
-	if taskCount < 1 {
-		taskCount = 1
-	}
+	seriesCount := selectedPingSeries(s.PingTasks, ids, tags["task_id"])
 	per := max
-	if denom := len(ids) * taskCount; denom > 0 {
-		per = max / denom
+	if seriesCount > 0 {
+		per = max / seriesCount
 		if per < 1 {
 			per = 1
 		}
-		if denom > maxQueryPoints {
+		// Each task consumes latency and loss observations before they are
+		// merged into one legacy row, so both series count against the bound.
+		if 2*seriesCount*per > maxQueryPoints {
 			return nil, invalid("Too many ping series")
 		}
 	}
 	series := []probedata.Series{}
 	stats := []probedata.PingStat{}
-	if len(ids) > 0 && len(s.PingTasks) > 0 {
+	if seriesCount > 0 {
 		var err error
 		series, err = h.d.Reader.Query(r.Context(), probedata.Scope{}, probedata.Query{MetricKeys: []string{"ping.latency_ms", "ping.loss"}, EntityIDs: ids, Start: start, End: end, Tags: tags, MaxPoints: per, Aggregation: "avg"})
 		if err != nil {

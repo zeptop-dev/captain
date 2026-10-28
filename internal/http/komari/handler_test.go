@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -275,6 +276,50 @@ func TestPublicHistoryCapabilitiesUseHoursAndVisibleDefinitions(t *testing.T) {
 	settings = rpc(t, h, "common:getPublicInfo", nil)["result"].(map[string]any)
 	if settings["record_enabled"] != false || settings["record_preserve_time"] != float64(0) || settings["ping_record_preserve_time"] != float64(0) {
 		t.Fatalf("hidden history advertised: %#v", settings)
+	}
+}
+
+type expandedPingReader struct {
+	fixtureReader
+	tasks []probedata.PingTask
+}
+
+func (f *expandedPingReader) Snapshot(ctx context.Context, scope probedata.Scope) (probedata.Snapshot, error) {
+	s, err := f.fixtureReader.Snapshot(ctx, scope)
+	s.PingTasks = f.tasks
+	return s, err
+}
+
+func TestMetricBudgetIncludesSelectedPingTaskExpansion(t *testing.T) {
+	f := &expandedPingReader{}
+	for i := int64(1); i <= 9; i++ {
+		f.tasks = append(f.tasks, probedata.PingTask{ID: "task:" + strconv.FormatInt(i, 10), LegacyID: i, EntityIDs: []string{fixtureUUID}})
+	}
+	// Unrelated assignments must not be counted against this node's query.
+	for i := int64(10); i <= 100; i++ {
+		f.tasks = append(f.tasks, probedata.PingTask{ID: "task:" + strconv.FormatInt(i, 10), LegacyID: i, EntityIDs: []string{"other-node"}})
+	}
+	h := New(Deps{Reader: f, Gate: func(*http.Request) bool { return true }, Now: func() time.Time { return fixtureTime }})
+	for _, params := range []map[string]any{
+		{"metric_keys": []string{"ping.latency_ms"}, "max_points": 4000},
+		{"metric_keys": []string{"cpu.usage", "ping.loss"}, "max_points": 4000},
+		{"metric_keys": []string{"ping.latency_ms", "ping.loss"}, "max_points_by_metric": map[string]int{"ping.latency_ms": 2000, "ping.loss": 2000}},
+	} {
+		result := rpc(t, h, "public:queryMetrics", params)
+		if result["error"] == nil || len(f.queries) != 0 {
+			t.Fatalf("expanded query reached history reader: %#v", result)
+		}
+	}
+	result := rpc(t, h, "public:queryMetrics", map[string]any{"metric_keys": []string{"ping.latency_ms", "ping.loss"}, "max_points": 4000, "tags": map[string]string{"task_id": "1"}})
+	if result["error"] != nil || len(f.queries) != 1 || f.queries[0].Tags["task_id"] != "task:1" {
+		t.Fatalf("single numeric task filter not applied before budgeting: %#v", result)
+	}
+	result = rpc(t, h, "public:queryMetrics", map[string]any{"metric_keys": []string{"ping.latency_ms"}, "max_points": 3000})
+	if result["error"] != nil || len(f.queries) != 2 {
+		t.Fatalf("unrelated tasks incorrectly counted: %#v", result)
+	}
+	if got := selectedPingSeries([]probedata.PingTask{{ID: "one", EntityIDs: []string{"a"}}, {ID: "two", EntityIDs: []string{"b"}}}, []string{"a", "b"}, ""); got != 2 {
+		t.Fatalf("sparse assignments expanded to a Cartesian product: %d", got)
 	}
 }
 
