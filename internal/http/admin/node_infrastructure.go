@@ -45,6 +45,7 @@ func (h *handlers) putNodeInfrastructure(w http.ResponseWriter, r *http.Request)
 	if !readJSON(w, r, &in) {
 		return
 	}
+	in.CanWriteServiceControl = h.serviceControlWriteAllowed(r)
 	v, err := h.Store.ChangeNodeInfrastructure(r.Context(), idOf(r), in)
 	if err != nil {
 		infraError(w, err)

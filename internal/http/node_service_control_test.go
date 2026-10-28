@@ -138,3 +138,43 @@ func TestNodeServiceControlHTTPAutomaticBoundariesAndLegacyProbe(t *testing.T) {
 		t.Fatal("monitor switch bypassed protection")
 	}
 }
+
+func TestNodeServiceControlHTTPInfrastructureBoundaryScope(t *testing.T) {
+	r := newRig(t)
+	serviceControlHTTPReady(t, r)
+	p, _ := r.st.NodeProbe(context.Background(), r.nodeID)
+	info := p.Info
+	info.Billing = &store.NodeCost{Currency: "USD", Amount: "10", Cycle: "monthly"}
+	info.ExpiresAt = "2030-01-31"
+	info.TrafficReset = &store.NodeTrafficReset{Mode: "expiry"}
+	info.AutoRenewal = &store.NodeAutoRenewal{Enabled: true}
+	probePath := "/api/admin/nodes/" + itoa(r.nodeID) + "/probe"
+	accessAuditCall(t, r.c, "PUT", probePath, map[string]any{"Info": info, "LimitBytes": 1000, "ResetDay": 1, "Mode": "sum"}, 200)
+	v := serviceControlHTTPGet(t, r)
+	policy := store.ServiceControlPolicy{Action: "pause", ThresholdPercent: 90, AutoResume: true}
+	accessAuditCall(t, r.c, "PUT", "/api/admin/nodes/"+itoa(r.nodeID)+"/service-control", store.ServiceControlChange{Revision: v.Revision, Policy: &policy}, 200)
+	supplier := mustJSON[store.InfraSupplierChoice](t, accessAuditCall(t, r.c, "POST", nodeInfraBase+"/suppliers", map[string]string{"name": "Example provider"}, 200))
+	path := nodeInfraBase + "/nodes/" + itoa(r.nodeID)
+	linked := mustJSON[store.NodeInfrastructure](t, accessAuditCall(t, r.c, "GET", path, nil, 200))
+	narrow := accessAuditToken(t, r, 1, "full", []string{"settings:*", "infrastructure:*", "nodes:*"})
+	linked = mustJSON[store.NodeInfrastructure](t, accessAuditCall(t, narrow, "PUT", path, store.NodeInfrastructureChange{Revision: linked.Revision, Action: "create_asset", SupplierID: &supplier.ID, Name: "Server cost"}, 200))
+	a := *linked.Asset
+	a.AnchorDay = 15
+	a.NextDue = "2030-02-15"
+	accessAuditCall(t, narrow, "PUT", infraBase+"/assets/"+itoa(a.ID), a, 403)
+	payment := store.InfraPaymentInput{RequestKey: "protected_http_payment", Revision: linked.Asset.Revision, AmountMinor: 1000, PaidDate: "2030-01-31", DateAction: "set_due_date", NextDue: "2030-02-15"}
+	accessAuditCall(t, narrow, "POST", infraBase+"/assets/"+itoa(a.ID)+"/payments", payment, 403)
+	// A probe edit cannot use a changed price cycle/anchor to avoid the same guard.
+	body := nodeInfraProbeBody(t, r)
+	body["LimitBytes"] = 1000
+	edited := body["Info"].(store.NodeProbeInfo)
+	edited.ExpiresAt = "2030-02-15"
+	body["Info"] = edited
+	accessAuditCall(t, narrow, "PUT", probePath, body, 403)
+	// Adding the independent grant authorizes the same atomic payment and date edit.
+	authorized := accessAuditToken(t, r, 1, "full", []string{"settings:*", "infrastructure:*", "node-service-control:*"})
+	accessAuditCall(t, authorized, "POST", infraBase+"/assets/"+itoa(a.ID)+"/payments", payment, 200)
+	if got := serviceControlHTTPGet(t, r); got.Policy != policy {
+		t.Fatal("billing changed control policy", got)
+	}
+}

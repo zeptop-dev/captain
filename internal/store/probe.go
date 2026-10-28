@@ -391,6 +391,11 @@ func (s *Store) UpdateNodeProbeWithInfrastructure(ctx context.Context, nodeID in
 	// A schedule edit keeps accumulated usage; the next new boundary resets it.
 	next := *old
 	next.Info, next.ResetDay = info, resetDay
+	if infrastructure.ServiceControlWrite != nil {
+		if err := guardServiceControlScheduleTx(ctx, tx, old, &next, *infrastructure.ServiceControlWrite); err != nil {
+			return err
+		}
+	}
 	at := time.Now()
 	if !nodePeriodStart(at, old).Equal(nodePeriodStart(at, &next)) {
 		if _, err := tx.ExecContext(ctx, `UPDATE nodes SET traffic_period_start=? WHERE id=?`, nodePeriodStart(at, &next).Unix(), nodeID); err != nil {

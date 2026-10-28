@@ -30,7 +30,7 @@ func infraError(w http.ResponseWriter, e error) {
 		fail(w, 409, "asset changed or payment key was reused; refresh before retrying")
 	case errors.Is(e, store.ErrAssetHistory):
 		fail(w, 409, "record has assets or payment history; archive the asset instead")
-	case errors.Is(e, store.ErrInfrastructurePermission):
+	case errors.Is(e, store.ErrInfrastructurePermission), errors.Is(e, store.ErrServiceControlPermission):
 		fail(w, 403, e.Error())
 	case errors.Is(e, store.ErrInfrastructureConversion):
 		fail(w, 400, e.Error())
@@ -95,7 +95,7 @@ func (h *handlers) saveInfraAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	v.ID = id
-	if e := h.Store.SaveInfraAsset(r.Context(), &v, h.infrastructureWriteAllowed(r, 0)); e != nil {
+	if e := h.Store.SaveInfraAsset(r.Context(), &v, h.infrastructureWriteAllowed(r, 0), h.serviceControlNodeWriteAllowed(r, 0)); e != nil {
 		infraError(w, e)
 		return
 	}
@@ -120,7 +120,7 @@ func (h *handlers) recordInfraPayment(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "invalid payment")
 		return
 	}
-	v, e := h.Store.RecordInfraPayment(r.Context(), idOf(r), userFrom(r).ID, in, h.infrastructureWriteAllowed(r, 0))
+	v, e := h.Store.RecordInfraPayment(r.Context(), idOf(r), userFrom(r).ID, in, h.infrastructureWriteAllowed(r, 0), h.serviceControlNodeWriteAllowed(r, 0))
 	if e != nil {
 		infraError(w, e)
 		return

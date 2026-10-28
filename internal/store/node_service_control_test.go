@@ -240,3 +240,104 @@ func TestServiceControlMeasurementSettingsQuotaAndIdentity(t *testing.T) {
 		t.Fatal("replacement inherited control", got)
 	}
 }
+
+func TestServiceControlInfrastructureScheduleAndRenewal(t *testing.T) {
+	s, id, at := serviceControlRig(t)
+	ctx := context.Background()
+	sup := InfraSupplier{Name: "Example provider", URL: "https://example.com"}
+	if err := s.SaveInfraSupplier(ctx, &sup); err != nil {
+		t.Fatal(err)
+	}
+	policy := ServiceControlPolicy{Action: "pause", ThresholdPercent: 1, AutoResume: true}
+	initial := serviceControlPut(t, s, id, at, ServiceControlChange{Policy: &policy})
+	// Creating the ledger from the same anchor is allowed without broadening scopes.
+	linked := linkNewInfrastructure(t, s, id, sup)
+	a := *linked.Asset
+	a.Notes = "Independent ledger note"
+	if err := s.SaveInfraAsset(ctx, &a, true, false); err != nil {
+		t.Fatal(err)
+	}
+	a = *infrastructureView(t, s, id).Asset
+	a.NextDue = "2027-02-28" // February clamping retains the original 31st anchor.
+	if err := s.SaveInfraAsset(ctx, &a, true, false); err != nil {
+		t.Fatal("ordinary renewal blocked", err)
+	}
+	before := infrastructureView(t, s, id)
+	a = *before.Asset
+	a.AnchorDay = 15
+	a.NextDue = "2027-03-15"
+	if err := s.SaveInfraAsset(ctx, &a, true, false); !errors.Is(err, ErrServiceControlPermission) {
+		t.Fatal("asset bypassed protected reset boundary", err)
+	}
+	if got := infrastructureView(t, s, id); got.Revision != before.Revision || got.ExpiresAt != before.ExpiresAt {
+		t.Fatal("denied edit partially committed", got)
+	}
+	staff := &domain.User{Email: "finance@example.com", Role: domain.RoleAdmin, Status: "active"}
+	if err := s.CreateStaff(ctx, staff); err != nil {
+		t.Fatal(err)
+	}
+	payment := InfraPaymentInput{RequestKey: "protected_payment_001", Revision: before.Asset.Revision, AmountMinor: 1000, PaidDate: "2027-02-28", DateAction: "set_due_date", NextDue: "2027-03-15"}
+	if _, err := s.RecordInfraPayment(ctx, a.ID, staff.ID, payment, true, false); !errors.Is(err, ErrServiceControlPermission) {
+		t.Fatal("payment bypassed reset boundary", err)
+	}
+	if _, count, err := s.InfraPayments(ctx, a.ID, 0); err != nil || count != 0 {
+		t.Fatal("denied payment persisted", count, err)
+	}
+	// Date progression with the same recurring anchor requires only the ledger grant.
+	payment.NextDue = "2027-03-31"
+	if _, err := s.RecordInfraPayment(ctx, a.ID, staff.ID, payment, true, false); err != nil {
+		t.Fatal(err)
+	}
+	// Automatic online renewal keeps its existing independent behavior and hold.
+	due := time.Date(2027, 3, 31, 0, 0, 0, 0, time.UTC)
+	if changed, err := s.RecordNodeBeat(ctx, id, "current-token-hash", renewalHost(due, "new-renewal", 1), due); err != nil || !changed {
+		t.Fatal("automatic renewal blocked", changed, err)
+	}
+	current := infrastructureView(t, s, id)
+	if current.ExpiresAt != "2027-04-30" || current.Asset.AnchorDay != 31 {
+		t.Fatal(current)
+	}
+	if got := serviceControlGet(t, s, id, due); got.Effective.Revision != initial.Effective.Revision || !got.Automatic.Active {
+		t.Fatal("ledger/online renewal removed automatic hold", got)
+	}
+	// A specifically authorized boundary edit still succeeds, without erasing usage.
+	a = *current.Asset
+	a.AnchorDay = 15
+	a.NextDue = "2027-05-15"
+	if err := s.SaveInfraAsset(ctx, &a, true, true); err != nil {
+		t.Fatal(err)
+	}
+	if got := serviceControlGet(t, s, id, due); got.Effective.Revision != initial.Effective.Revision || !got.Automatic.Active {
+		t.Fatal("authorized schedule edit erased hold", got)
+	}
+}
+
+func TestServiceControlInfrastructureLinkRequiresBoundaryPermission(t *testing.T) {
+	s, id, at := serviceControlRig(t)
+	ctx := context.Background()
+	sup := InfraSupplier{Name: "Example provider"}
+	if err := s.SaveInfraSupplier(ctx, &sup); err != nil {
+		t.Fatal(err)
+	}
+	policy := ServiceControlPolicy{Action: "pause", ThresholdPercent: 1, AutoResume: true}
+	serviceControlPut(t, s, id, at, ServiceControlChange{Policy: &policy})
+	a := InfraAsset{SupplierID: sup.ID, Name: "Existing bill", Currency: "USD", AmountMinor: 1000, PeriodMonths: 1, AnchorDay: 15, NextDue: "2027-02-15", Active: true}
+	if err := s.SaveInfraAsset(ctx, &a); err != nil {
+		t.Fatal(err)
+	}
+	before := infrastructureView(t, s, id)
+	change := NodeInfrastructureChange{Revision: before.Revision, Action: "link_asset", AssetID: a.ID, AssetRevision: a.Revision}
+	if _, err := s.ChangeNodeInfrastructure(ctx, id, change); !errors.Is(err, ErrServiceControlPermission) {
+		t.Fatal("link bypassed boundary grant", err)
+	}
+	if after := infrastructureView(t, s, id); after.Revision != before.Revision || after.Asset != nil {
+		t.Fatal("failed link committed", after)
+	}
+	change.CanWriteServiceControl = true
+	if _, err := s.ChangeNodeInfrastructure(ctx, id, change); err != nil {
+		t.Fatal(err)
+	}
+	if after := serviceControlGet(t, s, id, at); !after.Automatic.Active {
+		t.Fatal("link erased hold", after)
+	}
+}

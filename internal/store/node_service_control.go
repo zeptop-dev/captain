@@ -15,9 +15,10 @@ import (
 )
 
 var (
-	ErrServiceControl          = errors.New("invalid server service control")
-	ErrServiceControlConflict  = errors.New("service control changed; reload before saving")
-	ErrServiceControlExemption = errors.New("automatic traffic protection is active; explicitly exempt this period before restoring service")
+	ErrServiceControl           = errors.New("invalid server service control")
+	ErrServiceControlPermission = errors.New("changing protected traffic accounting requires service-control permission")
+	ErrServiceControlConflict   = errors.New("service control changed; reload before saving")
+	ErrServiceControlExemption  = errors.New("automatic traffic protection is active; explicitly exempt this period before restoring service")
 )
 
 const serviceControlFresh = 3 * time.Minute
@@ -466,4 +467,23 @@ func (s *Store) HasAutomaticServiceControl(ctx context.Context) (bool, error) {
 	var count int
 	err := s.db.QueryRowContext(ctx, `SELECT count(*) FROM node_service_control WHERE COALESCE(json_extract(state_json,'$.policy.action'),'alert') <> 'alert'`).Scan(&count)
 	return count > 0, err
+}
+
+// Billing and server information share a renewal anchor. Only a real change to
+// its recurring traffic boundary needs the independent control permission;
+// ordinary renewal to another month with the same anchor remains unaffected.
+func guardServiceControlScheduleTx(ctx context.Context, tx *sql.Tx, previous, next *NodeProbe, allowed bool) error {
+	oldDay, oldAfter := nodePeriodDay(previous)
+	newDay, newAfter := nodePeriodDay(next)
+	if allowed || oldDay == newDay && oldAfter == newAfter {
+		return nil
+	}
+	control, err := serviceControlTx(ctx, tx, previous.NodeID)
+	if err != nil {
+		return err
+	}
+	if control.state.Policy.Action != "alert" {
+		return ErrServiceControlPermission
+	}
+	return nil
 }

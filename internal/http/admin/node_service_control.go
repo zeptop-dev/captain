@@ -3,6 +3,7 @@ package admin
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -53,6 +54,9 @@ func (h *handlers) putNodeServiceControl(w http.ResponseWriter, r *http.Request)
 	ok(w, v)
 }
 func (h *handlers) serviceControlWriteAllowed(r *http.Request) bool {
+	return h.serviceControlNodeWriteAllowed(r, idOf(r))
+}
+func (h *handlers) serviceControlNodeWriteAllowed(r *http.Request, nodeID int64) bool {
 	if !userFrom(r).IsAdmin() {
 		return false
 	}
@@ -61,5 +65,5 @@ func (h *handlers) serviceControlWriteAllowed(r *http.Request) bool {
 		return true
 	}
 	u, scope, err := h.Store.UserByAPIToken(r.Context(), tok)
-	return err == nil && u != nil && u.IsAdmin() && u.Status == "active" && store.TokenAllowsRequest(scope, http.MethodPut, "/api/admin/nodes/"+r.PathValue("id")+"/service-control", "PUT /api/admin/nodes/{id}/service-control")
+	return err == nil && u != nil && u.IsAdmin() && u.Status == "active" && store.TokenAllowsRequest(scope, http.MethodPut, "/api/admin/nodes/"+strconv.FormatInt(nodeID, 10)+"/service-control", "PUT /api/admin/nodes/{id}/service-control")
 }

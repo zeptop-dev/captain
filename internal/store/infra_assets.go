@@ -212,6 +212,9 @@ func (s *Store) InfraAssets(ctx context.Context) ([]InfraAsset, error) {
 	}
 	return out, rows.Err()
 }
+
+// sharedWrite carries the infrastructure grant and, optionally, the separate
+// service-control grant required to move a protected traffic reset boundary.
 func (s *Store) SaveInfraAsset(ctx context.Context, v *InfraAsset, sharedWrite ...bool) error {
 	if e := v.Validate(); e != nil {
 		return e
@@ -340,6 +343,8 @@ func scanInfraPayment(row interface{ Scan(...any) error }) (InfraPayment, error)
 	e := row.Scan(&v.ID, &v.AssetID, &v.StaffID, &v.SupplierName, &v.AssetName, &v.Currency, &v.AmountMinor, &v.PaidDate, &v.PeriodStart, &v.NextDue, &v.Reference, &v.Notes, &v.DateAction)
 	return v, wrapNotFound(e)
 }
+
+// sharedWrite uses the same infrastructure/control grants as SaveInfraAsset.
 func (s *Store) RecordInfraPayment(ctx context.Context, assetID, staffID int64, in InfraPaymentInput, sharedWrite ...bool) (InfraPayment, error) {
 	empty := InfraPayment{}
 	if !infraRequestKey.MatchString(in.RequestKey) || in.Revision < 1 || in.AmountMinor < 0 || in.AmountMinor > 1_000_000_000_000 || !infraText(in.Reference, 200) || len(in.Notes) > 4000 {

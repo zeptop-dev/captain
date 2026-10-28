@@ -327,15 +327,16 @@ func (h *handlers) putNodeProbe(w http.ResponseWriter, r *http.Request) {
 			serverErr(w, err)
 			return
 		}
-		changed := old.LimitBytes != in.LimitBytes || old.Mode != in.Mode || old.ResetDay != in.ResetDay || (in.Info.TrafficReset != nil && !reflect.DeepEqual(old.Info.TrafficReset, in.Info.TrafficReset)) || (old.Info.TrafficReset != nil && old.Info.TrafficReset.Mode != "manual" && old.Info.ExpiresAt != in.Info.ExpiresAt) || (in.Resources != nil && !reflect.DeepEqual(old.Resources, *in.Resources))
+		changed := old.LimitBytes != in.LimitBytes || old.Mode != in.Mode || old.ResetDay != in.ResetDay || (in.Info.TrafficReset != nil && !reflect.DeepEqual(old.Info.TrafficReset, in.Info.TrafficReset)) || (in.Resources != nil && !reflect.DeepEqual(old.Resources, *in.Resources))
 		if changed && !h.serviceControlWriteAllowed(r) {
 			fail(w, http.StatusForbidden, "changing protected traffic accounting requires service-control permission")
 			return
 		}
 	}
-	guard := store.NodeInfrastructureGuard{Revision: in.InfrastructureRevision, SupplierID: in.SupplierID, CanWrite: h.infrastructureWriteAllowed(r, idOf(r))}
+	canControl := h.serviceControlWriteAllowed(r)
+	guard := store.NodeInfrastructureGuard{Revision: in.InfrastructureRevision, SupplierID: in.SupplierID, CanWrite: h.infrastructureWriteAllowed(r, idOf(r)), ServiceControlWrite: &canControl}
 	if err := h.Store.UpdateNodeProbeWithInfrastructure(r.Context(), idOf(r), in.Hidden, in.Info, in.LimitBytes, in.ResetDay, in.Mode, in.Resources, in.RegionMode, in.ExpectedExpiresAt, guard, in.Storage); err != nil {
-		if errors.Is(err, store.ErrInfrastructureConflict) || errors.Is(err, store.ErrInfrastructurePermission) || errors.Is(err, store.ErrInfrastructureConversion) || errors.Is(err, store.ErrInfrastructureLinked) {
+		if errors.Is(err, store.ErrServiceControlPermission) || errors.Is(err, store.ErrInfrastructureConflict) || errors.Is(err, store.ErrInfrastructurePermission) || errors.Is(err, store.ErrInfrastructureConversion) || errors.Is(err, store.ErrInfrastructureLinked) {
 			infraError(w, err)
 			return
 		}

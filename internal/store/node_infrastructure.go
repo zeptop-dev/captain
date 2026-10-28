@@ -39,13 +39,15 @@ type NodeInfrastructure struct {
 	AutoRenewal *NodeAutoRenewal     `json:"auto_renewal"`
 }
 type NodeInfrastructureChange struct {
-	Revision      string `json:"revision"`
-	Action        string `json:"action"`
-	SupplierID    *int64 `json:"supplier_id"`
-	AssetID       int64  `json:"asset_id"`
-	AssetRevision int64  `json:"asset_revision"`
-	Name          string `json:"name"`
-	RemindDays    int    `json:"remind_days"`
+	// Supplied by the authenticated handler, never decoded from a request.
+	CanWriteServiceControl bool   `json:"-"`
+	Revision               string `json:"revision"`
+	Action                 string `json:"action"`
+	SupplierID             *int64 `json:"supplier_id"`
+	AssetID                int64  `json:"asset_id"`
+	AssetRevision          int64  `json:"asset_revision"`
+	Name                   string `json:"name"`
+	RemindDays             int    `json:"remind_days"`
 	// Accepted for pre-release editor compatibility; linking preserves the
 	// server's switch and this old confirmation no longer changes its behavior.
 	ConfirmDisableAutoRenewal bool `json:"confirm_disable_auto_renewal"`
@@ -54,6 +56,8 @@ type NodeInfrastructureGuard struct {
 	Revision   *string
 	SupplierID *int64
 	CanWrite   bool
+	// Nil is reserved for trusted internal callers of the legacy store API.
+	ServiceControlWrite *bool
 }
 type nodeInfrastructureLink struct {
 	SupplierID, AssetID sql.NullInt64
@@ -280,9 +284,12 @@ func projectAsset(info *NodeProbeInfo, a InfraAsset, supplier InfraSupplierChoic
 	}
 	return nil
 }
-func persistNodeInfraInfoTx(ctx context.Context, tx *sql.Tx, p *NodeProbe, info NodeProbeInfo) error {
+func persistNodeInfraInfoTx(ctx context.Context, tx *sql.Tx, p *NodeProbe, info NodeProbeInfo, canControl bool) error {
 	next := *p
 	next.Info = info
+	if err := guardServiceControlScheduleTx(ctx, tx, p, &next, canControl); err != nil {
+		return err
+	}
 	at := time.Now()
 	if !nodePeriodStart(at, p).Equal(nodePeriodStart(at, &next)) {
 		if _, err := tx.ExecContext(ctx, `UPDATE nodes SET traffic_period_start=? WHERE id=?`, nodePeriodStart(at, &next).Unix(), p.NodeID); err != nil {
@@ -408,7 +415,7 @@ func (s *Store) ChangeNodeInfrastructure(ctx context.Context, nodeID int64, in N
 	if err = saveNodeInfrastructureLinkTx(ctx, tx, nodeID, l.SupplierID, l.AssetID); err != nil {
 		return nil, err
 	}
-	if err = persistNodeInfraInfoTx(ctx, tx, p, info); err != nil {
+	if err = persistNodeInfraInfoTx(ctx, tx, p, info, in.CanWriteServiceControl); err != nil {
 		return nil, err
 	}
 	v, _, err = nodeInfrastructureTx(ctx, tx, nodeID, info)
@@ -542,7 +549,7 @@ func syncInfraAssetNodeTx(ctx context.Context, tx *sql.Tx, a InfraAsset, permiss
 	if !sharedInfrastructureAllowed(permission) {
 		return ErrInfrastructurePermission
 	}
-	if err = persistNodeInfraInfoTx(ctx, tx, p, info); err != nil {
+	if err = persistNodeInfraInfoTx(ctx, tx, p, info, len(permission) > 1 && permission[1]); err != nil {
 		return err
 	}
 	return saveNodeInfrastructureLinkTx(ctx, tx, nodeID, sql.NullInt64{Int64: a.SupplierID, Valid: true}, sql.NullInt64{Int64: a.ID, Valid: true})
@@ -581,7 +588,7 @@ func syncInfraSupplierNodesTx(ctx context.Context, tx *sql.Tx, supplier InfraSup
 		info := p.Info
 		info.Provider = supplier.Name
 		info.ProviderURL = supplier.URL
-		if e = persistNodeInfraInfoTx(ctx, tx, p, info); e != nil {
+		if e = persistNodeInfraInfoTx(ctx, tx, p, info, len(permission) > 1 && permission[1]); e != nil {
 			return e
 		}
 		if _, e = tx.ExecContext(ctx, `UPDATE node_infrastructure SET revision=revision+1 WHERE node_id=?`, id); e != nil {
