@@ -1,0 +1,297 @@
+package probedata
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"math"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/zeptop-dev/bosun/pkg/spec"
+	"github.com/zeptop-dev/captain/internal/db"
+	"github.com/zeptop-dev/captain/internal/store"
+)
+
+func fixture(t *testing.T) *Engine {
+	t.Helper()
+	ctx := context.Background()
+	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "probe.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { conn.Close() })
+	if err = db.Migrate(ctx, conn, "sqlite"); err != nil {
+		t.Fatal(err)
+	}
+	st := store.New(conn)
+	s := store.ProbeSettings{Enabled: true, Title: "Public monitor", Visibility: "public", ShowIP: false, CarrierPing: false}
+	s.Normalize()
+	if err = st.SetSetting(ctx, store.SettingProbe, s); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = conn.Exec(`INSERT INTO nodes(id,name,token_hash,public_addr,created_at,updated_at) VALUES(1,'Public','paired','203.0.113.30',0,0),(2,'Private','paired-2','198.51.100.20',0,0),(3,'Unpaired',NULL,'192.0.2.10',0,0)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = conn.Exec(`UPDATE nodes SET probe_hidden=1 WHERE id=2`); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
+	return &Engine{Store: st, SiteName: "Captain", Now: func() time.Time { return now }}
+}
+func record(t *testing.T, e *Engine, h spec.SystemStatus, at time.Time) {
+	t.Helper()
+	ctx := context.Background()
+	if err := e.Store.RecordBeat(ctx, 1, h, at); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = e.Store.DB().Exec(`UPDATE nodes SET monitor_at=?,monitor_host_json=? WHERE id=1`, at.Unix(), string(raw)); err != nil {
+		t.Fatal(err)
+	}
+}
+func publicID(t *testing.T, e *Engine) string {
+	t.Helper()
+	snap, err := e.Snapshot(context.Background(), Scope{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snap.Nodes) != 1 {
+		t.Fatalf("nodes=%d", len(snap.Nodes))
+	}
+	return snap.Nodes[0].UUID
+}
+func setSections(t *testing.T, e *Engine, sections ...string) {
+	t.Helper()
+	ctx := context.Background()
+	s, err := e.settings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.PublicSections = &sections
+	if err = e.Store.SetSetting(ctx, store.SettingProbe, s); err != nil {
+		t.Fatal(err)
+	}
+}
+func TestPublicProjectionPrivacyValidityAndFreshness(t *testing.T) {
+	e := fixture(t)
+	ctx := context.Background()
+	at := e.clock().Add(-10 * time.Minute)
+	valid := spec.MetricValidity{CPU: true, Memory: false, Network: true, Disk: true, Load: true, Uptime: true}
+	h := spec.SystemStatus{Valid: &valid, CPUPercent: 0, MemUsed: 123, MemTotal: 456, DiskUsed: 20, DiskTotal: 100, NetUp: 5, Info: &spec.HostInfo{CPUModel: "test cpu", OS: "test OS"}, Resources: &spec.Resources{Epoch: "private epoch", Sequence: 1, Processes: []spec.ProcessResource{{PID: 123}}}}
+	record(t, e, h, at)
+	// A current status poll can confirm presence but cannot freshen old metrics.
+	if _, err := e.Store.DB().Exec(`UPDATE nodes SET last_seen_at=? WHERE id=1`, e.clock().Unix()); err != nil {
+		t.Fatal(err)
+	}
+	for _, scope := range []Scope{{}, {Staff: true}} {
+		snap, err := e.Snapshot(ctx, scope)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(snap.Nodes) != 1 {
+			t.Fatalf("hidden/unpaired nodes leaked: %+v", snap.Nodes)
+		}
+		n := snap.Nodes[0]
+		if !n.Status.Online || n.Status.Fresh || n.Status.ReceivedAt == nil || !n.Status.ReceivedAt.Equal(at) {
+			t.Fatalf("presence conflated with sampling: %+v", n.Status)
+		}
+		if n.Status.Values["cpu.usage"] == nil || *n.Status.Values["cpu.usage"] != 0 || n.Status.Values["memory.used"] != nil || n.Inventory.MemTotal != nil {
+			t.Fatalf("zero and unknown conflated: %+v", n.Status)
+		}
+		raw, _ := json.Marshal(snap)
+		for _, secret := range []string{"203.0.113.30", "198.51.100.20", "private epoch", "\"pid\"", "\"resources\"", "Unpaired", "Private"} {
+			if strings.Contains(string(raw), secret) {
+				t.Fatalf("private value %q leaked", secret)
+			}
+		}
+	}
+	setSections(t, e, "cpu", "history")
+	snap, err := e.Snapshot(ctx, Scope{Staff: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := snap.Nodes[0]
+	if n.Info != nil || n.Traffic != nil || n.Inventory.OS != "" || n.Inventory.DiskTotal != nil {
+		t.Fatalf("category leak: %+v", n)
+	}
+	for _, r := range n.Recent {
+		for k := range r.Values {
+			if k != "cpu.usage" {
+				t.Fatalf("recent leak: %s", k)
+			}
+		}
+	}
+	defs, err := e.Definitions(ctx, Scope{})
+	if err != nil || len(defs) != 1 || defs[0].Key != "cpu.usage" {
+		t.Fatalf("defs=%+v err=%v", defs, err)
+	}
+}
+func TestStableIdentitySurvivesRenameButNotReuse(t *testing.T) {
+	e := fixture(t)
+	id := publicID(t, e)
+	if len(id) != 36 || id[14] != '4' {
+		t.Fatalf("bad public UUID %q", id)
+	}
+	if _, err := e.Store.DB().Exec(`UPDATE nodes SET name='Renamed' WHERE id=1`); err != nil {
+		t.Fatal(err)
+	}
+	if got := publicID(t, e); got != id {
+		t.Fatalf("rename changed UUID %q -> %q", id, got)
+	}
+	if _, err := e.Store.DB().Exec(`DELETE FROM nodes WHERE id=1`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Store.DB().Exec(`INSERT INTO nodes(id,name,token_hash,created_at,updated_at) VALUES(1,'Replacement','paired',0,0)`); err != nil {
+		t.Fatal(err)
+	}
+	if got := publicID(t, e); got == id {
+		t.Fatal("reused SQLite ID inherited public UUID")
+	}
+	got, err := e.Query(context.Background(), Scope{}, Query{MetricKeys: []string{"cpu.usage"}, EntityIDs: []string{id}, Start: e.clock().Add(-time.Hour), End: e.clock()})
+	if err != nil || len(got) != 0 {
+		t.Fatalf("old UUID selected replacement: %+v %v", got, err)
+	}
+}
+func TestFreshRollupsWeightEachMetricAndPreserveExtrema(t *testing.T) {
+	e := fixture(t)
+	ctx := context.Background()
+	base := e.clock().Add(-30 * time.Minute)
+	record(t, e, spec.SystemStatus{Valid: &spec.MetricValidity{CPU: true, Memory: true}, CPUPercent: 10, MemUsed: 10, MemTotal: 100}, base)
+	record(t, e, spec.SystemStatus{Valid: &spec.MetricValidity{CPU: false, Memory: true}, CPUPercent: 99, MemUsed: 90, MemTotal: 100}, base.Add(10*time.Second))
+	record(t, e, spec.SystemStatus{Valid: &spec.MetricValidity{CPU: true, Memory: false}, CPUPercent: 40, MemUsed: 9000, MemTotal: 100}, base.Add(time.Minute))
+	id := publicID(t, e)
+	for algorithm, want := range map[string]float64{"avg": 25, "sum": 50, "count": 2, "min": 10, "max": 40, "first": 10, "last": 40} {
+		got, err := e.Query(ctx, Scope{}, Query{MetricKeys: []string{"cpu.usage"}, EntityIDs: []string{id}, Start: base, End: base.Add(2 * time.Minute), MaxPoints: 1, Aggregation: algorithm})
+		if err != nil {
+			t.Fatalf("%s: %v", algorithm, err)
+		}
+		if len(got) != 1 || len(got[0].Points) != 1 || got[0].Points[0].Value == nil || *got[0].Points[0].Value != want || got[0].Points[0].Count != 2 {
+			t.Fatalf("%s got=%+v", algorithm, got)
+		}
+	}
+	got, err := e.Query(ctx, Scope{}, Query{MetricKeys: []string{"memory.used"}, Start: base, End: base.Add(2 * time.Minute), MaxPoints: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if *got[0].Points[0].Value != 50 || got[0].Points[0].Count != 2 {
+		t.Fatalf("memory weighted using CPU/sample count: %+v", got[0])
+	}
+	// Unknown entities are indistinguishable from hidden ones.
+	ids, err := e.Store.ProbePublicIDs(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err = e.Query(ctx, Scope{Staff: true}, Query{MetricKeys: []string{"cpu.usage"}, EntityIDs: []string{ids[2]}, Start: base, End: base.Add(2 * time.Minute)})
+	if err != nil || len(got) != 0 {
+		t.Fatalf("hidden history leaked: %+v %v", got, err)
+	}
+}
+func TestLegacyAveragesUsePerMetricCountsAndRejectInventedExtrema(t *testing.T) {
+	e := fixture(t)
+	base := e.clock().Add(-time.Hour).Truncate(time.Minute)
+	// 9 CPU observations of 10 and 1 observation of 100 -> 19, not 55.
+	for i, row := range []struct {
+		n   int
+		sum float64
+	}{{9, 90}, {1, 100}} {
+		if _, err := e.Store.DB().Exec(`INSERT INTO node_stats(node_id,res,ts,samples,cpu,cpu_n) VALUES(1,'m',?,?,?,?)`, base.Add(time.Duration(i)*time.Minute).Unix(), row.n+5, row.sum, row.n); err != nil {
+			t.Fatal(err)
+		}
+	}
+	q := Query{MetricKeys: []string{"cpu.usage"}, Start: base, End: base.Add(2 * time.Minute), MaxPoints: 1}
+	got, err := e.Query(context.Background(), Scope{}, q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || *got[0].Points[0].Value != 19 || got[0].Points[0].Count != 10 {
+		t.Fatalf("incorrect weighting %+v", got)
+	}
+	q.Aggregation = "min"
+	if _, err = e.Query(context.Background(), Scope{}, q); !errors.Is(err, ErrUnsupportedAggregation) {
+		t.Fatalf("invented historical minimum: %v", err)
+	}
+}
+func TestPingStatsWeightSuccessesAndKeepUnknownDistribution(t *testing.T) {
+	e := fixture(t)
+	ctx := context.Background()
+	task := store.PingTask{Name: "Public latency", Type: "tcp", Target: "example.com:443", IntervalSeconds: 30, Enabled: true}
+	if err := e.Store.SavePingTask(ctx, &task); err != nil {
+		t.Fatal(err)
+	}
+	base := e.clock().Add(-time.Hour).Truncate(time.Minute)
+	for i, row := range []struct {
+		n, lost int
+		sum     float64
+	}{{10, 9, 100}, {10, 0, 100}} {
+		if _, err := e.Store.DB().Exec(`INSERT INTO node_ping_stats(node_id,res,ts,task_id,name,samples,lost,sum_ms) VALUES(1,'m',?,?,?,?,?,?)`, base.Add(time.Duration(i)*time.Minute).Unix(), task.ID, task.Name, row.n, row.lost, row.sum); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := e.PingStats(ctx, Scope{}, PingQuery{Start: base, End: base.Add(2 * time.Minute)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("stats=%+v", got)
+	}
+	s := got[0]
+	if s.Total != 20 || s.Valid != 11 || s.Avg == nil || math.Abs(*s.Avg-200.0/11) > 1e-9 || s.Loss == nil || *s.Loss != .45 {
+		t.Fatalf("bad ping weighted stats %+v", s)
+	}
+	if s.P50 != nil || s.P99 != nil || s.Min != nil || s.Max != nil || s.Stddev != nil || s.Latest != nil {
+		t.Fatalf("fabricated distribution/latest %+v", s)
+	}
+	snap, err := e.Snapshot(ctx, Scope{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(snap)
+	if strings.Contains(string(raw), "example.com") || strings.Contains(string(raw), "target") {
+		t.Fatal("ping target leaked")
+	}
+	task.Enabled = false
+	if err = e.Store.SavePingTask(ctx, &task); err != nil {
+		t.Fatal(err)
+	}
+	got, err = e.PingStats(ctx, Scope{}, PingQuery{Start: base, End: base.Add(2 * time.Minute)})
+	if err != nil || len(got) > 0 {
+		t.Fatalf("disabled task history exposed %v %v", got, err)
+	}
+}
+func TestHistoryFillAndQueryBounds(t *testing.T) {
+	e := fixture(t)
+	ctx := context.Background()
+	base := e.clock().Add(-time.Hour)
+	q := Query{MetricKeys: []string{"cpu.usage"}, Start: base, End: e.clock(), MaxPoints: 5, FillEmpty: true}
+	got, err := e.Query(ctx, Scope{}, q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || len(got[0].Points) != 5 {
+		t.Fatalf("empty series %+v", got)
+	}
+	for _, p := range got[0].Points {
+		if p.Value != nil || p.Count != 0 {
+			t.Fatal("missing observation reported zero")
+		}
+	}
+	q.MaxPointsByMetric = map[string]int{"cpu.usage": 5001}
+	if _, err = e.Query(ctx, Scope{}, q); !errors.Is(err, ErrInvalidQuery) {
+		t.Fatalf("point override bypassed bound: %v", err)
+	}
+	setSections(t, e, "cpu")
+	defs, err := e.Definitions(ctx, Scope{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(defs) != 1 || defs[0].History || slices.Contains(defs[0].Aggregations, "avg") {
+		t.Fatal("disabled history advertised")
+	}
+}

@@ -511,6 +511,9 @@ func (s *Store) recordBeat(ctx context.Context, nodeID int64, h spec.SystemStatu
 	if err := recordResourceHistory(ctx, tx, nodeID, h, at, p.counters); err != nil {
 		return false, err
 	}
+	if err := recordProbeMetricHistory(ctx, tx, nodeID, h, at); err != nil {
+		return false, err
+	}
 	valid := h.Validity()
 	h = validHost(h)
 	for _, b := range []struct {
@@ -551,6 +554,7 @@ func (s *Store) recordBeat(ctx context.Context, nodeID int64, h spec.SystemStatu
 		start = p.PeriodStart
 	}
 	measured := false
+	beforeUp, beforeDown := usedUp, usedDown
 	if h.Resources != nil {
 		deltaUp, deltaDown, counters, validDelta := nextNetworkCounters(p.counters, h.Resources)
 		usedUp += deltaUp
@@ -572,6 +576,14 @@ func (s *Store) recordBeat(ctx context.Context, nodeID int64, h spec.SystemStatu
 		p.lastUp, p.lastDown = up, down
 	}
 	if measured {
+		deltas := map[string]ProbeMetricAggregate{}
+		for key, delta := range map[string]int64{"traffic.up": usedUp - beforeUp, "traffic.down": usedDown - beforeDown} {
+			value := float64(delta)
+			deltas[key] = ProbeMetricAggregate{Count: 1, Sum: value, Min: value, Max: value, First: value, Last: value, FirstAt: at.UnixMilli(), LastAt: at.UnixMilli()}
+		}
+		if err := recordProbeMetricValues(ctx, tx, nodeID, deltas, at); err != nil {
+			return false, err
+		}
 		p.counters.TrafficKnown, p.counters.TrafficAt = true, at.Unix()
 	}
 	counterJSON, _ := json.Marshal(p.counters)
@@ -591,6 +603,7 @@ func (s *Store) recordBeat(ctx context.Context, nodeID int64, h spec.SystemStatu
 
 // StatPoint is one averaged bucket.
 type StatPoint struct {
+	Counts    map[string]int      `json:"-"`
 	Valid     spec.MetricValidity `json:"valid"`
 	TS        int64               `json:"ts"`
 	Samples   int                 `json:"n"`
@@ -623,6 +636,7 @@ func (s *Store) NodeStats(ctx context.Context, nodeID int64, res string, from, t
 		if err := rows.Scan(&p.TS, &p.Samples, &p.CPU, &p.MemUsed, &p.MemTotal, &p.SwapUsed, &p.DiskUsed, &p.DiskTotal, &p.NetUp, &p.NetDown, &p.Load1, &p.TCP, &p.UDP, &p.Procs, &cpuN, &memN, &swapN, &diskN, &netN, &loadN, &connN, &procsN); err != nil {
 			return nil, err
 		}
+		p.Counts = map[string]int{"cpu.usage": cpuN, "memory.used": memN, "swap.used": swapN, "disk.used": diskN, "net.in.rate": netN, "net.out.rate": netN, "load.average": loadN, "connections.tcp": connN, "connections.udp": connN, "process.count": procsN}
 		p.Valid = spec.MetricValidity{CPU: cpuN > 0, Memory: memN > 0, Swap: swapN > 0, Disk: diskN > 0, Network: netN > 0, Load: loadN > 0, Connections: connN > 0, Processes: procsN > 0}
 		for _, v := range []struct {
 			value *float64
@@ -640,16 +654,17 @@ func (s *Store) NodeStats(ctx context.Context, nodeID int64, res string, from, t
 
 // PingPoint is one averaged latency bucket.
 type PingPoint struct {
-	Quality *PingStatsQuality `json:"quality,omitempty"`
-	TaskID  int64             `json:"task_id"`
-	Name    string            `json:"name"`
-	Series  string            `json:"series,omitempty"`
-	Family  string            `json:"family,omitempty"`
-	TS      int64             `json:"ts"`
-	Samples int               `json:"n"`
-	Lost    int               `json:"lost"`
-	AvgMs   float64           `json:"avg_ms"`   // -1 when every sample was lost
-	AvgMbps float64           `json:"avg_mbps"` // download tasks only
+	Histogram map[int]int       `json:"-"`
+	Quality   *PingStatsQuality `json:"quality,omitempty"`
+	TaskID    int64             `json:"task_id"`
+	Name      string            `json:"name"`
+	Series    string            `json:"series,omitempty"`
+	Family    string            `json:"family,omitempty"`
+	TS        int64             `json:"ts"`
+	Samples   int               `json:"n"`
+	Lost      int               `json:"lost"`
+	AvgMs     float64           `json:"avg_ms"`   // -1 when every sample was lost
+	AvgMbps   float64           `json:"avg_mbps"` // download tasks only
 }
 
 func (s *Store) NodePingStats(ctx context.Context, nodeID int64, res string, from, to time.Time) ([]PingPoint, error) {
@@ -676,6 +691,7 @@ func (s *Store) NodePingStats(ctx context.Context, nodeID int64, res string, fro
 			return nil, err
 		}
 		p.Quality = quality.summary()
+		p.Histogram = quality.Histogram
 		if okN := p.Samples - p.Lost; okN > 0 {
 			p.AvgMs = sum / float64(okN)
 			p.AvgMbps = sumMbps / float64(okN)
@@ -712,6 +728,9 @@ func (s *Store) SustainedAverage(ctx context.Context, nodeID int64, metric strin
 // PruneStats drops buckets past their retention: minutes 48h, hours 60d,
 // days 2y.
 func (s *Store) PruneStats(ctx context.Context, at time.Time) error {
+	if err := s.pruneProbeMetricHistory(ctx, at); err != nil {
+		return err
+	}
 	for _, r := range []struct {
 		res  string
 		keep time.Duration

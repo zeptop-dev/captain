@@ -52,17 +52,18 @@ type Settings struct {
 	Sections       []string `json:"sections"`
 }
 type Node struct {
-	ID        int64     `json:"-"`
-	UUID      string    `json:"uuid"`
-	Name      string    `json:"name"`
-	Group     string    `json:"group"`
-	Inventory Inventory `json:"inventory"`
-	Status    Status    `json:"status"`
-	Traffic   *Traffic  `json:"traffic,omitempty"`
-	Info      *Info     `json:"info,omitempty"`
-	Storage   []Storage `json:"storage"`
-	Pings     []Ping    `json:"pings"`
-	Recent    []Recent  `json:"recent"`
+	RootDiskPublic bool      `json:"root_disk_public"`
+	ID             int64     `json:"-"`
+	UUID           string    `json:"uuid"`
+	Name           string    `json:"name"`
+	Group          string    `json:"group"`
+	Inventory      Inventory `json:"inventory"`
+	Status         Status    `json:"status"`
+	Traffic        *Traffic  `json:"traffic,omitempty"`
+	Info           *Info     `json:"info,omitempty"`
+	Storage        []Storage `json:"storage"`
+	Pings          []Ping    `json:"pings"`
+	Recent         []Recent  `json:"recent"`
 }
 type Inventory struct {
 	Address            string  `json:"address,omitempty"`
