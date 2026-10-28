@@ -132,10 +132,9 @@ func (d *DNS) nodeSyncConfig(ctx context.Context, id int64) (dnsNodeSyncConfig, 
 		return c, nil
 	}
 	c.Zone, c.DomainID = dom.Name, dom.ID
-	if !dom.AutoDNS {
-		c.Reason = "auto_dns_disabled"
-		return c, nil
-	}
+	// AutoDNS controls unattended writes only. An explicitly reviewed manual
+	// synchronization is available with managed credentials even when it is
+	// disabled; this operation neither enables nor persists that preference.
 	c.Token = dom.CFToken
 	if c.Token == "" {
 		c.Token, err = d.globalDNSToken(ctx)

@@ -124,14 +124,11 @@ func TestManualDNSSyncReviewsWritesAndInvalidates(t *testing.T) {
 	}
 }
 func TestManualDNSSyncProtectsExternalRecordsAndChangedConfig(t *testing.T) {
-	for _, kind := range []string{"shared", "disabled", "missing_token", "manual", "proxy", "multiple", "conflicting_ingress", "changed_address", "changed_provider"} {
+	for _, kind := range []string{"shared", "missing_token", "manual", "proxy", "multiple", "conflicting_ingress", "changed_address", "changed_provider"} {
 		t.Run(kind, func(t *testing.T) {
 			ctx := context.Background()
 			st, n := dnsTestStore(t)
 			dom := &store.Domain{Name: "example.com", Provider: "cloudflare", CFToken: "test", AutoDNS: true}
-			if kind == "disabled" {
-				dom.AutoDNS = false
-			}
 			if kind == "manual" {
 				dom.Provider = "manual"
 			}
@@ -240,5 +237,69 @@ func TestManualDNSSyncPartialProviderOutcomeIsNotSuccess(t *testing.T) {
 				t.Fatalf("partial history %+v %v", history, err)
 			}
 		})
+	}
+}
+
+func TestManualDNSSyncWithAutomaticDNSDisabled(t *testing.T) {
+	ctx := context.Background()
+	st, n := dnsTestStore(t)
+	n.V6Addr = "2001:db8::20"
+	if err := st.UpdateNode(ctx, n); err != nil {
+		t.Fatal(err)
+	}
+	dom := &store.Domain{Name: "example.com", Provider: "cloudflare", CFToken: "test", AutoDNS: false}
+	if err := st.CreateDomain(ctx, dom); err != nil {
+		t.Fatal(err)
+	}
+	provider := &dnsSyncProvider{records: map[string][]dns.Record{}}
+	srv := httptest.NewServer(provider)
+	defer srv.Close()
+	d := &DNS{Store: st, Base: srv.URL}
+	for _, ip := range []string{n.PublicAddr, n.V6Addr} {
+		result := d.Ensure(ctx, n.Domain, ip)
+		if result.Action != "skipped" || result.Error != "" {
+			t.Fatalf("automatic synchronization enabled: %+v", result)
+		}
+	}
+	if provider.writes != 0 {
+		t.Fatal("automatic synchronization wrote provider records")
+	}
+	p := syncPlan(t, d, n.ID)
+	if !p.Enabled || p.Reason != "" || len(p.Records) != 2 {
+		t.Fatalf("manual synchronization unavailable: %+v", p)
+	}
+	results, err := d.ApplyNodeSync(WithDNSOrigin(ctx, DNSOrigin{NodeID: n.ID, Source: "manual_sync"}), p, p.Revision)
+	if err != nil || len(results) != 2 || provider.writes != 2 {
+		t.Fatalf("manual synchronization failed: %+v %v", results, err)
+	}
+	for _, result := range results {
+		if result.Outcome != "success" {
+			t.Fatalf("manual synchronization outcome: %+v", result)
+		}
+	}
+	saved, err := st.DomainByID(ctx, dom.ID)
+	if err != nil || saved.AutoDNS {
+		t.Fatalf("manual synchronization changed automatic preference: %+v %v", saved, err)
+	}
+	n.PublicAddr = "203.0.113.30"
+	if err := st.UpdateNode(ctx, n); err != nil {
+		t.Fatal(err)
+	}
+	result := d.Ensure(ctx, n.Domain, n.PublicAddr)
+	if result.Action != "skipped" || result.Error != "" || provider.writes != 2 || provider.records["A"][0].Content == n.PublicAddr {
+		t.Fatalf("automatic synchronization enabled after manual operation: %+v", result)
+	}
+	// Credentials remain part of the reviewed identity even though the unrelated
+	// automatic-write preference is intentionally not part of manual eligibility.
+	p = syncPlan(t, d, n.ID)
+	dom.CFToken = "rotated-test-token"
+	if err := st.UpdateDomain(ctx, dom); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.ApplyNodeSync(ctx, p, p.Revision); !errors.Is(err, ErrDNSConfigChanged) {
+		t.Fatalf("changed credentials reused reviewed plan: %v", err)
+	}
+	if provider.writes != 2 {
+		t.Fatal("stale manual plan wrote provider records")
 	}
 }
