@@ -174,12 +174,107 @@ func TestRecentAndTaskWireShapes(t *testing.T) {
 func TestOnlyPublicThemeSettingsCrossBoundary(t *testing.T) {
 	h := fixtureHandler(&fixtureReader{})
 	h.d.PublicSettings = func(*http.Request) (map[string]any, error) {
-		return map[string]any{"theme": "example", "theme_settings": map[string]any{"color": "green"}, "custom_head": "secret script", "private_site": false, "token": "secret"}, nil
+		return map[string]any{"theme": "example", "theme_settings": map[string]any{"color": "green"}, "custom_head": "secret script", "private_site": false, "token": "secret", "login_url": "/__captain/login"}, nil
 	}
 	w := doHTTP(t, h, "GET", "/api/public", "")
 	body := jsonObject(t, w.Body.Bytes())["data"].(map[string]any)
-	if body["theme"] != "example" || body["custom_head"] != "" || strings.Contains(w.Body.String(), "secret") {
+	if body["theme"] != "example" || body["custom_head"] != "" || body["login_url"] != "/__captain/login" || strings.Contains(w.Body.String(), "secret") {
 		t.Fatalf("unsafe public settings %s", w.Body.String())
+	}
+	for _, target := range []string{"https://example.com/login", "//example.com/login", "/admin/login"} {
+		h.d.PublicSettings = func(*http.Request) (map[string]any, error) { return map[string]any{"login_url": target}, nil }
+		w = doHTTP(t, h, "GET", "/api/public", "")
+		if _, ok := jsonObject(t, w.Body.Bytes())["data"].(map[string]any)["login_url"]; ok {
+			t.Fatalf("untrusted login target exposed: %s", target)
+		}
+	}
+}
+
+func TestFrameworkRPCContractAndDiscovery(t *testing.T) {
+	h := fixtureHandler(&fixtureReader{})
+	for method, want := range map[string]string{"rpc.ping": "pong", "rpc.version": "2.0"} {
+		if got := rpc(t, h, method, nil)["result"]; got != want {
+			t.Fatalf("%s = %v, want %s", method, got, want)
+		}
+	}
+	for _, params := range []any{nil, map[string]any{"internal": true}, []any{true}} {
+		methods := rpc(t, h, "rpc.methods", params)["result"].([]any)
+		wantInternal := params != nil
+		wantCount := len(callableMethods)
+		if !wantInternal {
+			wantCount -= 4
+		}
+		if len(methods) != wantCount {
+			t.Fatalf("method count %d != %d", len(methods), wantCount)
+		}
+		previous := ""
+		for _, raw := range methods {
+			name := raw.(string)
+			if name <= previous || strings.HasPrefix(name, "admin:") || strings.HasPrefix(name, "agent:") || (!wantInternal && strings.HasPrefix(name, "rpc.")) {
+				t.Fatalf("unsafe or unordered method %s", name)
+			}
+			previous = name
+			// A listed method may reject omitted parameters, but it must exist.
+			if e, ok := rpc(t, h, name, nil)["error"].(map[string]any); ok && e["code"] == float64(-32601) {
+				t.Fatalf("advertised unsupported method %s", name)
+			}
+		}
+	}
+	if got := rpc(t, h, "rpc.help", map[string]any{"method": "rpc.ping"})["result"].(map[string]any); got["name"] != "rpc.ping" || got["returns"] != "string" {
+		t.Fatalf("help contract: %#v", got)
+	}
+	if got := rpc(t, h, "rpc.help", nil)["result"].([]any); len(got) != len(callableMethods) {
+		t.Fatal("help overview omitted supported methods")
+	}
+	for _, method := range []string{"admin:exec", "agent:report", "rpc.discover"} {
+		if e := rpc(t, h, "rpc.help", []any{method})["error"].(map[string]any); e["code"] != float64(-32600) {
+			t.Fatalf("help advertised %s", method)
+		}
+	}
+	server := httptest.NewServer(h)
+	defer server.Close()
+	ws, err := websocket.Dial("ws"+strings.TrimPrefix(server.URL, "http")+"/api/rpc2", "", server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ws.Close()
+	if err = websocket.Message.Send(ws, `{"jsonrpc":"2.0","id":1,"method":"rpc.ping"}`); err != nil {
+		t.Fatal(err)
+	}
+	var response map[string]any
+	if err = websocket.JSON.Receive(ws, &response); err != nil {
+		t.Fatal(err)
+	}
+	if response["result"] != "pong" {
+		t.Fatalf("websocket health check: %#v", response)
+	}
+}
+
+type retentionReader struct {
+	fixtureReader
+	definitions []probedata.Definition
+}
+
+func (f *retentionReader) Definitions(context.Context, probedata.Scope) ([]probedata.Definition, error) {
+	return f.definitions, nil
+}
+
+func TestPublicHistoryCapabilitiesUseHoursAndVisibleDefinitions(t *testing.T) {
+	r := &retentionReader{definitions: []probedata.Definition{
+		{Key: "cpu.usage", History: true, RetentionDays: 14},
+		{Key: "ping.latency_ms", History: true, RetentionDays: 7},
+		{Key: "unavailable", History: false, RetentionDays: 999},
+	}}
+	h := New(Deps{Reader: r, Gate: func(*http.Request) bool { return true }})
+	w := doHTTP(t, h, "GET", "/api/public", "")
+	settings := jsonObject(t, w.Body.Bytes())["data"].(map[string]any)
+	if settings["record_enabled"] != true || settings["record_preserve_time"] != float64(336) || settings["ping_record_preserve_time"] != float64(168) {
+		t.Fatalf("history disabled or wrong retention units: %#v", settings)
+	}
+	r.definitions = nil
+	settings = rpc(t, h, "common:getPublicInfo", nil)["result"].(map[string]any)
+	if settings["record_enabled"] != false || settings["record_preserve_time"] != float64(0) || settings["ping_record_preserve_time"] != float64(0) {
+		t.Fatalf("hidden history advertised: %#v", settings)
 	}
 }
 

@@ -199,8 +199,7 @@ func (h *Handler) settings(rSettings probedata.Settings, extra map[string]any) m
 		"sitename": rSettings.Title, "description": rSettings.Description, "private_site": rSettings.Visibility != "public",
 		"theme": "default", "theme_settings": map[string]any{}, "custom_head": "", "custom_body": "",
 		"logo": rSettings.Logo, "favicon": rSettings.Favicon, "disable_password_login": true, "oauth_enable": false, "oauth_provider": "",
-		"cors_origin_check_enabled": true, "record_enabled": false,
-		"ping_record_preserve_time": 0, "record_preserve_time": 0, "realtime_interval": rSettings.BeatSeconds,
+		"cors_origin_check_enabled": true, "realtime_interval": rSettings.BeatSeconds,
 		"captain": map[string]any{"compatibility": "komari-1.6.1-public-read", "settings": rSettings, "identity_scope": "probe-read", "counter_semantics": "interface-lifetime", "period_traffic": "captain.traffic"},
 	}
 	// The callback cannot turn arbitrary global settings into public data.
@@ -208,6 +207,11 @@ func (h *Handler) settings(rSettings probedata.Settings, extra map[string]any) m
 		if v, ok := extra[key]; ok {
 			out[key] = v
 		}
+	}
+	// The login bridge is a reserved, trusted route. Never accept a theme URL
+	// here: a compatibility login action must not send credentials elsewhere.
+	if extra["login_url"] == "/__captain/login" {
+		out["login_url"] = "/__captain/login"
 	}
 	return out
 }

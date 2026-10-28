@@ -150,6 +150,8 @@ func (h *Handler) call(r *http.Request, method string, raw json.RawMessage) (any
 	// No dynamic method registration: no admin/agent/command method can ever
 	// become exposed by importing another package or by an upstream addition.
 	switch method {
+	case "rpc.ping", "rpc.version", "rpc.methods", "rpc.help":
+		return frameworkCall(method, raw)
 	case "public:getMe", "common:getMe":
 		id := Identity{Username: "Guest"}
 		if h.d.Identity != nil {
