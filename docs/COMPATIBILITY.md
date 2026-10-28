@@ -3,6 +3,10 @@
 What an operator can rely on across releases, which bosun a Captain works
 with, what the database is good for, and what is deliberately not there.
 
+For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
+official binaries or images because its release tests reached the previous
+time limit. The application compatibility and rollback floor remain v1.48.0.
+
 ## Public probe model and Komari themes (Captain v1.48.0)
 
 The original `/api/probe` API remains available. Additive `/api/probe/v2`

@@ -6,6 +6,8 @@ Merge commits and formatting-only commits are left out. Binaries and
 `SHA256SUMS` for every tag are on the GitHub Release; the in-app updater
 installs them (Settings → System maintenance → Version and updates).
 
+- **v1.48.1** (2026-10-28) — Publish the v1.48 features with the complete release race suite budget aligned to CI at 45 minutes. The v1.48.0 release workflow exhausted its previous 30-minute limit before producing binaries or images; its tag remains unchanged. No application code, database migration or API behavior changes from that tag.
+
 - **v1.48.0** (2026-10-28) — Add a typed public probe model, stable node UUIDs, metric discovery/history and Komari 1.6.1 public REST, WebSocket and JSON-RPC compatibility. Preserve the original probe APIs and Captain's missing-data, freshness, billing-period and observation-quality semantics.
   - Install and configure original theme ZIPs on isolated probe domains, retain per-version settings, and restore bundled themes. Private probes use host-bound read-only access; retired probe domains remain isolated after reset. Agent, terminal and Komari management APIs are not exposed.
   - Add opt-in per-server traffic protection and manual pause/rate controls, separate from customer allowances. Keep automatic policy, manual holds and cycle exemptions independent, expose applied-state evidence, and preserve management access. Enforcement requires bosun v0.83.0; it is aggregate packet-drop limiting, not smooth shaping or a supplier-side byte-exact cap.
