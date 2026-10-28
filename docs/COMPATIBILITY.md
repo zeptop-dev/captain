@@ -19,7 +19,8 @@ from a supporting bosun; upgrading Captain alone does not add enforcement to
 older agents. Saving desired state is not an application acknowledgement.
 The management page distinguishes pending, applied, failed and unknown state.
 Configuration, billing and private control details are not published on the
-server probe or customer status pages.
+server probe or customer status pages. Customer status may show a confirmed
+service pause without revealing its operator, quota or automatic policy.
 
 Automatic decisions use accepted server-network counter deltas and the configured
 cycle/direction, not user proxy billing. Monitoring must remain enabled for an

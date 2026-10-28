@@ -136,6 +136,9 @@ byte-rate limiter. It drops excess packets rather than queuing them as a smooth
 traffic shaper; bursts and real-time applications may be affected. It does not
 replace per-user limits or the allowance's selected-NIC accounting. Existing
 host qdiscs and unrelated firewall tables are not replaced.
+Enabling or disabling control recreates managed relay sockets once, which can
+interrupt existing relay connections. Subsequent unchanged checks retain the
+limiter. Kernel flowtable offload is rejected because it can bypass the guard.
 
 The panel evaluates quota from accepted counter samples and the agent applies
 the resulting state. Displayed pending/offline/error states are not confirmation
@@ -143,6 +146,10 @@ that a restriction has taken effect. A disconnected panel cannot detect a new
 threshold crossing; keep headroom for sampling, delivery delays and differences
 from provider accounting. A restriction already installed on a running agent
 remains until it receives a valid replacement state.
+An independent periodic check repairs changed guard rules. If it cannot restore
+the active guard, bosun stops managed services and reports the failure even
+when Captain is unreachable. A confirmed pause is also reflected in customer
+service status; private quota and manual-control details remain administrator-only.
 
 Proxy traffic is collected on the server hosting the authenticated inbound.
 For managed reverse WireGuard and VLESS Reverse, the server view attributes
