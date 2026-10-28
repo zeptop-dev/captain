@@ -648,4 +648,25 @@ func TestCanonicalReaderThroughRealRESTAndRPC(t *testing.T) {
 	if len(rows) != 1 || rows[0].(map[string]any)["ram_total"] != float64(2048) {
 		t.Fatalf("stored historical capacity not projected %s", w.Body.String())
 	}
+	// Record two more observations in the same minute, forcing real stored
+	// aggregation before projection: interval traffic sums, counters keep last,
+	// and rates average. A shared average would produce incorrect accounting.
+	status.NetTotalUp, status.NetTotalDown, status.NetUp = 9010, 8020, 60
+	if err = st.RecordBeat(ctx, 1, status, at.Add(10*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	status.NetTotalUp, status.NetTotalDown, status.NetUp = 9030, 8060, 70
+	if err = st.RecordBeat(ctx, 1, status, at.Add(20*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	w = doHTTP(t, h, "GET", "/api/records/load?uuid="+id+"&load_type=network", "")
+	data = jsonObject(t, w.Body.Bytes())["data"].(map[string]any)
+	rows = data["records"].([]any)
+	if len(rows) != 1 {
+		t.Fatalf("expected one aggregated minute: %s", w.Body.String())
+	}
+	row := rows[0].(map[string]any)
+	if row["traffic_up"] != float64(30) || row["traffic_down"] != float64(60) || row["net_total_up"] != float64(9030) || row["net_total_down"] != float64(8060) || row["net_out"] != float64(60) {
+		t.Fatalf("legacy network aggregation changed counter semantics: %#v", row)
+	}
 }

@@ -497,7 +497,19 @@ func (h *Handler) loadRecords(r *http.Request, s probedata.Snapshot, ids []strin
 	}
 	series := []probedata.Series{}
 	if len(keys) > 0 && len(ids) > 0 {
-		series, err = h.d.Reader.Query(r.Context(), probedata.Scope{}, probedata.Query{MetricKeys: keys, EntityIDs: ids, Start: start, End: end, MaxPoints: perNode, Aggregation: "avg"})
+		// Legacy load records use sums for interval traffic and the last sample
+		// for lifetime counters. Averaging either would understate transferred
+		// bytes or turn a counter into a value that was never observed.
+		aggregations := map[string]string{}
+		for _, key := range keys {
+			switch key {
+			case "traffic.up", "traffic.down":
+				aggregations[key] = "sum"
+			case "net.total.up", "net.total.down":
+				aggregations[key] = "last"
+			}
+		}
+		series, err = h.d.Reader.Query(r.Context(), probedata.Scope{}, probedata.Query{MetricKeys: keys, EntityIDs: ids, Start: start, End: end, MaxPoints: perNode, Aggregation: "avg", AggregationByMetric: aggregations})
 		if err != nil {
 			return nil, fromError(err)
 		}
