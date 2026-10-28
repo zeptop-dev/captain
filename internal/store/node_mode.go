@@ -60,6 +60,13 @@ func (s *Store) SetNodeMode(ctx context.Context, id int64, mode, expected spec.N
 		return errors.New("wait for pending node jobs before changing mode")
 	}
 	if mode == spec.NodeMonitor {
+		control, err := serviceControlTx(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		if control.state.Policy.Action != "alert" || control.effective().Mode != "normal" {
+			return errors.New("restore service and disable automatic traffic protection before switching to monitor-only mode")
+		}
 		var count int
 		if err = tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM inbounds WHERE node_id = ?) + (SELECT COUNT(*) FROM node_reverse_links WHERE exit_id = ? OR transit_id = ?) + (SELECT COUNT(*) FROM node_wireguard_links WHERE exit_id = ? OR transit_id = ?)`, id, id, id, id, id).Scan(&count); err != nil {
 			return err

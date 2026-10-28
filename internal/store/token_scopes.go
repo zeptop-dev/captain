@@ -10,7 +10,7 @@ import (
 
 // These identifiers are also the first resource segment of the admin API.
 // Scopes only narrow an employee's existing role; they cannot grant a role.
-var TokenResources = []string{"admin-log", "articles", "audit-log", "audit-rules", "certificates", "coupons", "config-presets", "dashboard", "domains", "entries", "entry-categories", "external", "gifts", "groups", "inbounds", "infrastructure", "ingresses", "keys", "me", "metrics", "monitoring", "node-access", "nodes", "orders", "ping-tasks", "plans", "renewals", "settings", "speedtest", "system", "tickets", "tokens", "users", "withdrawals"}
+var TokenResources = []string{"admin-log", "articles", "audit-log", "audit-rules", "certificates", "coupons", "config-presets", "dashboard", "domains", "entries", "entry-categories", "external", "gifts", "groups", "inbounds", "infrastructure", "ingresses", "keys", "me", "metrics", "monitoring", "node-access", "node-service-control", "nodes", "orders", "ping-tasks", "plans", "renewals", "settings", "speedtest", "system", "tickets", "tokens", "users", "withdrawals"}
 
 var endpointGrant = regexp.MustCompile(`^(GET|POST|PUT|PATCH|DELETE) /api/admin/[A-Za-z0-9_{}/-]+$`)
 
@@ -64,6 +64,9 @@ func TokenAllowsRequest(policy, method, path, pattern string) bool {
 		return false
 	}
 	resource := strings.Split(strings.TrimPrefix(path, "/api/admin/"), "/")[0]
+	if resource == "nodes" && strings.HasSuffix(path, "/service-control") {
+		resource = "node-service-control"
+	}
 	// A narrowed token cannot mint an unrestricted successor or enroll login
 	// credentials. Interactive sessions retain their existing management APIs.
 	if method != "GET" && (resource == "tokens" || resource == "2fa" || resource == "passkeys" || resource == "admins") {

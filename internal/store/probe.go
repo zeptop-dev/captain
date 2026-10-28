@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -379,6 +381,13 @@ func (s *Store) UpdateNodeProbeWithInfrastructure(ctx context.Context, nodeID in
 	default:
 		return ErrNodeRegion
 	}
+	control, err := serviceControlTx(ctx, tx, nodeID)
+	if err != nil {
+		return err
+	}
+	if limit <= 0 && control.state.Policy.Action != "alert" {
+		return fmt.Errorf("%w: disable automatic protection before removing the traffic quota", ErrServiceControl)
+	}
 	// A schedule edit keeps accumulated usage; the next new boundary resets it.
 	next := *old
 	next.Info, next.ResetDay = info, resetDay
@@ -392,6 +401,30 @@ func (s *Store) UpdateNodeProbeWithInfrastructure(ctx context.Context, nodeID in
 	_, err = tx.ExecContext(ctx, `UPDATE nodes SET probe_hidden=?,probe_info_json=?,traffic_limit_bytes=?,traffic_reset_day=?,traffic_mode=?,probe_resources_json=COALESCE(?,probe_resources_json),probe_storage_json=COALESCE(?,probe_storage_json),region_mode=?,updated_at=? WHERE id=?`, boolInt(hidden), string(b), limit, resetDay, mode, resourceJSON, storageJSON, selected, now(), nodeID)
 	if err != nil {
 		return err
+	}
+	// Explicit quota adjustment can release the automatic hold; changing a
+	// measurement basis cannot relabel old samples as fresh evidence.
+	next.LimitBytes, next.Mode = limit, mode
+	if resources != nil {
+		next.Resources = *resources
+	}
+	if old.Mode != mode || !reflect.DeepEqual(old.Resources.IncludeInterfaces, next.Resources.IncludeInterfaces) || !reflect.DeepEqual(old.Resources.ExcludeInterfaces, next.Resources.ExcludeInterfaces) {
+		next.counters.TrafficKnown, next.counters.TrafficAt = false, 0
+		raw, _ := json.Marshal(next.counters)
+		if _, err = tx.ExecContext(ctx, `UPDATE nodes SET probe_counters_json=? WHERE id=?`, string(raw), nodeID); err != nil {
+			return err
+		}
+	}
+	if old.LimitBytes != limit {
+		before := control
+		usage, e := serviceControlTrafficTx(ctx, tx, &next, at)
+		if e != nil {
+			return e
+		}
+		evaluateServiceControl(&control, usage, at, true)
+		if err = saveServiceControlTx(ctx, tx, nodeID, &control, before); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }
@@ -499,6 +532,7 @@ func (s *Store) recordBeat(ctx context.Context, nodeID int64, h spec.SystemStatu
 
 	// Monthly NIC traffic.
 	start := nodePeriodStart(at, p)
+	rolled := !p.PeriodStart.IsZero() && start.After(p.PeriodStart)
 	usedUp, usedDown, prev := p.UsedUp, p.UsedDown, p.PrevUsed
 	if p.PeriodStart.IsZero() || start.After(p.PeriodStart) {
 		if !p.PeriodStart.IsZero() {
@@ -538,6 +572,10 @@ func (s *Store) recordBeat(ctx context.Context, nodeID int64, h spec.SystemStatu
 	counterJSON, _ := json.Marshal(p.counters)
 	if _, err := tx.ExecContext(ctx, `UPDATE nodes SET traffic_period_start = ?, traffic_used_up = ?, traffic_used_down = ?, traffic_last_up = ?, traffic_last_down = ?, traffic_prev_used = ?, probe_counters_json = ?, last_seen_at = ? WHERE id = ?`,
 		start.Unix(), usedUp, usedDown, p.lastUp, p.lastDown, prev, string(counterJSON), at.Unix(), nodeID); err != nil {
+		return false, err
+	}
+	p.PeriodStart, p.UsedUp, p.UsedDown = start, usedUp, usedDown
+	if err := recordServiceControlTrafficTx(ctx, tx, nodeID, p, at, measured, rolled); err != nil {
 		return false, err
 	}
 	if err := tx.Commit(); err != nil {

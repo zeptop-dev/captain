@@ -469,6 +469,9 @@ func (h *handlers) beat(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if h.State != nil {
+		h.State.Invalidate()
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 

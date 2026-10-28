@@ -14,6 +14,7 @@ import (
 // Identity is for private cache invalidation only; never serialize this object
 // into a customer response.
 type NodeRuntime struct {
+	ServiceControl  *agentproto.ServiceControlReport `json:"service_control,omitempty"`
 	Identity        string                           `json:"-"`
 	ObservedAt      time.Time                        `json:"-"`
 	Sequence        int64                            `json:"-"`
@@ -30,7 +31,7 @@ func recordNodeRuntime(ctx context.Context, tx *sql.Tx, nodeID int64, rep agentp
 	if !fresh {
 		return nil
 	}
-	runtime := NodeRuntime{Epoch: rep.TrafficEpoch, Version: rep.Version, Revision: rep.Revision, AppliedRevision: rep.AppliedRevision, Cores: rep.Cores, Forwards: rep.Forwards, WireGuard: rep.WireGuard}
+	runtime := NodeRuntime{ServiceControl: rep.ServiceControl, Epoch: rep.TrafficEpoch, Version: rep.Version, Revision: rep.Revision, AppliedRevision: rep.AppliedRevision, Cores: rep.Cores, Forwards: rep.Forwards, WireGuard: rep.WireGuard}
 	raw, err := json.Marshal(runtime)
 	if err != nil {
 		return err

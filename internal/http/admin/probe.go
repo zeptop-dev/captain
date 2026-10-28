@@ -3,6 +3,7 @@ package admin
 import (
 	"errors"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 
@@ -180,6 +181,17 @@ func (h *handlers) putProbe(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if !v.Enabled {
+		protected, err := h.Store.HasAutomaticServiceControl(r.Context())
+		if err != nil {
+			serverErr(w, err)
+			return
+		}
+		if protected {
+			fail(w, http.StatusConflict, "disable automatic server traffic protection before turning off monitoring")
+			return
+		}
+	}
 	if err := h.Store.SetSetting(r.Context(), store.SettingProbe, v); err != nil {
 		serverErr(w, err)
 		return
@@ -280,6 +292,8 @@ func (h *handlers) getNodeProbe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) putNodeProbe(w http.ResponseWriter, r *http.Request) {
+	h.Store.Topology.Lock()
+	defer h.Store.Topology.Unlock()
 	var in struct {
 		ExpectedExpiresAt      *string
 		InfrastructureRevision *string
@@ -302,10 +316,31 @@ func (h *handlers) putNodeProbe(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	control, err := h.Store.NodeServiceControl(r.Context(), idOf(r), time.Now())
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
+	if control.Policy.Action != "alert" {
+		old, err := h.Store.NodeProbe(r.Context(), idOf(r))
+		if err != nil {
+			serverErr(w, err)
+			return
+		}
+		changed := old.LimitBytes != in.LimitBytes || old.Mode != in.Mode || old.ResetDay != in.ResetDay || (in.Info.TrafficReset != nil && !reflect.DeepEqual(old.Info.TrafficReset, in.Info.TrafficReset)) || (old.Info.TrafficReset != nil && old.Info.TrafficReset.Mode != "manual" && old.Info.ExpiresAt != in.Info.ExpiresAt) || (in.Resources != nil && !reflect.DeepEqual(old.Resources, *in.Resources))
+		if changed && !h.serviceControlWriteAllowed(r) {
+			fail(w, http.StatusForbidden, "changing protected traffic accounting requires service-control permission")
+			return
+		}
+	}
 	guard := store.NodeInfrastructureGuard{Revision: in.InfrastructureRevision, SupplierID: in.SupplierID, CanWrite: h.infrastructureWriteAllowed(r, idOf(r))}
 	if err := h.Store.UpdateNodeProbeWithInfrastructure(r.Context(), idOf(r), in.Hidden, in.Info, in.LimitBytes, in.ResetDay, in.Mode, in.Resources, in.RegionMode, in.ExpectedExpiresAt, guard, in.Storage); err != nil {
 		if errors.Is(err, store.ErrInfrastructureConflict) || errors.Is(err, store.ErrInfrastructurePermission) || errors.Is(err, store.ErrInfrastructureConversion) || errors.Is(err, store.ErrInfrastructureLinked) {
 			infraError(w, err)
+			return
+		}
+		if errors.Is(err, store.ErrServiceControl) {
+			fail(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		if errors.Is(err, store.ErrNodeExpiryConflict) {
@@ -330,6 +365,17 @@ func (h *handlers) putNodeProbe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) resetNodeTraffic(w http.ResponseWriter, r *http.Request) {
+	h.Store.Topology.Lock()
+	defer h.Store.Topology.Unlock()
+	control, err := h.Store.NodeServiceControl(r.Context(), idOf(r), time.Now())
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
+	if control.Policy.Action != "alert" && !h.serviceControlWriteAllowed(r) {
+		fail(w, http.StatusForbidden, "resetting protected traffic accounting requires service-control permission")
+		return
+	}
 	if err := h.Store.ResetNodeTraffic(r.Context(), idOf(r), time.Now()); err != nil {
 		serverErr(w, err)
 		return

@@ -231,6 +231,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("DELETE /api/admin/users/{id}/hwid-devices/{hwid}", h.requireAdmin(h.deleteHwidDevice))
 
 	h.registerNodeAccess(mux)
+	h.registerNodeServiceControl(mux)
 	mux.HandleFunc("GET /api/admin/plans", h.requireAdmin(h.listPlans))
 	mux.HandleFunc("POST /api/admin/plans", h.requireAdmin(h.createPlan))
 	mux.HandleFunc("PATCH /api/admin/plans/{id}", h.requireAdmin(h.updatePlan))
@@ -570,6 +571,9 @@ func fail(w http.ResponseWriter, code int, msg string) {
 // Operator: everything except settings, system, staff management and the
 // landing page. Support: tickets, plus read-only users, orders, dashboard.
 func allowed(role, method, path string) bool {
+	if strings.HasPrefix(path, "/api/admin/nodes/") && strings.HasSuffix(path, "/service-control") && role != domain.RoleAdmin {
+		return false
+	}
 	if (path == "/api/admin/infrastructure" || strings.HasPrefix(path, "/api/admin/infrastructure/")) && role != domain.RoleAdmin {
 		return false
 	}

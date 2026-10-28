@@ -379,6 +379,11 @@ func usersForDeliveredInbounds(inbounds []spec.Inbound, users []spec.User) []spe
 }
 
 func (a *AgentState) finishState(ctx context.Context, n *domain.Node, st *agentproto.State) (*agentproto.State, error) {
+	control, err := a.Store.DesiredNodeServiceControl(ctx, n.ID)
+	if err != nil {
+		return nil, err
+	}
+	st.Node.ServiceControl = control
 	if a.Probe != nil {
 		st.Probe = a.Probe.AgentConfig(ctx, n.ID)
 	}
