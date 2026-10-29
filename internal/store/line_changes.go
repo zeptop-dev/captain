@@ -117,14 +117,8 @@ func lineWireForwardsTx(ctx context.Context, tx *sql.Tx, nodeID, lineID int64) (
 	out := []spec.Forward{}
 	for _, f := range fs {
 		if f.LineID == lineID {
-			if f.Listen == "" && f.IngressID != "" {
-				var bind string
-				err = tx.QueryRowContext(ctx, `SELECT bind_ip FROM ingresses WHERE id=? AND node_id=?`, f.IngressID, nodeID).Scan(&bind)
-				if err != nil {
-					return nil, err
-				}
-				f.Listen = bind
-			}
+			// Managed-line compilation already persisted its resolved Listen.
+			// Do not re-resolve an old snapshot through a just-edited ingress.
 			f.IngressID = ""
 			out = append(out, f.Forward)
 		}
