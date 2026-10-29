@@ -59,7 +59,7 @@ export function SelfCheckCard() {
         ))}
       </Stack>}
       {q.data.retention && <Text size="xs" c="dimmed" mt="sm">{q.data.retention.last_run
-        ? t('selfcheck.retentionSummary', { at: when(q.data.retention.last_run), rows: q.data.retention.rows, duration: q.data.retention.duration_ms, success: q.data.retention.last_success ? when(q.data.retention.last_success) : t('common.unknown') })
+        ? t('selfcheck.retentionSummary', { at: when(q.data.retention.last_run), rows: q.data.retention.rows, duration: q.data.retention.duration_ms, success: q.data.retention.last_success ? when(q.data.retention.last_success) : '—' })
         : t('selfcheck.retentionUnknown')}</Text>}
     </Card>
   )
