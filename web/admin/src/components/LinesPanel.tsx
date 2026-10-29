@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { api, type ForwardAddressMode, type Line, type LineGroup, type LineMember, type LinePreview, type Node } from '../lib/api'
 import { freshLineStatus, lineSupportsGroups, proxyServer, type EntryNodeDetail, type InboundChoice } from '../lib/entry-flow'
 import { firstFreeIngressPort, forwardTargetAddress, forwardingAddress, hostPort, ingressPort } from '../lib/ingress'
-import { useSettingsDirty } from '../lib/settings-draft'
+import { SettingsDraftBoundary, useSettingsDirty } from '../lib/settings-draft'
 import { toast } from '../lib/notify'
 import { ForwardAddressModeSelect } from './ForwardAddressModeSelect'
 import { ForwardConnectivityCheck } from './ForwardConnectivityCheck'
@@ -76,7 +76,7 @@ export function LinesPanel({ lines, nodes, inbounds, loading, error, observedAt,
         </Stack>
       </Card>
     })}
-    {removing && <LineRolloutPlanner draft={removing} remove onClose={() => setRemoving(null)} onCreated={id => { setRemoving(null); onRollouts({ id }) }} />}
+    {removing && <SettingsDraftBoundary><LineRolloutPlanner draft={removing} remove onClose={() => setRemoving(null)} onCreated={id => { setRemoving(null); onRollouts({ id }) }} /></SettingsDraftBoundary>}
   </Stack>
 }
 

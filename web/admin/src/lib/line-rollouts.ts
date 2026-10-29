@@ -28,3 +28,13 @@ export function rolloutHistoryURL(lineID?: number, before?: number): string {
   if (before) q.set('before', String(before))
   return `/api/admin/line-rollouts?${q}`
 }
+
+export type LineRolloutAction = 'pause' | 'retry' | 'compensate'
+export interface LineRolloutActionRequest { path: string; body: { version: number } }
+
+// Capture the exact plan/version reviewed before opening a confirmation modal.
+// Polling may advance or replace the visible plan while confirmation is open;
+// the server must compare the original version, not a later borrowed one.
+export function rolloutActionRequest(plan: Pick<LineRollout, 'id' | 'version'>, action: LineRolloutAction): LineRolloutActionRequest {
+  return { path: `/api/admin/line-rollouts/${encodeURIComponent(plan.id)}/${action}`, body: { version: plan.version } }
+}

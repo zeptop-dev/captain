@@ -7,8 +7,9 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
 import { when } from '../lib/format'
 import { toast } from '../lib/notify'
+import { useSettingsDirty } from '../lib/settings-draft'
 import { evidenceIsFresh, evidenceLease, type EvidenceClock } from '../lib/line-change-evidence'
-import { rolloutHistoryURL, rolloutReviewKey, type LineRollout, type LineRolloutDraft, type LineRolloutNode, type LineRolloutPage, type LineRolloutPreview, type LineRolloutTarget } from '../lib/line-rollouts'
+import { rolloutActionRequest, rolloutHistoryURL, rolloutReviewKey, type LineRolloutAction, type LineRolloutActionRequest, type LineRollout, type LineRolloutDraft, type LineRolloutNode, type LineRolloutPage, type LineRolloutPreview, type LineRolloutTarget } from '../lib/line-rollouts'
 
 export function LineRolloutPlanner({ draft, remove = false, onClose, onCreated }: { draft: LineRolloutDraft; remove?: boolean; onClose: () => void; onCreated: (id: string) => void }) {
   const { t } = useTranslation()
@@ -25,6 +26,7 @@ export function LineRolloutPlanner({ draft, remove = false, onClose, onCreated }
     for (const queryKey of [['lines'], ['entries'], ['line-rollouts'], ['line-changes']]) void qc.invalidateQueries({ queryKey })
     toast.ok(t('lineRollouts.started')); onCreated(plan.id)
   }, onError: () => setReview(null) })
+  useSettingsDirty(save.isPending || !!review || seconds !== 300)
   const busy = preview.isPending || save.isPending
   const current = review?.key === key
   return <Modal opened onClose={() => { if (!save.isPending) onClose() }} closeOnClickOutside={false} closeOnEscape={!save.isPending} withCloseButton={!save.isPending} title={t(remove ? 'lineRollouts.remove' : 'lineRollouts.plan')} size="xl" fullScreen={mobile}>
@@ -68,10 +70,14 @@ export function LineRolloutHistory({ initialID, lineID, onClose }: { initialID?:
     const started = clock(); return { ...await api.get<LineRollout>(`/api/admin/line-rollouts/${encodeURIComponent(activeID!)}`, signal), started }
   }, enabled: !!activeID, retry: false, refetchInterval: 5000 })
   const connected = navigator.onLine && !detail.isError && detail.fetchStatus !== 'paused'
-  const act = useMutation({ mutationFn: (action: string) => api.post<LineRollout>(`/api/admin/line-rollouts/${encodeURIComponent(activeID!)}/${action}`, { version: detail.data!.version }), onSuccess: result => {
+  const act = useMutation({ mutationFn: (request: LineRolloutActionRequest) => api.post<LineRollout>(request.path, request.body), onSuccess: result => {
     setID(result.id); void qc.invalidateQueries({ queryKey: ['line-rollouts'] }); void qc.invalidateQueries({ queryKey: ['line-rollout'] }); void qc.invalidateQueries({ queryKey: ['lines'] }); void qc.invalidateQueries({ queryKey: ['entries'] })
   } })
-  const action = (kind: string) => modals.openConfirmModal({ title: t(`lineRollouts.action.${kind}`), children: <Text size="sm">{t(`lineRollouts.actionHint.${kind}`)}</Text>, labels: { confirm: t(`lineRollouts.action.${kind}`), cancel: t('common.cancel') }, onConfirm: () => act.mutate(kind) })
+  const action = (kind: LineRolloutAction) => {
+    if (!detail.data) return
+    const request = rolloutActionRequest(detail.data, kind)
+    modals.openConfirmModal({ title: t(`lineRollouts.action.${kind}`), children: <Text size="sm">{t(`lineRollouts.actionHint.${kind}`)}</Text>, labels: { confirm: t(`lineRollouts.action.${kind}`), cancel: t('common.cancel') }, onConfirm: () => act.mutate(request) })
+  }
   const turnPage = (next: (number | undefined)[]) => { setPages(next); setID(undefined) }
   return <Modal opened onClose={onClose} title={t('lineRollouts.history')} size="xl" fullScreen={mobile} closeButtonProps={{ 'aria-label': t('common.cancel') }}>
     <Stack>
