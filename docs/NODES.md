@@ -399,6 +399,27 @@ used lines and resources cannot be deleted accidentally. Updates carry a
 version so an outdated editor cannot overwrite another administrator's work.
 Runtime identities depend on the compiled rule, so renaming a line does not
 restart its forwarding sessions.
+The editor previews an edit before saving: it compares the saved and proposed
+expected forwarding rules, lists subscription endpoints and dependent Entries,
+and shows the configured relay/landing/reverse-exit connections. Candidate edges
+describe next-hop alternatives, not complete independent paths. The preview
+contains only forwarding fields; inbound credentials and rendered runtime files
+are not returned. Editing the draft requires another preview. A change to the
+reviewed configuration or its dependencies rejects saving until it is reviewed
+again. This does not establish runtime health or delay the existing immediate
+delivery of a saved change.
+
+API clients can use `POST /api/admin/lines/preview` for a new line or
+`POST /api/admin/lines/{id}/preview` for an existing one. These authenticated,
+authorized reads use one database snapshot and do not save drafts, write audit
+events or invalidate agent state. Save the returned `draft` with its `revision`
+as `preview_revision` to require the same impact at commit time; the existing
+line `version` check still applies. Omitting `preview_revision` preserves the
+previous API behavior. `GET /api/admin/lines/{id}/dependencies` exposes the saved
+dependency/use view even if current validation prevents compiling the line.
+None of these endpoints reports a staged rollout or per-change application
+confirmation.
+
 Status describes each forward's **next-hop TCP probe**, not a full end-to-end
 proxy test; UDP is explicitly untested. Agent application and real connectivity
 must still be checked after saving.

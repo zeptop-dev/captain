@@ -3639,5 +3639,41 @@
     "installed": "테마가 설치되었습니다. 선택하여 활성화할 수 있습니다.",
     "objectRequired": "설정은 JSON 객체여야 합니다.",
     "optionsFailed": "선택 항목을 불러올 수 없습니다. 다시 불러온 후 저장하세요."
+  },
+  "lineImpact": {
+    "title": "변경 영향",
+    "preview": "영향 미리 보기",
+    "save": "검토한 변경 저장",
+    "refresh": "미리 보기 새로 고침",
+    "stale": "초안이 변경되었습니다. 저장 전에 다시 미리 보세요.",
+    "scope": "전달할 포워딩 설정만 비교합니다. 서버에서 실행 중인 파일이나 연결 가능 여부를 나타내지 않습니다. 저장 후 기존의 즉시 전달 절차로 적용됩니다.",
+    "changes": "서버 {{count}}대의 포워딩 설정 변경",
+    "noChanges": "포워딩 설정 변경이 없습니다. 이름 등의 정보는 변경될 수 있습니다.",
+    "before": "저장된 예상 설정",
+    "after": "변경할 예상 설정",
+    "dependencies": "종속 관계와 참조",
+    "topologyHint": "설정된 경로만 표시합니다. 후보 연결은 다음 홉의 대안이며 독립된 전체 경로가 아닙니다. 실시간 상태를 추정하지 않습니다.",
+    "from": "출발",
+    "to": "도착",
+    "connection": "연결",
+    "uses": "이 경로를 사용하는 구독 노드",
+    "noUses": "현재 이 경로를 사용하는 구독 노드가 없습니다.",
+    "roles": {
+      "relay": "중계",
+      "landing": "최종 서버",
+      "reverse_exit": "역방향 출구"
+    },
+    "edges": {
+      "forward": "다음 홉",
+      "candidate": "다음 홉 후보",
+      "vless_reverse": "VLESS 역방향",
+      "wireguard": "WireGuard 역방향"
+    },
+    "usage": {
+      "line": "경로 직접 참조",
+      "client_chain": "클라이언트 체인 종속"
+    },
+    "endpoints": "변경할 구독 접속 주소",
+    "entryChange": "구독 접속 주소 변경"
   }
 }

@@ -23,11 +23,14 @@ import (
 var (
 	ErrLineConflict = errors.New("line changed; reload before saving")
 	ErrLineInUse    = errors.New("resource is referenced by a line; edit or remove the line first")
+	ErrLinePreview  = errors.New("line impact changed; preview again before saving")
 )
 
 // ForwardLine owns its generated listeners, but never owns its landing inbound
 // or subscription entries. Groups are ordered layers, not DNS answer pools.
 type ForwardLine struct {
+	// Optional on writes. Existing clients retain their immediate-save behavior.
+	PreviewRevision   string             `json:"preview_revision,omitempty"`
 	ID                int64              `json:"id"`
 	Name              string             `json:"name"`
 	Version           int64              `json:"version"`
@@ -285,6 +288,15 @@ func (s *Store) SaveLine(ctx context.Context, l *ForwardLine) error {
 		return err
 	}
 	defer tx.Rollback()
+	if l.PreviewRevision != "" {
+		preview, err := previewLineTx(ctx, tx, l)
+		if err != nil {
+			return err
+		}
+		if preview.Revision != l.PreviewRevision {
+			return ErrLinePreview
+		}
+	}
 	next := *l
 	if l.ID == 0 {
 		r, err := tx.ExecContext(ctx, `INSERT INTO forward_lines(name,version,protocol,backend,target_inbound_id,groups_json,updated_at) VALUES(?,1,?,?,?,'[]',?)`, l.Name, l.Protocol, l.Backend, l.TargetInboundID, now())
@@ -314,6 +326,7 @@ func (s *Store) SaveLine(ctx context.Context, l *ForwardLine) error {
 		return err
 	}
 	*l = next
+	l.PreviewRevision = ""
 	return nil
 }
 
@@ -322,32 +335,9 @@ func saveLineTx(ctx context.Context, tx *sql.Tx, l *ForwardLine) error {
 	if err != nil {
 		return err
 	}
-	// Reject removing/reassigning a published first member instead of silently
-	// moving a user's endpoint to an arbitrary alternative.
-	rows, err := tx.QueryContext(ctx, `SELECT id,line_member_id FROM entries WHERE line_id=?`, l.ID)
+	entryMembers, err := linePublishedMembersTx(ctx, tx, l.ID, endpoints)
 	if err != nil {
 		return err
-	}
-	entryMembers := map[int64]string{}
-	for rows.Next() {
-		var id int64
-		var m string
-		if err = rows.Scan(&id, &m); err != nil {
-			rows.Close()
-			return err
-		}
-		entryMembers[id] = m
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil {
-		return err
-	}
-	for _, m := range entryMembers {
-		e, ok := endpoints[m]
-		if !ok || e.Host == "" {
-			return errors.New("a published member cannot be removed or lose its public endpoint; edit its entries first")
-		}
 	}
 	if err = replaceLineForwardsTx(ctx, tx, l.ID, generated); err != nil {
 		return err
@@ -374,6 +364,36 @@ func saveLineTx(ctx context.Context, tx *sql.Tx, l *ForwardLine) error {
 		}
 	}
 	return nil
+}
+
+// Both preview and save enforce published-member protection from the same snapshot.
+func linePublishedMembersTx(ctx context.Context, tx *sql.Tx, id int64, endpoints map[string]LineEndpoint) (map[int64]string, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT id,line_member_id FROM entries WHERE line_id=?`, id)
+	if err != nil {
+		return nil, err
+	}
+	entryMembers := map[int64]string{}
+	for rows.Next() {
+		var id int64
+		var m string
+		if err = rows.Scan(&id, &m); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		entryMembers[id] = m
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	for _, m := range entryMembers {
+		e, ok := endpoints[m]
+		if !ok || e.Host == "" {
+			return nil, errors.New("a published member cannot be removed or lose its public endpoint; edit its entries first")
+		}
+	}
+	return entryMembers, nil
 }
 
 func (s *Store) DeleteLine(ctx context.Context, id, version int64) error {

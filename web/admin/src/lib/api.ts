@@ -150,6 +150,16 @@ export interface Line {
   id: number; name: string; version: number; protocol: 'tcp' | 'udp' | 'both'; backend: 'relay' | 'nft' | 'realm'
   target_inbound_id: number; target_address_mode?: ForwardAddressMode; groups: LineGroup[]; endpoints: LineEndpoint[]; status?: LineStatus[]
 }
+export interface LineExpectedForward { member_id: string; listen: string; port: number; protocol: string; backend: string; proxy_protocol: boolean; preserve_source: boolean; balance: string; targets: { target: string; weight?: number }[] }
+export interface LineDependencyView {
+  dependencies: { node_id: number; name: string; role: 'relay' | 'landing' | 'reverse_exit'; member_id?: string; group: number }[]
+  edges: { from: number; to: number; kind: 'forward' | 'candidate' | 'vless_reverse' | 'wireguard' }[]
+  uses: { entry_id: number; name: string; kind: 'line' | 'client_chain'; enabled: boolean; member_id?: string; before?: { inbound_id: number; host: string; port: number }; after?: { inbound_id: number; host: string; port: number } }[]
+}
+export interface LinePreview extends LineDependencyView {
+  revision: string; draft: Line; endpoints: LineEndpoint[]
+  changes: { node_id: number; name: string; before: LineExpectedForward[]; after: LineExpectedForward[] }[]
+}
 export interface Order {
   ID: number; No: string; UserID: number; PlanID: number; AmountCents: number; Gateway: string; GatewayRef: string
   Status: string; CreatedAt: string; PaidAt: string | null; PeriodDays: number; DiscountCents: number; email: string; plan_name: string

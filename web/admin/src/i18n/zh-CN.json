@@ -3639,5 +3639,41 @@
     "installed": "主题已安装，可选择并启用。",
     "objectRequired": "设置必须是 JSON 对象。",
     "optionsFailed": "无法加载可用选项，请重新加载后保存。"
+  },
+  "lineImpact": {
+    "title": "变更影响",
+    "preview": "预览影响",
+    "save": "保存已审阅变更",
+    "refresh": "刷新预览",
+    "stale": "草稿已改变，请重新预览后保存。",
+    "scope": "这里只比较期望的转发配置，不代表服务器正在运行的文件或连通性。保存后仍通过现有即时下发流程应用。",
+    "changes": "{{count}} 台服务器的转发配置将改变",
+    "noChanges": "转发配置没有变化；名称等资料仍可能改变。",
+    "before": "已保存的期望配置",
+    "after": "拟保存的期望配置",
+    "dependencies": "依赖与引用",
+    "topologyHint": "这里只展示配置路径。候选边表示下一跳备选，不代表独立完整路径，也不推断实时健康。",
+    "from": "起点",
+    "to": "终点",
+    "connection": "连接",
+    "uses": "使用此线路的订阅节点",
+    "noUses": "目前没有订阅节点使用此线路。",
+    "roles": {
+      "relay": "中转",
+      "landing": "落地",
+      "reverse_exit": "反向出口"
+    },
+    "edges": {
+      "forward": "下一跳",
+      "candidate": "下一跳备选",
+      "vless_reverse": "VLESS 反向连接",
+      "wireguard": "WireGuard 反向连接"
+    },
+    "usage": {
+      "line": "直接引用线路",
+      "client_chain": "客户端链依赖"
+    },
+    "endpoints": "拟发布的订阅端点",
+    "entryChange": "订阅端点变更"
   }
 }

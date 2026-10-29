@@ -243,6 +243,9 @@ func Register(mux *http.ServeMux, d Deps) {
 
 	mux.HandleFunc("GET /api/admin/lines", h.requireAdmin(h.listLines))
 	mux.HandleFunc("POST /api/admin/lines", h.requireAdmin(h.saveLine))
+	mux.HandleFunc("POST /api/admin/lines/preview", h.requireAdmin(h.previewLine))
+	mux.HandleFunc("POST /api/admin/lines/{id}/preview", h.requireAdmin(h.previewLine))
+	mux.HandleFunc("GET /api/admin/lines/{id}/dependencies", h.requireAdmin(h.lineDependencies))
 	mux.HandleFunc("GET /api/admin/lines/options", h.requireAdmin(h.lineOptions))
 	mux.HandleFunc("GET /api/admin/lines/{id}", h.requireAdmin(h.getLine))
 	mux.HandleFunc("PUT /api/admin/lines/{id}", h.requireAdmin(h.saveLine))
@@ -400,6 +403,10 @@ func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		authOnly, _ := r.Context().Value(subPresetAuthOnlyKey{}).(bool)
+		// Preview carries a draft in its body but performs no mutation. Keep
+		// authentication, role, token and origin checks; skip write side effects.
+		linePreview := r.Method == http.MethodPost && (r.Pattern == "POST /api/admin/lines/preview" || r.Pattern == "POST /api/admin/lines/{id}/preview")
+		authOnly = authOnly || linePreview
 		if !authOnly && h.State != nil && r.Method != http.MethodGet {
 			defer h.State.Invalidate()
 		}

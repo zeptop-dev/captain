@@ -3639,5 +3639,41 @@
     "installed": "Theme installed; select and activate it when ready.",
     "objectRequired": "Settings must be a JSON object.",
     "optionsFailed": "Could not load available choices. Reload before saving."
+  },
+  "lineImpact": {
+    "title": "Change impact",
+    "preview": "Preview impact",
+    "save": "Save reviewed change",
+    "refresh": "Refresh preview",
+    "stale": "The draft changed. Preview again before saving.",
+    "scope": "Expected forwarding configuration only. This does not show files running on a server or prove connectivity. Saving still sends changes through the existing immediate delivery path.",
+    "changes": "Forwarding changes on {{count}} servers",
+    "noChanges": "No forwarding changes. Names or other metadata may still change.",
+    "before": "Saved expected configuration",
+    "after": "Proposed expected configuration",
+    "dependencies": "Dependencies and use",
+    "topologyHint": "Configured paths only. Candidate edges represent alternatives at the next hop, not complete independent paths. No live health is inferred.",
+    "from": "From",
+    "to": "To",
+    "connection": "Connection",
+    "uses": "Subscription nodes using this line",
+    "noUses": "No subscription nodes currently use this line.",
+    "roles": {
+      "relay": "Relay",
+      "landing": "Landing",
+      "reverse_exit": "Reverse exit"
+    },
+    "edges": {
+      "forward": "Next hop",
+      "candidate": "Next-hop candidate",
+      "vless_reverse": "VLESS reverse",
+      "wireguard": "WireGuard reverse"
+    },
+    "usage": {
+      "line": "Direct line reference",
+      "client_chain": "Client-chain dependency"
+    },
+    "endpoints": "Proposed subscription endpoints",
+    "entryChange": "Subscription endpoint change"
   }
 }

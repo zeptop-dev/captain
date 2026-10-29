@@ -3639,5 +3639,41 @@
     "installed": "主題已安裝，可選擇並啟用。",
     "objectRequired": "設定必須是 JSON 物件。",
     "optionsFailed": "無法載入可用選項，請重新載入後儲存。"
+  },
+  "lineImpact": {
+    "title": "變更影響",
+    "preview": "預覽影響",
+    "save": "儲存已審閱變更",
+    "refresh": "重新預覽",
+    "stale": "草稿已變更，請重新預覽後儲存。",
+    "scope": "這裡只比較期望的轉發設定，不代表伺服器正在執行的檔案或連通性。儲存後仍透過既有即時下發流程套用。",
+    "changes": "{{count}} 台伺服器的轉發設定將變更",
+    "noChanges": "轉發設定沒有變更；名稱等資料仍可能改變。",
+    "before": "已儲存的期望設定",
+    "after": "擬儲存的期望設定",
+    "dependencies": "依賴與引用",
+    "topologyHint": "這裡只顯示設定路徑。候選邊表示下一跳備選，不代表獨立完整路徑，也不推斷即時健康。",
+    "from": "起點",
+    "to": "終點",
+    "connection": "連線",
+    "uses": "使用此線路的訂閱節點",
+    "noUses": "目前沒有訂閱節點使用此線路。",
+    "roles": {
+      "relay": "中轉",
+      "landing": "落地",
+      "reverse_exit": "反向出口"
+    },
+    "edges": {
+      "forward": "下一跳",
+      "candidate": "下一跳備選",
+      "vless_reverse": "VLESS 反向連線",
+      "wireguard": "WireGuard 反向連線"
+    },
+    "usage": {
+      "line": "直接引用線路",
+      "client_chain": "客戶端鏈依賴"
+    },
+    "endpoints": "擬發佈的訂閱端點",
+    "entryChange": "訂閱端點變更"
   }
 }
