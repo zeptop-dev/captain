@@ -29,6 +29,7 @@ var (
 // ForwardLine owns its generated listeners, but never owns its landing inbound
 // or subscription entries. Groups are ordered layers, not DNS answer pools.
 type ForwardLine struct {
+	PathRoute bool `json:"path_route,omitempty"`
 	// Optional on writes. Existing clients retain their immediate-save behavior.
 	PreviewRevision   string             `json:"preview_revision,omitempty"`
 	ID                int64              `json:"id"`
@@ -132,6 +133,9 @@ func lineRuntimeTag(l *ForwardLine, m LineMember, f spec.Forward) string {
 }
 
 func (s *Store) decorateLine(ctx context.Context, l *ForwardLine) error {
+	if err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM forward_path_routes WHERE line_id=?)`, l.ID).Scan(&l.PathRoute); err != nil {
+		return err
+	}
 	for i, g := range l.Groups {
 		for _, m := range g.Members {
 			n, err := s.NodeByID(ctx, m.NodeID)
@@ -295,6 +299,15 @@ func (s *Store) SaveLineWithChange(ctx context.Context, l *ForwardLine) (string,
 		return "", err
 	}
 	defer tx.Rollback()
+	if owned, err := isPathRouteTx(ctx, tx, l.ID); err != nil {
+		return "", err
+	} else if owned {
+		return "", ErrPathRouteOwned
+	}
+	if l.PathRoute {
+		return "", ErrPathRouteOwned
+	}
+
 	if l.PreviewRevision != "" {
 		preview, err := previewLineTx(ctx, tx, l)
 		if err != nil {
@@ -423,6 +436,15 @@ func (s *Store) DeleteLineWithChange(ctx context.Context, id, version int64) (st
 		return "", err
 	}
 	defer tx.Rollback()
+	if owned, err := isPathRouteTx(ctx, tx, id); err != nil {
+		return "", err
+	} else if owned {
+		return "", ErrPathRouteOwned
+	}
+	if err := pathSourceLineInUseTx(ctx, tx, id); err != nil {
+		return "", err
+	}
+
 	var v, n int64
 	if err = tx.QueryRowContext(ctx, `SELECT version FROM forward_lines WHERE id=?`, id).Scan(&v); err != nil {
 		return "", wrapNotFound(err)
@@ -590,11 +612,11 @@ func nodeHasLines(ctx context.Context, q interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 }, id int64) (bool, error) {
 	var n int
-	err := q.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM forward_line_members WHERE node_id=?) + (SELECT COUNT(*) FROM forward_lines l WHERE l.target_inbound_id IN (
+	err := q.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM forward_path_hops WHERE node_id=?) + (SELECT COUNT(*) FROM forward_line_members WHERE node_id=?) + (SELECT COUNT(*) FROM forward_lines l WHERE l.target_inbound_id IN (
 	SELECT id FROM inbounds WHERE node_id=?
 	UNION SELECT user_inbound_id FROM node_reverse_links WHERE exit_id=?
 	UNION SELECT receiver_inbound_id FROM node_reverse_links WHERE exit_id=?
-	UNION SELECT user_inbound_id FROM node_wireguard_links WHERE exit_id=?))`, id, id, id, id, id).Scan(&n)
+	UNION SELECT user_inbound_id FROM node_wireguard_links WHERE exit_id=?))`, id, id, id, id, id, id).Scan(&n)
 	if err != nil || n > 0 {
 		return n > 0, err
 	}
@@ -644,8 +666,14 @@ func refreshLinesForNodeTx(ctx context.Context, tx *sql.Tx, node int64) error {
 			return fmt.Errorf("line %q: %w; choose another landing or remove this line first", l.Name, err)
 		}
 		l.Protocol = protocol
-		if err = normalizeLine(l); err != nil {
-			return fmt.Errorf("line %q: %w; update its candidate group strategy before changing the landing transport", l.Name, err)
+		owned, e := isPathRouteTx(ctx, tx, l.ID)
+		if e != nil {
+			return e
+		}
+		if !owned {
+			if err = normalizeLine(l); err != nil {
+				return fmt.Errorf("line %q: %w; update its candidate group strategy before changing the landing transport", l.Name, err)
+			}
 		}
 		l.Version++
 		if err = saveLineTx(ctx, tx, l, "recompile"); err != nil {

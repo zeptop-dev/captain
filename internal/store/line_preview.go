@@ -106,6 +106,15 @@ func emptyLinePreview() *LinePreview {
 	return &LinePreview{Changes: []LineNodeChange{}, Dependencies: []LineDependency{}, Edges: []LineEdge{}, Uses: []LineUse{}, Endpoints: []LineEndpoint{}}
 }
 func previewLineTx(ctx context.Context, tx *sql.Tx, input *ForwardLine) (*LinePreview, error) {
+	if owned, err := isPathRouteTx(ctx, tx, input.ID); err != nil {
+		return nil, err
+	} else if owned {
+		return nil, ErrPathRouteOwned
+	}
+	if input.PathRoute {
+		return nil, ErrPathRouteOwned
+	}
+
 	// Strip response-only fields and copy nested slices before normalizing.
 	next := ForwardLine{ID: input.ID, Name: input.Name, Version: input.Version, Protocol: input.Protocol, Backend: input.Backend, TargetInboundID: input.TargetInboundID, TargetAddressMode: input.TargetAddressMode}
 	next.Groups = make([]LineGroup, len(input.Groups))
@@ -224,6 +233,12 @@ func expectedLineForwards(fs []NodeForward) []LineExpectedForward {
 }
 
 func lineDependenciesTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, p *LinePreview) error {
+	if owned, err := isPathRouteTx(ctx, tx, l.ID); err != nil {
+		return err
+	} else if owned {
+		return pathRouteDependenciesTx(ctx, tx, l, p)
+	}
+
 	add := func(id int64, role, member string, group int) error {
 		var name string
 		if err := tx.QueryRowContext(ctx, `SELECT name FROM nodes WHERE id=?`, id).Scan(&name); err != nil {
@@ -280,8 +295,11 @@ func lineDependenciesTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, p *Line
 		}
 		p.Edges = append(p.Edges, e)
 	}
+	return lineUsesTx(ctx, tx, l, p)
+}
+func lineUsesTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, p *LinePreview) error {
 	// UNION deduplicates and terminates even if old data contains a client cycle.
-	rows, err = tx.QueryContext(ctx, `WITH RECURSIVE used(id) AS (
+	rows, err := tx.QueryContext(ctx, `WITH RECURSIVE used(id) AS (
  SELECT id FROM entries WHERE line_id=?
  UNION SELECT e.id FROM entries e JOIN used u ON e.client_dialer_entry_id=u.id
  ) SELECT e.id,e.name,CASE WHEN e.line_id=? THEN 'line' ELSE 'client_chain' END,e.enabled,e.line_member_id,e.inbound_id,e.display_host,e.display_port

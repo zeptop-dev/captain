@@ -13,7 +13,7 @@ func lineError(w http.ResponseWriter, err error) {
 		fail(w, 404, "line or referenced resource not found")
 		return
 	}
-	if errors.Is(err, store.ErrLineConflict) || errors.Is(err, store.ErrLineInUse) || errors.Is(err, store.ErrLinePreview) {
+	if errors.Is(err, store.ErrLineConflict) || errors.Is(err, store.ErrLineInUse) || errors.Is(err, store.ErrLinePreview) || errors.Is(err, store.ErrPathRouteOwned) || errors.Is(err, store.ErrPathInUse) {
 		fail(w, 409, err.Error())
 		return
 	}

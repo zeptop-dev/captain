@@ -153,6 +153,14 @@ func (s *Store) DeleteIngress(ctx context.Context, id int64) error {
 		return err
 	}
 	defer tx.Rollback()
+	var pathRefs int
+	if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM forward_path_hops WHERE ingress_id=?`, id).Scan(&pathRefs); err != nil {
+		return err
+	}
+	if pathRefs > 0 {
+		return ErrPathInUse
+	}
+
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM inbounds WHERE ingress_id=?", id)
 	if err != nil {
 		return err
