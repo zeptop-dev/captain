@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
+	"github.com/zeptop-dev/bosun/pkg/spec"
 )
 
 const configEvidenceFresh = 3 * time.Minute
@@ -46,6 +47,12 @@ type NodeConfigHistory struct {
 // retire the live process. Challenges bind the current head, so a late reply
 // also cannot supersede a newer activation. The optional echo keeps callers compatible.
 func (s *Store) PrepareNodeConfigDelivery(ctx context.Context, nodeID int64, tokenHash, session, configRevision, stateRevision string, at time.Time, seenDelivery ...string) (*agentproto.ConfigDelivery, error) {
+	return s.prepareNodeConfigDelivery(ctx, nodeID, tokenHash, session, configRevision, stateRevision, nil, at, seenDelivery...)
+}
+func (s *Store) PrepareNodeConfigDeliveryForLines(ctx context.Context, nodeID int64, tokenHash, session, configRevision, stateRevision string, forwards []spec.Forward, at time.Time, seenDelivery ...string) (*agentproto.ConfigDelivery, error) {
+	return s.prepareNodeConfigDelivery(ctx, nodeID, tokenHash, session, configRevision, stateRevision, &forwards, at, seenDelivery...)
+}
+func (s *Store) prepareNodeConfigDelivery(ctx context.Context, nodeID int64, tokenHash, session, configRevision, stateRevision string, forwards *[]spec.Forward, at time.Time, seenDelivery ...string) (*agentproto.ConfigDelivery, error) {
 	if !configSessionPattern.MatchString(session) || !configRevisionPattern.MatchString(configRevision) || !configRevisionPattern.MatchString(stateRevision) || at.UnixMilli() <= 0 {
 		return nil, fmt.Errorf("invalid configuration delivery metadata")
 	}
@@ -72,14 +79,34 @@ func (s *Store) PrepareNodeConfigDelivery(ctx context.Context, nodeID int64, tok
 		return nil, err
 	}
 	current := headToken == tokenHash && headSession == session
-	if current && headState == stateRevision && headConfig == configRevision {
-		return &agentproto.ConfigDelivery{ID: headID, Session: session}, nil
+	var lineTargets []lineChangeTargetRecord
+	forceDelivery := false
+	if forwards != nil {
+		lineTargets, err = matchingLineTargetsTx(ctx, tx, nodeID, tokenHash, *forwards)
+		if err != nil {
+			return nil, err
+		}
+		forceDelivery, err = lineTargetsNeedDeliveryTx(ctx, tx, lineTargets, headID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if current && headState == stateRevision && headConfig == configRevision && !forceDelivery {
+		d := &agentproto.ConfigDelivery{ID: headID, Session: session}
+		if err = bindLineTargetsTx(ctx, tx, lineTargets, tokenHash, d); err != nil {
+			return nil, err
+		}
+		return d, tx.Commit()
 	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO node_config_sessions(node_id,token_identity,session,created_at) VALUES(?,?,?,?) ON CONFLICT(node_id,token_identity,session) DO NOTHING`, nodeID, tokenHash, session, at.UnixMilli()); err != nil {
 		return nil, err
 	}
 	id := ""
-	if candidate != "" && !current && candidateParent == headID {
+	candidateNeedsDelivery, err := lineTargetsNeedDeliveryTx(ctx, tx, lineTargets, candidate)
+	if err != nil {
+		return nil, err
+	}
+	if candidate != "" && !current && candidateParent == headID && !candidateNeedsDelivery {
 		var cfg, state string
 		err = tx.QueryRowContext(ctx, `SELECT config_revision,state_revision FROM node_config_deliveries WHERE id=? AND node_id=? AND token_identity=? AND session=?`, candidate, nodeID, tokenHash, session).Scan(&cfg, &state)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -108,7 +135,14 @@ func (s *Store) PrepareNodeConfigDelivery(ctx context.Context, nodeID int64, tok
 	if err = pruneNodeConfigDeliveriesTx(ctx, tx, nodeID); err != nil {
 		return nil, err
 	}
-	return &agentproto.ConfigDelivery{ID: id, Session: session}, tx.Commit()
+	d := &agentproto.ConfigDelivery{ID: id, Session: session}
+	if err = mapLineTargetsTx(ctx, tx, lineTargets, d); err != nil {
+		return nil, err
+	}
+	if err = bindLineTargetsTx(ctx, tx, lineTargets, tokenHash, d); err != nil {
+		return nil, err
+	}
+	return d, tx.Commit()
 }
 
 func activateNodeConfigDeliveryTx(ctx context.Context, tx *sql.Tx, nodeID int64, tokenHash, session, id string, at time.Time) error {
@@ -153,7 +187,10 @@ func recordNodeConfigReceiptTx(ctx context.Context, tx *sql.Tx, nodeID int64, to
 	}
 	applied := r.Applied && appliedRevision == r.StateRevision
 	_, err = tx.ExecContext(ctx, `UPDATE node_config_deliveries SET confirmed_at=CASE WHEN ? THEN COALESCE(confirmed_at,?) ELSE confirmed_at END,last_receipt_at=?,observed_at=?,receipt_sequence=?,applied=? WHERE id=?`, applied, at.UnixMilli(), at.UnixMilli(), r.ObservedAt.UnixMilli(), int64(r.Sequence), applied, r.DeliveryID)
-	return err
+	if err != nil {
+		return err
+	}
+	return recordLineTargetReceiptTx(ctx, tx, nodeID, tokenHash, r, applied, at)
 }
 
 const nodeConfigDeliveryCols = `d.id,d.session,d.config_revision,d.state_revision,d.issued_at,d.confirmed_at,d.last_receipt_at,d.observed_at,d.receipt_sequence,d.applied,d.token_identity`

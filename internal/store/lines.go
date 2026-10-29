@@ -283,54 +283,69 @@ func normalizeLine(l *ForwardLine) error {
 // SaveLine is called under Topology. One transaction owns the specification,
 // membership references, generated forwards, and all bound entry addresses.
 func (s *Store) SaveLine(ctx context.Context, l *ForwardLine) error {
+	_, err := s.SaveLineWithChange(ctx, l)
+	return err
+}
+
+// SaveLineWithChange returns the record committed by this transaction, even if
+// a background recompile starts immediately after the commit.
+func (s *Store) SaveLineWithChange(ctx context.Context, l *ForwardLine) (string, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer tx.Rollback()
 	if l.PreviewRevision != "" {
 		preview, err := previewLineTx(ctx, tx, l)
 		if err != nil {
-			return err
+			return "", err
 		}
 		if preview.Revision != l.PreviewRevision {
-			return ErrLinePreview
+			return "", ErrLinePreview
 		}
 	}
 	next := *l
 	if l.ID == 0 {
 		r, err := tx.ExecContext(ctx, `INSERT INTO forward_lines(name,version,protocol,backend,target_inbound_id,groups_json,updated_at) VALUES(?,1,?,?,?,'[]',?)`, l.Name, l.Protocol, l.Backend, l.TargetInboundID, now())
 		if err != nil {
-			return err
+			return "", err
 		}
 		next.ID, _ = r.LastInsertId()
 		next.Version = 1
 	} else {
 		old, err := scanLine(tx.QueryRowContext(ctx, "SELECT "+lineCols+" FROM forward_lines WHERE id=?", l.ID))
 		if err != nil {
-			return err
+			return "", err
 		}
 		if old.Version != l.Version {
-			return ErrLineConflict
+			return "", ErrLineConflict
 		}
 		preserveLineAddressModes(&next, old)
 		next.Version++
 	}
 	if err = normalizeLine(&next); err != nil {
-		return err
+		return "", err
 	}
-	if err = saveLineTx(ctx, tx, &next); err != nil {
-		return err
+	if err = saveLineTx(ctx, tx, &next, "save"); err != nil {
+		return "", err
+	}
+	var change string
+	if err = tx.QueryRowContext(ctx, `SELECT latest_change_id FROM line_change_scopes WHERE line_id=?`, next.ID).Scan(&change); err != nil {
+		return "", err
 	}
 	if err = tx.Commit(); err != nil {
-		return err
+		return "", err
 	}
 	*l = next
 	l.PreviewRevision = ""
-	return nil
+	return change, nil
 }
 
-func saveLineTx(ctx context.Context, tx *sql.Tx, l *ForwardLine) error {
+func saveLineTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, kind string) error {
+	before, err := lineOwnedSnapshotTx(ctx, tx, l.ID)
+	if err != nil {
+		return err
+	}
 	generated, endpoints, err := compileLine(ctx, tx, l)
 	if err != nil {
 		return err
@@ -363,7 +378,7 @@ func saveLineTx(ctx context.Context, tx *sql.Tx, l *ForwardLine) error {
 			return err
 		}
 	}
-	return nil
+	return recordLineChangeTx(ctx, tx, l, kind, before)
 }
 
 // Both preview and save enforce published-member protection from the same snapshot.
@@ -397,31 +412,56 @@ func linePublishedMembersTx(ctx context.Context, tx *sql.Tx, id int64, endpoints
 }
 
 func (s *Store) DeleteLine(ctx context.Context, id, version int64) error {
+	_, err := s.DeleteLineWithChange(ctx, id, version)
+	return err
+}
+
+// DeleteLineWithChange returns the cleanup record from this exact transaction.
+func (s *Store) DeleteLineWithChange(ctx context.Context, id, version int64) (string, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer tx.Rollback()
 	var v, n int64
 	if err = tx.QueryRowContext(ctx, `SELECT version FROM forward_lines WHERE id=?`, id).Scan(&v); err != nil {
-		return wrapNotFound(err)
+		return "", wrapNotFound(err)
 	}
 	if v != version {
-		return ErrLineConflict
+		return "", ErrLineConflict
 	}
 	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM entries WHERE line_id=?`, id).Scan(&n); err != nil {
-		return err
+		return "", err
 	}
 	if n > 0 {
-		return fmt.Errorf("%w: subscription nodes still publish this line", ErrLineInUse)
+		return "", fmt.Errorf("%w: subscription nodes still publish this line", ErrLineInUse)
+	}
+	old, err := scanLine(tx.QueryRowContext(ctx, "SELECT "+lineCols+" FROM forward_lines WHERE id=?", id))
+	if err != nil {
+		return "", err
+	}
+	before, err := lineOwnedSnapshotTx(ctx, tx, id)
+	if err != nil {
+		return "", err
 	}
 	if err = replaceLineForwardsTx(ctx, tx, id, nil); err != nil {
-		return err
+		return "", err
+	}
+	old.Version++
+	if err = recordLineChangeTx(ctx, tx, old, "delete", before); err != nil {
+		return "", err
+	}
+	var change string
+	if err = tx.QueryRowContext(ctx, `SELECT latest_change_id FROM line_change_scopes WHERE line_id=?`, id).Scan(&change); err != nil {
+		return "", err
 	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM forward_lines WHERE id=?`, id); err != nil {
-		return err
+		return "", err
 	}
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return "", err
+	}
+	return change, nil
 }
 
 func replaceLineForwardsTx(ctx context.Context, tx *sql.Tx, id int64, generated map[int64][]NodeForward) error {
@@ -608,7 +648,7 @@ func refreshLinesForNodeTx(ctx context.Context, tx *sql.Tx, node int64) error {
 			return fmt.Errorf("line %q: %w; update its candidate group strategy before changing the landing transport", l.Name, err)
 		}
 		l.Version++
-		if err = saveLineTx(ctx, tx, l); err != nil {
+		if err = saveLineTx(ctx, tx, l, "recompile"); err != nil {
 			return err
 		}
 	}
