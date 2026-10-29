@@ -3692,5 +3692,27 @@
     },
     "endpoints": "Proposed subscription endpoints",
     "entryChange": "Subscription endpoint change"
+  },
+  "nodeConfiguration": {
+    "title": "Configuration confirmation",
+    "hint": "Confirms that the current process consumed and applied the complete state. This does not prove end-to-end connectivity. User access and jobs still update immediately.",
+    "structure": "Structure",
+    "state": "Full state",
+    "observed": "Node observation: {{at}}",
+    "history": "Configuration deliveries",
+    "historyHint": "Latest 20 deliveries. First confirmation is historical evidence, not a claim that this configuration is still running.",
+    "delivery": "Delivery",
+    "issued": "Issued",
+    "confirmed": "First application confirmed",
+    "unknownHint": "No usable receipt yet. Older agents keep serving; an upgrade enables this confirmation.",
+    "unavailableHint": "Custom overrides or opaque settings cannot produce a reliable structural revision. Existing configuration delivery continues.",
+    "loadError": "Could not load current confirmation.",
+    "status": {
+      "unknown": "Unknown",
+      "unavailable": "Structure unavailable",
+      "pending": "Awaiting confirmation",
+      "applied": "Applied",
+      "stale": "Confirmation expired"
+    }
   }
 }

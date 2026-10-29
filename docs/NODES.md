@@ -44,6 +44,31 @@ editor, and `#node-inbounds` expands related services. `/nodes/{id}/host` remain
 the administrator host-management workflow. No API, schema, agent upgrade,
 traffic accounting or subscription changes are required.
 
+## Configuration confirmation
+
+Administrators can open **Diagnostics → Health → Configuration confirmation**
+to inspect the current delivery and the last 20 delivery records. The read-only
+API is `GET /api/admin/nodes/{id}/configuration`; narrowed tokens need `nodes:read`.
+It does not create a delivery or enqueue a job.
+
+A structural revision identifies declared listeners, routing and forwarding.
+The full state revision also changes with user authorization, credentials,
+service controls and pending jobs. Both revisions and the current process's
+unique delivery must match before the panel shows **Applied**. This is an
+application acknowledgment, not an end-to-end connectivity check. Configuration
+continues to be delivered immediately; this feature does not schedule waves or
+restore historical snapshots.
+
+A new process, changed state, failed application or expired observation removes
+the current confirmation. Historical first-confirmation times remain visible.
+Receipts expire after three minutes; severely skewed node clocks cannot provide
+fresh confirmation. Older agents keep serving and show **Unknown**. Nonempty
+opaque core overrides or outbound settings cannot be safely classified and show
+**Structure unavailable**, while the original state-delivery path continues.
+Only digests and observation metadata are stored here, not user credentials or
+rendered configuration. The database retains the most recent 100 deliveries per
+server; retired process sessions remain fenced within their pairing identity.
+
 ## Groups and display order
 
 These groups organize **servers** for monitoring. To categorize the subscription

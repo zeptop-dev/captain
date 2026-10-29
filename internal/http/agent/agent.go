@@ -144,7 +144,14 @@ func (h *handlers) pair(w http.ResponseWriter, r *http.Request) {
 // the revision changes or the window ends, so edits reach nodes almost at
 // once without a persistent connection.
 func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Vary", agentproto.ConfigSessionHeader+", "+agentproto.ConfigDeliveryHeader)
 	n := nodeFrom(r)
+	session := r.Header.Get(agentproto.ConfigSessionHeader)
+	if session != "" && !validConfigSession(session) {
+		fail(w, http.StatusBadRequest, "invalid configuration session")
+		return
+	}
 	wait, _ := time.ParseDuration(r.URL.Query().Get("wait"))
 	if wait > 50*time.Second {
 		wait = 50 * time.Second
@@ -174,10 +181,29 @@ func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 			fail(w, http.StatusInternalServerError, "internal error")
 			return
 		}
+		// Cached state is shared across concurrent requests. Delivery metadata is
+		// private to this process session and must never mutate the cache.
+		response := *st
+		if session != "" && st.ConfigRevision != "" {
+			response.ConfigDelivery, err = h.Store.PrepareNodeConfigDelivery(r.Context(), n.ID, tokenHash, session, st.ConfigRevision, st.Revision, time.Now(), r.Header.Get(agentproto.ConfigDeliveryHeader))
+			if err != nil {
+				if errors.Is(err, store.ErrNotFound) {
+					fail(w, http.StatusUnauthorized, "node identity changed")
+				} else {
+					fail(w, http.StatusInternalServerError, "internal error")
+				}
+				return
+			}
+		}
+		deliveryID := ""
+		if response.ConfigDelivery != nil {
+			deliveryID = response.ConfigDelivery.ID
+		}
+		metadataChanged := session != "" && r.Header.Get(agentproto.ConfigDeliveryHeader) != deliveryID
 		etag := `"` + st.Revision + `"`
-		if !strings.Contains(r.Header.Get("If-None-Match"), etag) {
+		if metadataChanged || !strings.Contains(r.Header.Get("If-None-Match"), etag) {
 			w.Header().Set("ETag", etag)
-			ok(w, st)
+			ok(w, &response)
 			return
 		}
 		if time.Now().After(deadline) {
@@ -629,4 +655,17 @@ func eventTime(unix int64, now time.Time) time.Time {
 
 func validTraffic(t spec.Traffic) bool {
 	return t.Up >= 0 && t.Down >= 0 && t.Up <= maxTrafficDelta && t.Down <= maxTrafficDelta
+}
+
+// A process session is a random, bounded identifier, never a node credential.
+func validConfigSession(session string) bool {
+	if len(session) != 32 {
+		return false
+	}
+	for _, c := range session {
+		if !(c >= '0' && c <= '9') && !(c >= 'a' && c <= 'f') {
+			return false
+		}
+	}
+	return true
 }

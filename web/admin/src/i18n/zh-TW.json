@@ -3692,5 +3692,27 @@
     },
     "endpoints": "擬發佈的訂閱端點",
     "entryChange": "訂閱端點變更"
+  },
+  "nodeConfiguration": {
+    "title": "設定套用確認",
+    "hint": "確認目前程序已取用並套用完整設定，不代表端到端連通。使用者授權與工作變更仍即時下發。",
+    "structure": "結構版本",
+    "state": "完整狀態",
+    "observed": "節點觀察時間：{{at}}",
+    "history": "設定投遞紀錄",
+    "historyHint": "最近 20 次投遞；首次確認保留歷史事實，不代表該設定目前仍在執行。",
+    "delivery": "投遞編號",
+    "issued": "發出時間",
+    "confirmed": "首次套用確認",
+    "unknownHint": "尚無可用回執。舊版節點繼續服務，升級後可提供此項確認。",
+    "unavailableHint": "目前自訂覆寫或不透明設定無法產生可靠的結構版本；原有設定下發繼續運作。",
+    "loadError": "載入失敗，無法確認目前狀態。",
+    "status": {
+      "unknown": "未知",
+      "unavailable": "結構版本無法使用",
+      "pending": "等待套用確認",
+      "applied": "已套用",
+      "stale": "確認已過期"
+    }
   }
 }

@@ -3692,5 +3692,27 @@
     },
     "endpoints": "拟发布的订阅端点",
     "entryChange": "订阅端点变更"
+  },
+  "nodeConfiguration": {
+    "title": "配置应用确认",
+    "hint": "确认当前进程已消费并应用完整配置，不代表端到端连通。用户授权与任务变化仍即时下发。",
+    "structure": "结构版本",
+    "state": "完整状态",
+    "observed": "节点观察时间：{{at}}",
+    "history": "配置投递记录",
+    "historyHint": "最近 20 次投递；首次确认保留历史事实，不表示该配置当前仍在运行。",
+    "delivery": "投递编号",
+    "issued": "发出时间",
+    "confirmed": "首次应用确认",
+    "unknownHint": "尚无可用回执。旧版节点继续服务，升级后可提供此项确认。",
+    "unavailableHint": "当前自定义覆写或不透明配置无法生成可靠的结构版本；原有配置下发继续工作。",
+    "loadError": "加载失败，当前状态无法确认。",
+    "status": {
+      "unknown": "未知",
+      "unavailable": "结构版本不可用",
+      "pending": "等待应用确认",
+      "applied": "已应用",
+      "stale": "确认已过期"
+    }
   }
 }

@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import type { NodeDetail } from '../lib/server-detail'
 import { when } from '../lib/format'
+import { NodeConfigurationCard } from './NodeConfigurationCard'
 import { DoctorCard } from './DoctorCard'
 import { DNSHealthCard } from './DNSHealthCard'
 import { PrivateAccessReadiness } from './PrivateAccessReadiness'
@@ -20,6 +21,7 @@ export function NodeDiagnostics({ detail: d }: { detail: NodeDetail }) {
   return <>
     <Group mb="lg">{['health', ...(me?.role === 'admin' ? ['network', 'routes'] : [])].map(key => <Button key={key} component={Link} variant={view === key ? 'light' : 'subtle'} aria-current={view === key ? 'page' : undefined} to={`/nodes/${n.id}/diagnostics?view=${key}`} onClick={e => { if (view === key) e.preventDefault() }}>{t(`serverDetail.diagnostics.${key}`)}</Button>)}</Group>
     {view === 'network' && me?.role === 'admin' ? <NetworkDiagnosticsCard nodeID={n.id} /> : view === 'routes' && me?.role === 'admin' ? <ReturnRoutesCard nodeID={n.id} /> : <>
+      {me?.role === 'admin' && <NodeConfigurationCard nodeID={n.id} />}
       {d.status?.doctor ? <DoctorCard report={d.status.doctor} /> : <Card mb="lg"><Text c="dimmed">{t('common.empty')}</Text></Card>}
       {n.proxy_allowed !== false && <PrivateAccessReadiness nodeID={n.id} />}
       <DNSHealthCard nodeID={n.id} />

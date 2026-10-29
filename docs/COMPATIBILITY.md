@@ -835,3 +835,23 @@ Internal address selection introduced a v1.31.0 update/rollback floor: older pan
 ignore the saved mode and regenerate a public target on an unrelated edit.
 The current floor is v1.32.0 to also preserve storage visibility choices.
 Manual downgrade requires restoring the matching pre-upgrade database backup.
+
+## Configuration receipts (development)
+
+Migration 100 adds private node configuration sessions, current delivery heads
+and bounded delivery history. It does not backfill successful observations or
+change existing configuration, accounting, subscription or authorization data.
+No existing API path, field meaning or configuration key changes.
+
+The optional agent fields `State.config_revision`, `State.config_delivery` and
+`Report.config_receipt` preserve legacy delivery. The complete `Revision`/ETag
+still changes with dynamic users, jobs and service controls. Process headers
+only opt into confirmation; legacy agents do not create confirmation records.
+A new delivery bypasses an otherwise matching ETag, while identical content and
+delivery retain 304 behavior. Confirmation is independently sequenced and never
+borrows freshness from a retried customer-traffic batch.
+
+This development feature needs the matching bosun implementation. Until bosun
+is released, cross-repository validation uses an isolated task workspace; the
+formal dependency must be updated and `GOWORK=off` release checks must pass before
+publication. No release version is assigned here.
