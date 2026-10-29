@@ -22,6 +22,8 @@ import { EntryCategoriesManager } from '../components/EntryCategoriesManager'
 import { matchesEntryCategory, visibleEntrySelection } from '../lib/entry-categories'
 import { LineEditor, LinesPanel } from '../components/LinesPanel'
 import { LineChangesModal } from '../components/LineChangesModal'
+import { LineRolloutHistory } from '../components/LineRollouts'
+import { PathRoutesPanel } from '../components/PathRoutesPanel'
 import type { LineHistorySelection } from '../lib/line-change-evidence'
 import { LinesConnections, ServerSelector } from '../components/LinesConnections'
 import { isServerSettingsSection } from '../lib/navigation'
@@ -61,6 +63,7 @@ function EntriesWorkspace() {
   const section = params.get('section') ?? 'forward'
   const connectionSection = section === 'wireguard' || section === 'reverse' ? section : null
   const singleForward = section === 'legacy' || params.get('mode') === 'single'
+  const pathRoutes = params.get('mode') === 'paths'
   const nodeFilter = params.get('node') ?? ''
   const serverID = Number(params.get('server')) || undefined
   const q = useQuery({ queryKey: ['entries'], queryFn: () => api.get<Entry[]>('/api/admin/entries') })
@@ -104,6 +107,7 @@ function EntriesWorkspace() {
     return () => cancelAnimationFrame(frame)
   }, [createRequest, editing, setParams])
   const [editingLine, setEditingLine] = useState<Line | 'new' | null>(null)
+  const [rollouts, setRollouts] = useState<{ id?: string; lineID?: number } | null>(null)
   const [lineHistory, setLineHistory] = useState<LineHistorySelection | null>(null)
   const [connectionRequest, setConnectionRequest] = useState(0)
   const connectionSerial = useRef(0)
@@ -202,10 +206,11 @@ function EntriesWorkspace() {
       </div> : <div>
         <Stack>
           <Select label={t('lines.section')} allowDeselect={false} value={connectionSection ?? 'forward'} data={['forward', 'wireguard', 'reverse'].map(value => ({ value, label: t(`lines.sections.${value}`) }))} onChange={value => { setConnectionRequest(0); updateParams({ section: value, mode: null, inbound: null }) }} maw={420} />
-          {connectionSection ? <LinesConnections section={connectionSection} serverID={serverID} onServerChange={id => updateParams({ server: id ? String(id) : null })} editRequest={connectionRequest} onEditRequestHandled={() => setConnectionRequest(0)} canWrite={canWrite} /> : <Tabs value={singleForward ? 'single' : 'grouped'} onChange={value => updateParams({ section: 'forward', mode: value === 'single' ? 'single' : null })} keepMounted={false}>
-            <Tabs.List mb="md"><Tabs.Tab value="grouped">{t('lines.forwardGroups')}</Tabs.Tab><Tabs.Tab value="single">{t('lines.sections.legacy')}</Tabs.Tab></Tabs.List>
+          {connectionSection ? <LinesConnections section={connectionSection} serverID={serverID} onServerChange={id => updateParams({ server: id ? String(id) : null })} editRequest={connectionRequest} onEditRequestHandled={() => setConnectionRequest(0)} canWrite={canWrite} /> : <Tabs value={singleForward ? 'single' : pathRoutes ? 'paths' : 'grouped'} onChange={value => updateParams({ section: 'forward', mode: value === 'grouped' ? null : value })} keepMounted={false}>
+            <Tabs.List mb="md"><Tabs.Tab value="grouped">{t('lines.forwardGroups')}</Tabs.Tab><Tabs.Tab value="paths">{t('pathRoutes.routes')}</Tabs.Tab><Tabs.Tab value="single">{t('lines.sections.legacy')}</Tabs.Tab></Tabs.List>
             <Tabs.Panel value="single"><LinesConnections section="legacy" serverID={serverID} onServerChange={id => updateParams({ server: id ? String(id) : null })} canWrite={canWrite} /></Tabs.Panel>
-            <Tabs.Panel value="grouped">{admin ? <LinesPanel lines={lines.data ?? []} nodes={nodes.data ?? []} inbounds={inbounds} loading={lines.isLoading} error={lines.isError} observedAt={Math.max(lines.dataUpdatedAt, lines.errorUpdatedAt)} focusID={Number(params.get('line')) || undefined} onRetry={() => lines.refetch()} onEdit={setEditingLine} onCreateNode={createNode} onHistory={setLineHistory} /> : <Alert color="blue">{t('lines.adminOnly')}</Alert>}</Tabs.Panel>
+            <Tabs.Panel value="paths">{admin ? <PathRoutesPanel nodes={nodes.data ?? []} details={details} inbounds={inbounds} lines={lines.data ?? []} loading={sourcesLoading || lines.isLoading} error={sourcesError || lines.isError} onRetry={reloadSources} onHistory={setLineHistory} onCreateNode={lineID => { setInitialLineID(lineID); setEditing('new') }} /> : <Alert color="blue">{t('lines.adminOnly')}</Alert>}</Tabs.Panel>
+            <Tabs.Panel value="grouped">{admin ? <LinesPanel lines={(lines.data ?? []).filter(line => !line.path_route)} nodes={nodes.data ?? []} inbounds={inbounds} loading={lines.isLoading} error={lines.isError} observedAt={Math.max(lines.dataUpdatedAt, lines.errorUpdatedAt)} focusID={Number(params.get('line')) || undefined} onRetry={() => lines.refetch()} onEdit={setEditingLine} onCreateNode={createNode} onHistory={setLineHistory} onRollouts={setRollouts} /> : <Alert color="blue">{t('lines.adminOnly')}</Alert>}</Tabs.Panel>
           </Tabs>}
         </Stack>
       </div>}
@@ -213,8 +218,9 @@ function EntriesWorkspace() {
     {editingLocation && <SettingsDraftBoundary><EntryLocationEditor key={`entry-location-${editingLocation.ID}`} entry={editingLocation} onClose={() => setEditingLocation(null)} /></SettingsDraftBoundary>}
     {editing !== null && <SettingsDraftBoundary><EntryEditor key={editing === 'new' ? `new-${initialLineID ?? ''}` : editing.ID} entry={editing === 'new' ? undefined : editing} nodes={nodes.data ?? []} inbounds={inbounds} entries={q.data ?? []} lines={lines.data ?? []} tags={tags.data ?? []} categories={categories.data ?? []} initialInboundID={Number(params.get('inbound')) || undefined} initialLineID={initialLineID} initialServerID={Number(nodeFilter) || serverID} canManageLines={admin} loading={sourcesLoading || categories.isLoading || categories.isError || admin && lines.isLoading} loadError={sourcesError || categories.isError || admin && lines.isError} onReload={() => { reloadSources(); categories.refetch() }} onClose={() => setEditing(null)} /></SettingsDraftBoundary>}
     {managingCategories && <SettingsDraftBoundary><EntryCategoriesManager onClose={() => setManagingCategories(false)} /></SettingsDraftBoundary>}
+    {admin && rollouts && <LineRolloutHistory key={`${rollouts.id ?? 'all'}-${rollouts.lineID ?? 'all'}`} initialID={rollouts.id} lineID={rollouts.lineID} onClose={() => setRollouts(null)} />}
     {admin && lineHistory && <LineChangesModal key={`line-history-${lineHistory.lineID ?? 'all'}-${lineHistory.changeID ?? 'latest'}`} selection={lineHistory} onClose={() => setLineHistory(null)} />}
-    {editingLine !== null && <SettingsDraftBoundary><LineEditor key={editingLine === 'new' ? 'line-new' : `line-${editingLine.id}`} line={editingLine === 'new' ? undefined : editingLine} nodes={nodes.data ?? []} details={details} inbounds={inbounds} loading={sourcesLoading} loadError={sourcesError} onReload={reloadSources} onClose={() => setEditingLine(null)} onSaved={setLineHistory} /></SettingsDraftBoundary>}
+    {editingLine !== null && <SettingsDraftBoundary><LineEditor key={editingLine === 'new' ? 'line-new' : `line-${editingLine.id}`} line={editingLine === 'new' ? undefined : editingLine} nodes={nodes.data ?? []} details={details} inbounds={inbounds} loading={sourcesLoading} loadError={sourcesError} onReload={reloadSources} onClose={() => setEditingLine(null)} onSaved={setLineHistory} onPlanned={id => setRollouts({ id })} /></SettingsDraftBoundary>}
   </>
 }
 

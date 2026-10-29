@@ -3769,5 +3769,91 @@
       "unknown": "未知"
     },
     "close": "关闭"
+  },
+  "lineRollouts": {
+    "history": "线路发布",
+    "plan": "分批发布",
+    "remove": "分批移除",
+    "scope": "适用于普通 TCP relay 线路：建立新监听、确认应用、切换订阅端点，再清理旧监听。用户权限与任务保持实时；不安全的监听覆盖会被拒绝。",
+    "timeout": "单步骤超时（秒）",
+    "timeoutHint": "每个已下发步骤为 30–3600 秒；超时后暂停后续步骤。",
+    "reviewAgain": "草稿或超时已改变，请重新预览。",
+    "preview": "预览发布计划",
+    "start": "开始已审阅的发布",
+    "started": "发布计划已开始",
+    "steps": "部署步骤",
+    "noSteps": "没有转发步骤，仅提交已审阅的元数据变更。",
+    "loadError": "暂时无法获取当前进度，缓存回执不作为当前确认。",
+    "empty": "暂无发布计划。",
+    "historical": "步骤完成是历史进展，不代表当前连接一定可用。",
+    "published": "订阅端点已切换：{{at}}",
+    "pausedReason": "发布已暂停：",
+    "fresh": "新鲜应用回执",
+    "attempt": "第 {{count}} 次尝试",
+    "deadline": "截止时间：{{at}}",
+    "snapshot": "转发快照",
+    "status": {
+      "running": "进行中",
+      "paused": "已暂停",
+      "completed": "发布完成",
+      "compensated": "已安排补偿"
+    },
+    "phase": {
+      "expand": "建立新转发",
+      "cleanup": "移除旧转发"
+    },
+    "stepStatus": {
+      "pending": "尚未下发",
+      "released": "等待回执",
+      "applied": "步骤已确认"
+    },
+    "action": {
+      "pause": "暂停",
+      "retry": "重试／继续",
+      "compensate": "规划补偿"
+    },
+    "actionHint": {
+      "pause": "暂停后续步骤，已下发的转发继续运行。",
+      "retry": "重新检查当前依赖，并以新的确认尝试继续。",
+      "compensate": "按先前意图结合当前拓扑建立新计划。当前用户权限保持生效；有冲突或不安全的补偿会被拒绝。"
+    }
+  },
+  "pathRoutes": {
+    "routes": "完整路径线路",
+    "paths": "路径模板",
+    "scope": "在同一入口服务器后组合固定版本的路径。各候选保留独立的有序跳点和监听端口。仅支持内置中继的 TCP 转发；下一跳检查不代表整条路径连通。",
+    "templateHint": "模板只描述服务器和固定版本引用，不分配监听端口。编辑会创建新版本，已有引用仍使用选定版本。",
+    "routeHint": "所有候选最终到达同一个入站。请为每一跳明确分配独立端口，预览配置影响后再保存。",
+    "createRoute": "创建组合线路",
+    "editRoute": "编辑组合线路",
+    "createPath": "创建路径模板",
+    "editPath": "编辑路径模板",
+    "noRoutes": "暂无完整路径线路，请先创建路径模板。",
+    "noPaths": "暂无路径模板。",
+    "name": "名称",
+    "revisionValue": "版本 {{version}}",
+    "fixedRevision": "固定版本",
+    "branch": "候选 {{number}}",
+    "step": "步骤 {{number}}",
+    "serverHop": "服务器跳点",
+    "pathReference": "路径模板",
+    "lineReference": "已有线性线路",
+    "includeLanding": "将源线路的落地服务器作为额外一跳",
+    "lineHint": "仅可复用每组一台服务器的 TCP 中继线路。路径引用其服务器序列，不修改源线路的监听端口和最终入站。",
+    "pinnedHint": "引用始终使用选定版本。最多 8 个步骤、展开后 8 跳、8 层引用；不允许循环。",
+    "addServer": "添加服务器跳点",
+    "addPath": "引用路径",
+    "addLine": "引用线路",
+    "addBranch": "添加候选路径",
+    "entry": "入口服务器",
+    "selection": "候选选择策略",
+    "portsHint": "为展开后的每一跳设置独立监听端口，这些端口归本组合线路所有。更换路径或版本会清空端口分配。",
+    "tcpOnly": "请选择底层传输为 TCP 的入站。",
+    "impactHint": "以下为预期转发配置的变化。保存沿用现有下发机制；此预览不证明运行健康或端到端连通。",
+    "uses": "引用关系",
+    "noUses": "没有已保存的路径或线路引用此模板。",
+    "deletePathHint": "删除“{{name}}”及其版本？被引用的版本须先解除引用。",
+    "deleteRouteHint": "删除组合线路“{{name}}”及其所属转发规则？请先解除订阅节点的关联。",
+    "topologyHint": "展开路径的配置连接关系。同一服务器上的不同路径使用独立监听端口；此视图不代表实时健康状态。"
   }
 }

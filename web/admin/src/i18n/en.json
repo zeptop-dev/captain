@@ -3769,5 +3769,91 @@
       "unknown": "Unknown"
     },
     "close": "Close"
+  },
+  "lineRollouts": {
+    "history": "Line releases",
+    "plan": "Plan staged release",
+    "remove": "Plan removal",
+    "scope": "Ordinary TCP relay lines: establish new listeners, confirm application, switch subscription endpoints, then remove old listeners. User access and jobs remain current. Unsafe listener replacement is rejected.",
+    "timeout": "Step timeout (seconds)",
+    "timeoutHint": "30–3600 seconds per released step. A timeout pauses later steps.",
+    "reviewAgain": "The draft or timeout changed. Review the plan again.",
+    "preview": "Preview release plan",
+    "start": "Start reviewed release",
+    "started": "Release plan started",
+    "steps": "Deployment steps",
+    "noSteps": "No forwarding step is needed; only reviewed metadata changes.",
+    "loadError": "Current release progress is unavailable. Cached receipts are not current evidence.",
+    "empty": "No release plans yet.",
+    "historical": "Completed steps record past progress and do not guarantee current connectivity.",
+    "published": "Subscription endpoints switched: {{at}}",
+    "pausedReason": "Release paused:",
+    "fresh": "Fresh application receipt",
+    "attempt": "Attempt {{count}}",
+    "deadline": "Deadline: {{at}}",
+    "snapshot": "Forwarding snapshots",
+    "status": {
+      "running": "Running",
+      "paused": "Paused",
+      "completed": "Release completed",
+      "compensated": "Compensation planned"
+    },
+    "phase": {
+      "expand": "Establish new forwarding",
+      "cleanup": "Remove previous forwarding"
+    },
+    "stepStatus": {
+      "pending": "Not released",
+      "released": "Awaiting receipt",
+      "applied": "Step confirmed"
+    },
+    "action": {
+      "pause": "Pause",
+      "retry": "Retry / continue",
+      "compensate": "Plan compensation"
+    },
+    "actionHint": {
+      "pause": "Pause later steps. Forwarding already released continues to run.",
+      "retry": "Recheck current dependencies and start a fresh confirmation attempt.",
+      "compensate": "Create a new plan from the previous intent and current topology. Current user access remains in effect. Conflicting or unsafe compensation is rejected."
+    }
+  },
+  "pathRoutes": {
+    "routes": "Complete routes",
+    "paths": "Path templates",
+    "scope": "Combine fixed path versions behind one entry server. Each candidate keeps its own ordered hops and listeners. TCP with the built-in relay only; next-hop checks do not prove the whole route works.",
+    "templateHint": "A template describes servers and fixed references, without listening ports. Editing creates a new version; existing references keep their selected version.",
+    "routeHint": "All candidates reach the same final inbound. Assign every hop a dedicated port, then preview the resulting configuration before saving.",
+    "createRoute": "Create route",
+    "editRoute": "Edit route",
+    "createPath": "Create path template",
+    "editPath": "Edit path template",
+    "noRoutes": "No complete routes yet. Create a path template first.",
+    "noPaths": "No path templates yet.",
+    "name": "Name",
+    "revisionValue": "Version {{version}}",
+    "fixedRevision": "Fixed version",
+    "branch": "Candidate {{number}}",
+    "step": "Step {{number}}",
+    "serverHop": "Server hop",
+    "pathReference": "Path template",
+    "lineReference": "Existing linear line",
+    "includeLanding": "Include the source landing server as another hop",
+    "lineHint": "Only a TCP relay line with one server per group can be reused. Its servers are copied into the path; its listeners and final inbound remain unchanged.",
+    "pinnedHint": "References stay on the selected version. Up to 8 steps, 8 expanded hops and 8 reference levels are supported. Cycles are rejected.",
+    "addServer": "Add server hop",
+    "addPath": "Reference path",
+    "addLine": "Reference line",
+    "addBranch": "Add candidate path",
+    "entry": "Entry server",
+    "selection": "Candidate selection",
+    "portsHint": "Set a distinct listening port for each expanded hop. These ports belong to this route. Changing the path or its version clears the port assignments.",
+    "tcpOnly": "Select an inbound whose wire transport is TCP.",
+    "impactHint": "These are expected forwarding changes. Saving uses the existing delivery path; this preview does not prove runtime health or end-to-end connectivity.",
+    "uses": "References",
+    "noUses": "No saved path or route references this template.",
+    "deletePathHint": "Delete “{{name}}” and its versions? Referenced versions must be detached first.",
+    "deleteRouteHint": "Delete route “{{name}}” and its owned forwards? Subscription nodes must be detached first.",
+    "topologyHint": "Configured connections for the expanded paths. Shared servers use distinct listeners. This view does not show live health."
   }
 }

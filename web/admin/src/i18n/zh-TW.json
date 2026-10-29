@@ -3769,5 +3769,91 @@
       "unknown": "未知"
     },
     "close": "關閉"
+  },
+  "lineRollouts": {
+    "history": "線路發布",
+    "plan": "分批發布",
+    "remove": "分批移除",
+    "scope": "適用於一般 TCP relay 線路：建立新監聽、確認套用、切換訂閱端點，再清理舊監聽。使用者權限與工作保持即時；不安全的監聽覆寫會遭拒絕。",
+    "timeout": "單一步驟逾時（秒）",
+    "timeoutHint": "每個已下發步驟為 30–3600 秒；逾時後暫停後續步驟。",
+    "reviewAgain": "草稿或逾時已變更，請重新預覽。",
+    "preview": "預覽發布計畫",
+    "start": "開始已審閱的發布",
+    "started": "發布計畫已開始",
+    "steps": "部署步驟",
+    "noSteps": "沒有轉發步驟，僅提交已審閱的中繼資料變更。",
+    "loadError": "暫時無法取得目前進度，快取回執不作為目前確認。",
+    "empty": "尚無發布計畫。",
+    "historical": "步驟完成是歷史進展，不代表目前連線一定可用。",
+    "published": "訂閱端點已切換：{{at}}",
+    "pausedReason": "發布已暫停：",
+    "fresh": "有效的套用回執",
+    "attempt": "第 {{count}} 次嘗試",
+    "deadline": "截止時間：{{at}}",
+    "snapshot": "轉發快照",
+    "status": {
+      "running": "進行中",
+      "paused": "已暫停",
+      "completed": "發布完成",
+      "compensated": "已安排補償"
+    },
+    "phase": {
+      "expand": "建立新轉發",
+      "cleanup": "移除舊轉發"
+    },
+    "stepStatus": {
+      "pending": "尚未下發",
+      "released": "等待回執",
+      "applied": "步驟已確認"
+    },
+    "action": {
+      "pause": "暫停",
+      "retry": "重試／繼續",
+      "compensate": "規劃補償"
+    },
+    "actionHint": {
+      "pause": "暫停後續步驟，已下發的轉發繼續執行。",
+      "retry": "重新檢查目前依賴，並以新的確認嘗試繼續。",
+      "compensate": "依先前意圖結合目前拓撲建立新計畫。目前使用者權限保持生效；有衝突或不安全的補償會遭拒絕。"
+    }
+  },
+  "pathRoutes": {
+    "routes": "完整路徑線路",
+    "paths": "路徑範本",
+    "scope": "在同一入口伺服器後組合固定版本的路徑。各候選保留獨立的有序節點和監聽連接埠。僅支援內建中繼的 TCP 轉發；下一跳檢查不代表整條路徑連通。",
+    "templateHint": "範本只描述伺服器和固定版本引用，不分配監聽連接埠。編輯會建立新版本，既有引用仍使用選定版本。",
+    "routeHint": "所有候選最終到達同一個入站。請為每一跳明確分配獨立連接埠，預覽設定影響後再儲存。",
+    "createRoute": "建立組合線路",
+    "editRoute": "編輯組合線路",
+    "createPath": "建立路徑範本",
+    "editPath": "編輯路徑範本",
+    "noRoutes": "尚無完整路徑線路，請先建立路徑範本。",
+    "noPaths": "尚無路徑範本。",
+    "name": "名稱",
+    "revisionValue": "版本 {{version}}",
+    "fixedRevision": "固定版本",
+    "branch": "候選 {{number}}",
+    "step": "步驟 {{number}}",
+    "serverHop": "伺服器節點",
+    "pathReference": "路徑範本",
+    "lineReference": "既有線性線路",
+    "includeLanding": "將來源線路的落地伺服器作為額外一跳",
+    "lineHint": "僅可重用每組一台伺服器的 TCP 中繼線路。路徑引用其伺服器序列，不修改來源線路的監聽連接埠和最終入站。",
+    "pinnedHint": "引用始終使用選定版本。最多 8 個步驟、展開後 8 跳、8 層引用；不允許循環。",
+    "addServer": "新增伺服器節點",
+    "addPath": "引用路徑",
+    "addLine": "引用線路",
+    "addBranch": "新增候選路徑",
+    "entry": "入口伺服器",
+    "selection": "候選選擇策略",
+    "portsHint": "為展開後的每一跳設定獨立監聽連接埠，這些連接埠屬於本組合線路。更換路徑或版本會清空連接埠分配。",
+    "tcpOnly": "請選擇底層傳輸為 TCP 的入站。",
+    "impactHint": "以下為預期轉發設定的變化。儲存沿用既有下發機制；此預覽不證明執行健康或端到端連通。",
+    "uses": "引用關係",
+    "noUses": "沒有已儲存的路徑或線路引用此範本。",
+    "deletePathHint": "刪除「{{name}}」及其版本？被引用的版本須先解除引用。",
+    "deleteRouteHint": "刪除組合線路「{{name}}」及其所屬轉發規則？請先解除訂閱節點的關聯。",
+    "topologyHint": "展開路徑的設定連接關係。同一伺服器上的不同路徑使用獨立監聽連接埠；此檢視不代表即時健康狀態。"
   }
 }

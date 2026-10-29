@@ -445,7 +445,7 @@ dependency/use view even if current validation prevents compiling the line.
 The preview endpoints do not report application confirmation. The separate
 change history below links committed forwarding changes to actual deliveries.
 
-### Line change history (development)
+### Line change history
 
 **Change history** on the managed-lines page includes manual saves, automatic
 recompiles after address/inbound changes, and deletions. A line's confirmation
@@ -467,7 +467,8 @@ can bind the same line target to a newer full state and require a new receipt;
 the first confirmed time remains historical. Negative or expired receipts,
 superseded targets and changed agent identities cannot produce a current green
 status. Unsupported or legacy agents continue receiving configuration but do not
-produce this confirmation. This is observation, not staged deployment or rollback.
+produce this confirmation. Use the separate [staged release workflow](LINE_RELEASES.md)
+when an ordered deployment is required.
 
 Read-only administrator APIs are `GET /api/admin/line-changes` (optional
 `line_id`, `before` cursor and `limit`, default 20, maximum 100) and

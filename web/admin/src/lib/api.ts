@@ -147,6 +147,7 @@ export interface LineGroup { strategy: 'failover' | 'roundrobin'; members: LineM
 export interface LineEndpoint { member_id: string; node_id: number; host: string; port: number }
 export interface LineStatus { member_id: string; node_id: number; health: 'unknown' | 'up' | 'down'; probe_protocol: 'tcp' | 'none' | 'backend'; rtt_ms: number; updated_at?: string }
 export interface Line {
+  path_route?: boolean
   id: number; name: string; version: number; protocol: 'tcp' | 'udp' | 'both'; backend: 'relay' | 'nft' | 'realm'
   target_inbound_id: number; target_address_mode?: ForwardAddressMode; groups: LineGroup[]; endpoints: LineEndpoint[]; status?: LineStatus[]
 }

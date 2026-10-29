@@ -624,11 +624,11 @@ func limitBodies(next http.Handler) http.Handler {
 
 func (s *Server) DNSHealth() *service.DNSHealth { return s.dnsHealth }
 
-// Older panels cannot retain server traffic-control policies and holds. Preserve
-// their enforcement as well as earlier billing and access-policy protections.
+// Older panels cannot preserve staged forwarding ownership or compile complete
+// path routes. Retain these guarantees and the earlier traffic/access protections.
 func captainUpdateFloor(configured string) string {
-	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.48.0", configured) {
-		return "v1.48.0"
+	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.49.0", configured) {
+		return "v1.49.0"
 	}
 	return configured
 }
