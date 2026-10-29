@@ -251,6 +251,11 @@ func prepareLineRolloutTx(ctx context.Context, tx *sql.Tx, draft *ForwardLine, r
 	}
 	var before *ForwardLine
 	if draft.ID > 0 {
+		if owned, e := isPathRouteTx(ctx, tx, draft.ID); e != nil {
+			return nil, nil, e
+		} else if owned {
+			return nil, nil, ErrLineRolloutUnsupported
+		}
 		before, err = scanLine(tx.QueryRowContext(ctx, "SELECT "+lineCols+" FROM forward_lines WHERE id=?", draft.ID))
 		if err != nil {
 			return nil, nil, wrapNotFound(err)

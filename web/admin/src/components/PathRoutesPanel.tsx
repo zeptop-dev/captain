@@ -10,7 +10,7 @@ import { hostPort } from '../lib/ingress'
 import type { LineHistorySelection } from '../lib/line-change-evidence'
 import { linearSourceLine, movePathItem, pathInput, pathStepsComplete, routeInput, routePortsComplete, validPathPort, type ForwardPath, type PathBranch, type PathRoute, type PathRoutePreview, type PathStep, type PathUse } from '../lib/path-routes'
 import { toast } from '../lib/notify'
-import { useSettingsDirty } from '../lib/settings-draft'
+import { SettingsDraftBoundary, useSettingsDirty } from '../lib/settings-draft'
 import { ForwardAddressModeSelect } from './ForwardAddressModeSelect'
 
 interface Resources { nodes: Node[]; details: EntryNodeDetail[]; inbounds: InboundChoice[]; lines: Line[] }
@@ -66,8 +66,8 @@ export function PathRoutesPanel({ nodes, details, inbounds, lines, loading = fal
         </Stack></Card>)}
       </Stack></Tabs.Panel>
     </Tabs>
-    {pathEditor && <PathEditor path={pathEditor === 'new' ? undefined : pathEditor} paths={paths.data || []} {...resources} onClose={() => setPathEditor(null)} onSaved={refresh} />}
-    {routeEditor && <RouteEditor route={routeEditor === 'new' ? undefined : routeEditor} paths={paths.data || []} {...resources} onClose={() => setRouteEditor(null)} onSaved={saved => { refresh(); onHistory?.({ lineID: saved.id, lineName: saved.name, changeID: saved.change_id }) }} />}
+    {pathEditor && <SettingsDraftBoundary><PathEditor path={pathEditor === 'new' ? undefined : pathEditor} paths={paths.data || []} {...resources} onClose={() => setPathEditor(null)} onSaved={refresh} /></SettingsDraftBoundary>}
+    {routeEditor && <SettingsDraftBoundary><RouteEditor route={routeEditor === 'new' ? undefined : routeEditor} paths={paths.data || []} {...resources} onClose={() => setRouteEditor(null)} onSaved={saved => { refresh(); onHistory?.({ lineID: saved.id, lineName: saved.name, changeID: saved.change_id }) }} /></SettingsDraftBoundary>}
     {uses && <PathUses path={uses} onClose={() => setUses(null)} />}
   </Stack>
 }

@@ -90,7 +90,7 @@ func TestLineRolloutHTTPPermissionsPublicationAndRevocation(t *testing.T) {
 	call(reader, "GET", "/api/admin/line-rollouts", nil, 200)
 	call(reader, "POST", "/api/admin/line-rollouts/preview", input, 403)
 	call(writer, "GET", "/api/admin/line-rollouts", nil, 403)
-	call(accessAuditToken(t, r, 1, "full", []string{"lines:write"}), "POST", "/api/admin/line-rollouts", input, 403)
+	call(accessAuditToken(t, r, 1, "full", []string{"entries:write"}), "POST", "/api/admin/line-rollouts", input, 403)
 	code, _, _ := r.c.do("POST", "/api/admin/line-rollouts/preview", input, map[string]string{"Origin": "https://other.example.com"})
 	if code != 403 {
 		t.Fatal("cross-origin preview accepted", code)
@@ -116,7 +116,7 @@ func TestLineRolloutHTTPPermissionsPublicationAndRevocation(t *testing.T) {
 	if len(fetch(r.nodeID+1).Forwards) != 0 || len(fetch(r.nodeID+2).Forwards) != 1 {
 		t.Fatal("future target escaped snapshot hold")
 	}
-	call(r.c, "POST", "/api/admin/entries", map[string]any{"Name": "Too early", "LineID": plan.LineID, "Enabled": true}, 409)
+	call(r.c, "POST", "/api/admin/entries", map[string]any{"Name": "Too early", "LineID": plan.LineID, "Enabled": true}, 400)
 	call(reader, "POST", base+"/pause", map[string]any{"version": plan.Version}, 403)
 	plan = mustJSON[store.LineRollout](t, call(writer, "POST", base+"/pause", map[string]any{"version": plan.Version}, 200))
 	call(writer, "POST", base+"/retry", map[string]any{"version": plan.Version - 1}, 409)
