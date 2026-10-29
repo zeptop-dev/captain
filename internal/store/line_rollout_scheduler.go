@@ -380,6 +380,20 @@ func advanceLineRolloutTx(ctx context.Context, tx *sql.Tx, p *LineRollout, at ti
 	if err := lineRolloutValidationTx(ctx, tx, p, at, false); err != nil {
 		return changed, pauseLineRolloutTx(ctx, tx, p, "dependency_changed", at)
 	}
+	// A node that only expanded remains a live prerequisite during cleanup.
+	// Inspect its latest released target: an older expansion receipt must not
+	// override the evidence for a newer cleanup target on the same node.
+	current := map[int64]LineRolloutTarget{}
+	for _, t := range p.Targets {
+		if t.Status != "pending" {
+			current[t.NodeID] = t
+		}
+	}
+	for _, t := range current {
+		if t.Phase != p.Stage && (t.Status != "applied" || !t.Fresh || !t.ReceiptApplied) {
+			return changed, pauseLineRolloutTx(ctx, tx, p, "confirmation_stale", at)
+		}
+	}
 	for _, t := range p.Targets {
 		if t.Phase != p.Stage {
 			continue

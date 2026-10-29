@@ -694,3 +694,96 @@ func TestReviewRolloutUnchangedRelayMustStayApplied(t *testing.T) {
 		t.Fatalf("published through unchanged relay after current apply failure: status=%s published=%v", p.Status, p.PublishedAt)
 	}
 }
+
+func TestLineRolloutExpansionOnlyMemberMustStayFreshDuringCleanup(t *testing.T) {
+	ctx := context.Background()
+	r := newRolloutRig(t)
+	// Add C to an existing A -> B line. C has no old listener to clean up.
+	r.line.Groups = r.line.Groups[:2]
+	if err := r.s.SaveLine(ctx, r.line); err != nil {
+		t.Fatal(err)
+	}
+	draft := cloneLine(r.line)
+	for i := range draft.Groups {
+		draft.Groups[i].Members[0].Port += 2000
+	}
+	draft.Groups = append(draft.Groups, LineGroup{Strategy: "failover", Members: []LineMember{{NodeID: r.nodes[2].ID, Port: 23443}}})
+	p, err := r.s.PlanLineRollout(ctx, draft, false, 10*time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for p.Stage == "expand" {
+		for _, step := range p.Targets {
+			if step.Phase == p.Stage && step.Status == "released" {
+				r.ack(t, step, true)
+				break
+			}
+		}
+		r.advance(t)
+		p = r.read(t, p.ID)
+	}
+	// Refresh every current dependency except the expansion-only member C.
+	r.at = r.at.Add(4 * time.Minute)
+	for _, n := range r.nodes {
+		if n.ID == r.nodes[2].ID {
+			continue
+		}
+		r.ack(t, LineRolloutTarget{NodeID: n.ID}, true)
+	}
+	r.advance(t)
+	p = r.read(t, p.ID)
+	if p.Status != "paused" || p.ErrorCode != "confirmation_stale" {
+		t.Fatalf("cleanup progressed through stale expansion-only prerequisite: status=%s error=%s", p.Status, p.ErrorCode)
+	}
+}
+
+func TestLineRolloutHistoricalExpansionDoesNotOverrideCurrentCleanup(t *testing.T) {
+	ctx := context.Background()
+	r := newRolloutRig(t)
+	if err := r.s.SaveLine(ctx, r.line); err != nil {
+		t.Fatal(err)
+	}
+	draft := cloneLine(r.line)
+	for i := range draft.Groups {
+		draft.Groups[i].Members[0].Port += 2000
+	}
+	p, err := r.s.PlanLineRollout(ctx, draft, false, 10*time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for p.Stage == "expand" {
+		for _, step := range p.Targets {
+			if step.Phase == p.Stage && step.Status == "released" {
+				r.ack(t, step, true)
+				break
+			}
+		}
+		r.advance(t)
+		p = r.read(t, p.ID)
+	}
+	var current LineRolloutTarget
+	for _, step := range p.Targets {
+		if step.Phase == "cleanup" && step.Status == "released" {
+			current = step
+			break
+		}
+	}
+	r.ack(t, current, true)
+	if _, err = r.s.db.Exec(`UPDATE line_rollout_steps SET last_receipt_at=?,observed_at=?,receipt_applied=0 WHERE plan_id=? AND node_id=? AND phase='expand'`, r.at.Add(-4*time.Minute).UnixMilli(), r.at.Add(-4*time.Minute).UnixMilli(), p.ID, current.NodeID); err != nil {
+		t.Fatal(err)
+	}
+	r.advance(t)
+	p = r.read(t, p.ID)
+	if p.Status != "running" {
+		t.Fatalf("obsolete expansion poisoned current cleanup evidence: %+v", p)
+	}
+	var next bool
+	for _, step := range p.Targets {
+		if step.Phase == "cleanup" && step.NodeID != current.NodeID && step.Status == "released" {
+			next = true
+		}
+	}
+	if !next {
+		t.Fatal("did not release next cleanup after fresh current proof")
+	}
+}
