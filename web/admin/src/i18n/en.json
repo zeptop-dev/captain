@@ -3714,5 +3714,60 @@
       "applied": "Applied",
       "stale": "Confirmation expired"
     }
+  },
+  "lineChanges": {
+    "title": "Line change history",
+    "history": "Changes",
+    "application": "Application confirmation",
+    "hint": "Records saves, deletions and automatic recompilation. Targets are servers whose forwarding changed. A fresh receipt confirms this line’s forwarding in the listed full-state version; it does not confirm all current server settings or end-to-end connectivity.",
+    "loadError": "Current confirmation is unavailable. Cached results are not shown as applied.",
+    "version": "Version {{version}}",
+    "empty": "No recorded changes yet. Older changes are not backfilled.",
+    "newer": "Newer",
+    "older": "Older",
+    "select": "Select a change to view its servers.",
+    "back": "Back to changes",
+    "created": "Saved: {{at}}",
+    "actor": "Initiated by: {{actor}}",
+    "supersededAt": "Superseded: {{at}}",
+    "historyHint": "The badge uses still-valid evidence for the listed state version. First confirmation is historical evidence and does not renew freshness.",
+    "noChanges": "No forwarding configuration changed. This record does not require a server application receipt.",
+    "notAppliedHint": "The complete server state has not been confirmed as applied. This alone does not identify this line as faulty.",
+    "observed": "Latest node observation: {{at}}",
+    "confirmed": "First confirmed (historical): {{at}}",
+    "details": "Configuration changes and evidence",
+    "issued": "Delivered: {{at}}",
+    "before": "Previous expected forwarding",
+    "after": "New expected forwarding",
+    "tokenHint": "Line change history uses the read-only permission line-changes:read.",
+    "kind": {
+      "save": "Saved",
+      "recompile": "Automatically recompiled",
+      "delete": "Deleted"
+    },
+    "action": {
+      "apply": "Apply forwarding changes",
+      "remove": "Remove managed forwarding"
+    },
+    "status": {
+      "no_runtime_change": "No forwarding change",
+      "superseded": "Superseded",
+      "applied": "Applied",
+      "partial": "Partially confirmed",
+      "pending": "Awaiting confirmation",
+      "unknown": "Unknown"
+    },
+    "targetStatus": {
+      "pending": "Awaiting delivery",
+      "delivered": "Delivered, awaiting confirmation",
+      "applied": "Applied",
+      "not_applied": "Application unconfirmed",
+      "stale": "Confirmation expired",
+      "superseded": "Superseded",
+      "identity_changed": "Server identity changed",
+      "removed": "Server removed",
+      "unknown": "Unknown"
+    },
+    "close": "Close"
   }
 }

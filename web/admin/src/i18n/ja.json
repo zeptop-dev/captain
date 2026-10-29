@@ -3714,5 +3714,60 @@
       "applied": "適用済み",
       "stale": "確認期限切れ"
     }
+  },
+  "lineChanges": {
+    "title": "経路の変更履歴",
+    "history": "変更履歴",
+    "application": "適用確認",
+    "hint": "保存、削除、自動再コンパイルを記録し、転送設定が変わったサーバーのみを表示します。有効な受領確認は、表示された状態全体のバージョンにこの経路の転送が最近適用された証拠です。現在の全設定の適用やエンドツーエンドの接続性は保証しません。",
+    "loadError": "現在の確認を取得できません。キャッシュを適用済みとは表示しません。",
+    "version": "バージョン {{version}}",
+    "empty": "変更履歴はまだありません。過去の変更は追加されません。",
+    "newer": "新しい履歴",
+    "older": "古い履歴",
+    "select": "変更を選択してサーバーを確認してください。",
+    "back": "履歴に戻る",
+    "created": "保存日時：{{at}}",
+    "actor": "実行者：{{actor}}",
+    "supersededAt": "置換日時：{{at}}",
+    "historyHint": "状態表示は、表示された状態バージョンの有効な証拠に基づきます。初回確認は履歴であり、有効期限を延長しません。",
+    "noChanges": "転送設定の変更はありません。この記録にサーバーの適用確認は不要です。",
+    "notAppliedHint": "サーバーの状態全体の適用は確認されていません。この結果だけでこの経路の障害とは判断できません。",
+    "observed": "最新のノード観測：{{at}}",
+    "confirmed": "初回確認（履歴）：{{at}}",
+    "details": "設定の差分と確認情報",
+    "issued": "配信日時：{{at}}",
+    "before": "変更前の転送設定",
+    "after": "変更後の転送設定",
+    "tokenHint": "経路の変更履歴には読み取り専用権限 line-changes:read を使用します。",
+    "kind": {
+      "save": "保存",
+      "recompile": "自動再コンパイル",
+      "delete": "削除"
+    },
+    "action": {
+      "apply": "転送の変更を適用",
+      "remove": "管理対象の転送を削除"
+    },
+    "status": {
+      "no_runtime_change": "転送の変更なし",
+      "superseded": "置換済み",
+      "applied": "適用済み",
+      "partial": "一部確認済み",
+      "pending": "確認待ち",
+      "unknown": "不明"
+    },
+    "targetStatus": {
+      "pending": "配信待ち",
+      "delivered": "配信済み・確認待ち",
+      "applied": "適用済み",
+      "not_applied": "適用未確認",
+      "stale": "確認の期限切れ",
+      "superseded": "置換済み",
+      "identity_changed": "サーバーの識別情報が変更",
+      "removed": "サーバー削除済み",
+      "unknown": "不明"
+    },
+    "close": "閉じる"
   }
 }

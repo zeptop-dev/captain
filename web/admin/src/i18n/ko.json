@@ -3714,5 +3714,60 @@
       "applied": "적용됨",
       "stale": "확인 만료"
     }
+  },
+  "lineChanges": {
+    "title": "경로 변경 이력",
+    "history": "변경 기록",
+    "application": "적용 확인",
+    "hint": "저장, 삭제 및 자동 재컴파일을 기록하며 전달 설정이 변경된 서버만 표시합니다. 유효한 응답은 표시된 전체 상태 버전에서 이 경로의 전달이 최근 적용되었음을 뜻합니다. 현재 서버 설정 전체의 적용이나 종단 간 연결을 보장하지 않습니다.",
+    "loadError": "현재 확인 정보를 가져올 수 없습니다. 캐시를 적용 완료로 표시하지 않습니다.",
+    "version": "버전 {{version}}",
+    "empty": "아직 변경 기록이 없습니다. 이전 변경 사항은 소급 기록하지 않습니다.",
+    "newer": "최신 기록",
+    "older": "이전 기록",
+    "select": "서버를 확인할 변경 사항을 선택하세요.",
+    "back": "변경 기록으로",
+    "created": "저장 시간: {{at}}",
+    "actor": "요청자: {{actor}}",
+    "supersededAt": "대체 시간: {{at}}",
+    "historyHint": "상태는 표시된 상태 버전의 아직 유효한 증거를 사용합니다. 최초 확인은 이력이며 유효 기간을 연장하지 않습니다.",
+    "noChanges": "전달 설정이 변경되지 않았습니다. 이 기록은 서버 적용 응답이 필요하지 않습니다.",
+    "notAppliedHint": "서버 전체 상태의 적용이 확인되지 않았습니다. 이 결과만으로 해당 경로에 장애가 있다고 판단할 수 없습니다.",
+    "observed": "최근 노드 관측: {{at}}",
+    "confirmed": "최초 확인(이력): {{at}}",
+    "details": "설정 변경 및 확인 정보",
+    "issued": "전달 시간: {{at}}",
+    "before": "변경 전 예상 전달 설정",
+    "after": "변경 후 예상 전달 설정",
+    "tokenHint": "경로 변경 이력은 읽기 전용 권한 line-changes:read를 사용합니다.",
+    "kind": {
+      "save": "저장",
+      "recompile": "자동 재컴파일",
+      "delete": "삭제"
+    },
+    "action": {
+      "apply": "전달 변경 적용",
+      "remove": "관리 중인 전달 제거"
+    },
+    "status": {
+      "no_runtime_change": "전달 변경 없음",
+      "superseded": "대체됨",
+      "applied": "적용됨",
+      "partial": "일부 확인됨",
+      "pending": "확인 대기 중",
+      "unknown": "알 수 없음"
+    },
+    "targetStatus": {
+      "pending": "전달 대기 중",
+      "delivered": "전달됨, 확인 대기 중",
+      "applied": "적용됨",
+      "not_applied": "적용 미확인",
+      "stale": "확인 만료",
+      "superseded": "대체됨",
+      "identity_changed": "서버 식별 정보 변경",
+      "removed": "서버 제거됨",
+      "unknown": "알 수 없음"
+    },
+    "close": "닫기"
   }
 }

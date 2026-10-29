@@ -160,6 +160,20 @@ export interface LinePreview extends LineDependencyView {
   revision: string; draft: Line; endpoints: LineEndpoint[]
   changes: { node_id: number; name: string; before: LineExpectedForward[]; after: LineExpectedForward[] }[]
 }
+export interface LineChangeForward extends Omit<LineExpectedForward, 'member_id'> { tag: string }
+export interface LineChangeTarget {
+  node_id: number; node_name: string; action: 'apply' | 'remove'
+  status: 'pending' | 'delivered' | 'applied' | 'not_applied' | 'stale' | 'superseded' | 'identity_changed' | 'removed'
+  config_revision: string; state_revision: string; delivery_id: string
+  issued_at?: string; confirmed_at?: string; observed_at?: string; last_receipt_at?: string; fresh_for_ms: number
+  before: LineChangeForward[]; after: LineChangeForward[]
+}
+export interface LineChange {
+  id: string; cursor: number; line_id: number; scope_id: string; version: number; name: string
+  kind: 'save' | 'recompile' | 'delete'; actor: string; created_at: string; superseded_at?: string
+  status: 'no_runtime_change' | 'superseded' | 'applied' | 'partial' | 'pending'; targets: LineChangeTarget[]
+}
+export interface LineChangePage { items: LineChange[]; next_before?: number }
 export interface Order {
   ID: number; No: string; UserID: number; PlanID: number; AmountCents: number; Gateway: string; GatewayRef: string
   Status: string; CreatedAt: string; PaidAt: string | null; PeriodDays: number; DiscountCents: number; email: string; plan_name: string

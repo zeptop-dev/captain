@@ -3714,5 +3714,60 @@
       "applied": "已套用",
       "stale": "確認已過期"
     }
+  },
+  "lineChanges": {
+    "title": "線路變更歷史",
+    "history": "變更紀錄",
+    "application": "套用確認",
+    "hint": "記錄儲存、刪除和自動重新編譯，僅列出轉發實際變化的伺服器。有效回執表示該線路轉發近期在所列完整狀態版本中確認套用，不代表伺服器目前全部設定已套用，也不證明端到端連通。",
+    "loadError": "目前確認無法取得，快取結果不會顯示為已套用。",
+    "version": "版本 {{version}}",
+    "empty": "尚無變更紀錄，舊變更不會補錄。",
+    "newer": "較新紀錄",
+    "older": "較早紀錄",
+    "select": "選擇一筆變更查看伺服器。",
+    "back": "返回變更紀錄",
+    "created": "儲存時間：{{at}}",
+    "actor": "發起者：{{actor}}",
+    "supersededAt": "被取代時間：{{at}}",
+    "historyHint": "狀態標記使用所列狀態版本仍有效的證據；首次確認僅為歷史證據，不會延長有效期。",
+    "noChanges": "轉發設定未變化，此紀錄無需伺服器套用回執。",
+    "notAppliedHint": "尚未確認伺服器完整狀態已套用，僅憑此結果不能判定這條線路故障。",
+    "observed": "最近節點觀察：{{at}}",
+    "confirmed": "首次確認（歷史）：{{at}}",
+    "details": "設定差異與證據",
+    "issued": "下發時間：{{at}}",
+    "before": "變更前預期轉發",
+    "after": "變更後預期轉發",
+    "tokenHint": "線路變更歷史使用唯讀權限 line-changes:read。",
+    "kind": {
+      "save": "儲存",
+      "recompile": "自動重新編譯",
+      "delete": "刪除"
+    },
+    "action": {
+      "apply": "套用轉發變更",
+      "remove": "移除託管轉發"
+    },
+    "status": {
+      "no_runtime_change": "無轉發變更",
+      "superseded": "已被取代",
+      "applied": "已套用",
+      "partial": "部分已確認",
+      "pending": "等待確認",
+      "unknown": "未知"
+    },
+    "targetStatus": {
+      "pending": "等待下發",
+      "delivered": "已下發，等待確認",
+      "applied": "已套用",
+      "not_applied": "未確認套用",
+      "stale": "確認已過期",
+      "superseded": "已被取代",
+      "identity_changed": "伺服器身分已變化",
+      "removed": "伺服器已移除",
+      "unknown": "未知"
+    },
+    "close": "關閉"
   }
 }

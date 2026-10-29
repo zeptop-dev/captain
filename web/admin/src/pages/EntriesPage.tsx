@@ -21,6 +21,8 @@ import { EntryLocationEditor } from '../components/EntryLocationEditor'
 import { EntryCategoriesManager } from '../components/EntryCategoriesManager'
 import { matchesEntryCategory, visibleEntrySelection } from '../lib/entry-categories'
 import { LineEditor, LinesPanel } from '../components/LinesPanel'
+import { LineChangesModal } from '../components/LineChangesModal'
+import type { LineHistorySelection } from '../lib/line-change-evidence'
 import { LinesConnections, ServerSelector } from '../components/LinesConnections'
 import { isServerSettingsSection } from '../lib/navigation'
 import { useNodeAccess } from '../lib/node-access-query'
@@ -102,6 +104,7 @@ function EntriesWorkspace() {
     return () => cancelAnimationFrame(frame)
   }, [createRequest, editing, setParams])
   const [editingLine, setEditingLine] = useState<Line | 'new' | null>(null)
+  const [lineHistory, setLineHistory] = useState<LineHistorySelection | null>(null)
   const [connectionRequest, setConnectionRequest] = useState(0)
   const connectionSerial = useRef(0)
   const [filter, setFilter] = useState<string | null>(null)
@@ -202,7 +205,7 @@ function EntriesWorkspace() {
           {connectionSection ? <LinesConnections section={connectionSection} serverID={serverID} onServerChange={id => updateParams({ server: id ? String(id) : null })} editRequest={connectionRequest} onEditRequestHandled={() => setConnectionRequest(0)} canWrite={canWrite} /> : <Tabs value={singleForward ? 'single' : 'grouped'} onChange={value => updateParams({ section: 'forward', mode: value === 'single' ? 'single' : null })} keepMounted={false}>
             <Tabs.List mb="md"><Tabs.Tab value="grouped">{t('lines.forwardGroups')}</Tabs.Tab><Tabs.Tab value="single">{t('lines.sections.legacy')}</Tabs.Tab></Tabs.List>
             <Tabs.Panel value="single"><LinesConnections section="legacy" serverID={serverID} onServerChange={id => updateParams({ server: id ? String(id) : null })} canWrite={canWrite} /></Tabs.Panel>
-            <Tabs.Panel value="grouped">{admin ? <LinesPanel lines={lines.data ?? []} nodes={nodes.data ?? []} inbounds={inbounds} loading={lines.isLoading} error={lines.isError} observedAt={Math.max(lines.dataUpdatedAt, lines.errorUpdatedAt)} focusID={Number(params.get('line')) || undefined} onRetry={() => lines.refetch()} onEdit={setEditingLine} onCreateNode={createNode} /> : <Alert color="blue">{t('lines.adminOnly')}</Alert>}</Tabs.Panel>
+            <Tabs.Panel value="grouped">{admin ? <LinesPanel lines={lines.data ?? []} nodes={nodes.data ?? []} inbounds={inbounds} loading={lines.isLoading} error={lines.isError} observedAt={Math.max(lines.dataUpdatedAt, lines.errorUpdatedAt)} focusID={Number(params.get('line')) || undefined} onRetry={() => lines.refetch()} onEdit={setEditingLine} onCreateNode={createNode} onHistory={setLineHistory} /> : <Alert color="blue">{t('lines.adminOnly')}</Alert>}</Tabs.Panel>
           </Tabs>}
         </Stack>
       </div>}
@@ -210,7 +213,8 @@ function EntriesWorkspace() {
     {editingLocation && <SettingsDraftBoundary><EntryLocationEditor key={`entry-location-${editingLocation.ID}`} entry={editingLocation} onClose={() => setEditingLocation(null)} /></SettingsDraftBoundary>}
     {editing !== null && <SettingsDraftBoundary><EntryEditor key={editing === 'new' ? `new-${initialLineID ?? ''}` : editing.ID} entry={editing === 'new' ? undefined : editing} nodes={nodes.data ?? []} inbounds={inbounds} entries={q.data ?? []} lines={lines.data ?? []} tags={tags.data ?? []} categories={categories.data ?? []} initialInboundID={Number(params.get('inbound')) || undefined} initialLineID={initialLineID} initialServerID={Number(nodeFilter) || serverID} canManageLines={admin} loading={sourcesLoading || categories.isLoading || categories.isError || admin && lines.isLoading} loadError={sourcesError || categories.isError || admin && lines.isError} onReload={() => { reloadSources(); categories.refetch() }} onClose={() => setEditing(null)} /></SettingsDraftBoundary>}
     {managingCategories && <SettingsDraftBoundary><EntryCategoriesManager onClose={() => setManagingCategories(false)} /></SettingsDraftBoundary>}
-    {editingLine !== null && <SettingsDraftBoundary><LineEditor key={editingLine === 'new' ? 'new' : editingLine.id} line={editingLine === 'new' ? undefined : editingLine} nodes={nodes.data ?? []} details={details} inbounds={inbounds} loading={sourcesLoading} loadError={sourcesError} onReload={reloadSources} onClose={() => setEditingLine(null)} /></SettingsDraftBoundary>}
+    {admin && lineHistory && <LineChangesModal key={`line-history-${lineHistory.lineID ?? 'all'}-${lineHistory.changeID ?? 'latest'}`} selection={lineHistory} onClose={() => setLineHistory(null)} />}
+    {editingLine !== null && <SettingsDraftBoundary><LineEditor key={editingLine === 'new' ? 'line-new' : `line-${editingLine.id}`} line={editingLine === 'new' ? undefined : editingLine} nodes={nodes.data ?? []} details={details} inbounds={inbounds} loading={sourcesLoading} loadError={sourcesError} onReload={reloadSources} onClose={() => setEditingLine(null)} onSaved={setLineHistory} /></SettingsDraftBoundary>}
   </>
 }
 

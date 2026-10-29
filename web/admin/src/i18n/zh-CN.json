@@ -3714,5 +3714,60 @@
       "applied": "已应用",
       "stale": "确认已过期"
     }
+  },
+  "lineChanges": {
+    "title": "线路变更历史",
+    "history": "变更记录",
+    "application": "应用确认",
+    "hint": "记录保存、删除和自动重编译，仅列出转发实际变化的服务器。有效回执表示该线路转发近期在所列完整状态版本中确认应用，不代表服务器当前全部设置已应用，也不证明端到端连通。",
+    "loadError": "当前确认不可用，缓存结果不会显示为已应用。",
+    "version": "版本 {{version}}",
+    "empty": "暂无变更记录，旧变更不会补录。",
+    "newer": "较新记录",
+    "older": "较早记录",
+    "select": "选择一条变更查看服务器。",
+    "back": "返回变更记录",
+    "created": "保存时间：{{at}}",
+    "actor": "发起者：{{actor}}",
+    "supersededAt": "被替代时间：{{at}}",
+    "historyHint": "状态标记使用所列状态版本仍有效的证据；首次确认仅为历史证据，不会延长有效期。",
+    "noChanges": "转发配置未变化，本记录无需服务器应用回执。",
+    "notAppliedHint": "尚未确认服务器完整状态已应用，仅凭此结果不能判定这条线路故障。",
+    "observed": "最近节点观察：{{at}}",
+    "confirmed": "首次确认（历史）：{{at}}",
+    "details": "配置差异与证据",
+    "issued": "下发时间：{{at}}",
+    "before": "变更前期望转发",
+    "after": "变更后期望转发",
+    "tokenHint": "线路变更历史使用只读权限 line-changes:read。",
+    "kind": {
+      "save": "保存",
+      "recompile": "自动重编译",
+      "delete": "删除"
+    },
+    "action": {
+      "apply": "应用转发变更",
+      "remove": "移除托管转发"
+    },
+    "status": {
+      "no_runtime_change": "无转发变更",
+      "superseded": "已被替代",
+      "applied": "已应用",
+      "partial": "部分已确认",
+      "pending": "等待确认",
+      "unknown": "未知"
+    },
+    "targetStatus": {
+      "pending": "等待下发",
+      "delivered": "已下发，等待确认",
+      "applied": "已应用",
+      "not_applied": "未确认应用",
+      "stale": "确认已过期",
+      "superseded": "已被替代",
+      "identity_changed": "服务器身份已变化",
+      "removed": "服务器已移除",
+      "unknown": "未知"
+    },
+    "close": "关闭"
   }
 }
