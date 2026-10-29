@@ -576,3 +576,41 @@ func mustRolloutLine(t *testing.T, s *Store, id int64) *ForwardLine {
 	}
 	return l
 }
+
+func TestLineRolloutReadsDoNotChangeSchedulerOrder(t *testing.T) {
+	ctx := context.Background()
+	r := newRolloutRig(t)
+	p, err := r.s.PlanLineRollout(ctx, r.line, false, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked := func() int64 {
+		t.Helper()
+		var v int64
+		if e := r.s.db.QueryRow(`SELECT checked_at FROM line_rollouts WHERE id=?`, p.ID).Scan(&v); e != nil {
+			t.Fatal(e)
+		}
+		return v
+	}
+	before := checked()
+	if _, err = r.s.ListLineRollouts(ctx, p.LineID, 0, 20); err != nil {
+		t.Fatal(err)
+	}
+	r.read(t, p.ID)
+	if got := checked(); got != before {
+		t.Fatalf("read-only history request changed scheduler priority: before=%d after=%d", before, got)
+	}
+	r.at = r.at.Add(time.Second)
+	r.advance(t)
+	scheduled := checked()
+	if scheduled == before {
+		t.Fatal("scheduler did not record fairness checkpoint")
+	}
+	if _, err = r.s.ListLineRollouts(ctx, p.LineID, 0, 20); err != nil {
+		t.Fatal(err)
+	}
+	r.read(t, p.ID)
+	if checked() != scheduled {
+		t.Fatal("GET changed scheduler checkpoint")
+	}
+}

@@ -126,7 +126,7 @@ func (s *Store) ListLineRollouts(ctx context.Context, lineID, before int64, limi
 	if limit > 100 {
 		limit = 100
 	}
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, err
 	}
@@ -157,9 +157,6 @@ func (s *Store) ListLineRollouts(ctx context.Context, lineID, before int64, limi
 	}
 	at := time.Now()
 	for _, id := range ids {
-		if _, e := tx.ExecContext(ctx, `UPDATE line_rollouts SET checked_at=? WHERE id=?`, at.UnixMilli(), id); e != nil {
-			return nil, e
-		}
 		p, e := readLineRolloutTx(ctx, tx, id, at)
 		if e != nil {
 			return nil, e
