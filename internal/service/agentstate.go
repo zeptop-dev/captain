@@ -358,6 +358,10 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 			st.Forwards = append(st.Forwards, f.Forward)
 		}
 	}
+	st.Forwards, err = a.Store.ApplyLineRolloutForwards(ctx, n.ID, st.Forwards)
+	if err != nil {
+		return nil, err
+	}
 	return a.finishState(ctx, n, st)
 }
 

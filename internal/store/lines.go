@@ -317,6 +317,11 @@ func (s *Store) SaveLineWithChange(ctx context.Context, l *ForwardLine) (string,
 			return "", ErrLinePreview
 		}
 	}
+	if l.ID > 0 {
+		if err = checkLineRolloutWriteTx(ctx, tx, l.ID); err != nil {
+			return "", err
+		}
+	}
 	next := *l
 	if l.ID == 0 {
 		r, err := tx.ExecContext(ctx, `INSERT INTO forward_lines(name,version,protocol,backend,target_inbound_id,groups_json,updated_at) VALUES(?,1,?,?,?,'[]',?)`, l.Name, l.Protocol, l.Backend, l.TargetInboundID, now())
@@ -361,6 +366,17 @@ func saveLineTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, kind string) er
 	}
 	generated, endpoints, err := compileLine(ctx, tx, l)
 	if err != nil {
+		return err
+	}
+	if kind == "recompile" {
+		skip, e := allowRolloutRecompileTx(ctx, tx, l, generated, endpoints)
+		if e != nil {
+			return e
+		}
+		if skip {
+			return nil
+		}
+	} else if err = checkLineRolloutWriteTx(ctx, tx, l.ID); err != nil {
 		return err
 	}
 	entryMembers, err := linePublishedMembersTx(ctx, tx, l.ID, endpoints)
@@ -445,6 +461,9 @@ func (s *Store) DeleteLineWithChange(ctx context.Context, id, version int64) (st
 		return "", err
 	}
 
+	if err = checkLineRolloutWriteTx(ctx, tx, id); err != nil {
+		return "", err
+	}
 	var v, n int64
 	if err = tx.QueryRowContext(ctx, `SELECT version FROM forward_lines WHERE id=?`, id).Scan(&v); err != nil {
 		return "", wrapNotFound(err)
@@ -583,6 +602,13 @@ func (s *Store) ResolveLineEntry(ctx context.Context, e *domain.Entry) error {
 			return errors.New("line_member_id requires line_id")
 		}
 		return nil
+	}
+	var unpublished bool
+	if err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM line_rollouts WHERE line_id=? AND status IN ('running','paused') AND (kind='delete' OR (kind='create' AND published_at IS NULL)))`, *e.LineID).Scan(&unpublished); err != nil {
+		return err
+	}
+	if unpublished {
+		return ErrLineRolloutConflict
 	}
 	l, err := s.LineByID(ctx, *e.LineID)
 	if err != nil {

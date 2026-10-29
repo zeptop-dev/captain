@@ -147,6 +147,13 @@ func loadLineNode(ctx context.Context, tx *sql.Tx, id, lineID int64) (*lineNode,
 			x.binds = append(x.binds, lineBind{p, f.Port, listen})
 		}
 	}
+	reservations, err := lineRolloutReservationsTx(ctx, tx, id, lineID)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range reservations {
+		x.binds = append(x.binds, lineBind{"tcp", r.forward.Port, r.forward.Listen})
+	}
 	return x, nil
 }
 

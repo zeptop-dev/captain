@@ -179,14 +179,26 @@ func (s *Store) CreateInbound(ctx context.Context, ib *domain.Inbound) error {
 	if err != nil {
 		return err
 	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err = checkRolloutInboundTx(ctx, tx, ib); err != nil {
+		return err
+	}
 	ts := now()
-	res, err := s.db.ExecContext(ctx, `INSERT INTO inbounds (node_id, tag, protocol, listen, port, core, settings_json, group_id, enabled, sort, ingress_id, created_at, updated_at)
+	res, err := tx.ExecContext(ctx, `INSERT INTO inbounds (node_id, tag, protocol, listen, port, core, settings_json, group_id, enabled, sort, ingress_id, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		ib.NodeID, ib.Tag, ib.Protocol, ib.Listen, ib.Port, ib.Core, string(settings), nullInt64(ib.GroupID), boolInt(ib.Enabled), ib.Sort, nullInt64(ib.IngressID), ts, ts)
 	if err != nil {
 		return err
 	}
-	ib.ID, _ = res.LastInsertId()
+	id, _ := res.LastInsertId()
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	ib.ID = id
 	return nil
 }
 
@@ -393,6 +405,9 @@ func (s *Store) UpdateInbound(ctx context.Context, ib *domain.Inbound) error {
 		return err
 	}
 	defer tx.Rollback()
+	if err = checkRolloutInboundTx(ctx, tx, ib); err != nil {
+		return err
+	}
 	if err := guardLegacyAccessTx(ctx, tx, ib); err != nil {
 		return err
 	}

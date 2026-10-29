@@ -80,9 +80,14 @@ func (s *Store) prepareNodeConfigDelivery(ctx context.Context, nodeID int64, tok
 	}
 	current := headToken == tokenHash && headSession == session
 	var lineTargets []lineChangeTargetRecord
+	var rolloutTargets []lineRolloutBinding
 	forceDelivery := false
 	if forwards != nil {
 		lineTargets, err = matchingLineTargetsTx(ctx, tx, nodeID, tokenHash, *forwards)
+		if err != nil {
+			return nil, err
+		}
+		rolloutTargets, err = matchingLineRolloutStepsTx(ctx, tx, nodeID, tokenHash, *forwards)
 		if err != nil {
 			return nil, err
 		}
@@ -91,10 +96,23 @@ func (s *Store) prepareNodeConfigDelivery(ctx context.Context, nodeID int64, tok
 			return nil, err
 		}
 	}
+	rolloutForce, err := lineRolloutsNeedDeliveryTx(ctx, tx, rolloutTargets, headID)
+	if err != nil {
+		return nil, err
+	}
+	forceDelivery = forceDelivery || rolloutForce
 	if current && headState == stateRevision && headConfig == configRevision && !forceDelivery {
 		d := &agentproto.ConfigDelivery{ID: headID, Session: session}
 		if err = bindLineTargetsTx(ctx, tx, lineTargets, tokenHash, d); err != nil {
 			return nil, err
+		}
+		if err = bindLineRolloutDeliveryTx(ctx, tx, rolloutTargets, d); err != nil {
+			return nil, err
+		}
+		if forwards != nil {
+			if err = observeLineRolloutDeliveryTx(ctx, tx, nodeID, tokenHash, *forwards, d); err != nil {
+				return nil, err
+			}
 		}
 		return d, tx.Commit()
 	}
@@ -106,7 +124,11 @@ func (s *Store) prepareNodeConfigDelivery(ctx context.Context, nodeID int64, tok
 	if err != nil {
 		return nil, err
 	}
-	if candidate != "" && !current && candidateParent == headID && !candidateNeedsDelivery {
+	rolloutCandidateNeeds, err := lineRolloutsNeedDeliveryTx(ctx, tx, rolloutTargets, candidate)
+	if err != nil {
+		return nil, err
+	}
+	if candidate != "" && !current && candidateParent == headID && !candidateNeedsDelivery && !rolloutCandidateNeeds {
 		var cfg, state string
 		err = tx.QueryRowContext(ctx, `SELECT config_revision,state_revision FROM node_config_deliveries WHERE id=? AND node_id=? AND token_identity=? AND session=?`, candidate, nodeID, tokenHash, session).Scan(&cfg, &state)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -141,6 +163,17 @@ func (s *Store) prepareNodeConfigDelivery(ctx context.Context, nodeID int64, tok
 	}
 	if err = bindLineTargetsTx(ctx, tx, lineTargets, tokenHash, d); err != nil {
 		return nil, err
+	}
+	if err = mapLineRolloutDeliveryTx(ctx, tx, rolloutTargets, d); err != nil {
+		return nil, err
+	}
+	if err = bindLineRolloutDeliveryTx(ctx, tx, rolloutTargets, d); err != nil {
+		return nil, err
+	}
+	if forwards != nil {
+		if err = observeLineRolloutDeliveryTx(ctx, tx, nodeID, tokenHash, *forwards, d); err != nil {
+			return nil, err
+		}
 	}
 	return d, tx.Commit()
 }
@@ -190,7 +223,10 @@ func recordNodeConfigReceiptTx(ctx context.Context, tx *sql.Tx, nodeID int64, to
 	if err != nil {
 		return err
 	}
-	return recordLineTargetReceiptTx(ctx, tx, nodeID, tokenHash, r, applied, at)
+	if err = recordLineTargetReceiptTx(ctx, tx, nodeID, tokenHash, r, applied, at); err != nil {
+		return err
+	}
+	return recordLineRolloutReceiptTx(ctx, tx, nodeID, tokenHash, r, applied, at)
 }
 
 const nodeConfigDeliveryCols = `d.id,d.session,d.config_revision,d.state_revision,d.issued_at,d.confirmed_at,d.last_receipt_at,d.observed_at,d.receipt_sequence,d.applied,d.token_identity`
