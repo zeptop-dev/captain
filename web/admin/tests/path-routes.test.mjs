@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { pathInput, routeInput, routePortsComplete, pathStepsComplete, linearSourceLine, movePathItem } from '../src/lib/path-routes.ts'
+import { pathInput, routeInput, routePortsComplete, pathStepsComplete, linearSourceLine, pathSourceLineOptions, selectPathSourceLine, movePathItem } from '../src/lib/path-routes.ts'
 
 test('path input keeps fixed references and removes stale fields from another step type', () => {
   const value = pathInput({ name: ' Reused path ', version: 2, steps: [
@@ -59,4 +59,34 @@ test('reordering keeps candidate identity and its explicit ports together', () =
   assert.deepEqual(movePathItem(items, 0, 1), [items[1], items[0]])
   assert.equal(items[0].id, 'one')
   assert.equal(movePathItem(items, 0, -1), items)
+})
+
+test('a pinned source remains visible and unchanged when the live line is no longer eligible', () => {
+  const pin = { id: 'saved-step', line_id: 7, line_version: 1, include_landing: true }
+  const current = { id: 7, name: 'Source now has candidates', version: 2, protocol: 'tcp', backend: 'relay', groups: [{ members: [{}, {}] }] }
+  const other = { id: 8, name: 'Eligible source', version: 3, protocol: 'tcp', backend: 'relay', groups: [{ members: [{}] }] }
+  const lines = [current, other], sources = lines.filter(linearSourceLine)
+  assert.deepEqual(pathSourceLineOptions(lines, sources, pin, 'Fixed version: 1'), [
+    { value: '8', label: 'Eligible source' },
+    { value: '7', label: 'Source now has candidates · Fixed version: 1', disabled: true },
+  ])
+  const draft = { name: 'Renamed template', version: 4, steps: [{ ...pin, ...selectPathSourceLine(pin, 7, sources) }] }
+  assert.deepEqual(pathInput(draft).steps, [pin])
+  assert.deepEqual(pathSourceLineOptions(lines, sources, { id: '', line_id: 0, line_version: 0 }, ''), [{ value: '8', label: 'Eligible source' }])
+  assert.deepEqual(selectPathSourceLine({ id: '', line_id: 0 }, 7, sources), {})
+})
+
+test('missing live source uses its fixed identity without becoming selectable in another row', () => {
+  const pin = { id: 'saved-step', line_id: 7, line_version: 1 }
+  assert.deepEqual(pathSourceLineOptions([], [], pin, 'Fixed version: 1'), [{ value: '7', label: '#7 · Fixed version: 1', disabled: true }])
+  assert.deepEqual(selectPathSourceLine(pin, 7, []), {})
+  assert.deepEqual(pathSourceLineOptions([], [], { id: '', line_id: 0 }, ''), [])
+})
+
+test('reselecting the same eligible source preserves its pin while selecting another source uses its current version', () => {
+  const pin = { id: 'saved-step', line_id: 7, line_version: 1 }
+  const sources = [{ id: 7, name: 'Updated source', version: 5 }, { id: 8, name: 'Other source', version: 3 }]
+  assert.deepEqual({ ...pin, ...selectPathSourceLine(pin, 7, sources) }, pin)
+  assert.equal(pathSourceLineOptions(sources, sources, pin, 'Fixed version: 1').filter(option => option.value === '7').length, 1)
+  assert.deepEqual(selectPathSourceLine(pin, 8, sources), { line_id: 8, line_version: 3 })
 })

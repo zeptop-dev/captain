@@ -58,6 +58,22 @@ export function routePortsComplete(branches: PathBranch[], paths: (ForwardPath |
 export function linearSourceLine(line: Line & { path_route?: unknown }) {
   return !line.path_route && line.protocol === 'tcp' && line.backend === 'relay' && line.groups.length > 0 && line.groups.every(group => group.members.length === 1)
 }
+export function pathSourceLineOptions(lines: Pick<Line, 'id' | 'name'>[], sources: Pick<Line, 'id' | 'name'>[], step: PathStep, pinnedLabel: string) {
+  const options: { value: string; label: string; disabled?: boolean }[] = sources.map(line => ({ value: String(line.id), label: line.name }))
+  // A captured version remains valid after the live source stops being reusable.
+  // Keep it visible in this row without offering it as a new source elsewhere.
+  if (step.line_id && validPathRevision(step.line_version) && !sources.some(line => line.id === step.line_id)) {
+    const name = lines.find(line => line.id === step.line_id)?.name || `#${step.line_id}`
+    options.push({ value: String(step.line_id), label: `${name} · ${pinnedLabel}`, disabled: true })
+  }
+  return options
+}
+export function selectPathSourceLine(step: PathStep, id: number, sources: Pick<Line, 'id' | 'version'>[]): Partial<PathStep> {
+  if (id === step.line_id) return {}
+  if (id === 0) return { line_id: 0, line_version: 0 }
+  const source = sources.find(line => line.id === id)
+  return source ? { line_id: source.id, line_version: source.version } : {}
+}
 export function movePathItem<T>(items: T[], from: number, to: number): T[] {
   if (from < 0 || to < 0 || from >= items.length || to >= items.length) return items
   const next = [...items]
