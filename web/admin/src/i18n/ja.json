@@ -3683,6 +3683,7 @@
     "edges": {
       "forward": "次のホップ",
       "candidate": "次のホップ候補",
+      "path": "完全な経路",
       "vless_reverse": "VLESS リバース",
       "wireguard": "WireGuard リバース"
     },

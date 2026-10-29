@@ -3683,6 +3683,7 @@
     "edges": {
       "forward": "다음 홉",
       "candidate": "다음 홉 후보",
+      "path": "전체 경로",
       "vless_reverse": "VLESS 역방향",
       "wireguard": "WireGuard 역방향"
     },

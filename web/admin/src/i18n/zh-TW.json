@@ -3683,6 +3683,7 @@
     "edges": {
       "forward": "下一跳",
       "candidate": "下一跳備選",
+      "path": "完整路徑",
       "vless_reverse": "VLESS 反向連線",
       "wireguard": "WireGuard 反向連線"
     },

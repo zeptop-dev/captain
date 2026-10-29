@@ -3683,6 +3683,7 @@
     "edges": {
       "forward": "Next hop",
       "candidate": "Next-hop candidate",
+      "path": "Complete path",
       "vless_reverse": "VLESS reverse",
       "wireguard": "WireGuard reverse"
     },

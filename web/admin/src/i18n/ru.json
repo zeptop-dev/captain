@@ -3683,6 +3683,7 @@
     "edges": {
       "forward": "Следующий переход",
       "candidate": "Кандидат следующего перехода",
+      "path": "Полный путь",
       "vless_reverse": "Обратный VLESS",
       "wireguard": "Обратный WireGuard"
     },
