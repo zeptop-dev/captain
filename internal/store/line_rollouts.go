@@ -318,6 +318,9 @@ func prepareLineRolloutTx(ctx context.Context, tx *sql.Tx, draft *ForwardLine, r
 			}
 		}
 	} else {
+		if err = pathSourceLineInUseTx(ctx, tx, draft.ID); err != nil {
+			return nil, nil, err
+		}
 		var entries int
 		if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM entries WHERE line_id=?`, draft.ID).Scan(&entries); err != nil {
 			return nil, nil, err

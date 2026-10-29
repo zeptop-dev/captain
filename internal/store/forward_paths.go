@@ -363,6 +363,15 @@ func pathSourceLineInUseTx(ctx context.Context, tx *sql.Tx, id int64) error {
 // A source line can continue evolving independently. Reuse the first captured
 // structure for this pin instead of requiring the live line to remain unchanged.
 func pinnedLineHopsTx(ctx context.Context, tx *sql.Tx, st *PathStep) ([]PathHop, error) {
+	// A fixed pin may use a published source during an edit, but must not
+	// resurrect a retiring line or expose a creation before its entry is ready.
+	var unavailable bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM line_rollouts WHERE line_id=? AND status IN ('running','paused') AND (kind='delete' OR (kind='create' AND published_at IS NULL)))`, st.LineID).Scan(&unavailable); err != nil {
+		return nil, err
+	}
+	if unavailable {
+		return nil, ErrLineRolloutConflict
+	}
 	var raw string
 	err := tx.QueryRowContext(ctx, `SELECT hops_json FROM forward_path_line_versions WHERE line_id=? AND version=? AND include_landing=?`, st.LineID, st.LineVersion, boolInt(st.IncludeLanding)).Scan(&raw)
 	if err == nil {

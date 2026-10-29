@@ -453,6 +453,9 @@ func publishLineRolloutTx(ctx context.Context, tx *sql.Tx, p *LineRollout, at ti
 	return err
 }
 func deleteLineRolloutTx(ctx context.Context, tx *sql.Tx, p *LineRollout) error {
+	if err := pathSourceLineInUseTx(ctx, tx, p.LineID); err != nil {
+		return err
+	}
 	var refs int
 	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM entries WHERE line_id=?`, p.LineID).Scan(&refs); err != nil {
 		return err
