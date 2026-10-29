@@ -1674,7 +1674,8 @@
       "disk": "ディスク容量",
       "nodes": "サーバー",
       "panel_cert": "パネルの証明書",
-      "dns": "DNS の状態"
+      "dns": "DNS の状態",
+      "retention": "監視履歴の削除"
     },
     "msg": {
       "backup_local_error": "直近のスナップショットが失敗しました：{{error}}",
@@ -1694,8 +1695,14 @@
       "panel_cert_expired": "期限切れです",
       "dns_problem": "{{count}} 件の DNS 対象に確認が必要です",
       "dns_pending": "{{count}} 件の DNS 確認が古いか未確認です",
-      "dns_unknown": "DNS の状態を読み込めませんでした"
-    }
+      "dns_unknown": "DNS の状態を読み込めませんでした",
+      "retention_error": "一部の削除に失敗しました。サービスログを確認してください。再試行します。",
+      "retention_budget": "制限時間に達しました。残りは次のバッチで削除します。",
+      "retention_backlog": "期限切れデータが残っている可能性があります。分割して削除を続けます。",
+      "retention_stale": "2 時間以上、削除の実行記録がありません。"
+    },
+    "retentionSummary": "最終実行：{{at}}、{{rows}} 行を {{duration}} ms で削除。前回の全処理完了：{{success}}。",
+    "retentionUnknown": "監視履歴は未確認で、残件数は不明です。再起動後に記録を再開します。"
   },
   "accountID": {
     "label": "アカウント ID",

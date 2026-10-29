@@ -1674,7 +1674,8 @@
       "disk": "Disk space",
       "nodes": "Servers",
       "panel_cert": "Panel certificate",
-      "dns": "DNS health"
+      "dns": "DNS health",
+      "retention": "Monitoring history cleanup"
     },
     "msg": {
       "backup_local_error": "the last snapshot failed: {{error}}",
@@ -1694,8 +1695,14 @@
       "panel_cert_expired": "has expired",
       "dns_problem": "{{count}} DNS targets need attention",
       "dns_pending": "{{count}} DNS checks are stale or unconfirmed",
-      "dns_unknown": "Could not load DNS health"
-    }
+      "dns_unknown": "Could not load DNS health",
+      "retention_error": "Some cleanup steps failed. See service logs; cleanup will retry.",
+      "retention_budget": "The time budget was reached; remaining data will be cleaned in later batches.",
+      "retention_backlog": "Expired data may remain; cleanup will continue in batches.",
+      "retention_stale": "No cleanup has been recorded for over two hours."
+    },
+    "retentionSummary": "Last cleanup: {{at}}, {{rows}} rows removed in {{duration}} ms; last complete run: {{success}}.",
+    "retentionUnknown": "Monitoring history has not been checked; backlog is unknown. Status starts fresh after restart."
   },
   "accountID": {
     "label": "Account ID",

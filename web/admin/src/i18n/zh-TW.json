@@ -1674,7 +1674,8 @@
       "disk": "磁碟空間",
       "nodes": "伺服器",
       "panel_cert": "面板憑證",
-      "dns": "DNS 解析健康"
+      "dns": "DNS 解析健康",
+      "retention": "監控歷史清理"
     },
     "msg": {
       "backup_local_error": "最近一次快照失敗：{{error}}",
@@ -1694,8 +1695,14 @@
       "panel_cert_expired": "已過期",
       "dns_problem": "{{count}} 個網域的 DNS 需要檢查",
       "dns_pending": "{{count}} 項 DNS 結果過期或未確認",
-      "dns_unknown": "無法讀取 DNS 健康狀態"
-    }
+      "dns_unknown": "無法讀取 DNS 健康狀態",
+      "retention_error": "部分清理失敗，詳情見服務日誌；背景會繼續重試。",
+      "retention_budget": "本輪已達時間預算，剩餘資料將繼續分批清理。",
+      "retention_backlog": "可能仍有過期資料，背景會繼續分批清理。",
+      "retention_stale": "超過兩小時沒有清理記錄。"
+    },
+    "retentionSummary": "最近清理：{{at}}，刪除 {{rows}} 列，耗時 {{duration}} ms；最近完整執行：{{success}}。",
+    "retentionUnknown": "監控歷史尚未清理，積壓狀態未知；重啟後重新記錄。"
   },
   "accountID": {
     "label": "帳號 ID",

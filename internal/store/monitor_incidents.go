@@ -169,20 +169,3 @@ func (s *Store) MonitorIncidents(ctx context.Context, nodeID, before int64, stat
 	}
 	return out, rows.Err()
 }
-
-func (s *Store) pruneMonitoring(ctx context.Context, at time.Time) error {
-	for _, query := range []string{`DELETE FROM monitor_intervals WHERE ends_at<?`, `DELETE FROM monitor_incidents WHERE ended_at<?`, `DELETE FROM monitor_windows WHERE ends_at<? OR canceled_at<?`} {
-		cutoff := at.Add(-180 * 24 * time.Hour).Unix()
-		args := []any{cutoff}
-		if query == `DELETE FROM monitor_intervals WHERE ends_at<?` {
-			args[0] = at.Add(-90 * 24 * time.Hour).Unix()
-		}
-		if query == `DELETE FROM monitor_windows WHERE ends_at<? OR canceled_at<?` {
-			args = append(args, cutoff)
-		}
-		if _, err := s.db.ExecContext(ctx, query, args...); err != nil {
-			return err
-		}
-	}
-	return nil
-}

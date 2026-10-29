@@ -52,6 +52,7 @@ type Runner struct {
 	External  *service.External
 	lastSync  time.Time
 	lastPrune time.Time
+	lastStats time.Time
 	lastProbe time.Time
 	lastHist  time.Time
 	// Invalidate drops cached node state after the tick changed
@@ -186,15 +187,20 @@ func (r *Runner) housekeeping(ctx context.Context, now time.Time, log *slog.Logg
 	if r.Invalidate != nil {
 		r.Invalidate()
 	}
+	statsEvery := time.Hour
+	if r.Store.RetentionStatus().Backlog != "clear" {
+		statsEvery = time.Minute
+	}
+	if r.Probe != nil && now.Sub(r.lastStats) >= statsEvery {
+		r.lastStats = now
+		if err := r.Store.PruneStats(ctx, now); err != nil {
+			log.Error("prune stats", "err", err)
+		}
+	}
 	// The hourly cleanup runs whether or not the probe is configured: the
 	// tables below grow from subscription fetches and node reports.
 	if now.Sub(r.lastPrune) >= time.Hour {
 		r.lastPrune = now
-		if r.Probe != nil {
-			if err := r.Store.PruneStats(ctx, now); err != nil {
-				log.Error("prune stats", "err", err)
-			}
-		}
 		var cl store.ConnLogSettings
 		if err := r.Store.GetSetting(ctx, store.SettingConnLog, &cl); err != nil {
 			// Never treat a failed read as "switched off": that would

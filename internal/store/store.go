@@ -20,8 +20,9 @@ type Store struct {
 	// Topology serializes node/domain, ingress, inbound and forward edits with
 	// their validation. DNS-writing handlers keep it through the DNS update so
 	// an older save cannot overwrite a newly shared name.
-	Topology sync.Mutex
-	db       *sql.DB
+	Topology  sync.Mutex
+	db        *sql.DB
+	retention retentionState
 }
 
 // New returns a store over db.

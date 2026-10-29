@@ -709,6 +709,7 @@ func TestSelfCheck(t *testing.T) {
 		"staff_2fa":  "warn/missing",
 		"version":    "skip/",
 		"panel_cert": "skip/",
+		"retention":  "skip/unknown",
 	} {
 		if by[id] != want {
 			t.Errorf("%s = %q, want %q (all: %v)", id, by[id], want, by)

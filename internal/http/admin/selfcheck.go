@@ -44,7 +44,7 @@ func (h *handlers) selfCheck(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	checks := []func(context.Context) []selfCheck{
 		h.checkBackups, h.checkHeartbeat, h.checkMail, h.checkStaff2FA,
-		h.checkVersion, h.checkDisk, h.checkNodes, h.checkPanelCert, h.checkDNS,
+		h.checkVersion, h.checkDisk, h.checkNodes, h.checkPanelCert, h.checkDNS, h.checkRetention,
 	}
 	var mu sync.Mutex
 	var out []selfCheck
@@ -61,11 +61,11 @@ func (h *handlers) selfCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	wg.Wait()
 	order := map[string]int{}
-	for i, id := range []string{"backup_local", "backup_remote", "backup_encrypt", "heartbeat", "mail", "staff_2fa", "version", "disk", "nodes", "panel_cert", "dns"} {
+	for i, id := range []string{"backup_local", "backup_remote", "backup_encrypt", "heartbeat", "mail", "staff_2fa", "version", "disk", "nodes", "panel_cert", "dns", "retention"} {
 		order[id] = i
 	}
 	sort.Slice(out, func(i, j int) bool { return order[out[i].ID] < order[out[j].ID] })
-	ok(w, map[string]any{"checks": out, "at": time.Now()})
+	ok(w, map[string]any{"checks": out, "at": time.Now(), "retention": h.Store.RetentionStatus()})
 }
 
 func (h *handlers) checkBackups(ctx context.Context) []selfCheck {
@@ -237,6 +237,24 @@ func (h *handlers) checkPanelCert(ctx context.Context) []selfCheck {
 		c.Status, c.Code = "fail", "expired"
 	case days < certWarnDays:
 		c.Status, c.Code = "warn", "expiring"
+	}
+	return []selfCheck{c}
+}
+
+func (h *handlers) checkRetention(_ context.Context) []selfCheck {
+	st := h.Store.RetentionStatus()
+	c := selfCheck{ID: "retention", Status: "ok"}
+	switch {
+	case st.LastRun == nil:
+		c.Status, c.Code = "skip", "unknown"
+	case st.Errors > 0:
+		c.Status, c.Code = "fail", "error"
+	case st.BudgetExhausted:
+		c.Status, c.Code = "warn", "budget"
+	case st.Backlog != "clear":
+		c.Status, c.Code = "warn", "backlog"
+	case time.Since(*st.LastRun) > 2*time.Hour:
+		c.Status, c.Code = "warn", "stale"
 	}
 	return []selfCheck{c}
 }

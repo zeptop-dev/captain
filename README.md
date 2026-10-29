@@ -349,3 +349,19 @@ Node probe settings support structured amounts/currencies/payment cycles, calend
 Node probe settings also record advertised Mbps/Gbps capacity, optionally separated into server RX/TX, with opt-in display in both status-page themes. This is metadata only, not shaping or a speed test; see [Advertised bandwidth](docs/MONITORING.md#advertised-server-bandwidth).
 
 Captain can provide customer login to New API through registered confidential OAuth applications. Configure New API Custom OAuth with `profile email`; see [setup and limits](docs/CAPTAIN_LOGIN.md).
+
+### Bounded monitoring-history cleanup
+
+Monitoring history keeps its existing retention periods. Housekeeping removes
+up to 500 expired rows per table/resolution in one round, with a two-second
+cancellation budget for the round and a rotating starting point. It releases
+SQLite's connection between statements. Possible backlog or an interrupted
+round is retried on the next minute; a clear round returns to hourly checks.
+Billing history, subscription lifetimes and connection-log retention are unchanged.
+
+The administrator self-check reports the latest run time, rows removed, elapsed
+time and last successful complete pass. A full batch means that expired data
+may remain; it is not an exact backlog count. Budget exhaustion and unvisited
+or failed tables remain unknown. These observations belong to the running
+process and start unknown after restart. A successful pass can still have
+backlog, and no full-table COUNT is needed to display this status.

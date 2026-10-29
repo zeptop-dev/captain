@@ -8,6 +8,7 @@ import { useAuth } from '../lib/auth'
 import { bytes, when } from '../lib/format'
 import classes from './SelfCheckCard.module.css'
 
+interface Retention { last_run?: string; last_success?: string; rows: number; duration_ms: number; backlog: string }
 interface Check { id: string; status: 'ok' | 'warn' | 'fail' | 'skip'; code?: string; args?: Record<string, string | number> }
 
 // Where each finding is fixed in the console.
@@ -23,7 +24,7 @@ export function SelfCheckCard() {
   const { t } = useTranslation()
   const { me } = useAuth()
   const admin = (me?.role ?? 'admin') === 'admin'
-  const q = useQuery({ queryKey: ['selfcheck'], queryFn: () => api.get<{ checks: Check[] }>('/api/admin/system/selfcheck'), enabled: admin, staleTime: 5 * 60_000, retry: false })
+  const q = useQuery({ queryKey: ['selfcheck'], queryFn: () => api.get<{ checks: Check[]; retention?: Retention }>('/api/admin/system/selfcheck'), enabled: admin, staleTime: 5 * 60_000, retry: false })
   if (!admin || !q.data) return null
   const issues = q.data.checks.filter((c) => c.status === 'warn' || c.status === 'fail')
   const passed = q.data.checks.filter((c) => c.status === 'ok').length
@@ -57,6 +58,9 @@ export function SelfCheckCard() {
           </Box>
         ))}
       </Stack>}
+      {q.data.retention && <Text size="xs" c="dimmed" mt="sm">{q.data.retention.last_run
+        ? t('selfcheck.retentionSummary', { at: when(q.data.retention.last_run), rows: q.data.retention.rows, duration: q.data.retention.duration_ms, success: q.data.retention.last_success ? when(q.data.retention.last_success) : t('common.unknown') })
+        : t('selfcheck.retentionUnknown')}</Text>}
     </Card>
   )
 }

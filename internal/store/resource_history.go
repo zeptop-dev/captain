@@ -385,18 +385,6 @@ func (s *Store) ResourceHistory(ctx context.Context, nodeID int64, span, key str
 	return out, nil
 }
 
-func (s *Store) pruneResourceHistory(ctx context.Context, at time.Time) error {
-	for _, r := range []struct {
-		res  string
-		keep time.Duration
-	}{{"m", 24 * time.Hour}, {"h", 14 * 24 * time.Hour}, {"d", 90 * 24 * time.Hour}} {
-		if _, err := s.db.ExecContext(ctx, `DELETE FROM node_resource_stats WHERE res=? AND ts<?`, r.res, at.Add(-r.keep).Unix()); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 type MonitorNode struct {
 	Stale     bool               `json:"stale"`
 	ID        int64              `json:"id"`
