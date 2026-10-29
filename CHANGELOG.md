@@ -6,6 +6,8 @@ Merge commits and formatting-only commits are left out. Binaries and
 `SHA256SUMS` for every tag are on the GitHub Release; the in-app updater
 installs them (Settings → System maintenance → Version and updates).
 
+- **Unreleased** — Record managed-line saves, automatic recompiles and deletions atomically with forwarding changes. Show the affected servers, before/after rules and independently verified application receipts in six languages, including deleted-line history. Metadata-only edits preserve pending runtime confirmations; superseded targets, changed agent identities and expired observations cannot appear applied. Migration 101 adds bounded change history without changing immediate delivery, user authorization or accounting. Receipt confirmation requires the matching development bosun implementation described in `docs/COMPATIBILITY.md`; no release version is assigned yet.
+
 - **v1.48.1** (2026-10-28) — Publish the v1.48 features with the complete release race suite budget aligned to CI at 45 minutes. Keep release build/test caching separate from CI coverage so unchanged, validated inputs can be reused between rehearsal and publication. The v1.48.0 release workflow exhausted its previous 30-minute limit before producing binaries or images; its tag remains unchanged. No application code, database migration or API behavior changes from that tag.
 
 - **v1.48.0** (2026-10-28) — Add a typed public probe model, stable node UUIDs, metric discovery/history and Komari 1.6.1 public REST, WebSocket and JSON-RPC compatibility. Preserve the original probe APIs and Captain's missing-data, freshness, billing-period and observation-quality semantics.

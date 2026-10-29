@@ -442,8 +442,42 @@ as `preview_revision` to require the same impact at commit time; the existing
 line `version` check still applies. Omitting `preview_revision` preserves the
 previous API behavior. `GET /api/admin/lines/{id}/dependencies` exposes the saved
 dependency/use view even if current validation prevents compiling the line.
-None of these endpoints reports a staged rollout or per-change application
-confirmation.
+The preview endpoints do not report application confirmation. The separate
+change history below links committed forwarding changes to actual deliveries.
+
+### Line change history (development)
+
+**Change history** on the managed-lines page includes manual saves, automatic
+recompiles after address/inbound changes, and deletions. A line's confirmation
+button filters its history; saving or deleting opens the exact resulting record.
+Each record snapshots the actor, line version and explicitly allowed forwarding
+fields in the same transaction as the change. Failed saves create no record.
+
+Only servers whose owned forwarding rules changed become application targets.
+An unchanged landing server remains a dependency. Renames produce a record with
+no runtime change and do not replace a pending target. Removing a member or
+deleting a line creates a cleanup target whose expected rule set is empty.
+Changes that affect one server leave other pending targets observable.
+
+A confirmation means that this line's forwarding rules were recently confirmed
+in the displayed full state revision. It does not establish current confirmation
+of every other setting, user authorization, next-hop reachability or end-to-end
+connectivity. User access and jobs continue to update immediately. A later GET
+can bind the same line target to a newer full state and require a new receipt;
+the first confirmed time remains historical. Negative or expired receipts,
+superseded targets and changed agent identities cannot produce a current green
+status. Unsupported or legacy agents continue receiving configuration but do not
+produce this confirmation. This is observation, not staged deployment or rollback.
+
+Read-only administrator APIs are `GET /api/admin/line-changes` (optional
+`line_id`, `before` cursor and `limit`, default 20, maximum 100) and
+`GET /api/admin/line-changes/{changeID}`. Narrowed tokens need the separate
+`line-changes:read` permission; roles remain administrator-only. Existing save
+and delete responses add `change_id`. Reads do not issue deliveries. The latest
+100 changes per line incarnation are retained together with any older active
+targets; copied target evidence survives pruning of the node delivery journal.
+Deleted lines remain in the global history. Recreated numeric IDs cannot inherit
+old confirmation, and a full reset clears the history with the configuration.
 
 Status describes each forward's **next-hop TCP probe**, not a full end-to-end
 proxy test; UDP is explicitly untested. Agent application and real connectivity

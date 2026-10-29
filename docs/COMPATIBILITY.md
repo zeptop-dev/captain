@@ -855,3 +855,22 @@ This development feature needs the matching bosun implementation. Until bosun
 is released, cross-repository validation uses an isolated task workspace; the
 formal dependency must be updated and `GOWORK=off` release checks must pass before
 publication. No release version is assigned here.
+
+## Managed-line change receipts (development)
+
+Migration 101 adds line incarnations, atomic change/target records and bounded
+delivery-to-target associations. Existing lines acquire identities without
+fabricated change or successful-application records. Save/delete responses add
+`change_id`; existing payloads, routes and immediate configuration delivery are
+preserved. History APIs are administrator-only with a separate
+`line-changes:read` scope. Older narrow resource tokens gain no additional access.
+
+This panel feature consumes the optional configuration receipts above and adds
+no further bosun protocol fields. Legacy nodes still receive forwarding normally
+but cannot confirm application. Unchanged metadata and dynamic users do not
+create forwarding targets; authorization is never held for a rollout. A target
+confirms only its line-owned forwarding within the recorded delivered state,
+not whole-path connectivity or the current state of unrelated settings. Line
+incarnations, node UUIDs, pairing identities, process sessions and fresh receipts
+prevent deleted/recreated resources or stale responses from confirming a new
+change. No staged rollout, frozen user snapshot or automatic rollback is added.

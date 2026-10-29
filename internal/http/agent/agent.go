@@ -185,7 +185,7 @@ func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 		// private to this process session and must never mutate the cache.
 		response := *st
 		if session != "" && st.ConfigRevision != "" {
-			response.ConfigDelivery, err = h.Store.PrepareNodeConfigDelivery(r.Context(), n.ID, tokenHash, session, st.ConfigRevision, st.Revision, time.Now(), r.Header.Get(agentproto.ConfigDeliveryHeader))
+			response.ConfigDelivery, err = h.Store.PrepareNodeConfigDeliveryForLines(r.Context(), n.ID, tokenHash, session, st.ConfigRevision, st.Revision, st.Forwards, time.Now(), r.Header.Get(agentproto.ConfigDeliveryHeader))
 			if err != nil {
 				if errors.Is(err, store.ErrNotFound) {
 					fail(w, http.StatusUnauthorized, "node identity changed")

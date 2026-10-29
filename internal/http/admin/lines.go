@@ -93,7 +93,8 @@ func (h *handlers) saveLine(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if err := h.Store.SaveLine(r.Context(), &l); err != nil {
+	changeID, err := h.Store.SaveLineWithChange(r.Context(), &l)
+	if err != nil {
 		lineError(w, err)
 		return
 	}
@@ -102,7 +103,10 @@ func (h *handlers) saveLine(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
-	ok(w, live)
+	ok(w, struct {
+		*store.ForwardLine
+		ChangeID string `json:"change_id,omitempty"`
+	}{live, changeID})
 }
 func (h *handlers) deleteLine(w http.ResponseWriter, r *http.Request) {
 	h.Store.Topology.Lock()
@@ -112,11 +116,12 @@ func (h *handlers) deleteLine(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "version is required")
 		return
 	}
-	if err = h.Store.DeleteLine(r.Context(), idOf(r), version); err != nil {
+	changeID, err := h.Store.DeleteLineWithChange(r.Context(), idOf(r), version)
+	if err != nil {
 		lineError(w, err)
 		return
 	}
-	ok(w, map[string]bool{"ok": true})
+	ok(w, map[string]any{"ok": true, "change_id": changeID})
 }
 
 func (h *handlers) requireNoNodeLines(w http.ResponseWriter, r *http.Request, id int64) bool {

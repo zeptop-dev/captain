@@ -242,6 +242,8 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("GET /api/admin/groups", h.requireAdmin(h.listGroups))
 	mux.HandleFunc("POST /api/admin/groups", h.requireAdmin(h.createGroup))
 
+	mux.HandleFunc("GET /api/admin/line-changes", h.requireAdmin(h.listLineChanges))
+	mux.HandleFunc("GET /api/admin/line-changes/{change}", h.requireAdmin(h.getLineChange))
 	mux.HandleFunc("GET /api/admin/lines", h.requireAdmin(h.listLines))
 	mux.HandleFunc("POST /api/admin/lines", h.requireAdmin(h.saveLine))
 	mux.HandleFunc("POST /api/admin/lines/preview", h.requireAdmin(h.previewLine))
@@ -426,7 +428,7 @@ func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 				}
 			}()
 		}
-		next(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, u)))
+		next(w, r.WithContext(store.WithLineChangeActor(context.WithValue(r.Context(), ctxKey{}, u), u.Email)))
 	}
 }
 
@@ -580,6 +582,9 @@ func fail(w http.ResponseWriter, code int, msg string) {
 // Operator: everything except settings, system, staff management and the
 // landing page. Support: tickets, plus read-only users, orders, dashboard.
 func allowed(role, method, path string) bool {
+	if (path == "/api/admin/line-changes" || strings.HasPrefix(path, "/api/admin/line-changes/")) && role != domain.RoleAdmin {
+		return false
+	}
 	if strings.HasPrefix(path, "/api/admin/nodes/") && strings.HasSuffix(path, "/dns-sync") && role != domain.RoleAdmin {
 		return false
 	}
