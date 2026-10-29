@@ -3624,7 +3624,17 @@
     "rateInvalid": "1에서 1,000,000 Mbps 사이의 정수 한도를 입력하세요.",
     "discard": "정책 변경 취소",
     "savePolicy": "자동 정책 저장",
-    "close": "닫기"
+    "close": "닫기",
+    "offlineProtection": "연결이 끊겨도 자동 보호 유지",
+    "offlineProtectionHint": "서버가 최신 네트워크 트래픽을 로컬에서 판단합니다. 카운터 누락, 관측하지 못한 주기 경계 또는 재설치 후 오래된 기준은 패널에서 유효한 기준을 받을 때까지 관리 트래픽을 보수적으로 중지합니다. 수동 제한은 유지되며 기본값은 꺼짐입니다.",
+    "offlineUpgradeRequired": "서버를 업그레이드하고 새 보고서를 받은 뒤 오프라인 보호를 활성화하세요.",
+    "offlineState": "오프라인 보호: {{state}} · 보고된 모드: {{mode}}",
+    "offlineStates": {
+      "ready": "준비됨",
+      "active": "발동됨",
+      "waiting": "트래픽 증거 대기 중",
+      "error": "트래픽 증거 없음"
+    }
   },
   "probeThemes": {
     "title": "Komari 테마",

@@ -55,6 +55,16 @@ server that is still over quota requires an explicit exemption for that cycle
 or a policy/allowance change. Traffic samples and configuration delivery are
 asynchronous: this is not a byte-exact supplier-side spending cap.
 
+The current unreleased offline capability adds an `offline_enabled` management
+setting which defaults to false and is
+preserved when an older editor omits it. Enabling it requires the independent
+fresh `offline_supported` capability; v0.83.0 alone does not support local
+threshold evaluation. Its full policy and meter anchor travel in the optional
+`service_control.offline` object; local execution evidence travels in the
+matching report object. Existing SQLite state JSON stores the setting without
+a new schema migration. Disable this option before manually downgrading to a
+release without offline support. Subscriber receipts and billing are unchanged.
+
 The first releases containing this feature are Captain v1.48.0 and
 bosun v0.83.0; their built-in rollback floors retain those versions. Older
 panels or agents can ignore controls or stop maintaining them. Manual downgrade

@@ -3624,7 +3624,17 @@
     "rateInvalid": "请输入 1 到 1,000,000 Mbps 的整数带宽上限。",
     "discard": "放弃策略修改",
     "savePolicy": "保存自动策略",
-    "close": "关闭"
+    "close": "关闭",
+    "offlineProtection": "断连时继续自动保护",
+    "offlineProtectionHint": "服务器在本地按新鲜网卡流量判断。计数缺失、未观测到周期边界或重装后基线过期时，将保守暂停托管流量，直到收到面板有效基线。手动限制始终保留，默认关闭。",
+    "offlineUpgradeRequired": "请升级服务器并等待新报告后启用离线保护。",
+    "offlineState": "离线保护：{{state}} · 报告模式：{{mode}}",
+    "offlineStates": {
+      "ready": "已就绪",
+      "active": "已触发",
+      "waiting": "等待流量证据",
+      "error": "流量证据不可用"
+    }
   },
   "probeThemes": {
     "title": "Komari 主题",

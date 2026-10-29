@@ -3624,7 +3624,17 @@
     "rateInvalid": "1 から 1,000,000 Mbps の整数を入力してください。",
     "discard": "ポリシーの変更を破棄",
     "savePolicy": "自動ポリシーを保存",
-    "close": "閉じる"
+    "close": "閉じる",
+    "offlineProtection": "切断中も自動保護を続ける",
+    "offlineProtectionHint": "サーバーが最新のネットワーク通信量をローカルで判定します。カウンターの欠損、観測できなかった期間境界、再インストール後の古い基準では、有効な基準をパネルから受信するまで管理対象の通信を安全側で停止します。手動制限は維持されます。初期設定はオフです。",
+    "offlineUpgradeRequired": "オフライン保護を有効にするにはサーバーを更新し、新しい報告を待ってください。",
+    "offlineState": "オフライン保護：{{state}} · 報告モード：{{mode}}",
+    "offlineStates": {
+      "ready": "準備完了",
+      "active": "発動済み",
+      "waiting": "通信量の証拠を待機中",
+      "error": "通信量の証拠なし"
+    }
   },
   "probeThemes": {
     "title": "Komari テーマ",

@@ -57,28 +57,32 @@ type ServiceControlTraffic struct {
 	Fresh             bool       `json:"fresh"`
 }
 type ServiceControlCapability struct {
-	Supported bool   `json:"supported"`
-	Reason    string `json:"reason"`
+	OfflineSupported bool   `json:"offline_supported"`
+	Supported        bool   `json:"supported"`
+	Reason           string `json:"reason"`
 }
 type ServiceControlRuntime struct {
-	Status     string     `json:"status"`
-	ObservedAt *time.Time `json:"observed_at,omitempty"`
-	Mode       string     `json:"mode,omitempty"`
-	LimitMbps  int        `json:"limit_mbps,omitempty"`
-	Error      string     `json:"error,omitempty"`
+	Offline    *agentproto.OfflineControlReport `json:"offline,omitempty"`
+	Status     string                           `json:"status"`
+	ObservedAt *time.Time                       `json:"observed_at,omitempty"`
+	Mode       string                           `json:"mode,omitempty"`
+	LimitMbps  int                              `json:"limit_mbps,omitempty"`
+	Error      string                           `json:"error,omitempty"`
 }
 type NodeServiceControl struct {
-	NodeID     int64                    `json:"node_id"`
-	Revision   string                   `json:"revision"`
-	Policy     ServiceControlPolicy     `json:"policy"`
-	Manual     ServiceControlManual     `json:"manual"`
-	Automatic  ServiceControlAutomatic  `json:"automatic"`
-	Effective  ServiceControlEffective  `json:"effective"`
-	Traffic    ServiceControlTraffic    `json:"traffic"`
-	Capability ServiceControlCapability `json:"capability"`
-	Runtime    ServiceControlRuntime    `json:"runtime"`
+	OfflineEnabled bool                     `json:"offline_enabled"`
+	NodeID         int64                    `json:"node_id"`
+	Revision       string                   `json:"revision"`
+	Policy         ServiceControlPolicy     `json:"policy"`
+	Manual         ServiceControlManual     `json:"manual"`
+	Automatic      ServiceControlAutomatic  `json:"automatic"`
+	Effective      ServiceControlEffective  `json:"effective"`
+	Traffic        ServiceControlTraffic    `json:"traffic"`
+	Capability     ServiceControlCapability `json:"capability"`
+	Runtime        ServiceControlRuntime    `json:"runtime"`
 }
 type ServiceControlChange struct {
+	OfflineEnabled      *bool                 `json:"offline_enabled,omitempty"`
 	Revision            string                `json:"revision"`
 	Policy              *ServiceControlPolicy `json:"policy,omitempty"`
 	Manual              *ServiceControlManual `json:"manual,omitempty"`
@@ -88,12 +92,14 @@ type ServiceControlChange struct {
 // Cycles advance only on a scheduled counter rollover. A manual reset or an
 // edited reset day cannot impersonate a paid new period and clear protection.
 type serviceControlState struct {
-	Policy          ServiceControlPolicy    `json:"policy"`
-	Manual          ServiceControlManual    `json:"manual"`
-	Automatic       ServiceControlAutomatic `json:"automatic"`
-	Cycle           int64                   `json:"cycle"`
-	ExemptCycle     int64                   `json:"exempt_cycle"`
-	PendingRollover bool                    `json:"pending_rollover"`
+	OfflineEnabled  bool                        `json:"offline_enabled,omitempty"`
+	Offline         *spec.OfflineServiceControl `json:"offline,omitempty"`
+	Policy          ServiceControlPolicy        `json:"policy"`
+	Manual          ServiceControlManual        `json:"manual"`
+	Automatic       ServiceControlAutomatic     `json:"automatic"`
+	Cycle           int64                       `json:"cycle"`
+	ExemptCycle     int64                       `json:"exempt_cycle"`
+	PendingRollover bool                        `json:"pending_rollover"`
 }
 type serviceControlRecord struct {
 	revision, command string
@@ -121,7 +127,7 @@ func saveServiceControlTx(ctx context.Context, tx *sql.Tx, id int64, r *serviceC
 	}
 	r.revision = rand.Text()
 	before, after := old.effective(), r.effective()
-	if before.Mode != after.Mode || before.LimitMbps != after.LimitMbps {
+	if before.Mode != after.Mode || before.LimitMbps != after.LimitMbps || !reflect.DeepEqual(old.state.Offline, r.state.Offline) {
 		r.command = rand.Text()
 	}
 	raw, err := json.Marshal(r.state)
@@ -232,6 +238,8 @@ func serviceControlCapabilityTx(ctx context.Context, tx *sql.Tx, id int64, at ti
 		return cap, runtime, nil, nil
 	}
 	cap.Supported = rep.Supported
+	cap.OfflineSupported = rep.Supported && rep.OfflineSupported
+	runtime.Offline = rep.Offline
 	if !cap.Supported {
 		cap.Reason = "unavailable"
 		if rep.Reason == "unsupported_platform" {
@@ -263,9 +271,11 @@ func nodeServiceControlTx(ctx context.Context, tx *sql.Tx, id int64, at time.Tim
 		switch {
 		case r.command == "":
 			runtime.Status = "unconfigured"
-		case rep.Error != "":
+		case rep.Error != "" || r.state.OfflineEnabled && rep.Offline != nil && rep.Offline.Error != "":
 			runtime.Status = "error"
-		case rep.DesiredRevision == r.command && rep.AppliedRevision == r.command && rep.Mode == effective.Mode && rep.LimitMbps == effective.LimitMbps:
+		case r.state.OfflineEnabled && r.state.Offline != nil && rep.Offline != nil && rep.Offline.PolicyID == r.state.Offline.PolicyID && (rep.Offline.State == "ready" || rep.Offline.State == "active") && rep.DesiredRevision == r.command && rep.AppliedRevision == r.command:
+			runtime.Status = "applied"
+		case !r.state.OfflineEnabled && rep.DesiredRevision == r.command && rep.AppliedRevision == r.command && rep.Mode == effective.Mode && rep.LimitMbps == effective.LimitMbps:
 			runtime.Status = "applied"
 		default:
 			runtime.Status = "pending"
@@ -273,7 +283,7 @@ func nodeServiceControlTx(ctx context.Context, tx *sql.Tx, id int64, at time.Tim
 	}
 	automatic := r.state.Automatic
 	automatic.ExemptCurrentPeriod = r.state.ExemptCycle == r.state.Cycle
-	return &NodeServiceControl{NodeID: id, Revision: r.revision, Policy: r.state.Policy, Manual: r.state.Manual, Automatic: automatic, Effective: effective, Traffic: traffic, Capability: capability, Runtime: runtime}, nil
+	return &NodeServiceControl{OfflineEnabled: r.state.OfflineEnabled, NodeID: id, Revision: r.revision, Policy: r.state.Policy, Manual: r.state.Manual, Automatic: automatic, Effective: effective, Traffic: traffic, Capability: capability, Runtime: runtime}, nil
 }
 func (s *Store) NodeServiceControl(ctx context.Context, id int64, at time.Time) (*NodeServiceControl, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -354,7 +364,7 @@ func (s *Store) UpdateNodeServiceControl(ctx context.Context, id int64, c Servic
 	if c.Revision == "" || c.Revision != r.revision {
 		return nil, ErrServiceControlConflict
 	}
-	if c.Policy == nil && c.Manual == nil && c.ExemptCurrentPeriod == nil {
+	if c.Policy == nil && c.Manual == nil && c.ExemptCurrentPeriod == nil && c.OfflineEnabled == nil {
 		return nil, fmt.Errorf("%w: no changes provided", ErrServiceControl)
 	}
 	p, err := scanNodeProbe(tx.QueryRowContext(ctx, `SELECT `+nodeProbeCols+` FROM nodes WHERE id=?`, id))
@@ -368,6 +378,12 @@ func (s *Store) UpdateNodeServiceControl(ctx context.Context, id int64, c Servic
 	cap, _, _, err := serviceControlCapabilityTx(ctx, tx, id, at)
 	if err != nil {
 		return nil, err
+	}
+	if c.OfflineEnabled != nil {
+		if *c.OfflineEnabled && !cap.OfflineSupported {
+			return nil, fmt.Errorf("%w: offline traffic protection requires a fresh supporting node report", ErrServiceControl)
+		}
+		r.state.OfflineEnabled = *c.OfflineEnabled
 	}
 	if c.Policy != nil {
 		if err = validateServiceControlPolicy(*c.Policy); err != nil {
@@ -414,6 +430,18 @@ func (s *Store) UpdateNodeServiceControl(ctx context.Context, id int64, c Servic
 		}
 		r.state.Manual = *c.Manual
 	}
+	if r.state.OfflineEnabled && (!usage.Fresh || !cap.OfflineSupported) {
+		return nil, fmt.Errorf("%w: offline protection requires fresh traffic and node capability", ErrServiceControl)
+	}
+	explicitOffline := r.state.OfflineEnabled != old.state.OfflineEnabled || r.state.Policy != old.state.Policy || r.state.Manual != old.state.Manual || r.state.ExemptCycle != old.state.ExemptCycle
+	// A new automatic policy starts a new identity. Manual changes and cycle
+	// exemptions retain it so they cannot accidentally discard a local quota hold.
+	if r.state.Policy != old.state.Policy || r.state.OfflineEnabled != old.state.OfflineEnabled {
+		r.state.Offline = nil
+	}
+	if err = refreshOfflinePolicy(&r, p, at, explicitOffline); err != nil {
+		return nil, err
+	}
 	if err = saveServiceControlTx(ctx, tx, id, &r, old); err != nil {
 		return nil, err
 	}
@@ -443,6 +471,11 @@ func recordServiceControlTrafficTx(ctx context.Context, tx *sql.Tx, id int64, p 
 		}
 		evaluateServiceControl(&r, usage, at, false)
 	}
+	if measured {
+		if err = refreshOfflinePolicy(&r, p, at, false); err != nil {
+			return err
+		}
+	}
 	if err = saveServiceControlTx(ctx, tx, id, &r, old); err != nil {
 		return err
 	}
@@ -470,7 +503,7 @@ func (s *Store) DesiredNodeServiceControl(ctx context.Context, id int64) (*spec.
 		return nil, nil
 	}
 	v := r.effective()
-	return &spec.ServiceControl{Revision: v.Revision, Mode: v.Mode, LimitMbps: v.LimitMbps}, nil
+	return &spec.ServiceControl{Revision: v.Revision, Mode: v.Mode, LimitMbps: v.LimitMbps, Offline: r.state.Offline}, nil
 }
 
 func (s *Store) HasAutomaticServiceControl(ctx context.Context) (bool, error) {

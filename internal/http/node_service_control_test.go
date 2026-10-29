@@ -178,3 +178,33 @@ func TestNodeServiceControlHTTPInfrastructureBoundaryScope(t *testing.T) {
 		t.Fatal("billing changed control policy", got)
 	}
 }
+
+func TestNodeServiceControlHTTPOfflineCapabilityAndDelivery(t *testing.T) {
+	r := newRig(t)
+	serviceControlHTTPReady(t, r)
+	path := "/api/admin/nodes/" + itoa(r.nodeID) + "/service-control"
+	v := serviceControlHTTPGet(t, r)
+	enabled := true
+	policy := store.ServiceControlPolicy{Action: "pause", ThresholdPercent: 90, AutoResume: true}
+	change := store.ServiceControlChange{Revision: v.Revision, Policy: &policy, OfflineEnabled: &enabled}
+	accessAuditCall(t, r.c, "PUT", path, change, 400)
+	serviceControlHTTPReport(t, r, 2, &agentproto.ServiceControlReport{Supported: true, OfflineSupported: true, CheckedAt: time.Now().Unix(), Mode: "normal"})
+	v = mustJSON[store.NodeServiceControl](t, accessAuditCall(t, r.c, "PUT", path, change, 200))
+	state := mustJSON[agentproto.State](t, accessAuditCall(t, r.agent, "GET", "/api/agent/state", nil, 200))
+	if !v.OfflineEnabled || state.Node.ServiceControl == nil || state.Node.ServiceControl.Offline == nil || state.Node.ServiceControl.Mode != "normal" {
+		t.Fatal(v, state.Node.ServiceControl)
+	}
+	if err := state.Node.ServiceControl.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	// Legacy editors omit the new flag; same-value policy saves preserve it.
+	v = mustJSON[store.NodeServiceControl](t, accessAuditCall(t, r.c, "PUT", path, store.ServiceControlChange{Revision: v.Revision, Policy: &policy}, 200))
+	if !v.OfflineEnabled {
+		t.Fatal("legacy write dropped offline opt-in")
+	}
+	anon := &client{t: t, srv: r.srv}
+	public := accessAuditCall(t, anon, "GET", "/api/probe", nil, 200)
+	if bytes.Contains(public, []byte("offline_enabled")) || bytes.Contains(public, []byte(state.Node.ServiceControl.Offline.PolicyID)) {
+		t.Fatal("private offline policy leaked")
+	}
+}

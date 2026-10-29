@@ -3624,7 +3624,17 @@
     "rateInvalid": "請輸入 1 到 1,000,000 Mbps 的整數頻寬上限。",
     "discard": "放棄策略變更",
     "savePolicy": "儲存自動策略",
-    "close": "關閉"
+    "close": "關閉",
+    "offlineProtection": "中斷連線時繼續自動保護",
+    "offlineProtectionHint": "伺服器在本機依新鮮網卡流量判斷。計數遺失、未觀測到週期邊界或重裝後基準過期時，將保守暫停託管流量，直到收到面板有效基準。手動限制始終保留，預設關閉。",
+    "offlineUpgradeRequired": "請升級伺服器並等待新報告後啟用離線保護。",
+    "offlineState": "離線保護：{{state}} · 回報模式：{{mode}}",
+    "offlineStates": {
+      "ready": "已就緒",
+      "active": "已觸發",
+      "waiting": "等待流量證據",
+      "error": "流量證據無法使用"
+    }
   },
   "probeThemes": {
     "title": "Komari 主題",

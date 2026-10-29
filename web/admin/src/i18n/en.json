@@ -3624,7 +3624,17 @@
     "rateInvalid": "Enter a whole bandwidth limit from 1 to 1,000,000 Mbps.",
     "discard": "Discard policy changes",
     "savePolicy": "Save automatic policy",
-    "close": "Close"
+    "close": "Close",
+    "offlineProtection": "Continue automatic protection while disconnected",
+    "offlineProtectionHint": "The server evaluates fresh network traffic locally. Missing counters, an unobserved cycle boundary, or a stale baseline after reinstall conservatively pauses managed traffic until a valid panel anchor arrives. Manual restrictions persist. Disabled by default.",
+    "offlineUpgradeRequired": "Upgrade the server and wait for a fresh report to enable offline protection.",
+    "offlineState": "Offline protection: {{state}} · reported mode: {{mode}}",
+    "offlineStates": {
+      "ready": "Ready",
+      "active": "Triggered",
+      "waiting": "Waiting for traffic evidence",
+      "error": "Traffic evidence unavailable"
+    }
   },
   "probeThemes": {
     "title": "Komari themes",
