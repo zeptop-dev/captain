@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -69,6 +70,12 @@ func checkRolloutForwardsTx(ctx context.Context, tx *sql.Tx, nodeID int64, fs []
 		return err
 	}
 	for _, f := range fs {
+		if f.Listen == "" && f.IngressID != "" {
+			e := tx.QueryRowContext(ctx, `SELECT bind_ip FROM ingresses WHERE id=? AND node_id=?`, f.IngressID, nodeID).Scan(&f.Listen)
+			if e != nil && !errors.Is(e, sql.ErrNoRows) {
+				return e
+			}
+		}
 		for _, r := range reservations {
 			if f.LineID == r.lineID {
 				continue
@@ -120,4 +127,44 @@ func allowRolloutRecompileTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, ge
 	// Access/group/user changes are not structural writes. They must continue
 	// without bumping the frozen line version or changing its publication.
 	return true, nil
+}
+
+// Address indirection can change effective listeners without editing the
+// inbound/forward itself. Check the post-mutation view in the same transaction.
+func checkRolloutNodeReservationsTx(ctx context.Context, tx *sql.Tx, nodeID int64) error {
+	var active bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM line_rollouts p JOIN line_rollout_nodes n ON n.plan_id=p.id WHERE n.node_id=? AND p.status IN ('running','paused'))`, nodeID).Scan(&active); err != nil {
+		return err
+	}
+	if !active {
+		return nil
+	}
+	rows, err := tx.QueryContext(ctx, "SELECT "+inboundCols+" FROM inbounds WHERE node_id=? AND enabled=1", nodeID)
+	if err != nil {
+		return err
+	}
+	ibs := []*domain.Inbound{}
+	for rows.Next() {
+		ib, e := scanInbound(rows)
+		if e != nil {
+			rows.Close()
+			return e
+		}
+		ibs = append(ibs, ib)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	for _, ib := range ibs {
+		if err = checkRolloutInboundTx(ctx, tx, ib); err != nil {
+			return err
+		}
+	}
+	forwards, err := nodeForwardsTx(ctx, tx, nodeID)
+	if err != nil {
+		return err
+	}
+	return checkRolloutForwardsTx(ctx, tx, nodeID, forwards)
 }

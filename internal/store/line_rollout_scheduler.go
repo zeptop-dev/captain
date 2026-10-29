@@ -233,8 +233,8 @@ func lineRolloutValidationTx(ctx context.Context, tx *sql.Tx, p *LineRollout, at
 			return fmt.Errorf("%w: server identity or mode changed", ErrLineRolloutConflict)
 		}
 		modified := false
-		for _, n := range p.Nodes {
-			if n.NodeID == d.NodeID {
+		for _, step := range p.Targets {
+			if step.NodeID == d.NodeID {
 				modified = true
 			}
 		}

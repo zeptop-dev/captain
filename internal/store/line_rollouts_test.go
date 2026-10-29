@@ -614,3 +614,83 @@ func TestLineRolloutReadsDoNotChangeSchedulerOrder(t *testing.T) {
 		t.Fatal("GET changed scheduler checkpoint")
 	}
 }
+
+func TestLineRolloutIngressChangesRecheckReservedListeners(t *testing.T) {
+	for _, kind := range []string{"inbound", "manual"} {
+		for _, op := range []string{"update", "delete"} {
+			t.Run(kind+"/"+op, func(t *testing.T) {
+				ctx := context.Background()
+				r := newRolloutRig(t)
+				target := r.nodes[1].ID
+				path := &Ingress{NodeID: target, Name: "path listener", BindIP: "127.0.0.1", LineIP: "127.0.0.1"}
+				other := &Ingress{NodeID: target, Name: "unrelated listener", BindIP: "127.0.0.2", LineIP: "127.0.0.2"}
+				for _, g := range []*Ingress{path, other} {
+					if err := r.s.CreateIngress(ctx, g); err != nil {
+						t.Fatal(err)
+					}
+				}
+				r.line.Groups[1].Members[0].IngressID = &path.ID
+				if err := r.s.SaveLine(ctx, r.line); err != nil {
+					t.Fatal(err)
+				}
+				if kind == "inbound" {
+					ib := &domain.Inbound{NodeID: target, Tag: "unrelated", Protocol: spec.VLESS, Port: 21443, IngressID: &other.ID, Enabled: true}
+					if err := r.s.CreateInbound(ctx, ib); err != nil {
+						t.Fatal(err)
+					}
+				} else {
+					f := NodeForward{Forward: spec.Forward{Tag: "unrelated", Protocol: "tcp", Port: 21443, IngressID: fmt.Sprint(other.ID), Target: "example.com:443"}}
+					if err := r.s.SetNodeForwards(ctx, target, []NodeForward{f}); err != nil {
+						t.Fatal(err)
+					}
+				}
+				draft := cloneLine(r.line)
+				for i := range draft.Groups {
+					draft.Groups[i].Members[0].Port += 2000
+				}
+				if _, err := r.s.PlanLineRollout(ctx, draft, false, time.Minute); err != nil {
+					t.Fatal(err)
+				}
+				var err error
+				if op == "update" {
+					other.BindIP = "127.0.0.1"
+					err = r.s.UpdateIngress(ctx, other)
+				} else {
+					err = r.s.DeleteIngress(ctx, other.ID)
+				}
+				if !errors.Is(err, ErrLineRolloutConflict) {
+					t.Fatalf("ingress %s let %s consume reserved future listener: %v", op, kind, err)
+				}
+				saved, err := r.s.IngressByID(ctx, other.ID)
+				if err != nil || saved.BindIP != "127.0.0.2" {
+					t.Fatal("rejected ingress change was not atomic", saved, err)
+				}
+			})
+		}
+	}
+}
+
+func TestReviewRolloutUnchangedRelayMustStayApplied(t *testing.T) {
+	ctx := context.Background()
+	r := newRolloutRig(t)
+	if err := r.s.SaveLine(ctx, r.line); err != nil {
+		t.Fatal(err)
+	}
+	draft := cloneLine(r.line)
+	draft.Groups[0].Members[0].Port += 1000
+	p, err := r.s.PlanLineRollout(ctx, draft, false, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d, err := r.s.PrepareNodeConfigDelivery(ctx, r.nodes[1].ID, r.token(r.nodes[1].ID), configSessionA, "base", "base", r.at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.receipt(t, r.nodes[1].ID, d, "base", "base", false)
+	r.ack(t, p.Targets[0], true)
+	r.advance(t)
+	p = r.read(t, p.ID)
+	if p.Status != "paused" || p.PublishedAt != nil {
+		t.Fatalf("published through unchanged relay after current apply failure: status=%s published=%v", p.Status, p.PublishedAt)
+	}
+}
