@@ -99,7 +99,7 @@ func TestNodeConfigEvidenceDeliveryReceiptAndFreshness(t *testing.T) {
 	r.Applied = false
 	r.ObservedAt = at.Add(2 * time.Second)
 	recordConfig(t, s, id, r, r.ObservedAt)
-	if got := configHistory(t, s, id, r.ObservedAt).Current; !reflect.DeepEqual(initial, *got) {
+	if got := configHistory(t, s, id, r.ObservedAt).Current; !sameConfigEvidence(initial, *got) {
 		t.Fatal("duplicate sequence changed confirmation", got)
 	}
 	r.Sequence = 2
@@ -159,6 +159,9 @@ func TestNodeConfigEvidenceRetiredSessionsAndTokenRotation(t *testing.T) {
 	a := configDelivery(t, s, id, configSessionA, "cfg", "state", at)
 	recordConfig(t, s, id, configReceipt(a, "cfg", "state", 7, at), at)
 	b := configDelivery(t, s, id, configSessionB, "cfg", "state", at.Add(time.Second))
+	if _, err := s.PrepareNodeConfigDelivery(ctx, id, configTestToken, configSessionB, "cfg", "state", at.Add(time.Second), b.ID); err != nil {
+		t.Fatal(err)
+	}
 	if got := configDelivery(t, s, id, configSessionA, "cfg", "state-new", at.Add(2*time.Second)); got != nil {
 		t.Fatal("retired process reclaimed delivery", got)
 	}
@@ -259,18 +262,22 @@ func TestNodeConfigEvidenceAppliedRevisionAndMonotonicEvidence(t *testing.T) {
 	r.ObservedAt = at.Add(2 * time.Second)
 	r.Applied = false
 	recordConfig(t, s, id, r, at.Add(4*time.Second))
-	if got := configHistory(t, s, id, at.Add(4*time.Second)).Current; !reflect.DeepEqual(original, *got) {
+	if got := configHistory(t, s, id, at.Add(4*time.Second)).Current; !sameConfigEvidence(original, *got) {
 		t.Fatal("new sequence with older observation rewrote evidence", got)
 	}
 	r.ObservedAt = at.Add(4 * time.Second)
 	recordConfig(t, s, id, r, at.Add(2*time.Second))
-	if got := configHistory(t, s, id, at.Add(4*time.Second)).Current; !reflect.DeepEqual(original, *got) {
+	if got := configHistory(t, s, id, at.Add(4*time.Second)).Current; !sameConfigEvidence(original, *got) {
 		t.Fatal("server clock rollback refreshed evidence", got)
 	}
 }
 func TestNodeConfigEvidenceHistoryBoundAndSessionTombstones(t *testing.T) {
 	s, id, at, _ := configEvidenceRig(t)
 	configDelivery(t, s, id, configSessionA, "cfg", "first", at)
+	candidate := configDelivery(t, s, id, configSessionB, "cfg", "initial", at)
+	if _, err := s.PrepareNodeConfigDelivery(context.Background(), id, configTestToken, configSessionB, "cfg", "initial", at, candidate.ID); err != nil {
+		t.Fatal(err)
+	}
 	var last *agentproto.ConfigDelivery
 	for i := 0; i < 125; i++ {
 		last = configDelivery(t, s, id, configSessionB, "cfg", fmt.Sprintf("state-%d", i), at.Add(time.Duration(i+1)*time.Millisecond))
@@ -427,5 +434,201 @@ func TestNodeConfigEvidenceSiteResetClearsFencesAndHistory(t *testing.T) {
 		if err := s.db.QueryRow(`SELECT count(*) FROM ` + table).Scan(&n); err != nil || n != 0 {
 			t.Fatal(table, n, err)
 		}
+	}
+}
+
+func TestNodeConfigEvidenceDelayedUnknownSessionCannotRetireLiveProcess(t *testing.T) {
+	s, id, at, _ := configEvidenceRig(t)
+	live := configDelivery(t, s, id, configSessionB, "cfg", "state", at)
+	recordConfig(t, s, id, configReceipt(live, "cfg", "state", 1, at.Add(time.Second)), at.Add(time.Second))
+	candidate := configDelivery(t, s, id, configSessionA, "cfg", "state", at.Add(2*time.Second))
+	if candidate == nil || candidate.ID == live.ID {
+		t.Fatal("missing distinct candidate delivery")
+	}
+	current := configHistory(t, s, id, at.Add(2*time.Second)).Current
+	if current == nil || current.ID != live.ID || !current.Applied || !current.Fresh {
+		t.Fatal("delayed first request retired the confirmed live process", current)
+	}
+	if still := configDelivery(t, s, id, configSessionB, "cfg", "state", at.Add(3*time.Second)); still == nil || still.ID != live.ID {
+		t.Fatal("live process was permanently fenced by unknown first request", still)
+	}
+}
+
+func sameConfigEvidence(a, b NodeConfigDeliveryRecord) bool {
+	a.FreshForMS, b.FreshForMS = 0, 0
+	return reflect.DeepEqual(a, b)
+}
+
+func TestNodeConfigEvidenceCandidateEchoAndReceiptActivation(t *testing.T) {
+	for _, method := range []string{"echo", "receipt"} {
+		t.Run(method, func(t *testing.T) {
+			s, id, at, _ := configEvidenceRig(t)
+			live := configDelivery(t, s, id, configSessionB, "cfg", "state", at)
+			recordConfig(t, s, id, configReceipt(live, "cfg", "state", 1, at), at)
+			candidate := configDelivery(t, s, id, configSessionA, "cfg", "state", at.Add(time.Second))
+			if same := configDelivery(t, s, id, configSessionA, "cfg", "state", at.Add(2*time.Second)); same.ID != candidate.ID {
+				t.Fatal("candidate challenge changed across retry")
+			}
+			if method == "echo" {
+				got, err := s.PrepareNodeConfigDelivery(context.Background(), id, configTestToken, configSessionA, "cfg", "state", at.Add(3*time.Second), candidate.ID)
+				if err != nil || got.ID != candidate.ID {
+					t.Fatal(got, err)
+				}
+			} else {
+				r := configReceipt(candidate, "cfg", "state", 1, at.Add(3*time.Second))
+				r.Applied = false
+				recordConfig(t, s, id, r, r.ObservedAt)
+			}
+			got := configHistory(t, s, id, at.Add(3*time.Second)).Current
+			if got == nil || got.ID != candidate.ID || got.Applied {
+				t.Fatal("challenge did not activate pending process", got)
+			}
+			if old := configDelivery(t, s, id, configSessionB, "cfg", "state", at.Add(4*time.Second)); old != nil {
+				t.Fatal("retired process reclaimed session", old)
+			}
+		})
+	}
+}
+
+func TestNodeConfigEvidenceChangedCandidateRejectsOldEchoAndReceipt(t *testing.T) {
+	s, id, at, _ := configEvidenceRig(t)
+	live := configDelivery(t, s, id, configSessionB, "cfg", "state", at)
+	first := configDelivery(t, s, id, configSessionA, "cfg", "state", at.Add(time.Second))
+	next, err := s.PrepareNodeConfigDelivery(context.Background(), id, configTestToken, configSessionA, "cfg", "changed", at.Add(2*time.Second), first.ID)
+	if err != nil || next.ID == first.ID {
+		t.Fatal(next, err)
+	}
+	recordConfig(t, s, id, configReceipt(first, "cfg", "state", 1, at.Add(3*time.Second)), at.Add(3*time.Second))
+	if got := configHistory(t, s, id, at.Add(3*time.Second)).Current; got.ID != live.ID {
+		t.Fatal("outdated candidate activated", got)
+	}
+	if _, err = s.PrepareNodeConfigDelivery(context.Background(), id, configTestToken, configSessionA, "cfg", "changed", at.Add(4*time.Second), next.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got := configHistory(t, s, id, at.Add(4*time.Second)).Current; got.ID != next.ID {
+		t.Fatal(got)
+	}
+}
+
+func TestNodeConfigEvidencePendingRetentionKeepsActiveHead(t *testing.T) {
+	s, id, at, _ := configEvidenceRig(t)
+	live := configDelivery(t, s, id, configSessionB, "cfg", "state", at)
+	recordConfig(t, s, id, configReceipt(live, "cfg", "state", 1, at), at)
+	for i := 0; i < 110; i++ {
+		configDelivery(t, s, id, fmt.Sprintf("%032x", i+20), "cfg", "state", at.Add(time.Duration(i+1)*time.Millisecond))
+	}
+	got := configHistory(t, s, id, at.Add(time.Second))
+	if got.Current == nil || got.Current.ID != live.ID || !got.Current.Applied || len(got.History) != 20 {
+		t.Fatal("pending candidates displaced active evidence", got)
+	}
+	var count int
+	if err := s.db.QueryRow(`SELECT count(*) FROM node_config_deliveries WHERE node_id=?`, id).Scan(&count); err != nil || count != 100 {
+		t.Fatal(count, err)
+	}
+}
+
+func TestNodeConfigEvidenceFreshnessDeadline(t *testing.T) {
+	s, id, at, _ := configEvidenceRig(t)
+	live := configDelivery(t, s, id, configSessionB, "cfg", "state", at)
+	r := configReceipt(live, "cfg", "state", 1, at.Add(-10*time.Second))
+	recordConfig(t, s, id, r, at)
+	fresh := configHistory(t, s, id, at.Add(1500*time.Millisecond)).Current
+	if !fresh.Fresh || fresh.FreshForMS != 168500 {
+		t.Fatal("deadline did not use older observation", fresh)
+	}
+	stale := configHistory(t, s, id, at.Add(170*time.Second)).Current
+	if stale.Fresh || stale.FreshForMS != 0 || !stale.Applied || stale.ConfirmedAt == nil {
+		t.Fatal("historical confirmation did not expire locally", stale)
+	}
+	other := configDelivery(t, s, id, configSessionA, "cfg", "state", at.Add(2*time.Second))
+	history := configHistory(t, s, id, at.Add(2*time.Second))
+	if history.History[0].ID != other.ID || history.History[0].FreshForMS != 0 {
+		t.Fatal("pending history inherited active deadline", history)
+	}
+}
+
+func TestNodeConfigEvidenceCandidateActivationFailureRollsBackRetirement(t *testing.T) {
+	s, id, at, _ := configEvidenceRig(t)
+	ctx := context.Background()
+	live := configDelivery(t, s, id, configSessionB, "cfg", "state", at)
+	recordConfig(t, s, id, configReceipt(live, "cfg", "state", 1, at), at)
+	candidate := configDelivery(t, s, id, configSessionA, "cfg", "state", at.Add(time.Second))
+	if _, err := s.db.Exec(`CREATE TRIGGER reject_candidate BEFORE UPDATE ON node_config_deliveries BEGIN SELECT RAISE(ABORT,'receipt failure'); END`); err != nil {
+		t.Fatal(err)
+	}
+	r := configReceipt(candidate, "cfg", "state", 1, at.Add(2*time.Second))
+	if _, err := s.RecordNodeReport(ctx, id, configTestToken, agentproto.Report{AppliedRevision: "state", ConfigReceipt: r}, true, r.ObservedAt); err == nil {
+		t.Fatal("candidate receipt failure ignored")
+	}
+	if got := configHistory(t, s, id, r.ObservedAt).Current; got.ID != live.ID || !got.Applied {
+		t.Fatal("failed candidate transaction retired live process", got)
+	}
+	if got := configDelivery(t, s, id, configSessionB, "cfg", "state", r.ObservedAt); got == nil {
+		t.Fatal("failed candidate left session retired")
+	}
+	if _, err := s.db.Exec(`DROP TRIGGER reject_candidate`); err != nil {
+		t.Fatal(err)
+	}
+	recordConfig(t, s, id, r, r.ObservedAt)
+	if got := configHistory(t, s, id, r.ObservedAt).Current; got.ID != candidate.ID || !got.Applied {
+		t.Fatal("rolled-back candidate receipt could not retry", got)
+	}
+}
+
+func TestNodeConfigEvidenceCandidateCannotSupersedeNewerActivation(t *testing.T) {
+	s, id, at, _ := configEvidenceRig(t)
+	ctx := context.Background()
+	initialSession := "33333333333333333333333333333333"
+	configDelivery(t, s, id, initialSession, "cfg", "state", at)
+	old := configDelivery(t, s, id, configSessionA, "cfg", "state", at.Add(time.Second))
+	newer := configDelivery(t, s, id, configSessionB, "cfg", "state", at.Add(2*time.Second))
+	recordConfig(t, s, id, configReceipt(newer, "cfg", "state", 1, at.Add(3*time.Second)), at.Add(3*time.Second))
+	recordConfig(t, s, id, configReceipt(old, "cfg", "state", 1, at.Add(4*time.Second)), at.Add(4*time.Second))
+	if got := configHistory(t, s, id, at.Add(4*time.Second)).Current; got.ID != newer.ID {
+		t.Fatal("late candidate receipt retired a newer activation", got)
+	}
+	renewed, err := s.PrepareNodeConfigDelivery(ctx, id, configTestToken, configSessionA, "cfg", "state", at.Add(5*time.Second), old.ID)
+	if err != nil || renewed.ID == old.ID {
+		t.Fatal("obsolete candidate echo did not issue a new challenge", renewed, err)
+	}
+	if got := configHistory(t, s, id, at.Add(5*time.Second)).Current; got.ID != newer.ID {
+		t.Fatal("late candidate echo retired a newer activation", got)
+	}
+}
+
+func TestNodeConfigEvidenceCandidateParentMustSurviveReopen(t *testing.T) {
+	s, id, at, path := configEvidenceRig(t)
+	ctx := context.Background()
+	active := configDelivery(t, s, id, configSessionB, "cfg", "state", at)
+	candidate := configDelivery(t, s, id, configSessionA, "cfg", "state", at.Add(time.Second))
+	updated := configDelivery(t, s, id, configSessionB, "cfg", "dynamic-state", at.Add(2*time.Second))
+	if active.ID == updated.ID {
+		t.Fatal("active delivery did not advance")
+	}
+	if err := s.db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	conn, err := db.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	s = New(conn)
+	recordConfig(t, s, id, configReceipt(candidate, "cfg", "state", 1, at.Add(3*time.Second)), at.Add(3*time.Second))
+	if got := configHistory(t, s, id, at.Add(3*time.Second)).Current; got.ID != updated.ID {
+		t.Fatal("reopen forgot candidate parent fence", got)
+	}
+	next, err := s.PrepareNodeConfigDelivery(ctx, id, configTestToken, configSessionA, "cfg", "dynamic-state", at.Add(4*time.Second), candidate.ID)
+	if err != nil || next.ID == candidate.ID {
+		t.Fatal(next, err)
+	}
+	if got := configHistory(t, s, id, at.Add(4*time.Second)).Current; got.ID != updated.ID {
+		t.Fatal("obsolete echo was accepted after restart", got)
+	}
+	if _, err = s.PrepareNodeConfigDelivery(ctx, id, configTestToken, configSessionA, "cfg", "dynamic-state", at.Add(5*time.Second), next.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got := configHistory(t, s, id, at.Add(5*time.Second)).Current; got.ID != next.ID {
+		t.Fatal("fresh renewed challenge could not activate", got)
 	}
 }

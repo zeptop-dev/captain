@@ -32,6 +32,7 @@ type NodeConfigDeliveryRecord struct {
 	ReceiptSequence uint64     `json:"receipt_sequence"`
 	Applied         bool       `json:"applied"`
 	Fresh           bool       `json:"fresh"`
+	FreshForMS      int64      `json:"fresh_for_ms"`
 	Current         bool       `json:"current"`
 }
 type NodeConfigHistory struct {
@@ -40,9 +41,11 @@ type NodeConfigHistory struct {
 }
 
 // PrepareNodeConfigDelivery records issuance, not confirmed network delivery.
-// A repeated current state in the same process session reuses its ID. Returning
-// to an earlier state after another delivery creates a new ID, fencing old replies.
-func (s *Store) PrepareNodeConfigDelivery(ctx context.Context, nodeID int64, tokenHash, session, configRevision, stateRevision string, at time.Time) (*agentproto.ConfigDelivery, error) {
+// A new process challenges an existing active process only after echoing its
+// candidate delivery or sending a valid receipt. Its first delayed GET cannot
+// retire the live process. Challenges bind the current head, so a late reply
+// also cannot supersede a newer activation. The optional echo keeps callers compatible.
+func (s *Store) PrepareNodeConfigDelivery(ctx context.Context, nodeID int64, tokenHash, session, configRevision, stateRevision string, at time.Time, seenDelivery ...string) (*agentproto.ConfigDelivery, error) {
 	if !configSessionPattern.MatchString(session) || !configRevisionPattern.MatchString(configRevision) || !configRevisionPattern.MatchString(stateRevision) || at.UnixMilli() <= 0 {
 		return nil, fmt.Errorf("invalid configuration delivery metadata")
 	}
@@ -55,7 +58,8 @@ func (s *Store) PrepareNodeConfigDelivery(ctx context.Context, nodeID int64, tok
 		return nil, err
 	}
 	var retired sql.NullInt64
-	err = tx.QueryRowContext(ctx, `SELECT retired_at FROM node_config_sessions WHERE node_id=? AND token_identity=? AND session=?`, nodeID, tokenHash, session).Scan(&retired)
+	var candidate, candidateParent string
+	err = tx.QueryRowContext(ctx, `SELECT retired_at,candidate_delivery_id,candidate_parent_id FROM node_config_sessions WHERE node_id=? AND token_identity=? AND session=?`, nodeID, tokenHash, session).Scan(&retired, &candidate, &candidateParent)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
@@ -67,30 +71,59 @@ func (s *Store) PrepareNodeConfigDelivery(ctx context.Context, nodeID int64, tok
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
-	if err == nil && headToken == tokenHash && headSession == session && headState == stateRevision && headConfig == configRevision {
+	current := headToken == tokenHash && headSession == session
+	if current && headState == stateRevision && headConfig == configRevision {
 		return &agentproto.ConfigDelivery{ID: headID, Session: session}, nil
-	}
-	if headSession != "" && (headToken != tokenHash || headSession != session) {
-		if _, err = tx.ExecContext(ctx, `UPDATE node_config_sessions SET retired_at=COALESCE(retired_at,?) WHERE node_id=? AND token_identity=? AND session=?`, at.UnixMilli(), nodeID, headToken, headSession); err != nil {
-			return nil, err
-		}
 	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO node_config_sessions(node_id,token_identity,session,created_at) VALUES(?,?,?,?) ON CONFLICT(node_id,token_identity,session) DO NOTHING`, nodeID, tokenHash, session, at.UnixMilli()); err != nil {
 		return nil, err
 	}
-	delivery := &agentproto.ConfigDelivery{ID: rand.Text(), Session: session}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO node_config_deliveries(id,node_id,token_identity,session,config_revision,state_revision,issued_at) VALUES(?,?,?,?,?,?,?)`, delivery.ID, nodeID, tokenHash, session, configRevision, stateRevision, at.UnixMilli()); err != nil {
+	id := ""
+	if candidate != "" && !current && candidateParent == headID {
+		var cfg, state string
+		err = tx.QueryRowContext(ctx, `SELECT config_revision,state_revision FROM node_config_deliveries WHERE id=? AND node_id=? AND token_identity=? AND session=?`, candidate, nodeID, tokenHash, session).Scan(&cfg, &state)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return nil, err
+		}
+		if err == nil && cfg == configRevision && state == stateRevision {
+			id = candidate
+		}
+	}
+	echoed := id != "" && len(seenDelivery) > 0 && seenDelivery[0] == id
+	if id == "" {
+		id = rand.Text()
+		if _, err = tx.ExecContext(ctx, `INSERT INTO node_config_deliveries(id,node_id,token_identity,session,config_revision,state_revision,issued_at) VALUES(?,?,?,?,?,?,?)`, id, nodeID, tokenHash, session, configRevision, stateRevision, at.UnixMilli()); err != nil {
+			return nil, err
+		}
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE node_config_sessions SET candidate_delivery_id=?,candidate_parent_id=? WHERE node_id=? AND token_identity=? AND session=?`, id, headID, nodeID, tokenHash, session); err != nil {
 		return nil, err
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO node_config_heads(node_id,token_identity,session,delivery_id) VALUES(?,?,?,?) ON CONFLICT(node_id) DO UPDATE SET token_identity=excluded.token_identity,session=excluded.session,delivery_id=excluded.delivery_id`, nodeID, tokenHash, session, delivery.ID); err != nil {
+	// A new authentication generation has no live process under its identity.
+	if headToken != tokenHash || current || echoed {
+		if err = activateNodeConfigDeliveryTx(ctx, tx, nodeID, tokenHash, session, id, at); err != nil {
+			return nil, err
+		}
+	}
+	if err = pruneNodeConfigDeliveriesTx(ctx, tx, nodeID); err != nil {
 		return nil, err
 	}
-	// Keep 100 deliveries including the current one. Retired sessions are not
-	// pruned: forgetting them could let an old process reclaim the active session.
-	if _, err = tx.ExecContext(ctx, `DELETE FROM node_config_deliveries WHERE node_id=? AND id<>? AND ordinal NOT IN (SELECT ordinal FROM node_config_deliveries WHERE node_id=? ORDER BY ordinal DESC LIMIT 100)`, nodeID, delivery.ID, nodeID); err != nil {
-		return nil, err
+	return &agentproto.ConfigDelivery{ID: id, Session: session}, tx.Commit()
+}
+
+func activateNodeConfigDeliveryTx(ctx context.Context, tx *sql.Tx, nodeID int64, tokenHash, session, id string, at time.Time) error {
+	_, err := tx.ExecContext(ctx, `UPDATE node_config_sessions SET retired_at=COALESCE(retired_at,?) WHERE node_id=? AND (token_identity,session) IN (SELECT token_identity,session FROM node_config_heads WHERE node_id=?) AND NOT(token_identity=? AND session=?)`, at.UnixMilli(), nodeID, nodeID, tokenHash, session)
+	if err != nil {
+		return err
 	}
-	return delivery, tx.Commit()
+	_, err = tx.ExecContext(ctx, `INSERT INTO node_config_heads(node_id,token_identity,session,delivery_id) VALUES(?,?,?,?) ON CONFLICT(node_id) DO UPDATE SET token_identity=excluded.token_identity,session=excluded.session,delivery_id=excluded.delivery_id`, nodeID, tokenHash, session, id)
+	return err
+}
+func pruneNodeConfigDeliveriesTx(ctx context.Context, tx *sql.Tx, nodeID int64) error {
+	// Retain the active head even after 100 pending candidates. Session tombstones
+	// remain; candidates whose delivery was pruned receive a new challenge.
+	_, err := tx.ExecContext(ctx, `DELETE FROM node_config_deliveries WHERE node_id=? AND ordinal NOT IN (SELECT d.ordinal FROM node_config_deliveries d LEFT JOIN node_config_heads h ON h.node_id=d.node_id AND h.delivery_id=d.id WHERE d.node_id=? ORDER BY (h.delivery_id IS NOT NULL) DESC,d.ordinal DESC LIMIT 100)`, nodeID, nodeID)
+	return err
 }
 
 // Independently numbered process receipts must not borrow freshness from a
@@ -102,7 +135,7 @@ func recordNodeConfigReceiptTx(ctx context.Context, tx *sql.Tx, nodeID int64, to
 	}
 	var sequence, issued int64
 	var observed, received sql.NullInt64
-	err := tx.QueryRowContext(ctx, `SELECT s.receipt_sequence,s.observed_at,s.last_receipt_at,d.issued_at FROM node_config_heads h JOIN node_config_sessions s ON s.node_id=h.node_id AND s.token_identity=h.token_identity AND s.session=h.session JOIN node_config_deliveries d ON d.id=h.delivery_id WHERE h.node_id=? AND h.token_identity=? AND h.session=? AND h.delivery_id=? AND s.retired_at IS NULL AND d.config_revision=? AND d.state_revision=?`, nodeID, tokenHash, r.Session, r.DeliveryID, r.ConfigRevision, r.StateRevision).Scan(&sequence, &observed, &received, &issued)
+	err := tx.QueryRowContext(ctx, `SELECT s.receipt_sequence,s.observed_at,s.last_receipt_at,d.issued_at FROM node_config_sessions s JOIN node_config_deliveries d ON d.id=s.candidate_delivery_id AND d.node_id=s.node_id AND d.token_identity=s.token_identity AND d.session=s.session WHERE s.node_id=? AND s.token_identity=? AND s.session=? AND d.id=? AND s.retired_at IS NULL AND d.config_revision=? AND d.state_revision=? AND EXISTS(SELECT 1 FROM node_config_heads h WHERE h.node_id=s.node_id AND h.token_identity=s.token_identity AND ((h.session=s.session AND h.delivery_id=d.id) OR h.delivery_id=s.candidate_parent_id))`, nodeID, tokenHash, r.Session, r.DeliveryID, r.ConfigRevision, r.StateRevision).Scan(&sequence, &observed, &received, &issued)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}
@@ -111,6 +144,9 @@ func recordNodeConfigReceiptTx(ctx context.Context, tx *sql.Tx, nodeID int64, to
 	}
 	if r.ObservedAt.Before(time.UnixMilli(issued).Add(-30*time.Second)) || int64(r.Sequence) <= sequence || observed.Valid && r.ObservedAt.UnixMilli() < observed.Int64 || received.Valid && at.UnixMilli() < received.Int64 {
 		return nil
+	}
+	if err = activateNodeConfigDeliveryTx(ctx, tx, nodeID, tokenHash, r.Session, r.DeliveryID, at); err != nil {
+		return err
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE node_config_sessions SET receipt_sequence=?,observed_at=?,last_receipt_at=? WHERE node_id=? AND token_identity=? AND session=?`, int64(r.Sequence), r.ObservedAt.UnixMilli(), at.UnixMilli(), nodeID, tokenHash, r.Session); err != nil {
 		return err
@@ -156,28 +192,31 @@ func (s *Store) NodeConfigHistory(ctx context.Context, nodeID int64, at time.Tim
 		return nil, wrapNotFound(err)
 	}
 	out := &NodeConfigHistory{History: []NodeConfigDeliveryRecord{}}
-	var currentID string
-	err = tx.QueryRowContext(ctx, `SELECT h.delivery_id FROM node_config_heads h JOIN node_config_sessions s ON s.node_id=h.node_id AND s.token_identity=h.token_identity AND s.session=h.session WHERE h.node_id=? AND h.token_identity=? AND s.retired_at IS NULL`, nodeID, token.String).Scan(&currentID)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, err
+	if token.Valid && token.String != "" {
+		current, _, e := scanNodeConfigDelivery(tx.QueryRowContext(ctx, `SELECT `+nodeConfigDeliveryCols+` FROM node_config_heads h JOIN node_config_sessions s ON s.node_id=h.node_id AND s.token_identity=h.token_identity AND s.session=h.session JOIN node_config_deliveries d ON d.id=h.delivery_id WHERE h.node_id=? AND h.token_identity=? AND s.retired_at IS NULL`, nodeID, token.String))
+		if e != nil && !errors.Is(e, sql.ErrNoRows) {
+			return nil, e
+		}
+		if e == nil {
+			current.Current = true
+			setNodeConfigFreshness(&current, at)
+			out.Current = &current
+		}
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT `+nodeConfigDeliveryCols+` FROM node_config_deliveries d WHERE d.node_id=? ORDER BY d.ordinal DESC LIMIT 20`, nodeID)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
-		item, identity, e := scanNodeConfigDelivery(rows)
+		item, _, e := scanNodeConfigDelivery(rows)
 		if e != nil {
 			rows.Close()
 			return nil, e
 		}
-		item.Current = token.Valid && token.String != "" && identity == token.String && item.ID == currentID
-		item.Fresh = item.Current && item.LastReceiptAt != nil && item.ObservedAt != nil && !item.LastReceiptAt.Before(at.Add(-configEvidenceFresh)) && !item.LastReceiptAt.After(at.Add(30*time.Second)) && !item.ObservedAt.Before(at.Add(-configEvidenceFresh)) && !item.ObservedAt.After(at.Add(30*time.Second))
-		out.History = append(out.History, item)
-		if item.Current {
-			cp := item
-			out.Current = &cp
+		if out.Current != nil && item.ID == out.Current.ID {
+			item = *out.Current
 		}
+		out.History = append(out.History, item)
 	}
 	err = rows.Err()
 	rows.Close()
@@ -185,4 +224,19 @@ func (s *Store) NodeConfigHistory(ctx context.Context, nodeID int64, at time.Tim
 		return nil, err
 	}
 	return out, tx.Commit()
+}
+func setNodeConfigFreshness(item *NodeConfigDeliveryRecord, at time.Time) {
+	if !item.Current || item.LastReceiptAt == nil || item.ObservedAt == nil || item.LastReceiptAt.After(at.Add(30*time.Second)) || item.ObservedAt.After(at.Add(30*time.Second)) {
+		return
+	}
+	expires := item.LastReceiptAt.Add(configEvidenceFresh)
+	if other := item.ObservedAt.Add(configEvidenceFresh); other.Before(expires) {
+		expires = other
+	}
+	item.FreshForMS = expires.Sub(at).Milliseconds()
+	if item.FreshForMS <= 0 {
+		item.FreshForMS = 0
+		return
+	}
+	item.Fresh = true
 }

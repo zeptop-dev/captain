@@ -6,6 +6,8 @@ CREATE TABLE node_config_sessions (
     session TEXT NOT NULL,
     created_at INTEGER NOT NULL,
     retired_at INTEGER,
+    candidate_delivery_id TEXT NOT NULL DEFAULT '',
+    candidate_parent_id TEXT NOT NULL DEFAULT '',
     receipt_sequence INTEGER NOT NULL DEFAULT 0,
     observed_at INTEGER,
     last_receipt_at INTEGER,
