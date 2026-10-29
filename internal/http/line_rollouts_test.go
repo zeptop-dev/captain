@@ -149,7 +149,12 @@ func TestLineRolloutHTTPPermissionsPublicationAndRevocation(t *testing.T) {
 	if plan.Status != "completed" || plan.PublishedAt == nil {
 		t.Fatal("plan did not finish", plan)
 	}
-	call(r.c, "POST", "/api/admin/entries", map[string]any{"Name": "Published", "LineID": plan.LineID, "Enabled": true}, 200)
+	entry := mustJSON[domain.Entry](t, call(r.c, "POST", "/api/admin/entries", map[string]any{"Name": "Published", "LineID": plan.LineID, "Enabled": true}, 200))
+	call(r.c, "DELETE", "/api/admin/entries/"+itoa(entry.ID), nil, 200)
+	published := mustJSON[store.ForwardLine](t, call(r.c, "GET", "/api/admin/lines/"+itoa(plan.LineID), nil, 200))
+	call(r.c, "POST", "/api/admin/forward-paths", store.ForwardPath{Name: "Pinned source", Steps: []store.PathStep{{LineID: published.ID, LineVersion: published.Version}}}, 200)
+	call(writer, "POST", "/api/admin/line-rollouts/preview", map[string]any{"line": published, "remove": true}, 409)
+
 	for _, query := range []string{"limit=0", "before=-1", "line_id=bad"} {
 		call(reader, "GET", "/api/admin/line-rollouts?"+query, nil, 400)
 	}

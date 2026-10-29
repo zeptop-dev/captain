@@ -19,7 +19,7 @@ func lineRolloutError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, store.ErrNotFound):
 		fail(w, http.StatusNotFound, "release plan not found")
-	case errors.Is(err, store.ErrLineRolloutConflict), errors.Is(err, store.ErrLineRolloutState), errors.Is(err, store.ErrLineConflict), errors.Is(err, store.ErrLinePreview):
+	case errors.Is(err, store.ErrLineRolloutConflict), errors.Is(err, store.ErrLineRolloutState), errors.Is(err, store.ErrLineConflict), errors.Is(err, store.ErrLinePreview), errors.Is(err, store.ErrPathInUse), errors.Is(err, store.ErrPathRouteOwned):
 		fail(w, http.StatusConflict, err.Error())
 	case errors.Is(err, store.ErrLineRolloutUnsupported), errors.Is(err, store.ErrLineRolloutUnsafe):
 		fail(w, http.StatusBadRequest, err.Error())
