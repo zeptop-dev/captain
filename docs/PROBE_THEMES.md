@@ -10,9 +10,14 @@ command, terminal, plugin, or administration APIs.
 ## Administrator workflow
 
 1. In **System settings → Monitoring**, enable the server probe and save a
-   dedicated hostname, for example `probe.example.com`. Point DNS and your
-   reverse proxy at Captain, with HTTPS and WebSocket forwarding. Entering a
-   hostname here does not configure DNS, TLS, or the reverse proxy.
+   probe access hostname, for example `probe.example.com`. A subdomain of your
+   existing domain can point to the same Captain instance as the main site;
+   there is no need to purchase another domain, add a server or deploy another
+   instance. Use a different hostname from the main site (changing only the
+   port is not sufficient). Point DNS at the existing installation and configure
+   HTTPS. If you use a reverse proxy, add this hostname and enable WebSocket
+   forwarding. Entering a hostname here does not configure DNS, TLS, or the
+   reverse proxy.
 2. Under **Komari themes**, upload a release ZIP containing `komari-theme.json`
    and `dist/index.html`. Select the installed version and activate it. Upload
    and activation are separate operations; a failed upload does not replace
