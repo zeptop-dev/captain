@@ -2,7 +2,7 @@ export interface LiveSample {
   epoch: string; sequence: number; sampled_at: string; elapsed_ms: number
   cpu_percent: number | null; memory_used: number | null; memory_total: number | null
   net_up_bytes_per_second: number | null; net_down_bytes_per_second: number | null
-  interfaces: { name: string; rx_bytes_per_second: number | null; tx_bytes_per_second: number | null }[]; truncated: boolean
+  interfaces: { name: string; rx_bytes_per_second: number | null; tx_bytes_per_second: number | null }[] | null; truncated: boolean
 }
 export interface LiveDiagnostics {
   status: 'waiting' | 'live' | 'stale' | 'unsupported' | 'expired'

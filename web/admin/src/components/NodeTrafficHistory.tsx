@@ -62,7 +62,7 @@ export function NodeTrafficHistory({ nodeID }: { nodeID: number }) {
           <Text size="xs" c="dimmed">{t('trafficHistory.collectionHint', { count: sample.segments })}</Text>
           {!!sample.reasons?.length && <Text size="sm">{sample.reasons.map(reason).join(' · ')}</Text>}
           <Title order={6}>{t('trafficHistory.sources')}</Title>
-          {sample.sources.map((source, index) => {
+          {(sample.sources ?? []).map((source, index) => {
             const interval = sourceInterval(source)
             return <Card key={index} withBorder padding="sm"><Stack gap={4}>
               <Group gap="xs"><Code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>{source.core}</Code><Text size="sm">{t(`trafficHistory.counter.${source.counter}`)}</Text><Badge color="gray">{t(`trafficHistory.quality.${source.quality}`, { defaultValue: t('observability.unknown') })}</Badge></Group>

@@ -6,7 +6,7 @@ export interface TrafficSource {
 export interface TrafficHistoryItem {
   id: number; epoch: string; sequence: string; received_at: string; accounting_day: string
   up_bytes: number; down_bytes: number; discarded_samples: number; totals_known: boolean; metadata_status: 'valid' | 'legacy' | 'invalid'
-  sample?: { version: number; collection_started_at: string; collection_ended_at: string; segments: number; quality: TrafficQuality; reasons: string[]; sources: TrafficSource[] }
+  sample?: { version: number; collection_started_at: string; collection_ended_at: string; segments: number; quality: TrafficQuality; reasons: string[]; sources: TrafficSource[] | null }
 }
 export interface TrafficDelivery {
   sampled_at: string; received_at: string; fresh_for_ms: number
