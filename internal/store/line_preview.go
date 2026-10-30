@@ -25,15 +25,16 @@ type LinePreview struct {
 // Explicit allowlist: never embed an inbound, user, runtime report or arbitrary
 // future spec fields in an impact response.
 type LineExpectedForward struct {
-	MemberID       string               `json:"member_id"`
-	Listen         string               `json:"listen"`
-	Port           int                  `json:"port"`
-	Protocol       string               `json:"protocol"`
-	Backend        string               `json:"backend"`
-	ProxyProtocol  bool                 `json:"proxy_protocol"`
-	PreserveSource bool                 `json:"preserve_source"`
-	Balance        string               `json:"balance"`
-	Targets        []LineExpectedTarget `json:"targets"`
+	PathHealth     *LineExpectedPathHealth `json:"path_health,omitempty"`
+	MemberID       string                  `json:"member_id"`
+	Listen         string                  `json:"listen"`
+	Port           int                     `json:"port"`
+	Protocol       string                  `json:"protocol"`
+	Backend        string                  `json:"backend"`
+	ProxyProtocol  bool                    `json:"proxy_protocol"`
+	PreserveSource bool                    `json:"preserve_source"`
+	Balance        string                  `json:"balance"`
+	Targets        []LineExpectedTarget    `json:"targets"`
 }
 type LineExpectedTarget struct {
 	Target string `json:"target"`
@@ -226,7 +227,7 @@ func expectedLineForwards(fs []NodeForward) []LineExpectedForward {
 		for _, hop := range f.Hops() {
 			targets = append(targets, LineExpectedTarget{hop.Target, hop.Weight})
 		}
-		out = append(out, LineExpectedForward{f.LineMemberID, f.Listen, f.Port, f.Protocol, f.Backend, f.ProxyProtocol, f.PreserveSource, f.BalanceMode(), targets})
+		out = append(out, LineExpectedForward{PathHealth: projectLinePathHealth(f.PathHealth), MemberID: f.LineMemberID, Listen: f.Listen, Port: f.Port, Protocol: f.Protocol, Backend: f.Backend, ProxyProtocol: f.ProxyProtocol, PreserveSource: f.PreserveSource, Balance: f.BalanceMode(), Targets: targets})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].MemberID < out[j].MemberID })
 	return out

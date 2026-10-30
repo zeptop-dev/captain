@@ -21,16 +21,17 @@ type PathBranch struct {
 	Ports        []int  `json:"ports"`
 }
 type PathRoute struct {
-	ID                int64        `json:"id"`
-	Version           int64        `json:"version"`
-	Name              string       `json:"name"`
-	Entry             LineMember   `json:"entry"`
-	TargetInboundID   int64        `json:"target_inbound_id"`
-	TargetAddressMode string       `json:"target_address_mode"`
-	Strategy          string       `json:"strategy"`
-	Branches          []PathBranch `json:"branches"`
-	PreviewRevision   string       `json:"preview_revision,omitempty"`
-	ChangeID          string       `json:"change_id,omitempty"`
+	Health            *PathRouteHealth `json:"health,omitempty"`
+	ID                int64            `json:"id"`
+	Version           int64            `json:"version"`
+	Name              string           `json:"name"`
+	Entry             LineMember       `json:"entry"`
+	TargetInboundID   int64            `json:"target_inbound_id"`
+	TargetAddressMode string           `json:"target_address_mode"`
+	Strategy          string           `json:"strategy"`
+	Branches          []PathBranch     `json:"branches"`
+	PreviewRevision   string           `json:"preview_revision,omitempty"`
+	ChangeID          string           `json:"change_id,omitempty"`
 }
 type PathRoutePreview struct {
 	Revision     string           `json:"revision"`
@@ -106,6 +107,12 @@ func (s *Store) ListPathRoutes(ctx context.Context) ([]PathRoute, error) {
 	return out, nil
 }
 func normalizePathRoute(p *PathRoute) error {
+	PreservePathRouteHealth(p, nil)
+	normal, err := p.Health.Normalized()
+	if err != nil {
+		return err
+	}
+	p.Health = &normal
 	var e error
 	p.Name, e = pathName(p.Name)
 	if e != nil {
@@ -321,6 +328,15 @@ func (s *Store) SavePathRoute(ctx context.Context, p *PathRoute) error {
 	defer tx.Rollback()
 	next := *p
 	next.Branches = append([]PathBranch(nil), p.Branches...)
+	if next.ID > 0 {
+		old, err := pathRouteTx(ctx, tx, next.ID)
+		if err != nil {
+			return err
+		}
+		PreservePathRouteHealth(&next, old)
+	} else {
+		PreservePathRouteHealth(&next, nil)
+	}
 	if e = normalizePathRoute(&next); e != nil {
 		return e
 	}
@@ -437,6 +453,7 @@ func previewPathRouteTx(ctx context.Context, tx *sql.Tx, p *PathRoute) (*PathRou
 		if old.Version != draft.Version {
 			return nil, ErrLineConflict
 		}
+		PreservePathRouteHealth(&draft, old)
 	}
 	l, e := pathRouteLineTx(ctx, tx, &draft)
 	if e != nil {

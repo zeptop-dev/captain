@@ -131,6 +131,18 @@ func (h *handlers) savePathRoute(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		p.ID, p.Version = 0, 0
 	}
+	var before *store.PathRoute
+	if p.ID > 0 {
+		var err error
+		before, err = h.Store.PathRoute(r.Context(), p.ID)
+		if err != nil {
+			pathError(w, err)
+			return
+		}
+	}
+	if !h.requirePathHealthMutation(w, r, before, &p) {
+		return
+	}
 	if e := h.Store.SavePathRoute(r.Context(), &p); e != nil {
 		pathError(w, e)
 		return
@@ -143,6 +155,14 @@ func (h *handlers) deletePathRoute(w http.ResponseWriter, r *http.Request) {
 	v, e := strconv.ParseInt(r.URL.Query().Get("version"), 10, 64)
 	if e != nil || v < 1 {
 		fail(w, 400, "version is required")
+		return
+	}
+	before, e := h.Store.PathRoute(r.Context(), idOf(r))
+	if e != nil {
+		pathError(w, e)
+		return
+	}
+	if !h.requirePathHealthMutation(w, r, before, nil) {
 		return
 	}
 	change, e := h.Store.DeletePathRoute(r.Context(), idOf(r), v)

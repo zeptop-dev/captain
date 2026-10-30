@@ -68,15 +68,16 @@ type LineChangeTarget struct {
 
 // Explicit wire-field allowlist, independent of future secret-bearing spec fields.
 type LineChangeForward struct {
-	Tag            string               `json:"tag"`
-	Listen         string               `json:"listen"`
-	Port           int                  `json:"port"`
-	Protocol       string               `json:"protocol"`
-	Backend        string               `json:"backend"`
-	ProxyProtocol  bool                 `json:"proxy_protocol"`
-	PreserveSource bool                 `json:"preserve_source"`
-	Balance        string               `json:"balance"`
-	Targets        []LineExpectedTarget `json:"targets"`
+	PathHealth     *LineExpectedPathHealth `json:"path_health,omitempty"`
+	Tag            string                  `json:"tag"`
+	Listen         string                  `json:"listen"`
+	Port           int                     `json:"port"`
+	Protocol       string                  `json:"protocol"`
+	Backend        string                  `json:"backend"`
+	ProxyProtocol  bool                    `json:"proxy_protocol"`
+	PreserveSource bool                    `json:"preserve_source"`
+	Balance        string                  `json:"balance"`
+	Targets        []LineExpectedTarget    `json:"targets"`
 }
 type LineChangePage struct {
 	Items      []LineChange `json:"items"`
@@ -99,7 +100,7 @@ func lineChangeProjection(fs []spec.Forward) []LineChangeForward {
 		for _, h := range f.Hops() {
 			targets = append(targets, LineExpectedTarget{Target: h.Target, Weight: h.Weight})
 		}
-		out = append(out, LineChangeForward{Tag: f.Tag, Listen: f.Listen, Port: f.Port, Protocol: f.Protocol, Backend: f.Backend, ProxyProtocol: f.ProxyProtocol, PreserveSource: f.PreserveSource, Balance: f.BalanceMode(), Targets: targets})
+		out = append(out, LineChangeForward{PathHealth: projectLinePathHealth(f.PathHealth), Tag: f.Tag, Listen: f.Listen, Port: f.Port, Protocol: f.Protocol, Backend: f.Backend, ProxyProtocol: f.ProxyProtocol, PreserveSource: f.PreserveSource, Balance: f.BalanceMode(), Targets: targets})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Tag < out[j].Tag })
 	return out
