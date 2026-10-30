@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,10 @@ func TestTrafficHistoryMalformedMetadataStillAccounts(t *testing.T) {
 	uid, _ := r.user("sample-history@example.com")
 	path := fmt.Sprintf("/api/admin/nodes/%d/traffic-history", r.nodeID)
 	bad := []any{"wrong", 42, []any{}, map[string]any{"version": "wrong"}, map[string]any{"version": 1, "collection_ended_at": false}, map[string]any{"reasons": []string{strings.Repeat("private-invalid", 500)}}}
+	at := time.Now().UTC()
+	start := at.Add(-time.Minute)
+	duration := int64(math.MaxInt64)
+	bad = append(bad, &agentproto.TrafficSample{Version: 1, CollectionStartedAt: at, CollectionEndedAt: at, Segments: 1, Quality: "observed", Sources: []agentproto.TrafficSampleSource{{Core: "xray", Counter: "users", StartedAt: &start, EndedAt: at, DurationMS: &duration, Quality: "observed", Segments: 1}}})
 	for i, metadata := range bad {
 		rep := map[string]any{"traffic_epoch": strings.Repeat("a", 32), "traffic_seq": i + 1, "traffic": []spec.UserTraffic{{UserID: uid, Up: 100, Down: 20}}, "traffic_sample": metadata, "traffic_delivery": metadata}
 		for range 2 {
@@ -90,7 +95,7 @@ func TestTrafficHistoryScopesAndReplayFreshness(t *testing.T) {
 			t.Fatal(tc.scopes, code, string(body))
 		}
 	}
-	for _, query := range []string{"?before=-1", "?limit=101", "?limit=wrong"} {
+	for _, query := range []string{"?before=-1", "?before=9223372036854775808", "?limit=101", "?limit=wrong"} {
 		if code, _, _ := r.c.do("GET", path+query, nil, nil); code != 400 {
 			t.Fatal(query, code)
 		}

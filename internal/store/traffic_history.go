@@ -128,11 +128,19 @@ func (s *Store) NodeTrafficHistory(ctx context.Context, nodeID, before int64, li
 	if nodeID <= 0 || before < 0 || limit < 1 || limit > 100 {
 		return page, fmt.Errorf("invalid traffic history query")
 	}
-	var token string
-	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(token_hash,'') FROM nodes WHERE id=?`, nodeID).Scan(&token); err != nil {
+	// Identity and both observation projections must come from one snapshot.
+	// A re-pairing between independent SELECTs must not mix old history with
+	// missing or newly replaced current delivery evidence.
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
 		return page, err
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT id,epoch,sequence,received_at,up_bytes,down_bytes,totals_known,discarded_samples,metadata_status,sample_json FROM node_traffic_history WHERE node_id=? AND token_hash=? AND received_at>=? AND (?=0 OR id<?) ORDER BY id DESC LIMIT ?`, nodeID, token, at.Add(-trafficHistoryDays*24*time.Hour).UnixMilli(), before, before, limit+1)
+	defer tx.Rollback()
+	var token string
+	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(token_hash,'') FROM nodes WHERE id=?`, nodeID).Scan(&token); err != nil {
+		return page, err
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT id,epoch,sequence,received_at,up_bytes,down_bytes,totals_known,discarded_samples,metadata_status,sample_json FROM node_traffic_history WHERE node_id=? AND token_hash=? AND received_at>=? AND (?=0 OR id<?) ORDER BY id DESC LIMIT ?`, nodeID, token, at.Add(-trafficHistoryDays*24*time.Hour).UnixMilli(), before, before, limit+1)
 	if err != nil {
 		return page, err
 	}
@@ -165,7 +173,7 @@ func (s *Store) NodeTrafficHistory(ctx context.Context, nodeID, before int64, li
 	}
 	var raw string
 	var received int64
-	err = s.db.QueryRowContext(ctx, `SELECT delivery_json,received_at FROM node_traffic_delivery WHERE node_id=? AND token_hash=?`, nodeID, token).Scan(&raw, &received)
+	err = tx.QueryRowContext(ctx, `SELECT delivery_json,received_at FROM node_traffic_delivery WHERE node_id=? AND token_hash=?`, nodeID, token).Scan(&raw, &received)
 	if err == sql.ErrNoRows {
 		return page, nil
 	}
@@ -179,7 +187,7 @@ func (s *Store) NodeTrafficHistory(ctx context.Context, nodeID, before int64, li
 		view.FreshForMS = max(0, min((3*time.Minute).Milliseconds(), view.ReceivedAt.Add(3*time.Minute).Sub(at).Milliseconds()))
 		// Clock disagreement withdraws current status. It does not rewrite the
 		// agent timestamp or manufacture a cross-clock delivery latency.
-		if view.SampledAt.After(view.ReceivedAt.Add(30 * time.Second)) {
+		if view.ReceivedAt.After(at.Add(30*time.Second)) || view.SampledAt.After(view.ReceivedAt.Add(30*time.Second)) {
 			view.FreshForMS = 0
 		} else {
 			view.FreshForMS = max(0, min(view.FreshForMS, view.SampledAt.Add(3*time.Minute).Sub(at).Milliseconds()))

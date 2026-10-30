@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -267,5 +268,119 @@ func TestTrafficHistoryBindsAuthenticatedReporterIdentity(t *testing.T) {
 	page, err = s.NodeTrafficHistory(ctx, node, 0, 50, at)
 	if err != nil || len(page.Items) != 1 || page.Items[0].Epoch != strings.Repeat("f", 32) {
 		t.Fatal(page, err)
+	}
+}
+
+func TestTrafficHistoryPairingSnapshotIsCoherent(t *testing.T) {
+	s, node, _ := monitorRig(t)
+	ctx := context.Background()
+	at := time.Now().UTC()
+	for i, token := range []string{"pair-a", "pair-b"} {
+		if _, _, err := s.AcceptNodeTraffic(ctx, node, strings.Repeat(string(rune('a'+i)), 32), 1, nil, nil, nil, at, TrafficObservation{TokenHash: token}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write := func(i int) error {
+		tx, err := s.db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+		token := []string{"pair-a", "pair-b"}[i%2]
+		if _, err := tx.ExecContext(ctx, `UPDATE nodes SET token_hash=? WHERE id=?`, token, node); err != nil {
+			return err
+		}
+		if err := recordTrafficDeliveryTx(ctx, tx, node, token, &agentproto.TrafficDelivery{SampledAt: at, PendingBytes: int64(i%2 + 1), JournalBytes: 100}, at); err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
+	if err := write(0); err != nil {
+		t.Fatal(err)
+	}
+	stop := make(chan struct{})
+	errs := make(chan error, 1)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 1; ; i++ {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			if err := write(i); err != nil {
+				errs <- err
+				return
+			}
+		}
+	}()
+	defer func() {
+		close(stop)
+		wg.Wait()
+		select {
+		case err := <-errs:
+			t.Error(err)
+		default:
+		}
+	}()
+	for range 200 {
+		page, err := s.NodeTrafficHistory(ctx, node, 0, 50, at)
+		if err != nil || len(page.Items) != 1 || page.Delivery == nil {
+			t.Fatalf("pairing snapshot mixed: items=%d delivery=%+v err=%v", len(page.Items), page.Delivery, err)
+		}
+		want := strings.Repeat(string(rune('a'+page.Delivery.PendingBytes-1)), 32)
+		if page.Items[0].Epoch != want {
+			t.Fatal("history and current delivery use different pairings", page)
+		}
+	}
+}
+
+func TestTrafficHistoryAggregateOverflowRemainsUnknown(t *testing.T) {
+	s, node, _ := monitorRig(t)
+	ctx := context.Background()
+	at := time.Now()
+	// Individually valid report rows can exceed int64 when aggregated across
+	// a sufficiently large server. This metadata sum must not wrap to zero.
+	samples := make([]TrafficSample, 8192)
+	for i := range samples {
+		samples[i].Up = 1 << 50
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := recordTrafficHistoryTx(ctx, tx, node, "", 0, samples, TrafficObservation{}, at); err != nil {
+		tx.Rollback()
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	page, err := s.NodeTrafficHistory(ctx, node, 0, 50, at)
+	if err != nil || len(page.Items) != 1 || page.Items[0].TotalsKnown || page.Items[0].UpBytes != 0 || page.Items[0].DownBytes != 0 {
+		t.Fatal("overflow claimed measured bytes", page, err)
+	}
+}
+
+func TestTrafficHistoryServerClockRollbackWithdrawsFreshness(t *testing.T) {
+	s, node, _ := monitorRig(t)
+	ctx := context.Background()
+	at := time.Now().UTC()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := recordTrafficDeliveryTx(ctx, tx, node, "", &agentproto.TrafficDelivery{SampledAt: at, PendingBytes: 42, JournalBytes: 100}, at); err != nil {
+		tx.Rollback()
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	page, err := s.NodeTrafficHistory(ctx, node, 0, 50, at.Add(-time.Hour))
+	if err != nil || page.Delivery == nil || page.Delivery.FreshForMS != 0 {
+		t.Fatal("server clock rollback refreshed old queue", page.Delivery, err)
 	}
 }
