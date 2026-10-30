@@ -129,6 +129,14 @@ observation stream. A configuration receipt does not prove path health. A plan
 that changes health policy, including compensation, also requires the health
 write permission; publishing an unchanged policy does not add that permission.
 
+When the new entry enables automatic failover, expansion receipts are followed
+by a separate wait for at least one fresh eligible handshake through that actual
+entry. The old route and subscription endpoint remain published during this
+wait. The entry step's deadline also bounds the health wait; expiry pauses the
+plan, and retry requires evidence sampled for the new attempt. Observation-only
+policies do not add this publication gate. Configuration application and path
+handshake evidence remain separate in release status.
+
 ## Upgrade and recovery
 
 Migrations 100–103 add configuration receipt evidence, line change history,
