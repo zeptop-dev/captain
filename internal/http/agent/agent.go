@@ -384,7 +384,7 @@ func (h *handlers) report(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "invalid traffic receipt")
 		return
 	}
-	first, seen, err := h.Store.AcceptNodeTraffic(ctx, n.ID, rep.TrafficEpoch, rep.TrafficSeq, samples, inTotals, outTotals, now)
+	first, seen, err := h.Store.AcceptNodeTraffic(ctx, n.ID, rep.TrafficEpoch, rep.TrafficSeq, samples, inTotals, outTotals, now, store.TrafficObservation{Sample: rep.TrafficSample, DiscardedSamples: dropped, TokenHash: tokenHash})
 	if err != nil {
 		h.Log.Error("accept traffic", "node", n.ID, "err", err)
 		fail(w, http.StatusInternalServerError, "internal error")

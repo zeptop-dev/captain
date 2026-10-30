@@ -24,7 +24,7 @@ func ValidTrafficReceipt(epoch string, seq uint64) bool {
 // AcceptNodeTraffic commits the receipt, customer charge and node counters as
 // one unit. Epoch cursors are retained until the node is deleted; a delayed
 // old journal must never become a fresh batch after an agent reinstall.
-func (s *Store) AcceptNodeTraffic(ctx context.Context, nodeID int64, epoch string, seq uint64, samples []TrafficSample, in map[int64]spec.Traffic, out map[string]spec.Traffic, at time.Time) ([]int64, bool, error) {
+func (s *Store) AcceptNodeTraffic(ctx context.Context, nodeID int64, epoch string, seq uint64, samples []TrafficSample, in map[int64]spec.Traffic, out map[string]spec.Traffic, at time.Time, observations ...TrafficObservation) ([]int64, bool, error) {
 	if !ValidTrafficReceipt(epoch, seq) {
 		return nil, false, fmt.Errorf("invalid traffic receipt")
 	}
@@ -78,6 +78,13 @@ func (s *Store) AcceptNodeTraffic(ctx context.Context, nodeID int64, epoch strin
 			ON CONFLICT(node_id, tag, day) DO UPDATE SET up_bytes = up_bytes + excluded.up_bytes, down_bytes = down_bytes + excluded.down_bytes`, nodeID, tag, day, t.Up, t.Down); err != nil {
 			return nil, false, err
 		}
+	}
+	var observation TrafficObservation
+	if len(observations) > 0 {
+		observation = observations[0]
+	}
+	if err := recordTrafficHistoryTx(ctx, tx, nodeID, epoch, seq, samples, observation, at); err != nil {
+		return nil, false, err
 	}
 	return first, false, tx.Commit()
 }

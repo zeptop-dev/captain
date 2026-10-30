@@ -10,7 +10,7 @@ import (
 
 // These identifiers are also the first resource segment of the admin API.
 // Scopes only narrow an employee's existing role; they cannot grant a role.
-var TokenResources = []string{"admin-log", "articles", "audit-log", "audit-rules", "certificates", "coupons", "config-presets", "dashboard", "domains", "entries", "entry-categories", "external", "forward-paths", "gifts", "groups", "inbounds", "infrastructure", "ingresses", "keys", "line-changes", "line-rollouts", "me", "metrics", "monitoring", "node-access", "node-diagnostics", "node-dns-sync", "node-service-control", "nodes", "orders", "path-health", "path-routes", "path-rollouts", "ping-tasks", "plans", "renewals", "settings", "speedtest", "system", "tickets", "tokens", "topology-changesets", "users", "withdrawals"}
+var TokenResources = []string{"admin-log", "articles", "audit-log", "audit-rules", "certificates", "coupons", "config-presets", "dashboard", "domains", "entries", "entry-categories", "external", "forward-paths", "gifts", "groups", "inbounds", "infrastructure", "ingresses", "keys", "line-changes", "line-rollouts", "me", "metrics", "monitoring", "node-access", "node-diagnostics", "node-dns-sync", "node-service-control", "nodes", "orders", "path-health", "path-routes", "path-rollouts", "ping-tasks", "plans", "renewals", "settings", "speedtest", "system", "tickets", "tokens", "topology-changesets", "traffic-history", "users", "withdrawals"}
 
 var endpointGrant = regexp.MustCompile(`^(GET|POST|PUT|PATCH|DELETE) /api/admin/[A-Za-z0-9_{}/-]+$`)
 
@@ -64,6 +64,9 @@ func TokenAllowsRequest(policy, method, path, pattern string) bool {
 		return false
 	}
 	resource := strings.Split(strings.TrimPrefix(path, "/api/admin/"), "/")[0]
+	if resource == "nodes" && strings.HasSuffix(path, "/traffic-history") {
+		resource = "traffic-history"
+	}
 	if resource == "path-routes" && strings.HasSuffix(path, "/health") {
 		resource = "path-health"
 	}

@@ -140,6 +140,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("GET /api/admin/nodes/domain-check", h.requireAdmin(h.checkNodeDomain))
 	mux.HandleFunc("POST /api/admin/nodes", h.requireAdmin(h.createNode))
 	mux.HandleFunc("GET /api/admin/nodes/{id}", h.requireAdmin(h.getNode))
+	mux.HandleFunc("GET /api/admin/nodes/{id}/traffic-history", h.requireAdmin(h.getTrafficHistory))
 	mux.HandleFunc("PUT /api/admin/nodes/{id}/mode", h.requireAdmin(h.setNodeMode))
 	mux.HandleFunc("PATCH /api/admin/nodes/{id}", h.requireAdmin(h.updateNode))
 	mux.HandleFunc("DELETE /api/admin/nodes/{id}", h.requireAdmin(h.deleteNode))
@@ -597,6 +598,9 @@ func fail(w http.ResponseWriter, code int, msg string) {
 // Operator: everything except settings, system, staff management and the
 // landing page. Support: tickets, plus read-only users, orders, dashboard.
 func allowed(role, method, path string) bool {
+	if strings.HasPrefix(path, "/api/admin/nodes/") && strings.HasSuffix(path, "/traffic-history") && role != domain.RoleAdmin {
+		return false
+	}
 	for _, resource := range []string{"node-diagnostics", "line-rollouts", "path-rollouts", "forward-paths", "path-routes", "topology-changesets"} {
 		base := "/api/admin/" + resource
 		if (path == base || strings.HasPrefix(path, base+"/")) && role != domain.RoleAdmin {
