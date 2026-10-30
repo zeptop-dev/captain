@@ -4073,6 +4073,7 @@
       "live": "Live",
       "waiting": "Waiting for samples",
       "stale": "Stale"
-    }
+    },
+    "noInterfaces": "This sample contains no network interface observations."
   }
 }

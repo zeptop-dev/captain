@@ -93,7 +93,7 @@ export function NodeLiveDiagnostics({ nodeID }: { nodeID: number }) {
     </Stack></Card>
     <Card withBorder><Stack gap="sm">
       <Title order={5}>{t('liveDiagnostics.interfaces')}</Title>
-      {fresh && latest?.interfaces?.length ? <Table.ScrollContainer minWidth={280}><Table><Table.Thead><Table.Tr><Table.Th>{t('liveDiagnostics.interface')}</Table.Th><Table.Th>{t('liveDiagnostics.download')}</Table.Th><Table.Th>{t('liveDiagnostics.upload')}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{(latest.interfaces ?? []).map(nic => <Table.Tr key={nic.name}><Table.Td style={{ overflowWrap: 'anywhere' }}>{nic.name}</Table.Td><Table.Td>{rate(nic.rx_bytes_per_second)}</Table.Td><Table.Td>{rate(nic.tx_bytes_per_second)}</Table.Td></Table.Tr>)}</Table.Tbody></Table></Table.ScrollContainer> : <Text size="sm" c="dimmed">{t('liveDiagnostics.noCurrent')}</Text>}
+      {fresh && latest?.interfaces?.length ? <Table.ScrollContainer minWidth={280}><Table><Table.Thead><Table.Tr><Table.Th>{t('liveDiagnostics.interface')}</Table.Th><Table.Th>{t('liveDiagnostics.download')}</Table.Th><Table.Th>{t('liveDiagnostics.upload')}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{(latest.interfaces ?? []).map(nic => <Table.Tr key={nic.name}><Table.Td style={{ overflowWrap: 'anywhere' }}>{nic.name}</Table.Td><Table.Td>{rate(nic.rx_bytes_per_second)}</Table.Td><Table.Td>{rate(nic.tx_bytes_per_second)}</Table.Td></Table.Tr>)}</Table.Tbody></Table></Table.ScrollContainer> : <Text size="sm" c="dimmed">{t(fresh ? 'liveDiagnostics.noInterfaces' : 'liveDiagnostics.noCurrent')}</Text>}
       {latest?.truncated && <Text size="xs" c="dimmed">{t('liveDiagnostics.truncated')}</Text>}
     </Stack></Card>
   </Stack>
