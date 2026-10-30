@@ -108,6 +108,10 @@ func readLineRolloutTx(ctx context.Context, tx *sql.Tx, id string, at time.Time)
 		t.Fresh = e.Fresh
 		t.FreshForMS = e.FreshForMS
 	}
+	p.WaitingForPathHealth, _, err = pathRolloutHealthGateTx(ctx, tx, p, at)
+	if err != nil {
+		return nil, err
+	}
 	return p, nil
 }
 func (s *Store) LineRolloutByID(ctx context.Context, id string) (*LineRollout, error) {
@@ -432,6 +436,16 @@ func advanceLineRolloutTx(ctx context.Context, tx *sql.Tx, p *LineRollout, at ti
 		}
 	}
 	if p.Stage == "expand" {
+		waiting, deadline, err := pathRolloutHealthGateTx(ctx, tx, p, at)
+		if err != nil {
+			return nil, err
+		}
+		if waiting {
+			if !at.Before(deadline) {
+				return changed, pauseLineRolloutTx(ctx, tx, p, "path_health_deadline_exceeded", at)
+			}
+			return changed, nil
+		}
 		if err := publishLineRolloutTx(ctx, tx, p, at); err != nil {
 			return nil, err
 		}

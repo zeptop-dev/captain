@@ -13,6 +13,7 @@ export interface LineRolloutTarget {
 export interface LineRollout {
   id: string; cursor: number; line_id: number; scope_id: string; version: number
   kind: 'create' | 'edit' | 'delete'; status: 'running' | 'paused' | 'completed' | 'compensated'; stage: 'expand' | 'cleanup'
+  waiting_for_path_health?: boolean
   actor: string; before?: Line; after?: Line; before_route?: PathRoute; after_route?: PathRoute; error_code?: string; compensates?: string
   created_at: string; updated_at: string; published_at?: string; targets: LineRolloutTarget[]; nodes: LineRolloutNode[]
 }

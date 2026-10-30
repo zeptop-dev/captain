@@ -95,6 +95,8 @@ export function LineRolloutHistory({ initialID, lineID, resource = 'line-rollout
         <Text size="sm">{t('lineRollouts.historical')}</Text>
         <Text size="xs" c="dimmed">{t('lineChanges.actor', { actor: detail.data.actor })} · {when(detail.data.created_at)}</Text>
         {detail.data.published_at && <Text size="sm">{t('lineRollouts.published', { at: when(detail.data.published_at) })}</Text>}
+        {connected && detail.data.waiting_for_path_health && <Alert color="blue">{t('pathRollouts.waitingHealth')}</Alert>}
+        {detail.data.error_code === 'path_health_deadline_exceeded' && <Alert color="yellow">{t('pathRollouts.healthTimeout')}</Alert>}
         {detail.data.error_code && <Alert color="yellow">{t('lineRollouts.pausedReason')} <Code>{detail.data.error_code}</Code></Alert>}
         <Group gap="xs">
           <Button variant="default" disabled={!connected || detail.isFetching || act.isPending} onClick={() => { void history.refetch(); void detail.refetch() }}>{t('common.refresh')}</Button>

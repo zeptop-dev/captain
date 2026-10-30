@@ -22,6 +22,7 @@ var (
 )
 
 type LineRollout struct {
+	WaitingForPathHealth   bool                `json:"waiting_for_path_health,omitempty"`
 	SnapshotVersion        string              `json:"snapshot_version"`
 	ID                     string              `json:"id"`
 	Cursor                 int64               `json:"cursor"`

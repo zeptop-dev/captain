@@ -3859,7 +3859,9 @@
   },
   "pathRollouts": {
     "scope": "Release complete TCP paths in listener dependency order. A server used by several branches may receive several steps. Changed listeners require separate ports; users and service controls remain current.",
-    "intent": "Pinned path intent before and after"
+    "intent": "Pinned path intent before and after",
+    "waitingHealth": "Waiting for fresh full-path health before publishing the new automatic entry. Existing endpoints stay published.",
+    "healthTimeout": "No eligible full path was confirmed before the entry deadline. The release is paused; retry requires fresh configuration and health evidence."
   },
   "pathHealth": {
     "title": "Path handshake health",
