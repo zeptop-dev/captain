@@ -13,6 +13,8 @@ import { linearSourceLine, movePathItem, pathInput, pathSourceLineOptions, pathS
 import { toast } from '../lib/notify'
 import { SettingsDraftBoundary, useSettingsDirty } from '../lib/settings-draft'
 import { ForwardAddressModeSelect } from './ForwardAddressModeSelect'
+import { PathHealthFields, PathHealthModal } from './PathHealth'
+import { pathHealthInput, validPathHealthPolicy } from '../lib/path-health'
 
 interface Resources { nodes: Node[]; details: EntryNodeDetail[]; inbounds: InboundChoice[]; lines: Line[] }
 interface Props extends Resources {
@@ -33,6 +35,7 @@ export function PathRoutesPanel({ nodes, details, inbounds, lines, loading = fal
   const [release, setRelease] = useState<{route: PathRoute; remove: boolean} | null>(null)
   const [releaseHistory, setReleaseHistory] = useState<{id?: string; routeID?: number} | null>(null)
   const [uses, setUses] = useState<ForwardPath | null>(null)
+  const [healthView, setHealthView] = useState<PathRoute | null>(null)
   const refresh = () => { qc.invalidateQueries({ queryKey: ['forward-paths'] }); qc.invalidateQueries({ queryKey: ['path-routes'] }); qc.invalidateQueries({ queryKey: ['lines'] }); qc.invalidateQueries({ queryKey: ['entries'] }); qc.invalidateQueries({ queryKey: ['line-changes'] }); qc.invalidateQueries({ queryKey: ['node'] }) }
   const del = useMutation({
     mutationFn: ({ kind, id, version }: { kind: 'path' | 'route'; id: number; version: number; name: string }) => api.del<{ change_id?: string }>(`/api/admin/${kind === 'path' ? 'forward-paths' : 'path-routes'}/${id}?version=${version}`),
@@ -54,6 +57,7 @@ export function PathRoutesPanel({ nodes, details, inbounds, lines, loading = fal
           <Group justify="space-between"><Title order={4}>{route.name}</Title><Badge variant="light">TCP · {t(`lines.strategies.${route.strategy}`)}</Badge></Group>
           <Text size="sm">{nodes.find(node => node.id === route.entry.node_id)?.name || `#${route.entry.node_id}`} : {route.entry.port} → {inbounds.find(choice => choice.ib.ID === route.target_inbound_id)?.ib.Tag || `#${route.target_inbound_id}`}</Text>
           {route.branches.map((branch, index) => <Text key={branch.id || index} size="sm">{t('pathRoutes.branch', { number: index + 1 })}: {paths.data?.find(path => path.id === branch.path_id)?.name || `#${branch.path_id}`} · {t('pathRoutes.revisionValue', { version: branch.path_revision })} · {branch.ports.join(' → ')}</Text>)}
+          <Group><Button size="xs" variant="subtle" onClick={() => setHealthView(route)}>{t('pathHealth.title')}</Button><Text size="xs" c="dimmed">{t(!route.health?.enabled ? 'pathHealth.states.disabled' : route.health.auto_failover ? 'pathHealth.auto' : 'pathHealth.observe')}</Text></Group>
           <Group justify="flex-end"><Button size="xs" variant="default" onClick={() => setReleaseHistory({routeID: route.id})}>{t('lineRollouts.history')}</Button><Button size="xs" variant="light" color="red" onClick={() => setRelease({route,remove:true})}>{t('lineRollouts.remove')}</Button>{onCreateNode && <Button variant="light" size="xs" onClick={() => onCreateNode(route.id)}>{t('entryFlow.createNode')}</Button>}{onHistory && <Button size="xs" variant="default" onClick={() => onHistory({ lineID: route.id, lineName: route.name })}>{t('lineChanges.application')}</Button>}<Button size="xs" variant="default" leftSection={<IconPencil size={15} />} disabled={loading || error || paths.isError || paths.isPending} onClick={() => setRouteEditor(route)}>{t('common.edit')}</Button><ActionIcon color="red" variant="subtle" aria-label={t('common.delete')} disabled={del.isPending} onClick={() => remove('route', route)}><IconTrash size={16} /></ActionIcon></Group>
         </Stack></Card>)}
       </Stack></Tabs.Panel>
@@ -74,6 +78,7 @@ export function PathRoutesPanel({ nodes, details, inbounds, lines, loading = fal
     {release && <SettingsDraftBoundary><LineRolloutPlanner resource="path-rollouts" draft={release.route} remove={release.remove} onClose={() => setRelease(null)} onCreated={id => {setRelease(null);refresh();setReleaseHistory({id})}} /></SettingsDraftBoundary>}
     {releaseHistory && <LineRolloutHistory resource="path-rollouts" initialID={releaseHistory.id} lineID={releaseHistory.routeID} onClose={() => setReleaseHistory(null)} />}
     {uses && <PathUses path={uses} onClose={() => setUses(null)} />}
+    {healthView && <PathHealthModal key={healthView.id} routeID={healthView.id} name={healthView.name} onClose={() => setHealthView(null)} />}
   </Stack>
 }
 
@@ -132,7 +137,7 @@ function PathEditor({ path, paths, nodes, details, lines, inbounds, onClose, onS
 
 function RouteEditor({ route, paths, nodes, details, inbounds, onClose, onSaved, onStage }: Resources & { route?: PathRoute; paths: ForwardPath[]; onClose: () => void; onSaved: (route: PathRoute) => void; onStage: (draft: PathRoute) => void }) {
   const { t } = useTranslation()
-  const [initial] = useState(() => ({ ...(route || { id: 0, version: 0, name: '', entry: { id: '', node_id: 0, port: 0, weight: 1 }, target_inbound_id: 0, target_address_mode: 'default' as const, strategy: 'failover' as const, branches: [] }), branches: (route?.branches || [{ id: '', path_id: 0, path_revision: 0, weight: 1, ports: [] }]).map(branch => ({ ...branch, ports: [...branch.ports], uiKey: key() })) }))
+  const [initial] = useState(() => ({ ...(route || { id: 0, version: 0, name: '', entry: { id: '', node_id: 0, port: 0, weight: 1 }, target_inbound_id: 0, target_address_mode: 'default' as const, strategy: 'failover' as const, branches: [] }), health: pathHealthInput(route?.health), branches: (route?.branches || [{ id: '', path_id: 0, path_revision: 0, weight: 1, ports: [] }]).map(branch => ({ ...branch, ports: [...branch.ports], uiKey: key() })) }))
   const [draft, setDraft] = useState(initial)
   const [review, setReview] = useState<{ source: string; value: PathRoutePreview } | null>(null)
   const input = routeInput(draft)
@@ -140,7 +145,7 @@ function RouteEditor({ route, paths, nodes, details, inbounds, onClose, onSaved,
   const branchQueries = useQueries({ queries: draft.branches.map(branch => revisionQuery(branch.path_id, branch.path_revision)) })
   const options = useQuery({ queryKey: ['line-options', draft.target_inbound_id], queryFn: () => api.get<{ protocol: string; error?: string }>(`/api/admin/lines/options?inbound_id=${draft.target_inbound_id}`), enabled: draft.target_inbound_id > 0 })
   const target = inbounds.find(choice => choice.ib.ID === draft.target_inbound_id)
-  const valid = !!draft.name.trim() && draft.entry.node_id > 0 && validPathPort(draft.entry.port) && !!target?.ib.Enabled && options.data?.protocol === 'tcp' && !options.data.error && !options.isError && routePortsComplete(draft.branches, branchQueries.map(query => query.isError ? undefined : query.data))
+  const valid = !!draft.name.trim() && draft.entry.node_id > 0 && validPathPort(draft.entry.port) && !!target?.ib.Enabled && options.data?.protocol === 'tcp' && !options.data.error && !options.isError && validPathHealthPolicy(draft.health, draft.strategy) && routePortsComplete(draft.branches, branchQueries.map(query => query.isError ? undefined : query.data))
   const preview = useMutation({ mutationFn: async () => ({ source: JSON.stringify(input), value: await api.post<PathRoutePreview>(route ? `/api/admin/path-routes/${route.id}/preview` : '/api/admin/path-routes/preview', input) }), onSuccess: setReview })
   const save = useMutation({ mutationFn: () => { if (!review || !reviewCurrent) throw new Error(t('lineImpact.stale')); const body = { ...review.value.draft, preview_revision: review.value.revision }; return route ? api.put<PathRoute>(`/api/admin/path-routes/${route.id}`, body) : api.post<PathRoute>('/api/admin/path-routes', body) }, onSuccess: saved => { toast.ok(t('common.saved')); onClose(); onSaved(saved) }, onError: () => setReview(null) })
   const dirty = JSON.stringify(draft) !== JSON.stringify(initial)
@@ -165,6 +170,7 @@ function RouteEditor({ route, paths, nodes, details, inbounds, onClose, onSaved,
       <Button variant="light" disabled={draft.branches.length >= 8} onClick={() => setDraft(value => ({ ...value, branches: [...value.branches, { uiKey: key(), id: '', path_id: 0, path_revision: 0, weight: 1, ports: [] }] }))}>{t('pathRoutes.addBranch')}</Button>
       <Select label={t('lines.target')} required searchable value={draft.target_inbound_id ? String(draft.target_inbound_id) : null} data={inbounds.map(choice => ({ value: String(choice.ib.ID), label: `${choice.node.name} / ${choice.ib.Tag} (${choice.ib.Protocol}:${choice.ib.Port})`, disabled: !choice.ib.Enabled || !!choice.ib.Settings.reverse || !!choice.ib.Settings.wireguard_slot || !!choice.ib.Settings.accept_proxy_protocol || choice.ib.Protocol === 'wireguard' }))} onChange={value => setDraft(draft => ({ ...draft, target_inbound_id: Number(value) }))} />
       <ForwardAddressModeSelect node={target?.node} value={draft.target_address_mode} onChange={target_address_mode => setDraft(value => ({ ...value, target_address_mode }))} />
+      <PathHealthFields value={draft.health} strategy={draft.strategy} onChange={health => setDraft(value => ({ ...value, health }))} />
       {draft.target_inbound_id > 0 && (options.isError || options.data?.error || options.data && options.data.protocol !== 'tcp') && <Alert color="red"><Text>{options.error?.message || options.data?.error || t('pathRoutes.tcpOnly')}</Text><Button variant="subtle" size="xs" onClick={() => options.refetch()}>{t('entryFlow.retry')}</Button></Alert>}
     </Stack></Box>
     {preview.isError && <Alert color="red">{preview.error.message}</Alert>}

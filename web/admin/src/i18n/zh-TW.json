@@ -3860,5 +3860,51 @@
   "pathRollouts": {
     "scope": "依監聽器相依順序發布完整 TCP 路徑。同一伺服器用於多個分支時可能經歷多個步驟。變更監聽器須使用獨立連接埠；使用者授權與服務控制始終保持最新。",
     "intent": "變更前後的固定路徑意圖"
+  },
+  "pathHealth": {
+    "title": "路徑握手健康",
+    "enable": "啟用路徑握手探測",
+    "scope": "探測經過候選路徑的實際監聽，驗證落地連接埠支援的協定握手；不驗證使用者認證、網際網路出口或用戶端至入口的連線。",
+    "requirement": "需要 bosun v0.85.0 或更新版本及入口伺服器的新鮮能力報告。支援標準 TLS、HTTP 代理認證挑戰與 SOCKS5 方法協商；不支援 Reality 和 ShadowTLS。",
+    "auto": "自動容錯切換",
+    "observe": "僅觀察",
+    "autoHint": "僅適用於主備策略，預設關閉。",
+    "allDown": "僅已確認健康的候選接收新連線。全部候選故障、未知或過期時拒絕新連線；既有連線繼續運作。",
+    "failoverOnly": "請選擇主備策略，或關閉自動容錯切換。",
+    "serverName": "TLS 服務名稱（SNI）",
+    "serverNameHint": "選填的憑證驗證名稱；留空時使用落地入站設定的名稱。不會變更撥號目標，HTTP 與 SOCKS5 請留空。",
+    "interval": "探測間隔（秒）",
+    "timeout": "握手逾時（秒）",
+    "failures": "移出候選前的連續失敗次數",
+    "recovery": "重新加入前的連續成功次數",
+    "accounting": "探測位元組計入伺服器與轉發流量，不計入使用者帳單。伺服器暫停時探測也會停止。",
+    "unavailable": "無法確認目前健康狀態，快取結果不作為目前證據。",
+    "refresh": "重新整理",
+    "mode": "選擇模式",
+    "handshake": "握手方式",
+    "noSamples": "尚無新鮮的握手取樣。",
+    "candidate": "候選路徑 {{number}}",
+    "observed": "取樣時間",
+    "latency": "握手耗時：{{value}} 毫秒",
+    "eligible": "可參與自動選擇",
+    "notEligible": "不參與自動選擇",
+    "stale": "等待新鮮證據，此取樣無法確認目前健康狀態。",
+    "handshakeFailed": "最近一次握手失敗；是否參與選擇取決於失敗與恢復門檻。",
+    "invalid": "請檢查服務名稱、間隔與門檻的整數範圍，以及是否選擇主備策略。",
+    "states": {
+      "disabled": "未啟用",
+      "unsupported": "不支援",
+      "unknown": "未知",
+      "healthy": "健康",
+      "up": "健康",
+      "degraded": "部分異常",
+      "down": "無法使用",
+      "paused": "服務已暫停"
+    },
+    "protocols": {
+      "tls": "TLS 憑證驗證",
+      "http_proxy": "HTTP 代理認證挑戰",
+      "socks5": "SOCKS5 認證方法協商"
+    }
   }
 }

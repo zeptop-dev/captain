@@ -3860,5 +3860,51 @@
   "pathRollouts": {
     "scope": "Release complete TCP paths in listener dependency order. A server used by several branches may receive several steps. Changed listeners require separate ports; users and service controls remain current.",
     "intent": "Pinned path intent before and after"
+  },
+  "pathHealth": {
+    "title": "Path handshake health",
+    "enable": "Enable path handshake probes",
+    "scope": "Probes travel through the actual candidate listeners to verify a supported landing-port handshake. They do not test customer authentication, Internet access or the client-to-entry path.",
+    "requirement": "Requires bosun v0.85.0 or later and fresh capability from the entry server. Standard TLS, HTTP proxy authentication challenges and SOCKS5 method negotiation are supported; Reality and ShadowTLS are excluded.",
+    "auto": "Automatic failover",
+    "observe": "Observe only",
+    "autoHint": "Available only with the failover strategy; disabled by default.",
+    "allDown": "Only confirmed healthy candidates accept new connections. If all candidates are down, unknown or stale, new connections are refused. Existing connections continue.",
+    "failoverOnly": "Choose the failover strategy or turn off automatic failover.",
+    "serverName": "TLS server name (SNI)",
+    "serverNameHint": "Optional override for certificate verification. Otherwise use the landing inbound’s configured name. It never changes the dial target; leave empty for HTTP and SOCKS5.",
+    "interval": "Probe interval (seconds)",
+    "timeout": "Handshake timeout (seconds)",
+    "failures": "Failures before exclusion",
+    "recovery": "Successes before readmission",
+    "accounting": "Probe bytes count toward server and relay traffic, without a customer traffic charge. Server pause also stops probes.",
+    "unavailable": "Current health could not be verified. Cached results are not current evidence.",
+    "refresh": "Refresh",
+    "mode": "Selection mode",
+    "handshake": "Handshake",
+    "noSamples": "No fresh handshake samples yet.",
+    "candidate": "Candidate {{number}}",
+    "observed": "Sampled at",
+    "latency": "Handshake: {{value}} ms",
+    "eligible": "Eligible for automatic selection",
+    "notEligible": "Not eligible for automatic selection",
+    "stale": "Waiting for fresh evidence; this sample cannot confirm current health.",
+    "handshakeFailed": "The latest handshake failed. Failure and recovery thresholds determine selection.",
+    "invalid": "Check the server name, integer timing/threshold limits and the selected failover strategy.",
+    "states": {
+      "disabled": "Disabled",
+      "unsupported": "Unsupported",
+      "unknown": "Unknown",
+      "healthy": "Healthy",
+      "up": "Healthy",
+      "degraded": "Degraded",
+      "down": "Unavailable",
+      "paused": "Service paused"
+    },
+    "protocols": {
+      "tls": "TLS certificate verification",
+      "http_proxy": "HTTP proxy authentication challenge",
+      "socks5": "SOCKS5 authentication negotiation"
+    }
   }
 }

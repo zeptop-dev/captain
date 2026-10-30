@@ -1,4 +1,5 @@
 import type { ForwardAddressMode, Line, LineDependencyView, LineEndpoint, LineMember, LinePreview } from './api'
+import { pathHealthInput, type PathHealthPolicy } from './path-health.ts'
 
 export interface PathStep {
   id: string
@@ -16,6 +17,7 @@ export interface ForwardPath { id: number; name: string; version: number; steps:
 export interface PathUse { kind: 'path' | 'route'; id: number; version: number; name: string }
 export interface PathBranch { id: string; path_id: number; path_revision: number; weight: number; ports: number[] }
 export interface PathRoute {
+  health?: PathHealthPolicy | null
   id: number; version: number; name: string; entry: LineMember
   target_inbound_id: number; target_address_mode: ForwardAddressMode
   strategy: 'failover' | 'roundrobin'; branches: PathBranch[]
@@ -34,6 +36,7 @@ export function pathInput(path: Pick<ForwardPath, 'name' | 'version' | 'steps'>)
 }
 export function routeInput(route: PathRoute): PathRoute {
   return {
+    ...(route.health ? { health: pathHealthInput(route.health) } : {}),
     id: route.id, version: route.version, name: route.name.trim(),
     entry: { id: route.entry.id, node_id: route.entry.node_id, port: route.entry.port, ingress_id: route.entry.ingress_id || null, address_mode: 'default', weight: 1 },
     target_inbound_id: route.target_inbound_id, target_address_mode: route.target_address_mode || 'default', strategy: route.strategy,
