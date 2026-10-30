@@ -98,22 +98,11 @@ func (s *Store) PathHealth(ctx context.Context, id int64, at time.Time) (*PathHe
 	}
 	nodes[landing] = true
 	for node := range nodes {
-		control, e := serviceControlTx(ctx, tx, node)
+		current, e := pathHealthNodePausedTx(ctx, tx, node, at)
 		if e != nil {
 			return nil, e
 		}
-		if control.effective().Mode == spec.ServiceControlPause {
-			paused = true
-		}
-		var raw string
-		var reported sql.NullInt64
-		if e = tx.QueryRowContext(ctx, `SELECT runtime_report_json,runtime_reported_at FROM nodes WHERE id=?`, node).Scan(&raw, &reported); e != nil {
-			return nil, e
-		}
-		var runtime NodeRuntime
-		if reported.Valid && !time.Unix(reported.Int64, 0).Before(at.Add(-3*time.Minute)) && !time.Unix(reported.Int64, 0).After(at.Add(30*time.Second)) && json.Unmarshal([]byte(raw), &runtime) == nil && runtime.ServiceControl != nil && runtime.ServiceControl.Mode == spec.ServiceControlPause {
-			paused = true
-		}
+		paused = paused || current
 	}
 	var capabilityObserved, capabilityReceived int64
 	if out.Capable {

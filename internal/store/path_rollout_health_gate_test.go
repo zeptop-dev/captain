@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-func pathHealthGateFixture(t *testing.T) (*rolloutRig, *LineRollout, *domain.Entry) {
+func pathHealthGateFixture(t *testing.T, originalAuto ...bool) (*rolloutRig, *LineRollout, *domain.Entry) {
 	t.Helper()
 	ctx := context.Background()
 	r, draft := pathRolloutRig(t)
@@ -30,6 +31,13 @@ func pathHealthGateFixture(t *testing.T) (*rolloutRig, *LineRollout, *domain.Ent
 	next, err := r.s.PathRoute(ctx, original.LineID)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(originalAuto) > 0 && originalAuto[0] {
+		next.Health.AutoFailover = true
+		if err = r.s.SavePathRoute(ctx, next); err != nil {
+			t.Fatal(err)
+		}
+		r.healthCapability(t, next.Entry.NodeID)
 	}
 	entry := &domain.Entry{Name: "Published endpoint", LineID: &original.LineID, LineMemberID: next.Entry.ID, Enabled: true}
 	if err = r.s.CreateEntry(ctx, entry); err != nil {
@@ -206,5 +214,84 @@ func TestPathRolloutAutoHealthLateEligibilityDoesNotExtendDeadline(t *testing.T)
 	p = r.read(t, p.ID)
 	if p.Status != "paused" || p.ErrorCode != "path_health_deadline_exceeded" || p.PublishedAt != nil {
 		t.Fatal("late eligibility extended deadline", p)
+	}
+}
+
+func TestPathRolloutHealthGateHonorsCurrentPause(t *testing.T) {
+	for _, kind := range []string{"desired", "runtime_fresh", "runtime_expired"} {
+		t.Run(kind, func(t *testing.T) {
+			r, p, _ := pathHealthGateFixture(t)
+			p = r.drainToHealthGate(t, p.ID)
+			r.gateSample(t, p, 1, nil)
+			ctx := context.Background()
+			node := r.ib.NodeID
+			if kind == "desired" {
+				tx, err := r.s.db.BeginTx(ctx, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer tx.Rollback()
+				control, err := serviceControlTx(ctx, tx, node)
+				if err != nil {
+					t.Fatal(err)
+				}
+				old := control
+				control.state.Manual = ServiceControlManual{Mode: spec.ServiceControlPause}
+				if err = saveServiceControlTx(ctx, tx, node, &control, old); err != nil {
+					t.Fatal(err)
+				}
+				if err = tx.Commit(); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				at := r.at
+				if kind == "runtime_expired" {
+					at = at.Add(-4 * time.Minute)
+				}
+				raw, _ := json.Marshal(NodeRuntime{ServiceControl: &agentproto.ServiceControlReport{Mode: spec.ServiceControlPause}})
+				if _, err := r.s.db.Exec(`UPDATE nodes SET runtime_report_json=?,runtime_reported_at=? WHERE id=?`, string(raw), at.Unix(), node); err != nil {
+					t.Fatal(err)
+				}
+			}
+			r.advance(t)
+			p = r.read(t, p.ID)
+			if kind == "runtime_expired" {
+				if p.PublishedAt == nil {
+					t.Fatal("expired runtime pause blocked fresh health")
+				}
+			} else if p.PublishedAt != nil || !p.WaitingForPathHealth {
+				t.Fatal("current pause did not hold publication", kind, p.Status, p.Stage, p.PublishedAt)
+			}
+		})
+	}
+}
+func TestPathRolloutHealthGateCleanupOnlyCompensationRequiresNewObservation(t *testing.T) {
+	r, p, _ := pathHealthGateFixture(t, true)
+	p = r.drainToHealthGate(t, p.ID)
+	// Both entry listeners now exist; only the original one has healthy evidence.
+	old := *p
+	old.AfterRoute = p.BeforeRoute
+	r.gateSample(t, &old, 1, nil)
+	comp, err := r.s.CompensateLineRollout(context.Background(), p.ID, p.Version)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, step := range comp.Targets {
+		if step.Phase == "expand" {
+			t.Fatal("fixture unexpectedly expands a listener")
+		}
+	}
+	if !comp.WaitingForPathHealth {
+		t.Fatal("cleanup-only compensation reused pre-attempt health")
+	}
+	r.advance(t)
+	if got := r.read(t, comp.ID); got.PublishedAt != nil {
+		t.Fatal("compensation published on old evidence")
+	}
+	r.at = time.Now().UTC().Add(time.Millisecond).Truncate(time.Millisecond)
+	r.gateSample(t, comp, 2, nil)
+	r.advance(t)
+	if got := r.read(t, comp.ID); got.PublishedAt == nil {
+		t.Fatal("new current evidence did not release compensation", got.ErrorCode)
 	}
 }

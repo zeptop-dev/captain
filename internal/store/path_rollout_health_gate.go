@@ -31,7 +31,7 @@ func pathRolloutHealthGateTx(ctx context.Context, tx *sql.Tx, p *LineRollout, at
 		}
 	}
 	deadline = p.UpdatedAt.Add(time.Duration(p.timeoutMS) * time.Millisecond)
-	var earliest time.Time
+	earliest := p.UpdatedAt
 	if t, ok := current[p.AfterRoute.Entry.NodeID]; ok {
 		if t.DeadlineAt != nil {
 			deadline = *t.DeadlineAt
@@ -60,19 +60,11 @@ func pathRolloutHealthGateTx(ctx context.Context, tx *sql.Tx, p *LineRollout, at
 	}
 	// Desired and observed pauses prevent a stale pre-pause sample publishing.
 	for _, d := range p.dependencies {
-		control, e := serviceControlTx(ctx, tx, d.NodeID)
+		paused, e := pathHealthNodePausedTx(ctx, tx, d.NodeID, at)
 		if e != nil {
 			return true, deadline, e
 		}
-		if control.effective().Mode == "paused" {
-			return true, deadline, nil
-		}
-		var raw string
-		if e = tx.QueryRowContext(ctx, `SELECT runtime_report_json FROM nodes WHERE id=?`, d.NodeID).Scan(&raw); e != nil {
-			return true, deadline, e
-		}
-		var runtime NodeRuntime
-		if json.Unmarshal([]byte(raw), &runtime) == nil && runtime.ServiceControl != nil && runtime.ServiceControl.Mode == "paused" {
+		if paused {
 			return true, deadline, nil
 		}
 	}
