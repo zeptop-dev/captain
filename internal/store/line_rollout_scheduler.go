@@ -254,6 +254,12 @@ func lineRolloutValidationTx(ctx context.Context, tx *sql.Tx, p *LineRollout, at
 			}
 		}
 	}
+	return lineRolloutTopologyTx(ctx, tx, p)
+}
+
+// This structural check deliberately does not require receipts or freeze users.
+func lineRolloutTopologyTx(ctx context.Context, tx *sql.Tx, p *LineRollout) error {
+	ctx = withPlanPathIntents(ctx, p)
 	// Recompile intent against current topology; never replay stale endpoints.
 	for _, v := range []struct {
 		intent *ForwardLine

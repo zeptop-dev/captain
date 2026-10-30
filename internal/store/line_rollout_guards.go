@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/zeptop-dev/bosun/pkg/spec"
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
@@ -42,6 +43,9 @@ func lineRolloutReservationsTx(ctx context.Context, tx *sql.Tx, nodeID, excludeL
 	return out, rows.Err()
 }
 func checkRolloutInboundTx(ctx context.Context, tx *sql.Tx, ib *domain.Inbound) error {
+	if err := checkRolloutLandingMutationTx(ctx, tx, ib); err != nil {
+		return err
+	}
 	if !ib.Enabled {
 		return nil
 	}
@@ -132,6 +136,9 @@ func allowRolloutRecompileTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, ge
 // Address indirection can change effective listeners without editing the
 // inbound/forward itself. Check the post-mutation view in the same transaction.
 func checkRolloutNodeReservationsTx(ctx context.Context, tx *sql.Tx, nodeID int64) error {
+	if err := checkRolloutNodeTopologyTx(ctx, tx, nodeID); err != nil {
+		return err
+	}
 	var active bool
 	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM line_rollouts p JOIN line_rollout_nodes n ON n.plan_id=p.id WHERE n.node_id=? AND p.status IN ('running','paused'))`, nodeID).Scan(&active); err != nil {
 		return err
@@ -167,4 +174,127 @@ func checkRolloutNodeReservationsTx(ctx context.Context, tx *sql.Tx, nodeID int6
 		return err
 	}
 	return checkRolloutForwardsTx(ctx, tx, nodeID, forwards)
+}
+
+// Future landings are not yet in forward_lines. Protect both immutable sides
+// of every active plan instead of relying on current line ownership.
+func rolloutInboundReferencedTx(ctx context.Context, q addressQuery, id int64) (bool, error) {
+	var used bool
+	err := q.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM line_rollouts WHERE status IN ('running','paused') AND (json_extract(before_json,'$.target_inbound_id')=? OR json_extract(after_json,'$.target_inbound_id')=?))`, id, id).Scan(&used)
+	return used, err
+}
+func checkRolloutLandingMutationTx(ctx context.Context, tx *sql.Tx, next *domain.Inbound) error {
+	if lineRolloutWrite(ctx) || next.ID == 0 {
+		return nil
+	}
+	used, err := rolloutInboundReferencedTx(ctx, tx, next.ID)
+	if err != nil || !used {
+		return err
+	}
+	before, err := scanInbound(tx.QueryRowContext(ctx, "SELECT "+inboundCols+" FROM inbounds WHERE id=?", next.ID))
+	if err != nil {
+		return err
+	}
+	if !reflect.DeepEqual(rolloutLandingStructure(before), rolloutLandingStructure(next)) {
+		return fmt.Errorf("%w: landing structure is reserved by an active release", ErrLineRolloutConflict)
+	}
+	return nil
+}
+
+// Credentials and authorization remain current. Only listener and public
+// handshake structure participate; certificates, PSKs and Users do not.
+func rolloutLandingStructure(ib *domain.Inbound) any {
+	var tlsMode spec.TLSMode
+	var serverName string
+	var alpn []string
+	if ib.Settings.TLS != nil {
+		tlsMode = ib.Settings.TLS.Mode
+		serverName = ib.Settings.TLS.ServerName
+		alpn = append([]string(nil), ib.Settings.TLS.ALPN...)
+	}
+	var transport spec.Transport
+	if ib.Settings.Transport != nil {
+		transport = *ib.Settings.Transport
+	}
+	transport.Type = ib.Settings.TransportType()
+	return struct {
+		NodeID              int64
+		Tag                 string
+		Protocol            spec.Protocol
+		Listen              string
+		Port                int
+		Core                string
+		Enabled             bool
+		IngressID           *int64
+		TLSMode             spec.TLSMode
+		ServerName          string
+		ALPN                []string
+		Transport           spec.Transport
+		ShadowTLS           *spec.ShadowTLS
+		AcceptProxyProtocol bool
+		MieruTransport      string
+	}{ib.NodeID, ib.Tag, ib.Protocol, ib.Listen, ib.Port, ib.Core, ib.Enabled, ib.IngressID, tlsMode, serverName, alpn, transport, ib.Settings.ShadowTLS, ib.Settings.AcceptProxyProtocol, ib.Settings.MieruTransport}
+}
+func checkRolloutNodeTopologyTx(ctx context.Context, tx *sql.Tx, nodeID int64) error {
+	if lineRolloutWrite(ctx) {
+		return nil
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM line_rollouts WHERE status IN ('running','paused') AND EXISTS(SELECT 1 FROM json_each(dependencies_json) WHERE json_extract(value,'$.node_id')=?)`, nodeID)
+	if err != nil {
+		return err
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			rows.Close()
+			return err
+		}
+		ids = append(ids, id)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		p, err := readLineRolloutTx(ctx, tx, id, timeNowRollout())
+		if err != nil {
+			return err
+		}
+		if err = lineRolloutTopologyTx(ctx, tx, p); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func rolloutIngressReferencedTx(ctx context.Context, q addressQuery, id int64) (bool, error) {
+	var used bool
+	err := q.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM inbounds i JOIN line_rollouts p ON i.id=json_extract(p.before_json,'$.target_inbound_id') OR i.id=json_extract(p.after_json,'$.target_inbound_id') WHERE i.ingress_id=? AND p.status IN ('running','paused'))`, id).Scan(&used)
+	return used, err
+}
+func checkRolloutIngressMutationTx(ctx context.Context, tx *sql.Tx, next *Ingress) error {
+	used, err := rolloutIngressReferencedTx(ctx, tx, next.ID)
+	if err != nil || !used {
+		return err
+	}
+	old, err := scanIngress(tx.QueryRowContext(ctx, "SELECT "+ingressCols+" FROM ingresses WHERE id=?", next.ID))
+	if err != nil {
+		return err
+	}
+	structure := func(v *Ingress) Ingress {
+		x := *v
+		x.Name = ""
+		x.CreatedAt = old.CreatedAt
+		x.UpdatedAt = old.UpdatedAt
+		x.NodeID = old.NodeID
+		x.ReservedPorts = append([]int(nil), x.ReservedPorts...)
+		x.PortMappings = append([]spec.PortMapping(nil), x.PortMappings...)
+		return x
+	}
+	if !reflect.DeepEqual(structure(old), structure(next)) {
+		return fmt.Errorf("%w: landing ingress is reserved by an active release", ErrLineRolloutConflict)
+	}
+	return nil
 }

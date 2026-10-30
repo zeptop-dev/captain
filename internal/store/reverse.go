@@ -183,6 +183,11 @@ func (s *Store) SaveReverseLinks(ctx context.Context, exitID int64, expected map
 }
 
 func checkReverseInboundRemoval(ctx context.Context, tx *sql.Tx, id int64) error {
+	if used, err := rolloutInboundReferencedTx(ctx, tx, id); err != nil {
+		return err
+	} else if used {
+		return ErrLineInUse
+	}
 	if err := checkClientChainRemoval(ctx, tx, "inbound", id); err != nil {
 		return err
 	}
@@ -202,6 +207,9 @@ func checkReverseInboundRemoval(ctx context.Context, tx *sql.Tx, id int64) error
 }
 
 func saveReverseInbound(ctx context.Context, tx *sql.Tx, ib *domain.Inbound) error {
+	if err := checkRolloutInboundTx(ctx, tx, ib); err != nil {
+		return err
+	}
 	b, err := json.Marshal(ib.Settings)
 	if err != nil {
 		return err

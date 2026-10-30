@@ -646,6 +646,9 @@ func nodeHasLines(ctx context.Context, q interface {
 	if err != nil || n > 0 {
 		return n > 0, err
 	}
+	if err = q.QueryRowContext(ctx, `SELECT count(*) FROM line_rollouts WHERE status IN ('running','paused') AND EXISTS(SELECT 1 FROM json_each(dependencies_json) WHERE json_extract(value,'$.node_id')=?)`, id).Scan(&n); err != nil || n > 0 {
+		return n > 0, err
+	}
 	return hasInternalForwardReference(ctx, q, id, 0)
 }
 func (s *Store) InboundHasLines(ctx context.Context, id int64) (bool, error) {
@@ -664,6 +667,9 @@ func lineVersionOK(n *domain.Node, min string) bool {
 // RefreshLinesForNodeTx keeps literal next-hop addresses and bound entries
 // aligned with node, mapping, or landing edits in the same transaction.
 func refreshLinesForNodeTx(ctx context.Context, tx *sql.Tx, node int64) error {
+	if err := checkRolloutNodeTopologyTx(ctx, tx, node); err != nil {
+		return err
+	}
 	rows, err := tx.QueryContext(ctx, `SELECT `+lineCols+` FROM forward_lines WHERE id IN (SELECT line_id FROM forward_line_members WHERE node_id=?) OR target_inbound_id IN (SELECT id FROM inbounds WHERE node_id=?)`, node, node)
 	if err != nil {
 		return err

@@ -436,6 +436,11 @@ func (s *Store) DeleteInbound(ctx context.Context, id int64) error {
 		return err
 	}
 	defer tx.Rollback()
+	if used, err := rolloutInboundReferencedTx(ctx, tx, id); err != nil {
+		return err
+	} else if used {
+		return ErrLineInUse
+	}
 	if used, err := hasInternalForwardReference(ctx, tx, 0, id); err != nil {
 		return err
 	} else if used {
