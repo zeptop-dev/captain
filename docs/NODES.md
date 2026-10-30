@@ -44,6 +44,31 @@ editor, and `#node-inbounds` expands related services. `/nodes/{id}/host` remain
 the administrator host-management workflow. No API, schema, agent upgrade,
 traffic accounting or subscription changes are required.
 
+## Configuration confirmation
+
+Administrators can open **Diagnostics → Health → Configuration confirmation**
+to inspect the current delivery and the last 20 delivery records. The read-only
+API is `GET /api/admin/nodes/{id}/configuration`; narrowed tokens need `nodes:read`.
+It does not create a delivery or enqueue a job.
+
+A structural revision identifies declared listeners, routing and forwarding.
+The full state revision also changes with user authorization, credentials,
+service controls and pending jobs. Both revisions and the current process's
+unique delivery must match before the panel shows **Applied**. This is an
+application acknowledgment, not an end-to-end connectivity check. Configuration
+continues to be delivered immediately; this feature does not schedule waves or
+restore historical snapshots.
+
+A new process, changed state, failed application or expired observation removes
+the current confirmation. Historical first-confirmation times remain visible.
+Receipts expire after three minutes; severely skewed node clocks cannot provide
+fresh confirmation. Older agents keep serving and show **Unknown**. Nonempty
+opaque core overrides or outbound settings cannot be safely classified and show
+**Structure unavailable**, while the original state-delivery path continues.
+Only digests and observation metadata are stored here, not user credentials or
+rendered configuration. The database retains the most recent 100 deliveries per
+server; retired process sessions remain fenced within their pairing identity.
+
 ## Groups and display order
 
 These groups organize **servers** for monitoring. To categorize the subscription
@@ -399,6 +424,62 @@ used lines and resources cannot be deleted accidentally. Updates carry a
 version so an outdated editor cannot overwrite another administrator's work.
 Runtime identities depend on the compiled rule, so renaming a line does not
 restart its forwarding sessions.
+The editor previews an edit before saving: it compares the saved and proposed
+expected forwarding rules, lists subscription endpoints and dependent Entries,
+and shows the configured relay/landing/reverse-exit connections. Candidate edges
+describe next-hop alternatives, not complete independent paths. The preview
+contains only forwarding fields; inbound credentials and rendered runtime files
+are not returned. Editing the draft requires another preview. A change to the
+reviewed configuration or its dependencies rejects saving until it is reviewed
+again. This does not establish runtime health or delay the existing immediate
+delivery of a saved change.
+
+API clients can use `POST /api/admin/lines/preview` for a new line or
+`POST /api/admin/lines/{id}/preview` for an existing one. These authenticated,
+authorized reads use one database snapshot and do not save drafts, write audit
+events or invalidate agent state. Save the returned `draft` with its `revision`
+as `preview_revision` to require the same impact at commit time; the existing
+line `version` check still applies. Omitting `preview_revision` preserves the
+previous API behavior. `GET /api/admin/lines/{id}/dependencies` exposes the saved
+dependency/use view even if current validation prevents compiling the line.
+The preview endpoints do not report application confirmation. The separate
+change history below links committed forwarding changes to actual deliveries.
+
+### Line change history
+
+**Change history** on the managed-lines page includes manual saves, automatic
+recompiles after address/inbound changes, and deletions. A line's confirmation
+button filters its history; saving or deleting opens the exact resulting record.
+Each record snapshots the actor, line version and explicitly allowed forwarding
+fields in the same transaction as the change. Failed saves create no record.
+
+Only servers whose owned forwarding rules changed become application targets.
+An unchanged landing server remains a dependency. Renames produce a record with
+no runtime change and do not replace a pending target. Removing a member or
+deleting a line creates a cleanup target whose expected rule set is empty.
+Changes that affect one server leave other pending targets observable.
+
+A confirmation means that this line's forwarding rules were recently confirmed
+in the displayed full state revision. It does not establish current confirmation
+of every other setting, user authorization, next-hop reachability or end-to-end
+connectivity. User access and jobs continue to update immediately. A later GET
+can bind the same line target to a newer full state and require a new receipt;
+the first confirmed time remains historical. Negative or expired receipts,
+superseded targets and changed agent identities cannot produce a current green
+status. Unsupported or legacy agents continue receiving configuration but do not
+produce this confirmation. Use the separate [staged release workflow](LINE_RELEASES.md)
+when an ordered deployment is required.
+
+Read-only administrator APIs are `GET /api/admin/line-changes` (optional
+`line_id`, `before` cursor and `limit`, default 20, maximum 100) and
+`GET /api/admin/line-changes/{changeID}`. Narrowed tokens need the separate
+`line-changes:read` permission; roles remain administrator-only. Existing save
+and delete responses add `change_id`. Reads do not issue deliveries. The latest
+100 changes per line incarnation are retained together with any older active
+targets; copied target evidence survives pruning of the node delivery journal.
+Deleted lines remain in the global history. Recreated numeric IDs cannot inherit
+old confirmation, and a full reset clears the history with the configuration.
+
 Status describes each forward's **next-hop TCP probe**, not a full end-to-end
 proxy test; UDP is explicitly untested. Agent application and real connectivity
 must still be checked after saving.

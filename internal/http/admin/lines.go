@@ -13,11 +13,48 @@ func lineError(w http.ResponseWriter, err error) {
 		fail(w, 404, "line or referenced resource not found")
 		return
 	}
-	if errors.Is(err, store.ErrLineConflict) || errors.Is(err, store.ErrLineInUse) {
+	if errors.Is(err, store.ErrLineConflict) || errors.Is(err, store.ErrLineInUse) || errors.Is(err, store.ErrLinePreview) || errors.Is(err, store.ErrPathRouteOwned) || errors.Is(err, store.ErrPathInUse) {
 		fail(w, 409, err.Error())
 		return
 	}
 	fail(w, 400, err.Error())
+}
+
+func (h *handlers) previewLine(w http.ResponseWriter, r *http.Request) {
+	h.Store.Topology.Lock()
+	defer h.Store.Topology.Unlock()
+	var l store.ForwardLine
+	if !decode(r, &l) {
+		fail(w, 400, "invalid line")
+		return
+	}
+	l.ID = idOf(r)
+	if r.PathValue("id") != "" && l.ID <= 0 {
+		fail(w, 400, "invalid line id")
+		return
+	}
+	if l.ID == 0 {
+		l.Version = 0
+	}
+	p, err := h.Store.PreviewLine(r.Context(), &l)
+	if err != nil {
+		lineError(w, err)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	ok(w, p)
+}
+
+func (h *handlers) lineDependencies(w http.ResponseWriter, r *http.Request) {
+	h.Store.Topology.Lock()
+	defer h.Store.Topology.Unlock()
+	p, err := h.Store.LineDependencies(r.Context(), idOf(r))
+	if err != nil {
+		lineError(w, err)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	ok(w, map[string]any{"dependencies": p.Dependencies, "edges": p.Edges, "uses": p.Uses})
 }
 func (h *handlers) listLines(w http.ResponseWriter, r *http.Request) {
 	h.Store.Topology.Lock()
@@ -56,7 +93,8 @@ func (h *handlers) saveLine(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if err := h.Store.SaveLine(r.Context(), &l); err != nil {
+	changeID, err := h.Store.SaveLineWithChange(r.Context(), &l)
+	if err != nil {
 		lineError(w, err)
 		return
 	}
@@ -65,7 +103,10 @@ func (h *handlers) saveLine(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
-	ok(w, live)
+	ok(w, struct {
+		*store.ForwardLine
+		ChangeID string `json:"change_id,omitempty"`
+	}{live, changeID})
 }
 func (h *handlers) deleteLine(w http.ResponseWriter, r *http.Request) {
 	h.Store.Topology.Lock()
@@ -75,11 +116,12 @@ func (h *handlers) deleteLine(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "version is required")
 		return
 	}
-	if err = h.Store.DeleteLine(r.Context(), idOf(r), version); err != nil {
+	changeID, err := h.Store.DeleteLineWithChange(r.Context(), idOf(r), version)
+	if err != nil {
 		lineError(w, err)
 		return
 	}
-	ok(w, map[string]bool{"ok": true})
+	ok(w, map[string]any{"ok": true, "change_id": changeID})
 }
 
 func (h *handlers) requireNoNodeLines(w http.ResponseWriter, r *http.Request, id int64) bool {

@@ -5,7 +5,7 @@ with, what the database is good for, and what is deliberately not there.
 
 For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
-time limit. The application compatibility and rollback floor remain v1.48.0.
+time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.49.0.
 
 ## Public probe model and Komari themes (Captain v1.48.0)
 
@@ -54,6 +54,16 @@ a new healthy period. A manual hold survives cycle rollover, and restoring a
 server that is still over quota requires an explicit exemption for that cycle
 or a policy/allowance change. Traffic samples and configuration delivery are
 asynchronous: this is not a byte-exact supplier-side spending cap.
+
+Captain v1.49.0 / bosun v0.84.0 adds an `offline_enabled` management
+setting which defaults to false and is
+preserved when an older editor omits it. Enabling it requires the independent
+fresh `offline_supported` capability; v0.83.0 alone does not support local
+threshold evaluation. Its full policy and meter anchor travel in the optional
+`service_control.offline` object; local execution evidence travels in the
+matching report object. Existing SQLite state JSON stores the setting without
+a new schema migration. Disable this option before manually downgrading to a
+release without offline support. Subscriber receipts and billing are unchanged.
 
 The first releases containing this feature are Captain v1.48.0 and
 bosun v0.83.0; their built-in rollback floors retain those versions. Older
@@ -496,6 +506,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
+| 1.49.0 | >= 0.84.0 for receipts, staged release prerequisites and offline enforcement | Immutable line-owned snapshots, opt-in TCP relay release plans, fixed-version complete paths, bounded cleanup evidence; migrations 100-103. Existing immediate delivery remains compatible. |
 | 1.48.0 | ≥ 0.83.0 for server traffic enforcement | Opt-in server pause/aggregate rate protection with independent application evidence; original agents remain compatible. Komari public themes and panel-side DNS controls do not require a node upgrade. Mihomo dual-stack design generation uses the formal shared module. |
 | 1.46.0 | Unchanged; shared module v0.82.0 | Server supplier/primary-bill associations, independent payment date actions, settings navigation and an optional homepage; migrations 94–95. Existing managed nodes do not need an upgrade. Captain rollback floor is v1.46.0 to retain shared dates and payment semantics. |
 | 1.45.0 | Unchanged; shared module v0.82.0 | City locations and explicit map publication, multiple inbound access groups and curated client downloads; migrations 91–93. Existing managed nodes do not need an upgrade. Captain rollback floor is v1.45.0 to retain access policies. |
@@ -538,7 +549,7 @@ features it has never heard of, which the node page shows as an orange
 
 `min_version` in both `config.yaml` files is the floor a self-update or
 rollback may not go below; set it to the version you have tested. Captain's
-built-in floor is v1.48.0 for server traffic protection and isolated probe origins;
+built-in floor is v1.49.0 to preserve staged release ownership and complete routes;
 this also preserves shared infrastructure dates, payment actions, the homepage switch and inbound access policies, and
 retains device credentials, exit attribution and the earlier protections for line ownership, client chains, internal
 forwarding and public storage selection. A higher configured floor still wins.
@@ -825,3 +836,59 @@ Internal address selection introduced a v1.31.0 update/rollback floor: older pan
 ignore the saved mode and regenerate a public target on an unrelated edit.
 The current floor is v1.32.0 to also preserve storage visibility choices.
 Manual downgrade requires restoring the matching pre-upgrade database backup.
+
+## Configuration receipts (Captain v1.49.0 / bosun v0.84.0)
+
+Migration 100 adds private node configuration sessions, current delivery heads
+and bounded delivery history. It does not backfill successful observations or
+change existing configuration, accounting, subscription or authorization data.
+No existing API path, field meaning or configuration key changes.
+
+The optional agent fields `State.config_revision`, `State.config_delivery` and
+`Report.config_receipt` preserve legacy delivery. The complete `Revision`/ETag
+still changes with dynamic users, jobs and service controls. Process headers
+only opt into confirmation; legacy agents do not create confirmation records.
+A new delivery bypasses an otherwise matching ETag, while identical content and
+delivery retain 304 behavior. Confirmation is independently sequenced and never
+borrows freshness from a retried customer-traffic batch.
+
+Configuration confirmation requires bosun v0.84.0. Captain uses that formal
+module dependency; release verification runs with `GOWORK=off`. Older nodes
+retain immediate delivery but cannot provide confirmation.
+
+## Managed-line change receipts (Captain v1.49.0)
+
+Migration 101 adds line incarnations, atomic change/target records and bounded
+delivery-to-target associations. Existing lines acquire identities without
+fabricated change or successful-application records. Save/delete responses add
+`change_id`; existing payloads, routes and immediate configuration delivery are
+preserved. History APIs are administrator-only with a separate
+`line-changes:read` scope. Older narrow resource tokens gain no additional access.
+
+This panel feature consumes the optional configuration receipts above and adds
+no further bosun protocol fields. Legacy nodes still receive forwarding normally
+but cannot confirm application. Unchanged metadata and dynamic users do not
+create forwarding targets; authorization is never held for a rollout. A target
+confirms only its line-owned forwarding within the recorded delivered state,
+not whole-path connectivity or the current state of unrelated settings. Line
+incarnations, node UUIDs, pairing identities, process sessions and fresh receipts
+prevent deleted/recreated resources or stale responses from confirming a new
+change. These history records do not by themselves schedule releases. The optional
+staged workflow is separate and never freezes user credentials.
+
+
+## Structural releases and complete paths (Captain v1.49.0)
+
+Migration 102 stores staged ordinary TCP relay plans, immutable forwarding
+snapshots and fresh attempt evidence; migration 103 stores fixed path revisions
+and protected complete-route ownership. The new administrator APIs use separate
+`line-rollouts`, `forward-paths` and `path-routes` scopes. Existing line APIs
+retain immediate semantics unless an active plan reserves their resources.
+
+A plan changes only its owned forwarding projection. Current authorization,
+credentials, jobs and service controls remain immediate. Complete paths use
+existing relay fields without a new node protocol, but cannot use the ordinary
+line rollout scheduler. Version pinning preserves the full candidate sequence
+rather than creating arbitrary cross-branch combinations. The Captain rollback
+floor is v1.49.0; manual downgrade requires a matching backup and verified runtime
+recovery. See [operator workflows and limits](LINE_RELEASES.md).

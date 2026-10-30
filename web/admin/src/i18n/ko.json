@@ -1674,7 +1674,8 @@
       "disk": "디스크 공간",
       "nodes": "서버",
       "panel_cert": "패널 인증서",
-      "dns": "DNS 상태"
+      "dns": "DNS 상태",
+      "retention": "모니터링 기록 정리"
     },
     "msg": {
       "backup_local_error": "마지막 스냅샷이 실패했습니다: {{error}}",
@@ -1694,8 +1695,14 @@
       "panel_cert_expired": "만료됨",
       "dns_problem": "DNS 대상 {{count}}개를 확인해야 합니다",
       "dns_pending": "DNS 결과 {{count}}개가 오래되었거나 미확인입니다",
-      "dns_unknown": "DNS 상태를 불러올 수 없습니다"
-    }
+      "dns_unknown": "DNS 상태를 불러올 수 없습니다",
+      "retention_error": "일부 정리에 실패했습니다. 서비스 로그를 확인하세요. 자동으로 재시도합니다.",
+      "retention_budget": "제한 시간에 도달했습니다. 남은 데이터는 다음 배치에서 정리합니다.",
+      "retention_backlog": "만료된 데이터가 남아 있을 수 있습니다. 배치 정리를 계속합니다.",
+      "retention_stale": "2시간 이상 정리 실행 기록이 없습니다."
+    },
+    "retentionSummary": "최근 정리: {{at}}, {{duration}} ms 동안 {{rows}}행 삭제. 마지막 전체 실행: {{success}}.",
+    "retentionUnknown": "모니터링 기록을 아직 확인하지 않아 남은 데이터는 알 수 없습니다. 재시작 후 다시 기록합니다."
   },
   "accountID": {
     "label": "계정 ID",
@@ -3617,7 +3624,17 @@
     "rateInvalid": "1에서 1,000,000 Mbps 사이의 정수 한도를 입력하세요.",
     "discard": "정책 변경 취소",
     "savePolicy": "자동 정책 저장",
-    "close": "닫기"
+    "close": "닫기",
+    "offlineProtection": "연결이 끊겨도 자동 보호 유지",
+    "offlineProtectionHint": "서버가 최신 네트워크 트래픽을 로컬에서 판단합니다. 카운터 누락, 관측하지 못한 주기 경계 또는 재설치 후 오래된 기준은 패널에서 유효한 기준을 받을 때까지 관리 트래픽을 보수적으로 중지합니다. 수동 제한은 유지되며 기본값은 꺼짐입니다.",
+    "offlineUpgradeRequired": "서버를 업그레이드하고 새 보고서를 받은 뒤 오프라인 보호를 활성화하세요.",
+    "offlineState": "오프라인 보호: {{state}} · 보고된 모드: {{mode}}",
+    "offlineStates": {
+      "ready": "준비됨",
+      "active": "발동됨",
+      "waiting": "트래픽 증거 대기 중",
+      "error": "트래픽 증거 없음"
+    }
   },
   "probeThemes": {
     "title": "Komari 테마",
@@ -3639,5 +3656,205 @@
     "installed": "테마가 설치되었습니다. 선택하여 활성화할 수 있습니다.",
     "objectRequired": "설정은 JSON 객체여야 합니다.",
     "optionsFailed": "선택 항목을 불러올 수 없습니다. 다시 불러온 후 저장하세요."
+  },
+  "lineImpact": {
+    "title": "변경 영향",
+    "preview": "영향 미리 보기",
+    "save": "검토한 변경 저장",
+    "refresh": "미리 보기 새로 고침",
+    "stale": "초안이 변경되었습니다. 저장 전에 다시 미리 보세요.",
+    "scope": "전달할 포워딩 설정만 비교합니다. 서버에서 실행 중인 파일이나 연결 가능 여부를 나타내지 않습니다. 저장 후 기존의 즉시 전달 절차로 적용됩니다.",
+    "changes": "서버 {{count}}대의 포워딩 설정 변경",
+    "noChanges": "포워딩 설정 변경이 없습니다. 이름 등의 정보는 변경될 수 있습니다.",
+    "before": "저장된 예상 설정",
+    "after": "변경할 예상 설정",
+    "dependencies": "종속 관계와 참조",
+    "topologyHint": "설정된 경로만 표시합니다. 후보 연결은 다음 홉의 대안이며 독립된 전체 경로가 아닙니다. 실시간 상태를 추정하지 않습니다.",
+    "from": "출발",
+    "to": "도착",
+    "connection": "연결",
+    "uses": "이 경로를 사용하는 구독 노드",
+    "noUses": "현재 이 경로를 사용하는 구독 노드가 없습니다.",
+    "roles": {
+      "relay": "중계",
+      "landing": "최종 서버",
+      "reverse_exit": "역방향 출구"
+    },
+    "edges": {
+      "forward": "다음 홉",
+      "candidate": "다음 홉 후보",
+      "path": "전체 경로",
+      "vless_reverse": "VLESS 역방향",
+      "wireguard": "WireGuard 역방향"
+    },
+    "usage": {
+      "line": "경로 직접 참조",
+      "client_chain": "클라이언트 체인 종속"
+    },
+    "endpoints": "변경할 구독 접속 주소",
+    "entryChange": "구독 접속 주소 변경"
+  },
+  "nodeConfiguration": {
+    "title": "설정 적용 확인",
+    "hint": "현재 프로세스가 전체 설정을 받아 적용했는지 확인합니다. 종단 간 연결을 보장하지 않습니다. 사용자 권한과 작업은 계속 즉시 반영됩니다.",
+    "structure": "구조 버전",
+    "state": "전체 상태",
+    "observed": "노드 관측 시간: {{at}}",
+    "history": "설정 전달 기록",
+    "historyHint": "최근 20건의 전달입니다. 최초 확인은 과거 기록이며 해당 설정이 현재 실행 중임을 의미하지 않습니다.",
+    "delivery": "전달 ID",
+    "issued": "발급 시간",
+    "confirmed": "최초 적용 확인",
+    "unknownHint": "유효한 응답이 아직 없습니다. 기존 에이전트는 계속 작동하며 업그레이드 후 확인 정보를 제공합니다.",
+    "unavailableHint": "사용자 지정 덮어쓰기 또는 불투명한 설정은 신뢰할 수 있는 구조 버전을 만들 수 없습니다. 기존 설정 전달은 계속됩니다.",
+    "loadError": "현재 확인 정보를 불러오지 못했습니다.",
+    "status": {
+      "unknown": "알 수 없음",
+      "unavailable": "구조 버전 사용 불가",
+      "pending": "적용 확인 대기",
+      "applied": "적용됨",
+      "stale": "확인 만료"
+    }
+  },
+  "lineChanges": {
+    "title": "경로 변경 이력",
+    "history": "변경 기록",
+    "application": "적용 확인",
+    "hint": "저장, 삭제 및 자동 재컴파일을 기록하며 전달 설정이 변경된 서버만 표시합니다. 유효한 응답은 표시된 전체 상태 버전에서 이 경로의 전달이 최근 적용되었음을 뜻합니다. 현재 서버 설정 전체의 적용이나 종단 간 연결을 보장하지 않습니다.",
+    "loadError": "현재 확인 정보를 가져올 수 없습니다. 캐시를 적용 완료로 표시하지 않습니다.",
+    "version": "버전 {{version}}",
+    "empty": "아직 변경 기록이 없습니다. 이전 변경 사항은 소급 기록하지 않습니다.",
+    "newer": "최신 기록",
+    "older": "이전 기록",
+    "select": "서버를 확인할 변경 사항을 선택하세요.",
+    "back": "변경 기록으로",
+    "created": "저장 시간: {{at}}",
+    "actor": "요청자: {{actor}}",
+    "supersededAt": "대체 시간: {{at}}",
+    "historyHint": "상태는 표시된 상태 버전의 아직 유효한 증거를 사용합니다. 최초 확인은 이력이며 유효 기간을 연장하지 않습니다.",
+    "noChanges": "전달 설정이 변경되지 않았습니다. 이 기록은 서버 적용 응답이 필요하지 않습니다.",
+    "notAppliedHint": "서버 전체 상태의 적용이 확인되지 않았습니다. 이 결과만으로 해당 경로에 장애가 있다고 판단할 수 없습니다.",
+    "observed": "최근 노드 관측: {{at}}",
+    "confirmed": "최초 확인(이력): {{at}}",
+    "details": "설정 변경 및 확인 정보",
+    "issued": "전달 시간: {{at}}",
+    "before": "변경 전 예상 전달 설정",
+    "after": "변경 후 예상 전달 설정",
+    "tokenHint": "경로 변경 이력은 읽기 전용 권한 line-changes:read를 사용합니다.",
+    "kind": {
+      "save": "저장",
+      "recompile": "자동 재컴파일",
+      "delete": "삭제"
+    },
+    "action": {
+      "apply": "전달 변경 적용",
+      "remove": "관리 중인 전달 제거"
+    },
+    "status": {
+      "no_runtime_change": "전달 변경 없음",
+      "superseded": "대체됨",
+      "applied": "적용됨",
+      "partial": "일부 확인됨",
+      "pending": "확인 대기 중",
+      "unknown": "알 수 없음"
+    },
+    "targetStatus": {
+      "pending": "전달 대기 중",
+      "delivered": "전달됨, 확인 대기 중",
+      "applied": "적용됨",
+      "not_applied": "적용 미확인",
+      "stale": "확인 만료",
+      "superseded": "대체됨",
+      "identity_changed": "서버 식별 정보 변경",
+      "removed": "서버 제거됨",
+      "unknown": "알 수 없음"
+    },
+    "close": "닫기"
+  },
+  "lineRollouts": {
+    "history": "회선 배포",
+    "plan": "단계별 배포",
+    "remove": "단계별 제거",
+    "scope": "일반 TCP relay 회선용입니다. 새 리스너를 만들고 확인한 뒤 구독 접속점을 전환하고 이전 리스너를 제거합니다. 사용자 권한과 작업은 최신 상태를 유지합니다. 안전하게 공존할 수 없는 변경은 거부됩니다.",
+    "timeout": "단계 제한 시간(초)",
+    "timeoutHint": "전달된 각 단계에 30~3600초를 적용합니다. 시간이 지나면 다음 단계를 중지합니다.",
+    "reviewAgain": "초안 또는 제한 시간이 변경되었습니다. 다시 검토하세요.",
+    "preview": "배포 계획 미리보기",
+    "start": "검토한 배포 시작",
+    "started": "배포 계획을 시작했습니다",
+    "steps": "배포 단계",
+    "noSteps": "전달 규칙 변경 없이 검토한 메타데이터만 갱신합니다.",
+    "loadError": "현재 진행 상황을 가져올 수 없습니다. 캐시된 확인은 현재 증거로 표시하지 않습니다.",
+    "empty": "배포 계획이 없습니다.",
+    "historical": "단계 완료는 과거의 진행 기록이며 현재 연결을 보장하지 않습니다.",
+    "published": "구독 접속점 전환: {{at}}",
+    "pausedReason": "배포 일시 중지:",
+    "fresh": "유효한 적용 확인",
+    "attempt": "시도 {{count}}",
+    "deadline": "기한: {{at}}",
+    "snapshot": "전달 규칙 스냅샷",
+    "status": {
+      "running": "진행 중",
+      "paused": "일시 중지",
+      "completed": "배포 완료",
+      "compensated": "보상 계획 생성됨"
+    },
+    "phase": {
+      "expand": "새 전달 규칙 생성",
+      "cleanup": "이전 전달 규칙 제거"
+    },
+    "stepStatus": {
+      "pending": "아직 전달 안 됨",
+      "released": "확인 대기",
+      "applied": "단계 확인됨"
+    },
+    "action": {
+      "pause": "일시 중지",
+      "retry": "재시도 / 계속",
+      "compensate": "보상 계획"
+    },
+    "actionHint": {
+      "pause": "다음 단계를 중지합니다. 이미 전달한 규칙은 계속 실행됩니다.",
+      "retry": "현재 의존성을 다시 확인하고 새로운 적용 확인을 시작합니다.",
+      "compensate": "이전 의도와 현재 구성을 바탕으로 새 계획을 만듭니다. 현재 사용자 권한을 유지하며 충돌하거나 안전하지 않은 보상은 거부됩니다."
+    }
+  },
+  "pathRoutes": {
+    "routes": "완전 경로 회선",
+    "paths": "경로 템플릿",
+    "scope": "하나의 진입 서버 뒤에 고정 버전의 경로를 조합합니다. 각 후보는 독립된 홉 순서와 리스너를 유지합니다. 내장 릴레이 TCP만 지원하며 다음 홉 검사는 전체 경로 연결을 보장하지 않습니다.",
+    "templateHint": "템플릿은 서버와 고정 참조를 정의하며 수신 포트를 할당하지 않습니다. 편집하면 새 버전이 생성되고 기존 참조는 선택한 버전을 유지합니다.",
+    "routeHint": "모든 후보는 같은 최종 인바운드에 연결됩니다. 각 홉에 전용 포트를 지정한 뒤 설정 영향을 미리 보고 저장하세요.",
+    "createRoute": "조합 회선 만들기",
+    "editRoute": "조합 회선 편집",
+    "createPath": "경로 템플릿 만들기",
+    "editPath": "경로 템플릿 편집",
+    "noRoutes": "완전 경로 회선이 없습니다. 먼저 경로 템플릿을 만드세요.",
+    "noPaths": "경로 템플릿이 없습니다.",
+    "name": "이름",
+    "revisionValue": "버전 {{version}}",
+    "fixedRevision": "고정 버전",
+    "branch": "후보 {{number}}",
+    "step": "단계 {{number}}",
+    "serverHop": "서버 홉",
+    "pathReference": "경로 템플릿",
+    "lineReference": "기존 선형 회선",
+    "includeLanding": "원본 회선의 도착 서버를 추가 홉으로 포함",
+    "lineHint": "그룹당 서버가 한 대인 TCP 릴레이 회선만 재사용할 수 있습니다. 서버 순서를 참조하며 원본 리스너와 최종 인바운드는 변경하지 않습니다.",
+    "pinnedHint": "참조는 선택한 버전을 유지합니다. 최대 8단계, 확장 후 8홉, 참조 깊이 8단계까지 지원하며 순환 참조는 거부됩니다.",
+    "addServer": "서버 홉 추가",
+    "addPath": "경로 참조",
+    "addLine": "회선 참조",
+    "addBranch": "후보 경로 추가",
+    "entry": "진입 서버",
+    "selection": "후보 선택 방식",
+    "portsHint": "확장된 각 홉에 별도 수신 포트를 지정하세요. 이 포트는 해당 조합 회선에 속합니다. 경로나 버전을 바꾸면 포트 할당이 초기화됩니다.",
+    "tcpOnly": "전송 방식이 TCP인 인바운드를 선택하세요.",
+    "impactHint": "예상 전송 설정의 변경 내용입니다. 저장은 기존 배포 방식을 사용하며 미리보기는 실행 상태나 전체 경로 연결을 증명하지 않습니다.",
+    "uses": "참조 관계",
+    "noUses": "이 템플릿을 참조하는 저장된 경로나 회선이 없습니다.",
+    "deletePathHint": "“{{name}}” 및 모든 버전을 삭제할까요? 참조 중인 버전은 먼저 참조를 해제해야 합니다.",
+    "deleteRouteHint": "회선 “{{name}}” 및 소유한 전송 규칙을 삭제할까요? 먼저 구독 노드 연결을 해제하세요.",
+    "topologyHint": "확장된 경로의 설정상 연결입니다. 같은 서버를 공유해도 경로마다 별도 리스너를 사용합니다. 이 화면은 실시간 상태를 나타내지 않습니다."
   }
 }

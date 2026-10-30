@@ -70,6 +70,9 @@ func (s *Store) SetNodeForwards(ctx context.Context, nodeID int64, list []NodeFo
 	if err = resolveInternalForwardTargetsTx(ctx, tx, nodeID, list); err != nil {
 		return err
 	}
+	if err = checkRolloutForwardsTx(ctx, tx, nodeID, list); err != nil {
+		return err
+	}
 	if list == nil {
 		list = []NodeForward{}
 	}

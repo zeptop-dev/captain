@@ -23,11 +23,15 @@ import (
 var (
 	ErrLineConflict = errors.New("line changed; reload before saving")
 	ErrLineInUse    = errors.New("resource is referenced by a line; edit or remove the line first")
+	ErrLinePreview  = errors.New("line impact changed; preview again before saving")
 )
 
 // ForwardLine owns its generated listeners, but never owns its landing inbound
 // or subscription entries. Groups are ordered layers, not DNS answer pools.
 type ForwardLine struct {
+	PathRoute bool `json:"path_route,omitempty"`
+	// Optional on writes. Existing clients retain their immediate-save behavior.
+	PreviewRevision   string             `json:"preview_revision,omitempty"`
 	ID                int64              `json:"id"`
 	Name              string             `json:"name"`
 	Version           int64              `json:"version"`
@@ -129,6 +133,9 @@ func lineRuntimeTag(l *ForwardLine, m LineMember, f spec.Forward) string {
 }
 
 func (s *Store) decorateLine(ctx context.Context, l *ForwardLine) error {
+	if err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM forward_path_routes WHERE line_id=?)`, l.ID).Scan(&l.PathRoute); err != nil {
+		return err
+	}
 	for i, g := range l.Groups {
 		for _, m := range g.Members {
 			n, err := s.NodeByID(ctx, m.NodeID)
@@ -280,74 +287,101 @@ func normalizeLine(l *ForwardLine) error {
 // SaveLine is called under Topology. One transaction owns the specification,
 // membership references, generated forwards, and all bound entry addresses.
 func (s *Store) SaveLine(ctx context.Context, l *ForwardLine) error {
+	_, err := s.SaveLineWithChange(ctx, l)
+	return err
+}
+
+// SaveLineWithChange returns the record committed by this transaction, even if
+// a background recompile starts immediately after the commit.
+func (s *Store) SaveLineWithChange(ctx context.Context, l *ForwardLine) (string, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer tx.Rollback()
+	if owned, err := isPathRouteTx(ctx, tx, l.ID); err != nil {
+		return "", err
+	} else if owned {
+		return "", ErrPathRouteOwned
+	}
+	if l.PathRoute {
+		return "", ErrPathRouteOwned
+	}
+
+	if l.PreviewRevision != "" {
+		preview, err := previewLineTx(ctx, tx, l)
+		if err != nil {
+			return "", err
+		}
+		if preview.Revision != l.PreviewRevision {
+			return "", ErrLinePreview
+		}
+	}
+	if l.ID > 0 {
+		if err = checkLineRolloutWriteTx(ctx, tx, l.ID); err != nil {
+			return "", err
+		}
+	}
 	next := *l
 	if l.ID == 0 {
 		r, err := tx.ExecContext(ctx, `INSERT INTO forward_lines(name,version,protocol,backend,target_inbound_id,groups_json,updated_at) VALUES(?,1,?,?,?,'[]',?)`, l.Name, l.Protocol, l.Backend, l.TargetInboundID, now())
 		if err != nil {
-			return err
+			return "", err
 		}
 		next.ID, _ = r.LastInsertId()
 		next.Version = 1
 	} else {
 		old, err := scanLine(tx.QueryRowContext(ctx, "SELECT "+lineCols+" FROM forward_lines WHERE id=?", l.ID))
 		if err != nil {
-			return err
+			return "", err
 		}
 		if old.Version != l.Version {
-			return ErrLineConflict
+			return "", ErrLineConflict
 		}
 		preserveLineAddressModes(&next, old)
 		next.Version++
 	}
 	if err = normalizeLine(&next); err != nil {
-		return err
+		return "", err
 	}
-	if err = saveLineTx(ctx, tx, &next); err != nil {
-		return err
+	if err = saveLineTx(ctx, tx, &next, "save"); err != nil {
+		return "", err
+	}
+	var change string
+	if err = tx.QueryRowContext(ctx, `SELECT latest_change_id FROM line_change_scopes WHERE line_id=?`, next.ID).Scan(&change); err != nil {
+		return "", err
 	}
 	if err = tx.Commit(); err != nil {
-		return err
+		return "", err
 	}
 	*l = next
-	return nil
+	l.PreviewRevision = ""
+	return change, nil
 }
 
-func saveLineTx(ctx context.Context, tx *sql.Tx, l *ForwardLine) error {
+func saveLineTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, kind string) error {
+	before, err := lineOwnedSnapshotTx(ctx, tx, l.ID)
+	if err != nil {
+		return err
+	}
 	generated, endpoints, err := compileLine(ctx, tx, l)
 	if err != nil {
 		return err
 	}
-	// Reject removing/reassigning a published first member instead of silently
-	// moving a user's endpoint to an arbitrary alternative.
-	rows, err := tx.QueryContext(ctx, `SELECT id,line_member_id FROM entries WHERE line_id=?`, l.ID)
-	if err != nil {
+	if kind == "recompile" {
+		skip, e := allowRolloutRecompileTx(ctx, tx, l, generated, endpoints)
+		if e != nil {
+			return e
+		}
+		if skip {
+			return nil
+		}
+	} else if err = checkLineRolloutWriteTx(ctx, tx, l.ID); err != nil {
 		return err
 	}
-	entryMembers := map[int64]string{}
-	for rows.Next() {
-		var id int64
-		var m string
-		if err = rows.Scan(&id, &m); err != nil {
-			rows.Close()
-			return err
-		}
-		entryMembers[id] = m
-	}
-	err = rows.Err()
-	rows.Close()
+	entryMembers, err := linePublishedMembersTx(ctx, tx, l.ID, endpoints)
 	if err != nil {
 		return err
-	}
-	for _, m := range entryMembers {
-		e, ok := endpoints[m]
-		if !ok || e.Host == "" {
-			return errors.New("a published member cannot be removed or lose its public endpoint; edit its entries first")
-		}
 	}
 	if err = replaceLineForwardsTx(ctx, tx, l.ID, generated); err != nil {
 		return err
@@ -373,35 +407,102 @@ func saveLineTx(ctx context.Context, tx *sql.Tx, l *ForwardLine) error {
 			return err
 		}
 	}
-	return nil
+	return recordLineChangeTx(ctx, tx, l, kind, before)
+}
+
+// Both preview and save enforce published-member protection from the same snapshot.
+func linePublishedMembersTx(ctx context.Context, tx *sql.Tx, id int64, endpoints map[string]LineEndpoint) (map[int64]string, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT id,line_member_id FROM entries WHERE line_id=?`, id)
+	if err != nil {
+		return nil, err
+	}
+	entryMembers := map[int64]string{}
+	for rows.Next() {
+		var id int64
+		var m string
+		if err = rows.Scan(&id, &m); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		entryMembers[id] = m
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	for _, m := range entryMembers {
+		e, ok := endpoints[m]
+		if !ok || e.Host == "" {
+			return nil, errors.New("a published member cannot be removed or lose its public endpoint; edit its entries first")
+		}
+	}
+	return entryMembers, nil
 }
 
 func (s *Store) DeleteLine(ctx context.Context, id, version int64) error {
+	_, err := s.DeleteLineWithChange(ctx, id, version)
+	return err
+}
+
+// DeleteLineWithChange returns the cleanup record from this exact transaction.
+func (s *Store) DeleteLineWithChange(ctx context.Context, id, version int64) (string, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer tx.Rollback()
+	if owned, err := isPathRouteTx(ctx, tx, id); err != nil {
+		return "", err
+	} else if owned {
+		return "", ErrPathRouteOwned
+	}
+	if err := pathSourceLineInUseTx(ctx, tx, id); err != nil {
+		return "", err
+	}
+
+	if err = checkLineRolloutWriteTx(ctx, tx, id); err != nil {
+		return "", err
+	}
 	var v, n int64
 	if err = tx.QueryRowContext(ctx, `SELECT version FROM forward_lines WHERE id=?`, id).Scan(&v); err != nil {
-		return wrapNotFound(err)
+		return "", wrapNotFound(err)
 	}
 	if v != version {
-		return ErrLineConflict
+		return "", ErrLineConflict
 	}
 	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM entries WHERE line_id=?`, id).Scan(&n); err != nil {
-		return err
+		return "", err
 	}
 	if n > 0 {
-		return fmt.Errorf("%w: subscription nodes still publish this line", ErrLineInUse)
+		return "", fmt.Errorf("%w: subscription nodes still publish this line", ErrLineInUse)
+	}
+	old, err := scanLine(tx.QueryRowContext(ctx, "SELECT "+lineCols+" FROM forward_lines WHERE id=?", id))
+	if err != nil {
+		return "", err
+	}
+	before, err := lineOwnedSnapshotTx(ctx, tx, id)
+	if err != nil {
+		return "", err
 	}
 	if err = replaceLineForwardsTx(ctx, tx, id, nil); err != nil {
-		return err
+		return "", err
+	}
+	old.Version++
+	if err = recordLineChangeTx(ctx, tx, old, "delete", before); err != nil {
+		return "", err
+	}
+	var change string
+	if err = tx.QueryRowContext(ctx, `SELECT latest_change_id FROM line_change_scopes WHERE line_id=?`, id).Scan(&change); err != nil {
+		return "", err
 	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM forward_lines WHERE id=?`, id); err != nil {
-		return err
+		return "", err
 	}
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return "", err
+	}
+	return change, nil
 }
 
 func replaceLineForwardsTx(ctx context.Context, tx *sql.Tx, id int64, generated map[int64][]NodeForward) error {
@@ -502,6 +603,13 @@ func (s *Store) ResolveLineEntry(ctx context.Context, e *domain.Entry) error {
 		}
 		return nil
 	}
+	var unpublished bool
+	if err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM line_rollouts WHERE line_id=? AND status IN ('running','paused') AND (kind='delete' OR (kind='create' AND published_at IS NULL)))`, *e.LineID).Scan(&unpublished); err != nil {
+		return err
+	}
+	if unpublished {
+		return ErrLineRolloutConflict
+	}
 	l, err := s.LineByID(ctx, *e.LineID)
 	if err != nil {
 		return err
@@ -530,11 +638,11 @@ func nodeHasLines(ctx context.Context, q interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 }, id int64) (bool, error) {
 	var n int
-	err := q.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM forward_line_members WHERE node_id=?) + (SELECT COUNT(*) FROM forward_lines l WHERE l.target_inbound_id IN (
+	err := q.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM forward_path_hops WHERE node_id=?) + (SELECT COUNT(*) FROM forward_line_members WHERE node_id=?) + (SELECT COUNT(*) FROM forward_lines l WHERE l.target_inbound_id IN (
 	SELECT id FROM inbounds WHERE node_id=?
 	UNION SELECT user_inbound_id FROM node_reverse_links WHERE exit_id=?
 	UNION SELECT receiver_inbound_id FROM node_reverse_links WHERE exit_id=?
-	UNION SELECT user_inbound_id FROM node_wireguard_links WHERE exit_id=?))`, id, id, id, id, id).Scan(&n)
+	UNION SELECT user_inbound_id FROM node_wireguard_links WHERE exit_id=?))`, id, id, id, id, id, id).Scan(&n)
 	if err != nil || n > 0 {
 		return n > 0, err
 	}
@@ -584,11 +692,17 @@ func refreshLinesForNodeTx(ctx context.Context, tx *sql.Tx, node int64) error {
 			return fmt.Errorf("line %q: %w; choose another landing or remove this line first", l.Name, err)
 		}
 		l.Protocol = protocol
-		if err = normalizeLine(l); err != nil {
-			return fmt.Errorf("line %q: %w; update its candidate group strategy before changing the landing transport", l.Name, err)
+		owned, e := isPathRouteTx(ctx, tx, l.ID)
+		if e != nil {
+			return e
+		}
+		if !owned {
+			if err = normalizeLine(l); err != nil {
+				return fmt.Errorf("line %q: %w; update its candidate group strategy before changing the landing transport", l.Name, err)
+			}
 		}
 		l.Version++
-		if err = saveLineTx(ctx, tx, l); err != nil {
+		if err = saveLineTx(ctx, tx, l, "recompile"); err != nil {
 			return err
 		}
 	}

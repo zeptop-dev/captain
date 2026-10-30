@@ -136,12 +136,19 @@ func (s *Store) UpdateIngress(ctx context.Context, g *Ingress) error {
 		return err
 	}
 	defer tx.Rollback()
+	var nodeID int64
+	if err = tx.QueryRowContext(ctx, `SELECT node_id FROM ingresses WHERE id=?`, g.ID).Scan(&nodeID); err != nil {
+		return wrapNotFound(err)
+	}
 	_, err = tx.ExecContext(ctx, `UPDATE ingresses SET name = ?, kind = ?, bind_ip = ?, line_ip = ?, entry_host = ?, entry_domain = ?, port_from = ?, port_to = ?, port_offset = ?, reserved_ports = ?, port_mappings_json = ?, require_ingress = ?, updated_at = ? WHERE id = ?`,
 		g.Name, g.Kind, g.BindIP, g.LineIP, g.EntryHost, g.EntryDomain, g.PortFrom, g.PortTo, g.PortOffset, joinPorts(g.ReservedPorts), string(mappings), g.RequireIngress, now(), g.ID)
 	if err != nil {
 		return err
 	}
-	if err = refreshLinesForNodeTx(ctx, tx, g.NodeID); err != nil {
+	if err = checkRolloutNodeReservationsTx(ctx, tx, nodeID); err != nil {
+		return err
+	}
+	if err = refreshLinesForNodeTx(ctx, tx, nodeID); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -153,6 +160,14 @@ func (s *Store) DeleteIngress(ctx context.Context, id int64) error {
 		return err
 	}
 	defer tx.Rollback()
+	var pathRefs int
+	if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM forward_path_hops WHERE ingress_id=?`, id).Scan(&pathRefs); err != nil {
+		return err
+	}
+	if pathRefs > 0 {
+		return ErrPathInUse
+	}
+
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM inbounds WHERE ingress_id=?", id)
 	if err != nil {
 		return err
@@ -199,6 +214,9 @@ func (s *Store) DeleteIngress(ctx context.Context, id int64) error {
 		}
 	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM ingresses WHERE id = ?`, id); err != nil {
+		return err
+	}
+	if err = checkRolloutNodeReservationsTx(ctx, tx, node); err != nil {
 		return err
 	}
 	return tx.Commit()

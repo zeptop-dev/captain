@@ -51,3 +51,12 @@ test('only a confirmed execution report is green; new capability reasons do not 
   assert.equal(controlCapabilityKey('unpaired'), 'unpaired')
   assert.equal(controlCapabilityKey('new_reason_from_newer_agent'), 'unavailable')
 })
+
+test('offline protection is explicit, capability gated and cleared when alert-only is selected', () => {
+  assert.equal('offline_enabled' in policyWrite('legacy', policy), false)
+  assert.equal(policyDraftError({ ...policy, offline_enabled: true }, state), 'offlineUpgradeRequired')
+  assert.equal(policyDraftError({ ...policy, offline_enabled: true }, { ...state, capability: { supported: true, offline_supported: true } }), null)
+  assert.equal(policyWrite('new', { ...policy, offline_enabled: true }).offline_enabled, true)
+  assert.equal(policyWrite('disabled', { ...policy, action: 'alert', offline_enabled: true }).offline_enabled, false)
+  assert.equal(manualDraftError({ mode: 'normal', exempt_current_period: false }, { ...state, runtime: { offline: { automatic: true } } }), 'exemptionRequired')
+})

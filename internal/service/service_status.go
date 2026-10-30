@@ -499,84 +499,96 @@ func (e *runtimeEvaluation) reverse(link store.ReverseLink) EntryRuntimeStatus {
 }
 
 func (e *runtimeEvaluation) line(line *store.ForwardLine, first string, landing EntryRuntimeStatus) EntryRuntimeStatus {
-	next := map[string]EntryRuntimeStatus{}
-	for i := len(line.Groups) - 1; i >= 0; i-- {
-		current := map[string]EntryRuntimeStatus{}
-		for _, member := range line.Groups[i].Members {
-			n := e.node(member.NodeID)
-			if n.status.State != "healthy" {
-				current[member.ID] = n.status
-				continue
-			}
-			forwards, err := e.service.store.NodeForwards(e.ctx, member.NodeID)
-			if err != nil {
-				return e.failure(err)
-			}
-			var compiled *store.NodeForward
-			for j := range forwards {
-				if forwards[j].LineID == line.ID && forwards[j].LineMemberID == member.ID {
-					compiled = &forwards[j]
-					break
-				}
-			}
-			if compiled == nil {
-				e.clearPrefix(fmt.Sprintf("forward/%d/line-%d-%s-", member.NodeID, line.ID, member.ID))
-				current[member.ID] = runtimeStatus("unknown", "config_pending")
-				continue
-			}
-			var reported *agentproto.ForwardStatus
-			for j := range n.report.Forwards {
-				if n.report.Forwards[j].Tag == compiled.Tag {
-					reported = &n.report.Forwards[j]
-					break
-				}
-			}
-			if reported == nil {
-				e.clearPrefix(fmt.Sprintf("forward/%d/%s/", member.NodeID, compiled.Tag))
-				current[member.ID] = observedStatus("unknown", "no_data", n.report.ObservedAt, "forward_tcp")
-				continue
-			}
-			targets := []string{compiled.Target}
-			for _, target := range compiled.Targets {
-				targets = append(targets, target.Target)
-			}
-			children := []EntryRuntimeStatus{landing}
+	members := map[string]store.LineMember{}
+	adjacency := map[string][]string{}
+	for i, group := range line.Groups {
+		for _, member := range group.Members {
+			members[member.ID] = member
 			if i+1 < len(line.Groups) {
-				children = nil
 				for _, child := range line.Groups[i+1].Members {
-					children = append(children, next[child.ID])
+					adjacency[member.ID] = append(adjacency[member.ID], child.ID)
 				}
 			}
-			if len(targets) != len(children) {
-				current[member.ID] = runtimeStatus("unknown", "no_route")
-				continue
-			}
-			paths := make([]EntryRuntimeStatus, 0, len(children))
-			for j, child := range children {
-				health, protocol := "unknown", "none"
-				if len(targets) == 1 {
-					health, protocol = reported.Health, reported.ProbeProtocol
-				} else if j < len(reported.Targets) && reported.Targets[j].Target == targets[j] {
-					health, protocol = reported.Targets[j].Health, reported.Targets[j].ProbeProtocol
-				}
-				if line.Protocol == "udp" && protocol != "backend" {
-					protocol = "none"
-				}
-				edge := e.forwardEdge(n, compiled.Tag+fmt.Sprintf("/%d", j), health, protocol)
-				paths = append(paths, runtimeSeries(edge, child))
-			}
-			current[member.ID] = runtimeAlternatives(paths)
 		}
-		next = current
 	}
-	out, ok := next[first]
-	if !ok {
-		return runtimeStatus("unknown", "no_route")
+	if line.PathRoute {
+		adjacency = store.PathRouteAdjacency(line)
 	}
-	for _, member := range line.Groups[0].Members {
-		if member.ID == first && member.IngressID != nil {
-			out = runtimeSeries(out, runtimeStatus("unknown", "external_path"))
+	cached := map[string]EntryRuntimeStatus{}
+	visiting := map[string]bool{}
+	var visit func(string) EntryRuntimeStatus
+	visit = func(id string) EntryRuntimeStatus {
+		if status, ok := cached[id]; ok {
+			return status
 		}
+		member, ok := members[id]
+		if !ok || visiting[id] {
+			return runtimeStatus("unknown", "no_route")
+		}
+		visiting[id] = true
+		defer delete(visiting, id)
+		n := e.node(member.NodeID)
+		if n.status.State != "healthy" {
+			return n.status
+		}
+		forwards, err := e.service.store.NodeForwards(e.ctx, member.NodeID)
+		if err != nil {
+			return e.failure(err)
+		}
+		var compiled *store.NodeForward
+		for j := range forwards {
+			if forwards[j].LineID == line.ID && forwards[j].LineMemberID == member.ID {
+				compiled = &forwards[j]
+				break
+			}
+		}
+		if compiled == nil {
+			e.clearPrefix(fmt.Sprintf("forward/%d/line-%d-%s-", member.NodeID, line.ID, member.ID))
+			return runtimeStatus("unknown", "config_pending")
+		}
+		var reported *agentproto.ForwardStatus
+		for j := range n.report.Forwards {
+			if n.report.Forwards[j].Tag == compiled.Tag {
+				reported = &n.report.Forwards[j]
+				break
+			}
+		}
+		if reported == nil {
+			e.clearPrefix(fmt.Sprintf("forward/%d/%s/", member.NodeID, compiled.Tag))
+			return observedStatus("unknown", "no_data", n.report.ObservedAt, "forward_tcp")
+		}
+		targets := compiled.Hops()
+		children := []EntryRuntimeStatus{landing}
+		if ids := adjacency[id]; len(ids) > 0 {
+			children = nil
+			for _, child := range ids {
+				children = append(children, visit(child))
+			}
+		}
+		if len(targets) != len(children) {
+			return runtimeStatus("unknown", "no_route")
+		}
+		paths := make([]EntryRuntimeStatus, 0, len(children))
+		for j, child := range children {
+			health, protocol := "unknown", "none"
+			if len(targets) == 1 {
+				health, protocol = reported.Health, reported.ProbeProtocol
+			} else if j < len(reported.Targets) && reported.Targets[j].Target == targets[j].Target {
+				health, protocol = reported.Targets[j].Health, reported.Targets[j].ProbeProtocol
+			}
+			if line.Protocol == "udp" && protocol != "backend" {
+				protocol = "none"
+			}
+			edge := e.forwardEdge(n, compiled.Tag+fmt.Sprintf("/%d", j), health, protocol)
+			paths = append(paths, runtimeSeries(edge, child))
+		}
+		status := runtimeAlternatives(paths)
+		cached[id] = status
+		return status
+	}
+	out := visit(first)
+	if member, ok := members[first]; ok && member.IngressID != nil {
+		out = runtimeSeries(out, runtimeStatus("unknown", "external_path"))
 	}
 	return out
 }

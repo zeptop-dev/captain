@@ -1674,7 +1674,8 @@
       "disk": "磁碟空間",
       "nodes": "伺服器",
       "panel_cert": "面板憑證",
-      "dns": "DNS 解析健康"
+      "dns": "DNS 解析健康",
+      "retention": "監控歷史清理"
     },
     "msg": {
       "backup_local_error": "最近一次快照失敗：{{error}}",
@@ -1694,8 +1695,14 @@
       "panel_cert_expired": "已過期",
       "dns_problem": "{{count}} 個網域的 DNS 需要檢查",
       "dns_pending": "{{count}} 項 DNS 結果過期或未確認",
-      "dns_unknown": "無法讀取 DNS 健康狀態"
-    }
+      "dns_unknown": "無法讀取 DNS 健康狀態",
+      "retention_error": "部分清理失敗，詳情見服務日誌；背景會繼續重試。",
+      "retention_budget": "本輪已達時間預算，剩餘資料將繼續分批清理。",
+      "retention_backlog": "可能仍有過期資料，背景會繼續分批清理。",
+      "retention_stale": "超過兩小時沒有清理記錄。"
+    },
+    "retentionSummary": "最近清理：{{at}}，刪除 {{rows}} 列，耗時 {{duration}} ms；最近完整執行：{{success}}。",
+    "retentionUnknown": "監控歷史尚未清理，積壓狀態未知；重啟後重新記錄。"
   },
   "accountID": {
     "label": "帳號 ID",
@@ -3617,7 +3624,17 @@
     "rateInvalid": "請輸入 1 到 1,000,000 Mbps 的整數頻寬上限。",
     "discard": "放棄策略變更",
     "savePolicy": "儲存自動策略",
-    "close": "關閉"
+    "close": "關閉",
+    "offlineProtection": "中斷連線時繼續自動保護",
+    "offlineProtectionHint": "伺服器在本機依新鮮網卡流量判斷。計數遺失、未觀測到週期邊界或重裝後基準過期時，將保守暫停託管流量，直到收到面板有效基準。手動限制始終保留，預設關閉。",
+    "offlineUpgradeRequired": "請升級伺服器並等待新報告後啟用離線保護。",
+    "offlineState": "離線保護：{{state}} · 回報模式：{{mode}}",
+    "offlineStates": {
+      "ready": "已就緒",
+      "active": "已觸發",
+      "waiting": "等待流量證據",
+      "error": "流量證據無法使用"
+    }
   },
   "probeThemes": {
     "title": "Komari 主題",
@@ -3639,5 +3656,205 @@
     "installed": "主題已安裝，可選擇並啟用。",
     "objectRequired": "設定必須是 JSON 物件。",
     "optionsFailed": "無法載入可用選項，請重新載入後儲存。"
+  },
+  "lineImpact": {
+    "title": "變更影響",
+    "preview": "預覽影響",
+    "save": "儲存已審閱變更",
+    "refresh": "重新預覽",
+    "stale": "草稿已變更，請重新預覽後儲存。",
+    "scope": "這裡只比較期望的轉發設定，不代表伺服器正在執行的檔案或連通性。儲存後仍透過既有即時下發流程套用。",
+    "changes": "{{count}} 台伺服器的轉發設定將變更",
+    "noChanges": "轉發設定沒有變更；名稱等資料仍可能改變。",
+    "before": "已儲存的期望設定",
+    "after": "擬儲存的期望設定",
+    "dependencies": "依賴與引用",
+    "topologyHint": "這裡只顯示設定路徑。候選邊表示下一跳備選，不代表獨立完整路徑，也不推斷即時健康。",
+    "from": "起點",
+    "to": "終點",
+    "connection": "連線",
+    "uses": "使用此線路的訂閱節點",
+    "noUses": "目前沒有訂閱節點使用此線路。",
+    "roles": {
+      "relay": "中轉",
+      "landing": "落地",
+      "reverse_exit": "反向出口"
+    },
+    "edges": {
+      "forward": "下一跳",
+      "candidate": "下一跳備選",
+      "path": "完整路徑",
+      "vless_reverse": "VLESS 反向連線",
+      "wireguard": "WireGuard 反向連線"
+    },
+    "usage": {
+      "line": "直接引用線路",
+      "client_chain": "客戶端鏈依賴"
+    },
+    "endpoints": "擬發佈的訂閱端點",
+    "entryChange": "訂閱端點變更"
+  },
+  "nodeConfiguration": {
+    "title": "設定套用確認",
+    "hint": "確認目前程序已取用並套用完整設定，不代表端到端連通。使用者授權與工作變更仍即時下發。",
+    "structure": "結構版本",
+    "state": "完整狀態",
+    "observed": "節點觀察時間：{{at}}",
+    "history": "設定投遞紀錄",
+    "historyHint": "最近 20 次投遞；首次確認保留歷史事實，不代表該設定目前仍在執行。",
+    "delivery": "投遞編號",
+    "issued": "發出時間",
+    "confirmed": "首次套用確認",
+    "unknownHint": "尚無可用回執。舊版節點繼續服務，升級後可提供此項確認。",
+    "unavailableHint": "目前自訂覆寫或不透明設定無法產生可靠的結構版本；原有設定下發繼續運作。",
+    "loadError": "載入失敗，無法確認目前狀態。",
+    "status": {
+      "unknown": "未知",
+      "unavailable": "結構版本無法使用",
+      "pending": "等待套用確認",
+      "applied": "已套用",
+      "stale": "確認已過期"
+    }
+  },
+  "lineChanges": {
+    "title": "線路變更歷史",
+    "history": "變更紀錄",
+    "application": "套用確認",
+    "hint": "記錄儲存、刪除和自動重新編譯，僅列出轉發實際變化的伺服器。有效回執表示該線路轉發近期在所列完整狀態版本中確認套用，不代表伺服器目前全部設定已套用，也不證明端到端連通。",
+    "loadError": "目前確認無法取得，快取結果不會顯示為已套用。",
+    "version": "版本 {{version}}",
+    "empty": "尚無變更紀錄，舊變更不會補錄。",
+    "newer": "較新紀錄",
+    "older": "較早紀錄",
+    "select": "選擇一筆變更查看伺服器。",
+    "back": "返回變更紀錄",
+    "created": "儲存時間：{{at}}",
+    "actor": "發起者：{{actor}}",
+    "supersededAt": "被取代時間：{{at}}",
+    "historyHint": "狀態標記使用所列狀態版本仍有效的證據；首次確認僅為歷史證據，不會延長有效期。",
+    "noChanges": "轉發設定未變化，此紀錄無需伺服器套用回執。",
+    "notAppliedHint": "尚未確認伺服器完整狀態已套用，僅憑此結果不能判定這條線路故障。",
+    "observed": "最近節點觀察：{{at}}",
+    "confirmed": "首次確認（歷史）：{{at}}",
+    "details": "設定差異與證據",
+    "issued": "下發時間：{{at}}",
+    "before": "變更前預期轉發",
+    "after": "變更後預期轉發",
+    "tokenHint": "線路變更歷史使用唯讀權限 line-changes:read。",
+    "kind": {
+      "save": "儲存",
+      "recompile": "自動重新編譯",
+      "delete": "刪除"
+    },
+    "action": {
+      "apply": "套用轉發變更",
+      "remove": "移除託管轉發"
+    },
+    "status": {
+      "no_runtime_change": "無轉發變更",
+      "superseded": "已被取代",
+      "applied": "已套用",
+      "partial": "部分已確認",
+      "pending": "等待確認",
+      "unknown": "未知"
+    },
+    "targetStatus": {
+      "pending": "等待下發",
+      "delivered": "已下發，等待確認",
+      "applied": "已套用",
+      "not_applied": "未確認套用",
+      "stale": "確認已過期",
+      "superseded": "已被取代",
+      "identity_changed": "伺服器身分已變化",
+      "removed": "伺服器已移除",
+      "unknown": "未知"
+    },
+    "close": "關閉"
+  },
+  "lineRollouts": {
+    "history": "線路發布",
+    "plan": "分批發布",
+    "remove": "分批移除",
+    "scope": "適用於一般 TCP relay 線路：建立新監聽、確認套用、切換訂閱端點，再清理舊監聽。使用者權限與工作保持即時；不安全的監聽覆寫會遭拒絕。",
+    "timeout": "單一步驟逾時（秒）",
+    "timeoutHint": "每個已下發步驟為 30–3600 秒；逾時後暫停後續步驟。",
+    "reviewAgain": "草稿或逾時已變更，請重新預覽。",
+    "preview": "預覽發布計畫",
+    "start": "開始已審閱的發布",
+    "started": "發布計畫已開始",
+    "steps": "部署步驟",
+    "noSteps": "沒有轉發步驟，僅提交已審閱的中繼資料變更。",
+    "loadError": "暫時無法取得目前進度，快取回執不作為目前確認。",
+    "empty": "尚無發布計畫。",
+    "historical": "步驟完成是歷史進展，不代表目前連線一定可用。",
+    "published": "訂閱端點已切換：{{at}}",
+    "pausedReason": "發布已暫停：",
+    "fresh": "有效的套用回執",
+    "attempt": "第 {{count}} 次嘗試",
+    "deadline": "截止時間：{{at}}",
+    "snapshot": "轉發快照",
+    "status": {
+      "running": "進行中",
+      "paused": "已暫停",
+      "completed": "發布完成",
+      "compensated": "已安排補償"
+    },
+    "phase": {
+      "expand": "建立新轉發",
+      "cleanup": "移除舊轉發"
+    },
+    "stepStatus": {
+      "pending": "尚未下發",
+      "released": "等待回執",
+      "applied": "步驟已確認"
+    },
+    "action": {
+      "pause": "暫停",
+      "retry": "重試／繼續",
+      "compensate": "規劃補償"
+    },
+    "actionHint": {
+      "pause": "暫停後續步驟，已下發的轉發繼續執行。",
+      "retry": "重新檢查目前依賴，並以新的確認嘗試繼續。",
+      "compensate": "依先前意圖結合目前拓撲建立新計畫。目前使用者權限保持生效；有衝突或不安全的補償會遭拒絕。"
+    }
+  },
+  "pathRoutes": {
+    "routes": "完整路徑線路",
+    "paths": "路徑範本",
+    "scope": "在同一入口伺服器後組合固定版本的路徑。各候選保留獨立的有序節點和監聽連接埠。僅支援內建中繼的 TCP 轉發；下一跳檢查不代表整條路徑連通。",
+    "templateHint": "範本只描述伺服器和固定版本引用，不分配監聽連接埠。編輯會建立新版本，既有引用仍使用選定版本。",
+    "routeHint": "所有候選最終到達同一個入站。請為每一跳明確分配獨立連接埠，預覽設定影響後再儲存。",
+    "createRoute": "建立組合線路",
+    "editRoute": "編輯組合線路",
+    "createPath": "建立路徑範本",
+    "editPath": "編輯路徑範本",
+    "noRoutes": "尚無完整路徑線路，請先建立路徑範本。",
+    "noPaths": "尚無路徑範本。",
+    "name": "名稱",
+    "revisionValue": "版本 {{version}}",
+    "fixedRevision": "固定版本",
+    "branch": "候選 {{number}}",
+    "step": "步驟 {{number}}",
+    "serverHop": "伺服器節點",
+    "pathReference": "路徑範本",
+    "lineReference": "既有線性線路",
+    "includeLanding": "將來源線路的落地伺服器作為額外一跳",
+    "lineHint": "僅可重用每組一台伺服器的 TCP 中繼線路。路徑引用其伺服器序列，不修改來源線路的監聽連接埠和最終入站。",
+    "pinnedHint": "引用始終使用選定版本。最多 8 個步驟、展開後 8 跳、8 層引用；不允許循環。",
+    "addServer": "新增伺服器節點",
+    "addPath": "引用路徑",
+    "addLine": "引用線路",
+    "addBranch": "新增候選路徑",
+    "entry": "入口伺服器",
+    "selection": "候選選擇策略",
+    "portsHint": "為展開後的每一跳設定獨立監聽連接埠，這些連接埠屬於本組合線路。更換路徑或版本會清空連接埠分配。",
+    "tcpOnly": "請選擇底層傳輸為 TCP 的入站。",
+    "impactHint": "以下為預期轉發設定的變化。儲存沿用既有下發機制；此預覽不證明執行健康或端到端連通。",
+    "uses": "引用關係",
+    "noUses": "沒有已儲存的路徑或線路引用此範本。",
+    "deletePathHint": "刪除「{{name}}」及其版本？被引用的版本須先解除引用。",
+    "deleteRouteHint": "刪除組合線路「{{name}}」及其所屬轉發規則？請先解除訂閱節點的關聯。",
+    "topologyHint": "展開路徑的設定連接關係。同一伺服器上的不同路徑使用獨立監聽連接埠；此檢視不代表即時健康狀態。"
   }
 }

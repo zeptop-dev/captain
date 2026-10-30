@@ -114,6 +114,25 @@ and whether to release automatic restrictions after a new measured cycle.
 This form has its own save and does not modify supplier or billing records.
 Active automatic policies require monitoring and a positive allowance.
 
+**Continue automatic protection while disconnected** is a separate opt-in switch.
+It requires a fresh report advertising offline support and fresh measured NIC
+traffic. Captain sends the full quota, direction, policy, manual restriction,
+cycle exemption, meter identity and twelve absolute future cycle boundaries.
+Every two minutes of accepted traffic, it refreshes the anchor. Older nodes and
+older editors retain their existing behavior; omission of the switch preserves
+its saved value.
+
+The agent evaluates new local NIC counters every fifteen seconds while Captain
+is unavailable and journals the result before applying it. Manual restrictions
+survive rollover; a current-cycle exemption expires at the next observed cycle.
+Automatic holds clear only when configured to resume and the agent observes a
+continuous crossing of the exact boundary. Missing/reset counters, changed
+interfaces, a missed boundary, an exhausted schedule, or an expired anchor after
+reinstall conservatively pause managed traffic until valid evidence arrives.
+A corrupt journal needs an explicit disable and re-enable from the administrator.
+This conservative behavior is why offline protection is disabled by default.
+The UI shows the node's local result separately from the panel's requested mode.
+
 In **Overview**, **Service control** provides manual pause, limit and restore.
 The traffic card shows the effective restriction and its cause. Automatic and
 manual restrictions are independent: pause wins, otherwise the lower active
@@ -142,7 +161,7 @@ limiter. Kernel flowtable offload is rejected because it can bypass the guard.
 
 The panel evaluates quota from accepted counter samples and the agent applies
 the resulting state. Displayed pending/offline/error states are not confirmation
-that a restriction has taken effect. A disconnected panel cannot detect a new
+that a restriction has taken effect. With the default panel-only policy, a disconnected panel cannot detect a new
 threshold crossing; keep headroom for sampling, delivery delays and differences
 from provider accounting. A restriction already installed on a running agent
 remains until it receives a valid replacement state.

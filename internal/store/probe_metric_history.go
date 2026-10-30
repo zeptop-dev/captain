@@ -146,14 +146,3 @@ func (s *Store) ProbeMetricHistory(ctx context.Context, nodeID int64, res string
 	}
 	return out, rows.Err()
 }
-func (s *Store) pruneProbeMetricHistory(ctx context.Context, at time.Time) error {
-	for _, r := range []struct {
-		res  string
-		keep time.Duration
-	}{{"r", 2 * time.Hour}, {"m", 48 * time.Hour}, {"h", 60 * 24 * time.Hour}, {"d", 730 * 24 * time.Hour}} {
-		if _, err := s.db.ExecContext(ctx, `DELETE FROM node_probe_metric_stats WHERE res=? AND ts<?`, r.res, at.Add(-r.keep).Unix()); err != nil {
-			return err
-		}
-	}
-	return nil
-}

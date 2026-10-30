@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
+	"github.com/zeptop-dev/bosun/pkg/configrevision"
 	"github.com/zeptop-dev/bosun/pkg/spec"
 
 	"github.com/zeptop-dev/captain/internal/domain"
@@ -357,6 +358,10 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 			st.Forwards = append(st.Forwards, f.Forward)
 		}
 	}
+	st.Forwards, err = a.Store.ApplyLineRolloutForwards(ctx, n.ID, st.Forwards)
+	if err != nil {
+		return nil, err
+	}
 	return a.finishState(ctx, n, st)
 }
 
@@ -397,6 +402,10 @@ func (a *AgentState) finishState(ctx context.Context, n *domain.Node, st *agentp
 			st.Jobs = append(st.Jobs, agentproto.Job{ID: j.ID, Kind: j.Kind, Params: j.Params})
 		}
 	}
+	// Structural identity is separate from the complete dynamic state hash.
+	// Opaque overrides cannot be safely classified; those nodes retain the
+	// existing delivery path without claiming a structural identity.
+	st.ConfigRevision, _ = configrevision.Digest(st.Node, st.Forwards)
 	st.Revision = revision(st)
 	return st, nil
 }

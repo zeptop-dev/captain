@@ -1674,7 +1674,8 @@
       "disk": "Disk space",
       "nodes": "Servers",
       "panel_cert": "Panel certificate",
-      "dns": "DNS health"
+      "dns": "DNS health",
+      "retention": "Monitoring history cleanup"
     },
     "msg": {
       "backup_local_error": "the last snapshot failed: {{error}}",
@@ -1694,8 +1695,14 @@
       "panel_cert_expired": "has expired",
       "dns_problem": "{{count}} DNS targets need attention",
       "dns_pending": "{{count}} DNS checks are stale or unconfirmed",
-      "dns_unknown": "Could not load DNS health"
-    }
+      "dns_unknown": "Could not load DNS health",
+      "retention_error": "Some cleanup steps failed. See service logs; cleanup will retry.",
+      "retention_budget": "The time budget was reached; remaining data will be cleaned in later batches.",
+      "retention_backlog": "Expired data may remain; cleanup will continue in batches.",
+      "retention_stale": "No cleanup has been recorded for over two hours."
+    },
+    "retentionSummary": "Last cleanup: {{at}}, {{rows}} rows removed in {{duration}} ms; last complete run: {{success}}.",
+    "retentionUnknown": "Monitoring history has not been checked; backlog is unknown. Status starts fresh after restart."
   },
   "accountID": {
     "label": "Account ID",
@@ -3617,7 +3624,17 @@
     "rateInvalid": "Enter a whole bandwidth limit from 1 to 1,000,000 Mbps.",
     "discard": "Discard policy changes",
     "savePolicy": "Save automatic policy",
-    "close": "Close"
+    "close": "Close",
+    "offlineProtection": "Continue automatic protection while disconnected",
+    "offlineProtectionHint": "The server evaluates fresh network traffic locally. Missing counters, an unobserved cycle boundary, or a stale baseline after reinstall conservatively pauses managed traffic until a valid panel anchor arrives. Manual restrictions persist. Disabled by default.",
+    "offlineUpgradeRequired": "Upgrade the server and wait for a fresh report to enable offline protection.",
+    "offlineState": "Offline protection: {{state}} · reported mode: {{mode}}",
+    "offlineStates": {
+      "ready": "Ready",
+      "active": "Triggered",
+      "waiting": "Waiting for traffic evidence",
+      "error": "Traffic evidence unavailable"
+    }
   },
   "probeThemes": {
     "title": "Komari themes",
@@ -3639,5 +3656,205 @@
     "installed": "Theme installed; select and activate it when ready.",
     "objectRequired": "Settings must be a JSON object.",
     "optionsFailed": "Could not load available choices. Reload before saving."
+  },
+  "lineImpact": {
+    "title": "Change impact",
+    "preview": "Preview impact",
+    "save": "Save reviewed change",
+    "refresh": "Refresh preview",
+    "stale": "The draft changed. Preview again before saving.",
+    "scope": "Expected forwarding configuration only. This does not show files running on a server or prove connectivity. Saving still sends changes through the existing immediate delivery path.",
+    "changes": "Forwarding changes on {{count}} servers",
+    "noChanges": "No forwarding changes. Names or other metadata may still change.",
+    "before": "Saved expected configuration",
+    "after": "Proposed expected configuration",
+    "dependencies": "Dependencies and use",
+    "topologyHint": "Configured paths only. Candidate edges represent alternatives at the next hop, not complete independent paths. No live health is inferred.",
+    "from": "From",
+    "to": "To",
+    "connection": "Connection",
+    "uses": "Subscription nodes using this line",
+    "noUses": "No subscription nodes currently use this line.",
+    "roles": {
+      "relay": "Relay",
+      "landing": "Landing",
+      "reverse_exit": "Reverse exit"
+    },
+    "edges": {
+      "forward": "Next hop",
+      "candidate": "Next-hop candidate",
+      "path": "Complete path",
+      "vless_reverse": "VLESS reverse",
+      "wireguard": "WireGuard reverse"
+    },
+    "usage": {
+      "line": "Direct line reference",
+      "client_chain": "Client-chain dependency"
+    },
+    "endpoints": "Proposed subscription endpoints",
+    "entryChange": "Subscription endpoint change"
+  },
+  "nodeConfiguration": {
+    "title": "Configuration confirmation",
+    "hint": "Confirms that the current process consumed and applied the complete state. This does not prove end-to-end connectivity. User access and jobs still update immediately.",
+    "structure": "Structure",
+    "state": "Full state",
+    "observed": "Node observation: {{at}}",
+    "history": "Configuration deliveries",
+    "historyHint": "Latest 20 deliveries. First confirmation is historical evidence, not a claim that this configuration is still running.",
+    "delivery": "Delivery",
+    "issued": "Issued",
+    "confirmed": "First application confirmed",
+    "unknownHint": "No usable receipt yet. Older agents keep serving; an upgrade enables this confirmation.",
+    "unavailableHint": "Custom overrides or opaque settings cannot produce a reliable structural revision. Existing configuration delivery continues.",
+    "loadError": "Could not load current confirmation.",
+    "status": {
+      "unknown": "Unknown",
+      "unavailable": "Structure unavailable",
+      "pending": "Awaiting confirmation",
+      "applied": "Applied",
+      "stale": "Confirmation expired"
+    }
+  },
+  "lineChanges": {
+    "title": "Line change history",
+    "history": "Changes",
+    "application": "Application confirmation",
+    "hint": "Records saves, deletions and automatic recompilation. Targets are servers whose forwarding changed. A fresh receipt confirms this line’s forwarding in the listed full-state version; it does not confirm all current server settings or end-to-end connectivity.",
+    "loadError": "Current confirmation is unavailable. Cached results are not shown as applied.",
+    "version": "Version {{version}}",
+    "empty": "No recorded changes yet. Older changes are not backfilled.",
+    "newer": "Newer",
+    "older": "Older",
+    "select": "Select a change to view its servers.",
+    "back": "Back to changes",
+    "created": "Saved: {{at}}",
+    "actor": "Initiated by: {{actor}}",
+    "supersededAt": "Superseded: {{at}}",
+    "historyHint": "The badge uses still-valid evidence for the listed state version. First confirmation is historical evidence and does not renew freshness.",
+    "noChanges": "No forwarding configuration changed. This record does not require a server application receipt.",
+    "notAppliedHint": "The complete server state has not been confirmed as applied. This alone does not identify this line as faulty.",
+    "observed": "Latest node observation: {{at}}",
+    "confirmed": "First confirmed (historical): {{at}}",
+    "details": "Configuration changes and evidence",
+    "issued": "Delivered: {{at}}",
+    "before": "Previous expected forwarding",
+    "after": "New expected forwarding",
+    "tokenHint": "Line change history uses the read-only permission line-changes:read.",
+    "kind": {
+      "save": "Saved",
+      "recompile": "Automatically recompiled",
+      "delete": "Deleted"
+    },
+    "action": {
+      "apply": "Apply forwarding changes",
+      "remove": "Remove managed forwarding"
+    },
+    "status": {
+      "no_runtime_change": "No forwarding change",
+      "superseded": "Superseded",
+      "applied": "Applied",
+      "partial": "Partially confirmed",
+      "pending": "Awaiting confirmation",
+      "unknown": "Unknown"
+    },
+    "targetStatus": {
+      "pending": "Awaiting delivery",
+      "delivered": "Delivered, awaiting confirmation",
+      "applied": "Applied",
+      "not_applied": "Application unconfirmed",
+      "stale": "Confirmation expired",
+      "superseded": "Superseded",
+      "identity_changed": "Server identity changed",
+      "removed": "Server removed",
+      "unknown": "Unknown"
+    },
+    "close": "Close"
+  },
+  "lineRollouts": {
+    "history": "Line releases",
+    "plan": "Plan staged release",
+    "remove": "Plan removal",
+    "scope": "Ordinary TCP relay lines: establish new listeners, confirm application, switch subscription endpoints, then remove old listeners. User access and jobs remain current. Unsafe listener replacement is rejected.",
+    "timeout": "Step timeout (seconds)",
+    "timeoutHint": "30–3600 seconds per released step. A timeout pauses later steps.",
+    "reviewAgain": "The draft or timeout changed. Review the plan again.",
+    "preview": "Preview release plan",
+    "start": "Start reviewed release",
+    "started": "Release plan started",
+    "steps": "Deployment steps",
+    "noSteps": "No forwarding step is needed; only reviewed metadata changes.",
+    "loadError": "Current release progress is unavailable. Cached receipts are not current evidence.",
+    "empty": "No release plans yet.",
+    "historical": "Completed steps record past progress and do not guarantee current connectivity.",
+    "published": "Subscription endpoints switched: {{at}}",
+    "pausedReason": "Release paused:",
+    "fresh": "Fresh application receipt",
+    "attempt": "Attempt {{count}}",
+    "deadline": "Deadline: {{at}}",
+    "snapshot": "Forwarding snapshots",
+    "status": {
+      "running": "Running",
+      "paused": "Paused",
+      "completed": "Release completed",
+      "compensated": "Compensation planned"
+    },
+    "phase": {
+      "expand": "Establish new forwarding",
+      "cleanup": "Remove previous forwarding"
+    },
+    "stepStatus": {
+      "pending": "Not released",
+      "released": "Awaiting receipt",
+      "applied": "Step confirmed"
+    },
+    "action": {
+      "pause": "Pause",
+      "retry": "Retry / continue",
+      "compensate": "Plan compensation"
+    },
+    "actionHint": {
+      "pause": "Pause later steps. Forwarding already released continues to run.",
+      "retry": "Recheck current dependencies and start a fresh confirmation attempt.",
+      "compensate": "Create a new plan from the previous intent and current topology. Current user access remains in effect. Conflicting or unsafe compensation is rejected."
+    }
+  },
+  "pathRoutes": {
+    "routes": "Complete routes",
+    "paths": "Path templates",
+    "scope": "Combine fixed path versions behind one entry server. Each candidate keeps its own ordered hops and listeners. TCP with the built-in relay only; next-hop checks do not prove the whole route works.",
+    "templateHint": "A template describes servers and fixed references, without listening ports. Editing creates a new version; existing references keep their selected version.",
+    "routeHint": "All candidates reach the same final inbound. Assign every hop a dedicated port, then preview the resulting configuration before saving.",
+    "createRoute": "Create route",
+    "editRoute": "Edit route",
+    "createPath": "Create path template",
+    "editPath": "Edit path template",
+    "noRoutes": "No complete routes yet. Create a path template first.",
+    "noPaths": "No path templates yet.",
+    "name": "Name",
+    "revisionValue": "Version {{version}}",
+    "fixedRevision": "Fixed version",
+    "branch": "Candidate {{number}}",
+    "step": "Step {{number}}",
+    "serverHop": "Server hop",
+    "pathReference": "Path template",
+    "lineReference": "Existing linear line",
+    "includeLanding": "Include the source landing server as another hop",
+    "lineHint": "Only a TCP relay line with one server per group can be reused. Its servers are copied into the path; its listeners and final inbound remain unchanged.",
+    "pinnedHint": "References stay on the selected version. Up to 8 steps, 8 expanded hops and 8 reference levels are supported. Cycles are rejected.",
+    "addServer": "Add server hop",
+    "addPath": "Reference path",
+    "addLine": "Reference line",
+    "addBranch": "Add candidate path",
+    "entry": "Entry server",
+    "selection": "Candidate selection",
+    "portsHint": "Set a distinct listening port for each expanded hop. These ports belong to this route. Changing the path or its version clears the port assignments.",
+    "tcpOnly": "Select an inbound whose wire transport is TCP.",
+    "impactHint": "These are expected forwarding changes. Saving uses the existing delivery path; this preview does not prove runtime health or end-to-end connectivity.",
+    "uses": "References",
+    "noUses": "No saved path or route references this template.",
+    "deletePathHint": "Delete “{{name}}” and its versions? Referenced versions must be detached first.",
+    "deleteRouteHint": "Delete route “{{name}}” and its owned forwards? Subscription nodes must be detached first.",
+    "topologyHint": "Configured connections for the expanded paths. Shared servers use distinct listeners. This view does not show live health."
   }
 }

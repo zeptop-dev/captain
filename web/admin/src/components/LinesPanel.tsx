@@ -4,14 +4,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { IconArrowDown, IconArrowUp, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { api, type ForwardAddressMode, type Line, type LineGroup, type LineMember, type Node } from '../lib/api'
+import { api, type ForwardAddressMode, type Line, type LineGroup, type LineMember, type LinePreview, type Node } from '../lib/api'
 import { freshLineStatus, lineSupportsGroups, proxyServer, type EntryNodeDetail, type InboundChoice } from '../lib/entry-flow'
 import { firstFreeIngressPort, forwardTargetAddress, forwardingAddress, hostPort, ingressPort } from '../lib/ingress'
-import { useSettingsDirty } from '../lib/settings-draft'
+import { SettingsDraftBoundary, useSettingsDirty } from '../lib/settings-draft'
 import { toast } from '../lib/notify'
 import { ForwardAddressModeSelect } from './ForwardAddressModeSelect'
 import { ForwardConnectivityCheck } from './ForwardConnectivityCheck'
 import { EntryInboundCreator } from './EntryInboundCreator'
+import { LineImpact, LineDependenciesModal } from './LineImpact'
+import { currentLineReview, lineImpactInput } from '../lib/line-impact'
+import type { LineHistorySelection } from '../lib/line-change-evidence'
+import { LineRolloutPlanner } from './LineRollouts'
 
 interface DraftMember extends LineMember { key: string }
 interface DraftGroup extends Omit<LineGroup, 'members'> { key: string; members: DraftMember[] }
@@ -20,21 +24,25 @@ const newMember = (): DraftMember => ({ key: crypto.randomUUID(), id: '', node_i
 const newGroup = (): DraftGroup => ({ key: crypto.randomUUID(), strategy: 'failover', members: [newMember()] })
 const move = <T,>(items: T[], from: number, to: number) => { const copy = [...items]; const [item] = copy.splice(from, 1); copy.splice(to, 0, item); return copy }
 
-export function LinesPanel({ lines, nodes, inbounds, loading, error, observedAt, focusID, onRetry, onEdit, onCreateNode }: {
-  lines: Line[]; nodes: Node[]; inbounds: InboundChoice[]; loading: boolean; error: boolean; observedAt: number; focusID?: number; onRetry: () => void; onEdit: (line: Line) => void; onCreateNode: (line: Line) => void
+export function LinesPanel({ lines, nodes, inbounds, loading, error, observedAt, focusID, onRetry, onEdit, onCreateNode, onHistory, onRollouts }: {
+  lines: Line[]; nodes: Node[]; inbounds: InboundChoice[]; loading: boolean; error: boolean; observedAt: number; focusID?: number; onRetry: () => void; onEdit: (line: Line) => void; onCreateNode: (line: Line) => void; onHistory: (selection: LineHistorySelection) => void; onRollouts: (selection: { id?: string; lineID?: number }) => void
 }) {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const focusedID = useRef<number | undefined>(undefined)
+  const [removing, setRemoving] = useState<Line | null>(null)
+  const [dependencyID, setDependencyID] = useState<number | null>(null)
   useEffect(() => {
     if (!focusID) { focusedID.current = undefined; return }
     if (loading || focusedID.current === focusID) return
     const card = document.getElementById(`line-${focusID}`)
     if (card) { card.scrollIntoView({ block: 'center' }); focusedID.current = focusID }
   }, [focusID, loading, lines])
-  const del = useMutation({ mutationFn: (line: Line) => api.del(`/api/admin/lines/${line.id}?version=${line.version}`), onSuccess: () => { qc.invalidateQueries({ queryKey: ['lines'] }); qc.invalidateQueries({ queryKey: ['entries'] }); toast.ok(t('common.deleted')) } })
+  const del = useMutation({ mutationFn: (line: Line) => api.del<{ change_id?: string }>(`/api/admin/lines/${line.id}?version=${line.version}`), onSuccess: (response, line) => { qc.invalidateQueries({ queryKey: ['lines'] }); qc.invalidateQueries({ queryKey: ['entries'] }); qc.invalidateQueries({ queryKey: ['line-changes'] }); toast.ok(t('common.deleted')); onHistory({ lineID: line.id, lineName: line.name, changeID: response?.change_id }) } })
   return <Stack>
+    {dependencyID !== null && <LineDependenciesModal id={dependencyID} onClose={() => setDependencyID(null)} />}
     <Alert color="blue">{t('lines.scopeHint')}</Alert>
+    <Group justify="flex-end"><Button variant="default" onClick={() => onRollouts({})}>{t('lineRollouts.history')}</Button><Button variant="default" onClick={() => onHistory({})}>{t('lineChanges.title')}</Button></Group>
     {loading && <Loader size="sm" />}
     {error && <Alert color="red"><Text size="sm">{t('lines.loadError')}</Text><Button size="xs" variant="subtle" onClick={onRetry}>{t('entryFlow.retry')}</Button></Alert>}
     {del.isError && <Alert color="red">{del.error.message}</Alert>}
@@ -44,7 +52,7 @@ export function LinesPanel({ lines, nodes, inbounds, loading, error, observedAt,
       return <Card key={line.id} id={`line-${line.id}`} withBorder style={{ scrollMarginTop: 90, borderColor: focusID === line.id ? 'var(--mantine-color-indigo-5)' : undefined }}>
         <Group justify="space-between" align="flex-start" mb="sm">
           <Stack gap={4}><Title order={4}>{line.name}</Title><Group gap="xs"><Badge variant="light">{t(`lines.backends.${line.backend}`)}</Badge><Badge variant="outline" color="gray">{line.protocol === 'both' ? 'TCP + UDP' : line.protocol.toUpperCase()}</Badge></Group></Stack>
-          <Group gap="xs"><Button size="xs" variant="light" disabled={!line.endpoints?.some(e => e.host.trim()) || error} onClick={() => onCreateNode(line)}>{t('entryFlow.createNode')}</Button><ActionIcon variant="subtle" aria-label={t('common.edit')} onClick={() => onEdit(line)} disabled={del.isPending}><IconPencil size={17} /></ActionIcon><ActionIcon color="red" variant="subtle" aria-label={t('common.delete')} disabled={del.isPending} onClick={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text size="sm">{t('lines.deleteHint')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => del.mutate(line) })}><IconTrash size={17} /></ActionIcon></Group>
+          <Group gap="xs"><Button size="xs" variant="default" onClick={() => setDependencyID(line.id)}>{t('lineImpact.dependencies')}</Button><Button size="xs" variant="default" onClick={() => onHistory({ lineID: line.id, lineName: line.name })}>{t('lineChanges.application')}</Button><Button size="xs" variant="light" disabled={!line.endpoints?.some(e => e.host.trim()) || error} onClick={() => onCreateNode(line)}>{t('entryFlow.createNode')}</Button><ActionIcon variant="subtle" aria-label={t('common.edit')} onClick={() => onEdit(line)} disabled={del.isPending}><IconPencil size={17} /></ActionIcon><Button size="xs" variant="light" disabled={line.backend !== 'relay' || line.protocol !== 'tcp' || !!line.path_route} onClick={() => setRemoving(line)}>{t('lineRollouts.remove')}</Button><ActionIcon color="red" variant="subtle" aria-label={t('common.delete')} disabled={del.isPending} onClick={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text size="sm">{t('lines.deleteHint')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => del.mutate(line) })}><IconTrash size={17} /></ActionIcon></Group>
         </Group>
         <Stack gap="xs">
           {!line.endpoints?.some(e => e.host.trim()) && <Alert color="yellow">{t('entryFlow.lineEndpointMissing')}</Alert>}
@@ -68,16 +76,18 @@ export function LinesPanel({ lines, nodes, inbounds, loading, error, observedAt,
         </Stack>
       </Card>
     })}
+    {removing && <SettingsDraftBoundary><LineRolloutPlanner draft={removing} remove onClose={() => setRemoving(null)} onCreated={id => { setRemoving(null); onRollouts({ id }) }} /></SettingsDraftBoundary>}
   </Stack>
 }
 
-export function LineEditor({ line, nodes, details, inbounds, loading, loadError, onReload, onClose }: {
-  line?: Line; nodes: Node[]; details: EntryNodeDetail[]; inbounds: InboundChoice[]; loading: boolean; loadError: boolean; onReload: () => void; onClose: () => void
+export function LineEditor({ line, nodes, details, inbounds, loading, loadError, onReload, onClose, onSaved, onPlanned }: {
+  line?: Line; nodes: Node[]; details: EntryNodeDetail[]; inbounds: InboundChoice[]; loading: boolean; loadError: boolean; onReload: () => void; onClose: () => void; onSaved: (selection: LineHistorySelection) => void; onPlanned: (id: string) => void
 }) {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const [initial] = useState<Draft>(() => line ? { name: line.name, backend: line.backend, protocol: line.protocol, target_inbound_id: line.target_inbound_id, target_address_mode: line.target_address_mode || 'default', groups: line.groups.map(group => ({ ...group, key: crypto.randomUUID(), members: group.members.map(member => ({ ...member, key: crypto.randomUUID() })) })) } : { name: '', backend: 'relay', protocol: 'both', target_inbound_id: 0, target_address_mode: 'default', groups: [newGroup()] })
   const [draft, setDraft] = useState(initial)
+  const [planning, setPlanning] = useState(false)
   const [creatingInbound, setCreatingInbound] = useState(false)
   const [createdInbound, setCreatedInbound] = useState<InboundChoice | null>(null)
   const choices = createdInbound && !inbounds.some(c => c.ib.ID === createdInbound.ib.ID) ? [...inbounds, createdInbound] : inbounds
@@ -89,13 +99,26 @@ export function LineEditor({ line, nodes, details, inbounds, loading, loadError,
   const mixedFailover = protocol !== 'tcp' && draft.groups.some((g, i) => i > 0 && g.members.length > 1 && g.strategy !== 'roundrobin')
   const internalMissing = draft.target_address_mode === 'internal' && !target?.node.internal_addr?.trim() || draft.groups.some((g, i) => i > 0 && g.members.some(m => m.address_mode === 'internal' && !nodes.find(n => n.id === m.node_id)?.internal_addr?.trim()))
   const valid = !internalMissing && draft.name.trim() && target?.ib.Enabled && options.data?.protocol && !options.isError && !options.data.error && !mixedFailover && members.every(m => m.node_id && Number.isInteger(m.port) && m.port > 0 && m.port < 65536 && m.weight >= 1 && m.weight <= 100) && !duplicated && !members.some(m => m.node_id === target.ib.NodeID) && lineSupportsGroups(draft.backend, draft.groups)
+  const input = lineImpactInput(draft, protocol, line?.version)
+  const [review, setReview] = useState<{ source: string; value: LinePreview } | null>(null)
+  const reviewCurrent = currentLineReview(review?.source, input)
+  const preview = useMutation({
+    mutationFn: async () => {
+      const source = JSON.stringify(input)
+      const value = await api.post<LinePreview>(line ? `/api/admin/lines/${line.id}/preview` : '/api/admin/lines/preview', input)
+      return { source, value }
+    },
+    onSuccess: setReview,
+  })
   const dirty = JSON.stringify(draft) !== JSON.stringify(initial) || !!createdInbound
   const save = useMutation({
     mutationFn: () => {
-      const body = { name: draft.name.trim(), backend: draft.backend, protocol, target_inbound_id: draft.target_inbound_id, target_address_mode: draft.target_address_mode, groups: draft.groups.map((g, i) => ({ strategy: g.strategy, members: g.members.map(m => ({ id: m.id, node_id: m.node_id, port: m.port, ingress_id: m.ingress_id || null, weight: m.weight, address_mode: i > 0 ? m.address_mode || 'default' : 'default' })) })), ...(line ? { version: line.version } : {}) }
-      return line ? api.put<Line>(`/api/admin/lines/${line.id}`, body) : api.post<Line>('/api/admin/lines', body)
+      if (!review || !reviewCurrent) throw new Error(t('lineImpact.stale'))
+      const body = { ...review.value.draft, preview_revision: review.value.revision }
+      return line ? api.put<Line & { change_id?: string }>(`/api/admin/lines/${line.id}`, body) : api.post<Line & { change_id?: string }>('/api/admin/lines', body)
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lines'] }); qc.invalidateQueries({ queryKey: ['entries'] }); qc.invalidateQueries({ queryKey: ['node'] }); toast.ok(t('common.saved')); onClose() },
+    onSuccess: saved => { qc.invalidateQueries({ queryKey: ['lines'] }); qc.invalidateQueries({ queryKey: ['entries'] }); qc.invalidateQueries({ queryKey: ['node'] }); qc.invalidateQueries({ queryKey: ['line-changes'] }); toast.ok(t('common.saved')); onClose(); onSaved({ lineID: saved.id, lineName: saved.name, changeID: saved.change_id }) },
+    onError: () => setReview(null),
   })
   useSettingsDirty(dirty || save.isPending)
   const close = () => {
@@ -107,7 +130,7 @@ export function LineEditor({ line, nodes, details, inbounds, loading, loadError,
   const patchMember = (group: DraftGroup, key: string, update: Partial<DraftMember>) => patchGroup(group.key, { members: group.members.map(m => m.key === key ? { ...m, ...update } : m) })
   return <>
     <Modal opened onClose={close} closeOnClickOutside={false} closeOnEscape={!save.isPending} withCloseButton={!save.isPending} title={line ? t('lines.edit') : t('lines.create')} size="xl">
-      <form onSubmit={event => { event.preventDefault(); if (valid) save.mutate() }}>
+      <form onSubmit={event => { event.preventDefault(); if (valid && !loading) { if (reviewCurrent) save.mutate(); else preview.mutate() } }}>
         <Stack>
           {loadError && <Alert color="yellow"><Text size="sm">{t('entryFlow.partialLoad')}</Text><Button variant="subtle" size="xs" onClick={onReload}>{t('entryFlow.retry')}</Button></Alert>}
           {save.isError && <Alert color="red"><Text size="sm">{save.error.message}</Text><Text size="xs" mt={4}>{t('lines.saveErrorHint')}</Text></Alert>}
@@ -162,10 +185,14 @@ export function LineEditor({ line, nodes, details, inbounds, loading, loadError,
             {createdInbound && <Alert color="blue">{t('entryFlow.inboundSaved', { name: createdInbound.ib.Tag })}</Alert>}
             <Text size="xs" c="dimmed">{t('lines.targetHint')}</Text>
           </Stack></Box>
-          <Group justify="flex-end"><Button variant="default" disabled={save.isPending} onClick={close}>{t('common.cancel')}</Button><Button type="submit" loading={save.isPending} disabled={!valid || loading}>{t('common.save')}</Button></Group>
+          {preview.isError && <Alert color="red">{preview.error.message}</Alert>}
+          {review && !reviewCurrent && <Alert color="yellow">{t('lineImpact.stale')}</Alert>}
+          {reviewCurrent && review && <Card withBorder><Stack><Title order={4}>{t('lineImpact.title')}</Title><LineImpact value={review.value} /></Stack></Card>}
+          <Group justify="flex-end"><Button variant="default" disabled={save.isPending} onClick={close}>{t('common.cancel')}</Button>{reviewCurrent && <Button variant="default" loading={preview.isPending} disabled={save.isPending} onClick={() => preview.mutate()}>{t('lineImpact.refresh')}</Button>}<Button variant="light" disabled={!valid || loading || save.isPending || protocol !== 'tcp' || draft.backend !== 'relay'} onClick={() => setPlanning(true)}>{t('lineRollouts.plan')}</Button><Button type="submit" loading={save.isPending || preview.isPending} disabled={!valid || loading}>{t(reviewCurrent ? 'lineImpact.save' : 'lineImpact.preview')}</Button></Group>
         </Stack>
       </form>
     </Modal>
+    {planning && <LineRolloutPlanner draft={{ ...input, id: line?.id ?? 0 }} onClose={() => setPlanning(false)} onCreated={id => { setPlanning(false); onClose(); onPlanned(id) }} />}
     {creatingInbound && <EntryInboundCreator nodes={nodes.filter(n => !members.some(m => m.node_id === n.id))} onClose={() => setCreatingInbound(false)} onCreated={choice => { setCreatedInbound(choice); setCreatingInbound(false); setDraft(d => ({ ...d, target_inbound_id: choice.ib.ID })) }} />}
   </>
 }

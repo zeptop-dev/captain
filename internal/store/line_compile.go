@@ -147,10 +147,32 @@ func loadLineNode(ctx context.Context, tx *sql.Tx, id, lineID int64) (*lineNode,
 			x.binds = append(x.binds, lineBind{p, f.Port, listen})
 		}
 	}
+	reservations, err := lineRolloutReservationsTx(ctx, tx, id, lineID)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range reservations {
+		x.binds = append(x.binds, lineBind{"tcp", r.forward.Port, r.forward.Listen})
+	}
 	return x, nil
 }
 
 func compileLine(ctx context.Context, tx *sql.Tx, l *ForwardLine) (map[int64][]NodeForward, map[string]LineEndpoint, error) {
+	owned, err := isPathRouteTx(ctx, tx, l.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if owned {
+		route, err := pathRouteTx(ctx, tx, l.ID)
+		if err != nil {
+			return nil, nil, err
+		}
+		return compilePathRouteTx(ctx, tx, l, route)
+	}
+	return compileOrdinaryLine(ctx, tx, l)
+}
+
+func compileOrdinaryLine(ctx context.Context, tx *sql.Tx, l *ForwardLine) (map[int64][]NodeForward, map[string]LineEndpoint, error) {
 	ib, err := scanInbound(tx.QueryRowContext(ctx, "SELECT "+inboundCols+" FROM inbounds WHERE id=?", l.TargetInboundID))
 	if err != nil {
 		return nil, nil, err

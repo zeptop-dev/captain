@@ -212,6 +212,9 @@ func (s *Store) RecordNodeReport(ctx context.Context, nodeID int64, tokenHash st
 	if err := recordNodeRuntime(ctx, tx, nodeID, rep, trafficFresh, at); err != nil {
 		return false, err
 	}
+	if err := recordNodeConfigReceiptTx(ctx, tx, nodeID, tokenHash, rep.ConfigReceipt, rep.AppliedRevision, at); err != nil {
+		return false, err
+	}
 	_, err = tx.ExecContext(ctx, `UPDATE nodes SET last_seen_at=?,version=COALESCE(NULLIF(?,''),version),applied_revision=?,host_status_json=?,host_reported_at=?,cores_json=?,certs_json=?,upgrade_to=CASE WHEN upgrade_to=? THEN '' ELSE upgrade_to END,updated_at=? WHERE id=?`,
 		at.Unix(), rep.Version, rep.Revision, string(hostJSON), at.Unix(), string(coresJSON), string(certsJSON), rep.Version, at.Unix(), nodeID)
 	if err != nil {

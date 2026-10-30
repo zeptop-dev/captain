@@ -724,40 +724,6 @@ func (s *Store) SustainedAverage(ctx context.Context, nodeID int64, metric strin
 	return v.Float64, true
 }
 
-// PruneStats drops buckets past their retention: minutes 48h, hours 60d,
-// days 2y.
-func (s *Store) PruneStats(ctx context.Context, at time.Time) error {
-	if err := s.pruneProbeMetricHistory(ctx, at); err != nil {
-		return err
-	}
-	for _, r := range []struct {
-		res  string
-		keep time.Duration
-	}{{"m", 48 * time.Hour}, {"h", 60 * 24 * time.Hour}, {"d", 730 * 24 * time.Hour}} {
-		cut := at.Add(-r.keep).Unix()
-		if _, err := s.db.ExecContext(ctx, `DELETE FROM node_stats WHERE res = ? AND ts < ?`, r.res, cut); err != nil {
-			return err
-		}
-		for _, table := range []string{"node_ping_stats", "node_ping_series_stats"} {
-			if _, err := s.db.ExecContext(ctx, `DELETE FROM `+table+` WHERE res = ? AND ts < ?`, r.res, cut); err != nil {
-				return err
-			}
-		}
-	}
-	for _, table := range []string{"node_ping_cursors", "node_ping_series_cursors"} {
-		if _, err := s.db.ExecContext(ctx, `DELETE FROM `+table+` WHERE seen_at<?`, at.Add(-7*24*time.Hour).Unix()); err != nil {
-			return err
-		}
-	}
-	if err := s.pruneResourceHistory(ctx, at); err != nil {
-		return err
-	}
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM node_jobs WHERE kind = 'network_diagnostic' AND route_check = 0 AND created_at < ?`, at.Add(-24*time.Hour).Unix()); err != nil {
-		return err
-	}
-	return s.pruneMonitoring(ctx, at)
-}
-
 // AlertOnce records kind for node unless it fired within the cool-down;
 // true means the caller should notify.
 func (s *Store) AlertOnce(ctx context.Context, nodeID int64, kind string, cooldown time.Duration, at time.Time) (bool, error) {

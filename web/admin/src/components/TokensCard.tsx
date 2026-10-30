@@ -40,7 +40,7 @@ export function TokensCard() {
         <Button size="xs" mb={2} disabled={!name.trim() || (restricted && !grants.length)} loading={create.isPending} onClick={() => create.mutate()}>{t('tokens.create')}</Button>
       </Group>
       <Checkbox mb="xs" checked={restricted} onChange={(e) => setRestricted(e.currentTarget.checked)} label={t('tokens.restrict')} />
-      {restricted && <TagsInput mb="sm" label={t('tokens.permissions')} description={t('tokens.permissionsHint')} value={grants} onChange={setGrants} data={(resources.data ?? []).flatMap((r) => [`${r}:read`, `${r}:write`, `${r}:*`])} />}
+      {restricted && <><TagsInput mb="xs" label={t('tokens.permissions')} description={t('tokens.permissionsHint')} value={grants} onChange={setGrants} data={(resources.data ?? []).flatMap((r) => r === 'line-changes' ? [`${r}:read`] : [`${r}:read`, `${r}:write`, `${r}:*`])} /><Text size="xs" c="dimmed" mb="sm">{t('lineChanges.tokenHint')}</Text></>}
       {fresh && (
         <Stack gap={4} mb="sm">
           <Text size="xs" c="orange">{t('tokens.showOnce')}</Text>

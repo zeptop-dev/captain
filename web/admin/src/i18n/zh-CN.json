@@ -1674,7 +1674,8 @@
       "disk": "磁盘空间",
       "nodes": "服务器",
       "panel_cert": "面板证书",
-      "dns": "DNS 解析健康"
+      "dns": "DNS 解析健康",
+      "retention": "监控历史清理"
     },
     "msg": {
       "backup_local_error": "最近一次快照失败：{{error}}",
@@ -1694,8 +1695,14 @@
       "panel_cert_expired": "已过期",
       "dns_problem": "{{count}} 个域名的 DNS 需要检查",
       "dns_pending": "{{count}} 项 DNS 结果过期或未确认",
-      "dns_unknown": "无法读取 DNS 健康状态"
-    }
+      "dns_unknown": "无法读取 DNS 健康状态",
+      "retention_error": "部分清理失败，详情见服务日志；后台会继续重试。",
+      "retention_budget": "本轮已达时间预算，剩余数据将继续分批清理。",
+      "retention_backlog": "可能仍有过期数据，后台会继续分批清理。",
+      "retention_stale": "超过两小时没有清理记录。"
+    },
+    "retentionSummary": "最近清理：{{at}}，删除 {{rows}} 行，用时 {{duration}} ms；最近完整执行：{{success}}。",
+    "retentionUnknown": "监控历史尚未清理，积压状态未知；重启后重新记录。"
   },
   "accountID": {
     "label": "账号 ID",
@@ -3617,7 +3624,17 @@
     "rateInvalid": "请输入 1 到 1,000,000 Mbps 的整数带宽上限。",
     "discard": "放弃策略修改",
     "savePolicy": "保存自动策略",
-    "close": "关闭"
+    "close": "关闭",
+    "offlineProtection": "断连时继续自动保护",
+    "offlineProtectionHint": "服务器在本地按新鲜网卡流量判断。计数缺失、未观测到周期边界或重装后基线过期时，将保守暂停托管流量，直到收到面板有效基线。手动限制始终保留，默认关闭。",
+    "offlineUpgradeRequired": "请升级服务器并等待新报告后启用离线保护。",
+    "offlineState": "离线保护：{{state}} · 报告模式：{{mode}}",
+    "offlineStates": {
+      "ready": "已就绪",
+      "active": "已触发",
+      "waiting": "等待流量证据",
+      "error": "流量证据不可用"
+    }
   },
   "probeThemes": {
     "title": "Komari 主题",
@@ -3639,5 +3656,205 @@
     "installed": "主题已安装，可选择并启用。",
     "objectRequired": "设置必须是 JSON 对象。",
     "optionsFailed": "无法加载可用选项，请重新加载后保存。"
+  },
+  "lineImpact": {
+    "title": "变更影响",
+    "preview": "预览影响",
+    "save": "保存已审阅变更",
+    "refresh": "刷新预览",
+    "stale": "草稿已改变，请重新预览后保存。",
+    "scope": "这里只比较期望的转发配置，不代表服务器正在运行的文件或连通性。保存后仍通过现有即时下发流程应用。",
+    "changes": "{{count}} 台服务器的转发配置将改变",
+    "noChanges": "转发配置没有变化；名称等资料仍可能改变。",
+    "before": "已保存的期望配置",
+    "after": "拟保存的期望配置",
+    "dependencies": "依赖与引用",
+    "topologyHint": "这里只展示配置路径。候选边表示下一跳备选，不代表独立完整路径，也不推断实时健康。",
+    "from": "起点",
+    "to": "终点",
+    "connection": "连接",
+    "uses": "使用此线路的订阅节点",
+    "noUses": "目前没有订阅节点使用此线路。",
+    "roles": {
+      "relay": "中转",
+      "landing": "落地",
+      "reverse_exit": "反向出口"
+    },
+    "edges": {
+      "forward": "下一跳",
+      "candidate": "下一跳备选",
+      "path": "完整路径",
+      "vless_reverse": "VLESS 反向连接",
+      "wireguard": "WireGuard 反向连接"
+    },
+    "usage": {
+      "line": "直接引用线路",
+      "client_chain": "客户端链依赖"
+    },
+    "endpoints": "拟发布的订阅端点",
+    "entryChange": "订阅端点变更"
+  },
+  "nodeConfiguration": {
+    "title": "配置应用确认",
+    "hint": "确认当前进程已消费并应用完整配置，不代表端到端连通。用户授权与任务变化仍即时下发。",
+    "structure": "结构版本",
+    "state": "完整状态",
+    "observed": "节点观察时间：{{at}}",
+    "history": "配置投递记录",
+    "historyHint": "最近 20 次投递；首次确认保留历史事实，不表示该配置当前仍在运行。",
+    "delivery": "投递编号",
+    "issued": "发出时间",
+    "confirmed": "首次应用确认",
+    "unknownHint": "尚无可用回执。旧版节点继续服务，升级后可提供此项确认。",
+    "unavailableHint": "当前自定义覆写或不透明配置无法生成可靠的结构版本；原有配置下发继续工作。",
+    "loadError": "加载失败，当前状态无法确认。",
+    "status": {
+      "unknown": "未知",
+      "unavailable": "结构版本不可用",
+      "pending": "等待应用确认",
+      "applied": "已应用",
+      "stale": "确认已过期"
+    }
+  },
+  "lineChanges": {
+    "title": "线路变更历史",
+    "history": "变更记录",
+    "application": "应用确认",
+    "hint": "记录保存、删除和自动重编译，仅列出转发实际变化的服务器。有效回执表示该线路转发近期在所列完整状态版本中确认应用，不代表服务器当前全部设置已应用，也不证明端到端连通。",
+    "loadError": "当前确认不可用，缓存结果不会显示为已应用。",
+    "version": "版本 {{version}}",
+    "empty": "暂无变更记录，旧变更不会补录。",
+    "newer": "较新记录",
+    "older": "较早记录",
+    "select": "选择一条变更查看服务器。",
+    "back": "返回变更记录",
+    "created": "保存时间：{{at}}",
+    "actor": "发起者：{{actor}}",
+    "supersededAt": "被替代时间：{{at}}",
+    "historyHint": "状态标记使用所列状态版本仍有效的证据；首次确认仅为历史证据，不会延长有效期。",
+    "noChanges": "转发配置未变化，本记录无需服务器应用回执。",
+    "notAppliedHint": "尚未确认服务器完整状态已应用，仅凭此结果不能判定这条线路故障。",
+    "observed": "最近节点观察：{{at}}",
+    "confirmed": "首次确认（历史）：{{at}}",
+    "details": "配置差异与证据",
+    "issued": "下发时间：{{at}}",
+    "before": "变更前期望转发",
+    "after": "变更后期望转发",
+    "tokenHint": "线路变更历史使用只读权限 line-changes:read。",
+    "kind": {
+      "save": "保存",
+      "recompile": "自动重编译",
+      "delete": "删除"
+    },
+    "action": {
+      "apply": "应用转发变更",
+      "remove": "移除托管转发"
+    },
+    "status": {
+      "no_runtime_change": "无转发变更",
+      "superseded": "已被替代",
+      "applied": "已应用",
+      "partial": "部分已确认",
+      "pending": "等待确认",
+      "unknown": "未知"
+    },
+    "targetStatus": {
+      "pending": "等待下发",
+      "delivered": "已下发，等待确认",
+      "applied": "已应用",
+      "not_applied": "未确认应用",
+      "stale": "确认已过期",
+      "superseded": "已被替代",
+      "identity_changed": "服务器身份已变化",
+      "removed": "服务器已移除",
+      "unknown": "未知"
+    },
+    "close": "关闭"
+  },
+  "lineRollouts": {
+    "history": "线路发布",
+    "plan": "分批发布",
+    "remove": "分批移除",
+    "scope": "适用于普通 TCP relay 线路：建立新监听、确认应用、切换订阅端点，再清理旧监听。用户权限与任务保持实时；不安全的监听覆盖会被拒绝。",
+    "timeout": "单步骤超时（秒）",
+    "timeoutHint": "每个已下发步骤为 30–3600 秒；超时后暂停后续步骤。",
+    "reviewAgain": "草稿或超时已改变，请重新预览。",
+    "preview": "预览发布计划",
+    "start": "开始已审阅的发布",
+    "started": "发布计划已开始",
+    "steps": "部署步骤",
+    "noSteps": "没有转发步骤，仅提交已审阅的元数据变更。",
+    "loadError": "暂时无法获取当前进度，缓存回执不作为当前确认。",
+    "empty": "暂无发布计划。",
+    "historical": "步骤完成是历史进展，不代表当前连接一定可用。",
+    "published": "订阅端点已切换：{{at}}",
+    "pausedReason": "发布已暂停：",
+    "fresh": "新鲜应用回执",
+    "attempt": "第 {{count}} 次尝试",
+    "deadline": "截止时间：{{at}}",
+    "snapshot": "转发快照",
+    "status": {
+      "running": "进行中",
+      "paused": "已暂停",
+      "completed": "发布完成",
+      "compensated": "已安排补偿"
+    },
+    "phase": {
+      "expand": "建立新转发",
+      "cleanup": "移除旧转发"
+    },
+    "stepStatus": {
+      "pending": "尚未下发",
+      "released": "等待回执",
+      "applied": "步骤已确认"
+    },
+    "action": {
+      "pause": "暂停",
+      "retry": "重试／继续",
+      "compensate": "规划补偿"
+    },
+    "actionHint": {
+      "pause": "暂停后续步骤，已下发的转发继续运行。",
+      "retry": "重新检查当前依赖，并以新的确认尝试继续。",
+      "compensate": "按先前意图结合当前拓扑建立新计划。当前用户权限保持生效；有冲突或不安全的补偿会被拒绝。"
+    }
+  },
+  "pathRoutes": {
+    "routes": "完整路径线路",
+    "paths": "路径模板",
+    "scope": "在同一入口服务器后组合固定版本的路径。各候选保留独立的有序跳点和监听端口。仅支持内置中继的 TCP 转发；下一跳检查不代表整条路径连通。",
+    "templateHint": "模板只描述服务器和固定版本引用，不分配监听端口。编辑会创建新版本，已有引用仍使用选定版本。",
+    "routeHint": "所有候选最终到达同一个入站。请为每一跳明确分配独立端口，预览配置影响后再保存。",
+    "createRoute": "创建组合线路",
+    "editRoute": "编辑组合线路",
+    "createPath": "创建路径模板",
+    "editPath": "编辑路径模板",
+    "noRoutes": "暂无完整路径线路，请先创建路径模板。",
+    "noPaths": "暂无路径模板。",
+    "name": "名称",
+    "revisionValue": "版本 {{version}}",
+    "fixedRevision": "固定版本",
+    "branch": "候选 {{number}}",
+    "step": "步骤 {{number}}",
+    "serverHop": "服务器跳点",
+    "pathReference": "路径模板",
+    "lineReference": "已有线性线路",
+    "includeLanding": "将源线路的落地服务器作为额外一跳",
+    "lineHint": "仅可复用每组一台服务器的 TCP 中继线路。路径引用其服务器序列，不修改源线路的监听端口和最终入站。",
+    "pinnedHint": "引用始终使用选定版本。最多 8 个步骤、展开后 8 跳、8 层引用；不允许循环。",
+    "addServer": "添加服务器跳点",
+    "addPath": "引用路径",
+    "addLine": "引用线路",
+    "addBranch": "添加候选路径",
+    "entry": "入口服务器",
+    "selection": "候选选择策略",
+    "portsHint": "为展开后的每一跳设置独立监听端口，这些端口归本组合线路所有。更换路径或版本会清空端口分配。",
+    "tcpOnly": "请选择底层传输为 TCP 的入站。",
+    "impactHint": "以下为预期转发配置的变化。保存沿用现有下发机制；此预览不证明运行健康或端到端连通。",
+    "uses": "引用关系",
+    "noUses": "没有已保存的路径或线路引用此模板。",
+    "deletePathHint": "删除“{{name}}”及其版本？被引用的版本须先解除引用。",
+    "deleteRouteHint": "删除组合线路“{{name}}”及其所属转发规则？请先解除订阅节点的关联。",
+    "topologyHint": "展开路径的配置连接关系。同一服务器上的不同路径使用独立监听端口；此视图不代表实时健康状态。"
   }
 }

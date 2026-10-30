@@ -76,6 +76,8 @@ Monitor-only nodes can be installed without proxy cores and later switched to fu
 - Status cards show CPU specifications and selectable filesystem capacity, with advertised bandwidth below remaining days on Glass cards and inside network information in details. Enter monthly traffic limits directly in MB, GB or TB; use automatic storage recommendations or choose, name and order public volumes without exposing mount paths. Captain v1.34 adds an independent capacity history chart for each selected volume. Full CPU topology and mergerfs collection require bosun ≥ v0.76.0; older nodes remain compatible. [Status-page monitoring](docs/MONITORING.md).
 - Reuse each server's registered internal IP for explicitly selected forwarding hops and landing inbounds. Preview actual targets, check TCP from the preceding server, and refresh referenced paths when addresses change. Existing paths and published subscription endpoints retain their defaults. [Internal forwarding addresses](docs/NODES.md#reusing-a-servers-internal-address).
 - Manage subscription nodes and reusable server lines together: create a direct node, publish a relay/nft/realm path, or connect two subscription nodes as a supported client chain. Server details show the associated configuration and reported state. Lines support TCP failover and weighted candidate selection, with explicit transport and firewall limits. [Lines](docs/NODES.md#managed-server-lines) · [Client chains](docs/SUBSCRIPTIONS.md#managed-server-lines-and-client-chains).
+- Inspect atomic managed-line change history, including automatic recompiles and deletions, with before/after rules and recent per-server application confirmation. Metadata-only edits preserve pending targets; confirmation remains separate from connectivity. Configuration confirmation requires bosun v0.84.0. [Change history](docs/NODES.md#line-change-history).
+- Publish ordinary TCP relay changes in confirmed stages with structural snapshots, pause/retry and explicit compensation. Reuse fixed path versions as complete candidates without changing their original consumers. [Release and path workflows](docs/LINE_RELEASES.md).
 - Organize subscription nodes into display categories, assign them individually or in batches, and filter them in administration and the customer portal. Category names, descriptions and order are independent of permissions, billing, tags and subscription order. [Categories](docs/SUBSCRIPTIONS.md#entries-what-each-user-sees).
 - Node domain conflict checks and explicit shared/external DNS management prevent accidental record overwrites. DNS health checks, sustained alerts and durable automatic-write history help diagnose failures and recover recorded previous values. [DNS operations](docs/MONITORING.md).
 - Download reviewed core packages and activate a version from node details (bosun ≥ 0.64). Official and Extended sing-box can coexist; SSH TCP proxy subscriptions use persistent host-key pins. [Core management and limitations](docs/NODES.md#managing-node-core-packages).
@@ -349,3 +351,19 @@ Node probe settings support structured amounts/currencies/payment cycles, calend
 Node probe settings also record advertised Mbps/Gbps capacity, optionally separated into server RX/TX, with opt-in display in both status-page themes. This is metadata only, not shaping or a speed test; see [Advertised bandwidth](docs/MONITORING.md#advertised-server-bandwidth).
 
 Captain can provide customer login to New API through registered confidential OAuth applications. Configure New API Custom OAuth with `profile email`; see [setup and limits](docs/CAPTAIN_LOGIN.md).
+
+### Bounded monitoring-history cleanup
+
+Monitoring history keeps its existing retention periods. Housekeeping removes
+up to 500 expired rows per table/resolution in one round, with a two-second
+cancellation budget for the round and a rotating starting point. It releases
+SQLite's connection between statements. Possible backlog or an interrupted
+round is retried on the next minute; a clear round returns to hourly checks.
+Billing history, subscription lifetimes and connection-log retention are unchanged.
+
+The administrator self-check reports the latest run time, rows removed, elapsed
+time and last successful complete pass. A full batch means that expired data
+may remain; it is not an exact backlog count. Budget exhaustion and unvisited
+or failed tables remain unknown. These observations belong to the running
+process and start unknown after restart. A successful pass can still have
+backlog, and no full-table COUNT is needed to display this status.
