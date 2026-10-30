@@ -155,7 +155,7 @@ func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	diagnostic := h.Diagnostics != nil && r.Header.Get(agentproto.DiagnosticsVersionHeader) == agentproto.DiagnosticsVersion
-	if diagnostic && (!validConfigSession(session) || !validConfigSession(r.Header.Get(agentproto.DiagnosticsNonceHeader))) {
+	if diagnostic && (!validConfigSession(session) || !service.DiagnosticsIDPattern.MatchString(r.Header.Get(agentproto.DiagnosticsNonceHeader))) {
 		fail(w, 400, "invalid diagnostics session or nonce")
 		return
 	}

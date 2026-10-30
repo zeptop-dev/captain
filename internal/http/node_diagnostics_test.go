@@ -16,7 +16,7 @@ import (
 )
 
 func diagnosticsHeaders() map[string]string {
-	return map[string]string{agentproto.ConfigSessionHeader: "0123456789abcdef0123456789abcdef", agentproto.DiagnosticsVersionHeader: "1", agentproto.DiagnosticsNonceHeader: "abcdef0123456789abcdef0123456789"}
+	return map[string]string{agentproto.ConfigSessionHeader: "0123456789abcdef0123456789abcdef", agentproto.DiagnosticsVersionHeader: "1", agentproto.DiagnosticsNonceHeader: "ABCDEFGHIJKLMNOPQRSTUVWX23"}
 }
 func diagnosticsFetch(t *testing.T, r *rig, headers map[string]string) agentproto.State {
 	t.Helper()
