@@ -42,7 +42,7 @@ func TestPathRolloutHTTPScopesGraphAndPublication(t *testing.T) {
 	for i, addr := range []string{"192.0.2.10", "198.51.100.20", "192.0.2.30"} {
 		n := mustJSON[map[string]any](t, call(r.c, "POST", "/api/admin/nodes", map[string]any{"Name": "Relay " + itoa(int64(i)), "PublicAddr": addr}, 200))
 		a := &client{t: t, srv: srv}
-		a.token = mustJSON[agentproto.PairResponse](t, call(a, "POST", "/api/agent/pair", agentproto.PairRequest{Code: n["pair_code"].(string), Version: "v0.84.0"}, 200)).Token
+		a.token = mustJSON[agentproto.PairResponse](t, call(a, "POST", "/api/agent/pair", agentproto.PairRequest{Code: n["pair_code"].(string), Version: "v0.85.0"}, 200)).Token
 		id := int64(n["id"].(float64))
 		ids = append(ids, id)
 		agents[id] = a
@@ -63,7 +63,7 @@ func TestPathRolloutHTTPScopesGraphAndPublication(t *testing.T) {
 			t.Fatal("missing delivery")
 		}
 		seq[id]++
-		call(agents[id], "POST", "/api/agent/report", agentproto.Report{Revision: s.Revision, AppliedRevision: s.Revision, ConfigReceipt: &agentproto.ConfigReceipt{DeliveryID: s.ConfigDelivery.ID, Session: s.ConfigDelivery.Session, ConfigRevision: s.ConfigRevision, StateRevision: s.Revision, Sequence: seq[id], ObservedAt: time.Now(), Applied: true}}, 200)
+		call(agents[id], "POST", "/api/agent/report", agentproto.Report{Revision: s.Revision, AppliedRevision: s.Revision, PathHealth: &agentproto.PathHealthReport{Supported: true}, ConfigReceipt: &agentproto.ConfigReceipt{DeliveryID: s.ConfigDelivery.ID, Session: s.ConfigDelivery.Session, ConfigRevision: s.ConfigRevision, StateRevision: s.Revision, Sequence: seq[id], ObservedAt: time.Now(), Applied: true}}, 200)
 	}
 	for id := range agents {
 		ack(id)
@@ -140,6 +140,49 @@ func TestPathRolloutHTTPScopesGraphAndPublication(t *testing.T) {
 	healthDraft = saved
 	healthDraft.Health = &store.PathRouteHealth{Enabled: true}
 	call(writer, "POST", "/api/admin/path-rollouts", map[string]any{"route": healthDraft}, 403)
+	healthWriter := accessAuditToken(t, r, 1, "full", []string{"path-rollouts:write", "path-health:write"})
+	healthDraft.Entry.Port += 1000
+	for i := range healthDraft.Branches {
+		healthDraft.Branches[i].Ports = append([]int(nil), healthDraft.Branches[i].Ports...)
+		for j := range healthDraft.Branches[i].Ports {
+			healthDraft.Branches[i].Ports[j] += 1000
+		}
+	}
+	healthPlan := mustJSON[store.LineRollout](t, call(healthWriter, "POST", "/api/admin/path-rollouts", map[string]any{"route": healthDraft}, 200))
+	drain := func(plan store.LineRollout) store.LineRollout {
+		t.Helper()
+		for i := 0; i < 20 && plan.Status != "completed"; i++ {
+			for _, step := range plan.Targets {
+				if step.Status == "released" {
+					ack(step.NodeID)
+				}
+			}
+			if err := web.advanceLineRollouts(ctx); err != nil {
+				t.Fatal(err)
+			}
+			plan = mustJSON[store.LineRollout](t, call(reader, "GET", "/api/admin/path-rollouts/"+plan.ID, nil, 200))
+		}
+		if plan.Status != "completed" {
+			t.Fatal("health release incomplete", plan.ErrorCode)
+		}
+		return plan
+	}
+	healthPlan = drain(healthPlan)
+	healthCurrent := mustJSON[store.PathRoute](t, call(r.c, "GET", "/api/admin/path-routes/"+itoa(p.LineID), nil, 200))
+	if healthCurrent.Health == nil || !healthCurrent.Health.Enabled {
+		t.Fatal("health plan not published", healthCurrent)
+	}
+	call(writer, "POST", "/api/admin/path-rollouts", map[string]any{"route": healthCurrent, "remove": true}, 403)
+	disabled := healthCurrent
+	disabled.Health = &store.PathRouteHealth{}
+	call(writer, "POST", "/api/admin/path-rollouts", map[string]any{"route": disabled}, 403)
+	compensatePath := "/api/admin/path-rollouts/" + healthPlan.ID + "/compensate"
+	call(writer, "POST", compensatePath, map[string]any{"version": healthPlan.Version}, 403)
+	undo := mustJSON[store.LineRollout](t, call(healthWriter, "POST", compensatePath, map[string]any{"version": healthPlan.Version}, 200))
+	undo = drain(undo)
+	if undo.AfterRoute == nil || undo.AfterRoute.Health == nil || undo.AfterRoute.Health.Enabled {
+		t.Fatal("compensation did not restore disabled intent")
+	}
 	// A path-scoped token cannot read or mutate an ordinary plan by guessing its ID.
 	for id := range agents {
 		ack(id)
@@ -148,7 +191,7 @@ func TestPathRolloutHTTPScopesGraphAndPublication(t *testing.T) {
 	op := mustJSON[store.LineRollout](t, call(ordinary, "POST", "/api/admin/line-rollouts", map[string]any{"line": plain}, 200))
 	call(reader, "GET", "/api/admin/path-rollouts/"+op.ID, nil, 404)
 	call(writer, "POST", "/api/admin/path-rollouts/"+op.ID+"/pause", map[string]any{"version": op.Version}, 404)
-	if len(mustJSON[store.LineRolloutPage](t, call(reader, "GET", "/api/admin/path-rollouts", nil, 200)).Items) != 1 {
+	if len(mustJSON[store.LineRolloutPage](t, call(reader, "GET", "/api/admin/path-rollouts", nil, 200)).Items) != 3 {
 		t.Fatal("path history exposed ordinary plan")
 	}
 	for _, q := range []string{"route_id=bad", "before=-1", "limit=0"} {

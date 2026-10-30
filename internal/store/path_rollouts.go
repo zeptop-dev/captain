@@ -331,6 +331,11 @@ func pathRolloutPrepareContext(ctx context.Context, tx *sql.Tx, draft *PathRoute
 	if e != nil {
 		return ctx, nil, lineRolloutInputError(e)
 	}
+	if !remove {
+		if e = validatePathRouteHealthMutationTx(ctx, tx, before, next); e != nil {
+			return ctx, nil, lineRolloutInputError(e)
+		}
+	}
 	l.PreviewRevision = draft.PreviewRevision
 	r := &pathRolloutIntents{Before: before, After: next}
 	if compensates != "" {
