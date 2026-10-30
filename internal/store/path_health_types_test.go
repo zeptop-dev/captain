@@ -1,8 +1,10 @@
 package store
 
 import (
+	"context"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/spec"
 )
@@ -67,5 +69,23 @@ func TestPathHealthMutationScopeAndOmission(t *testing.T) {
 	}
 	if TokenAllowsRequest(`full|["path-health:read"]`, "PUT", "/api/admin/path-routes/1/health", pattern) {
 		t.Fatal("read health can mutate")
+	}
+}
+
+func TestPathHealthCapabilityRequiresVersionEvenWithFreshFlag(t *testing.T) {
+	s, ns, _, _ := pathFixture(t)
+	at := time.Now().UTC()
+	pathHealthCapabilityFixture(t, s, ns[0].ID, at)
+	if _, err := s.db.Exec(`UPDATE nodes SET version='v0.84.0' WHERE id=?`, ns[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := s.db.BeginTx(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	capable, err := pathHealthCapabilityTx(context.Background(), tx, ns[0].ID, at)
+	if err != nil || capable {
+		t.Fatal("old version advertised health capability", capable, err)
 	}
 }

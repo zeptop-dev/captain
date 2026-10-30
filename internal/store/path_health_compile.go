@@ -18,15 +18,16 @@ var ErrPathHealthCapability = errors.New("path health requires a recent capabili
 
 func pathHealthCapabilityTx(ctx context.Context, tx *sql.Tx, id int64, at time.Time) (bool, error) {
 	var supported bool
+	var version string
 	var observed, received int64
-	err := tx.QueryRowContext(ctx, `SELECT c.supported,c.observed_at,c.received_at FROM path_health_capabilities c JOIN nodes n ON n.id=c.node_id AND n.token_hash=c.token_identity JOIN node_config_heads h ON h.node_id=c.node_id AND h.token_identity=c.token_identity AND h.session=c.session JOIN node_config_sessions s ON s.node_id=h.node_id AND s.token_identity=h.token_identity AND s.session=h.session WHERE c.node_id=? AND s.retired_at IS NULL`, id).Scan(&supported, &observed, &received)
+	err := tx.QueryRowContext(ctx, `SELECT c.supported,c.observed_at,c.received_at,n.version FROM path_health_capabilities c JOIN nodes n ON n.id=c.node_id AND n.token_hash=c.token_identity JOIN node_config_heads h ON h.node_id=c.node_id AND h.token_identity=c.token_identity AND h.session=c.session JOIN node_config_sessions s ON s.node_id=h.node_id AND s.token_identity=h.token_identity AND s.session=h.session WHERE c.node_id=? AND s.retired_at IS NULL`, id).Scan(&supported, &observed, &received, &version)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 	if err != nil {
 		return false, err
 	}
-	return supported && observed > 0 && received > 0 && !time.UnixMilli(observed).Before(at.Add(-3*time.Minute)) && !time.UnixMilli(observed).After(at.Add(30*time.Second)) && !time.UnixMilli(received).Before(at.Add(-3*time.Minute)), nil
+	return supported && lineVersionOK(&domain.Node{Version: version}, "v0.85.0") && observed > 0 && received > 0 && !time.UnixMilli(observed).Before(at.Add(-3*time.Minute)) && !time.UnixMilli(observed).After(at.Add(30*time.Second)) && !time.UnixMilli(received).Before(at.Add(-3*time.Minute)), nil
 }
 
 // No TLS name is guessed from public/NAT addresses or a decoy. An explicit
