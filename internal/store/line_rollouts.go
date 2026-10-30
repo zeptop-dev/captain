@@ -154,7 +154,7 @@ func lineRolloutDepths(l *ForwardLine) map[int64]int {
 func lineRolloutWire(fs []LineChangeForward) []spec.Forward {
 	out := make([]spec.Forward, 0, len(fs))
 	for _, f := range fs {
-		v := spec.Forward{Tag: f.Tag, Listen: f.Listen, Port: f.Port, Protocol: f.Protocol, Backend: f.Backend, ProxyProtocol: f.ProxyProtocol, PreserveSource: f.PreserveSource, Balance: f.Balance}
+		v := spec.Forward{Tag: f.Tag, Listen: f.Listen, Port: f.Port, Protocol: f.Protocol, Backend: f.Backend, ProxyProtocol: f.ProxyProtocol, PreserveSource: f.PreserveSource, Balance: f.Balance, PathHealth: f.PathHealth.Wire()}
 		for i, t := range f.Targets {
 			if i == 0 {
 				v.Target = t.Target

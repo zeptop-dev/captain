@@ -71,7 +71,17 @@ func readPathRolloutIntentsTx(ctx context.Context, tx *sql.Tx, p *LineRollout) e
 	if e = json.Unmarshal([]byte(b), &p.BeforeRoute); e != nil {
 		return e
 	}
-	return json.Unmarshal([]byte(a), &p.AfterRoute)
+	if e = json.Unmarshal([]byte(a), &p.AfterRoute); e != nil {
+		return e
+	}
+	for _, route := range []*PathRoute{p.BeforeRoute, p.AfterRoute} {
+		if route != nil {
+			// An absent field in durable history means disabled at that time,
+			// unlike omission in a new editor request which preserves policy.
+			PreservePathRouteHealth(route, nil)
+		}
+	}
+	return nil
 }
 func savePathRolloutIntentsTx(ctx context.Context, tx *sql.Tx, p *LineRollout) error {
 	r := pathRolloutContext(ctx)
@@ -79,6 +89,11 @@ func savePathRolloutIntentsTx(ctx context.Context, tx *sql.Tx, p *LineRollout) e
 		return nil
 	}
 	p.BeforeRoute, p.AfterRoute = clonePathRolloutIntent(r.Before), clonePathRolloutIntent(r.After)
+	for _, route := range []*PathRoute{p.BeforeRoute, p.AfterRoute} {
+		if route != nil {
+			PreservePathRouteHealth(route, nil)
+		}
+	}
 	if p.Kind == "delete" {
 		p.AfterRoute = nil
 	}
@@ -305,6 +320,7 @@ func pathRolloutPrepareContext(ctx context.Context, tx *sql.Tx, draft *PathRoute
 			return ctx, nil, ErrLineConflict
 		}
 	}
+	PreservePathRouteHealth(next, before)
 	if remove {
 		if before == nil {
 			return ctx, nil, ErrNotFound

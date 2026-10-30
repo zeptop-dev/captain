@@ -89,6 +89,11 @@ func TestPathRolloutHTTPScopesGraphAndPublication(t *testing.T) {
 	call(writer, "GET", "/api/admin/path-rollouts", nil, 403)
 	call(ordinary, "POST", "/api/admin/path-rollouts", body, 403)
 	call(accessAuditToken(t, r, 1, "full", []string{"path-routes:*"}), "POST", "/api/admin/path-rollouts", body, 403)
+	healthDraft := draft
+	healthDraft.Health = &store.PathRouteHealth{Enabled: true}
+	call(writer, "POST", "/api/admin/path-rollouts", map[string]any{"route": healthDraft}, 403)
+	// Having a health-only token does not grant the separate rollout resource.
+	call(accessAuditToken(t, r, 1, "full", []string{"path-health:write"}), "POST", "/api/admin/path-rollouts", map[string]any{"route": healthDraft}, 403)
 	logs, _ := r.st.AdminLog(ctx, 0, 500)
 	preview := mustJSON[store.PathRolloutPreview](t, call(writer, "POST", "/api/admin/path-rollouts/preview", body, 200))
 	after, _ := r.st.AdminLog(ctx, 0, 500)
@@ -132,6 +137,9 @@ func TestPathRolloutHTTPScopesGraphAndPublication(t *testing.T) {
 	if entry.DisplayPort != draft.Entry.Port {
 		t.Fatal(entry)
 	}
+	healthDraft = saved
+	healthDraft.Health = &store.PathRouteHealth{Enabled: true}
+	call(writer, "POST", "/api/admin/path-rollouts", map[string]any{"route": healthDraft}, 403)
 	// A path-scoped token cannot read or mutate an ordinary plan by guessing its ID.
 	for id := range agents {
 		ack(id)

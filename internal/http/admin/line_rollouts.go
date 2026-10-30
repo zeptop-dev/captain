@@ -163,6 +163,16 @@ func (h *handlers) actLineRollout(w http.ResponseWriter, r *http.Request) {
 	case "retry":
 		value, err = h.Store.RetryLineRollout(r.Context(), id, in.Version)
 	case "compensate":
+		if current.SnapshotVersion == "path-relay-v1" {
+			before, check := h.Store.PathRoute(r.Context(), current.LineID)
+			if check != nil && !errors.Is(check, store.ErrNotFound) {
+				lineRolloutError(w, check)
+				return
+			}
+			if !h.requirePathHealthMutation(w, r, before, current.BeforeRoute) {
+				return
+			}
+		}
 		value, err = h.Store.CompensateLineRollout(r.Context(), id, in.Version)
 	default:
 		fail(w, 404, "unknown release action")

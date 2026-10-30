@@ -58,6 +58,22 @@ func (h *handlers) planPathRollout(w http.ResponseWriter, r *http.Request) {
 	}
 	h.Store.Topology.Lock()
 	defer h.Store.Topology.Unlock()
+	var before *store.PathRoute
+	if in.Route.ID > 0 {
+		var err error
+		before, err = h.Store.PathRoute(r.Context(), in.Route.ID)
+		if err != nil {
+			lineRolloutError(w, err)
+			return
+		}
+	}
+	next := &in.Route
+	if in.Remove {
+		next = nil
+	}
+	if !h.requirePathHealthMutation(w, r, before, next) {
+		return
+	}
 	v, e := h.Store.PlanPathRollout(r.Context(), &in.Route, in.Remove, time.Duration(in.TimeoutSeconds)*time.Second)
 	if e != nil {
 		lineRolloutError(w, e)
