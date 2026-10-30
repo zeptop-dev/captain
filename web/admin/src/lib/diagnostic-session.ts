@@ -7,7 +7,11 @@ export interface DiagnosticSessionState<T> {
   data?: T; requestedAt?: DiagnosticClock; error?: unknown
 }
 export interface DiagnosticSessionIO<L extends DiagnosticLease, T> {
-  newID(): string; create(id: string): Promise<L>; renew(id: string): Promise<L>; release(id: string): Promise<unknown>; read(id: string): Promise<T>
+  newID(): string
+  create(id: string, signal: AbortSignal): Promise<L>
+  renew(id: string, signal: AbortSignal): Promise<L>
+  release(id: string): Promise<unknown>
+  read(id: string, signal: AbortSignal): Promise<T>
   clock(): DiagnosticClock
   changed(state: DiagnosticSessionState<T>): void
   schedule(fn: () => void, ms: number): unknown
@@ -24,6 +28,7 @@ export class DiagnosticSession<L extends DiagnosticLease, T> {
   private generation = 0
   private lease?: L
   private timers = new Set<unknown>()
+  private requests = new Set<AbortController>()
   private state: DiagnosticSessionState<T> = { phase: 'idle' }
   constructor(io: DiagnosticSessionIO<L, T>) { this.io = io }
   private later(fn: () => void, ms: number) {
@@ -39,6 +44,8 @@ export class DiagnosticSession<L extends DiagnosticLease, T> {
     this.generation++
     for (const timer of this.timers) this.io.cancel(timer)
     this.timers.clear()
+    for (const request of this.requests) request.abort()
+    this.requests.clear()
     this.release(this.lease?.id); this.lease = undefined
     this.publish({ phase: 'idle' })
   }
@@ -46,9 +53,11 @@ export class DiagnosticSession<L extends DiagnosticLease, T> {
     if (generation !== this.generation) return
     this.stop(); this.publish({ phase: 'error', error })
   }
-  private async request<V>(generation: number, call: () => Promise<V>): Promise<V> {
+  private async request<V>(generation: number, call: (signal: AbortSignal) => Promise<V>): Promise<V> {
+    const controller = new AbortController()
+    this.requests.add(controller)
     const timer = this.later(() => this.fail(generation, new Error('request_timeout')), 10000)
-    try { return await call() } finally { this.clear(timer) }
+    try { return await call(controller.signal) } finally { this.requests.delete(controller); this.clear(timer) }
   }
   async start() {
     if (this.state.phase === 'starting' || this.state.phase === 'active') return
@@ -57,7 +66,7 @@ export class DiagnosticSession<L extends DiagnosticLease, T> {
     this.lease = { id, fresh_for_ms: 0 } as L
     this.publish({ phase: 'starting' })
     try {
-      const lease = await this.request(generation, () => this.io.create(id))
+      const lease = await this.request(generation, signal => this.io.create(id, signal))
       if (generation !== this.generation) { this.release(lease.id); return }
       if (lease.id !== id) { this.release(lease.id); throw new Error('lease_identity') }
       this.lease = lease
@@ -76,7 +85,7 @@ export class DiagnosticSession<L extends DiagnosticLease, T> {
     if (generation !== this.generation) return
     const started = this.io.clock()
     try {
-      const lease = await this.request(generation, () => this.io.renew(id))
+      const lease = await this.request(generation, signal => this.io.renew(id, signal))
       if (generation !== this.generation) { this.release(id); if (lease.id !== id) this.release(lease.id); return }
       if (lease.id !== id || !diagnosticFresh(lease.fresh_for_ms, started, this.io.clock(), true)) { this.release(lease.id); throw new Error('lease_expired') }
       this.lease = lease; this.renewLater(generation, lease, started)
@@ -86,7 +95,7 @@ export class DiagnosticSession<L extends DiagnosticLease, T> {
     if (generation !== this.generation) return
     const requestedAt = this.io.clock()
     try {
-      const data = await this.request(generation, () => this.io.read(id))
+      const data = await this.request(generation, signal => this.io.read(id, signal))
       if (generation !== this.generation) return
       this.publish({ phase: 'active', data, requestedAt })
       this.later(() => { void this.poll(generation, id) }, 1000)

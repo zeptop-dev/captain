@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { createServer } from 'node:http'
 import { DiagnosticSession, diagnosticFresh } from '../src/lib/diagnostic-session.ts'
 const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b }); return { promise, resolve, reject } }
 const settle = async () => { for (let i = 0; i < 12; i++) await Promise.resolve() }
@@ -66,4 +67,32 @@ test('a hanging GET expires locally and never renews the viewing demand indefini
   assert.ok(r.released.includes('a')); assert.equal(r.timers.size, 0)
   read.resolve({ sequence: 9 }); await settle()
   assert.equal(r.states.at(-1).phase, 'error'); assert.equal(r.states.at(-1).data, undefined)
+})
+test('stop aborts pending create and renewal requests while late ignored aborts still release', async () => {
+  const pending = deferred(); let signal
+  const r = rig({ create: (_id, value) => { signal = value; return pending.promise } })
+  void r.session.start(); r.session.stop(); assert.equal(signal.aborted, true)
+  pending.resolve({ id: 'a', fresh_for_ms: 30000 }); await settle(); assert.deepEqual(r.released, ['a', 'a'])
+  const renewal = deferred()
+  const renewed = rig({ renew: (_id, value) => { signal = value; return renewal.promise } })
+  await renewed.session.start(); await settle(); await renewed.advance(10000)
+  renewed.session.stop(); assert.equal(signal.aborted, true)
+  renewal.resolve({ id: 'a', fresh_for_ms: 30000 }); await settle(); assert.deepEqual(renewed.released, ['a', 'a'])
+})
+test('request timeout aborts a hanging GET as well as releasing its lease', async () => {
+  let signal
+  const r = rig({ read: (_id, value) => { signal = value; return new Promise(() => {}) } })
+  await r.session.start(); await r.advance(10000)
+  assert.equal(signal.aborted, true); assert.equal(r.states.at(-1).phase, 'error'); assert.ok(r.released.includes('a'))
+})
+test('closing diagnostics destroys the real HTTP connection of an unresponsive sample request', { timeout: 5000 }, async () => {
+  const arrived = deferred(), closed = deferred()
+  const server = createServer(request => { request.once('close', () => closed.resolve()); arrived.resolve(request) })
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  const r = rig({ read: async (_id, signal) => { await fetch(`http://127.0.0.1:${server.address().port}/samples`, { signal }); return {} } })
+  try {
+    await r.session.start(); const request = await arrived.promise
+    r.session.stop(); await closed.promise
+    assert.equal(request.destroyed, true); assert.ok(r.released.includes('a'))
+  } finally { r.session.stop(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)) }
 })

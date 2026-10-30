@@ -22,11 +22,11 @@ export function NodeLiveDiagnostics({ nodeID }: { nodeID: number }) {
     const normalize = (value: LiveLease): DiagnosticLease => ({ id: value.lease_id, fresh_for_ms: value.ttl_ms })
     const control = new DiagnosticSession<DiagnosticLease, LiveDiagnostics>({
       newID: () => crypto.randomUUID(),
-      create: async id => {
+      create: async (id, signal) => {
         sampleWindow.open(id)
-        return normalize(await api.post<LiveLease>(`${base}/leases`, { request_id: id }))
+        return normalize(await api.post<LiveLease>(`${base}/leases`, { request_id: id }, signal))
       },
-      renew: async id => normalize(await api.put<LiveLease>(`${base}/leases/${encodeURIComponent(id)}`, {})),
+      renew: async (id, signal) => normalize(await api.put<LiveLease>(`${base}/leases/${encodeURIComponent(id)}`, {}, signal)),
       // The preallocated request ID also works before POST finishes. Tombstones
       // prevent a late POST from recreating a lease after this DELETE.
       release: id => {
@@ -36,8 +36,8 @@ export function NodeLiveDiagnostics({ nodeID }: { nodeID: number }) {
           if (!response.ok) throw new Error('diagnostics release failed')
         })
       },
-      read: async id => {
-        const view = await api.get<LiveDiagnostics>(`${base}?lease_id=${encodeURIComponent(id)}&after=${sampleWindow.after}`)
+      read: async (id, signal) => {
+        const view = await api.get<LiveDiagnostics>(`${base}?lease_id=${encodeURIComponent(id)}&after=${sampleWindow.after}`, signal)
         if (view.node_id !== nodeID || !Array.isArray(view.samples)) throw new Error('invalid diagnostics response')
         if (view.status === 'expired') throw new Error('lease_expired')
         if (view.status === 'unsupported') throw new ApiError(409, 'diagnostics_unavailable')

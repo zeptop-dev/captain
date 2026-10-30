@@ -26,7 +26,7 @@ export const api = {
   get: <T>(url: string, signal?: AbortSignal) => request<T>('GET', url, undefined, signal),
   post: <T>(url: string, body?: unknown, signal?: AbortSignal) => request<T>('POST', url, body ?? {}, signal),
   patch: <T>(url: string, body: unknown) => request<T>('PATCH', url, body),
-  put: <T>(url: string, body: unknown) => request<T>('PUT', url, body),
+  put: <T>(url: string, body: unknown, signal?: AbortSignal) => request<T>('PUT', url, body, signal),
   del: <T>(url: string, body?: unknown) => request<T>('DELETE', url, body),
 }
 
