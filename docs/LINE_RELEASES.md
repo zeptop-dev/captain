@@ -4,6 +4,8 @@ Captain v1.49.0 adds optional staged releases for ordinary TCP relay lines and
 fixed-version path templates for complete candidate routes. Existing line saves
 retain immediate delivery. The new workflows are administrator-only and use
 separate `line-rollouts`, `forward-paths` and `path-routes` API token resources.
+Captain v1.50.0 extends staged releases to complete routes through the separate
+`path-rollouts` resource. Immediate saves remain available.
 
 ## Staged line releases
 
@@ -31,8 +33,8 @@ Changed listeners must safely coexist. A target change on the same listening
 port is rejected; assign separate ports for the new path. The active plan
 reserves its resources, so ordinary editors cannot steal a future port or
 overwrite its owned line. Unrelated lines remain editable. TCP relay is the
-first supported backend: UDP, nft, realm, reverse connections and complete
-candidate routes below use their existing immediate workflow.
+supported backend: UDP, nft, realm and reverse connections cannot use staged
+releases. Complete TCP relay routes use the dedicated workflow below.
 
 **Release history** keeps the snapshots and individual attempts. Pause stops
 advancement and retains the last released configuration. Failed or overdue
@@ -91,7 +93,41 @@ The APIs are `/api/admin/forward-paths` and `/api/admin/path-routes`, with
 revision reads, use inspection, optimistic versions and route previews.
 Templates describe structure, not credentials or existing shared listener
 ownership. TCP relay is supported; arbitrary reverse-tunnel edges, UDP, nft,
-realm and staged route publication are outside this first implementation.
+realm remain outside this implementation.
+
+## Staged complete routes
+
+In a complete-route editor, choose **Staged release**, review the ordered
+listener changes, then start the plan. Route removal also has a staged action
+after detaching subscription Entries. Ordinary `line-rollouts` endpoints cannot
+read or operate these plans; use `path-rollouts`.
+
+Each candidate expands from its last relay toward its first relay, then the
+entry is published last. Cleanup removes the old entry before its branches.
+Ordering follows dedicated listeners: if two candidates share a physical
+server, that server may receive several cumulative configurations. Confirmation
+of an earlier configuration cannot satisfy a later step on the same server.
+
+Publication changes the saved route, its fixed template references and bound
+subscription endpoints in one transaction. During expansion, the old intent
+remains published; a newly created route cannot acquire subscription bindings
+until it is published. Active plans protect both old and future template
+references. Pause, new-attempt retry and explicit compensation have the same
+semantics as ordinary releases, including rejection when the current topology
+cannot safely reconstruct the destination intent.
+
+- `POST /api/admin/path-rollouts/preview` and `POST /api/admin/path-rollouts`
+  accept `{ "route": <complete route>, "remove": false, "timeout_seconds": 300 }`.
+  Use the normalized `draft` and its `preview_revision` when starting.
+- `GET /api/admin/path-rollouts` accepts `route_id`, `before` and `limit`;
+  `GET /api/admin/path-rollouts/{id}` reads a plan.
+- `POST /api/admin/path-rollouts/{id}/pause`, `/retry` and `/compensate` require
+  `{ "version": <current plan version> }`.
+
+Optional [path handshake health](PATH_HEALTH.md) is a separate policy and
+observation stream. A configuration receipt does not prove path health. A plan
+that changes health policy, including compensation, also requires the health
+write permission; publishing an unchanged policy does not add that permission.
 
 ## Upgrade and recovery
 
@@ -101,8 +137,13 @@ subscriptions and accounting records keep their meaning. Install bosun v0.84.0
 before using confirmation or staged releases. Existing agents retain their
 ordinary immediate-delivery behavior.
 
-The built-in Captain rollback floor is v1.49.0: an older panel cannot preserve
-active release ownership or compile complete routes. Manual downgrade requires
+Migration 104 adds complete-route release intent and protected template
+references; existing ordinary plans retain their meaning. Complete-route staged
+delivery alone still uses bosun v0.84.0 receipts. Enabling path handshake health
+requires bosun v0.85.0 and fresh capability evidence.
+
+The built-in Captain rollback floor is v1.50.0: an older panel cannot preserve
+complete-route release intent or health policies. Manual downgrade requires
 a matching database backup and a separately verified runtime recovery plan.
 New release/path records are included in SQLite backups and cleared on site
 reset. Never use an old snapshot to restore revoked user credentials.

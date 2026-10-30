@@ -5,7 +5,7 @@ with, what the database is good for, and what is deliberately not there.
 
 For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
-time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.49.0.
+time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.50.0.
 
 ## Public probe model and Komari themes (Captain v1.48.0)
 
@@ -506,6 +506,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
+| 1.50.0 | ≥ 0.85.0 and fresh capability for path handshake health; ≥ 0.84.0 receipts for staged routes | Complete-route staged plans, atomic inbound/line/Entry changesets and optional TCP relay path health; migrations 104–106. Existing agents and immediate delivery remain compatible. |
 | 1.49.0 | >= 0.84.0 for receipts, staged release prerequisites and offline enforcement | Immutable line-owned snapshots, opt-in TCP relay release plans, fixed-version complete paths, bounded cleanup evidence; migrations 100-103. Existing immediate delivery remains compatible. |
 | 1.48.0 | ≥ 0.83.0 for server traffic enforcement | Opt-in server pause/aggregate rate protection with independent application evidence; original agents remain compatible. Komari public themes and panel-side DNS controls do not require a node upgrade. Mihomo dual-stack design generation uses the formal shared module. |
 | 1.46.0 | Unchanged; shared module v0.82.0 | Server supplier/primary-bill associations, independent payment date actions, settings navigation and an optional homepage; migrations 94–95. Existing managed nodes do not need an upgrade. Captain rollback floor is v1.46.0 to retain shared dates and payment semantics. |
@@ -549,7 +550,7 @@ features it has never heard of, which the node page shows as an orange
 
 `min_version` in both `config.yaml` files is the floor a self-update or
 rollback may not go below; set it to the version you have tested. Captain's
-built-in floor is v1.49.0 to preserve staged release ownership and complete routes;
+built-in floor is v1.50.0 to preserve complete-route release intent and health policies;
 this also preserves shared infrastructure dates, payment actions, the homepage switch and inbound access policies, and
 retains device credentials, exit attribution and the earlier protections for line ownership, client chains, internal
 forwarding and public storage selection. A higher configured floor still wins.
@@ -892,3 +893,32 @@ line rollout scheduler. Version pinning preserves the full candidate sequence
 rather than creating arbitrary cross-branch combinations. The Captain rollback
 floor is v1.49.0; manual downgrade requires a matching backup and verified runtime
 recovery. See [operator workflows and limits](LINE_RELEASES.md).
+
+## Complete-route releases, changesets and path health (Captain v1.50.0)
+
+Migrations 104–106 add complete-route release intents, topology drafts and
+independently sampled path-health evidence. New resources are administrator-only
+and have separate `path-rollouts`, `topology-changesets` and `path-health`
+permissions. A changeset additionally requires the original write permission
+for every operation it commits. Existing endpoints and response fields remain
+available; ordinary line and complete-route release histories stay separate.
+
+Changesets cover supported inbound, ordinary-line and Entry creation/edits in
+one SQLite transaction. Preview is read-only and submission checks the draft,
+object identities and current topology again. Private creation settings remain
+server-side, while existing credentials and access policy stay live references.
+See [the supported fields and commit workflow](TOPOLOGY_CHANGESETS.md).
+
+The optional health policy adds `Forward.PathHealth` and independent report
+evidence. States without it retain the released structural-digest contract,
+so bosun v0.84.0 can still confirm existing configurations. New health requires
+bosun v0.85.0 and fresh capability evidence; an older agent cannot enable it.
+It tests supported handshakes through the actual candidate listeners, not
+customer authentication or Internet reachability. Auto failover is opt-in and
+refuses new connections when no confirmed healthy candidate is available.
+See [supported handshakes and freshness](PATH_HEALTH.md).
+
+Built-in rollback floors are Captain v1.50.0 and bosun v0.85.0. Older software
+can lose active route intent or ignore health filtering. Manual recovery needs
+a compatible database backup and an explicitly verified service configuration;
+replacing the binary alone does not preserve these guarantees.
