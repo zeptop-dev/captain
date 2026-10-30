@@ -1,3 +1,5 @@
+import type { EvidenceClock } from './line-change-evidence'
+
 export interface PathHealthPolicy {
   enabled: boolean
   auto_failover: boolean
@@ -38,6 +40,11 @@ export function validPathHealthPolicy(value: PathHealthPolicy, strategy: string)
 
 // Expiry is counted from request dispatch, not response arrival. A slow GET or
 // copied response cannot give an old probe a new freshness window.
+export function pathHealthElapsed(start: EvidenceClock, now: EvidenceClock, received = now): number {
+  // Wall time covers sleeping platforms; monotonic time covers clock rollback.
+  return Math.max(0, now.monotonic - start.monotonic, now.wall - start.wall,
+    received.monotonic - start.monotonic, received.wall - start.wall)
+}
 export function pathCandidateEvidence(candidate: PathHealthCandidate, elapsedMS: number, available: boolean) {
   const fresh = available && Number.isFinite(candidate.fresh_for_ms) && candidate.fresh_for_ms > Math.max(0, elapsedMS)
     && Number.isFinite(Date.parse(candidate.observed_at || '')) && candidate.sequence > 0 && !!candidate.epoch

@@ -1,11 +1,18 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { pathCandidateEvidence, pathHealthInput, pathHealthStatus, validPathHealthPolicy } from '../src/lib/path-health.ts'
+import { pathCandidateEvidence, pathHealthElapsed, pathHealthInput, pathHealthStatus, validPathHealthPolicy } from '../src/lib/path-health.ts'
 import { routeInput } from '../src/lib/path-routes.ts'
 
 const candidate = (extra = {}) => ({ id: 'b', tag: 'line', target: '192.0.2.10:443', status: 'up', result: 'success', eligible: true, fresh_for_ms: 1000, observed_at: '2026-10-29T12:00:00Z', epoch: 'process', sequence: 8, rtt_ms: 12, ...extra })
 const view = (extra = {}) => ({ route_id: 1, enabled: true, capable: true, status: 'healthy', candidates: [candidate()], ...extra })
 
+test('sleep, clock rollback and delayed responses cannot preserve health', () => {
+  const start = { monotonic: 100, wall: 10000 }
+  for (const clock of [{ monotonic: 101, wall: 12000 }, { monotonic: 2100, wall: 9000 }]) {
+    assert.equal(pathHealthStatus(view(), pathHealthElapsed(start, clock), true), 'unknown')
+  }
+  assert.equal(pathHealthStatus(view(), pathHealthElapsed(start, start, { monotonic: 1100, wall: 11000 }), true), 'unknown')
+})
 test('health evidence expires during a slow request and without another response', () => {
   assert.deepEqual(pathCandidateEvidence(candidate(), 999, true), { fresh: true, status: 'up', eligible: true })
   for (const elapsed of [1000, 6000]) assert.deepEqual(pathCandidateEvidence(candidate(), elapsed, true), { fresh: false, status: 'unknown', eligible: false })

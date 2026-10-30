@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
 import { when } from '../lib/format'
-import { pathCandidateEvidence, pathHealthStatus, validPathHealthPolicy, type PathHealthPolicy, type PathHealthView } from '../lib/path-health'
+import { pathCandidateEvidence, pathHealthElapsed, pathHealthStatus, validPathHealthPolicy, type PathHealthPolicy, type PathHealthView } from '../lib/path-health'
+import type { EvidenceClock } from '../lib/line-change-evidence'
 
 export function PathHealthFields({ value, strategy, onChange }: { value: PathHealthPolicy; strategy: string; onChange: (value: PathHealthPolicy) => void }) {
   const { t } = useTranslation()
@@ -32,24 +33,29 @@ export function PathHealthFields({ value, strategy, onChange }: { value: PathHea
 }
 
 const color = (status: string) => status === 'healthy' || status === 'up' ? 'green' : status === 'down' ? 'red' : status === 'degraded' ? 'yellow' : 'gray'
+const healthClock = (): EvidenceClock => ({ monotonic: performance.now(), wall: Date.now() })
 
 export function PathHealthModal({ routeID, name, onClose }: { routeID: number; name: string; onClose: () => void }) {
   const { t } = useTranslation()
-  const [clock, setClock] = useState(() => performance.now())
-  useEffect(() => { const timer = window.setInterval(() => setClock(performance.now()), 1000); return () => clearInterval(timer) }, [])
+  const [clock, setClock] = useState(healthClock)
+  useEffect(() => {
+    const tick = () => setClock(healthClock()), timer = window.setInterval(tick, 1000)
+    window.addEventListener('offline', tick); window.addEventListener('online', tick); window.addEventListener('focus', tick)
+    return () => { window.clearInterval(timer); window.removeEventListener('offline', tick); window.removeEventListener('online', tick); window.removeEventListener('focus', tick) }
+  }, [])
   const query = useQuery({
     queryKey: ['path-health', routeID],
-    queryFn: async () => {
-      const requestedAt = performance.now()
-      const view = await api.get<PathHealthView>(`/api/admin/path-routes/${routeID}/health`)
+    queryFn: async ({ signal }) => {
+      const requestedAt = healthClock()
+      const view = await api.get<PathHealthView>(`/api/admin/path-routes/${routeID}/health`, signal)
       if (view.route_id !== routeID || !Array.isArray(view.candidates)) throw new Error(t('pathHealth.unavailable'))
-      return { view, requestedAt, receivedAt: performance.now() }
+      return { view, requestedAt, receivedAt: healthClock() }
     },
     refetchInterval: 10000, refetchIntervalInBackground: false, retry: false, staleTime: 0,
   })
   const view = query.data?.view
-  const elapsed = query.data ? Math.max(0, Math.max(clock, query.data.receivedAt) - query.data.requestedAt) : 0
-  const available = !!view && !query.isError && !query.isPending
+  const elapsed = query.data ? pathHealthElapsed(query.data.requestedAt, clock, query.data.receivedAt) : 0
+  const available = !!view && navigator.onLine && !query.isError && !query.isPending && query.fetchStatus !== 'paused'
   const status = view ? pathHealthStatus(view, elapsed, available) : 'unknown'
   return <Modal opened onClose={onClose} title={`${t('pathHealth.title')} · ${name}`} size="lg"><Stack>
     <Text size="sm" c="dimmed">{t('pathHealth.scope')}</Text>
