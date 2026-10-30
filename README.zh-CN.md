@@ -73,7 +73,9 @@ mita（mieru）、Hysteria、snell-server 和 realm 作为子进程拉起来。
 - 中转可明确选择服务器资料中已登记的内网 IP，无需重复填写。显示实际目标地址，从前置服务器检查 TCP，并在修改地址时同步更新引用线路；已有路径和订阅连接地址保留原默认行为。[内网中转地址](docs/NODES.md#reusing-a-servers-internal-address)。
 - 在同一页面管理订阅节点与可复用线路：创建直连节点、发布 relay/nft/realm 转发路径，或将两个订阅节点组成受支持的客户端链。服务器详情展示关联配置与实际上报状态。线路支持 TCP 主备及加权候选，并明确传输协议和宿主防火墙的限制。[线路](docs/NODES.md#managed-server-lines) · [客户端链](docs/SUBSCRIPTIONS.md#managed-server-lines-and-client-chains)。
 - 查看线路保存、自动重编译和删除的原子变更记录，逐服务器对比转发规则并跟踪近期应用确认。重命名保留既有待确认目标，应用确认与实际连通性分开显示；应用确认需要 bosun v0.84.0。[线路变更记录](docs/NODES.md#line-change-history)。
-- 普通 TCP 中继线路支持结构快照、逐步确认后发布、暂停、重试和显式补偿；完整路径模板可按固定版本组合候选分支，保留源线路及其使用者。用户撤权、任务与服务器流控仍立即下发。[分批发布与路径复用](docs/LINE_RELEASES.md)。
+- 普通 TCP 中继线路与完整候选路径均支持结构快照、逐步确认后发布、暂停、重试和显式补偿；固定版本路径保留源线路及其使用者，同一服务器可承载不同分支的独立监听。用户撤权、任务与服务器流控仍立即下发。[分批发布与路径复用](docs/LINE_RELEASES.md)。
+- 将入站、普通线路与订阅节点放进同一份草稿，预览最终拓扑后原子提交；提交时重新检查对象身份、版本及原有操作权限。[跨对象变更集与支持范围](docs/TOPOLOGY_CHANGESETS.md)。
+- 可选探测穿过完整 TCP 中继候选路径的 TLS/HTTP/SOCKS5 握手。自动切换默认关闭；开启后只选择已确认健康的候选，没有健康候选时拒绝新连接。需要 bosun v0.85.0 及新鲜能力报告。[路径健康与验证边界](docs/PATH_HEALTH.md)。
 - 订阅节点支持独立展示分类，可单个或批量归类，并在后台和用户门户筛选。分类名称、说明与顺序不改变权限、计费、标签或订阅节点顺序。[节点分类](docs/SUBSCRIPTIONS.md#entries-what-each-user-sees)。
 - 节点域名冲突检查与显式共享／外部 DNS 模式防止误覆盖记录；DNS 健康检查、持续异常告警和自动变更历史帮助定位问题，并按已保存的旧值手动恢复。[DNS 运维说明](docs/MONITORING.md)。
 - 在节点详情下载已审核的内核包并激活指定版本（bosun ≥ 0.64）。官方与 Extended sing-box 可同时运行；SSH TCP 代理订阅带有持久主机公钥验证。[内核管理与支持范围](docs/NODES.md#managing-node-core-packages)。
