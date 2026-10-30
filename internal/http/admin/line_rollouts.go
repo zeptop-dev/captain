@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/zeptop-dev/captain/internal/store"
@@ -85,14 +86,24 @@ func (h *handlers) listLineRollouts(w http.ResponseWriter, r *http.Request) {
 		}
 		return strconv.ParseInt(q.Get(key), 10, 64)
 	}
-	lineID, e1 := parse("line_id", 0)
+	resourceID := "line_id"
+	if pathRolloutRequest(r) {
+		resourceID = "route_id"
+	}
+	lineID, e1 := parse(resourceID, 0)
 	before, e2 := parse("before", 0)
 	limit, e3 := parse("limit", 20)
 	if e1 != nil || e2 != nil || e3 != nil || lineID < 0 || before < 0 || limit < 1 || limit > 100 {
 		fail(w, 400, "invalid release history query")
 		return
 	}
-	value, err := h.Store.ListLineRollouts(r.Context(), lineID, before, int(limit))
+	var value *store.LineRolloutPage
+	var err error
+	if pathRolloutRequest(r) {
+		value, err = h.Store.ListPathRollouts(r.Context(), lineID, before, int(limit))
+	} else {
+		value, err = h.Store.ListLineRollouts(r.Context(), lineID, before, int(limit))
+	}
 	if err != nil {
 		lineRolloutError(w, err)
 		return
@@ -110,6 +121,10 @@ func (h *handlers) getLineRollout(w http.ResponseWriter, r *http.Request) {
 	value, err := h.Store.LineRolloutByID(r.Context(), id)
 	if err != nil {
 		lineRolloutError(w, err)
+		return
+	}
+	if !rolloutResourceAllowed(r, value) {
+		fail(w, 404, "release plan not found")
 		return
 	}
 	ok(w, value)
@@ -131,6 +146,15 @@ func (h *handlers) actLineRollout(w http.ResponseWriter, r *http.Request) {
 	}
 	h.Store.Topology.Lock()
 	defer h.Store.Topology.Unlock()
+	current, check := h.Store.LineRolloutByID(r.Context(), id)
+	if check != nil {
+		lineRolloutError(w, check)
+		return
+	}
+	if !rolloutResourceAllowed(r, current) {
+		fail(w, 404, "release plan not found")
+		return
+	}
 	var value *store.LineRollout
 	var err error
 	switch r.PathValue("action") {
@@ -149,4 +173,11 @@ func (h *handlers) actLineRollout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, value)
+}
+
+func pathRolloutRequest(r *http.Request) bool {
+	return strings.HasPrefix(r.URL.Path, "/api/admin/path-rollouts")
+}
+func rolloutResourceAllowed(r *http.Request, p *store.LineRollout) bool {
+	return pathRolloutRequest(r) == (p.SnapshotVersion == "path-relay-v1")
 }

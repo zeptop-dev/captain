@@ -3856,5 +3856,9 @@
     "deletePathHint": "Delete “{{name}}” and its versions? Referenced versions must be detached first.",
     "deleteRouteHint": "Delete route “{{name}}” and its owned forwards? Subscription nodes must be detached first.",
     "topologyHint": "Configured connections for the expanded paths. Shared servers use distinct listeners. This view does not show live health."
+  },
+  "pathRollouts": {
+    "scope": "Release complete TCP paths in listener dependency order. A server used by several branches may receive several steps. Changed listeners require separate ports; users and service controls remain current.",
+    "intent": "Pinned path intent before and after"
   }
 }

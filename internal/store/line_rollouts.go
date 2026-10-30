@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	ErrLineRolloutUnsupported = errors.New("line rollout supports ordinary TCP relay lines and fresh configuration receipts only")
+	ErrLineRolloutUnsupported = errors.New("staged releases require supported TCP relay configuration and fresh applied receipts")
 	ErrLineRolloutUnsafe      = errors.New("line rollout cannot safely coexist with the current listeners")
 	ErrLineRolloutConflict    = errors.New("line rollout conflicts with an active plan, resource reservation or changed topology")
 	ErrLineRolloutState       = errors.New("line rollout action is not valid in this state")
@@ -32,6 +32,8 @@ type LineRollout struct {
 	Status                 string              `json:"status"`
 	Stage                  string              `json:"stage"`
 	Actor                  string              `json:"actor"`
+	BeforeRoute            *PathRoute          `json:"before_route,omitempty"`
+	AfterRoute             *PathRoute          `json:"after_route,omitempty"`
 	Before                 *ForwardLine        `json:"before,omitempty"`
 	After                  *ForwardLine        `json:"after,omitempty"`
 	ErrorCode              string              `json:"error_code,omitempty"`
@@ -80,6 +82,7 @@ type LineRolloutPage struct {
 	NextBefore int64         `json:"next_before,omitempty"`
 }
 type LineRolloutPreview struct {
+	pathIntents     *pathRolloutIntents
 	PreviewRevision string              `json:"preview_revision"`
 	Draft           ForwardLine         `json:"draft"`
 	Remove          bool                `json:"remove"`
@@ -104,7 +107,7 @@ func rolloutIntent(l *ForwardLine) *ForwardLine {
 	if l == nil {
 		return nil
 	}
-	n := ForwardLine{ID: l.ID, Name: l.Name, Version: l.Version, Protocol: l.Protocol, Backend: l.Backend, TargetInboundID: l.TargetInboundID, TargetAddressMode: l.TargetAddressMode, Groups: l.Groups}
+	n := ForwardLine{PathRoute: l.PathRoute, ID: l.ID, Name: l.Name, Version: l.Version, Protocol: l.Protocol, Backend: l.Backend, TargetInboundID: l.TargetInboundID, TargetAddressMode: l.TargetAddressMode, Groups: l.Groups}
 	raw, _ := json.Marshal(n)
 	_ = json.Unmarshal(raw, &n)
 	return &n
@@ -246,14 +249,14 @@ func prepareLineRolloutTx(ctx context.Context, tx *sql.Tx, draft *ForwardLine, r
 	if err != nil {
 		return nil, nil, err
 	}
-	if !lineRolloutSupported(draft) {
+	if !lineRolloutSupported(draft) && pathRolloutContext(ctx) == nil {
 		return nil, nil, ErrLineRolloutUnsupported
 	}
 	var before *ForwardLine
 	if draft.ID > 0 {
 		if owned, e := isPathRouteTx(ctx, tx, draft.ID); e != nil {
 			return nil, nil, e
-		} else if owned {
+		} else if owned && pathRolloutContext(ctx) == nil {
 			return nil, nil, ErrLineRolloutUnsupported
 		}
 		before, err = scanLine(tx.QueryRowContext(ctx, "SELECT "+lineCols+" FROM forward_lines WHERE id=?", draft.ID))
@@ -263,7 +266,7 @@ func prepareLineRolloutTx(ctx context.Context, tx *sql.Tx, draft *ForwardLine, r
 		if before.Version != draft.Version {
 			return nil, nil, ErrLineConflict
 		}
-		if !lineRolloutSupported(before) {
+		if !lineRolloutSupported(before) && pathRolloutContext(ctx) == nil {
 			return nil, nil, ErrLineRolloutUnsupported
 		}
 		if err = checkLineRolloutWriteTx(ctx, tx, draft.ID); err != nil {
@@ -276,8 +279,10 @@ func prepareLineRolloutTx(ctx context.Context, tx *sql.Tx, draft *ForwardLine, r
 	next := rolloutIntent(draft)
 	if remove {
 		next = rolloutIntent(before)
-	} else if err = normalizeLine(next); err != nil {
-		return nil, nil, lineRolloutInputError(err)
+	} else if pathRolloutContext(ctx) == nil {
+		if err = normalizeLine(next); err != nil {
+			return nil, nil, lineRolloutInputError(err)
+		}
 	}
 	lineID := next.ID
 	if lineID == 0 {
@@ -299,7 +304,7 @@ func prepareLineRolloutTx(ctx context.Context, tx *sql.Tx, draft *ForwardLine, r
 		if reverse > 0 || ib.Settings.Reverse != nil {
 			return nil, nil, ErrLineRolloutUnsupported
 		}
-		generated, ep, e := compileLine(ctx, tx, &compiled)
+		generated, ep, e := compileRolloutIntentTx(ctx, tx, &compiled, true)
 		if e != nil {
 			return nil, nil, lineRolloutInputError(e)
 		}
@@ -438,6 +443,12 @@ func prepareLineRolloutTx(ctx context.Context, tx *sql.Tx, draft *ForwardLine, r
 		p.Targets[i].Order = i + 1
 		p.Targets[i].Attempt = 1
 	}
+	if pathRolloutContext(ctx) != nil {
+		p.pathIntents = pathRolloutContext(ctx)
+		if err = pathRolloutTargets(p, before, next); err != nil {
+			return nil, nil, err
+		}
+	}
 	// Do not couple preview identity to receipt sequences or dynamic user state.
 	p.PreviewRevision = lineChangeDigest([]LineChangeForward{{Tag: rolloutRaw(struct {
 		Draft   *ForwardLine
@@ -445,7 +456,8 @@ func prepareLineRolloutTx(ctx context.Context, tx *sql.Tx, draft *ForwardLine, r
 		Timeout int64
 		Nodes   []LineRolloutNode
 		Deps    []lineRolloutDependency
-	}{next, remove, ms, p.Nodes, deps})}})
+		Route   *pathRolloutIntents
+	}{next, remove, ms, p.Nodes, deps, pathRolloutContext(ctx)})}})
 	return p, deps, nil
 }
 
@@ -482,7 +494,7 @@ func createLineRolloutTx(ctx context.Context, tx *sql.Tx, draft *ForwardLine, re
 	next := rolloutIntent(&preview.Draft)
 	next.Endpoints = preview.Draft.Endpoints
 	if before != nil {
-		_, ep, e := compileLine(ctx, tx, before)
+		_, ep, e := compileRolloutIntentTx(ctx, tx, before, false)
 		if e != nil {
 			return nil, e
 		}
@@ -501,6 +513,12 @@ func createLineRolloutTx(ctx context.Context, tx *sql.Tx, draft *ForwardLine, re
 		}
 		next.ID, _ = r.LastInsertId()
 		next.Version = 1
+		if routes := pathRolloutContext(ctx); routes != nil {
+			routes.After.ID, routes.After.Version = next.ID, next.Version
+			if e = pathRouteSpecWriteTx(ctx, tx, routes.After); e != nil {
+				return nil, e
+			}
+		}
 		if e = saveLineTx(withLineRolloutWrite(ctx), tx, next, "save"); e != nil {
 			return nil, e
 		}
@@ -517,10 +535,16 @@ func createLineRolloutTx(ctx context.Context, tx *sql.Tx, draft *ForwardLine, re
 			}
 			preview.Nodes[i].After = lineChangeProjection(fs)
 		}
-		for i := range preview.Targets {
-			for _, n := range preview.Nodes {
-				if n.NodeID == preview.Targets[i].NodeID {
-					preview.Targets[i].Expected = n.After
+		if pathRolloutContext(ctx) != nil {
+			if e = retagPathRolloutTargets(preview.Targets, preview.Nodes, next.ID); e != nil {
+				return nil, e
+			}
+		} else {
+			for i := range preview.Targets {
+				for _, n := range preview.Nodes {
+					if n.NodeID == preview.Targets[i].NodeID {
+						preview.Targets[i].Expected = n.After
+					}
 				}
 			}
 		}
@@ -540,6 +564,9 @@ func createLineRolloutTx(ctx context.Context, tx *sql.Tx, draft *ForwardLine, re
 	}
 	plan := &LineRollout{ID: rand.Text(), LineID: next.ID, ScopeID: scope, Version: 1, Kind: kind, Status: "running", Stage: stage, Actor: lineChangeActor(ctx), Before: before, After: after, CreatedAt: at, UpdatedAt: at, Compensates: compensates, Nodes: preview.Nodes, Targets: preview.Targets, baseVersion: next.Version, timeoutMS: ms, dependencies: deps}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO line_rollouts(id,line_id,scope_id,kind,status,stage,actor,before_json,after_json,dependencies_json,base_version,timeout_ms,compensates,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, plan.ID, plan.LineID, scope, kind, plan.Status, stage, plan.Actor, rolloutRaw(plan.Before), rolloutRaw(after), rolloutRaw(deps), plan.baseVersion, ms, compensates, at.UnixMilli(), at.UnixMilli()); err != nil {
+		return nil, err
+	}
+	if err = savePathRolloutIntentsTx(ctx, tx, plan); err != nil {
 		return nil, err
 	}
 	for _, n := range plan.Nodes {

@@ -1,3 +1,4 @@
+import type { PathRoute } from './path-routes'
 import type { Line, LineChangeForward } from './api'
 
 export type LineRolloutDraft = Partial<Line> & Pick<Line, 'name' | 'protocol' | 'backend' | 'target_inbound_id' | 'groups'>
@@ -12,21 +13,21 @@ export interface LineRolloutTarget {
 export interface LineRollout {
   id: string; cursor: number; line_id: number; scope_id: string; version: number
   kind: 'create' | 'edit' | 'delete'; status: 'running' | 'paused' | 'completed' | 'compensated'; stage: 'expand' | 'cleanup'
-  actor: string; before?: Line; after?: Line; error_code?: string; compensates?: string
+  actor: string; before?: Line; after?: Line; before_route?: PathRoute; after_route?: PathRoute; error_code?: string; compensates?: string
   created_at: string; updated_at: string; published_at?: string; targets: LineRolloutTarget[]; nodes: LineRolloutNode[]
 }
 export interface LineRolloutPreview { preview_revision: string; draft: Line; remove: boolean; targets: LineRolloutTarget[]; nodes: LineRolloutNode[] }
 export interface LineRolloutPage { items: LineRollout[]; next_before?: number }
 
 // A review is tied to exactly the draft, operation and deadline shown to the user.
-export function rolloutReviewKey(line: LineRolloutDraft, remove: boolean, seconds: number): string {
+export function rolloutReviewKey(line: LineRolloutDraft | PathRoute, remove: boolean, seconds: number): string {
   return JSON.stringify({ line, remove, timeout_seconds: seconds })
 }
-export function rolloutHistoryURL(lineID?: number, before?: number): string {
+export function rolloutHistoryURL(lineID?: number, before?: number, resource: 'line-rollouts' | 'path-rollouts' = 'line-rollouts'): string {
   const q = new URLSearchParams({ limit: '20' })
-  if (lineID) q.set('line_id', String(lineID))
+  if (lineID) q.set(resource === 'path-rollouts' ? 'route_id' : 'line_id', String(lineID))
   if (before) q.set('before', String(before))
-  return `/api/admin/line-rollouts?${q}`
+  return `/api/admin/${resource}?${q}`
 }
 
 export type LineRolloutAction = 'pause' | 'retry' | 'compensate'
@@ -35,6 +36,6 @@ export interface LineRolloutActionRequest { path: string; body: { version: numbe
 // Capture the exact plan/version reviewed before opening a confirmation modal.
 // Polling may advance or replace the visible plan while confirmation is open;
 // the server must compare the original version, not a later borrowed one.
-export function rolloutActionRequest(plan: Pick<LineRollout, 'id' | 'version'>, action: LineRolloutAction): LineRolloutActionRequest {
-  return { path: `/api/admin/line-rollouts/${encodeURIComponent(plan.id)}/${action}`, body: { version: plan.version } }
+export function rolloutActionRequest(plan: Pick<LineRollout, 'id' | 'version'>, action: LineRolloutAction, resource: 'line-rollouts' | 'path-rollouts' = 'line-rollouts'): LineRolloutActionRequest {
+  return { path: `/api/admin/${resource}/${encodeURIComponent(plan.id)}/${action}`, body: { version: plan.version } }
 }

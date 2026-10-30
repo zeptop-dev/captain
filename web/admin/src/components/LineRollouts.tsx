@@ -1,3 +1,4 @@
+import type { PathRoute } from '../lib/path-routes'
 import { Accordion, Alert, Badge, Button, Card, Code, Group, Loader, Modal, NumberInput, Stack, Text, Title } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { modals } from '@mantine/modals'
@@ -11,19 +12,19 @@ import { useSettingsDirty } from '../lib/settings-draft'
 import { evidenceIsFresh, evidenceLease, type EvidenceClock } from '../lib/line-change-evidence'
 import { rolloutActionRequest, rolloutHistoryURL, rolloutReviewKey, type LineRolloutAction, type LineRolloutActionRequest, type LineRollout, type LineRolloutDraft, type LineRolloutNode, type LineRolloutPage, type LineRolloutPreview, type LineRolloutTarget } from '../lib/line-rollouts'
 
-export function LineRolloutPlanner({ draft, remove = false, onClose, onCreated }: { draft: LineRolloutDraft; remove?: boolean; onClose: () => void; onCreated: (id: string) => void }) {
+export function LineRolloutPlanner({ draft, resource = 'line-rollouts', remove = false, onClose, onCreated }: { draft: LineRolloutDraft | PathRoute; resource?: 'line-rollouts' | 'path-rollouts'; remove?: boolean; onClose: () => void; onCreated: (id: string) => void }) {
   const { t } = useTranslation()
   const mobile = useMediaQuery('(max-width: 48em)')
   const [seconds, setSeconds] = useState(300)
-  const [review, setReview] = useState<{ key: string; value: LineRolloutPreview } | null>(null)
+  const [review, setReview] = useState<{ key: string; value: Omit<LineRolloutPreview, "draft"> & { draft: LineRolloutDraft | PathRoute } } | null>(null)
   const key = rolloutReviewKey(draft, remove, seconds)
-  const preview = useMutation({ mutationFn: async () => ({ key, value: await api.post<LineRolloutPreview>('/api/admin/line-rollouts/preview', { line: draft, remove, timeout_seconds: seconds }) }), onSuccess: setReview })
+  const preview = useMutation({ mutationFn: async () => ({ key, value: await api.post<Omit<LineRolloutPreview, 'draft'> & { draft: LineRolloutDraft | PathRoute }>(`/api/admin/${resource}/preview`, { [resource === 'path-rollouts' ? 'route' : 'line']: draft, remove, timeout_seconds: seconds }) }), onSuccess: setReview })
   const qc = useQueryClient()
   const save = useMutation({ mutationFn: async () => {
     if (!review || review.key !== key) throw new Error(t('lineRollouts.reviewAgain'))
-    return api.post<LineRollout>('/api/admin/line-rollouts', { line: { ...review.value.draft, preview_revision: review.value.preview_revision }, remove, timeout_seconds: seconds })
+    return api.post<LineRollout>(`/api/admin/${resource}`, { [resource === 'path-rollouts' ? 'route' : 'line']: { ...review.value.draft, preview_revision: review.value.preview_revision }, remove, timeout_seconds: seconds })
   }, onSuccess: plan => {
-    for (const queryKey of [['lines'], ['entries'], ['line-rollouts'], ['line-changes']]) void qc.invalidateQueries({ queryKey })
+    for (const queryKey of [['lines'], ['path-routes'], ['entries'], [resource], ['line-changes']]) void qc.invalidateQueries({ queryKey })
     toast.ok(t('lineRollouts.started')); onCreated(plan.id)
   }, onError: () => setReview(null) })
   useSettingsDirty(save.isPending || !!review || seconds !== 300)
@@ -31,7 +32,7 @@ export function LineRolloutPlanner({ draft, remove = false, onClose, onCreated }
   const current = review?.key === key
   return <Modal opened onClose={() => { if (!save.isPending) onClose() }} closeOnClickOutside={false} closeOnEscape={!save.isPending} withCloseButton={!save.isPending} title={t(remove ? 'lineRollouts.remove' : 'lineRollouts.plan')} size="xl" fullScreen={mobile}>
     <Stack>
-      <Alert color="blue">{t('lineRollouts.scope')}</Alert>
+      <Alert color="blue">{t(resource === 'path-rollouts' ? 'pathRollouts.scope' : 'lineRollouts.scope')}</Alert>
       <Text fw={600}>{draft.name}</Text>
       <NumberInput label={t('lineRollouts.timeout')} description={t('lineRollouts.timeoutHint')} min={30} max={3600} allowDecimal={false} value={seconds} disabled={busy} onChange={v => setSeconds(typeof v === 'number' ? v : 300)} />
       {preview.isError && <Alert color="red">{preview.error.message}</Alert>}
@@ -51,7 +52,7 @@ export function LineRolloutPlanner({ draft, remove = false, onClose, onCreated }
 const clock = (): EvidenceClock => ({ monotonic: performance.now(), wall: Date.now() })
 type Observed = LineRollout & { started: EvidenceClock }
 
-export function LineRolloutHistory({ initialID, lineID, onClose }: { initialID?: string; lineID?: number; onClose: () => void }) {
+export function LineRolloutHistory({ initialID, lineID, resource = 'line-rollouts', onClose }: { initialID?: string; lineID?: number; resource?: 'line-rollouts' | 'path-rollouts'; onClose: () => void }) {
   const { t } = useTranslation()
   const mobile = useMediaQuery('(max-width: 48em)')
   const qc = useQueryClient()
@@ -64,24 +65,24 @@ export function LineRolloutHistory({ initialID, lineID, onClose }: { initialID?:
     window.addEventListener('offline', tick); window.addEventListener('online', tick); window.addEventListener('focus', tick)
     return () => { window.clearInterval(timer); window.removeEventListener('offline', tick); window.removeEventListener('online', tick); window.removeEventListener('focus', tick) }
   }, [])
-  const history = useQuery({ queryKey: ['line-rollouts', lineID, before], queryFn: ({ signal }) => api.get<LineRolloutPage>(rolloutHistoryURL(lineID, before), signal), retry: false, refetchInterval: 5000 })
+  const history = useQuery({ queryKey: [resource, lineID, before], queryFn: ({ signal }) => api.get<LineRolloutPage>(rolloutHistoryURL(lineID, before, resource), signal), retry: false, refetchInterval: 5000 })
   const activeID = id ?? history.data?.items[0]?.id
-  const detail = useQuery({ queryKey: ['line-rollout', activeID], queryFn: async ({ signal }): Promise<Observed> => {
-    const started = clock(); return { ...await api.get<LineRollout>(`/api/admin/line-rollouts/${encodeURIComponent(activeID!)}`, signal), started }
+  const detail = useQuery({ queryKey: [resource, 'detail', activeID], queryFn: async ({ signal }): Promise<Observed> => {
+    const started = clock(); return { ...await api.get<LineRollout>(`/api/admin/${resource}/${encodeURIComponent(activeID!)}`, signal), started }
   }, enabled: !!activeID, retry: false, refetchInterval: 5000 })
   const connected = navigator.onLine && !detail.isError && detail.fetchStatus !== 'paused'
   const act = useMutation({ mutationFn: (request: LineRolloutActionRequest) => api.post<LineRollout>(request.path, request.body), onSuccess: result => {
-    setID(result.id); void qc.invalidateQueries({ queryKey: ['line-rollouts'] }); void qc.invalidateQueries({ queryKey: ['line-rollout'] }); void qc.invalidateQueries({ queryKey: ['lines'] }); void qc.invalidateQueries({ queryKey: ['entries'] })
+    setID(result.id); void qc.invalidateQueries({ queryKey: [resource] }); void qc.invalidateQueries({ queryKey: ['path-routes'] }); void qc.invalidateQueries({ queryKey: ['lines'] }); void qc.invalidateQueries({ queryKey: ['entries'] })
   } })
   const action = (kind: LineRolloutAction) => {
     if (!detail.data) return
-    const request = rolloutActionRequest(detail.data, kind)
+    const request = rolloutActionRequest(detail.data, kind, resource)
     modals.openConfirmModal({ title: t(`lineRollouts.action.${kind}`), children: <Text size="sm">{t(`lineRollouts.actionHint.${kind}`)}</Text>, labels: { confirm: t(`lineRollouts.action.${kind}`), cancel: t('common.cancel') }, onConfirm: () => act.mutate(request) })
   }
   const turnPage = (next: (number | undefined)[]) => { setPages(next); setID(undefined) }
   return <Modal opened onClose={onClose} title={t('lineRollouts.history')} size="xl" fullScreen={mobile} closeButtonProps={{ 'aria-label': t('common.cancel') }}>
     <Stack>
-      <Alert color="blue">{t('lineRollouts.scope')}</Alert>
+      <Alert color="blue">{t(resource === 'path-rollouts' ? 'pathRollouts.scope' : 'lineRollouts.scope')}</Alert>
       {history.isError && <Alert color="red">{t('lineRollouts.loadError')}</Alert>}
       <Group gap="xs">{history.data?.items.map(plan => <Button key={plan.id} size="xs" variant={activeID === plan.id ? 'filled' : 'light'} onClick={() => setID(plan.id)}>{plan.after?.name ?? plan.before?.name ?? `#${plan.line_id}`} · {t(`lineRollouts.status.${plan.status}`)}</Button>)}</Group>
       <Group justify="space-between"><Button size="xs" variant="default" disabled={pages.length === 1 || history.isFetching} onClick={() => turnPage(pages.slice(0, -1))}>{t('lineChanges.newer')}</Button><Button size="xs" variant="default" disabled={!history.data?.next_before || history.isFetching || history.isError} onClick={() => turnPage([...pages, history.data!.next_before])}>{t('lineChanges.older')}</Button></Group>
@@ -103,6 +104,7 @@ export function LineRolloutHistory({ initialID, lineID, onClose }: { initialID?:
         </Group>
         <Title order={5}>{t('lineRollouts.steps')}</Title>
         {detail.data.targets.map(target => <Step key={target.id} target={target} fresh={evidenceIsFresh(evidenceLease(detail.data.started, target.fresh_for_ms), now, connected) && target.fresh && target.receipt_applied} connected={connected} />)}
+        {resource === 'path-rollouts' && <Accordion><Accordion.Item value="intent"><Accordion.Control>{t('pathRollouts.intent')}</Accordion.Control><Accordion.Panel>{(['before_route', 'after_route'] as const).map(side => <Code key={side} block style={{ maxHeight: 240, overflow: 'auto' }}>{JSON.stringify(detail.data?.[side] ?? null, null, 2)}</Code>)}</Accordion.Panel></Accordion.Item></Accordion>}
         <Snapshots nodes={detail.data.nodes} />
       </>}
     </Stack>

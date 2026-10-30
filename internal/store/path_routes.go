@@ -376,6 +376,9 @@ func (s *Store) DeletePathRoute(ctx context.Context, id, version int64) (string,
 		return "", e
 	}
 	defer tx.Rollback()
+	if e = checkLineRolloutWriteTx(ctx, tx, id); e != nil {
+		return "", e
+	}
 	p, e := pathRouteTx(ctx, tx, id)
 	if e != nil {
 		return "", e

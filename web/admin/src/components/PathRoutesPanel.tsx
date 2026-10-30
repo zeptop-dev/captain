@@ -1,3 +1,4 @@
+import { LineRolloutHistory, LineRolloutPlanner } from './LineRollouts'
 import { ActionIcon, Alert, Badge, Box, Button, Card, Checkbox, Code, Group, Loader, Modal, NumberInput, Select, SimpleGrid, Stack, Table, Tabs, Text, TextInput, Title } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -29,6 +30,8 @@ export function PathRoutesPanel({ nodes, details, inbounds, lines, loading = fal
   const routes = useQuery({ queryKey: ['path-routes'], queryFn: () => api.get<PathRoute[]>('/api/admin/path-routes') })
   const [pathEditor, setPathEditor] = useState<ForwardPath | 'new' | null>(null)
   const [routeEditor, setRouteEditor] = useState<PathRoute | 'new' | null>(null)
+  const [release, setRelease] = useState<{route: PathRoute; remove: boolean} | null>(null)
+  const [releaseHistory, setReleaseHistory] = useState<{id?: string; routeID?: number} | null>(null)
   const [uses, setUses] = useState<ForwardPath | null>(null)
   const refresh = () => { qc.invalidateQueries({ queryKey: ['forward-paths'] }); qc.invalidateQueries({ queryKey: ['path-routes'] }); qc.invalidateQueries({ queryKey: ['lines'] }); qc.invalidateQueries({ queryKey: ['entries'] }); qc.invalidateQueries({ queryKey: ['line-changes'] }); qc.invalidateQueries({ queryKey: ['node'] }) }
   const del = useMutation({
@@ -44,14 +47,14 @@ export function PathRoutesPanel({ nodes, details, inbounds, lines, loading = fal
     <Tabs defaultValue="routes" keepMounted={false}>
       <Tabs.List><Tabs.Tab value="routes">{t('pathRoutes.routes')}</Tabs.Tab><Tabs.Tab value="paths">{t('pathRoutes.paths')}</Tabs.Tab></Tabs.List>
       <Tabs.Panel value="routes" pt="md"><Stack>
-        <Group justify="flex-end"><Button onClick={() => setRouteEditor('new')} disabled={loading || error || paths.isPending || paths.isError || !paths.data?.length}>{t('pathRoutes.createRoute')}</Button></Group>
+        <Group justify="flex-end"><Button variant="default" onClick={() => setReleaseHistory({})}>{t('lineRollouts.history')}</Button><Button onClick={() => setRouteEditor('new')} disabled={loading || error || paths.isPending || paths.isError || !paths.data?.length}>{t('pathRoutes.createRoute')}</Button></Group>
         {routes.isPending && <Loader size="sm" />}
         {routes.data?.length === 0 && <Text c="dimmed">{t('pathRoutes.noRoutes')}</Text>}
         {routes.data?.map(route => <Card key={route.id} withBorder><Stack gap="sm">
           <Group justify="space-between"><Title order={4}>{route.name}</Title><Badge variant="light">TCP · {t(`lines.strategies.${route.strategy}`)}</Badge></Group>
           <Text size="sm">{nodes.find(node => node.id === route.entry.node_id)?.name || `#${route.entry.node_id}`} : {route.entry.port} → {inbounds.find(choice => choice.ib.ID === route.target_inbound_id)?.ib.Tag || `#${route.target_inbound_id}`}</Text>
           {route.branches.map((branch, index) => <Text key={branch.id || index} size="sm">{t('pathRoutes.branch', { number: index + 1 })}: {paths.data?.find(path => path.id === branch.path_id)?.name || `#${branch.path_id}`} · {t('pathRoutes.revisionValue', { version: branch.path_revision })} · {branch.ports.join(' → ')}</Text>)}
-          <Group justify="flex-end">{onCreateNode && <Button variant="light" size="xs" onClick={() => onCreateNode(route.id)}>{t('entryFlow.createNode')}</Button>}{onHistory && <Button size="xs" variant="default" onClick={() => onHistory({ lineID: route.id, lineName: route.name })}>{t('lineChanges.application')}</Button>}<Button size="xs" variant="default" leftSection={<IconPencil size={15} />} disabled={loading || error || paths.isError || paths.isPending} onClick={() => setRouteEditor(route)}>{t('common.edit')}</Button><ActionIcon color="red" variant="subtle" aria-label={t('common.delete')} disabled={del.isPending} onClick={() => remove('route', route)}><IconTrash size={16} /></ActionIcon></Group>
+          <Group justify="flex-end"><Button size="xs" variant="default" onClick={() => setReleaseHistory({routeID: route.id})}>{t('lineRollouts.history')}</Button><Button size="xs" variant="light" color="red" onClick={() => setRelease({route,remove:true})}>{t('lineRollouts.remove')}</Button>{onCreateNode && <Button variant="light" size="xs" onClick={() => onCreateNode(route.id)}>{t('entryFlow.createNode')}</Button>}{onHistory && <Button size="xs" variant="default" onClick={() => onHistory({ lineID: route.id, lineName: route.name })}>{t('lineChanges.application')}</Button>}<Button size="xs" variant="default" leftSection={<IconPencil size={15} />} disabled={loading || error || paths.isError || paths.isPending} onClick={() => setRouteEditor(route)}>{t('common.edit')}</Button><ActionIcon color="red" variant="subtle" aria-label={t('common.delete')} disabled={del.isPending} onClick={() => remove('route', route)}><IconTrash size={16} /></ActionIcon></Group>
         </Stack></Card>)}
       </Stack></Tabs.Panel>
       <Tabs.Panel value="paths" pt="md"><Stack>
@@ -67,7 +70,9 @@ export function PathRoutesPanel({ nodes, details, inbounds, lines, loading = fal
       </Stack></Tabs.Panel>
     </Tabs>
     {pathEditor && <SettingsDraftBoundary><PathEditor path={pathEditor === 'new' ? undefined : pathEditor} paths={paths.data || []} {...resources} onClose={() => setPathEditor(null)} onSaved={refresh} /></SettingsDraftBoundary>}
-    {routeEditor && <SettingsDraftBoundary><RouteEditor route={routeEditor === 'new' ? undefined : routeEditor} paths={paths.data || []} {...resources} onClose={() => setRouteEditor(null)} onSaved={saved => { refresh(); onHistory?.({ lineID: saved.id, lineName: saved.name, changeID: saved.change_id }) }} /></SettingsDraftBoundary>}
+    {routeEditor && <SettingsDraftBoundary><RouteEditor route={routeEditor === 'new' ? undefined : routeEditor} paths={paths.data || []} {...resources} onClose={() => setRouteEditor(null)} onStage={draft => { setRouteEditor(null); setRelease({route: draft,remove:false}) }} onSaved={saved => { refresh(); onHistory?.({ lineID: saved.id, lineName: saved.name, changeID: saved.change_id }) }} /></SettingsDraftBoundary>}
+    {release && <SettingsDraftBoundary><LineRolloutPlanner resource="path-rollouts" draft={release.route} remove={release.remove} onClose={() => setRelease(null)} onCreated={id => {setRelease(null);refresh();setReleaseHistory({id})}} /></SettingsDraftBoundary>}
+    {releaseHistory && <LineRolloutHistory resource="path-rollouts" initialID={releaseHistory.id} lineID={releaseHistory.routeID} onClose={() => setReleaseHistory(null)} />}
     {uses && <PathUses path={uses} onClose={() => setUses(null)} />}
   </Stack>
 }
@@ -125,7 +130,7 @@ function PathEditor({ path, paths, nodes, details, lines, inbounds, onClose, onS
   </Stack></form></Modal>
 }
 
-function RouteEditor({ route, paths, nodes, details, inbounds, onClose, onSaved }: Resources & { route?: PathRoute; paths: ForwardPath[]; onClose: () => void; onSaved: (route: PathRoute) => void }) {
+function RouteEditor({ route, paths, nodes, details, inbounds, onClose, onSaved, onStage }: Resources & { route?: PathRoute; paths: ForwardPath[]; onClose: () => void; onSaved: (route: PathRoute) => void; onStage: (draft: PathRoute) => void }) {
   const { t } = useTranslation()
   const [initial] = useState(() => ({ ...(route || { id: 0, version: 0, name: '', entry: { id: '', node_id: 0, port: 0, weight: 1 }, target_inbound_id: 0, target_address_mode: 'default' as const, strategy: 'failover' as const, branches: [] }), branches: (route?.branches || [{ id: '', path_id: 0, path_revision: 0, weight: 1, ports: [] }]).map(branch => ({ ...branch, ports: [...branch.ports], uiKey: key() })) }))
   const [draft, setDraft] = useState(initial)
@@ -165,7 +170,7 @@ function RouteEditor({ route, paths, nodes, details, inbounds, onClose, onSaved 
     {preview.isError && <Alert color="red">{preview.error.message}</Alert>}
     {review && !reviewCurrent && <Alert color="yellow">{t('lineImpact.stale')}</Alert>}
     {reviewCurrent && review && <PathImpact value={review.value} />}
-    <Group justify="flex-end"><Button variant="default" disabled={save.isPending} onClick={close}>{t('common.cancel')}</Button>{reviewCurrent && <Button variant="default" loading={preview.isPending} disabled={save.isPending} onClick={() => preview.mutate()}>{t('lineImpact.refresh')}</Button>}<Button type="submit" loading={preview.isPending || save.isPending} disabled={!valid}>{reviewCurrent ? t('lineImpact.save') : t('lineImpact.preview')}</Button></Group>
+    <Group justify="flex-end"><Button variant="default" disabled={save.isPending} onClick={close}>{t('common.cancel')}</Button>{reviewCurrent && <Button variant="default" loading={preview.isPending} disabled={save.isPending} onClick={() => preview.mutate()}>{t('lineImpact.refresh')}</Button>}<Button variant="light" disabled={!valid || save.isPending || preview.isPending} onClick={() => onStage(input)}>{t('lineRollouts.plan')}</Button><Button type="submit" loading={preview.isPending || save.isPending} disabled={!valid}>{reviewCurrent ? t('lineImpact.save') : t('lineImpact.preview')}</Button></Group>
   </Stack></form></Modal>
 }
 function PathImpact({ value }: { value: PathRoutePreview }) {

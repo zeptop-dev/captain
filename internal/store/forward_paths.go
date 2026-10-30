@@ -298,7 +298,8 @@ func (s *Store) SaveForwardPath(ctx context.Context, p *ForwardPath) error {
 func pathUsesTx(ctx context.Context, tx *sql.Tx, id int64) ([]PathUse, error) {
 	rows, err := tx.QueryContext(ctx, `WITH RECURSIVE users(id,revision) AS (SELECT path_id,revision FROM forward_path_refs WHERE source_path_id=? UNION SELECT r.path_id,r.revision FROM forward_path_refs r JOIN users u ON r.source_path_id=u.id AND r.source_revision=u.revision)
  SELECT 'path',p.id,u.revision,p.name FROM users u JOIN forward_paths p ON p.id=u.id
- UNION SELECT 'route',l.id,l.version,l.name FROM forward_path_route_refs r JOIN forward_lines l ON l.id=r.line_id WHERE r.path_id=? OR EXISTS(SELECT 1 FROM users u WHERE u.id=r.path_id AND u.revision=r.revision) ORDER BY 1,2,3`, id, id)
+ UNION SELECT 'route',l.id,l.version,l.name FROM forward_path_route_refs r JOIN forward_lines l ON l.id=r.line_id WHERE r.path_id=? OR EXISTS(SELECT 1 FROM users u WHERE u.id=r.path_id AND u.revision=r.revision)
+ UNION SELECT 'route',l.id,l.version,l.name FROM path_rollout_refs r JOIN line_rollouts p ON p.id=r.plan_id JOIN forward_lines l ON l.id=p.line_id WHERE p.status IN ('running','paused') AND (r.path_id=? OR EXISTS(SELECT 1 FROM users u WHERE u.id=r.path_id AND u.revision=r.revision)) ORDER BY 1,2,3`, id, id, id)
 	if err != nil {
 		return nil, err
 	}

@@ -36,6 +36,9 @@ func readLineRolloutTx(ctx context.Context, tx *sql.Tx, id string, at time.Time)
 	p.CreatedAt = time.UnixMilli(created)
 	p.UpdatedAt = time.UnixMilli(updated)
 	p.PublishedAt = lineMillisPtr(published)
+	if err = readPathRolloutIntentsTx(ctx, tx, p); err != nil {
+		return nil, err
+	}
 	rows, err := tx.QueryContext(ctx, `SELECT node_id,node_name,node_identity,token_identity,before_json,after_json,before_depth,after_depth FROM line_rollout_nodes WHERE plan_id=? ORDER BY node_id`, id)
 	if err != nil {
 		return nil, err
@@ -120,6 +123,12 @@ func (s *Store) LineRolloutByID(ctx context.Context, id string) (*LineRollout, e
 	return p, tx.Commit()
 }
 func (s *Store) ListLineRollouts(ctx context.Context, lineID, before int64, limit int) (*LineRolloutPage, error) {
+	return s.listRollouts(ctx, lineID, before, limit, false)
+}
+func (s *Store) ListPathRollouts(ctx context.Context, lineID, before int64, limit int) (*LineRolloutPage, error) {
+	return s.listRollouts(ctx, lineID, before, limit, true)
+}
+func (s *Store) listRollouts(ctx context.Context, lineID, before int64, limit int, path bool) (*LineRolloutPage, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -131,7 +140,7 @@ func (s *Store) ListLineRollouts(ctx context.Context, lineID, before int64, limi
 		return nil, err
 	}
 	defer tx.Rollback()
-	rows, err := tx.QueryContext(ctx, `SELECT id FROM line_rollouts WHERE (?=0 OR line_id=?) AND (?=0 OR ordinal<?) ORDER BY ordinal DESC LIMIT ?`, lineID, lineID, before, before, limit+1)
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM line_rollouts WHERE (snapshot_version='path-relay-v1')=? AND (?=0 OR line_id=?) AND (?=0 OR ordinal<?) ORDER BY ordinal DESC LIMIT ?`, path, lineID, lineID, before, before, limit+1)
 	if err != nil {
 		return nil, err
 	}
@@ -216,6 +225,7 @@ func lineRolloutCurrent(p *LineRollout, nodeID int64) []LineChangeForward {
 	return out
 }
 func lineRolloutValidationTx(ctx context.Context, tx *sql.Tx, p *LineRollout, at time.Time, requireFresh bool) error {
+	ctx = withPlanPathIntents(ctx, p)
 	var version int64
 	var scope string
 	if err := tx.QueryRowContext(ctx, `SELECT l.version,s.id FROM forward_lines l JOIN line_change_scopes s ON s.line_id=l.id WHERE l.id=?`, p.LineID).Scan(&version, &scope); err != nil {
@@ -252,7 +262,7 @@ func lineRolloutValidationTx(ctx context.Context, tx *sql.Tx, p *LineRollout, at
 		if v.intent == nil {
 			continue
 		}
-		generated, endpoints, err := compileLine(withLineRolloutWrite(ctx), tx, v.intent)
+		generated, endpoints, err := compileRolloutIntentTx(withLineRolloutWrite(ctx), tx, v.intent, v.after)
 		if err != nil {
 			return fmt.Errorf("%w: topology no longer compiles", ErrLineRolloutConflict)
 		}
@@ -303,8 +313,9 @@ func (s *Store) RetryLineRollout(ctx context.Context, id string, version int64) 
 	}
 	// Previously released steps keep the same pointer, but every resumed attempt
 	// needs its own new delivery. Neither old success nor late failure can win.
+	latest := currentRolloutTargets(p)
 	for _, t := range p.Targets {
-		if t.Phase != p.Stage || t.Status == "pending" {
+		if t.Phase != p.Stage || t.Status == "pending" || latest[t.NodeID].ID != t.ID {
 			continue
 		}
 		if _, err = tx.ExecContext(ctx, `UPDATE line_rollout_steps SET attempt=attempt+1,attempt_id=?,status='released',deadline_at=?,delivery_id='',session='',config_revision='',state_revision='',issued_at=NULL,observed_at=NULL,last_receipt_at=NULL,receipt_sequence=0,receipt_applied=0 WHERE id=?`, randRolloutID(), at.UnixMilli()+p.timeoutMS, t.ID); err != nil {
@@ -383,12 +394,7 @@ func advanceLineRolloutTx(ctx context.Context, tx *sql.Tx, p *LineRollout, at ti
 	// A node that only expanded remains a live prerequisite during cleanup.
 	// Inspect its latest released target: an older expansion receipt must not
 	// override the evidence for a newer cleanup target on the same node.
-	current := map[int64]LineRolloutTarget{}
-	for _, t := range p.Targets {
-		if t.Status != "pending" {
-			current[t.NodeID] = t
-		}
-	}
+	current := currentRolloutTargets(p)
 	for _, t := range current {
 		if t.Phase != p.Stage && (t.Status != "applied" || !t.Fresh || !t.ReceiptApplied) {
 			return changed, pauseLineRolloutTx(ctx, tx, p, "confirmation_stale", at)
@@ -400,6 +406,9 @@ func advanceLineRolloutTx(ctx context.Context, tx *sql.Tx, p *LineRollout, at ti
 		}
 		switch t.Status {
 		case "applied":
+			if current[t.NodeID].ID != t.ID {
+				continue
+			}
 			if !t.Fresh || !t.ReceiptApplied {
 				return changed, pauseLineRolloutTx(ctx, tx, p, "confirmation_stale", at)
 			}
@@ -454,6 +463,13 @@ func publishLineRolloutTx(ctx context.Context, tx *sql.Tx, p *LineRollout, at ti
 	}
 	if p.Kind != "create" {
 		next := rolloutIntent(p.After)
+		if p.AfterRoute != nil {
+			route := clonePathRolloutIntent(p.AfterRoute)
+			route.ID, route.Version = next.ID, p.baseVersion+1
+			if err := pathRouteSpecWriteTx(ctx, tx, route); err != nil {
+				return err
+			}
+		}
 		next.Version = p.baseVersion + 1
 		if err := saveLineTx(withLineRolloutWrite(ctx), tx, next, "save"); err != nil {
 			return err
@@ -593,6 +609,15 @@ func (s *Store) CompensateLineRollout(ctx context.Context, id string, version in
 	if err != nil && !errors.Is(err, sql.ErrNoRows) && !errors.Is(err, ErrNotFound) {
 		return nil, err
 	}
+	if current != nil {
+		var scope string
+		if err = tx.QueryRowContext(ctx, `SELECT id FROM line_change_scopes WHERE line_id=?`, current.ID).Scan(&scope); err != nil {
+			return nil, err
+		}
+		if scope != old.ScopeID {
+			return nil, fmt.Errorf("%w: line identity changed", ErrLineRolloutConflict)
+		}
+	}
 	if current != nil && current.Version != old.baseVersion {
 		return nil, fmt.Errorf("%w: a later edit must not be overwritten", ErrLineRolloutConflict)
 	}
@@ -632,7 +657,17 @@ func (s *Store) CompensateLineRollout(ctx context.Context, id string, version in
 	if _, err = tx.ExecContext(ctx, `UPDATE line_rollouts SET status='compensated',version=version+1,updated_at=? WHERE id=?`, at.UnixMilli(), old.ID); err != nil {
 		return nil, err
 	}
-	plan, err := createLineRolloutTx(withLineRolloutWrite(ctx), tx, restore, remove, time.Duration(old.timeoutMS)*time.Millisecond, at, held, old.ID)
+	var plan *LineRollout
+	if old.BeforeRoute != nil || old.AfterRoute != nil {
+		route := clonePathRolloutIntent(old.BeforeRoute)
+		if route == nil {
+			route = clonePathRolloutIntent(old.AfterRoute)
+		}
+		route.ID, route.Version = restore.ID, restore.Version
+		plan, err = createPathRolloutTx(withLineRolloutWrite(ctx), tx, route, remove, time.Duration(old.timeoutMS)*time.Millisecond, at, held, old.ID)
+	} else {
+		plan, err = createLineRolloutTx(withLineRolloutWrite(ctx), tx, restore, remove, time.Duration(old.timeoutMS)*time.Millisecond, at, held, old.ID)
+	}
 	if err != nil {
 		return nil, err
 	}

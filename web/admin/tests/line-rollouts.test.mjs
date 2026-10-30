@@ -30,3 +30,14 @@ test('a release preview belongs to the exact operation, draft and timeout', () =
   assert.notEqual(rolloutReviewKey(draft, false, 300), initial)
   assert.equal(rolloutHistoryURL(7, 12), '/api/admin/line-rollouts?limit=20&line_id=7&before=12')
 })
+
+test('path releases keep independent scope and reviewed path intent', () => {
+  assert.equal(rolloutHistoryURL(7, 12, 'path-rollouts'), '/api/admin/path-rollouts?limit=20&route_id=7&before=12')
+  assert.deepEqual(rolloutActionRequest({ id: 'path/a', version: 5 }, 'retry', 'path-rollouts'), {
+    path: '/api/admin/path-rollouts/path%2Fa/retry', body: { version: 5 },
+  })
+  const route = { name: 'Complete path', entry: { node_id: 1, port: 443 }, branches: [{ path_id: 2, path_revision: 3, ports: [8443] }] }
+  const key = rolloutReviewKey(route, false, 300)
+  route.branches[0].path_revision++
+  assert.notEqual(rolloutReviewKey(route, false, 300), key)
+})
