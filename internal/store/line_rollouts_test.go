@@ -549,7 +549,12 @@ func TestLineRolloutCompensationCanReleaseDeletedFutureMember(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = r.s.DeleteNode(ctx, r.nodes[2].ID); err != nil {
+	if err = r.s.DeleteNode(ctx, r.nodes[2].ID); !errors.Is(err, ErrLineInUse) {
+		t.Fatal("active future member was not protected", err)
+	}
+	// Recovery must also work if an external database repair removed a member;
+	// normal management deletion now protects every active dependency.
+	if _, err = r.s.db.Exec(`DELETE FROM nodes WHERE id=?`, r.nodes[2].ID); err != nil {
 		t.Fatal(err)
 	}
 	r.advance(t)
