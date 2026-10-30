@@ -3525,7 +3525,9 @@
     "diagnostics": {
       "health": "검사 및 인증서",
       "network": "네트워크 진단",
-      "routes": "복귀 경로"
+      "routes": "복귀 경로",
+      "live": "실시간 진단",
+      "traffic-history": "계량 배치 기록"
     },
     "settings": {
       "proxy": "프록시 일반",
@@ -3978,5 +3980,99 @@
     "sort": "정렬 순서",
     "settingsChangedWhileSaving": "저장 중에 서버 또는 초기 설정이 변경되었습니다. 저장된 서버와 설정을 유지하거나 이 새 리소스 생성 작업을 제거한 후 다시 추가하세요.",
     "keepSavedSettings": "저장된 서버와 설정 유지"
+  },
+  "trafficHistory": {
+    "title": "계량 배치 기록",
+    "scope": "수락된 배치의 출처 구간과 전송 증거입니다. 분 단위 트래픽을 복원한 차트가 아닙니다.",
+    "accounting": "기존 청구일과 과금 규칙은 유지됩니다. 바이트 합계는 수락된 사용자 트래픽 증가량이며 요금제에서 실제 차감한 양은 아닙니다.",
+    "latest": "최신 배치",
+    "retention": "서버당 최대 {{days}}일 또는 {{rows}}개 배치를 보관합니다. 전체 {{global}}개 한도로 이전 기록이 더 일찍 삭제될 수 있습니다.",
+    "loadError": "계량 기록을 불러올 수 없습니다. 누락된 데이터를 0으로 처리하지 않습니다.",
+    "delivery": "전송 대기량",
+    "deliveryScope": "로컬 저널에 이미 수집한 사용자 바이트만 포함합니다. 코어에서 아직 읽지 않은 카운터는 제외합니다.",
+    "pending_bytes": "확인 대기",
+    "buffered_bytes": "버퍼됨",
+    "journal_bytes": "저널 크기",
+    "observed": "수집 시각",
+    "received": "최초 수신",
+    "oldest": "가장 오래된 수집 배치",
+    "deliveryStale": "현재 대기량 증거가 만료되었습니다. 이전 관측 시각은 참고용으로 표시합니다.",
+    "deliveryUnavailable": "현재 전송 대기량 증거가 없습니다.",
+    "empty": "보관된 배치가 없습니다. 트래픽이 없었다는 의미는 아닙니다.",
+    "totals": "수락된 업로드 {{up}} · 다운로드 {{down}}",
+    "accountingDay": "기존 계상일 (UTC)",
+    "delay": "전송 지연",
+    "delayUnknown": "노드와 패널의 시계가 달라 신뢰할 수 있는 지연을 계산할 수 없습니다.",
+    "collection": "카운터 읽기 작업 구간",
+    "collectionHint": "{{count}}개 수집 구간을 합쳤습니다. 읽기 작업 시각이며 전체 사용 구간은 아닙니다.",
+    "sources": "카운터 출처",
+    "interval": "출처 관측 구간",
+    "intervalUnknown": "시작점 또는 구간의 연속성 알 수 없음",
+    "readAt": "이번 읽기 종료",
+    "segments": "출처 구간 {{count}}개",
+    "batch": "배치 식별자",
+    "newer": "새 배치",
+    "older": "이전 배치",
+    "legacy": "이전 버전 배치에는 수집 메타데이터가 없어 원래 구간을 복원할 수 없습니다.",
+    "invalid": "수집 메타데이터가 잘못되었거나 지원되지 않습니다. 구간을 추정하지 않습니다.",
+    "discarded": "유효하지 않거나 범위 밖인 트래픽 {{count}}개 행을 합계에서 제외했습니다.",
+    "quality": {
+      "observed": "경계 관측됨",
+      "partial": "일부만 알려짐",
+      "unknown": "알 수 없음",
+      "legacy": "이전 형식",
+      "invalid": "유효하지 않음"
+    },
+    "counter": {
+      "users": "사용자",
+      "inbounds": "인바운드",
+      "outbounds": "아웃바운드"
+    },
+    "reasons": {
+      "first_read": "첫 읽기로 이전 경계는 알 수 없음",
+      "counter_error": "카운터 읽기 실패",
+      "process_changed": "코어 프로세스 변경",
+      "process_unverified": "코어 프로세스 식별 확인 안 됨",
+      "clock_discontinuity": "시계 불연속",
+      "coalesced": "여러 구간 병합",
+      "legacy_metadata": "이전 메타데이터 없음",
+      "no_running_sources": "실행 중인 출처 없음",
+      "source_limit": "출처 수 제한에 도달",
+      "other": "기타 관측 누락"
+    }
+  },
+  "observability": {
+    "live": "실시간 진단",
+    "unknown": "알 수 없음",
+    "fresh": "유효"
+  },
+  "liveDiagnostics": {
+    "scope": "이 패널이 보이는 동안만 서버 진단을 1초 간격으로 수집합니다. 여러 사용자는 수집기를 공유하며, 패널을 떠나거나 숨기면 이 페이지의 수집 요청이 종료됩니다.",
+    "start": "시작 / 재시도",
+    "stop": "중지",
+    "unsupported": "서버의 유효한 실시간 진단 지원 보고가 없습니다. 에이전트를 업그레이드하거나 지원 보고를 기다리세요.",
+    "budget": "실시간 진단 한도에 도달했습니다. 다른 세션이 종료된 후 다시 시도하세요.",
+    "loadError": "요청 실패로 실시간 진단을 중지했습니다. 재시도하면 새 세션을 만듭니다.",
+    "inactive": "페이지가 숨겨지거나 오프라인이면 이 페이지의 수집 요청을 중지합니다.",
+    "baseline": "기존 모니터링과 트래픽 과금은 그대로 유지됩니다. 네트워크 속도는 호스트 관측값이며 고객 청구량이 아닙니다.",
+    "cpu": "CPU",
+    "memory": "메모리",
+    "upload": "업로드",
+    "download": "다운로드",
+    "sampled": "노드 수집 시각",
+    "noCurrent": "유효한 현재 샘플이 없습니다. 누락값은 알 수 없음으로 유지합니다.",
+    "graph": "최근 수신한 최대 2분의 샘플입니다. 누락 구간은 연결하지 않으며 이전 점은 현재 유효성을 의미하지 않습니다.",
+    "interfaces": "네트워크 인터페이스",
+    "interface": "인터페이스",
+    "truncated": "수집 한도로 인터페이스 목록 일부가 생략되었습니다.",
+    "status": {
+      "inactive": "비활성",
+      "error": "오류",
+      "stopped": "중지됨",
+      "starting": "시작 중",
+      "live": "실시간",
+      "waiting": "샘플 대기",
+      "stale": "만료됨"
+    }
   }
 }

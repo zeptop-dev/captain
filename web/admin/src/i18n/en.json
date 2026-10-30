@@ -3525,7 +3525,9 @@
     "diagnostics": {
       "health": "Checks and certificates",
       "network": "Network diagnostics",
-      "routes": "Return routes"
+      "routes": "Return routes",
+      "live": "Live diagnostics",
+      "traffic-history": "Metering batch history"
     },
     "settings": {
       "proxy": "Proxy options",
@@ -3978,5 +3980,99 @@
     "sort": "Sort order",
     "settingsChangedWhileSaving": "The server or initial configuration changed while saving. Keep the saved server and configuration, or remove this new operation and add it again.",
     "keepSavedSettings": "Keep saved server and configuration"
+  },
+  "trafficHistory": {
+    "title": "Metering batch history",
+    "scope": "Accepted metering batches, their source intervals and delivery evidence. This is not a reconstructed traffic timeline.",
+    "accounting": "Billing dates and charging rules are unchanged. Byte totals are accepted user traffic increments, not the amount deducted from a subscription.",
+    "latest": "Latest batches",
+    "retention": "Retained for up to {{days}} days or {{rows}} batches per server. The shared limit of {{global}} batches may evict older records earlier.",
+    "loadError": "Could not load metering history. No missing data is treated as zero.",
+    "delivery": "Delivery backlog",
+    "deliveryScope": "Only user bytes already collected into the local journal are included. Counters still inside a core are excluded.",
+    "pending_bytes": "Awaiting acknowledgement",
+    "buffered_bytes": "Buffered",
+    "journal_bytes": "Journal size",
+    "observed": "Sampled",
+    "received": "First received",
+    "oldest": "Oldest collected batch",
+    "deliveryStale": "Current backlog evidence has expired. Historical observation times remain visible.",
+    "deliveryUnavailable": "No current backlog evidence is available.",
+    "empty": "No retained batches are available. This does not mean no traffic occurred.",
+    "totals": "Accepted upload {{up}} · download {{down}}",
+    "accountingDay": "Accounting day (UTC)",
+    "delay": "Delivery delay",
+    "delayUnknown": "Cannot be determined reliably across the node and panel clocks.",
+    "collection": "Counter collection operations",
+    "collectionHint": "{{count}} collection segments. These are read-operation times, not the complete source usage interval.",
+    "sources": "Counter sources",
+    "interval": "Observed source interval",
+    "intervalUnknown": "Start or interval continuity is unknown",
+    "readAt": "Counter read ended",
+    "segments": "{{count}} source segments",
+    "batch": "Batch identity",
+    "newer": "Newer",
+    "older": "Older",
+    "legacy": "This older batch has no sampling metadata. Its original interval cannot be reconstructed.",
+    "invalid": "Sampling metadata is invalid or unsupported. No sampling interval is inferred.",
+    "discarded": "{{count}} invalid or out-of-scope traffic rows were excluded from these totals.",
+    "quality": {
+      "observed": "Observed boundaries",
+      "partial": "Partial",
+      "unknown": "Unknown",
+      "legacy": "Legacy",
+      "invalid": "Invalid"
+    },
+    "counter": {
+      "users": "Users",
+      "inbounds": "Inbounds",
+      "outbounds": "Outbounds"
+    },
+    "reasons": {
+      "first_read": "First read: earlier boundary unknown",
+      "counter_error": "Counter read failed",
+      "process_changed": "Core process changed",
+      "process_unverified": "Core process identity unverified",
+      "clock_discontinuity": "Clock discontinuity",
+      "coalesced": "Several intervals coalesced",
+      "legacy_metadata": "Older metadata unavailable",
+      "no_running_sources": "No running sources",
+      "source_limit": "Source limit reached",
+      "other": "Other observation gap"
+    }
+  },
+  "observability": {
+    "live": "Live diagnostics",
+    "unknown": "Unknown",
+    "fresh": "Fresh"
+  },
+  "liveDiagnostics": {
+    "scope": "Temporarily collect one-second server diagnostics while this panel is visible. Viewers share one sampler; leaving or hiding the panel stops this viewing lease.",
+    "start": "Start / retry",
+    "stop": "Stop",
+    "unsupported": "This server has no fresh capability for live diagnostics. Upgrade or wait for a supporting agent report.",
+    "budget": "The live diagnostics budget is full. Retry after another session closes.",
+    "loadError": "Live diagnostics stopped after a failed request. Retry to create a new session.",
+    "inactive": "Sampling demand is stopped while this page is hidden or offline.",
+    "baseline": "Regular monitoring and traffic accounting are unchanged. These network rates are host measurements, not customer billing.",
+    "cpu": "CPU",
+    "memory": "Memory",
+    "upload": "Upload",
+    "download": "Download",
+    "sampled": "Node sample time",
+    "noCurrent": "No fresh current sample. Missing values remain unknown.",
+    "graph": "Recent received samples only, up to two minutes. Gaps break the curve; historical points do not imply current freshness.",
+    "interfaces": "Network interfaces",
+    "interface": "Interface",
+    "truncated": "The interface list was truncated by the sampling limit.",
+    "status": {
+      "inactive": "Inactive",
+      "error": "Error",
+      "stopped": "Stopped",
+      "starting": "Starting",
+      "live": "Live",
+      "waiting": "Waiting for samples",
+      "stale": "Stale"
+    }
   }
 }

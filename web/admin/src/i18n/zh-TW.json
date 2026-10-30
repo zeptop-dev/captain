@@ -3525,7 +3525,9 @@
     "diagnostics": {
       "health": "自檢與憑證",
       "network": "網路診斷",
-      "routes": "回程線路"
+      "routes": "回程線路",
+      "live": "即時診斷",
+      "traffic-history": "計量批次歷史"
     },
     "settings": {
       "proxy": "代理一般設定",
@@ -3978,5 +3980,99 @@
     "sort": "排序",
     "settingsChangedWhileSaving": "儲存期間伺服器或初始設定發生了修改。請保留已儲存的伺服器與設定，或移除此新建操作後重新新增。",
     "keepSavedSettings": "保留已儲存的伺服器與設定"
+  },
+  "trafficHistory": {
+    "title": "計量批次歷史",
+    "scope": "查看已接受批次的來源區間與投遞證據；這裡不是重建的逐分鐘流量曲線。",
+    "accounting": "原計費歸日與扣費規則維持不變。位元組合計為已接受的有效使用者流量增量，不是方案實際扣減量。",
+    "latest": "最新批次",
+    "retention": "每台伺服器最多保留 {{days}} 天或 {{rows}} 個批次；全站 {{global}} 個批次的限額可能提前移除舊記錄。",
+    "loadError": "無法載入計量歷史，缺失資料不會視為零。",
+    "delivery": "投遞積壓",
+    "deliveryScope": "僅包含已讀取並進入本機日誌的使用者位元組，不含仍在核心中尚未讀取的計數。",
+    "pending_bytes": "等待確認",
+    "buffered_bytes": "已緩衝",
+    "journal_bytes": "日誌大小",
+    "observed": "取樣時間",
+    "received": "首次收到",
+    "oldest": "最早已採集批次",
+    "deliveryStale": "目前積壓證據已過期，仍保留原觀察時間供參考。",
+    "deliveryUnavailable": "暫無目前積壓證據。",
+    "empty": "沒有可顯示的保留批次，不代表沒有發生流量。",
+    "totals": "已接受上傳 {{up}} · 下載 {{down}}",
+    "accountingDay": "原入帳日（UTC）",
+    "delay": "投遞延遲",
+    "delayUnknown": "節點與面板使用不同時鐘，無法可靠確定延遲。",
+    "collection": "讀取計數器的操作時段",
+    "collectionHint": "合併了 {{count}} 段採集。這是讀取操作的時間，不是完整來源用量區間。",
+    "sources": "計數來源",
+    "interval": "來源觀測區間",
+    "intervalUnknown": "起點或區間連續性未知",
+    "readAt": "本次讀取結束",
+    "segments": "{{count}} 段來源觀測",
+    "batch": "批次身分",
+    "newer": "較新批次",
+    "older": "較舊批次",
+    "legacy": "舊版批次沒有取樣中繼資料，無法重建原始區間。",
+    "invalid": "取樣中繼資料無效或不受支援，不推斷取樣區間。",
+    "discarded": "有 {{count}} 筆無效或不屬於此伺服器的流量資料未計入合計。",
+    "quality": {
+      "observed": "邊界已觀測",
+      "partial": "部分已知",
+      "unknown": "未知",
+      "legacy": "舊版",
+      "invalid": "無效"
+    },
+    "counter": {
+      "users": "使用者計數",
+      "inbounds": "入站計數",
+      "outbounds": "出站計數"
+    },
+    "reasons": {
+      "first_read": "首次讀取，先前邊界未知",
+      "counter_error": "讀取計數器失敗",
+      "process_changed": "核心程序已更換",
+      "process_unverified": "無法確認核心程序身分",
+      "clock_discontinuity": "時鐘不連續",
+      "coalesced": "多個區間已合併",
+      "legacy_metadata": "舊版中繼資料缺失",
+      "no_running_sources": "沒有執行中的來源",
+      "source_limit": "已達來源數量上限",
+      "other": "其他觀測缺口"
+    }
+  },
+  "observability": {
+    "live": "即時診斷",
+    "unknown": "未知",
+    "fresh": "有效"
+  },
+  "liveDiagnostics": {
+    "scope": "僅在此面板可見時暫時採集每秒伺服器診斷。多人觀看共用採樣器；離開或隱藏面板會停止本頁的觀看租約。",
+    "start": "開始 / 重試",
+    "stop": "停止",
+    "unsupported": "伺服器尚無有效的即時診斷能力報告，請升級節點或等待支援的報告。",
+    "budget": "即時診斷容量已滿，請在其他工作階段關閉後重試。",
+    "loadError": "請求失敗，即時診斷已停止。重試會建立新工作階段。",
+    "inactive": "頁面隱藏或離線時已停止本頁的採樣需求。",
+    "baseline": "一般監控與流量計費維持不變。此處的網路速率是主機觀測，不是使用者帳單。",
+    "cpu": "CPU",
+    "memory": "記憶體",
+    "upload": "上傳",
+    "download": "下載",
+    "sampled": "節點取樣時間",
+    "noCurrent": "暫無有效的目前樣本，缺失值維持未知。",
+    "graph": "僅顯示最近收到的樣本，最長兩分鐘；缺口處斷線，歷史點不代表目前仍然有效。",
+    "interfaces": "網路介面",
+    "interface": "介面",
+    "truncated": "介面清單因採樣上限而截斷。",
+    "status": {
+      "inactive": "未啟用",
+      "error": "錯誤",
+      "stopped": "已停止",
+      "starting": "啟動中",
+      "live": "即時",
+      "waiting": "等待樣本",
+      "stale": "已過期"
+    }
   }
 }

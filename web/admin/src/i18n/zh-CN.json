@@ -3525,7 +3525,9 @@
     "diagnostics": {
       "health": "自检与证书",
       "network": "网络诊断",
-      "routes": "回程线路"
+      "routes": "回程线路",
+      "live": "实时诊断",
+      "traffic-history": "计量批次历史"
     },
     "settings": {
       "proxy": "代理常规",
@@ -3978,5 +3980,99 @@
     "sort": "排序",
     "settingsChangedWhileSaving": "保存期间服务器或初始配置发生了修改。请保留已保存的服务器与配置，或移除此新建操作后重新添加。",
     "keepSavedSettings": "保留已保存的服务器与配置"
+  },
+  "trafficHistory": {
+    "title": "计量批次历史",
+    "scope": "查看已接受批次的来源区间与投递证据；这里不是重建的逐分钟流量曲线。",
+    "accounting": "原计费归日和扣费规则保持不变。字节合计为已接受的有效用户流量增量，不是套餐实际扣减量。",
+    "latest": "最新批次",
+    "retention": "每台服务器最多保留 {{days}} 天或 {{rows}} 个批次；全站 {{global}} 个批次的预算可能提前淘汰旧记录。",
+    "loadError": "无法加载计量历史，缺失数据不会当作零。",
+    "delivery": "投递积压",
+    "deliveryScope": "仅包含已读取并进入本地日志的用户字节，不含仍在核心中尚未读取的计数。",
+    "pending_bytes": "等待确认",
+    "buffered_bytes": "已缓冲",
+    "journal_bytes": "日志大小",
+    "observed": "采样时间",
+    "received": "首次收到",
+    "oldest": "最早已采集批次",
+    "deliveryStale": "当前积压证据已过期，仍保留原观察时间供参考。",
+    "deliveryUnavailable": "暂无当前积压证据。",
+    "empty": "没有可展示的保留批次，不代表没有发生流量。",
+    "totals": "已接受上传 {{up}} · 下载 {{down}}",
+    "accountingDay": "原入账日（UTC）",
+    "delay": "投递延迟",
+    "delayUnknown": "节点和面板使用不同的时钟，无法可靠确定延迟。",
+    "collection": "读取计数器的操作时段",
+    "collectionHint": "合并了 {{count}} 段采集。这是读取操作的时间，不是完整来源用量区间。",
+    "sources": "计数来源",
+    "interval": "来源观测区间",
+    "intervalUnknown": "起点或区间连续性未知",
+    "readAt": "本次读取结束",
+    "segments": "{{count}} 段来源观测",
+    "batch": "批次身份",
+    "newer": "较新批次",
+    "older": "较旧批次",
+    "legacy": "旧版批次没有采样元数据，无法重建原始区间。",
+    "invalid": "采样元数据无效或不受支持，不推断采样区间。",
+    "discarded": "有 {{count}} 条无效或不属于此服务器的流量行未计入合计。",
+    "quality": {
+      "observed": "边界已观测",
+      "partial": "部分已知",
+      "unknown": "未知",
+      "legacy": "旧版",
+      "invalid": "无效"
+    },
+    "counter": {
+      "users": "用户计数",
+      "inbounds": "入站计数",
+      "outbounds": "出站计数"
+    },
+    "reasons": {
+      "first_read": "首次读取，之前的边界未知",
+      "counter_error": "读取计数器失败",
+      "process_changed": "核心进程已更换",
+      "process_unverified": "无法确认核心进程身份",
+      "clock_discontinuity": "时钟不连续",
+      "coalesced": "多个区间已合并",
+      "legacy_metadata": "旧版元数据缺失",
+      "no_running_sources": "没有运行中的来源",
+      "source_limit": "已达来源数量上限",
+      "other": "其他观测缺口"
+    }
+  },
+  "observability": {
+    "live": "实时诊断",
+    "unknown": "未知",
+    "fresh": "新鲜"
+  },
+  "liveDiagnostics": {
+    "scope": "仅在此面板可见时临时采集每秒服务器诊断。多人观看共用采样器；离开或隐藏面板会停止本页的观看租约。",
+    "start": "开始 / 重试",
+    "stop": "停止",
+    "unsupported": "服务器尚无新鲜的实时诊断能力报告，请升级节点或等待支持的报告。",
+    "budget": "实时诊断容量已满，请在其他会话关闭后重试。",
+    "loadError": "请求失败，实时诊断已停止。重试将建立新会话。",
+    "inactive": "页面隐藏或离线时已停止本页的采样需求。",
+    "baseline": "常规监控和流量计费保持不变。这里的网络速率是宿主机观测，不是用户账单。",
+    "cpu": "CPU",
+    "memory": "内存",
+    "upload": "上传",
+    "download": "下载",
+    "sampled": "节点采样时间",
+    "noCurrent": "暂无新鲜的当前样本，缺失值保持未知。",
+    "graph": "仅展示最近收到的样本，最长两分钟；缺口处断线，历史点不代表当前仍然有效。",
+    "interfaces": "网络接口",
+    "interface": "接口",
+    "truncated": "接口列表因采样上限而截断。",
+    "status": {
+      "inactive": "未活动",
+      "error": "错误",
+      "stopped": "已停止",
+      "starting": "启动中",
+      "live": "实时",
+      "waiting": "等待样本",
+      "stale": "已过期"
+    }
   }
 }
