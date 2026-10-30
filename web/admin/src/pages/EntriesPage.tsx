@@ -23,6 +23,7 @@ import { matchesEntryCategory, visibleEntrySelection } from '../lib/entry-catego
 import { LineEditor, LinesPanel } from '../components/LinesPanel'
 import { LineChangesModal } from '../components/LineChangesModal'
 import { LineRolloutHistory } from '../components/LineRollouts'
+import { TopologyChangesetsPanel } from '../components/TopologyChangesetsPanel'
 import { PathRoutesPanel } from '../components/PathRoutesPanel'
 import type { LineHistorySelection } from '../lib/line-change-evidence'
 import { LinesConnections, ServerSelector } from '../components/LinesConnections'
@@ -59,7 +60,7 @@ function EntriesWorkspace() {
   const qc = useQueryClient()
   const [params, setParams] = useSearchParams()
   const location = useLocation()
-  const tab = params.get('tab') === 'lines' ? 'lines' : 'entries'
+  const tab = params.get('tab') === 'changesets' ? 'changesets' : params.get('tab') === 'lines' ? 'lines' : 'entries'
   const section = params.get('section') ?? 'forward'
   const connectionSection = section === 'wireguard' || section === 'reverse' ? section : null
   const singleForward = section === 'legacy' || params.get('mode') === 'single'
@@ -155,6 +156,7 @@ function EntriesWorkspace() {
   const assignable = assignCategory !== null && categoryOptions.some(option => option.value === assignCategory)
   return <>
     <PageHeader title={t('entryFlow.title')} subtitle={t('entryFlow.subtitle')} actions={<Group gap="xs">
+      {admin && <Button variant={tab === 'changesets' ? 'filled' : 'default'} onClick={() => updateParams({ tab: tab === 'changesets' ? 'entries' : 'changesets', section: null })}>{tab === 'changesets' ? t('entryFlow.backToNodes') : t('topologyChangesets.title')}</Button>}
       {admin && <Button component={Link} to="/settings/category/monitoring#service-status" variant="default">{t('serviceStatus.title')}</Button>}
       {canWrite && <Button leftSection={<IconPlus size={16} />} onClick={() => createNode()} disabled={q.isLoading || q.isError || sourcesLoading}>{t('entryFlow.createNode')}</Button>}
       {admin && <Menu position="bottom-end"><Menu.Target><Button variant="light" rightSection={<IconChevronDown size={16} />}>{t('lines.create')}</Button></Menu.Target><Menu.Dropdown>
@@ -163,7 +165,7 @@ function EntriesWorkspace() {
         <Menu.Item onClick={() => createConnection('reverse')}>{t('lines.sections.reverse')}</Menu.Item>
       </Menu.Dropdown></Menu>}
     </Group>} />
-    {tab === 'entries' ? <div>
+    {tab === 'changesets' ? (admin ? <TopologyChangesetsPanel onCommitted={() => { q.refetch(); reloadSources() }} /> : <Alert color="blue">{t('lines.adminOnly')}</Alert>) : tab === 'entries' ? <div>
         {section === 'inbounds' ? <Stack>
           <Group justify="space-between"><Text fw={600}>{t('entryFlow.inbounds')}</Text><Button variant="subtle" onClick={() => updateParams({ section: null, inbound: null })}>{t('entryFlow.backToNodes')}</Button></Group>
           <InboundsManager serverID={serverID} onServerChange={id => updateParams({ server: id ? String(id) : null, inbound: null })} canWrite={canWrite} editInboundID={params.get('inbound') === 'new' ? 'new' : Number(params.get('inbound')) || undefined} onEditorClose={() => updateParams({ inbound: null })} />

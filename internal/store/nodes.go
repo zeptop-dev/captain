@@ -175,31 +175,48 @@ func scanInbound(row interface{ Scan(...any) error }) (*domain.Inbound, error) {
 }
 
 func (s *Store) CreateInbound(ctx context.Context, ib *domain.Inbound) error {
-	settings, err := json.Marshal(ib.Settings)
-	if err != nil {
-		return err
-	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if err = checkRolloutInboundTx(ctx, tx, ib); err != nil {
+	next := *ib
+	if err = writeInboundTx(ctx, tx, &next, true); err != nil {
 		return err
 	}
-	ts := now()
-	res, err := tx.ExecContext(ctx, `INSERT INTO inbounds (node_id, tag, protocol, listen, port, core, settings_json, group_id, enabled, sort, ingress_id, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		ib.NodeID, ib.Tag, ib.Protocol, ib.Listen, ib.Port, ib.Core, string(settings), nullInt64(ib.GroupID), boolInt(ib.Enabled), ib.Sort, nullInt64(ib.IngressID), ts, ts)
-	if err != nil {
-		return err
-	}
-	id, _ := res.LastInsertId()
 	if err = tx.Commit(); err != nil {
 		return err
 	}
-	ib.ID = id
+	*ib = next
 	return nil
+}
+
+// writeInboundTx is shared by individual writes and atomic topology changesets.
+// Callers must refresh affected line intent in the same transaction after edits.
+func writeInboundTx(ctx context.Context, tx *sql.Tx, ib *domain.Inbound, create bool) error {
+	settings, err := json.Marshal(ib.Settings)
+	if err != nil {
+		return err
+	}
+	if err = checkRolloutInboundTx(ctx, tx, ib); err != nil {
+		return err
+	}
+	if !create {
+		if err = guardLegacyAccessTx(ctx, tx, ib); err != nil {
+			return err
+		}
+	}
+	ts := now()
+	if create {
+		res, err := tx.ExecContext(ctx, `INSERT INTO inbounds (node_id, tag, protocol, listen, port, core, settings_json, group_id, enabled, sort, ingress_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, ib.NodeID, ib.Tag, ib.Protocol, ib.Listen, ib.Port, ib.Core, string(settings), nullInt64(ib.GroupID), boolInt(ib.Enabled), ib.Sort, nullInt64(ib.IngressID), ts, ts)
+		if err != nil {
+			return err
+		}
+		ib.ID, err = res.LastInsertId()
+		return err
+	}
+	_, err = tx.ExecContext(ctx, `UPDATE inbounds SET tag=?, protocol=?, listen=?, port=?, core=?, settings_json=?, group_id=?, enabled=?, sort=?, ingress_id=?, updated_at=? WHERE id=?`, ib.Tag, ib.Protocol, ib.Listen, ib.Port, ib.Core, string(settings), nullInt64(ib.GroupID), boolInt(ib.Enabled), ib.Sort, nullInt64(ib.IngressID), ts, ib.ID)
+	return err
 }
 
 // InboundsByNode lists enabled inbounds of a node.
@@ -396,24 +413,12 @@ func (s *Store) InboundByID(ctx context.Context, id int64) (*domain.Inbound, err
 }
 
 func (s *Store) UpdateInbound(ctx context.Context, ib *domain.Inbound) error {
-	settings, err := json.Marshal(ib.Settings)
-	if err != nil {
-		return err
-	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if err = checkRolloutInboundTx(ctx, tx, ib); err != nil {
-		return err
-	}
-	if err := guardLegacyAccessTx(ctx, tx, ib); err != nil {
-		return err
-	}
-	_, err = tx.ExecContext(ctx, `UPDATE inbounds SET tag = ?, protocol = ?, listen = ?, port = ?, core = ?, settings_json = ?, group_id = ?, enabled = ?, sort = ?, ingress_id = ?, updated_at = ? WHERE id = ?`,
-		ib.Tag, ib.Protocol, ib.Listen, ib.Port, ib.Core, string(settings), nullInt64(ib.GroupID), boolInt(ib.Enabled), ib.Sort, nullInt64(ib.IngressID), now(), ib.ID)
-	if err != nil {
+	if err = writeInboundTx(ctx, tx, ib, false); err != nil {
 		return err
 	}
 	if err = refreshLinesForNodeTx(ctx, tx, ib.NodeID); err != nil {

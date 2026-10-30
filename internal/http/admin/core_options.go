@@ -9,6 +9,7 @@ import (
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
 	"github.com/zeptop-dev/bosun/pkg/spec"
 	"github.com/zeptop-dev/captain/internal/domain"
+	"github.com/zeptop-dev/captain/internal/store"
 )
 
 // Only a recent capability report can rule out a core. Old/offline nodes keep
@@ -62,26 +63,12 @@ func (h *handlers) checkInboundCore(ctx context.Context, ib *domain.Inbound) str
 	if err != nil {
 		return "node not found"
 	}
-	if ib.Protocol == spec.Mieru && ib.Core == "singbox-extended" && n.MitaQuotas {
-		return "extended Mieru does not support mita native quotas; disable native quotas or select mita"
+	gs, err := h.Store.IngressesByNode(ctx, ib.NodeID)
+	if err != nil {
+		return "could not read ingress configuration"
 	}
-	candidates := h.nodeCoreCandidates(ctx, n)
-	if (ib.Protocol == spec.SSH || ib.Core == "singbox-extended") && candidates == nil {
-		return "this core or protocol requires a recent supported node capability report"
-	}
-	if ib.Settings.PrivateAccess.Enabled() && candidates == nil {
-		return "private access requires a recent supported node capability report"
-	}
-	if candidates != nil {
-		input := ib.Spec()
-		if ib.IngressID != nil {
-			if ingress, err := h.Store.IngressByID(ctx, *ib.IngressID); err == nil && ingress.BindIP != "" {
-				input.Listen = ingress.BindIP
-			}
-		}
-		if _, err := spec.SelectCore(input, candidates); err != nil {
-			return err.Error()
-		}
+	if err = store.ValidateInboundCore(ib, n, h.nodeCoreCandidates(ctx, n), gs); err != nil {
+		return err.Error()
 	}
 	return ""
 }

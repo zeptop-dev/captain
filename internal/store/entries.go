@@ -46,23 +46,15 @@ func (s *Store) CreateEntry(ctx context.Context, e *domain.Entry) error {
 		return err
 	}
 	defer tx.Rollback()
-	if err := validateEntryCategory(ctx, tx, e); err != nil {
+	next := *e
+	if err = writeEntryTx(ctx, tx, &next, true); err != nil {
 		return err
 	}
-	if e.Access != nil {
-		if err := updateInboundAccessTx(ctx, tx, e.InboundID, *e.Access, 1); err != nil {
-			return err
-		}
-	}
-	ts := now()
-	res, err := tx.ExecContext(ctx, `INSERT INTO entries (name, inbound_id, chain_id, display_host, display_port, rate, sort, enabled, tags, region, client_extra, line_id, line_member_id, client_dialer_entry_id, category_id, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		e.Name, e.InboundID, nullInt64(e.ChainID), e.DisplayHost, e.DisplayPort, e.Rate, e.Sort, boolInt(e.Enabled), joinTags(e.Tags), strings.ToUpper(e.Region), encodeExtra(e.ClientExtra), nullInt64(e.LineID), e.LineMemberID, nullInt64(e.ClientDialerEntryID), nullInt64(e.CategoryID), ts, ts)
-	if err != nil {
+	if err = tx.Commit(); err != nil {
 		return err
 	}
-	e.ID, _ = res.LastInsertId()
-	return tx.Commit()
+	*e = next
+	return nil
 }
 
 func (s *Store) EntryByID(ctx context.Context, id int64) (*domain.Entry, error) {
@@ -181,28 +173,43 @@ func (s *Store) UpdateEntry(ctx context.Context, e *domain.Entry) error {
 		return err
 	}
 	defer tx.Rollback()
+	if err = writeEntryTx(ctx, tx, e, false); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// writeEntryTx persists an already-resolved entry and preserves access checks.
+func writeEntryTx(ctx context.Context, tx *sql.Tx, e *domain.Entry, create bool) error {
 	if err := validateEntryCategory(ctx, tx, e); err != nil {
 		return err
 	}
-	var existingInboundID int64
-	if err := tx.QueryRowContext(ctx, `SELECT inbound_id FROM entries WHERE id=?`, e.ID).Scan(&existingInboundID); err != nil {
-		return wrapNotFound(err)
+	added := 1
+	if !create {
+		var existingInboundID int64
+		if err := tx.QueryRowContext(ctx, `SELECT inbound_id FROM entries WHERE id=?`, e.ID).Scan(&existingInboundID); err != nil {
+			return wrapNotFound(err)
+		}
+		if existingInboundID == e.InboundID {
+			added = 0
+		}
 	}
 	if e.Access != nil {
-		added := 0
-		if existingInboundID != e.InboundID {
-			added = 1
-		}
 		if err := updateInboundAccessTx(ctx, tx, e.InboundID, *e.Access, added); err != nil {
 			return err
 		}
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE entries SET name = ?, inbound_id = ?, chain_id = ?, display_host = ?, display_port = ?, rate = ?, sort = ?, enabled = ?, tags = ?, region = ?, client_extra = ?, line_id = ?, line_member_id = ?, client_dialer_entry_id = ?, category_id = ?, updated_at = ? WHERE id = ?`,
-		e.Name, e.InboundID, nullInt64(e.ChainID), e.DisplayHost, e.DisplayPort, e.Rate, e.Sort, boolInt(e.Enabled), joinTags(e.Tags), strings.ToUpper(e.Region), encodeExtra(e.ClientExtra), nullInt64(e.LineID), e.LineMemberID, nullInt64(e.ClientDialerEntryID), nullInt64(e.CategoryID), now(), e.ID)
-	if err != nil {
+	ts := now()
+	if create {
+		res, err := tx.ExecContext(ctx, `INSERT INTO entries (name, inbound_id, chain_id, display_host, display_port, rate, sort, enabled, tags, region, client_extra, line_id, line_member_id, client_dialer_entry_id, category_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, e.Name, e.InboundID, nullInt64(e.ChainID), e.DisplayHost, e.DisplayPort, e.Rate, e.Sort, boolInt(e.Enabled), joinTags(e.Tags), strings.ToUpper(e.Region), encodeExtra(e.ClientExtra), nullInt64(e.LineID), e.LineMemberID, nullInt64(e.ClientDialerEntryID), nullInt64(e.CategoryID), ts, ts)
+		if err != nil {
+			return err
+		}
+		e.ID, err = res.LastInsertId()
 		return err
 	}
-	return tx.Commit()
+	_, err := tx.ExecContext(ctx, `UPDATE entries SET name=?, inbound_id=?, chain_id=?, display_host=?, display_port=?, rate=?, sort=?, enabled=?, tags=?, region=?, client_extra=?, line_id=?, line_member_id=?, client_dialer_entry_id=?, category_id=?, updated_at=? WHERE id=?`, e.Name, e.InboundID, nullInt64(e.ChainID), e.DisplayHost, e.DisplayPort, e.Rate, e.Sort, boolInt(e.Enabled), joinTags(e.Tags), strings.ToUpper(e.Region), encodeExtra(e.ClientExtra), nullInt64(e.LineID), e.LineMemberID, nullInt64(e.ClientDialerEntryID), nullInt64(e.CategoryID), ts, e.ID)
+	return err
 }
 
 // ReorderEntries sets sort by position for the given ids (drag-and-drop).

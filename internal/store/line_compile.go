@@ -177,6 +177,26 @@ func compileOrdinaryLine(ctx context.Context, tx *sql.Tx, l *ForwardLine) (map[i
 	if err != nil {
 		return nil, nil, err
 	}
+	// A reverse subscriber listener lives on A, but still depends on its owned
+	// exit B. Check only this listener's connection, not unrelated links on A.
+	var removingExit int
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM node_jobs WHERE kind='node_remove' AND (done_at IS NULL OR error='') AND node_id IN (
+	SELECT exit_id FROM node_reverse_links WHERE user_inbound_id=?
+	 UNION SELECT exit_id FROM node_wireguard_links WHERE user_inbound_id=?)`, ib.ID, ib.ID).Scan(&removingExit); err != nil {
+		return nil, nil, err
+	}
+	if removingExit > 0 {
+		return nil, nil, errors.New("landing reverse exit is being removed or has already been removed")
+	}
+	if view, ok := ctx.Value(topologyCompileContext{}).(*topologyPlan); ok {
+		return compileOrdinaryLineModel(l, ib, func(id int64) (*lineNode, error) { return view.node(ctx, tx, id, l.ID) })
+	}
+	return compileOrdinaryLineModel(l, ib, func(id int64) (*lineNode, error) { return loadLineNode(ctx, tx, id, l.ID) })
+}
+
+// compileOrdinaryLineModel consumes an explicit consistent view; it has no database writes or reads.
+func compileOrdinaryLineModel(l *ForwardLine, ib *domain.Inbound, loadNode func(int64) (*lineNode, error)) (map[int64][]NodeForward, map[string]LineEndpoint, error) {
+	var err error
 	if !ib.Enabled {
 		return nil, nil, errors.New("line landing inbound must be enabled")
 	}
@@ -193,18 +213,7 @@ func compileOrdinaryLine(ctx context.Context, tx *sql.Tx, l *ForwardLine) (map[i
 	if ib.Settings.AcceptProxyProtocol && l.Backend == "nft" {
 		return nil, nil, errors.New("a PROXY protocol landing requires relay or realm")
 	}
-	// A reverse subscriber listener lives on A, but still depends on its owned
-	// exit B. Check only this listener's connection, not unrelated links on A.
-	var removingExit int
-	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM node_jobs WHERE kind='node_remove' AND (done_at IS NULL OR error='') AND node_id IN (
-	SELECT exit_id FROM node_reverse_links WHERE user_inbound_id=?
-	 UNION SELECT exit_id FROM node_wireguard_links WHERE user_inbound_id=?)`, ib.ID, ib.ID).Scan(&removingExit); err != nil {
-		return nil, nil, err
-	}
-	if removingExit > 0 {
-		return nil, nil, errors.New("landing reverse exit is being removed or has already been removed")
-	}
-	targetNode, err := loadLineNode(ctx, tx, ib.NodeID, l.ID)
+	targetNode, err := loadNode(ib.NodeID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -235,7 +244,7 @@ func compileOrdinaryLine(ctx context.Context, tx *sql.Tx, l *ForwardLine) (map[i
 			if m.NodeID == ib.NodeID {
 				return nil, nil, errors.New("landing server cannot also be a line relay")
 			}
-			n, err := loadLineNode(ctx, tx, m.NodeID, l.ID)
+			n, err := loadNode(m.NodeID)
 			if err != nil {
 				return nil, nil, err
 			}

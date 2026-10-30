@@ -244,6 +244,7 @@ func Register(mux *http.ServeMux, d Deps) {
 
 	registerPathRoutes(mux, h)
 	registerPathRollouts(mux, h)
+	registerTopologyChangesets(mux, h)
 	mux.HandleFunc("GET /api/admin/line-rollouts", h.requireAdmin(h.listLineRollouts))
 	mux.HandleFunc("GET /api/admin/line-rollouts/{rollout}", h.requireAdmin(h.getLineRollout))
 	mux.HandleFunc("POST /api/admin/line-rollouts/preview", h.requireAdmin(h.previewLineRollout))
@@ -415,9 +416,10 @@ func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 		authOnly, _ := r.Context().Value(subPresetAuthOnlyKey{}).(bool)
 		// Preview carries a draft in its body but performs no mutation. Keep
 		// authentication, role, token and origin checks; skip write side effects.
-		linePreview := r.Method == http.MethodPost && (r.Pattern == "POST /api/admin/lines/preview" || r.Pattern == "POST /api/admin/lines/{id}/preview" || r.Pattern == "POST /api/admin/line-rollouts/preview" || r.Pattern == "POST /api/admin/path-rollouts/preview" || r.Pattern == "POST /api/admin/path-routes/preview" || r.Pattern == "POST /api/admin/path-routes/{id}/preview")
+		linePreview := r.Method == http.MethodPost && (r.Pattern == "POST /api/admin/topology-changesets/{id}/preview" || r.Pattern == "POST /api/admin/lines/preview" || r.Pattern == "POST /api/admin/lines/{id}/preview" || r.Pattern == "POST /api/admin/line-rollouts/preview" || r.Pattern == "POST /api/admin/path-rollouts/preview" || r.Pattern == "POST /api/admin/path-routes/preview" || r.Pattern == "POST /api/admin/path-routes/{id}/preview")
 		authOnly = authOnly || linePreview
-		if !authOnly && h.State != nil && r.Method != http.MethodGet {
+		draftOnly := strings.HasPrefix(r.URL.Path, "/api/admin/topology-changesets") && r.Pattern != "POST /api/admin/topology-changesets/{id}/commit"
+		if !authOnly && !draftOnly && h.State != nil && r.Method != http.MethodGet {
 			defer h.State.Invalidate()
 		}
 		// Every write is recorded: staff accounts exist, so "who did this"
@@ -589,7 +591,7 @@ func fail(w http.ResponseWriter, code int, msg string) {
 // Operator: everything except settings, system, staff management and the
 // landing page. Support: tickets, plus read-only users, orders, dashboard.
 func allowed(role, method, path string) bool {
-	for _, resource := range []string{"line-rollouts", "path-rollouts", "forward-paths", "path-routes"} {
+	for _, resource := range []string{"line-rollouts", "path-rollouts", "forward-paths", "path-routes", "topology-changesets"} {
 		base := "/api/admin/" + resource
 		if (path == base || strings.HasPrefix(path, base+"/")) && role != domain.RoleAdmin {
 			return false
