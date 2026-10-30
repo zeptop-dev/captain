@@ -11,6 +11,8 @@ import (
 // Register this from the admin router; role and distinct resource scopes are
 // checked by requireAdmin, as with ordinary managed-line configuration.
 func registerPathRoutes(mux *http.ServeMux, h *handlers) {
+	mux.HandleFunc("GET /api/admin/path-routes/{id}/health", h.requireAdmin(h.getPathHealth))
+	mux.HandleFunc("PUT /api/admin/path-routes/{id}/health", h.requireAdmin(h.putPathHealth))
 	mux.HandleFunc("GET /api/admin/forward-paths", h.requireAdmin(h.listForwardPaths))
 	mux.HandleFunc("POST /api/admin/forward-paths", h.requireAdmin(h.saveForwardPath))
 	mux.HandleFunc("GET /api/admin/forward-paths/{id}", h.requireAdmin(h.getForwardPath))

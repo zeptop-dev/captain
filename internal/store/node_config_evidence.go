@@ -110,6 +110,9 @@ func (s *Store) prepareNodeConfigDelivery(ctx context.Context, nodeID int64, tok
 			return nil, err
 		}
 		if forwards != nil {
+			if err = bindPathHealthDeliveryTx(ctx, tx, d.ID, *forwards); err != nil {
+				return nil, err
+			}
 			if err = observeLineRolloutDeliveryTx(ctx, tx, nodeID, tokenHash, *forwards, d); err != nil {
 				return nil, err
 			}
@@ -171,6 +174,9 @@ func (s *Store) prepareNodeConfigDelivery(ctx context.Context, nodeID int64, tok
 		return nil, err
 	}
 	if forwards != nil {
+		if err = bindPathHealthDeliveryTx(ctx, tx, d.ID, *forwards); err != nil {
+			return nil, err
+		}
 		if err = observeLineRolloutDeliveryTx(ctx, tx, nodeID, tokenHash, *forwards, d); err != nil {
 			return nil, err
 		}

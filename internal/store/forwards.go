@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"time"
 
@@ -54,6 +55,11 @@ func (s *Store) SetNodeForwards(ctx context.Context, nodeID int64, list []NodeFo
 	list, err = s.PreserveLineForwards(ctx, nodeID, list)
 	if err != nil {
 		return err
+	}
+	for _, f := range list {
+		if f.LineID == 0 && f.PathHealth != nil {
+			return errors.New("path health is managed by complete path routes")
+		}
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

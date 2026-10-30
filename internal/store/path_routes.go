@@ -235,6 +235,7 @@ func compilePathRouteTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, p *Path
 	}
 	entry := generated[p.Entry.NodeID][0]
 	var heads []spec.ForwardTarget
+	var healthBranches []map[int64][]NodeForward
 	for i, b := range p.Branches {
 		chain := *logical
 		chain.Groups = nil
@@ -245,6 +246,7 @@ func compilePathRouteTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, p *Path
 		if e != nil {
 			return nil, nil, e
 		}
+		healthBranches = append(healthBranches, branch)
 		for id, fs := range branch {
 			generated[id] = append(generated[id], fs...)
 		}
@@ -282,6 +284,9 @@ func compilePathRouteTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, p *Path
 	}
 	entry.Target, entry.Weight, entry.Balance = heads[0].Target, heads[0].Weight, p.Strategy
 	entry.Targets = heads[1:]
+	if e = compilePathHealthTx(ctx, tx, l, p, ib, &entry, healthBranches); e != nil {
+		return nil, nil, e
+	}
 	entry.Tag = lineRuntimeTag(l, p.Entry, entry.Forward)
 	if e = entry.ValidateTargets(); e != nil {
 		return nil, nil, e
@@ -328,16 +333,21 @@ func (s *Store) SavePathRoute(ctx context.Context, p *PathRoute) error {
 	defer tx.Rollback()
 	next := *p
 	next.Branches = append([]PathBranch(nil), p.Branches...)
+	var before *PathRoute
 	if next.ID > 0 {
 		old, err := pathRouteTx(ctx, tx, next.ID)
 		if err != nil {
 			return err
 		}
+		before = old
 		PreservePathRouteHealth(&next, old)
 	} else {
 		PreservePathRouteHealth(&next, nil)
 	}
 	if e = normalizePathRoute(&next); e != nil {
+		return e
+	}
+	if e = validatePathRouteHealthMutationTx(ctx, tx, before, &next); e != nil {
 		return e
 	}
 	if p.PreviewRevision != "" {
@@ -445,6 +455,7 @@ func previewPathRouteTx(ctx context.Context, tx *sql.Tx, p *PathRoute) (*PathRou
 	draft := *p
 	draft.Branches = append([]PathBranch(nil), p.Branches...)
 	draft.PreviewRevision, draft.ChangeID = "", ""
+	var before *PathRoute
 	if draft.ID > 0 {
 		old, e := pathRouteTx(ctx, tx, draft.ID)
 		if e != nil {
@@ -453,7 +464,11 @@ func previewPathRouteTx(ctx context.Context, tx *sql.Tx, p *PathRoute) (*PathRou
 		if old.Version != draft.Version {
 			return nil, ErrLineConflict
 		}
+		before = old
 		PreservePathRouteHealth(&draft, old)
+	}
+	if e := validatePathRouteHealthMutationTx(ctx, tx, before, &draft); e != nil {
+		return nil, e
 	}
 	l, e := pathRouteLineTx(ctx, tx, &draft)
 	if e != nil {
