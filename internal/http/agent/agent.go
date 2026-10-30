@@ -31,10 +31,11 @@ import (
 
 // Deps are the handlers' dependencies.
 type Deps struct {
-	Store     *store.Store
-	Addresses *service.NodeAddresses
-	Log       *slog.Logger
-	State     *service.AgentState
+	Diagnostics *service.Diagnostics
+	Store       *store.Store
+	Addresses   *service.NodeAddresses
+	Log         *slog.Logger
+	State       *service.AgentState
 	// BaseURL is the public panel address baked into install scripts.
 	BaseURL string
 	// Probe takes host beats; nil ignores them.
@@ -62,6 +63,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/agent/report", h.requireNode(h.report))
 	mux.HandleFunc("POST /api/agent/removal", h.requireNode(h.nodeRemoval))
 	mux.HandleFunc("POST /api/agent/beat", h.requireNode(h.beat))
+	mux.HandleFunc("POST /api/agent/diagnostics", h.requireNode(h.diagnostics))
 }
 
 type ctxKey struct{}
@@ -145,11 +147,16 @@ func (h *handlers) pair(w http.ResponseWriter, r *http.Request) {
 // once without a persistent connection.
 func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Vary", agentproto.ConfigSessionHeader+", "+agentproto.ConfigDeliveryHeader)
+	w.Header().Set("Vary", agentproto.ConfigSessionHeader+", "+agentproto.ConfigDeliveryHeader+", "+agentproto.DiagnosticsVersionHeader+", "+agentproto.DiagnosticsNonceHeader+", "+agentproto.DiagnosticsChallengeHeader+", "+agentproto.DiagnosticsCursorHeader)
 	n := nodeFrom(r)
 	session := r.Header.Get(agentproto.ConfigSessionHeader)
 	if session != "" && !validConfigSession(session) {
 		fail(w, http.StatusBadRequest, "invalid configuration session")
+		return
+	}
+	diagnostic := h.Diagnostics != nil && r.Header.Get(agentproto.DiagnosticsVersionHeader) == agentproto.DiagnosticsVersion
+	if diagnostic && (!validConfigSession(session) || !validConfigSession(r.Header.Get(agentproto.DiagnosticsNonceHeader))) {
+		fail(w, 400, "invalid diagnostics session or nonce")
 		return
 	}
 	wait, _ := time.ParseDuration(r.URL.Query().Get("wait"))
@@ -175,6 +182,11 @@ func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 		}
 		n = fresh
 		st, err := h.State.Cached(r.Context(), n, time.Now())
+		var control *agentproto.DiagnosticsControl
+		var diagnosticWake <-chan struct{}
+		if diagnostic && err == nil {
+			control, diagnosticWake = h.Diagnostics.Control(r.Context(), n.ID, tokenHash, session, r.Header.Get(agentproto.DiagnosticsNonceHeader), r.Header.Get(agentproto.DiagnosticsChallengeHeader), time.Now())
+		}
 		h.Store.Accounts.RUnlock()
 		if err != nil {
 			h.Log.Error("build state", "node", n.ID, "err", err)
@@ -184,6 +196,7 @@ func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 		// Cached state is shared across concurrent requests. Delivery metadata is
 		// private to this process session and must never mutate the cache.
 		response := *st
+		response.Diagnostics = control
 		if session != "" && st.ConfigRevision != "" {
 			response.ConfigDelivery, err = h.Store.PrepareNodeConfigDeliveryForLines(r.Context(), n.ID, tokenHash, session, st.ConfigRevision, st.Revision, st.Forwards, time.Now(), r.Header.Get(agentproto.ConfigDeliveryHeader))
 			if err != nil {
@@ -200,6 +213,9 @@ func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 			deliveryID = response.ConfigDelivery.ID
 		}
 		metadataChanged := session != "" && r.Header.Get(agentproto.ConfigDeliveryHeader) != deliveryID
+		if control != nil && r.Header.Get(agentproto.DiagnosticsCursorHeader) != control.Epoch+":"+strconv.FormatUint(control.Generation, 10) {
+			metadataChanged = true
+		}
 		etag := `"` + st.Revision + `"`
 		if metadataChanged || !strings.Contains(r.Header.Get("If-None-Match"), etag) {
 			w.Header().Set("ETag", etag)
@@ -214,6 +230,7 @@ func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
 			return
+		case <-diagnosticWake:
 		case <-time.After(2 * time.Second):
 		}
 	}

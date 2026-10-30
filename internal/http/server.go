@@ -164,6 +164,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 		notifier.Admin(ctx, fmt.Sprintf("💰 Order %s paid: %.2f via %s\n%s", o.No, float64(o.AmountCents)/100, o.Gateway, email))
 	}
 	s.probeSvc = &service.Probe{Store: st, Notify: notifier, Log: log}
+	diagnostics := &service.Diagnostics{}
 	s.nodeRegions = &service.NodeRegions{Store: st, Probe: s.probeSvc}
 	s.dnsHealth = &service.DNSHealth{Store: st, Probe: s.probeSvc, Log: log}
 	s.state = &service.AgentState{Store: st, PullSeconds: cfg.Agent.PullSeconds, PushSeconds: cfg.Agent.PushSeconds, EnforceDevices: cfg.EnforceDevices(), Probe: s.probeSvc}
@@ -226,7 +227,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	s.mux.HandleFunc("POST "+probeaccess.MainPath, probeAccess.Main)
 	s.probe = probe.Register(s.mux, probe.Deps{ThemeAssets: web.ProbeThemeAssets(), Data: probeData, Access: probeAccess, Themes: probeThemes, Version: cfg.Version, Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe(), GlassPage: web.ProbeGlass()})
 	dyn := &service.DynLimit{Store: st, State: s.state, Notify: notifier, Hooks: s.hooks, Log: log, PushSeconds: cfg.Agent.PushSeconds}
-	adminDeps := admin.Deps{ClientCatalog: clients, ServiceStatus: serviceStatus, ClaudeRules: claudeFetcher, SubPresets: presetFetcher, NodeRegions: s.nodeRegions, Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, DNSHealth: s.dnsHealth, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external, Allow: allow, Heartbeat: s.heartbeat,
+	adminDeps := admin.Deps{Diagnostics: diagnostics, ClientCatalog: clients, ServiceStatus: serviceStatus, ClaudeRules: claudeFetcher, SubPresets: presetFetcher, NodeRegions: s.nodeRegions, Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, DNSHealth: s.dnsHealth, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external, Allow: allow, Heartbeat: s.heartbeat,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version, MinVersion: captainUpdateFloor(cfg.MinVersion)},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 		Registration:  cfg.Portal.Registration,
@@ -297,7 +298,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	portal.Register(s.mux, portal.Deps{ClientCatalog: clients, ServiceStatus: serviceStatus, Store: st, Log: log, Sessions: sessions, Orders: orders, Subscription: subSvc, BaseURL: base, Gateways: names, Registration: cfg.Portal.Registration, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot})
 	paymenthttp.Register(s.mux, paymenthttp.Deps{Log: log, Orders: orders, ReturnTo: base + "/portal/orders", Gateways: gateways, Store: st})
 	sub.Register(s.mux, sub.Deps{Store: st, Log: log, Service: subSvc, Name: cfg.SiteName, BaseURL: base})
-	agent.Register(s.mux, agent.Deps{Addresses: s.nodeAddresses, Pairs: ratelimit.New(),
+	agent.Register(s.mux, agent.Deps{Diagnostics: diagnostics, Addresses: s.nodeAddresses, Pairs: ratelimit.New(),
 		Store: st, Log: log, BaseURL: base,
 		State: s.state, Probe: s.probeSvc, Hooks: s.hooks, Notify: notifier,
 		Dyn: dyn,
@@ -391,7 +392,7 @@ func (s *Server) Handler() http.Handler {
 				defer accounts.RUnlock()
 			}
 		}
-		if r.Method != http.MethodGet && (strings.HasPrefix(r.URL.Path, "/api/admin/") || strings.HasPrefix(r.URL.Path, "/api/portal/me/wireguard-devices")) && s.state != nil {
+		if r.Method != http.MethodGet && !strings.HasPrefix(r.URL.Path, "/api/admin/node-diagnostics/") && (strings.HasPrefix(r.URL.Path, "/api/admin/") || strings.HasPrefix(r.URL.Path, "/api/portal/me/wireguard-devices")) && s.state != nil {
 			defer s.state.Invalidate()
 		}
 		h.ServeHTTP(w, r)

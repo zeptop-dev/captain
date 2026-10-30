@@ -87,6 +87,9 @@ func (h *handlers) resetSite(w http.ResponseWriter, r *http.Request) {
 	if h.Dyn != nil {
 		h.Dyn.Reset()
 	}
+	if h.Diagnostics != nil {
+		h.Diagnostics.Reset()
+	}
 	if h.Probe != nil {
 		h.Probe.Reset()
 	}

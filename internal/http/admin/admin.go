@@ -42,6 +42,7 @@ type SessionStore interface {
 
 // Deps are the handlers' dependencies.
 type Deps struct {
+	Diagnostics   *service.Diagnostics
 	ClientCatalog *service.ClientCatalog
 	ServiceStatus *service.ServiceStatusCatalog
 	// ClaudeRules fetches only the fixed community Anthropic rule source.
@@ -124,6 +125,7 @@ func Register(mux *http.ServeMux, d Deps) {
 		d.SubPresets = subpreset.NewClient()
 	}
 	h := &handlers{Deps: d, passkeyStarts: ratelimit.Limiter{Max: 20, Window: time.Minute, Lock: time.Minute}}
+	registerNodeDiagnostics(mux, h)
 	mux.HandleFunc("POST /api/admin/login", h.sameOrigin(h.login))
 	mux.HandleFunc("POST /api/admin/logout", h.logout)
 	mux.HandleFunc("GET /api/admin/me", h.requireAdmin(h.me))
@@ -368,7 +370,11 @@ func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 			// by the token's scope. Staff management stays with the
 			// interactive login, so a leaked token cannot mint an admin.
 			var scope string
-			u, scope, _ = h.Store.UserByAPIToken(r.Context(), tok)
+			if strings.HasPrefix(r.URL.Path, "/api/admin/node-diagnostics/") && r.Method != http.MethodPost {
+				u, scope, _ = h.Store.ReadAPIToken(r.Context(), tok)
+			} else {
+				u, scope, _ = h.Store.UserByAPIToken(r.Context(), tok)
+			}
 			if u != nil && !store.TokenAllowsRequest(scope, r.Method, r.URL.Path, r.Pattern) {
 				fail(w, http.StatusForbidden, "this token does not permit that operation")
 				return
@@ -417,7 +423,7 @@ func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 		// Preview carries a draft in its body but performs no mutation. Keep
 		// authentication, role, token and origin checks; skip write side effects.
 		linePreview := r.Method == http.MethodPost && (r.Pattern == "POST /api/admin/topology-changesets/{id}/preview" || r.Pattern == "POST /api/admin/lines/preview" || r.Pattern == "POST /api/admin/lines/{id}/preview" || r.Pattern == "POST /api/admin/line-rollouts/preview" || r.Pattern == "POST /api/admin/path-rollouts/preview" || r.Pattern == "POST /api/admin/path-routes/preview" || r.Pattern == "POST /api/admin/path-routes/{id}/preview")
-		authOnly = authOnly || linePreview
+		authOnly = authOnly || linePreview || strings.HasPrefix(r.URL.Path, "/api/admin/node-diagnostics/")
 		draftOnly := strings.HasPrefix(r.URL.Path, "/api/admin/topology-changesets") && r.Pattern != "POST /api/admin/topology-changesets/{id}/commit"
 		if !authOnly && !draftOnly && h.State != nil && r.Method != http.MethodGet {
 			defer h.State.Invalidate()
@@ -591,7 +597,7 @@ func fail(w http.ResponseWriter, code int, msg string) {
 // Operator: everything except settings, system, staff management and the
 // landing page. Support: tickets, plus read-only users, orders, dashboard.
 func allowed(role, method, path string) bool {
-	for _, resource := range []string{"line-rollouts", "path-rollouts", "forward-paths", "path-routes", "topology-changesets"} {
+	for _, resource := range []string{"node-diagnostics", "line-rollouts", "path-rollouts", "forward-paths", "path-routes", "topology-changesets"} {
 		base := "/api/admin/" + resource
 		if (path == base || strings.HasPrefix(path, base+"/")) && role != domain.RoleAdmin {
 			return false

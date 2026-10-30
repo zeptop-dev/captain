@@ -85,6 +85,16 @@ func (s *Store) DeleteAPIToken(ctx context.Context, userID, id int64) error {
 // UserByAPIToken resolves a bearer token to its owner and its scope, and
 // stamps last use. An expired token resolves to nothing.
 func (s *Store) UserByAPIToken(ctx context.Context, plain string) (*domain.User, string, error) {
+	return s.resolveAPIToken(ctx, plain, true)
+}
+
+// ReadAPIToken checks current authorization without stamping last use. Passive
+// diagnostics may check each second and must not turn observation into writes.
+func (s *Store) ReadAPIToken(ctx context.Context, plain string) (*domain.User, string, error) {
+	return s.resolveAPIToken(ctx, plain, false)
+}
+
+func (s *Store) resolveAPIToken(ctx context.Context, plain string, touch bool) (*domain.User, string, error) {
 	hash := auth.SHA256Hex(plain)
 	var userID, id int64
 	var scope, raw string
@@ -95,7 +105,9 @@ func (s *Store) UserByAPIToken(ctx context.Context, plain string) (*domain.User,
 	if exp.Valid && exp.Int64 <= now() {
 		return nil, "", ErrNotFound
 	}
-	_, _ = s.db.ExecContext(ctx, `UPDATE api_tokens SET last_used_at = ? WHERE id = ?`, now(), id)
+	if touch {
+		_, _ = s.db.ExecContext(ctx, `UPDATE api_tokens SET last_used_at = ? WHERE id = ?`, now(), id)
+	}
 	var scopes []string
 	if err := json.Unmarshal([]byte(raw), &scopes); err != nil {
 		return nil, "", err
