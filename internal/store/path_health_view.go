@@ -102,15 +102,16 @@ func (s *Store) PathHealth(ctx context.Context, id int64, at time.Time) (*PathHe
 		if e != nil {
 			return nil, e
 		}
-		if control.effective().Mode == "paused" {
+		if control.effective().Mode == spec.ServiceControlPause {
 			paused = true
 		}
 		var raw string
-		if e = tx.QueryRowContext(ctx, `SELECT runtime_report_json FROM nodes WHERE id=?`, node).Scan(&raw); e != nil {
+		var reported sql.NullInt64
+		if e = tx.QueryRowContext(ctx, `SELECT runtime_report_json,runtime_reported_at FROM nodes WHERE id=?`, node).Scan(&raw, &reported); e != nil {
 			return nil, e
 		}
 		var runtime NodeRuntime
-		if json.Unmarshal([]byte(raw), &runtime) == nil && runtime.ServiceControl != nil && runtime.ServiceControl.Mode == "paused" {
+		if reported.Valid && !time.Unix(reported.Int64, 0).Before(at.Add(-3*time.Minute)) && !time.Unix(reported.Int64, 0).After(at.Add(30*time.Second)) && json.Unmarshal([]byte(raw), &runtime) == nil && runtime.ServiceControl != nil && runtime.ServiceControl.Mode == spec.ServiceControlPause {
 			paused = true
 		}
 	}
@@ -130,7 +131,7 @@ func (s *Store) PathHealth(ctx context.Context, id int64, at time.Time) (*PathHe
 		if p.Protocol == spec.PathHealthUnsupported {
 			view.Status = "unsupported"
 			view.Result = "unsupported"
-		} else if out.Capable && !paused && identity != "" {
+		} else if identity != "" {
 			var raw, storedIdentity, storedSession string
 			var received int64
 			e := tx.QueryRowContext(ctx, `SELECT sample_json,token_identity,session,received_at FROM path_health_samples WHERE node_id=? AND tag=? AND candidate_id=?`, route.Entry.NodeID, entry.Tag, c.ID).Scan(&raw, &storedIdentity, &storedSession, &received)
@@ -139,6 +140,10 @@ func (s *Store) PathHealth(ctx context.Context, id int64, at time.Time) (*PathHe
 			}
 			var sample agentproto.PathHealthSample
 			if e == nil && storedIdentity == identity && storedSession == session && json.Unmarshal([]byte(raw), &sample) == nil && sample.ConfigDigest == p.Digest() && sample.CandidateDigest == c.Digest && sample.ScopeID == p.ScopeID && sample.RouteID == p.RouteID {
+				view.ObservedAt = &sample.ObservedAt
+				recv := time.UnixMilli(received).UTC()
+				view.ReceivedAt = &recv
+				view.Epoch, view.Sequence, view.RTTMillis, view.Result, view.Error = sample.Epoch, sample.Sequence, sample.RTTMillis, sample.Result, sample.Error
 				deadline := sample.ObservedAt.Add(p.Freshness())
 				for _, capTime := range []int64{capabilityObserved, capabilityReceived} {
 					if capDeadline := time.UnixMilli(capTime).Add(3 * time.Minute); capDeadline.Before(deadline) {
@@ -148,15 +153,12 @@ func (s *Store) PathHealth(ctx context.Context, id int64, at time.Time) (*PathHe
 				if receiveDeadline := time.UnixMilli(received).Add(p.Freshness()); receiveDeadline.Before(deadline) {
 					deadline = receiveDeadline
 				}
-				if deadline.After(at) && !sample.ObservedAt.After(at.Add(30*time.Second)) {
+				if out.Capable && !paused && deadline.After(at) && !sample.ObservedAt.After(at.Add(30*time.Second)) {
 					view.Status, view.Result, view.Eligible = sample.Health, sample.Result, sample.Health == "up"
 					if view.Status == "up" && view.Result != "success" {
 						view.Status = "degraded"
 					}
-					view.ObservedAt = &sample.ObservedAt
-					recv := time.UnixMilli(received).UTC()
-					view.ReceivedAt = &recv
-					view.FreshForMS, view.Epoch, view.Sequence, view.RTTMillis, view.Error = deadline.Sub(at).Milliseconds(), sample.Epoch, sample.Sequence, sample.RTTMillis, sample.Error
+					view.FreshForMS = deadline.Sub(at).Milliseconds()
 				}
 			}
 		}
@@ -174,10 +176,13 @@ func (s *Store) PathHealth(ctx context.Context, id int64, at time.Time) (*PathHe
 		out.Reason = "capability_unavailable"
 		return out, nil
 	}
-	up, down := 0, 0
+	up, down, degraded := 0, 0, 0
 	for _, c := range out.Candidates {
 		if c.Status == "up" {
 			up++
+		}
+		if c.Status == "degraded" {
+			degraded++
 		}
 		if c.Status == "down" {
 			down++
@@ -188,7 +193,7 @@ func (s *Store) PathHealth(ctx context.Context, id int64, at time.Time) (*PathHe
 		out.Status = "healthy"
 	case down == len(out.Candidates):
 		out.Status = "down"
-	case up > 0:
+	case up > 0 || degraded > 0:
 		out.Status = "degraded"
 	default:
 		out.Reason = "fresh_evidence_unavailable"

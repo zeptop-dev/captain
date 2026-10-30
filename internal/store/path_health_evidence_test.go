@@ -53,6 +53,22 @@ func TestPathHealthEvidenceRejectsStaleReplayIdentityAndDraft(t *testing.T) {
 	if v := view(at); v.Status != "healthy" || len(v.Candidates) != 2 || v.Candidates[0].FreshForMS != 90000 {
 		t.Fatal("accepted sample not shown", v)
 	}
+
+	// A confirmed service pause on any branch withdraws cached positive evidence.
+	for _, mode := range []string{spec.ServiceControlPause, spec.ServiceControlNormal} {
+		_, e := s.RecordNodeReport(ctx, ns[0].ID, configTestToken, agentproto.Report{ServiceControl: &agentproto.ServiceControlReport{Mode: mode}}, true, at.Add(time.Millisecond))
+		if e != nil {
+			t.Fatal(e)
+		}
+		v := view(at.Add(time.Millisecond))
+		want := "healthy"
+		if mode == spec.ServiceControlPause {
+			want = "paused"
+		}
+		if v.Status != want {
+			t.Fatal("service mode not reflected", mode, v)
+		}
+	}
 	push(samples, at.Add(time.Minute))
 	if v := view(at.Add(91 * time.Second)); v.Status != "unknown" {
 		t.Fatal("fresh report renewed old probe", v)
