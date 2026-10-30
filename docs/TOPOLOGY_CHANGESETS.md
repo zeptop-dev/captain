@@ -31,6 +31,8 @@ Missing creation secrets are generated once when an inbound operation is first s
 
 Only full administrators can use these endpoints. API tokens need `topology-changesets` permissions **and** the actual original object permissions, rechecked on every operation and commit. Examples: creation uses `POST /api/admin/nodes/{id}/inbounds` or `nodes:write`; inbound edits use `PATCH /api/admin/inbounds/{id}` or `inbounds:write`; line edits use `PUT /api/admin/lines/{id}`. There is no legacy `lines:*` resource. Reads require original object read grants; catalog loading requires nodes, ingresses, entries and line listing rights. Cookie authority does not extend a restricted token.
 
+Preview also checks read permission for automatically affected objects outside the explicit operations: dependent lines require `GET /api/admin/lines`, and dependent Entries require `entries:read` or their listing endpoint grant. Missing permission rejects the whole preview. Commit repeats this check against its freshly calculated impact, even when a previous caller obtained the preview revision. Explicit operations retain their original write permissions and response semantics; automatic recompilation does not require new line or Entry write grants. Operation keys cannot substitute for object permissions.
+
 Draft saves, discards and commits are audited without request bodies. Preview is not an audit write. Only commit invalidates desired-state caches. Agent delivery and receipt evidence keep their existing meaning.
 
 ## HTTP contract

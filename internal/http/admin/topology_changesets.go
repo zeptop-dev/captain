@@ -116,6 +116,28 @@ func (h *handlers) topologyGrants(w http.ResponseWriter, r *http.Request, ops []
 	}
 	return true
 }
+
+// Explicit writes retain their existing response permissions. Recompilation can
+// also reveal other objects: authorize those actual results before returning any
+// preview, using object identity rather than caller-controlled operation keys.
+func (h *handlers) topologyPreviewGrants(w http.ResponseWriter, r *http.Request, ops []store.TopologyOperation, changes []store.TopologyChange) bool {
+	type object struct {
+		kind string
+		id   int64
+	}
+	explicit := make(map[object]bool, len(ops))
+	for _, op := range ops {
+		explicit[object{op.Kind, op.ID}] = true
+	}
+	var dependencies []store.TopologyOperation
+	for _, change := range changes {
+		if !explicit[object{change.Kind, change.ID}] {
+			dependencies = append(dependencies, store.TopologyOperation{Kind: change.Kind, ID: change.ID})
+		}
+	}
+	return h.topologyGrants(w, r, dependencies, false, false)
+}
+
 func (h *handlers) topologyCatalog(w http.ResponseWriter, r *http.Request) {
 	if !h.topologyGrants(w, r, nil, false, true) {
 		return
@@ -198,12 +220,16 @@ func (h *handlers) topologyPreview(w http.ResponseWriter, r *http.Request) {
 	}
 	h.Store.Topology.Lock()
 	defer h.Store.Topology.Unlock()
-	if _, yes := h.topologyRead(w, r, true); !yes {
+	d, yes := h.topologyRead(w, r, true)
+	if !yes {
 		return
 	}
 	p, e := h.Store.PreviewTopologyChangeset(r.Context(), r.PathValue("id"), in.Version)
 	if e != nil {
 		topologyError(w, e)
+		return
+	}
+	if !h.topologyPreviewGrants(w, r, d.Operations, p.Changes) {
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
@@ -219,7 +245,16 @@ func (h *handlers) topologyCommit(w http.ResponseWriter, r *http.Request) {
 	}
 	h.Store.Topology.Lock()
 	defer h.Store.Topology.Unlock()
-	if _, yes := h.topologyRead(w, r, true); !yes {
+	draft, yes := h.topologyRead(w, r, true)
+	if !yes {
+		return
+	}
+	preview, e := h.Store.PreviewTopologyChangeset(r.Context(), r.PathValue("id"), in.Version)
+	if e != nil {
+		topologyError(w, e)
+		return
+	}
+	if !h.topologyPreviewGrants(w, r, draft.Operations, preview.Changes) {
 		return
 	}
 	d, e := h.Store.CommitTopologyChangeset(r.Context(), r.PathValue("id"), in.Version, in.Revision)
