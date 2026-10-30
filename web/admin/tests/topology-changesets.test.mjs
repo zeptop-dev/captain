@@ -79,6 +79,40 @@ test('late protocol edits are preserved as a conflict until saved settings are e
   assert.equal('settings' in changesetInput(restored).operations[0].inbound, false)
 })
 
+test('late server edits conflict until the saved server and its ingress are explicitly retained', () => {
+  const submitted = { name: 'Draft', operations: [inbound()] }, current = structuredClone(submitted)
+  submitted.operations[0].inbound.ingress_id = 10
+  current.operations[0].inbound.node_id = 2
+  current.operations[0].inbound.ingress_id = 20
+  current.operations[0].inbound.port = 8443
+  const response = saved(submitted), merged = reconcileChangesetSave(current, submitted, response)
+  assert.deepEqual(merged.conflicts, ['landing'])
+  assert.equal(merged.model.operations[0].inbound.node_id, 2)
+  const restored = keepSavedInboundSettings(merged.model, response, 'landing')
+  const output = changesetInput(restored).operations[0].inbound
+  assert.equal(output.node_id, 1)
+  assert.equal(output.ingress_id, 10)
+  assert.equal(output.port, 8443)
+  assert.equal('settings' in output, false)
+  assert.deepEqual(reconcileChangesetSave(restored, restored, saved(restored)).conflicts, [])
+})
+
+test('API-authored null line arrays reopen as an invalid editable draft without crashing', () => {
+  for (const groups of [null, [{ strategy: 'failover', members: null }]]) {
+    const line = newChangesetOperation('line')
+    line.line.name = 'Incomplete line'; line.line.target_inbound_id = 7
+    line.line.groups = groups; line.line.endpoints = null
+    const draft = saved({ name: 'Incomplete', operations: [line] })
+    const model = modelFromDraft(draft)
+    assert.doesNotThrow(() => changesetFingerprint(model))
+    assert.equal(changesetValid(model), false)
+    const output = changesetInput(model).operations[0].line
+    assert.deepEqual(output.groups, groups === null ? [] : [{ strategy: 'failover', members: [] }])
+    assert.deepEqual(model.operations[0].line.endpoints, [])
+    assert.deepEqual(draft.operations[0].line.groups, groups)
+  }
+})
+
 test('cross-object references and member IDs survive serialization and block dangling operations', () => {
   const ib = inbound(), line = newChangesetOperation('line'), entry = newChangesetOperation('entry')
   line.key = 'relay'; line.inbound_ref = ib.key; line.line.name = 'Relay'; line.line.groups[0].members[0].node_id = 2; line.line.groups[0].members[0].port = 8443

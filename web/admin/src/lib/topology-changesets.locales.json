@@ -34,7 +34,7 @@
       "committed": "Changes committed",
       "savedNewerEdits": "The submitted draft was saved. Your newer edits are still here; save them before previewing.",
       "saveBeforePreview": "Save your current changes before previewing.",
-      "settingsRetained": "The saved protocol settings and generated credentials are retained. Existing credentials are never shown.",
+      "settingsRetained": "The server and initial configuration are fixed after saving. Generated credentials are retained and existing credentials are never shown.",
       "initialSettings": "Initial protocol settings",
       "standardTLS": "Standard TLS",
       "serverName": "TLS server name",
@@ -67,8 +67,8 @@
       "protocolLocked": "Saved protocol settings are retained. To choose another protocol, remove this new operation and add it again.",
       "renameKept": "Resource version is fixed until you select it again.",
       "sort": "Sort order",
-      "settingsChangedWhileSaving": "Protocol settings changed while saving. Keep the saved settings, or remove this new operation and add it again.",
-      "keepSavedSettings": "Keep saved settings"
+      "settingsChangedWhileSaving": "The server or initial configuration changed while saving. Keep the saved server and configuration, or remove this new operation and add it again.",
+      "keepSavedSettings": "Keep saved server and configuration"
     }
   },
   "zh-CN": {
@@ -106,7 +106,7 @@
       "committed": "变更已提交",
       "savedNewerEdits": "已保存刚才提交的草稿。你之后的修改仍保留在这里，请保存后再预览。",
       "saveBeforePreview": "请先保存当前修改，再预览。",
-      "settingsRetained": "保留已保存的协议设置和生成的凭据，现有凭据不会显示。",
+      "settingsRetained": "服务器及初始配置在保存后固定。生成的凭据会保留，现有凭据不会显示。",
       "initialSettings": "初始协议设置",
       "standardTLS": "标准 TLS",
       "serverName": "TLS 服务器名称",
@@ -139,8 +139,8 @@
       "protocolLocked": "保留已保存的协议设置。如需选择其他协议，请移除此新建操作后重新添加。",
       "renameKept": "重新选择资源前，保留当前固定版本。",
       "sort": "排序",
-      "settingsChangedWhileSaving": "保存期间协议设置发生了修改。请保留已保存的设置，或移除此新建操作后重新添加。",
-      "keepSavedSettings": "保留已保存设置"
+      "settingsChangedWhileSaving": "保存期间服务器或初始配置发生了修改。请保留已保存的服务器与配置，或移除此新建操作后重新添加。",
+      "keepSavedSettings": "保留已保存的服务器与配置"
     }
   },
   "zh-TW": {
@@ -178,7 +178,7 @@
       "committed": "變更已提交",
       "savedNewerEdits": "已儲存剛才提交的草稿。你之後的修改仍保留在這裡，請儲存後再預覽。",
       "saveBeforePreview": "請先儲存目前修改，再預覽。",
-      "settingsRetained": "保留已儲存的協定設定和產生的憑證，現有憑證不會顯示。",
+      "settingsRetained": "伺服器及初始設定在儲存後固定。產生的憑證會保留，現有憑證不會顯示。",
       "initialSettings": "初始協定設定",
       "standardTLS": "標準 TLS",
       "serverName": "TLS 伺服器名稱",
@@ -211,8 +211,8 @@
       "protocolLocked": "保留已儲存的協定設定。如需選擇其他協定，請移除此新建操作後重新新增。",
       "renameKept": "重新選擇資源前，保留目前固定版本。",
       "sort": "排序",
-      "settingsChangedWhileSaving": "儲存期間協定設定發生了修改。請保留已儲存的設定，或移除此新建操作後重新新增。",
-      "keepSavedSettings": "保留已儲存設定"
+      "settingsChangedWhileSaving": "儲存期間伺服器或初始設定發生了修改。請保留已儲存的伺服器與設定，或移除此新建操作後重新新增。",
+      "keepSavedSettings": "保留已儲存的伺服器與設定"
     }
   },
   "ja": {
@@ -250,7 +250,7 @@
       "committed": "変更を確定しました",
       "savedNewerEdits": "送信した下書きを保存しました。その後の編集内容も保持されています。プレビューする前に保存してください。",
       "saveBeforePreview": "現在の変更を保存してからプレビューしてください。",
-      "settingsRetained": "保存済みのプロトコル設定と生成済みの認証情報を保持します。既存の認証情報は表示しません。",
+      "settingsRetained": "保存後はサーバーと初期設定が固定されます。生成済みの認証情報は保持され、既存の認証情報は表示されません。",
       "initialSettings": "プロトコルの初期設定",
       "standardTLS": "標準 TLS",
       "serverName": "TLS サーバー名",
@@ -283,8 +283,8 @@
       "protocolLocked": "保存済みのプロトコル設定を保持します。別のプロトコルを選ぶには、この新規作成操作を削除して追加し直してください。",
       "renameKept": "リソースを選び直すまで、選択したバージョンを保持します。",
       "sort": "表示順",
-      "settingsChangedWhileSaving": "保存中にプロトコル設定が変更されました。保存済みの設定を保持するか、この新規作成操作を削除して追加し直してください。",
-      "keepSavedSettings": "保存済みの設定を保持"
+      "settingsChangedWhileSaving": "保存中にサーバーまたは初期設定が変更されました。保存済みのサーバーと設定を保持するか、この新規作成操作を削除して追加し直してください。",
+      "keepSavedSettings": "保存済みのサーバーと設定を保持"
     }
   },
   "ko": {
@@ -322,7 +322,7 @@
       "committed": "변경을 확정했습니다",
       "savedNewerEdits": "전송한 초안을 저장했습니다. 이후 수정 사항은 그대로 남아 있습니다. 미리 보기 전에 저장해 주세요.",
       "saveBeforePreview": "현재 변경 사항을 저장한 후 미리 보세요.",
-      "settingsRetained": "저장된 프로토콜 설정과 생성된 자격 증명을 유지합니다. 기존 자격 증명은 표시하지 않습니다.",
+      "settingsRetained": "저장 후에는 서버와 초기 설정이 고정됩니다. 생성된 자격 증명은 유지되며 기존 자격 증명은 표시하지 않습니다.",
       "initialSettings": "초기 프로토콜 설정",
       "standardTLS": "표준 TLS",
       "serverName": "TLS 서버 이름",
@@ -355,8 +355,8 @@
       "protocolLocked": "저장된 프로토콜 설정을 유지합니다. 다른 프로토콜을 선택하려면 이 새 리소스 생성 작업을 제거한 후 다시 추가하세요.",
       "renameKept": "리소스를 다시 선택할 때까지 선택한 버전을 유지합니다.",
       "sort": "정렬 순서",
-      "settingsChangedWhileSaving": "저장 중에 프로토콜 설정이 변경되었습니다. 저장된 설정을 유지하거나 이 새 리소스 생성 작업을 제거한 후 다시 추가하세요.",
-      "keepSavedSettings": "저장된 설정 유지"
+      "settingsChangedWhileSaving": "저장 중에 서버 또는 초기 설정이 변경되었습니다. 저장된 서버와 설정을 유지하거나 이 새 리소스 생성 작업을 제거한 후 다시 추가하세요.",
+      "keepSavedSettings": "저장된 서버와 설정 유지"
     }
   },
   "ru": {
@@ -394,7 +394,7 @@
       "committed": "Изменения зафиксированы",
       "savedNewerEdits": "Отправленный черновик сохранён. Более поздние правки остались в редакторе; сохраните их перед просмотром.",
       "saveBeforePreview": "Сохраните текущие изменения перед просмотром.",
-      "settingsRetained": "Сохранённые настройки протокола и созданные учётные данные сохраняются. Существующие учётные данные не отображаются.",
+      "settingsRetained": "После сохранения сервер и начальная конфигурация фиксируются. Созданные учётные данные сохраняются, а существующие не отображаются.",
       "initialSettings": "Начальные настройки протокола",
       "standardTLS": "Стандартный TLS",
       "serverName": "Имя TLS-сервера",
@@ -427,8 +427,8 @@
       "protocolLocked": "Сохранённые настройки протокола сохраняются. Чтобы выбрать другой протокол, удалите эту операцию создания и добавьте её заново.",
       "renameKept": "Версия ресурса фиксирована до его повторного выбора.",
       "sort": "Порядок сортировки",
-      "settingsChangedWhileSaving": "Настройки протокола изменились во время сохранения. Оставьте сохранённые настройки или удалите эту операцию создания и добавьте её заново.",
-      "keepSavedSettings": "Оставить сохранённые настройки"
+      "settingsChangedWhileSaving": "Во время сохранения изменились сервер или начальная конфигурация. Оставьте сохранённые сервер и конфигурацию или удалите эту операцию создания и добавьте её заново.",
+      "keepSavedSettings": "Оставить сохранённые сервер и конфигурацию"
     }
   }
 }

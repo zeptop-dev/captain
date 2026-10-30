@@ -106,6 +106,11 @@ const entryPatchFields = ['name', 'inbound_id', 'line_id', 'line_member_id', 'di
 export function modelFromDraft(draft: TopologyDraft, catalog?: TopologyCatalog): ChangesetModel {
   return { name: draft.name, operations: structuredClone(draft.operations).map(op => {
     const operation: EditableOperation = { ...op, editMode: !!op.id }
+    if (op.kind === 'line' && op.line) {
+      // API-authored drafts may contain incomplete arrays before validation.
+      // Keep them visibly invalid and editable instead of failing to open them.
+      operation.line = { ...op.line, groups: (op.line.groups ?? []).map(group => ({ ...group, members: group.members ?? [] })), endpoints: op.line.endpoints ?? [] }
+    }
     const kind = op.kind === 'inbound' ? 'inbound' : op.kind === 'entry' ? 'entry' : undefined
     if (!kind || !op[kind]) return operation
     const defaults = newChangesetOperation(kind)[kind]!
@@ -126,11 +131,11 @@ export function modelFromDraft(draft: TopologyDraft, catalog?: TopologyCatalog):
     return { ...operation, [kind]: hydrated, preservedFields } as EditableOperation
   }) }
 }
-const settingsFingerprint = (op: EditableOperation) => JSON.stringify({ protocol: op.inbound?.protocol, core: op.inbound?.core || '', settings: op.inbound?.settings })
+const settingsFingerprint = (op: EditableOperation) => JSON.stringify({ node_id: op.inbound?.node_id, protocol: op.inbound?.protocol, core: op.inbound?.core || '', settings: op.inbound?.settings })
 export function keepSavedInboundSettings(model: ChangesetModel, saved: TopologyDraft, key: string): ChangesetModel {
   const stored = saved.operations.find(op => op.key === key)?.inbound
   if (!stored) return model
-  return { ...model, operations: model.operations.map(op => op.key !== key || !op.inbound ? op : { ...op, inbound: { ...op.inbound, protocol: stored.protocol, core: stored.core, settings: undefined, settings_configured: true } }) }
+  return { ...model, operations: model.operations.map(op => op.key !== key || !op.inbound ? op : { ...op, inbound: { ...op.inbound, node_id: stored.node_id, ...(op.inbound.node_id !== stored.node_id ? { ingress_id: stored.ingress_id ?? 0 } : {}), protocol: stored.protocol, core: stored.core, settings: undefined, settings_configured: true } }) }
 }
 export function reconcileChangesetSave(current: ChangesetModel, submitted: ChangesetModel, saved: TopologyDraft, catalog?: TopologyCatalog) {
   if (changesetFingerprint(current) === changesetFingerprint(submitted)) return { model: modelFromDraft(saved, catalog), conflicts: [] as string[] }

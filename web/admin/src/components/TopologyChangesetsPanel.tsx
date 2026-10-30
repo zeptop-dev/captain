@@ -112,7 +112,7 @@ function InboundFields({ value, existing, catalog, onChange }: { value: Changese
   const patch = (update: Partial<ChangesetInbound>) => onChange({ ...value, ...update })
   const frozen = existing || !!value.settings_configured
   return <Stack gap="sm"><Text size="xs" c="dimmed">{t('topologyChangesets.newInboundHint')}</Text><SimpleGrid cols={{ base: 1, sm: 2 }}>
-    <Select label={t('entryFlow.server')} required searchable allowDeselect={false} disabled={existing} value={value.node_id ? String(value.node_id) : null} data={catalog.nodes.map(node => ({ value: String(node.id), label: node.name }))} onChange={id => patch({ node_id: Number(id), ingress_id: 0 })} />
+    <Select label={t('entryFlow.server')} required searchable allowDeselect={false} disabled={frozen} value={value.node_id ? String(value.node_id) : null} data={catalog.nodes.map(node => ({ value: String(node.id), label: node.name }))} onChange={id => patch({ node_id: Number(id), ingress_id: 0 })} />
     <TextInput label={t('inbounds.tag')} required value={value.tag} onChange={event => patch({ tag: event.currentTarget.value })} />
     <TextInput label={t('inbounds.listen')} value={value.listen} onChange={event => patch({ listen: event.currentTarget.value })} />
     <NumberInput label={t('inbounds.port')} required min={1} max={65535} allowDecimal={false} value={value.port || ''} onChange={port => patch({ port: Number(port) })} />
