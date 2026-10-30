@@ -7,6 +7,26 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.50.0.
 
+## Live diagnostics and traffic provenance (Captain v1.51.0 / bosun v0.86.0)
+
+Live diagnostics require a freshly challenged supporting node and an explicit
+administrator viewing lease. The additive State control is temporary transport
+metadata: it does not enter configuration revisions, receipts or offline
+snapshots. Older nodes keep serving but cannot provide live samples. Normal
+monitoring and public probe permissions remain separate.
+
+Optional traffic-source metadata is frozen with each original report batch.
+Malformed metadata becomes an unknown observation without rejecting otherwise
+valid customer accounting. Migration 107 stores bounded private history;
+permanent receipt cursors, existing UTC accounting days and subscription
+selection are unchanged. Legacy batches remain distinguishable. API tokens need
+the independent `node-diagnostics` or `traffic-history` scope and node-read
+permission; only full administrators may use either feature.
+
+See [live diagnostics](NODE_DIAGNOSTICS.md) and [traffic history](TRAFFIC_HISTORY.md)
+for freshness and retention limits. Built-in rollback floors remain Captain
+v1.50.0 and bosun v0.85.0; this batch adds observations, not execution policy.
+
 ## Public probe model and Komari themes (Captain v1.48.0)
 
 The original `/api/probe` API remains available. Additive `/api/probe/v2`
@@ -506,6 +526,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
+| 1.51.0 | ≥ 0.86.0 for live diagnostics and detailed traffic provenance | Temporary administrator leases and bounded private batch history; older nodes retain configuration and accounting compatibility. Migration 107. |
 | 1.50.0 | ≥ 0.85.0 and fresh capability for path handshake health; ≥ 0.84.0 receipts for staged routes | Complete-route staged plans, atomic inbound/line/Entry changesets and optional TCP relay path health; migrations 104–106. Existing agents and immediate delivery remain compatible. |
 | 1.49.0 | >= 0.84.0 for receipts, staged release prerequisites and offline enforcement | Immutable line-owned snapshots, opt-in TCP relay release plans, fixed-version complete paths, bounded cleanup evidence; migrations 100-103. Existing immediate delivery remains compatible. |
 | 1.48.0 | ≥ 0.83.0 for server traffic enforcement | Opt-in server pause/aggregate rate protection with independent application evidence; original agents remain compatible. Komari public themes and panel-side DNS controls do not require a node upgrade. Mihomo dual-stack design generation uses the formal shared module. |

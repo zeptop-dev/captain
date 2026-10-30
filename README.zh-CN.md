@@ -66,6 +66,7 @@ mita（mieru）、Hysteria、snell-server 和 realm 作为子进程拉起来。
 - 服务状态页按展示分类汇总订阅节点；门户只显示用户有权使用的节点，管理员可另行选择公开节点和维护时段。它独立于服务器探针，运行状态不等于端到端可用性；确认配置已应用需要 bosun v0.81.0 或更新版本。[服务状态说明](docs/MONITORING.md#customer-service-status)。
 - Glass 费用汇总支持统一币种，服务端每日缓存汇率，服务器详情仍保留原价。缺少报价和旧缓存明确提示，不向汇率服务发送服务器资料。[费用估值](docs/MONITORING.md#probe-and-status-page)。
 - 管理员订阅预设统一提供基础、同步的 ACL4SSR 官方配置和另存设计；地区组内可自动选择低延迟节点或手动固定节点，优先使用登记地区并省略未被使用的空地区。地区分组、Claude 增强与 WebRTC/UDP 443 限制适配七种设计器格式，DNS 和具体规则能力按客户端说明限制；预览后仅应用支持的格式。载入前可查看缓存的上游说明及来源版本，Claude 固定快照支持差异预览和按客户端记录发布版本；同步规则库、保存草稿均不会修改已发布模板。[预设流程与边界](docs/SUBSCRIPTIONS.md#templates-and-the-designer)。
+- 管理员可按需查看每秒 CPU、内存与网卡短时诊断，页面停止观看后释放短租约，不开启常规监控。计量历史展示有界采集来源和当前已落盘积压，原计费与永久去重游标保持；实时诊断和详细来源需要 bosun v0.86.0。[实时诊断](docs/NODE_DIAGNOSTICS.md)、[计量历史](docs/TRAFFIC_HISTORY.md)。
 - 服务器详情默认打开监控概览，另设信息、诊断、设置三个分区。手填资料、供应商账单、流量统计口径和单机探针展示开关统一在信息页管理；诊断与维护按需进入。[服务器详情](docs/NODES.md#server-detail-workspace)。
 - 服务器列表与详情分别展示网卡周期流量和今日用户代理流量（UTC）。托管反向 WireGuard / VLESS Reverse 由前置 A 采集、归属落地 B 展示，保留采集来源和历史不完整提示，用户账本仍只计一次。bosun v0.76.1 起默认避免将托管 WireGuard、整形网卡重复计入主机汇总。[流量统计说明](docs/MONITORING.md#probe-and-status-page)。
 - 在用户门户或用户详情中为每台设备建立独立 WireGuard 身份，复制仅含 WG 的设备订阅，或下载单节点配置。各设备共用所属用户的用量和限制，可单独撤销。请使用 bosun v0.77.1 或更新版本，并明确激活受支持的 Xray `26.7.28-r3` 包；默认内核版本不会自动更换。[设备订阅与限制](docs/SUBSCRIPTIONS.md#independent-wireguard-devices)。
