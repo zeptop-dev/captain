@@ -8,6 +8,7 @@ import { useApp } from '@/stores/app'
 export default function ThreeNetworkPing({ uuid, nodeName, online, enabled, onClick }: { uuid: string, nodeName: string, online: boolean, enabled: boolean, onClick?: () => void }) {
   const nodeCardSize = useApp(s => s.nodeCardSize)
   const { carrierDisplays, dual, provinceLabel } = useNodeCarrierPingDisplay(uuid, enabled)
+  const observationLabel = [provinceLabel, t('三网')].filter(Boolean).join(' · ')
   const panelClass = dual ? (nodeCardSize === 'mini' ? 'h-[164px] gap-1 p-1' : 'h-[184px] gap-1.5 p-2') : nodeCardSize === 'large' ? 'h-[128px] gap-2 p-2' : nodeCardSize === 'comfortable' ? 'h-[120px] gap-1.5 p-2' : nodeCardSize === 'mini' ? 'h-[92px] gap-1 p-1' : 'h-[112px] gap-1.5 p-1.5'
 
   const panel = (metric: 'latency' | 'loss') => (
@@ -18,11 +19,11 @@ export default function ThreeNetworkPing({ uuid, nodeName, online, enabled, onCl
         onClick?.()
       }}
       aria-label={`${nodeName} ${t('网络监测')}`}
-      className={vclass('group/panel relative flex flex-col rounded-lg bg-slate-500/5', [panelClass, !online ? 'blur-xs opacity-50' : ''])}
+      className={vclass('group/panel relative flex min-w-0 flex-col rounded-lg bg-slate-500/5', [panelClass, !online ? 'blur-xs opacity-50' : ''])}
     >
-      <div className="flex items-center justify-between text-[11px] leading-none">
-        <span className="text-muted-foreground">{t(metric === 'latency' ? '延迟' : '丢包')}</span>
-        <span className="text-[10px] text-muted-foreground/70">{[provinceLabel, t('三网')].filter(Boolean).join(' · ')}</span>
+      <div className="flex min-w-0 shrink-0 items-center justify-between gap-1 text-[11px] leading-none">
+        <span className="shrink-0 whitespace-nowrap text-muted-foreground">{t(metric === 'latency' ? '延迟' : '丢包')}</span>
+        <span className="min-w-0 truncate text-[10px] text-muted-foreground/70" title={observationLabel}>{observationLabel}</span>
       </div>
 
       <div className="grid min-h-0 flex-1 grid-rows-3 gap-1">
@@ -35,17 +36,20 @@ export default function ThreeNetworkPing({ uuid, nodeName, online, enabled, onCl
               className="flex min-h-0 flex-col gap-[2px]"
               title={metric === 'latency' ? carrier.latencyTooltip : carrier.lossTooltip}
             >
-              <div className={vclass('flex text-[10px] leading-none', dual ? 'flex-col items-stretch gap-[3px]' : 'items-center justify-between')}>
+              <div className="flex items-center justify-between text-[10px] leading-none">
                 <span className="flex min-w-0 items-center gap-1 text-muted-foreground">
                   <span className={vclass('size-1.5 shrink-0 rounded-full', carrier.dotClass)} />
                   <span className="truncate">{carrier.label}</span>
                 </span>
-                <span className="shrink-0 tabular-nums font-medium">{metric === 'latency' ? carrier.latencyDisplay : carrier.lossDisplay}</span>
+                {!dual && <span className="shrink-0 whitespace-nowrap tabular-nums font-medium">{metric === 'latency' ? carrier.latencyDisplay : carrier.lossDisplay}</span>}
               </div>
               {carrier.series.map(series => {
                 const bars = metric === 'latency' ? series.latencyBars : series.lossBars
-                return <div key={series.family ?? 'legacy'} data-carrier-family={series.family} className={dual ? 'flex items-center gap-1' : ''}>
-                  {dual && <span aria-hidden="true" className="w-3 shrink-0 text-[8px] leading-none text-muted-foreground">{series.familyLabel}</span>}
+                return <div key={series.family ?? 'legacy'} data-carrier-family={series.family} className={dual ? 'flex min-w-0 items-center gap-1' : ''}>
+                  {dual && <>
+                    <span className="w-3 shrink-0 text-[8px] leading-none text-muted-foreground">{series.familyLabel}</span>
+                    <span className="min-w-11 shrink-0 whitespace-nowrap text-right text-[10px] leading-none tabular-nums font-medium">{metric === 'latency' ? series.latencyDisplay : series.lossDisplay}</span>
+                  </>}
                   <div
                     className="grid h-1.5 min-w-0 flex-1 items-end gap-[1px] opacity-80 group-hover/panel:opacity-100"
                     style={{ gridTemplateColumns: `repeat(${bars.length}, minmax(0, 1fr))` }}
