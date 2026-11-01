@@ -1,3 +1,4 @@
+import { carrierProvinceOptions } from '../../../shared/carrier-provinces'
 import { SettingsFields } from './SettingsFields'
 import { SettingsLoadState } from './SettingsLoadState'
 import { ActionIcon, Button, Card, Code, Group, MultiSelect, NumberInput, Select, Stack, Switch, Table, Text, TextInput, Title, Textarea } from '@mantine/core'
@@ -54,10 +55,21 @@ export function ProbeCard() {
           <SettingsFields>
             <Select label={t('probe.carrierProtocol')} data={['tcp', 'icmp'].map(value => ({ value, label: value.toUpperCase() }))} allowDeselect={false} {...form.getInputProps('carrier_probe.protocol')} />
             <Select label={t('probe.carrierFamily')} data={[{ value: 'ipv4', label: 'IPv4' }, { value: 'ipv6', label: 'IPv6' }, { value: 'dual', label: 'IPv4 + IPv6' }]} allowDeselect={false} {...form.getInputProps('carrier_probe.family')} />
+            {v.carrier_probe.protocol === 'tcp' && <Select label={t('probe.carrierProvince')} data={carrierProvinceOptions(i18n.language)} searchable allowDeselect={false} {...form.getInputProps('carrier_probe.tcp_province')} />}
           </SettingsFields>
           <Text size="xs" c="dimmed">{t('probe.carrierModesHint')}</Text>
           <SettingsFields>
-            {(['ipv4', 'ipv6'] as CarrierFamily[]).filter(family => v.carrier_probe.family === 'dual' || v.carrier_probe.family === family).map(family => <Textarea key={`${v.carrier_probe.protocol}_${family}`} label={`${t('probe.carriers')} · ${family === 'ipv4' ? 'IPv4' : 'IPv6'}`} description={v.carrier_probe.protocol === 'icmp' ? t('probe.carriersICMPHint') : t('probe.carriersHint')} autosize minRows={3} placeholder={carrierTargetPlaceholder(v.carrier_probe.protocol, family)} styles={{ input: { fontFamily: 'monospace', fontSize: 12 } }} {...form.getInputProps(`carrierTargetsText.${v.carrier_probe.protocol}_${family}`)} />)}
+            {(['ipv4', 'ipv6'] as CarrierFamily[]).filter(family => v.carrier_probe.family === 'dual' || v.carrier_probe.family === family).map(family => {
+              const key = `${v.carrier_probe.protocol}_${family}` as const
+              const custom = !!v.carrierTargetsText[key].trim()
+              return <Stack key={key} gap={4} style={{ minWidth: 0 }}>
+                <Textarea label={`${t('probe.carriers')} · ${family === 'ipv4' ? 'IPv4' : 'IPv6'}`} description={v.carrier_probe.protocol === 'icmp' ? t('probe.carriersICMPHint') : t('probe.carriersHint')} autosize minRows={3} placeholder={carrierTargetPlaceholder(v.carrier_probe.protocol, family, v.carrier_probe.tcp_province)} styles={{ input: { fontFamily: 'monospace', fontSize: 12 } }} {...form.getInputProps(`carrierTargetsText.${key}`)} />
+                <Group justify="space-between" gap="xs">
+                  <Text size="xs" c={custom ? 'orange' : 'dimmed'}>{t(custom ? 'probe.carrierCustomActive' : 'probe.carrierPresetActive')}</Text>
+                  {custom && <Button size="compact-xs" variant="subtle" onClick={() => form.setFieldValue(`carrierTargetsText.${key}`, '')}>{t('probe.carrierRestorePreset')}</Button>}
+                </Group>
+              </Stack>
+            })}
           </SettingsFields>
         </Stack>}
         <SettingsFields>

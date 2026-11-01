@@ -35,7 +35,7 @@ export default function NodePingListCell({ uuid, online: _online, enabled, onCli
             key={carrier.key}
             data-carrier={carrier.key}
             className="flex min-w-0 items-center gap-1"
-            title={`${carrier.label} · ${t('延迟')} ${carrier.latencyDisplay} · ${t('丢包')} ${carrier.lossDisplay}`}
+            title={`${carrier.latencyTooltip}\n${carrier.lossTooltip}`}
           >
             <span className={vclass('size-1.5 shrink-0 rounded-full', carrier.dotClass)} />
             <span className="flex min-w-0 flex-1 flex-col gap-[1px]">

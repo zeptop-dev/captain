@@ -1,3 +1,4 @@
+import { carrierProvinceName } from '../../../shared/carrier-provinces.ts'
 export interface ProbeTimings { dns_ms: number | null; connect_ms: number | null; tls_ms: number | null; response_ms: number | null }
 export interface NetworkSample {
  task_id: number; name: string; series?: string; family?: 'ipv4' | 'ipv6'; type?: string; latency_ms: number; loss?: number; mbps?: number; at?: number
@@ -13,6 +14,13 @@ export interface NetworkHistory { current: NetworkSample[]; points: NetworkPoint
 export function networkIdentity(p: Pick<NetworkPoint, 'task_id' | 'name' | 'series'>): string {
  return JSON.stringify([p.task_id, p.name, p.series ?? ''])
 }
-export function networkLabel(p: { name: string; family?: 'ipv4' | 'ipv6'; type?: string; quality?: { type: string } }): string {
- return [p.name, p.family === 'ipv4' ? 'IPv4' : p.family === 'ipv6' ? 'IPv6' : '', p.family ? (p.type ?? p.quality?.type ?? '').replace('tcp_reachability', 'tcp').toUpperCase() : ''].filter(Boolean).join(' · ')
+export function networkLabel(p: { name: string; province?: string; family?: 'ipv4' | 'ipv6'; type?: string; quality?: { type: string } }, language = 'en'): string {
+ return [p.name, (p.type ?? p.quality?.type)?.startsWith('tcp') ? carrierProvinceName(p.province, language) : '', p.family === 'ipv4' ? 'IPv4' : p.family === 'ipv6' ? 'IPv6' : '', p.family ? (p.type ?? p.quality?.type ?? '').replace('tcp_reachability', 'tcp').toUpperCase() : ''].filter(Boolean).join(' · ')
+}
+
+// Samples do not carry configuration labels. Only join metadata from the exact
+// current task; a new province must never relabel an older province's history.
+export function networkTaskLabel(point: { task_id: number; name: string; series?: string; family?: 'ipv4' | 'ipv6'; type?: string; quality?: { type: string } }, tasks: { id: number; name: string; series?: string; province?: string; type?: string }[] | undefined, language = 'en'): string {
+ const task = tasks?.find(task => task.id === point.task_id && task.name === point.name && (task.series ?? '') === (point.series ?? ''))
+ return networkLabel({ ...point, type: task?.type ?? point.type, province: task?.id === 0 ? task.province : undefined }, language)
 }

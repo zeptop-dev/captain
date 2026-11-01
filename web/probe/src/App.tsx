@@ -101,7 +101,7 @@ function NodeCard({ n, snapshot, onOpen }: { n: Node; snapshot: Snapshot; onOpen
         <Group gap="sm" mt="xs">
           {carriers.map(task => {
             const p = task.state === 'unsupported' ? undefined : h?.pings?.find(p => matchesPing(p, task))
-            const label = networkLabel(task)
+            const label = networkLabel(task, i18n.language)
             const stale = p?.at && snapshot.now - p.at > Math.max(60, (p.quality?.interval_seconds ?? 30) * 2)
             const reason = task.reason || (stale ? 'stale' : p?.quality?.outcome)
             const unavailable = !p || stale || carrierUnavailable(task, p)

@@ -27,9 +27,34 @@ test('empty explicit target lists use new defaults instead of reviving legacy cu
  for (const protocol of ['tcp', 'icmp']) for (const family of ['ipv4', 'ipv6']) {
   const placeholder = carrierTargetPlaceholder(protocol, family)
   assert.equal(placeholder.split('\n').length, 3)
-  assert(placeholder.includes(`${family}.pek-4134.endpoint.nxtrace.org`))
-  assert(placeholder.includes(`${family}.pek-4837.endpoint.nxtrace.org`))
-  assert(placeholder.includes(`${family}.pek-9808.endpoint.nxtrace.org`))
+  if (protocol === 'icmp') {
+   for (const asn of ['4134', '4837', '9808']) assert(placeholder.includes(`${family}.pek-${asn}.endpoint.nxtrace.org`))
+  } else {
+   for (const carrier of ['ct', 'cu', 'cm']) assert(placeholder.includes(`bj-${carrier}-${family === 'ipv4' ? 'v4' : 'v6'}.ip.zstaticcdn.com:80`))
+  }
   assert.equal(placeholder.includes(':80'), protocol === 'tcp')
  }
+})
+
+test('province changes round-trip without replacing custom lists or ICMP drafts', () => {
+ const draft = carrierProbeDraft({ tcp_province: 'gd', family: 'dual', tcp_ipv4: [{ name: 'CT', addr: 'example.com:443' }] })
+ assert.equal(draft.probe.tcp_province, 'gd')
+ draft.texts.icmp_ipv6 = 'ICMP 2001:db8::2'
+ draft.probe.tcp_province = 'sh'
+ draft.probe.protocol = 'icmp'
+ assert(!carrierTargetPlaceholder('icmp', 'ipv6', 'sh').includes('zstaticcdn'))
+ const saved = carrierProbePayload(draft.probe, draft.texts)
+ const restored = carrierProbeDraft(saved)
+ assert.equal(restored.probe.tcp_province, 'sh')
+ assert.equal(restored.texts.tcp_ipv4, 'CT example.com:443')
+ assert.equal(restored.texts.icmp_ipv6, 'ICMP 2001:db8::2')
+ restored.probe.protocol = 'tcp'
+ assert(carrierTargetPlaceholder('tcp', 'ipv6', restored.probe.tcp_province).includes('sh-ct-v6.ip.zstaticcdn.com:80'))
+ // Restoring only the visible IPv4 preset leaves the other three drafts intact.
+ restored.texts.tcp_ipv4 = ''
+ const preset = carrierProbePayload(restored.probe, restored.texts)
+ assert.deepEqual(preset.tcp_ipv4, [])
+ assert.equal(preset.icmp_ipv6[0].addr, '2001:db8::2')
+ assert.equal(preset.tcp_province, 'sh')
+ assert.equal(carrierProbeDraft({tcp_province: ''}).probe.tcp_province, 'bj')
 })

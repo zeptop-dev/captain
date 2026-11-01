@@ -35,6 +35,7 @@
     "../src/lib/**/*.ts",
     "../src/appearance.ts",
     "../../shared/branding.ts",
+    "../../shared/carrier-provinces.ts",
     "../../shared/country-coordinates.ts",
     "../../shared/geolocation.ts"
   ]

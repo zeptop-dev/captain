@@ -7,7 +7,7 @@ import { useApp } from '@/stores/app'
 
 export default function ThreeNetworkPing({ uuid, nodeName, online, enabled, onClick }: { uuid: string, nodeName: string, online: boolean, enabled: boolean, onClick?: () => void }) {
   const nodeCardSize = useApp(s => s.nodeCardSize)
-  const { carrierDisplays, dual } = useNodeCarrierPingDisplay(uuid, enabled)
+  const { carrierDisplays, dual, provinceLabel } = useNodeCarrierPingDisplay(uuid, enabled)
   const panelClass = dual ? (nodeCardSize === 'mini' ? 'h-[164px] gap-1 p-1' : 'h-[184px] gap-1.5 p-2') : nodeCardSize === 'large' ? 'h-[128px] gap-2 p-2' : nodeCardSize === 'comfortable' ? 'h-[120px] gap-1.5 p-2' : nodeCardSize === 'mini' ? 'h-[92px] gap-1 p-1' : 'h-[112px] gap-1.5 p-1.5'
 
   const panel = (metric: 'latency' | 'loss') => (
@@ -22,7 +22,7 @@ export default function ThreeNetworkPing({ uuid, nodeName, online, enabled, onCl
     >
       <div className="flex items-center justify-between text-[11px] leading-none">
         <span className="text-muted-foreground">{t(metric === 'latency' ? '延迟' : '丢包')}</span>
-        <span className="text-[10px] text-muted-foreground/70">{t('三网')}</span>
+        <span className="text-[10px] text-muted-foreground/70">{[provinceLabel, t('三网')].filter(Boolean).join(' · ')}</span>
       </div>
 
       <div className="grid min-h-0 flex-1 grid-rows-3 gap-1">

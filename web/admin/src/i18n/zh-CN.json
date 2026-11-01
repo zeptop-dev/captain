@@ -942,7 +942,7 @@
     "taskNodes": "限定服务器",
     "taskNodeCount": "{{count}} 个服务器",
     "carriers": "延迟探测目标",
-    "carriersHint": "每行一个：名称 地址:端口。留空使用该 IP 版本的 NextTrace 北京三网默认目标；填写后整体替换。",
+    "carriersHint": "每行一个：名称 地址:端口。留空使用所选省份的 Zstatic TCP 目标；填写后替换该 IP 版本的省份预设。",
     "collection": "采集监控数据",
     "pageEnabled": "启用状态页",
     "pageEnabledHint": "关闭状态页后仍可继续采集数据和发送告警。",
@@ -950,8 +950,12 @@
     "financeCurrencyHint": "首页费用汇总按参考汇率折算为所选币种；服务器原价和详情中的币种保持不变。",
     "carrierProtocol": "探测方式",
     "carrierFamily": "IP 版本",
-    "carrierModesHint": "不同探测方式与 IP 版本分别保存目标。留空使用 NextTrace 北京电信、联通和移动。TCP 80 端口可能不响应；ICMP 需要服务器具备探测权限。",
-    "carriersICMPHint": "每行一个：名称 域名或 IP（不含端口）。留空使用该 IP 版本的 NextTrace 北京三网默认目标；填写后整体替换。"
+    "carrierModesHint": "TCP 使用 Zstatic 省级预设，ICMP 使用 NextTrace 北京。自定义目标优先于对应 IP 版本的预设；切换探测方式、IP 版本或省份会保留其他目标列表。",
+    "carriersICMPHint": "每行一个：名称 域名或 IP（不含端口）。留空使用该 IP 版本的 NextTrace 北京三网默认目标；填写后整体替换。",
+    "carrierProvince": "观测省份",
+    "carrierCustomActive": "正在使用自定义目标",
+    "carrierPresetActive": "正在使用预设目标",
+    "carrierRestorePreset": "恢复预设目标"
   },
   "nodeProbe": {
     "used": "本周期已用",
