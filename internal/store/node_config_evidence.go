@@ -202,7 +202,7 @@ func pruneNodeConfigDeliveriesTx(ctx context.Context, tx *sql.Tx, nodeID int64) 
 // Independently numbered process receipts must not borrow freshness from a
 // customer traffic batch. Invalid, old and repeated evidence is ignored, while
 // storage failures abort the enclosing full-report transaction.
-func recordNodeConfigReceiptTx(ctx context.Context, tx *sql.Tx, nodeID int64, tokenHash string, r *agentproto.ConfigReceipt, appliedRevision string, at time.Time) error {
+func recordNodeConfigReceiptTx(ctx context.Context, tx *sql.Tx, nodeID int64, tokenHash string, r *agentproto.ConfigReceipt, appliedRevision string, at time.Time, rendered ...*agentproto.RenderedConfigReport) error {
 	if r == nil || r.Sequence == 0 || r.Sequence > math.MaxInt64 || !configSessionPattern.MatchString(r.Session) || !configRevisionPattern.MatchString(r.DeliveryID) || !configRevisionPattern.MatchString(r.ConfigRevision) || !configRevisionPattern.MatchString(r.StateRevision) || r.ObservedAt.IsZero() || r.ObservedAt.Before(at.Add(-configEvidenceFresh)) || r.ObservedAt.After(at.Add(30*time.Second)) {
 		return nil
 	}
@@ -227,6 +227,9 @@ func recordNodeConfigReceiptTx(ctx context.Context, tx *sql.Tx, nodeID int64, to
 	applied := r.Applied && appliedRevision == r.StateRevision
 	_, err = tx.ExecContext(ctx, `UPDATE node_config_deliveries SET confirmed_at=CASE WHEN ? THEN COALESCE(confirmed_at,?) ELSE confirmed_at END,last_receipt_at=?,observed_at=?,receipt_sequence=?,applied=? WHERE id=?`, applied, at.UnixMilli(), at.UnixMilli(), r.ObservedAt.UnixMilli(), int64(r.Sequence), applied, r.DeliveryID)
 	if err != nil {
+		return err
+	}
+	if err = recordRenderedConfigTx(ctx, tx, r, applied, rendered); err != nil {
 		return err
 	}
 	if err = recordLineTargetReceiptTx(ctx, tx, nodeID, tokenHash, r, applied, at); err != nil {

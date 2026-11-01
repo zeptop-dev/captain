@@ -236,6 +236,7 @@ func Register(mux *http.ServeMux, d Deps) {
 
 	h.registerNodeAccess(mux)
 	h.registerNodeServiceControl(mux)
+	mux.HandleFunc("GET /api/admin/nodes/{id}/rendered-config", h.requireAdmin(h.getNodeRenderedConfig))
 	mux.HandleFunc("GET /api/admin/nodes/{id}/configuration", h.requireAdmin(h.getNodeConfiguration))
 	mux.HandleFunc("GET /api/admin/plans", h.requireAdmin(h.listPlans))
 	mux.HandleFunc("POST /api/admin/plans", h.requireAdmin(h.createPlan))
@@ -614,7 +615,7 @@ func allowed(role, method, path string) bool {
 	if strings.HasPrefix(path, "/api/admin/nodes/") && strings.HasSuffix(path, "/dns-sync") && role != domain.RoleAdmin {
 		return false
 	}
-	if strings.HasPrefix(path, "/api/admin/nodes/") && (strings.HasSuffix(path, "/service-control") || strings.HasSuffix(path, "/configuration")) && role != domain.RoleAdmin {
+	if strings.HasPrefix(path, "/api/admin/nodes/") && (strings.HasSuffix(path, "/service-control") || strings.HasSuffix(path, "/configuration") || strings.HasSuffix(path, "/rendered-config")) && role != domain.RoleAdmin {
 		return false
 	}
 	if (path == "/api/admin/infrastructure" || strings.HasPrefix(path, "/api/admin/infrastructure/")) && role != domain.RoleAdmin {

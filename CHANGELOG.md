@@ -6,6 +6,8 @@ Merge commits and formatting-only commits are left out. Binaries and
 `SHA256SUMS` for every tag are on the GitHub Release; the in-app updater
 installs them (Settings → System maintenance → Version and updates).
 
+- **Unreleased** — Add administrator-only evidence of actual activated core configuration files, bound to accepted process configuration receipts. Keep raw configuration and credentials on the node; distinguish historical activation, later runtime updates and current fresh confirmation. Malformed optional metadata never blocks valid accounting.
+
 - **v1.51.0** (2026-10-30) — Add administrator-requested live host diagnostics with one-second CPU, memory and NIC observations in a bounded two-minute ring. Multiple viewers share one sampler; short leases, process challenges and revocation stop abandoned sessions. Normal monitoring, configuration delivery, public probes and customer accounting remain independent. Requires bosun v0.86.0 for live sampling.
   - Show bounded traffic-batch source history and current persisted delivery backlog. Preserve immutable retry provenance, distinguish missing/partial/invalid source metadata and expose large sequence IDs as strings. Migration 107 adds private history with seven-day visibility and per-node/global row limits; permanent accounting receipts, billing days and subscription attribution retain their existing semantics.
   - Add six-language diagnostic/history views, independent administrator token scopes and cancellation of pending browser requests when leaving a session. Use the formal bosun v0.86.0 dependency. Built-in rollback floors remain Captain v1.50.0 / bosun v0.85.0.

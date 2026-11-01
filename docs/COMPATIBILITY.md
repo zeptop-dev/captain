@@ -7,6 +7,16 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.50.0.
 
+## Activated configuration evidence (development)
+
+Supporting agents add optional `rendered_config` alongside independently numbered
+configuration receipts. Older agents remain compatible and show unavailable
+artifact evidence. Invalid optional evidence cannot reject valid accounting.
+Migration 108 adds bounded delivery-linked observations; administrator tokens
+need both `rendered-config:read` and node reading permission. This does not change
+configuration identity, deployment behavior or the existing rollback floor.
+See [scope and privacy](RENDERED_CONFIG.md).
+
 ## Live diagnostics and traffic provenance (Captain v1.51.0 / bosun v0.86.0)
 
 Live diagnostics require a freshly challenged supporting node and an explicit

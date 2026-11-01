@@ -212,7 +212,7 @@ func (s *Store) RecordNodeReport(ctx context.Context, nodeID int64, tokenHash st
 	if err := recordNodeRuntime(ctx, tx, nodeID, rep, trafficFresh, at); err != nil {
 		return false, err
 	}
-	if err := recordNodeConfigReceiptTx(ctx, tx, nodeID, tokenHash, rep.ConfigReceipt, rep.AppliedRevision, at); err != nil {
+	if err := recordNodeConfigReceiptTx(ctx, tx, nodeID, tokenHash, rep.ConfigReceipt, rep.AppliedRevision, at, rep.RenderedConfig); err != nil {
 		return false, err
 	}
 	if err := recordPathHealthReportTx(ctx, tx, nodeID, tokenHash, rep, at); err != nil {
