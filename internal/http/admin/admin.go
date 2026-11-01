@@ -249,6 +249,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	registerPathRoutes(mux, h)
 	registerPathRollouts(mux, h)
 	registerTopologyChangesets(mux, h)
+	registerOperations(mux, h)
 	mux.HandleFunc("GET /api/admin/line-rollouts", h.requireAdmin(h.listLineRollouts))
 	mux.HandleFunc("GET /api/admin/line-rollouts/{rollout}", h.requireAdmin(h.getLineRollout))
 	mux.HandleFunc("POST /api/admin/line-rollouts/preview", h.requireAdmin(h.previewLineRollout))
@@ -602,7 +603,7 @@ func allowed(role, method, path string) bool {
 	if strings.HasPrefix(path, "/api/admin/nodes/") && strings.HasSuffix(path, "/traffic-history") && role != domain.RoleAdmin {
 		return false
 	}
-	for _, resource := range []string{"node-diagnostics", "line-rollouts", "path-rollouts", "forward-paths", "path-routes", "topology-changesets"} {
+	for _, resource := range []string{"operations", "node-diagnostics", "line-rollouts", "path-rollouts", "forward-paths", "path-routes", "topology-changesets"} {
 		base := "/api/admin/" + resource
 		if (path == base || strings.HasPrefix(path, base+"/")) && role != domain.RoleAdmin {
 			return false

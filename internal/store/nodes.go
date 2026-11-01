@@ -473,17 +473,50 @@ func (s *Store) NodeTrafficToday(ctx context.Context, day time.Time) (map[int64]
 
 // SetNodeUpgrade records the release a node should upgrade to ("" cancels).
 func (s *Store) SetNodeUpgrade(ctx context.Context, id int64, version string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET upgrade_to = ?, updated_at = ? WHERE id = ?`, version, now(), id)
-	return err
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err = requestNodeUpgradeTx(ctx, tx, id, version, time.Now()); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // SetAllNodesUpgrade asks every paired node not already on version to upgrade.
 func (s *Store) SetAllNodesUpgrade(ctx context.Context, version string) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `UPDATE nodes SET upgrade_to = ?, updated_at = ? WHERE token_hash <> '' AND version <> ?`, version, now(), version)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
 	}
-	return res.RowsAffected()
+	defer tx.Rollback()
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM nodes WHERE token_hash<>'' AND version<>? ORDER BY id`, version)
+	if err != nil {
+		return 0, err
+	}
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err = rows.Scan(&id); err != nil {
+			break
+		}
+		ids = append(ids, id)
+	}
+	if err == nil {
+		err = rows.Err()
+	}
+	rows.Close()
+	if err != nil {
+		return 0, err
+	}
+	at := time.Now()
+	for _, id := range ids {
+		if err = requestNodeUpgradeTx(ctx, tx, id, version, at); err != nil {
+			return 0, err
+		}
+	}
+	return int64(len(ids)), tx.Commit()
 }
 
 // CertProblems returns, per node, whether any automatic certificate has an
