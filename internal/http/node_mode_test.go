@@ -27,7 +27,7 @@ func TestMonitorNodeCreationPairingAndState(t *testing.T) {
 	}
 	base := "/api/admin/nodes/" + itoa(id)
 	code, b, _ = r.c.do("GET", "/api/agent/install.sh?pair="+pair, nil, nil)
-	if code != 200 || !strings.Contains(string(b), `"$@" --monitor-only`) {
+	if code != 200 || !strings.Contains(string(b), `--monitor-only "$@"`) {
 		t.Fatalf("installer %d %s", code, b)
 	}
 	nc := &client{t: t, srv: r.srv}

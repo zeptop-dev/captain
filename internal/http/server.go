@@ -227,7 +227,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	s.mux.HandleFunc("POST "+probeaccess.MainPath, probeAccess.Main)
 	s.probe = probe.Register(s.mux, probe.Deps{ThemeAssets: web.ProbeThemeAssets(), Data: probeData, Access: probeAccess, Themes: probeThemes, Version: cfg.Version, Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe(), GlassPage: web.ProbeGlass()})
 	dyn := &service.DynLimit{Store: st, State: s.state, Notify: notifier, Hooks: s.hooks, Log: log, PushSeconds: cfg.Agent.PushSeconds}
-	adminDeps := admin.Deps{Diagnostics: diagnostics, ClientCatalog: clients, ServiceStatus: serviceStatus, ClaudeRules: claudeFetcher, SubPresets: presetFetcher, NodeRegions: s.nodeRegions, Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, DNSHealth: s.dnsHealth, BaseURL: base, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external, Allow: allow, Heartbeat: s.heartbeat,
+	adminDeps := admin.Deps{Diagnostics: diagnostics, ClientCatalog: clients, ServiceStatus: serviceStatus, ClaudeRules: claudeFetcher, SubPresets: presetFetcher, NodeRegions: s.nodeRegions, Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, DNSHealth: s.dnsHealth, BaseURL: base, AgentURL: cfg.AgentURL, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external, Allow: allow, Heartbeat: s.heartbeat,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version, MinVersion: captainUpdateFloor(cfg.MinVersion)},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 		Registration:  cfg.Portal.Registration,
@@ -299,7 +299,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	paymenthttp.Register(s.mux, paymenthttp.Deps{Log: log, Orders: orders, ReturnTo: base + "/portal/orders", Gateways: gateways, Store: st})
 	sub.Register(s.mux, sub.Deps{Store: st, Log: log, Service: subSvc, Name: cfg.SiteName, BaseURL: base})
 	agent.Register(s.mux, agent.Deps{Diagnostics: diagnostics, Addresses: s.nodeAddresses, Pairs: ratelimit.New(),
-		Store: st, Log: log, BaseURL: base,
+		Store: st, Log: log, BaseURL: base, AgentURL: cfg.AgentURL, Downloads: agentdownload.New(filepath.Join(cfg.DataDir, "agent-downloads")),
 		State: s.state, Probe: s.probeSvc, Hooks: s.hooks, Notify: notifier,
 		Dyn: dyn,
 	})
@@ -380,7 +380,7 @@ func (s *Server) Handler() http.Handler {
 		catalogIO := r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/admin/settings/client-catalog/") && (strings.HasSuffix(r.URL.Path, "/check") || strings.HasSuffix(r.URL.Path, "/download"))
 		clientDownload := (r.Method == http.MethodGet || r.Method == http.MethodHead) && strings.HasPrefix(r.URL.Path, "/downloads/clients/")
 		dnsSyncIO := (r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodPost) && strings.HasPrefix(r.URL.Path, "/api/admin/nodes/") && strings.HasSuffix(r.URL.Path, "/dns-sync")
-		if r.URL.Path != "/api/agent/state" && r.URL.Path != probeaccess.MainPath && !s.probe.Dedicated(r) && !presetSync && !catalogIO && !clientDownload && !dnsSyncIO {
+		if r.URL.Path != "/api/agent/state" && r.URL.Path != probeaccess.MainPath && !s.probe.Dedicated(r) && !presetSync && !catalogIO && !clientDownload && !dnsSyncIO && !strings.HasPrefix(r.URL.Path, "/api/agent/downloads/") {
 			accounts := &s.state.Store.Accounts
 			renumber := r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, "/id") && (strings.HasPrefix(r.URL.Path, "/api/admin/users/") || strings.HasPrefix(r.URL.Path, "/api/admin/admins/"))
 			reset := r.Method == http.MethodPost && r.URL.Path == "/api/admin/system/reset"

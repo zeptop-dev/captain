@@ -7,6 +7,17 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.50.0.
 
+## Agent connection and Captain downloads (unreleased)
+
+Migration 110 adds optional per-server installation origins and download sources.
+Existing agents keep their stored endpoint; an admin edit does not switch an
+online connection. Captain delivery requires bosun v0.88.0 or later and a panel
+with the new authenticated download routes. Native installation, upgrades and
+catalog-managed prebuilt cores use the same endpoint without a direct-download
+fallback. System packages and Docker images are outside this delivery path.
+See [Agent connection and downloads](AGENT_DELIVERY.md) for proxy setup, checksum
+provenance, cache limits and downgrade constraints.
+
 ## Activated configuration evidence and operation history (Captain v1.52.0 / bosun v0.87.0)
 
 Supporting agents add optional `rendered_config` alongside independently numbered

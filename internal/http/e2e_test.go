@@ -1122,7 +1122,7 @@ func TestNodeInstallScript(t *testing.T) {
 	if status != 200 || !strings.Contains(hdr.Get("Content-Type"), "shellscript") {
 		t.Fatalf("install.sh: %d %s", status, body)
 	}
-	want := `sh -s -- --captain "https://panel.test" --pair "` + code + `"`
+	want := `sh "$installer" --captain 'https://panel.test' --pair '` + code + `'`
 	if !strings.Contains(string(body), want) || !strings.Contains(string(body), "zeptop-dev/bosun/master/scripts/install.sh") {
 		t.Fatalf("script body:\n%s", body)
 	}
