@@ -206,8 +206,21 @@ allowance. Zero remains unlimited. Changing units preserves the allowance;
 reopening the form or saving other settings keeps the stored byte precision.
 
 Settings → Probe → *Latency targets* selects **TCP / ICMP** and **IPv4 /
-IPv6 / IPv4 + IPv6**. Each protocol/family has its own saved target list;
-switching modes does not overwrite the other lists. Empty lists use the
+IPv6 / IPv4 + IPv6**. TCP also offers a searchable **Observation province**
+selector, defaulting to Beijing. The 31 mainland provincial-level regions use
+the [Zstatic province directory](https://www.zstaticcdn.com/). For example,
+Beijing Telecom uses `bj-ct-v4.ip.zstaticcdn.com:80` and
+`bj-ct-v6.ip.zstaticcdn.com:80`; `cu` and `cm` select Unicom and Mobile.
+Dual stack measures all six targets independently, rather than using whichever
+address family connects first. These are third-party observation points, whose
+reachability and underlying DNS answers can change.
+
+Each protocol/family has its own saved custom target list. A nonempty list
+overrides the preset for that family; the editor identifies custom overrides
+and offers an explicit restore-preset action. Changing province does not erase
+custom targets, including ones that happen to name old NextTrace endpoints.
+The province selection is retained while using ICMP, but does not affect ICMP.
+Empty ICMP lists continue to use the
 [NextTrace Beijing targets](https://github.com/nxtrace/NTrace-core/blob/main/fast_trace/basic.go):
 
 | Carrier | IPv4 hostname | IPv6 hostname |
@@ -216,7 +229,7 @@ switching modes does not overwrite the other lists. Empty lists use the
 | Unicom (CU, AS4837) | `ipv4.pek-4837.endpoint.nxtrace.org` | `ipv6.pek-4837.endpoint.nxtrace.org` |
 | Mobile (CM, AS9808) | `ipv4.pek-9808.endpoint.nxtrace.org` | `ipv6.pek-9808.endpoint.nxtrace.org` |
 
-TCP defaults to port 80 and accepts custom `name host:port` lines. ICMP
+The provincial TCP presets use port 80; custom targets accept `name host:port` lines. ICMP
 accepts `name hostname-or-IP` without a port. Both explicitly select the
 requested address family; there is no fallback to another family or
 protocol. ICMP may require operating-system permission. TCP reachability
@@ -230,10 +243,19 @@ v4/v6 values and history bars, including unknown or failed IPv6 readings.
 History identities include protocol, family and target, so a mode or target
 change never relabels earlier measurements. Old history remains in private
 management views; public charts use the currently configured identities.
-Targets are private: the public API exposes labels and opaque series IDs only.
+Targets are private: the public API exposes labels, opaque series IDs and the
+province code for active TCP presets, never destination addresses. Custom and
+ICMP targets do not inherit the TCP province label. Switching provinces starts
+the new target's statistics without joining the old province's history.
 
 Existing explicit custom targets are retained. Managed nodes follow the panel;
-standalone bosun keeps its own `probe:` section in config.yaml. An agent must
+standalone bosun keeps its own `probe:` section in config.yaml. The additive
+`carrier_probe.tcp_province` field stores the province code (`bj` when unset).
+Captain expands presets into explicit target lists before sending them, so
+managed bosun v0.82.0 and newer can use provincial targets without an agent
+upgrade. The stored empty lists remain presets rather than frozen custom
+addresses. Older settings editors that omit or send an empty province retain
+the saved selection; send `bj` explicitly to reset it to Beijing. An agent must
 report support for the explicit carrier-probe configuration. Older bosun
 versions keep serving proxies and custom monitoring tasks, but built-in
 carrier readings show an upgrade requirement rather than silently measuring

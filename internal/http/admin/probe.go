@@ -117,6 +117,11 @@ func (h *handlers) putProbe(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	// Editors predating province selection send the rest of carrier_probe
+	// without this field. Preserve the saved choice; an explicit "bj" resets it.
+	if strings.TrimSpace(v.CarrierProbe.TCPProvince) == "" {
+		v.CarrierProbe.TCPProvince = old.CarrierProbe.TCPProvince
+	}
 	if err := v.CarrierProbe.Validate(); err != nil {
 		fail(w, http.StatusBadRequest, err.Error())
 		return

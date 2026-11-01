@@ -163,13 +163,14 @@ type nodeView struct {
 
 // Only the identity and public label are exposed, never probe destinations.
 type pingTaskView struct {
-	ID     int64  `json:"id"`
-	Name   string `json:"name"`
-	Series string `json:"series,omitempty"`
-	Family string `json:"family,omitempty"`
-	Type   string `json:"type,omitempty"`
-	State  string `json:"state,omitempty"`
-	Reason string `json:"reason,omitempty"`
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	Series   string `json:"series,omitempty"`
+	Family   string `json:"family,omitempty"`
+	Province string `json:"province,omitempty"`
+	Type     string `json:"type,omitempty"`
+	State    string `json:"state,omitempty"`
+	Reason   string `json:"reason,omitempty"`
 }
 
 func publicPingTasks(s store.ProbeSettings, tasks []store.PingTask, nodeID int64) []pingTaskView {
@@ -180,7 +181,7 @@ func publicPingTasks(s store.ProbeSettings, tasks []store.PingTask, nodeID int64
 	if s.CarrierPing {
 		s.Normalize()
 		for _, task := range s.CarrierProbe.Tasks() {
-			out = append(out, pingTaskView{ID: 0, Name: task.Name, Series: task.Series, Family: task.Family, Type: task.Type})
+			out = append(out, pingTaskView{ID: 0, Name: task.Name, Series: task.Series, Family: task.Family, Type: task.Type, Province: s.CarrierProbe.PresetProvince(task.Family)})
 		}
 	}
 	for _, task := range tasks {

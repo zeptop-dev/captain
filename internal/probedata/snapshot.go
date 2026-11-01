@@ -264,7 +264,7 @@ func (e *Engine) snapshot(ctx context.Context) (Snapshot, error) {
 	if s.PublicShows("latency") {
 		if s.CarrierPing {
 			for _, t := range s.CarrierProbe.Tasks() {
-				task := PingTask{ID: carrierTaskID(t.Series), LegacyID: carrierLegacyID(t.Series), Name: t.Name, Type: t.Type, Series: t.Series, Family: t.Family, Interval: t.IntervalSeconds, EntityIDs: []string{}}
+				task := PingTask{ID: carrierTaskID(t.Series), LegacyID: carrierLegacyID(t.Series), Name: t.Name, Type: t.Type, Series: t.Series, Family: t.Family, Province: s.CarrierProbe.PresetProvince(t.Family), Interval: t.IntervalSeconds, EntityIDs: []string{}}
 				if task.Interval <= 0 {
 					task.Interval = s.BeatSeconds
 				}

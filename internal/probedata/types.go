@@ -158,6 +158,7 @@ type PingTask struct {
 	Interval  int      `json:"interval"`
 	Series    string   `json:"series,omitempty"`
 	Family    string   `json:"family,omitempty"`
+	Province  string   `json:"province,omitempty"`
 	EntityIDs []string `json:"entity_ids"`
 }
 type Ping struct {

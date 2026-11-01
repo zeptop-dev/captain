@@ -205,7 +205,9 @@ must report `carrier_probe_version >= 1`. Older agents continue serving proxies
 and custom monitoring tasks, while built-in carrier readings show an upgrade
 requirement. The panel does not enable the legacy TCP flag alongside the new
 object, because that would mislabel old-agent data as the selected protocol or
-family. Existing explicit targets are retained; empty lists now use NextTrace.
+family. Existing explicit targets are retained; this release introduced
+NextTrace defaults for empty lists. The later provincial TCP presets are
+described below.
 
 Migration 89 adds separate carrier-series history and cursor tables. Existing
 history tables and conflict keys are unchanged, so older panels can still
@@ -219,6 +221,23 @@ Captain 1.43 uses the formal bosun v0.82.0 shared module without a local
 carrier protocol and address family. Upgrading the panel alone cannot supply
 this capability. Existing proxy routing, subscriptions, customer accounting
 and selected proxy-core versions are unchanged.
+
+### Provincial TCP presets
+
+`carrier_probe.tcp_province` is an additive province code, defaulting to `bj`
+when absent. Empty TCP lists now use the selected Zstatic provincial targets;
+ICMP defaults remain NextTrace Beijing. Existing explicit lists are not
+rewritten. Omitted/null/empty province values in settings updates preserve the
+saved choice; an explicit `bj` resets it. Old clients can still edit the other
+fields without losing the province.
+
+Captain expands empty lists into explicit addresses in agent state, without
+modifying saved settings. Existing bosun v0.82.0+ nodes therefore use exactly
+the same target identities as the panel even if they ignore the new province
+field. Older agents still require the carrier-probe capability. No migration
+is needed; old history remains associated with its original target. Public
+task metadata adds `province` only for active TCP presets, respecting latency
+visibility. Proxy routing, customer accounting and core versions are unchanged.
 
 ## Customer service status (Captain 1.41 / bosun 0.81)
 
