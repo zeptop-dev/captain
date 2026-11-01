@@ -2,16 +2,20 @@ import { Alert, Group, Select, Stack, Text } from '@mantine/core'
 import { LineChart } from '@mantine/charts'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { networkIdentity, networkLabel, type NetworkHistory, type NetworkPoint } from '../lib/network'
+import { networkIdentity, networkTaskLabel, type NetworkHistory, type NetworkPoint } from '../lib/network'
 
-export function NetworkHistoryChart({ history }: { history?: Pick<NetworkHistory, 'points' | 'from' | 'to' | 'step'> }) {
- const { t } = useTranslation()
+import type { PublicPingTask } from '../lib/api'
+import { matchesPing } from '../../glass-shared/ping-selection'
+
+export function NetworkHistoryChart({ history, tasks }: { tasks?: PublicPingTask[]; history?: Pick<NetworkHistory, 'points' | 'from' | 'to' | 'step'> }) {
+ const { t, i18n } = useTranslation()
  const [chosen, setChosen] = useState<string | null>(null)
  const [metric, setMetric] = useState('avg_ms')
  const targets = new Map<string, string>()
- for (const p of history?.points ?? []) targets.set(networkIdentity(p), networkLabel(p))
+ const currentPoints = (history?.points ?? []).filter(p => tasks === undefined || tasks.some(task => matchesPing(p, task)))
+ for (const p of currentPoints) targets.set(networkIdentity(p), networkTaskLabel(p, tasks, i18n.language))
  const selected = chosen && targets.has(chosen) ? chosen : targets.keys().next().value
- const points = (history?.points ?? []).filter((p) => networkIdentity(p) === selected)
+ const points = currentPoints.filter((p) => networkIdentity(p) === selected)
  const byTs = new Map(points.map((p) => [p.ts, p]))
  const value = (p?: NetworkPoint): number | null => {
   if (!p) return null

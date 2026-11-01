@@ -2,7 +2,7 @@ import { nodeBandwidth } from '../src/lib/node-bandwidth.ts'
 import { nodePrice } from '../src/lib/node-price.ts'
 import { cpuSpec } from '../src/lib/cpu-spec.ts'
 import { matchesPing } from './ping-selection.ts'
-import { networkIdentity, networkLabel } from '../src/lib/network.ts'
+import { networkIdentity, networkTaskLabel } from '../src/lib/network.ts'
 import { storageItems } from '../src/lib/storage.ts'
 /** Read-only Captain transport for the MIT Glassmorphism public frontend.
  * Only the public probe API is used: no Komari RPC, agent tokens or admin data.
@@ -122,7 +122,7 @@ export async function pingMetrics(id: string, hours: number, bounds?: Pick<Metri
   const series: MetricSeries[] = [], stats: PingMetricStatsResponse['stats'] = []
   for (const points of groups.values()) {
     points.sort((a, b) => a.ts - b.ts)
-    const p = points[0]!, tags = { task_id: taskID(p), task_name: networkLabel(p), task_type: p.quality?.type ?? 'tcp' }
+    const p = points[0]!, tags = { task_id: taskID(p), task_name: networkTaskLabel(p, configured, typeof document === 'undefined' ? 'en' : document.documentElement.lang), task_type: p.quality?.type ?? 'tcp' }
     const total = points.reduce((n, p) => n + p.n, 0), lost = points.reduce((n, p) => n + p.lost, 0), valid = total - lost
     const weighted = points.reduce((n, p) => n + Math.max(0, p.n - p.lost) * p.avg_ms, 0)
     for (const key of ['ping.latency_ms', 'ping.loss']) {
@@ -135,7 +135,7 @@ export async function pingMetrics(id: string, hours: number, bounds?: Pick<Metri
       }
       series.push({ metric_key: key, entity_id: id, tags, count: grid.length, points: grid, downsampled: true, interval_seconds: history.step })
     }
-    stats.push({ entity_id: id, task_id: taskID(p), name: networkLabel(p), type: p.quality?.type ?? 'tcp', tags,
+    stats.push({ entity_id: id, task_id: taskID(p), name: networkTaskLabel(p, configured, typeof document === 'undefined' ? 'en' : document.documentElement.lang), type: p.quality?.type ?? 'tcp', tags,
       total, valid, loss: total ? lost / total * 100 : 0, loss_approximate: false,
       ...(valid > 0 ? { avg: weighted / valid } : {}),
       // Quantiles cannot be recovered by averaging bucket quantiles. Omit them.

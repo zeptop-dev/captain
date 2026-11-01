@@ -23,7 +23,7 @@ export function NodeDetail({ node, snapshot, onClose }: { node: Node | null; sna
   const [range, setRange] = useState('24h')
   const show = (section: string) => publicShows(snapshot, section)
   const hist = useQuery({ queryKey: ['history', node?.id, range, snapshot.public_sections], queryFn: () => getJSON<History>(`/api/probe/nodes/${node!.id}/history?range=${range}`), enabled: !!node && show('history'), refetchInterval: 30_000 })
-  const pings = useQuery({ queryKey: ['pings', node?.id, range, snapshot.public_sections], queryFn: () => getJSON<Omit<NetworkHistory, 'current'>>(`/api/probe/nodes/${node!.id}/pings?range=${range}`), enabled: !!node && show('history') && show('latency'), refetchInterval: 60_000 })
+  const pings = useQuery({ queryKey: ['pings', node?.id, range, snapshot.public_sections, node?.ping_tasks], queryFn: () => getJSON<Omit<NetworkHistory, 'current'>>(`/api/probe/nodes/${node!.id}/pings?range=${range}`), enabled: !!node && show('history') && show('latency'), refetchInterval: 60_000 })
   const availability = useQuery({ queryKey: ['availability', node?.id, range, snapshot.public_sections], queryFn: () => getJSON<Availability>(`/api/probe/nodes/${node!.id}/availability?range=${range}`), enabled: !!node && show('history') && show('availability'), refetchInterval: 30_000 })
   const raw = hist.data?.res === 'raw'
   const byBucket = new Map<number, StatPoint | Sample>()
@@ -53,13 +53,13 @@ export function NodeDetail({ node, snapshot, onClose }: { node: Node | null; sna
     </SimpleGrid>
     {show('disk') && <><Text size="sm" fw={600}>{t('storage.title')}</Text><StorageVolumes node={node} /></>}
     {show('history') && show('availability') && <><Text size="sm" fw={600}>{t('availability.title')}</Text>{availability.isError && <Alert color="red">{t('availability.error')}</Alert>}{availability.data && <AvailabilityView data={availability.data} />}</>}
-    {show('latency') && <NetworkQualityTable samples={node.host?.pings ?? []} />}
+    {show('latency') && <NetworkQualityTable samples={node.host?.pings ?? []} tasks={node.ping_tasks} />}
     {show('history') && <>
       {(hist.isError || (show('latency') && pings.isError)) && <Alert color="red">{t('page.error')}</Alert>}
       <Text size="xs" c="dimmed">{t('page.gaps')}</Text>
       {(show('cpu') || show('memory')) && <><Text size="sm" fw={600}>{t('page.history')} (%)</Text><AreaChart connectNulls={false} h={180} data={sys} dataKey="t" series={[...(show('cpu') ? [{ name: 'CPU', color: 'cyan.5' }] : []), ...(show('memory') ? [{ name: 'Mem', label: t('page.memory'), color: 'violet.5' }] : [])]} curveType="linear" withDots={false} yAxisProps={{ domain: [0, 100] }} /></>}
       {show('network') && <><Text size="sm" fw={600}>{t('page.network')}</Text><AreaChart connectNulls={false} h={160} data={net} dataKey="t" series={[{ name: '↑ Mbps', color: 'teal.5' }, { name: '↓ Mbps', color: 'orange.5' }]} curveType="linear" withDots={false} /></>}
-      {show('latency') && <NetworkHistoryChart history={pings.data} />}
+      {show('latency') && <NetworkHistoryChart history={pings.data} tasks={node.ping_tasks} />}
     </>}
   </Stack>}</Modal>
 }

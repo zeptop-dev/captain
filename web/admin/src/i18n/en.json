@@ -942,7 +942,7 @@
     "taskNodes": "Only on servers",
     "taskNodeCount": "{{count}} servers",
     "carriers": "Latency targets",
-    "carriersHint": "One per line: name address:port. Empty uses the NextTrace Beijing defaults for this IP version; a custom list replaces all three.",
+    "carriersHint": "One per line: name address:port. Leave empty to use the selected province’s Zstatic TCP targets; a custom list replaces the preset for this IP version.",
     "collection": "Collect monitoring data",
     "pageEnabled": "Enable status page",
     "pageEnabledHint": "Turning off the page keeps data collection and alerts running.",
@@ -950,8 +950,12 @@
     "financeCurrencyHint": "Convert homepage cost totals using reference exchange rates. Server prices and detail pages keep their original currencies.",
     "carrierProtocol": "Probe protocol",
     "carrierFamily": "IP version",
-    "carrierModesHint": "Each protocol and IP version keeps its own targets. Empty lists use NextTrace Beijing Telecom, Unicom and Mobile. TCP port 80 may not respond; ICMP requires permission on the server.",
-    "carriersICMPHint": "One per line: name hostname or IP (no port). Empty uses the NextTrace Beijing defaults for this IP version; a custom list replaces all three."
+    "carrierModesHint": "TCP uses Zstatic province presets; ICMP uses NextTrace Beijing. Custom targets override the preset for their IP version. Switching protocol, IP version or province preserves your other target lists.",
+    "carriersICMPHint": "One per line: name hostname or IP (no port). Empty uses the NextTrace Beijing defaults for this IP version; a custom list replaces all three.",
+    "carrierProvince": "Observation province",
+    "carrierCustomActive": "Custom targets in use",
+    "carrierPresetActive": "Preset targets in use",
+    "carrierRestorePreset": "Use preset targets"
   },
   "nodeProbe": {
     "used": "Used this period",

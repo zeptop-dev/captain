@@ -2,7 +2,8 @@
 import { useMemo } from 'react'
 import { shows, snapshot } from '@shared/captain'
 import { CARRIER_DOT_CLASSES, buildEmptyBars, buildHistoryBars } from '@shared/composables/pingBars'
-import { t } from '@shared/i18n'
+import { t, language } from '@shared/i18n'
+import { carrierProvinceName } from '../../../../shared/carrier-provinces'
 import { carriers, carrierUnavailable, matchesPing, selectPings } from '@shared/ping-selection'
 import { useBox } from './useBox'
 import { useNodePingStats } from './useNodePingStats'
@@ -42,7 +43,7 @@ export function useNodeCarrierPingDisplay(uuid: string, enabled: boolean) {
       const latency = !unavailable && state.hasData && Number.isFinite(state.avgLatency) ? `${Math.round(state.avgLatency)} ms` : '—'
       const loss = !unavailable && state.hasData && Number.isFinite(state.avgLoss) ? `${state.avgLoss.toFixed(1)}%` : '—'
       const familyLabel = family === 'ipv4' ? 'v4' : family === 'ipv6' ? 'v6' : ''
-      const title = [label, familyLabel, source?.type?.replace('tcp_reachability', 'tcp').toUpperCase()].filter(Boolean).join(' · ')
+      const title = [label, source?.type === 'tcp' ? carrierProvinceName(source?.province, language) : '', familyLabel, source?.type?.replace('tcp_reachability', 'tcp').toUpperCase()].filter(Boolean).join(' · ')
       return { family, familyLabel, latencyDisplay: latency, lossDisplay: loss,
         latencyTooltip: `${title}: ${latency}${reason ? ` · ${reason}` : ''}`, lossTooltip: `${title}: ${loss}${reason ? ` · ${reason}` : ''}`,
         latencyBars: !unavailable && state.history.length ? buildHistoryBars(title, c.key, state.history, 'latency') : buildEmptyBars(c.key, 'latency', empty),
@@ -55,5 +56,8 @@ export function useNodeCarrierPingDisplay(uuid: string, enabled: boolean) {
       latencyTooltip: series.map(s => s.latencyTooltip).join('\n'), lossTooltip: series.map(s => s.lossTooltip).join('\n'),
     }
   })
-  return { carrierDisplays, dual: selection.dual }
+  const sources = selection.carriers.flatMap(c => c.sources)
+  const province = sources[0]?.province
+  const provinceLabel = province && sources.every(s => s?.type === 'tcp' && s.province === province) ? carrierProvinceName(province, language) : ''
+  return { carrierDisplays, dual: selection.dual, provinceLabel }
 }
