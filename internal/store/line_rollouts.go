@@ -177,7 +177,7 @@ func lineRolloutUnion(a, b []LineChangeForward) ([]LineChangeForward, error) {
 				same = true
 				break
 			}
-			if next.Port == old.Port && lineListenOverlap(next.Listen, old.Listen) {
+			if lineProtocolsOverlap(next.Protocol, old.Protocol) && next.Port == old.Port && lineListenOverlap(next.Listen, old.Listen) {
 				return nil, fmt.Errorf("%w: listener %s:%d needs a separate port", ErrLineRolloutUnsafe, next.Listen, next.Port)
 			}
 		}

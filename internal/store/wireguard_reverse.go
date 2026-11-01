@@ -138,6 +138,18 @@ func (s *Store) SaveWireGuardLink(ctx context.Context, w *WireGuardWrite) error 
 	if err := ib.Spec().Validate(); err != nil {
 		return err
 	}
+	if err := checkRolloutWireGuardTunnelTx(ctx, tx, l.TransitID, l.ListenPort, ib.Enabled); err != nil {
+		return err
+	}
+	if l.Version > 0 {
+		// Updating the user inbound recompiles dependent line plans. Expose
+		// the proposed tunnel port first, so enabling a disabled link while
+		// moving it off a reserved port validates the final transaction view.
+		if _, err = tx.ExecContext(ctx, `UPDATE node_wireguard_links SET endpoint=?,listen_port=?,mtu=?,domain_preference=?,auto_forwarding=?,version=version+1 WHERE id=? AND version=?`, l.Endpoint, l.ListenPort, l.MTU, l.DomainPreference, boolInt(l.AutoForwarding), l.ID, l.Version); err != nil {
+			return err
+		}
+		l.Version++
+	}
 	if err := saveReverseInbound(ctx, tx, &ib); err != nil {
 		return err
 	}
@@ -170,12 +182,6 @@ func (s *Store) SaveWireGuardLink(ctx context.Context, w *WireGuardWrite) error 
 		if err := saveReverseInbound(ctx, tx, &ib); err != nil {
 			return err
 		}
-	} else {
-		_, err = tx.ExecContext(ctx, `UPDATE node_wireguard_links SET endpoint=?,listen_port=?,mtu=?,domain_preference=?,auto_forwarding=?,version=version+1 WHERE id=? AND version=?`, l.Endpoint, l.ListenPort, l.MTU, l.DomainPreference, boolInt(l.AutoForwarding), l.ID, l.Version)
-		if err != nil {
-			return err
-		}
-		l.Version++
 	}
 	l.UserInboundID, l.EntryID = ib.ID, e.ID
 	e.InboundID = ib.ID

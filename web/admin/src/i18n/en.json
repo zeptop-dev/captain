@@ -3829,7 +3829,7 @@
   "pathRoutes": {
     "routes": "Complete routes",
     "paths": "Path templates",
-    "scope": "Combine fixed path versions behind one entry server. Each candidate keeps its own ordered hops and listeners. TCP with the built-in relay only; next-hop checks do not prove the whole route works.",
+    "scope": "Combine fixed path versions behind one entry server. Each candidate retains its ordered hops, listening ports and forwarding backends. Network transport follows the target inbound; configuration and next-hop checks do not prove end-to-end connectivity.",
     "templateHint": "A template describes servers and fixed references, without listening ports. Editing creates a new version; existing references keep their selected version.",
     "routeHint": "All candidates reach the same final inbound. Assign every hop a dedicated port, then preview the resulting configuration before saving.",
     "createRoute": "Create route",
@@ -3847,7 +3847,7 @@
     "pathReference": "Path template",
     "lineReference": "Existing linear line",
     "includeLanding": "Include the source landing server as another hop",
-    "lineHint": "Only a TCP relay line with one server per group can be reused. Its servers are copied into the path; its listeners and final inbound remain unchanged.",
+    "lineHint": "Reuse a line with one server per group and a supported landing. Its fixed version supplies the server sequence and forwarding backends; the source listeners and landing remain unchanged.",
     "pinnedHint": "References stay on the selected version. Up to 8 steps, 8 expanded hops and 8 reference levels are supported. Cycles are rejected.",
     "addServer": "Add server hop",
     "addPath": "Reference path",
@@ -3862,10 +3862,20 @@
     "noUses": "No saved path or route references this template.",
     "deletePathHint": "Delete “{{name}}” and its versions? Referenced versions must be detached first.",
     "deleteRouteHint": "Delete route “{{name}}” and its owned forwards? Subscription nodes must be detached first.",
-    "topologyHint": "Configured connections for the expanded paths. Shared servers use distinct listeners. This view does not show live health."
+    "topologyHint": "Configured connections for the expanded paths. Shared servers use distinct listeners. This view does not show live health.",
+    "entryBackend": "Entry forwarding backend",
+    "entryRelayRequired": "Multiple candidate paths require the built-in relay at the entry. Select relay or keep a single candidate; the current choice has not been changed.",
+    "udpRoundRobin": "UDP and TCP + UDP routes with multiple candidates require round-robin selection. Choose round-robin or keep one candidate.",
+    "transportRequirement": "UDP, TCP + UDP and any realm/nft hop require bosun v0.88.0 or later. Captain validates every participating server before saving.",
+    "transportUnsupported": "This landing transport or configuration cannot be used in a complete path.",
+    "releaseWarnings": {
+      "realm": "Any change to realm forwarding may restart all realm forwards on that server, including other routes.",
+      "nft": "An nft application receipt confirms rule application, not the end of existing conntrack flows.",
+      "relay": "A relay change does not drain existing sessions. Old connections can continue; this is not a lossless switch."
+    }
   },
   "pathRollouts": {
-    "scope": "Release complete TCP paths in listener dependency order. A server used by several branches may receive several steps. Changed listeners require separate ports; users and service controls remain current.",
+    "scope": "Release complete paths in listener dependency order. A server shared by branches may receive several steps. Network and backend stay fixed in each step; users and service controls remain current. Listener or backend replacement may require separate ports.",
     "intent": "Pinned path intent before and after",
     "waitingHealth": "Waiting for fresh full-path health before publishing the new automatic entry. Existing endpoints stay published.",
     "healthTimeout": "No eligible full path was confirmed before the entry deadline. The release is paused; retry requires fresh configuration and health evidence."
@@ -3914,7 +3924,10 @@
       "tls": "TLS certificate verification",
       "http_proxy": "HTTP proxy authentication challenge",
       "socks5": "SOCKS5 authentication negotiation"
-    }
+    },
+    "transportUnsupported": "Handshake health is available only for entirely native TCP relay paths. UDP, TCP + UDP, realm and nft paths are not tested by these probes.",
+    "transportConflict": "The enabled health policy conflicts with this network or backend. Keep an entirely native TCP relay path, or explicitly disable the policy. Its settings have been retained.",
+    "transportUnknown": "Select a landing and load every fixed path revision before enabling handshake health."
   },
   "topologyChangesets": {
     "title": "Topology drafts",

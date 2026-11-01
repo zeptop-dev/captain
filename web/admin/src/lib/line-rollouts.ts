@@ -1,4 +1,4 @@
-import type { PathRoute } from './path-routes'
+import { routeInput, type PathRoute } from './path-routes.ts'
 import type { Line, LineChangeForward } from './api'
 
 export type LineRolloutDraft = Partial<Line> & Pick<Line, 'name' | 'protocol' | 'backend' | 'target_inbound_id' | 'groups'>
@@ -19,6 +19,10 @@ export interface LineRollout {
 }
 export interface LineRolloutPreview { preview_revision: string; draft: Line; remove: boolean; targets: LineRolloutTarget[]; nodes: LineRolloutNode[] }
 export interface LineRolloutPage { items: LineRollout[]; next_before?: number }
+
+export function rolloutDraftInput(draft: LineRolloutDraft | PathRoute, resource: 'line-rollouts' | 'path-rollouts') {
+  return resource === 'path-rollouts' ? routeInput(draft as PathRoute) : draft
+}
 
 // A review is tied to exactly the draft, operation and deadline shown to the user.
 export function rolloutReviewKey(line: LineRolloutDraft | PathRoute, remove: boolean, seconds: number): string {

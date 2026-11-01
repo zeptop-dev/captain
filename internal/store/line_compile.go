@@ -152,7 +152,9 @@ func loadLineNode(ctx context.Context, tx *sql.Tx, id, lineID int64) (*lineNode,
 		return nil, err
 	}
 	for _, r := range reservations {
-		x.binds = append(x.binds, lineBind{"tcp", r.forward.Port, r.forward.Listen})
+		for _, protocol := range lineProtocols(r.forward.Protocol) {
+			x.binds = append(x.binds, lineBind{protocol, r.forward.Port, r.forward.Listen})
+		}
 	}
 	return x, nil
 }
@@ -196,6 +198,12 @@ func compileOrdinaryLine(ctx context.Context, tx *sql.Tx, l *ForwardLine) (map[i
 
 // compileOrdinaryLineModel consumes an explicit consistent view; it has no database writes or reads.
 func compileOrdinaryLineModel(l *ForwardLine, ib *domain.Inbound, loadNode func(int64) (*lineNode, error)) (map[int64][]NodeForward, map[string]LineEndpoint, error) {
+	return compileLineModel(l, ib, loadNode, nil)
+}
+
+// Complete paths use the same address/listener compiler with a backend per
+// immutable member. Ordinary lines retain their one-backend contract.
+func compileLineModel(l *ForwardLine, ib *domain.Inbound, loadNode func(int64) (*lineNode, error), backends map[string]string) (map[int64][]NodeForward, map[string]LineEndpoint, error) {
 	var err error
 	if !ib.Enabled {
 		return nil, nil, errors.New("line landing inbound must be enabled")
@@ -292,15 +300,19 @@ func compileOrdinaryLineModel(l *ForwardLine, ib *domain.Inbound, loadNode func(
 	for i, g := range l.Groups {
 		for _, m := range g.Members {
 			n := nodes[m.NodeID]
-			if l.Backend == "nft" && !lineVersionOK(n.node, "v0.62.0") {
+			backend := l.Backend
+			if backends != nil {
+				backend = backends[m.ID]
+			}
+			if backend == "nft" && !lineVersionOK(n.node, "v0.62.0") {
 				return nil, nil, errors.New("nft lines require bosun v0.62.0 or newer")
 			}
-			if l.Backend == "realm" && !lineVersionOK(n.node, "v0.49.0") {
+			if backend == "realm" && !lineVersionOK(n.node, "v0.49.0") {
 				return nil, nil, errors.New("realm lines require bosun v0.49.0 or newer")
 			}
 			f := spec.Forward{Port: m.Port, Protocol: l.Protocol, Target: target}
-			if l.Backend != "relay" {
-				f.Backend = l.Backend
+			if backend != "relay" {
+				f.Backend = backend
 			}
 			var ingress *Ingress
 			if m.IngressID != nil {
@@ -329,7 +341,7 @@ func compileOrdinaryLineModel(l *ForwardLine, ib *domain.Inbound, loadNode func(
 					}
 				}
 			}
-			if l.Backend == "realm" && l.Protocol != "tcp" && destinationMode != AddressModeInternal {
+			if backend == "realm" && l.Protocol != "tcp" && destinationMode != AddressModeInternal {
 				destination, destinationIngress, port := targetNode.node, targetIngress, ib.Port
 				if i+1 < len(l.Groups) {
 					// Realm lines have one next-hop member. Unlike its TCP dialer,

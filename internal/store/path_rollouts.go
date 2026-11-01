@@ -19,6 +19,14 @@ type pathRolloutIntents struct {
 }
 type pathRolloutContextKey struct{}
 
+const pathRolloutSnapshotVersion = "path-forward-v2"
+
+// IsPathRolloutSnapshotVersion also recognizes immutable plans written before
+// complete paths could select UDP and external forwarding backends.
+func IsPathRolloutSnapshotVersion(version string) bool {
+	return version == "path-relay-v1" || version == pathRolloutSnapshotVersion
+}
+
 func pathRolloutContext(ctx context.Context) *pathRolloutIntents {
 	v, _ := ctx.Value(pathRolloutContextKey{}).(*pathRolloutIntents)
 	return v
@@ -79,6 +87,11 @@ func readPathRolloutIntentsTx(ctx context.Context, tx *sql.Tx, p *LineRollout) e
 			// An absent field in durable history means disabled at that time,
 			// unlike omission in a new editor request which preserves policy.
 			PreservePathRouteHealth(route, nil)
+			// Missing backend in immutable history means native relay, not
+			// "keep today's backend" when this intent is compensated later.
+			if route.EntryBackend == "" {
+				route.EntryBackend = "relay"
+			}
 		}
 	}
 	return nil
@@ -97,7 +110,7 @@ func savePathRolloutIntentsTx(ctx context.Context, tx *sql.Tx, p *LineRollout) e
 	if p.Kind == "delete" {
 		p.AfterRoute = nil
 	}
-	p.SnapshotVersion = "path-relay-v1"
+	p.SnapshotVersion = pathRolloutSnapshotVersion
 	if _, e := tx.ExecContext(ctx, `INSERT INTO path_rollout_intents(plan_id,before_json,after_json) VALUES(?,?,?)`, p.ID, rolloutRaw(p.BeforeRoute), rolloutRaw(p.AfterRoute)); e != nil {
 		return e
 	}
@@ -321,6 +334,7 @@ func pathRolloutPrepareContext(ctx context.Context, tx *sql.Tx, draft *PathRoute
 		}
 	}
 	PreservePathRouteHealth(next, before)
+	PreservePathRouteBackends(next, before)
 	if remove {
 		if before == nil {
 			return ctx, nil, ErrNotFound

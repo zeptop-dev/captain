@@ -63,6 +63,18 @@ func compilePathHealthTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, p *Pat
 	if p.Health == nil || !p.Health.Enabled {
 		return nil
 	}
+	if entry.Protocol != "tcp" || entry.Backend != "" {
+		return errors.New("path health requires an entirely native TCP relay path")
+	}
+	for _, branch := range branches {
+		for _, forwards := range branch {
+			for _, forward := range forwards {
+				if forward.Protocol != "tcp" || forward.Backend != "" {
+					return errors.New("path health requires an entirely native TCP relay path")
+				}
+			}
+		}
+	}
 	n, err := loadLineNode(ctx, tx, p.Entry.NodeID, l.ID)
 	if err != nil {
 		return err

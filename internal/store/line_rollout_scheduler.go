@@ -144,7 +144,7 @@ func (s *Store) listRollouts(ctx context.Context, lineID, before int64, limit in
 		return nil, err
 	}
 	defer tx.Rollback()
-	rows, err := tx.QueryContext(ctx, `SELECT id FROM line_rollouts WHERE (snapshot_version='path-relay-v1')=? AND (?=0 OR line_id=?) AND (?=0 OR ordinal<?) ORDER BY ordinal DESC LIMIT ?`, path, lineID, lineID, before, before, limit+1)
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM line_rollouts WHERE (snapshot_version IN ('path-relay-v1','path-forward-v2'))=? AND (?=0 OR line_id=?) AND (?=0 OR ordinal<?) ORDER BY ordinal DESC LIMIT ?`, path, lineID, lineID, before, before, limit+1)
 	if err != nil {
 		return nil, err
 	}
@@ -534,6 +534,18 @@ func (s *Store) ApplyLineRolloutForwards(ctx context.Context, nodeID int64, curr
 		return nil, err
 	}
 	defer tx.Rollback()
+	n, err := scanNode(tx.QueryRowContext(ctx, "SELECT "+nodeCols+" FROM nodes WHERE id=?", nodeID))
+	if err != nil {
+		return nil, err
+	}
+	modernPaths := lineVersionOK(n, "v0.88.0")
+	blocked := map[int64]bool{}
+	if !modernPaths {
+		blocked, err = pathTransportRestrictedLinesTx(ctx, tx)
+		if err != nil {
+			return nil, err
+		}
+	}
 	rows, err := tx.QueryContext(ctx, `SELECT p.id FROM line_rollouts p JOIN line_rollout_nodes n ON n.plan_id=p.id WHERE n.node_id=? AND p.status IN ('running','paused') ORDER BY p.ordinal`, nodeID)
 	if err != nil {
 		return nil, err
@@ -559,6 +571,15 @@ func (s *Store) ApplyLineRolloutForwards(ctx context.Context, nodeID int64, curr
 		if e != nil {
 			return nil, e
 		}
+		if !modernPaths && IsPathRolloutSnapshotVersion(p.SnapshotVersion) {
+			// Check the entire path, including unreleased listeners on other
+			// servers. A native entry can still belong to a mixed-backend path.
+			for _, target := range p.Nodes {
+				if pathTransportSnapshotRestricted(target.Before) || pathTransportSnapshotRestricted(target.After) {
+					blocked[p.LineID] = true
+				}
+			}
+		}
 		var identity, token string
 		if e = tx.QueryRowContext(ctx, `SELECT i.uuid,COALESCE(n.token_hash,'') FROM nodes n JOIN probe_public_ids i ON i.node_id=n.id WHERE n.id=?`, nodeID).Scan(&identity, &token); e != nil {
 			return nil, e
@@ -582,7 +603,52 @@ func (s *Store) ApplyLineRolloutForwards(ctx context.Context, nodeID int64, curr
 			out = append(out, lineRolloutWire(lineRolloutCurrent(p, nodeID))...)
 		}
 	}
+	if len(blocked) > 0 {
+		keep := out[:0]
+		for _, f := range out {
+			allowed := true
+			for id := range blocked {
+				if strings.HasPrefix(f.Tag, fmt.Sprintf("line-%d-", id)) {
+					allowed = false
+					break
+				}
+			}
+			if allowed {
+				keep = append(keep, f)
+			}
+		}
+		out = keep
+	}
 	return out, tx.Commit()
+}
+
+func pathTransportSnapshotRestricted(fs []LineChangeForward) bool {
+	for _, f := range fs {
+		if PathTransportRequiresModernAgent(f.Protocol, f.Backend) {
+			return true
+		}
+	}
+	return false
+}
+
+// Inspect persisted owned rules rather than compiling intent during delivery.
+// This preserves frozen addresses and checks all hops without introducing DNS
+// work or granting ordinary forwarding rules the new path-only version gate.
+func pathTransportRestrictedLinesTx(ctx context.Context, tx *sql.Tx) (map[int64]bool, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT p.line_id FROM nodes n,json_each(n.forwards_json) f JOIN forward_path_routes p ON p.line_id=json_extract(f.value,'$.line_id') WHERE COALESCE(json_extract(f.value,'$.protocol'),'tcp')<>'tcp' OR COALESCE(json_extract(f.value,'$.backend'),'') NOT IN ('','relay')`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int64]bool{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out[id] = true
+	}
+	return out, rows.Err()
 }
 
 // Compensation is another compiled plan. It never restores a complete State,

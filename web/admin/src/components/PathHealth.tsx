@@ -7,14 +7,15 @@ import { when } from '../lib/format'
 import { pathCandidateEvidence, pathHealthElapsed, pathHealthStatus, validPathHealthPolicy, type PathHealthPolicy, type PathHealthView } from '../lib/path-health'
 import type { EvidenceClock } from '../lib/line-change-evidence'
 
-export function PathHealthFields({ value, strategy, onChange }: { value: PathHealthPolicy; strategy: string; onChange: (value: PathHealthPolicy) => void }) {
+export function PathHealthFields({ value, strategy, transport = 'supported', onChange }: { value: PathHealthPolicy; strategy: string; transport?: 'supported' | 'unsupported' | 'unknown'; onChange: (value: PathHealthPolicy) => void }) {
   const { t } = useTranslation()
   const patch = (next: Partial<PathHealthPolicy>) => onChange({ ...value, ...next })
   const valid = validPathHealthPolicy(value, strategy)
   return <Card withBorder><Stack gap="sm">
     <Title order={5}>{t('pathHealth.title')}</Title>
     <Text size="sm" c="dimmed">{t('pathHealth.scope')}</Text>
-    <Checkbox label={t('pathHealth.enable')} checked={value.enabled} onChange={event => patch({ enabled: event.currentTarget.checked })} />
+    <Checkbox label={t('pathHealth.enable')} checked={value.enabled} disabled={transport !== 'supported' && !value.enabled} onChange={event => patch({ enabled: event.currentTarget.checked })} />
+    {transport !== 'supported' && <Alert color={value.enabled ? 'red' : 'gray'}>{t(transport === 'unknown' ? 'pathHealth.transportUnknown' : value.enabled ? 'pathHealth.transportConflict' : 'pathHealth.transportUnsupported')}</Alert>}
     {!valid && <Alert color="red">{t('pathHealth.invalid')}</Alert>}
     {(value.enabled || !valid) && <>
       <Text size="xs" c="dimmed">{t('pathHealth.requirement')}</Text>

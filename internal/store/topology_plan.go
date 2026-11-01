@@ -442,7 +442,9 @@ func (p *topologyPlan) node(ctx context.Context, tx *sql.Tx, id, lineID int64) (
 		return nil, e
 	}
 	for _, r := range reservations {
-		base.binds = append(base.binds, lineBind{"tcp", r.forward.Port, r.forward.Listen})
+		for _, protocol := range lineProtocols(r.forward.Protocol) {
+			base.binds = append(base.binds, lineBind{protocol, r.forward.Port, r.forward.Listen})
+		}
 	}
 	return base, nil
 }

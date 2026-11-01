@@ -163,7 +163,7 @@ func (h *handlers) actLineRollout(w http.ResponseWriter, r *http.Request) {
 	case "retry":
 		value, err = h.Store.RetryLineRollout(r.Context(), id, in.Version)
 	case "compensate":
-		if current.SnapshotVersion == "path-relay-v1" {
+		if store.IsPathRolloutSnapshotVersion(current.SnapshotVersion) {
 			before, check := h.Store.PathRoute(r.Context(), current.LineID)
 			if check != nil && !errors.Is(check, store.ErrNotFound) {
 				lineRolloutError(w, check)
@@ -189,5 +189,8 @@ func pathRolloutRequest(r *http.Request) bool {
 	return strings.HasPrefix(r.URL.Path, "/api/admin/path-rollouts")
 }
 func rolloutResourceAllowed(r *http.Request, p *store.LineRollout) bool {
-	return pathRolloutRequest(r) == (p.SnapshotVersion == "path-relay-v1")
+	if pathRolloutRequest(r) {
+		return store.IsPathRolloutSnapshotVersion(p.SnapshotVersion)
+	}
+	return p.SnapshotVersion == "line-relay-v1"
 }
