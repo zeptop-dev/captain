@@ -36,7 +36,7 @@ func TestCatalogRejectsArbitrarySelectorsBeforeNetwork(t *testing.T) {
 		t.Fatalf("unexpected upstream request %s", r.URL)
 		return nil, nil
 	})
-	for _, v := range []string{"v0.87.0", "../../etc/passwd", "https://example.com", "v1.2.3?secret=1", "v01.2.3", "v0.88.0-beta.1"} {
+	for _, v := range []string{"v0.87.0", "v0.88.0", "../../etc/passwd", "https://example.com", "v1.2.3?secret=1", "v01.2.3", "v0.89.0-beta.1"} {
 		if _, e := s.Bosun(context.Background(), v, "bosun-linux-amd64"); e == nil {
 			t.Fatal(v)
 		}
@@ -119,7 +119,7 @@ func TestBosunChecksumBeforePublishingAndCacheRepair(t *testing.T) {
 
 func TestReleaseRejectsExternalAssetURL(t *testing.T) {
 	s := testService(t, func(r *http.Request) (*http.Response, error) {
-		return response(r, 200, `{"tag_name":"v0.88.0","assets":[{"name":"bosun-linux-amd64","size":12,"browser_download_url":"https://example.com/payload"}]}`), nil
+		return response(r, 200, `{"tag_name":"v0.89.0","assets":[{"name":"bosun-linux-amd64","size":12,"browser_download_url":"https://example.com/payload"}]}`), nil
 	})
 	if _, e := s.Release(context.Background(), "latest"); e == nil {
 		t.Fatal("accepted external release artifact")
@@ -224,7 +224,7 @@ func TestCacheBoundAndChecksumParser(t *testing.T) {
 
 func TestImmutableMetadataSurvivesRestartAndCrashFilesArePruned(t *testing.T) {
 	s := testService(t, func(r *http.Request) (*http.Response, error) { return response(r, 200, "checksum list"), nil })
-	url := "https://github.com/zeptop-dev/bosun/releases/download/v0.88.0/SHA256SUMS"
+	url := "https://github.com/zeptop-dev/bosun/releases/download/v0.89.0/SHA256SUMS"
 	if _, e := s.small(context.Background(), url); e != nil {
 		t.Fatal(e)
 	}

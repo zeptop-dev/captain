@@ -94,7 +94,7 @@ func TestDownloadCredentialsSwitchFromPairToToken(t *testing.T) {
 	}
 }
 
-const MinVersionForTest = "v0.88.0"
+const MinVersionForTest = "v0.89.0"
 
 func TestDownloadRevalidatesPairAfterUpstreamWait(t *testing.T) {
 	st, mux, svc := fixture(t)

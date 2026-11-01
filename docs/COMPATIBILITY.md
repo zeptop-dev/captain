@@ -33,7 +33,7 @@ v0.85.0; installing an older agent does not grant it the new path eligibility.
 
 Migration 110 adds optional per-server installation origins and download sources.
 Existing agents keep their stored endpoint; an admin edit does not switch an
-online connection. Captain delivery requires bosun v0.88.0 or later and a panel
+online connection. Captain delivery requires bosun v0.89.0 or later and a panel
 with the new authenticated download routes. Native installation, upgrades and
 catalog-managed prebuilt cores use the same endpoint without a direct-download
 fallback. System packages and Docker images are outside this delivery path.

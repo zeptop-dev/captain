@@ -96,7 +96,7 @@ func (h *handlers) downloads(w http.ResponseWriter, r *http.Request) {
 	}
 	if e != nil {
 		if errors.Is(e, agentdownload.ErrNotFound) {
-			fail(w, 404, "artifact is not supported; Captain downloads require bosun v0.88.0 or newer")
+			fail(w, 404, "artifact is not supported; Captain downloads require bosun v0.89.0 or newer")
 		} else {
 			h.Log.Warn("agent download failed", "node", n.ID, "err", e)
 			fail(w, 502, "Captain could not obtain the requested artifact")

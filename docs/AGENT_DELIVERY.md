@@ -32,7 +32,7 @@ Website, subscription and payment links keep using `base_url`.
 
 ## Delivery and compatibility
 
-Captain delivery requires the supporting Captain build and bosun **v0.88.0 or
+Captain delivery requires the supporting Captain build and bosun **v0.89.0 or
 later**. Publish the supporting bosun release before enabling this mode for a
 new installation. An older release is rejected rather than installed with an
 ignored setting. Existing GitHub installations and older agents remain usable.
@@ -86,7 +86,7 @@ for proxy traffic or monitoring.
 
 Do not downgrade Captain to a version without these download routes while
 nodes depend on them. Captain-mode bosun updates and rollback retain a minimum
-version of v0.88.0 so an old binary cannot silently lose its download source.
+version of v0.89.0 so an old binary cannot silently lose its download source.
 
 Migration 110 adds `nodes.agent_url` and `nodes.download_source`. Existing
 records retain their original behavior. Admin node responses add `agent_url`,
