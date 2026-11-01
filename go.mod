@@ -13,7 +13,7 @@ require (
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/libdns/cloudflare v0.2.2
 	github.com/pressly/goose/v3 v3.29.0
-	github.com/zeptop-dev/bosun v0.86.1-0.20261101044519-bf2271d5f585
+	github.com/zeptop-dev/bosun v0.86.1-0.20261101145012-e5cd8772d828
 	go.uber.org/zap v1.28.0
 	golang.org/x/crypto v0.58.0
 	golang.org/x/image v0.47.0
