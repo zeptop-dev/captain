@@ -24,6 +24,7 @@ const maxPathHops = 8
 // A step selects exactly one source. References are fixed revisions; editing a
 // source never silently changes the listeners of an existing composition.
 type PathStep struct {
+	Backend        string `json:"backend,omitempty"`
 	ID             string `json:"id"`
 	NodeID         int64  `json:"node_id,omitempty"`
 	IngressID      *int64 `json:"ingress_id,omitempty"`
@@ -35,6 +36,7 @@ type PathStep struct {
 	IncludeLanding bool   `json:"include_landing,omitempty"`
 }
 type PathHop struct {
+	Backend     string `json:"backend,omitempty"`
 	Key         string `json:"key"`
 	NodeID      int64  `json:"node_id"`
 	IngressID   *int64 `json:"ingress_id,omitempty"`
@@ -171,16 +173,19 @@ func expandPathTx(ctx context.Context, tx *sql.Tx, p *ForwardPath) error {
 		var hops []PathHop
 		switch {
 		case st.NodeID > 0:
+			if err = validatePathBackend(st.Backend); err != nil {
+				return err
+			}
 			if st.PathRevision != 0 || st.LineVersion != 0 || st.IncludeLanding {
 				return errors.New("node steps cannot contain reference options")
 			}
 			if err = validateAddressMode(st.AddressMode); err != nil {
 				return err
 			}
-			hops = []PathHop{{Key: st.ID, NodeID: st.NodeID, IngressID: st.IngressID, AddressMode: st.AddressMode}}
+			hops = []PathHop{{Key: st.ID, NodeID: st.NodeID, IngressID: st.IngressID, AddressMode: st.AddressMode, Backend: st.Backend}}
 		case st.PathID > 0:
-			if st.PathRevision < 1 || st.IngressID != nil || st.AddressMode != "" || st.LineVersion != 0 || st.IncludeLanding {
-				return errors.New("path references require an explicit revision and no node options")
+			if st.Backend != "" || st.PathRevision < 1 || st.IngressID != nil || st.AddressMode != "" || st.LineVersion != 0 || st.IncludeLanding {
+				return errors.New("path references require an explicit revision and no node/backend options")
 			}
 			cycle, e := pathAncestorTx(ctx, tx, st.PathID, st.PathRevision, p.ID)
 			if e != nil {
@@ -204,8 +209,8 @@ func expandPathTx(ctx context.Context, tx *sql.Tx, p *ForwardPath) error {
 				hops[j].Key = pathKey(st.ID, hops[j].Key)
 			}
 		case st.LineID > 0:
-			if st.LineVersion < 1 || st.IngressID != nil || st.AddressMode != "" || st.PathRevision != 0 {
-				return errors.New("line references require an explicit version and no node options")
+			if st.Backend != "" || st.LineVersion < 1 || st.IngressID != nil || st.AddressMode != "" || st.PathRevision != 0 {
+				return errors.New("line references require an explicit version and no node/backend options")
 			}
 			source, e := pinnedLineHopsTx(ctx, tx, st)
 			if e != nil {
@@ -260,6 +265,11 @@ func (s *Store) SaveForwardPath(ctx context.Context, p *ForwardPath) error {
 		if version != p.Version {
 			return ErrPathConflict
 		}
+		previous, e := pathRevisionTx(ctx, tx, p.ID, version)
+		if e != nil {
+			return e
+		}
+		preservePathStepBackends(next.Steps, previous.Steps)
 		next.Version++
 	}
 	if err = expandPathTx(ctx, tx, &next); err != nil {
@@ -395,8 +405,8 @@ func pinnedLineHopsTx(ctx context.Context, tx *sql.Tx, st *PathStep) ([]PathHop,
 	if l.Version != st.LineVersion {
 		return nil, ErrPathConflict
 	}
-	if l.Protocol != "tcp" || l.Backend != "relay" {
-		return nil, errors.New("only ordinary TCP relay lines can be reused")
+	if err := validatePathBackend(l.Backend); err != nil {
+		return nil, err
 	}
 	hops := []PathHop{}
 	for _, g := range l.Groups {
@@ -404,7 +414,7 @@ func pinnedLineHopsTx(ctx context.Context, tx *sql.Tx, st *PathStep) ([]PathHop,
 			return nil, errors.New("source lines must be linear; select complete paths explicitly")
 		}
 		m := g.Members[0]
-		hops = append(hops, PathHop{m.ID, m.NodeID, m.IngressID, m.AddressMode})
+		hops = append(hops, PathHop{Key: m.ID, NodeID: m.NodeID, IngressID: m.IngressID, AddressMode: m.AddressMode, Backend: pathWireBackend(l.Backend)})
 	}
 	if st.IncludeLanding {
 		ib, e := scanInbound(tx.QueryRowContext(ctx, "SELECT "+inboundCols+" FROM inbounds WHERE id=?", l.TargetInboundID))
@@ -414,7 +424,7 @@ func pinnedLineHopsTx(ctx context.Context, tx *sql.Tx, st *PathStep) ([]PathHop,
 		if ib.Settings.Reverse != nil || ib.Settings.WireGuardSlot != 0 {
 			return nil, errors.New("reverse and WireGuard landings cannot be imported as ordinary paths")
 		}
-		hops = append(hops, PathHop{"landing", ib.NodeID, ib.IngressID, l.TargetAddressMode})
+		hops = append(hops, PathHop{Key: "landing", NodeID: ib.NodeID, IngressID: ib.IngressID, AddressMode: l.TargetAddressMode})
 	}
 	encoded, _ := json.Marshal(hops)
 	if _, e = tx.ExecContext(ctx, `INSERT INTO forward_path_line_versions(line_id,version,include_landing,hops_json) VALUES(?,?,?,?)`, st.LineID, st.LineVersion, boolInt(st.IncludeLanding), string(encoded)); e != nil {

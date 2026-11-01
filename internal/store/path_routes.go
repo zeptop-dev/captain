@@ -21,6 +21,8 @@ type PathBranch struct {
 	Ports        []int  `json:"ports"`
 }
 type PathRoute struct {
+	EntryBackend      string           `json:"entry_backend,omitempty"`
+	Protocol          string           `json:"protocol,omitempty"` // read-only actual landing transport
 	Health            *PathRouteHealth `json:"health,omitempty"`
 	ID                int64            `json:"id"`
 	Version           int64            `json:"version"`
@@ -51,7 +53,7 @@ func isPathRouteTx(ctx context.Context, tx *sql.Tx, id int64) (bool, error) {
 func pathRouteTx(ctx context.Context, tx *sql.Tx, id int64) (*PathRoute, error) {
 	var raw string
 	var p PathRoute
-	e := tx.QueryRowContext(ctx, `SELECT r.spec_json,l.id,l.version,l.name,l.target_inbound_id,l.target_address_mode FROM forward_path_routes r JOIN forward_lines l ON l.id=r.line_id WHERE r.line_id=?`, id).Scan(&raw, &p.ID, &p.Version, &p.Name, &p.TargetInboundID, &p.TargetAddressMode)
+	e := tx.QueryRowContext(ctx, `SELECT r.spec_json,l.id,l.version,l.name,l.target_inbound_id,l.target_address_mode,l.protocol FROM forward_path_routes r JOIN forward_lines l ON l.id=r.line_id WHERE r.line_id=?`, id).Scan(&raw, &p.ID, &p.Version, &p.Name, &p.TargetInboundID, &p.TargetAddressMode, &p.Protocol)
 	if e != nil {
 		return nil, wrapNotFound(e)
 	}
@@ -61,6 +63,7 @@ func pathRouteTx(ctx context.Context, tx *sql.Tx, id int64) (*PathRoute, error) 
 		return nil, e
 	}
 	saved.ID, saved.Version, saved.Name, saved.TargetInboundID, saved.TargetAddressMode = p.ID, p.Version, p.Name, p.TargetInboundID, p.TargetAddressMode
+	saved.Protocol = p.Protocol
 	return &saved, nil
 }
 func (s *Store) PathRoute(ctx context.Context, id int64) (*PathRoute, error) {
@@ -107,6 +110,9 @@ func (s *Store) ListPathRoutes(ctx context.Context) ([]PathRoute, error) {
 	return out, nil
 }
 func normalizePathRoute(p *PathRoute) error {
+	if err := validatePathBackend(p.EntryBackend); err != nil {
+		return err
+	}
 	PreservePathRouteHealth(p, nil)
 	normal, err := p.Health.Normalized()
 	if err != nil {
@@ -174,7 +180,28 @@ func pathRouteLineTx(ctx context.Context, tx *sql.Tx, p *PathRoute) (*ForwardLin
 	if e := normalizePathRoute(p); e != nil {
 		return nil, e
 	}
-	l := &ForwardLine{ID: p.ID, Version: p.Version, Name: p.Name, Protocol: "tcp", Backend: "relay", TargetInboundID: p.TargetInboundID, TargetAddressMode: p.TargetAddressMode, PathRoute: true, Groups: []LineGroup{{Strategy: spec.BalanceFailover, Members: []LineMember{p.Entry}}}}
+	ib, e := scanInbound(tx.QueryRowContext(ctx, "SELECT "+inboundCols+" FROM inbounds WHERE id=?", p.TargetInboundID))
+	if e != nil {
+		return nil, e
+	}
+	protocol, e := LineProtocol(ib)
+	if e != nil {
+		return nil, e
+	}
+	p.Protocol = protocol // never trust the client's read-only projection
+	backend := p.EntryBackend
+	if backend == "" {
+		backend = "relay"
+	}
+	if len(p.Branches) > 1 {
+		if backend != "relay" {
+			return nil, errors.New("complete path candidate selection requires the native relay entry")
+		}
+		if protocol != "tcp" && p.Strategy != spec.BalanceRoundRobin {
+			return nil, errors.New("UDP complete path candidates support roundrobin only")
+		}
+	}
+	l := &ForwardLine{ID: p.ID, Version: p.Version, Name: p.Name, Protocol: protocol, Backend: backend, TargetInboundID: p.TargetInboundID, TargetAddressMode: p.TargetAddressMode, PathRoute: true, Groups: []LineGroup{{Strategy: spec.BalanceFailover, Members: []LineMember{p.Entry}}}}
 	for _, b := range p.Branches {
 		path, e := pathRevisionTx(ctx, tx, b.PathID, b.PathRevision)
 		if e != nil {
@@ -218,63 +245,63 @@ func compilePathRouteTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, p *Path
 		return nil, nil, e
 	}
 	if ib.Settings.Reverse != nil || ib.Settings.WireGuardSlot != 0 || ib.Settings.AcceptProxyProtocol {
-		return nil, nil, errors.New("complete path routes currently require an ordinary TCP landing without reverse, WireGuard or PROXY protocol")
+		return nil, nil, errors.New("complete path routes require an ordinary landing without reverse, WireGuard or PROXY protocol")
 	}
-	protocol, e := LineProtocol(ib)
+	backends, e := pathRouteMemberBackendsTx(ctx, tx, p)
 	if e != nil {
 		return nil, nil, e
 	}
-	if protocol != "tcp" {
-		return nil, nil, errors.New("complete path routes support TCP only")
+	load := func(id int64) (*lineNode, error) { return loadLineNode(ctx, tx, id, l.ID) }
+	if view, ok := ctx.Value(topologyCompileContext{}).(*topologyPlan); ok {
+		load = func(id int64) (*lineNode, error) { return view.node(ctx, tx, id, l.ID) }
 	}
-	root := *logical
-	root.Groups = root.Groups[:1]
-	generated, endpoints, e := compileOrdinaryLine(ctx, tx, &root)
-	if e != nil {
-		return nil, nil, e
+	advanced := PathTransportRequiresModernAgent(logical.Protocol, "")
+	for _, backend := range backends {
+		advanced = advanced || PathTransportRequiresModernAgent(logical.Protocol, backend)
 	}
-	entry := generated[p.Entry.NodeID][0]
+	if advanced {
+		for _, group := range logical.Groups {
+			for _, member := range group.Members {
+				n, err := load(member.NodeID)
+				if err != nil {
+					return nil, nil, err
+				}
+				if !lineVersionOK(n.node, "v0.88.0") {
+					return nil, nil, ErrPathTransportVersion
+				}
+			}
+		}
+	}
+	generated := map[int64][]NodeForward{}
+	var endpoints map[string]LineEndpoint
+	var entry NodeForward
 	var heads []spec.ForwardTarget
 	var healthBranches []map[int64][]NodeForward
 	for i, b := range p.Branches {
 		chain := *logical
-		chain.Groups = nil
+		// Include the entry before compiling so its actual next hop, rather
+		// than the eventual landing, determines realm UDP and nft families.
+		chain.Groups = []LineGroup{logical.Groups[0]}
 		for _, m := range logical.Groups[i+1].Members {
 			chain.Groups = append(chain.Groups, LineGroup{Strategy: spec.BalanceFailover, Members: []LineMember{m}})
 		}
-		branch, _, e := compileOrdinaryLine(ctx, tx, &chain)
-		if e != nil {
-			return nil, nil, e
+		branch, ep, err := compileLineModel(&chain, ib, load, backends)
+		if err != nil {
+			return nil, nil, err
 		}
+		compiledEntry := branch[p.Entry.NodeID][0]
+		if i == 0 {
+			entry, endpoints = compiledEntry, ep
+		}
+		heads = append(heads, spec.ForwardTarget{Target: compiledEntry.Target, Weight: b.Weight})
+		delete(branch, p.Entry.NodeID)
 		healthBranches = append(healthBranches, branch)
 		for id, fs := range branch {
 			generated[id] = append(generated[id], fs...)
 		}
-		first := chain.Groups[0].Members[0]
-		n, e := loadLineNode(ctx, tx, first.NodeID, l.ID)
-		if e != nil {
-			return nil, nil, e
-		}
-		var ingress *Ingress
-		if first.IngressID != nil {
-			ingress = n.ingresses[*first.IngressID]
-		}
-		host, port := lineAddress(n.node, ingress, first.Port, true)
-		if first.AddressMode == AddressModeInternal {
-			host, e = internalAddress(n.node.InternalAddr)
-			if e != nil {
-				return nil, nil, e
-			}
-			port = first.Port
-		}
-		address, e := lineHostPort(host, port)
-		if e != nil {
-			return nil, nil, e
-		}
-		heads = append(heads, spec.ForwardTarget{Target: address, Weight: b.Weight})
 	}
 	if len(heads) > 1 {
-		n, e := loadLineNode(ctx, tx, p.Entry.NodeID, l.ID)
+		n, e := load(p.Entry.NodeID)
 		if e != nil {
 			return nil, nil, e
 		}
@@ -295,19 +322,20 @@ func compilePathRouteTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, p *Path
 	for id, fs := range generated {
 		for i, f := range fs {
 			for _, other := range fs[:i] {
-				if f.Port == other.Port && lineListenOverlap(f.Listen, other.Listen) {
-					return nil, nil, fmt.Errorf("server %d has overlapping dedicated TCP listeners on port %d", id, f.Port)
+				if pathForwardListenersOverlap(f.Forward, other.Forward) {
+					return nil, nil, fmt.Errorf("server %d has overlapping dedicated listeners on port %d", id, f.Port)
 				}
 			}
 		}
 	}
 	l.Groups = logical.Groups
+	l.Protocol, l.Backend = logical.Protocol, logical.Backend
 	l.PathRoute = true
 	return generated, endpoints, nil
 }
 func pathRouteSpecWriteTx(ctx context.Context, tx *sql.Tx, p *PathRoute) error {
 	safe := *p
-	safe.PreviewRevision, safe.ChangeID = "", ""
+	safe.PreviewRevision, safe.ChangeID, safe.Protocol = "", "", ""
 	raw, e := json.Marshal(safe)
 	if e != nil {
 		return e
@@ -341,6 +369,7 @@ func (s *Store) SavePathRoute(ctx context.Context, p *PathRoute) error {
 		}
 		before = old
 		PreservePathRouteHealth(&next, old)
+		PreservePathRouteBackends(&next, old)
 	} else {
 		PreservePathRouteHealth(&next, nil)
 	}
@@ -466,6 +495,7 @@ func previewPathRouteTx(ctx context.Context, tx *sql.Tx, p *PathRoute) (*PathRou
 		}
 		before = old
 		PreservePathRouteHealth(&draft, old)
+		PreservePathRouteBackends(&draft, old)
 	}
 	if e := validatePathRouteHealthMutationTx(ctx, tx, before, &draft); e != nil {
 		return nil, e
