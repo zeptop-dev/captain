@@ -241,6 +241,18 @@ func (s *Service) begin(ctx context.Context, key string) (func(), error) {
 	}
 }
 
+// A 200 response is not sufficient to publish immutable metadata. Incomplete
+// release uploads and malformed checksum lists must be retriable once fixed.
+func (s *Service) forgetMetadata(raw string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.metadata, raw)
+	if s.Dir != "" {
+		key := sha256.Sum256([]byte(raw))
+		_ = os.Remove(filepath.Join(s.Dir, hex.EncodeToString(key[:])+".meta"))
+	}
+}
+
 // Release returns only supported native artifacts, with relative local URLs.
 // Latest is resolved once to an immutable tag before any asset is downloaded.
 func (s *Service) Release(ctx context.Context, version string) (*Release, error) {
@@ -255,6 +267,12 @@ func (s *Service) Release(ctx context.Context, version string) (*Release, error)
 	if e != nil {
 		return nil, e
 	}
+	valid := false
+	defer func() {
+		if !valid {
+			s.forgetMetadata(endpoint)
+		}
+	}()
 	var r Release
 	if e = json.Unmarshal(b, &r); e != nil {
 		return nil, fmt.Errorf("invalid release metadata")
@@ -280,6 +298,7 @@ func (s *Service) Release(ctx context.Context, version string) (*Release, error)
 		return nil, fmt.Errorf("release lacks required native artifacts")
 	}
 	r.Assets = out
+	valid = true
 	return &r, nil
 }
 
@@ -290,6 +309,7 @@ func (s *Service) Releases(ctx context.Context) ([]Release, error) {
 	}
 	var releases []Release
 	if e = json.Unmarshal(b, &releases); e != nil {
+		s.forgetMetadata("https://api.github.com/repos/zeptop-dev/bosun/releases?per_page=30")
 		return nil, fmt.Errorf("invalid release metadata")
 	}
 	out := []Release{}
@@ -338,6 +358,7 @@ func (s *Service) Bosun(ctx context.Context, version, name string) (*File, error
 	}
 	for _, n := range []string{"bosun-linux-amd64", "bosun-linux-arm64"} {
 		if _, e = checksum(sums, n); e != nil {
+			s.forgetMetadata(base + "SHA256SUMS")
 			return nil, e
 		}
 	}
@@ -395,6 +416,7 @@ func (s *Service) Core(ctx context.Context, core, version, goos, arch string) (*
 		}
 		want, e = checksum(b, path.Base(u.Path))
 		if e != nil {
+			s.forgetMetadata(a.SumsURL)
 			return nil, e
 		}
 	}

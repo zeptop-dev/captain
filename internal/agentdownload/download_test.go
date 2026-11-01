@@ -126,6 +126,27 @@ func TestReleaseRejectsExternalAssetURL(t *testing.T) {
 	}
 }
 
+func TestIncompleteReleaseCanRecoverWithoutWaitingForCacheExpiry(t *testing.T) {
+	complete := false
+	s := testService(t, func(r *http.Request) (*http.Response, error) {
+		rel := Release{TagName: MinVersion}
+		if complete {
+			for _, n := range []string{"bosun-linux-amd64", "bosun-linux-arm64", "SHA256SUMS"} {
+				rel.Assets = append(rel.Assets, ReleaseAsset{Name: n, Size: 1, URL: "https://github.com/zeptop-dev/bosun/releases/download/" + MinVersion + "/" + n})
+			}
+		}
+		b, _ := json.Marshal(rel)
+		return response(r, 200, string(b)), nil
+	})
+	if _, e := s.Release(context.Background(), MinVersion); e == nil {
+		t.Fatal("accepted incomplete release")
+	}
+	complete = true
+	if _, e := s.Release(context.Background(), MinVersion); e != nil {
+		t.Fatalf("incomplete metadata poisoned immutable cache: %v", e)
+	}
+}
+
 func TestConcurrentMetadataAndFilesAreSingleFlight(t *testing.T) {
 	var count atomic.Int32
 	s := testService(t, func(r *http.Request) (*http.Response, error) { count.Add(1); return response(r, 200, "content"), nil })
