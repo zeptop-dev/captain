@@ -6,7 +6,10 @@ Merge commits and formatting-only commits are left out. Binaries and
 `SHA256SUMS` for every tag are on the GitHub Release; the in-app updater
 installs them (Settings → System maintenance → Version and updates).
 
-- **Unreleased** — Add administrator-only evidence of actual activated core configuration files, bound to accepted process configuration receipts. Keep raw configuration and credentials on the node; distinguish historical activation, later runtime updates and current fresh confirmation. Malformed optional metadata never blocks valid accounting.
+- **v1.52.0** (2026-11-01) — Add administrator-only evidence of actual activated core configuration files, bound to accepted process configuration receipts. Keep raw configuration and credentials on the node; distinguish historical activation, later runtime updates and current fresh confirmation. Malformed optional metadata never blocks valid accounting.
+  - Add permission-filtered operation history across line/path releases, node jobs, topology changesets and durable future upgrade requests. Keep original outcome meanings, retry/compensation identities and independent read scopes; version observation never claims executable verification. Migrations 108-109 preserve existing configuration and accounting.
+  - Include provincial carrier selection across existing probe interfaces, compact carrier headings and independent dual-stack metrics. Preserve custom monitoring targets and configured settings.
+
 
 - **v1.51.0** (2026-10-30) — Add administrator-requested live host diagnostics with one-second CPU, memory and NIC observations in a bounded two-minute ring. Multiple viewers share one sampler; short leases, process challenges and revocation stop abandoned sessions. Normal monitoring, configuration delivery, public probes and customer accounting remain independent. Requires bosun v0.86.0 for live sampling.
   - Show bounded traffic-batch source history and current persisted delivery backlog. Preserve immutable retry provenance, distinguish missing/partial/invalid source metadata and expose large sequence IDs as strings. Migration 107 adds private history with seven-day visibility and per-node/global row limits; permanent accounting receipts, billing days and subscription attribution retain their existing semantics.
