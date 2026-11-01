@@ -156,6 +156,8 @@ type Node struct {
 	Domain               string // host name under a registered domain, e.g. jp1.example.com
 	DomainShared         bool   // shared/external DNS; never automatically point this name at a node
 	MonitorURL           string
+	AgentURL             string // optional published HTTPS origin for future installs
+	DownloadSource       string // github (default) or captain; saved installation choice
 	// DStatusSID is this node's server id in a DStatus panel, needed only
 	// when the DStatus setting runs in active (reporting) mode.
 	DStatusSID string

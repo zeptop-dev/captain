@@ -14,12 +14,16 @@ import (
 	"github.com/zeptop-dev/bosun/pkg/spec"
 	"github.com/zeptop-dev/captain/internal/service"
 
+	"github.com/zeptop-dev/captain/internal/agentendpoint"
 	"github.com/zeptop-dev/captain/internal/auth"
 	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
 type nodeView struct {
+	AgentURL             string                  `json:"agent_url"`
+	EffectiveAgentURL    string                  `json:"effective_agent_url"`
+	DownloadSource       string                  `json:"download_source"`
 	MonitorGroup         string                  `json:"monitor_group"`
 	ModeRevision         uint64                  `json:"mode_revision"`
 	ReportedModeRevision uint64                  `json:"reported_mode_revision"`
@@ -66,8 +70,14 @@ func toNodeView(n *domain.Node, at time.Time) nodeView {
 		ID: n.ID, Name: n.Name, MonitorGroup: n.MonitorGroup, PublicAddr: n.PublicAddr, InternalAddr: n.InternalAddr, V6Addr: n.V6Addr, Domain: n.Domain, DomainShared: n.DomainShared, MonitorURL: n.MonitorURL, DecoyEnabled: n.DecoyEnabled, DecoyUpstream: n.DecoyUpstream, UserSpeedLimitMbps: n.UserSpeedLimitMbps, MitaQuotas: n.MitaQuotas, EgressByIngress: n.EgressByIngress, DStatusSID: n.DStatusSID,
 		Version: n.Version, Platform: n.Platform, Hostname: n.Hostname, LastSeenAt: n.LastSeenAt,
 		Online: n.LastSeenAt != nil && at.Sub(*n.LastSeenAt) < 3*time.Minute, Paired: n.Paired, PairCode: n.PairCode,
-		UpgradeTo: n.UpgradeTo,
+		UpgradeTo: n.UpgradeTo, AgentURL: n.AgentURL, DownloadSource: n.DownloadSource,
 	}
+}
+
+func (h *handlers) nodeView(n *domain.Node, at time.Time) nodeView {
+	v := toNodeView(n, at)
+	v.EffectiveAgentURL = agentendpoint.EffectiveURL(n.AgentURL, h.AgentURL, h.BaseURL)
+	return v
 }
 
 // bosunLatest returns the newest bosun release tag, "" when unknown.
@@ -115,7 +125,7 @@ func (h *handlers) listNodes(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]nodeView, 0, len(nodes))
 	for _, n := range nodes {
-		v := toNodeView(n, now)
+		v := h.nodeView(n, now)
 		v.DomainConflict = domainCounts[domain.NodeDomainKey(n.Domain)] > 1
 		v.PairCode = "" // only shown on create/repair
 		v.TrafficToday = traffic[n.ID]
@@ -133,6 +143,7 @@ func (h *handlers) listNodes(w http.ResponseWriter, r *http.Request) {
 }
 
 type nodeInput struct {
+	AgentURL, DownloadSource                     *string
 	AutoIPv4, AutoIPv6                           *bool
 	Mode                                         *spec.NodeMode
 	Name, PublicAddr, V6Addr, Domain, MonitorURL string
@@ -177,11 +188,26 @@ func (h *handlers) createNode(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "automatic addresses must be empty; choose fixed mode to provide an entry address")
 		return
 	}
+	if in.AgentURL != nil {
+		n.AgentURL = *in.AgentURL
+	}
+	if in.DownloadSource != nil {
+		n.DownloadSource = *in.DownloadSource
+	}
+	var installErr error
+	if n.AgentURL, installErr = agentendpoint.NormalizeURL(n.AgentURL); installErr != nil {
+		fail(w, 400, installErr.Error())
+		return
+	}
+	if n.DownloadSource, installErr = agentendpoint.NormalizeDownloadSource(n.DownloadSource); installErr != nil {
+		fail(w, 400, installErr.Error())
+		return
+	}
 	if err := h.Store.CreateNodeWithAddressPolicy(r.Context(), n, auth.PairCode(), 24*time.Hour, auto4, auto6); err != nil {
 		nodeSaveError(w, err)
 		return
 	}
-	v := toNodeView(n, time.Now()) // includes the pairing code once
+	v := h.nodeView(n, time.Now()) // includes the pairing code once
 	uses, err := h.Store.NodeDomainUses(r.Context(), n.Domain, n.ID)
 	if err != nil {
 		serverErr(w, err)
@@ -206,7 +232,7 @@ func (h *handlers) getNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	now := time.Now()
-	v := toNodeView(n, now)
+	v := h.nodeView(n, now)
 	proxyTraffic, err := h.Store.NodeTrafficToday(r.Context(), now)
 	if err != nil {
 		serverErr(w, err)
@@ -289,7 +315,23 @@ func (h *handlers) updateNode(w http.ResponseWriter, r *http.Request) {
 	if in.DomainShared != nil {
 		n.DomainShared = *in.DomainShared
 	}
-	if err := h.Store.UpdateNode(r.Context(), n); err != nil {
+	if in.AgentURL != nil {
+		value, err := agentendpoint.NormalizeURL(*in.AgentURL)
+		if err != nil {
+			fail(w, 400, err.Error())
+			return
+		}
+		in.AgentURL = &value
+	}
+	if in.DownloadSource != nil {
+		value, err := agentendpoint.NormalizeDownloadSource(*in.DownloadSource)
+		if err != nil {
+			fail(w, 400, err.Error())
+			return
+		}
+		in.DownloadSource = &value
+	}
+	if err := h.Store.UpdateNodeWithAgentSettings(r.Context(), n, in.AgentURL, in.DownloadSource); err != nil {
 		nodeSaveError(w, err)
 		return
 	}
@@ -345,7 +387,12 @@ func (h *handlers) repairNode(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
-	ok(w, map[string]string{"pair_code": code})
+	n, err := h.Store.NodeByID(r.Context(), id)
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
+	ok(w, map[string]string{"pair_code": code, "agent_url": n.AgentURL, "effective_agent_url": agentendpoint.EffectiveURL(n.AgentURL, h.AgentURL, h.BaseURL), "download_source": n.DownloadSource})
 }
 
 // checkInboundFields rejects values the node could not embed safely: the

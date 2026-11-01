@@ -74,6 +74,8 @@ type Deps struct {
 	SiteName string
 	// BaseURL is the panel's public origin (webhook URLs shown to admins).
 	BaseURL string
+	// AgentURL optionally overrides BaseURL for future agent installs.
+	AgentURL string
 	// SubLinks builds user subscription URLs; nil falls back to nothing.
 	SubLinks *service.SubLinks
 	// Logins throttles failed sign-ins per client address; nil disables.

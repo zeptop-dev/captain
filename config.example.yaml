@@ -1,5 +1,7 @@
 listen: 127.0.0.1:8080                  # becomes :443 automatically when tls is on
 base_url: https://panel.example.com     # public URL; used in subscription links and payment callbacks
+# Optional HTTPS origin for future agent installs; does not open a listener.
+# agent_url: https://agent.example.com:18443
 
 # Built-in HTTPS. `auto` obtains and renews a Let's Encrypt certificate for the
 # base_url host; ports 80 and 443 must be free and reachable from the internet.

@@ -12,10 +12,11 @@ import (
 
 	"github.com/zeptop-dev/bosun/pkg/spec"
 
+	"github.com/zeptop-dev/captain/internal/agentendpoint"
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-const nodeCols = "id, name, token_hash, pair_code, public_addr, internal_addr, v6_addr, domain, monitor_url, version, platform, hostname, last_seen_at, applied_revision, upgrade_to, created_at, decoy_enabled, decoy_upstream, user_speed_limit_mbps, mita_quotas, egress_by_ingress, dstatus_sid, domain_shared, node_mode, reported_mode, mode_reported_at, mode_error, mode_managed, mode_revision, reported_mode_revision, monitor_group"
+const nodeCols = "id, name, token_hash, pair_code, public_addr, internal_addr, v6_addr, domain, monitor_url, version, platform, hostname, last_seen_at, applied_revision, upgrade_to, created_at, decoy_enabled, decoy_upstream, user_speed_limit_mbps, mita_quotas, egress_by_ingress, dstatus_sid, domain_shared, node_mode, reported_mode, mode_reported_at, mode_error, mode_managed, mode_revision, reported_mode_revision, monitor_group, agent_url, download_source"
 
 func scanNode(row interface{ Scan(...any) error }) (*domain.Node, error) {
 	var n domain.Node
@@ -24,7 +25,7 @@ func scanNode(row interface{ Scan(...any) error }) (*domain.Node, error) {
 	var created, modeReported int64
 	var decoy, mitaQ, egress, shared, modeManaged int
 	if err := row.Scan(&n.ID, &n.Name, &tokenHash, &pairCode, &n.PublicAddr, &n.InternalAddr, &n.V6Addr, &n.Domain, &n.MonitorURL,
-		&n.Version, &n.Platform, &n.Hostname, &lastSeen, &n.AppliedRevision, &n.UpgradeTo, &created, &decoy, &n.DecoyUpstream, &n.UserSpeedLimitMbps, &mitaQ, &egress, &n.DStatusSID, &shared, &n.Mode, &n.ReportedMode, &modeReported, &n.ModeError, &modeManaged, &n.ModeRevision, &n.ReportedModeRevision, &n.MonitorGroup); err != nil {
+		&n.Version, &n.Platform, &n.Hostname, &lastSeen, &n.AppliedRevision, &n.UpgradeTo, &created, &decoy, &n.DecoyUpstream, &n.UserSpeedLimitMbps, &mitaQ, &egress, &n.DStatusSID, &shared, &n.Mode, &n.ReportedMode, &modeReported, &n.ModeError, &modeManaged, &n.ModeRevision, &n.ReportedModeRevision, &n.MonitorGroup, &n.AgentURL, &n.DownloadSource); err != nil {
 		return nil, wrapNotFound(err)
 	}
 	n.ModeManaged = modeManaged != 0
@@ -51,6 +52,13 @@ func (s *Store) CreateNode(ctx context.Context, n *domain.Node, pairCode string,
 // CreateNodeWithAddressPolicy atomically saves a new node and its explicit
 // address policy. Legacy callers retain fixed addresses.
 func (s *Store) CreateNodeWithAddressPolicy(ctx context.Context, n *domain.Node, pairCode string, ttl time.Duration, auto4, auto6 bool) error {
+	var err error
+	if n.AgentURL, err = agentendpoint.NormalizeURL(n.AgentURL); err != nil {
+		return err
+	}
+	if n.DownloadSource, err = agentendpoint.NormalizeDownloadSource(n.DownloadSource); err != nil {
+		return err
+	}
 	n.Mode = n.Mode.Effective()
 	if n.Mode == spec.NodeMonitor {
 		n.ModeRevision = 1
@@ -67,9 +75,9 @@ func (s *Store) CreateNodeWithAddressPolicy(ctx context.Context, n *domain.Node,
 		return err
 	}
 	ts := now()
-	res, err := tx.ExecContext(ctx, `INSERT INTO nodes (name, pair_code, pair_code_expires_at, public_addr, internal_addr, v6_addr, domain, monitor_url, dstatus_sid, created_at, updated_at, domain_shared, node_mode, mode_managed, mode_revision, address_auto_v4, address_auto_v6, display_order, region_mode, probe_info_json)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(display_order),0)+1 FROM nodes), 'auto', '{"traffic_reset":{"mode":"expiry"}}')`,
-		n.Name, pairCode, time.Now().Add(ttl).Unix(), n.PublicAddr, n.InternalAddr, n.V6Addr, n.Domain, n.MonitorURL, n.DStatusSID, ts, ts, boolInt(n.DomainShared), n.Mode, boolInt(n.Mode == spec.NodeMonitor), n.ModeRevision, boolInt(auto4), boolInt(auto6))
+	res, err := tx.ExecContext(ctx, `INSERT INTO nodes (name, pair_code, pair_code_expires_at, public_addr, internal_addr, v6_addr, domain, monitor_url, dstatus_sid, created_at, updated_at, domain_shared, node_mode, mode_managed, mode_revision, address_auto_v4, address_auto_v6, display_order, region_mode, probe_info_json, agent_url, download_source)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(display_order),0)+1 FROM nodes), 'auto', '{"traffic_reset":{"mode":"expiry"}}', ?, ?)`,
+		n.Name, pairCode, time.Now().Add(ttl).Unix(), n.PublicAddr, n.InternalAddr, n.V6Addr, n.Domain, n.MonitorURL, n.DStatusSID, ts, ts, boolInt(n.DomainShared), n.Mode, boolInt(n.Mode == spec.NodeMonitor), n.ModeRevision, boolInt(auto4), boolInt(auto6), n.AgentURL, n.DownloadSource)
 	if err != nil {
 		return err
 	}
@@ -246,6 +254,13 @@ func boolInt(b bool) int {
 
 // UpdateNode changes editable node fields.
 func (s *Store) UpdateNode(ctx context.Context, n *domain.Node) error {
+	return s.UpdateNodeWithAgentSettings(ctx, n, nil, nil)
+}
+
+// UpdateNodeWithAgentSettings updates installation choices atomically with the
+// legacy node edit. Nil preserves them, so older callers cannot reset them.
+// No change is sent to an already running agent's local configuration.
+func (s *Store) UpdateNodeWithAgentSettings(ctx context.Context, n *domain.Node, agentURL, downloadSource *string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -254,6 +269,17 @@ func (s *Store) UpdateNode(ctx context.Context, n *domain.Node) error {
 	old, err := scanNode(tx.QueryRowContext(ctx, `SELECT `+nodeCols+` FROM nodes WHERE id = ?`, n.ID))
 	if err != nil {
 		return err
+	}
+	n.AgentURL, n.DownloadSource = old.AgentURL, old.DownloadSource
+	if agentURL != nil {
+		if n.AgentURL, err = agentendpoint.NormalizeURL(*agentURL); err != nil {
+			return err
+		}
+	}
+	if downloadSource != nil {
+		if n.DownloadSource, err = agentendpoint.NormalizeDownloadSource(*downloadSource); err != nil {
+			return err
+		}
 	}
 	if err := validateNodeDomain(ctx, tx, n, old); err != nil {
 		return err
@@ -270,8 +296,8 @@ func (s *Store) UpdateNode(ctx context.Context, n *domain.Node) error {
 			return err
 		}
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE nodes SET name = ?, public_addr = ?, internal_addr = ?, v6_addr = ?, domain = ?, monitor_url = ?, decoy_enabled = ?, decoy_upstream = ?, user_speed_limit_mbps = ?, mita_quotas = ?, egress_by_ingress = ?, dstatus_sid = ?, domain_shared = ?, updated_at = ? WHERE id = ?`,
-		n.Name, n.PublicAddr, n.InternalAddr, n.V6Addr, n.Domain, n.MonitorURL, boolInt(n.DecoyEnabled), n.DecoyUpstream, n.UserSpeedLimitMbps, boolInt(n.MitaQuotas), boolInt(n.EgressByIngress), n.DStatusSID, boolInt(n.DomainShared), now(), n.ID)
+	_, err = tx.ExecContext(ctx, `UPDATE nodes SET name = ?, public_addr = ?, internal_addr = ?, v6_addr = ?, domain = ?, monitor_url = ?, decoy_enabled = ?, decoy_upstream = ?, user_speed_limit_mbps = ?, mita_quotas = ?, egress_by_ingress = ?, dstatus_sid = ?, domain_shared = ?, agent_url = ?, download_source = ?, updated_at = ? WHERE id = ?`,
+		n.Name, n.PublicAddr, n.InternalAddr, n.V6Addr, n.Domain, n.MonitorURL, boolInt(n.DecoyEnabled), n.DecoyUpstream, n.UserSpeedLimitMbps, boolInt(n.MitaQuotas), boolInt(n.EgressByIngress), n.DStatusSID, boolInt(n.DomainShared), n.AgentURL, n.DownloadSource, now(), n.ID)
 	if err != nil {
 		return err
 	}

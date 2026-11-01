@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/zeptop-dev/captain/internal/agentendpoint"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -17,8 +19,9 @@ type Config struct {
 	// in the encrypted off-site archive (it holds base_url and the
 	// payment keys, which the database does not).
 	Path     string `yaml:"-"`
-	Listen   string `yaml:"listen"`   // listen address; default 127.0.0.1:8080, or :443 when tls is on
-	BaseURL  string `yaml:"base_url"` // public URL, used in subscription links and payment callbacks
+	Listen   string `yaml:"listen"`    // listen address; default 127.0.0.1:8080, or :443 when tls is on
+	BaseURL  string `yaml:"base_url"`  // public URL, used in subscription links and payment callbacks
+	AgentURL string `yaml:"agent_url"` // optional default HTTPS origin for future agent installs
 	DataDir  string `yaml:"data_dir"`
 	LogLevel string `yaml:"log_level"`
 	// TrustedProxies are the reverse proxies (IPs or CIDRs) whose
@@ -141,6 +144,9 @@ func Load(path string) (*Config, error) {
 	}
 	if c.BaseURL == "" {
 		return nil, fmt.Errorf("config: base_url is required (public URL of this panel)")
+	}
+	if c.AgentURL, err = agentendpoint.NormalizeURL(c.AgentURL); err != nil {
+		return nil, fmt.Errorf("config: agent_url: %w", err)
 	}
 	return &c, nil
 }
