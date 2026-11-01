@@ -48,6 +48,33 @@ func TestExportCompiledPathRouteTransportFixtures(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
+			// Explicit local ingress is part of the compiled intent. The reader
+			// must not rewrite Listen after compilation or bind all interfaces.
+			ingresses := map[int64]int64{}
+			for _, node := range ns[:3] {
+				ingress := &Ingress{NodeID: node.ID, Name: "Loopback fixture", BindIP: "127.0.0.1", LineIP: "127.0.0.1", EntryHost: "127.0.0.1"}
+				if err := s.CreateIngress(ctx, ingress); err != nil {
+					t.Fatal(err)
+				}
+				ingresses[node.ID] = ingress.ID
+			}
+			entryIngress := ingresses[r.Entry.NodeID]
+			r.Entry.IngressID = &entryIngress
+			for i := range r.Branches {
+				branch := &r.Branches[i]
+				path, err := s.ForwardPath(ctx, branch.PathID, branch.PathRevision)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for j := range path.Steps {
+					id := ingresses[path.Steps[j].NodeID]
+					path.Steps[j].IngressID = &id
+				}
+				if err = s.SaveForwardPath(ctx, path); err != nil {
+					t.Fatal(err)
+				}
+				branch.PathRevision = path.Version
+			}
 			ib.Port = ports[4]
 			if err := s.UpdateInbound(ctx, ib); err != nil {
 				t.Fatal(err)
@@ -68,6 +95,9 @@ func TestExportCompiledPathRouteTransportFixtures(t *testing.T) {
 			for _, n := range ns[:3] {
 				fs := []spec.Forward{}
 				for _, f := range pathOwned(t, s, n.ID, r.ID) {
+					if f.Listen != "127.0.0.1" {
+						t.Fatalf("fixture must bind loopback: %+v", f)
+					}
 					fs = append(fs, f.Forward)
 				}
 				fixture.Nodes = append(fixture.Nodes, fs)
