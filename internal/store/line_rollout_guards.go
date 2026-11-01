@@ -17,6 +17,19 @@ type lineRolloutReservation struct {
 	forward LineChangeForward
 }
 
+// A both listener reserves each transport independently. Backend selection
+// does not make two overlapping listeners safe to install together.
+func lineProtocolsOverlap(a, b string) bool {
+	for _, ap := range lineProtocols(a) {
+		for _, bp := range lineProtocols(b) {
+			if ap == bp {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func lineRolloutReservationsTx(ctx context.Context, tx *sql.Tx, nodeID, excludeLine int64) ([]lineRolloutReservation, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT p.line_id,n.before_json,n.after_json FROM line_rollout_nodes n JOIN line_rollouts p ON p.id=n.plan_id WHERE n.node_id=? AND p.line_id<>? AND p.status IN ('running','paused')`, nodeID, excludeLine)
 	if err != nil {
@@ -61,8 +74,8 @@ func checkRolloutInboundTx(ctx context.Context, tx *sql.Tx, ib *domain.Inbound) 
 	}
 	for _, b := range lineInboundBinds(ib, listen) {
 		for _, r := range reservations {
-			if b.protocol == "tcp" && b.port == r.forward.Port && lineListenOverlap(b.listen, r.forward.Listen) {
-				return fmt.Errorf("%w: TCP port %d is reserved by a line plan", ErrLineRolloutConflict, b.port)
+			if lineProtocolsOverlap(b.protocol, r.forward.Protocol) && b.port == r.forward.Port && lineListenOverlap(b.listen, r.forward.Listen) {
+				return fmt.Errorf("%w: %s port %d is reserved by a line plan", ErrLineRolloutConflict, b.protocol, b.port)
 			}
 		}
 	}
@@ -84,10 +97,8 @@ func checkRolloutForwardsTx(ctx context.Context, tx *sql.Tx, nodeID int64, fs []
 			if f.LineID == r.lineID {
 				continue
 			}
-			for _, protocol := range lineProtocols(f.Protocol) {
-				if protocol == "tcp" && f.Port == r.forward.Port && lineListenOverlap(f.Listen, r.forward.Listen) {
-					return fmt.Errorf("%w: TCP port %d is reserved by a line plan", ErrLineRolloutConflict, f.Port)
-				}
+			if lineProtocolsOverlap(f.Protocol, r.forward.Protocol) && f.Port == r.forward.Port && lineListenOverlap(f.Listen, r.forward.Listen) {
+				return fmt.Errorf("%w: %s port %d is reserved by a line plan", ErrLineRolloutConflict, f.Protocol, f.Port)
 			}
 		}
 	}

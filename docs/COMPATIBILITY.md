@@ -5,7 +5,29 @@ with, what the database is good for, and what is deliberately not there.
 
 For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
-time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.50.0.
+time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.53.0.
+
+## Complete-path transports and backends (Captain v1.53.0 / bosun v0.88.0)
+
+Complete routes derive TCP, UDP or same-port both from their final inbound.
+Optional `backend` fields on direct template steps and `entry_backend` select
+relay, realm or nft. Fixed references preserve their selected versions; old
+omitted fields retain native relay configuration identity. Omitted/null edits
+preserve stored backend intent. No agent protocol field or database migration
+is required. New UDP/both or external-backend routes require bosun v0.88.0 on
+every forwarding server; existing native TCP routes retain their earlier gates.
+
+Multiple candidates require native relay; UDP/both uses new-session round-robin
+without UDP health failover. Existing handshake health is only valid for
+all-native TCP paths. realm uses one target per path hop, and changes may restart
+all realm listeners on a server. nft preflight failure preserves the old whole
+table, but a successful receipt does not confirm conntrack expiry. Native relay
+changes do not drain old sessions. See [release boundaries](LINE_RELEASES.md).
+
+New path release snapshots use `path-forward-v2`; legacy `path-relay-v1` plans
+remain accessible under their original permissions. Captain's rollback floor
+is v1.53.0, since older panels cannot preserve these intents. bosun's floor stays
+v0.85.0; installing an older agent does not grant it the new path eligibility.
 
 ## Activated configuration evidence and operation history (Captain v1.52.0 / bosun v0.87.0)
 
@@ -558,6 +580,7 @@ features it has never heard of, which the node page shows as an orange
 | Captain | needs bosun | for |
 |---|---|---|
 | 1.51.0 | ≥ 0.86.0 for live diagnostics and detailed traffic provenance | Temporary administrator leases and bounded private batch history; older nodes retain configuration and accounting compatibility. Migration 107. |
+| 1.53.0 | ≥ 0.88.0 for UDP/both or non-relay complete paths | Derived transport, per-hop backend intent and staged path snapshots; existing native TCP paths keep their earlier gates. No migration. |
 | 1.50.0 | ≥ 0.85.0 and fresh capability for path handshake health; ≥ 0.84.0 receipts for staged routes | Complete-route staged plans, atomic inbound/line/Entry changesets and optional TCP relay path health; migrations 104–106. Existing agents and immediate delivery remain compatible. |
 | 1.49.0 | >= 0.84.0 for receipts, staged release prerequisites and offline enforcement | Immutable line-owned snapshots, opt-in TCP relay release plans, fixed-version complete paths, bounded cleanup evidence; migrations 100-103. Existing immediate delivery remains compatible. |
 | 1.48.0 | ≥ 0.83.0 for server traffic enforcement | Opt-in server pause/aggregate rate protection with independent application evidence; original agents remain compatible. Komari public themes and panel-side DNS controls do not require a node upgrade. Mihomo dual-stack design generation uses the formal shared module. |
@@ -602,7 +625,7 @@ features it has never heard of, which the node page shows as an orange
 
 `min_version` in both `config.yaml` files is the floor a self-update or
 rollback may not go below; set it to the version you have tested. Captain's
-built-in floor is v1.50.0 to preserve complete-route release intent and health policies;
+built-in floor is v1.53.0 to preserve complete-route transports, backend intent and health policies;
 this also preserves shared infrastructure dates, payment actions, the homepage switch and inbound access policies, and
 retains device credentials, exit attribution and the earlier protections for line ownership, client chains, internal
 forwarding and public storage selection. A higher configured floor still wins.

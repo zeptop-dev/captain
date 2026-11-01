@@ -5,7 +5,9 @@ fixed-version path templates for complete candidate routes. Existing line saves
 retain immediate delivery. The new workflows are administrator-only and use
 separate `line-rollouts`, `forward-paths` and `path-routes` API token resources.
 Captain v1.50.0 extends staged releases to complete routes through the separate
-`path-rollouts` resource. Immediate saves remain available.
+`path-rollouts` resource. Captain v1.53.0 also supports UDP/both and per-hop
+relay, realm or nft backends for complete routes, with bosun v0.88.0 or later
+on each forwarding server. Immediate saves remain available.
 
 ## Staged line releases
 
@@ -32,9 +34,9 @@ freeze a customer's access or postpone a service pause.
 Changed listeners must safely coexist. A target change on the same listening
 port is rejected; assign separate ports for the new path. The active plan
 reserves its resources, so ordinary editors cannot steal a future port or
-overwrite its owned line. Unrelated lines remain editable. TCP relay is the
-supported backend: UDP, nft, realm and reverse connections cannot use staged
-releases. Complete TCP relay routes use the dedicated workflow below.
+overwrite its owned line. Unrelated lines remain editable. Ordinary line
+releases remain limited to TCP relay. Complete routes use the separate
+workflow below for the additional transports and backends.
 
 **Release history** keeps the snapshots and individual attempts. Pause stops
 advancement and retains the last released configuration. Failed or overdue
@@ -67,9 +69,10 @@ with one final inbound. For example, A can select the whole path B1 → B2 or th
 whole path C1 → C2 before both reach D. B1 is never arbitrarily combined with C2.
 
 A template step is one server, a fixed revision of another template, or a fixed
-version of an ordinary linear line. A reused source line must use TCP relay and
-have one server per group. Its listening ports and final inbound are left
-unchanged; optionally include its landing server as another new relay hop.
+version of an ordinary linear line. A reused source line must have one server
+per group; its fixed version preserves the selected forwarding backend. Its
+listening ports and final inbound are left unchanged; optionally include its
+landing server as another new native relay hop.
 References preserve the selected version when a source changes. Editing a
 template creates a new immutable revision; existing routes do not upgrade
 automatically. Cycles and oversized expansion are rejected.
@@ -77,7 +80,9 @@ automatically. Cycles and oversized expansion are rejected.
 Assign each expanded hop its own explicit listening port. Reusing a physical
 server in different candidates still requires distinct listeners. Preview the
 exact expected rules before saving. Failover and weighted round-robin choose
-the candidate's first hop for each new TCP connection. A first-hop TCP probe
+the candidate's first hop for each new TCP connection. For UDP/both, multiple
+candidates require native relay and weighted round-robin. Each UDP source
+session stays on its chosen path; TCP and UDP do not share affinity. A first-hop TCP probe
 does not detect every failure deeper in the candidate, and balancing does not
 combine bandwidth for one connection.
 
@@ -92,8 +97,23 @@ servers at each depth.
 The APIs are `/api/admin/forward-paths` and `/api/admin/path-routes`, with
 revision reads, use inspection, optimistic versions and route previews.
 Templates describe structure, not credentials or existing shared listener
-ownership. TCP relay is supported; arbitrary reverse-tunnel edges, UDP, nft,
-realm remain outside this implementation.
+ownership. The final inbound determines the route's network transport; the
+read-only `protocol` response field cannot override it. `entry_backend` and
+backend fields on direct server steps accept `relay`, `realm` or `nft`. Fixed
+references inherit their saved backends. Omitted/null backend edits retain the
+existing value; explicitly choose `relay` to reset it.
+
+Multiple candidates always use a native relay entry. realm and nft entries
+accept one candidate, and internal hops have one next target. realm 2.9.6 uses
+only its primary UDP target, so extra UDP candidates are never advertised as
+realm balancing. nft requires the same IP family on each edge and cannot use
+a same-server hop: its DNAT path has no OUTPUT hook. Reverse tunnels, WireGuard,
+PROXY protocol, and Mieru BOTH with two different ports remain unsupported.
+
+Optional path handshake health and automatic health selection remain limited
+to all-native TCP routes. UDP/both and mixed backends cannot reuse a TCP result
+as health evidence. Disable an existing health policy explicitly before making
+an incompatible edit.
 
 ## Staged complete routes
 
@@ -107,6 +127,14 @@ entry is published last. Cleanup removes the old entry before its branches.
 Ordering follows dedicated listeners: if two candidates share a physical
 server, that server may receive several cumulative configurations. Confirmation
 of an earlier configuration cannot satisfy a later step on the same server.
+TCP and UDP reserve independent listening sockets; `both` reserves both, even
+when the old and new backends differ.
+
+These steps confirm configuration application, not connection draining. A realm
+change can restart every realm forward on that server, including unrelated
+listeners. Changed native relay rules close their old connections and UDP
+sessions. nft table application does not prove old conntrack entries have
+expired. Releases therefore do not promise uninterrupted existing flows.
 
 Publication changes the saved route, its fixed template references and bound
 subscription endpoints in one transaction. During expansion, the old intent
@@ -155,3 +183,10 @@ complete-route release intent or health policies. Manual downgrade requires
 a matching database backup and a separately verified runtime recovery plan.
 New release/path records are included in SQLite backups and cleared on site
 reset. Never use an old snapshot to restore revoked user credentials.
+
+New complete-route plans use the `path-forward-v2` snapshot identifier. Existing
+`path-relay-v1` history remains readable under the same path permissions and
+can still be retried or compensated. The snapshot carries only owned forwarding
+intent, never frozen user authorization. Built-in Captain rollback is limited
+to v1.53.0 or later, because older panels can discard the new transport/backend
+intent during recompilation.

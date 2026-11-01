@@ -135,9 +135,9 @@ func validateOperationQuery(q OperationQuery) (*operationCursor, error) {
 func operationUnion(a OperationAccess, at time.Time) (string, []any) {
 	jobsExpiry := `CASE WHEN json_valid(j.params_json) AND json_type(j.params_json,'$.expires_at')='integer' AND json_extract(j.params_json,'$.expires_at')>0 THEN json_extract(j.params_json,'$.expires_at') WHEN j.kind='host_manage' THEN j.created_at+300 WHEN j.kind='core_manage' THEN j.created_at+900 WHEN j.kind='network_diagnostic' THEN j.created_at+120 WHEN j.kind='wireguard_setup' THEN j.created_at+300 ELSE NULL END`
 	jobStatus := `CASE WHEN j.done_at IS NOT NULL AND j.error<>'' THEN CASE WHEN j.error IN ('host task expired; inspect actual state before retry','core operation expired','diagnostic request expired','removal request expired','readiness check expired','wireguard setup expired') THEN 'expired' ELSE 'failed' END WHEN j.done_at IS NOT NULL AND j.kind='host_manage' THEN CASE WHEN json_valid(j.result_json) THEN CASE json_extract(j.result_json,'$.outcome') WHEN 'waiting' THEN 'waiting' WHEN 'failed' THEN 'failed' WHEN 'invalid' THEN 'failed' WHEN 'unsupported' THEN 'failed' WHEN 'recovery_failed' THEN 'failed' WHEN 'ok' THEN 'completed' WHEN 'complete' THEN 'completed' WHEN 'restored' THEN 'completed' ELSE 'unknown' END ELSE 'unknown' END WHEN j.done_at IS NOT NULL THEN 'completed' WHEN j.kind='node_remove' AND json_valid(j.result_json) AND json_extract(j.result_json,'$.phase')='running' THEN 'running' WHEN (` + jobsExpiry + `)<=? THEN 'expired' ELSE 'pending' END`
-	query := `SELECT CASE WHEN p.snapshot_version='path-relay-v1' THEN 'path_rollout' ELSE 'line_rollout' END source,p.id source_id,p.kind,p.status,p.created_at,p.updated_at,NULL completed_at,0 node_id,p.line_id,
+	query := `SELECT CASE WHEN p.snapshot_version IN ('path-relay-v1','path-forward-v2') THEN 'path_rollout' ELSE 'line_rollout' END source,p.id source_id,p.kind,p.status,p.created_at,p.updated_at,NULL completed_at,0 node_id,p.line_id,
  CASE WHEN json_valid(p.after_json) AND json_type(p.after_json,'$.name')='text' THEN json_extract(p.after_json,'$.name') WHEN json_valid(p.before_json) AND json_type(p.before_json,'$.name')='text' THEN json_extract(p.before_json,'$.name') ELSE '' END name,p.actor,p.stage,p.error_code,'' target_version
- FROM line_rollouts p WHERE (p.snapshot_version='path-relay-v1' AND ?) OR (p.snapshot_version='line-relay-v1' AND ?)
+ FROM line_rollouts p WHERE (p.snapshot_version IN ('path-relay-v1','path-forward-v2') AND ?) OR (p.snapshot_version='line-relay-v1' AND ?)
  UNION ALL SELECT 'node_job',j.id,j.kind,` + jobStatus + `,j.created_at*1000,COALESCE(j.done_at,j.created_at)*1000,j.done_at*1000,j.node_id,0,n.name,'','','','' FROM node_jobs j JOIN nodes n ON n.id=j.node_id WHERE ?
  UNION ALL SELECT 'topology_changeset',d.id,'topology',d.status,d.created_at*1000,d.updated_at*1000,d.committed_at*1000,0,0,d.name,d.actor,'','','' FROM topology_changesets d WHERE ? AND json_valid(d.operations_json) AND NOT EXISTS(SELECT 1 FROM json_each(d.operations_json) op WHERE NOT ((json_extract(op.value,'$.kind')='inbound' AND ?) OR (json_extract(op.value,'$.kind')='line' AND ?) OR (json_extract(op.value,'$.kind')='entry' AND ?)) OR json_extract(op.value,'$.kind') IS NULL)
  UNION ALL SELECT 'node_upgrade',u.id,'upgrade',u.status,u.created_at,u.updated_at,u.completed_at,u.node_id,0,u.node_name,u.actor,'','',u.target_version FROM node_upgrade_operations u WHERE ?`
@@ -297,7 +297,7 @@ func operationRelations(ctx context.Context, tx *sql.Tx, o *Operation, table, co
 	constraint := ""
 	if table == "line_rollouts" {
 		if o.Source == "path_rollout" {
-			constraint = " AND snapshot_version='path-relay-v1'"
+			constraint = " AND snapshot_version IN ('path-relay-v1','path-forward-v2')"
 		} else {
 			constraint = " AND snapshot_version='line-relay-v1'"
 		}
