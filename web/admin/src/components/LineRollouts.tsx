@@ -10,7 +10,8 @@ import { when } from '../lib/format'
 import { toast } from '../lib/notify'
 import { useSettingsDirty } from '../lib/settings-draft'
 import { evidenceIsFresh, evidenceLease, type EvidenceClock } from '../lib/line-change-evidence'
-import { rolloutActionRequest, rolloutHistoryURL, rolloutReviewKey, type LineRolloutAction, type LineRolloutActionRequest, type LineRollout, type LineRolloutDraft, type LineRolloutNode, type LineRolloutPage, type LineRolloutPreview, type LineRolloutTarget } from '../lib/line-rollouts'
+import { rolloutActionRequest, rolloutDraftInput, rolloutHistoryURL, rolloutReviewKey, type LineRolloutAction, type LineRolloutActionRequest, type LineRollout, type LineRolloutDraft, type LineRolloutNode, type LineRolloutPage, type LineRolloutPreview, type LineRolloutTarget } from '../lib/line-rollouts'
+import { ForwardTransportSummary, PathTransportWarnings } from './PathTransportSummary'
 
 export function LineRolloutPlanner({ draft, resource = 'line-rollouts', remove = false, onClose, onCreated }: { draft: LineRolloutDraft | PathRoute; resource?: 'line-rollouts' | 'path-rollouts'; remove?: boolean; onClose: () => void; onCreated: (id: string) => void }) {
   const { t } = useTranslation()
@@ -18,11 +19,11 @@ export function LineRolloutPlanner({ draft, resource = 'line-rollouts', remove =
   const [seconds, setSeconds] = useState(300)
   const [review, setReview] = useState<{ key: string; value: Omit<LineRolloutPreview, "draft"> & { draft: LineRolloutDraft | PathRoute } } | null>(null)
   const key = rolloutReviewKey(draft, remove, seconds)
-  const preview = useMutation({ mutationFn: async () => ({ key, value: await api.post<Omit<LineRolloutPreview, 'draft'> & { draft: LineRolloutDraft | PathRoute }>(`/api/admin/${resource}/preview`, { [resource === 'path-rollouts' ? 'route' : 'line']: draft, remove, timeout_seconds: seconds }) }), onSuccess: setReview })
+  const preview = useMutation({ mutationFn: async () => ({ key, value: await api.post<Omit<LineRolloutPreview, 'draft'> & { draft: LineRolloutDraft | PathRoute }>(`/api/admin/${resource}/preview`, { [resource === 'path-rollouts' ? 'route' : 'line']: rolloutDraftInput(draft, resource), remove, timeout_seconds: seconds }) }), onSuccess: setReview })
   const qc = useQueryClient()
   const save = useMutation({ mutationFn: async () => {
     if (!review || review.key !== key) throw new Error(t('lineRollouts.reviewAgain'))
-    return api.post<LineRollout>(`/api/admin/${resource}`, { [resource === 'path-rollouts' ? 'route' : 'line']: { ...review.value.draft, preview_revision: review.value.preview_revision }, remove, timeout_seconds: seconds })
+    return api.post<LineRollout>(`/api/admin/${resource}`, { [resource === 'path-rollouts' ? 'route' : 'line']: { ...rolloutDraftInput(review.value.draft, resource), preview_revision: review.value.preview_revision }, remove, timeout_seconds: seconds })
   }, onSuccess: plan => {
     for (const queryKey of [['lines'], ['path-routes'], ['entries'], [resource], ['line-changes']]) void qc.invalidateQueries({ queryKey })
     toast.ok(t('lineRollouts.started')); onCreated(plan.id)
@@ -40,9 +41,10 @@ export function LineRolloutPlanner({ draft, resource = 'line-rollouts', remove =
       {review && <>
         {!current && <Alert color="yellow">{t('lineRollouts.reviewAgain')}</Alert>}
         <Title order={5}>{t('lineRollouts.steps')}</Title>
-        {review.value.targets.map((step, i) => <Text key={`${step.node_id}-${step.phase}-${i}`} size="sm">{i + 1}. {step.node_name || `#${step.node_id}`} · {t(`lineRollouts.phase.${step.phase}`)}</Text>)}
+        {review.value.targets.map((step, i) => <Stack key={`${step.node_id}-${step.phase}-${i}`} gap={3}><Text size="sm">{i + 1}. {step.node_name || `#${step.node_id}`} · {t(`lineRollouts.phase.${step.phase}`)}</Text><ForwardTransportSummary forwards={step.expected} /></Stack>)}
         {review.value.targets.length === 0 && <Text size="sm">{t('lineRollouts.noSteps')}</Text>}
         <Snapshots nodes={review.value.nodes} />
+        {resource === 'path-rollouts' && <PathTransportWarnings forwards={review.value.nodes.flatMap(node => [...node.before, ...node.after])} />}
       </>}
       <Group justify="flex-end"><Button variant="default" onClick={onClose} disabled={save.isPending}>{t('common.cancel')}</Button><Button variant="light" loading={preview.isPending} disabled={save.isPending} onClick={() => preview.mutate()}>{t('lineRollouts.preview')}</Button><Button disabled={!current || busy} loading={save.isPending} onClick={() => save.mutate()}>{t('lineRollouts.start')}</Button></Group>
     </Stack>
@@ -108,6 +110,7 @@ export function LineRolloutHistory({ initialID, lineID, resource = 'line-rollout
         {detail.data.targets.map(target => <Step key={target.id} target={target} fresh={evidenceIsFresh(evidenceLease(detail.data.started, target.fresh_for_ms), now, connected) && target.fresh && target.receipt_applied} connected={connected} />)}
         {resource === 'path-rollouts' && <Accordion><Accordion.Item value="intent"><Accordion.Control>{t('pathRollouts.intent')}</Accordion.Control><Accordion.Panel>{(['before_route', 'after_route'] as const).map(side => <Code key={side} block style={{ maxHeight: 240, overflow: 'auto' }}>{JSON.stringify(detail.data?.[side] ?? null, null, 2)}</Code>)}</Accordion.Panel></Accordion.Item></Accordion>}
         <Snapshots nodes={detail.data.nodes} />
+        {resource === 'path-rollouts' && <PathTransportWarnings forwards={detail.data.nodes.flatMap(node => [...node.before, ...node.after])} />}
       </>}
     </Stack>
   </Modal>
@@ -118,6 +121,7 @@ function Step({ target, fresh, connected }: { target: LineRolloutTarget; fresh: 
   return <Card withBorder padding="sm"><Stack gap={5}>
     <Group justify="space-between"><Text fw={600}>{target.order}. {target.node_name || `#${target.node_id}`}</Text><Badge color={fresh ? 'teal' : 'gray'}>{!connected ? t('nodeConfiguration.status.unknown') : fresh ? t('lineRollouts.fresh') : t(`lineRollouts.stepStatus.${target.status}`)}</Badge></Group>
     <Text size="sm">{t(`lineRollouts.phase.${target.phase}`)} · {t('lineRollouts.attempt', { count: target.attempt })}</Text>
+    <ForwardTransportSummary forwards={target.expected} />
     <Text size="xs" c="dimmed">{t('lineChanges.confirmed', { at: when(target.confirmed_at) })}</Text>
     {target.deadline_at && <Text size="xs" c="dimmed">{t('lineRollouts.deadline', { at: when(target.deadline_at) })}</Text>}
     <Accordion><Accordion.Item value="expected"><Accordion.Control>{t('lineChanges.details')}</Accordion.Control><Accordion.Panel><Text size="xs" style={{ overflowWrap: 'anywhere' }}>{target.delivery_id || '—'}</Text><Code block style={{ maxHeight: 240, overflow: 'auto' }}>{JSON.stringify(target.expected, null, 2)}</Code></Accordion.Panel></Accordion.Item></Accordion>

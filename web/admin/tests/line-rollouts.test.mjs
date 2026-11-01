@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { rolloutActionRequest, rolloutReviewKey, rolloutHistoryURL } from '../src/lib/line-rollouts.ts'
+import { rolloutActionRequest, rolloutDraftInput, rolloutReviewKey, rolloutHistoryURL } from '../src/lib/line-rollouts.ts'
 
 test('confirmed release actions retain the reviewed identity and CAS version across polling', () => {
   const visible = { id: 'reviewed-plan', version: 4 }
@@ -40,4 +40,17 @@ test('path releases keep independent scope and reviewed path intent', () => {
   const key = rolloutReviewKey(route, false, 300)
   route.branches[0].path_revision++
   assert.notEqual(rolloutReviewKey(route, false, 300), key)
+})
+
+test('path release preview and save retain backend intent but omit server-derived protocol', () => {
+  const path = { id: 7, version: 3, name: 'Route', protocol: 'udp', entry_backend: 'nft', entry: { id: 'entry', node_id: 1, port: 443 }, target_inbound_id: 2, target_address_mode: 'default', strategy: 'failover', branches: [{ id: 'branch', path_id: 2, path_revision: 3, weight: 1, ports: [8443] }] }
+  const input = rolloutDraftInput(path, 'path-rollouts')
+  assert.equal(input.entry_backend, 'nft')
+  assert.equal('protocol' in input, false)
+  assert.equal('preview_revision' in rolloutDraftInput({ ...path, preview_revision: 'stale' }, 'path-rollouts'), false)
+  path.branches[0].ports[0]++
+  assert.equal(input.branches[0].ports[0], 8443)
+  assert.notEqual(rolloutReviewKey(input, false, 300), rolloutReviewKey({ ...input, entry_backend: 'relay' }, false, 300))
+  const line = { protocol: 'tcp', backend: 'relay' }
+  assert.equal(rolloutDraftInput(line, 'line-rollouts'), line)
 })
