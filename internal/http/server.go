@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
+	"github.com/zeptop-dev/captain/internal/agentdownload"
 	"github.com/zeptop-dev/captain/internal/backup"
 	"github.com/zeptop-dev/captain/internal/branding"
 	"github.com/zeptop-dev/captain/internal/certs"
