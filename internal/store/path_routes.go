@@ -202,6 +202,7 @@ func pathRouteLineTx(ctx context.Context, tx *sql.Tx, p *PathRoute) (*ForwardLin
 		}
 	}
 	l := &ForwardLine{ID: p.ID, Version: p.Version, Name: p.Name, Protocol: protocol, Backend: backend, TargetInboundID: p.TargetInboundID, TargetAddressMode: p.TargetAddressMode, PathRoute: true, Groups: []LineGroup{{Strategy: spec.BalanceFailover, Members: []LineMember{p.Entry}}}}
+	memberIDs := map[string]bool{p.Entry.ID: true}
 	for _, b := range p.Branches {
 		path, e := pathRevisionTx(ctx, tx, b.PathID, b.PathRevision)
 		if e != nil {
@@ -215,7 +216,12 @@ func pathRouteLineTx(ctx context.Context, tx *sql.Tx, p *PathRoute) (*ForwardLin
 			if h.NodeID == p.Entry.NodeID {
 				return nil, errors.New("a path cannot revisit its route entry server")
 			}
-			g.Members = append(g.Members, LineMember{ID: pathKey(b.ID, h.Key), NodeID: h.NodeID, Port: b.Ports[i], IngressID: h.IngressID, Weight: 1, AddressMode: h.AddressMode})
+			memberID := pathKey(b.ID, h.Key)
+			if memberIDs[memberID] {
+				return nil, errors.New("route listener member IDs must be distinct")
+			}
+			memberIDs[memberID] = true
+			g.Members = append(g.Members, LineMember{ID: memberID, NodeID: h.NodeID, Port: b.Ports[i], IngressID: h.IngressID, Weight: 1, AddressMode: h.AddressMode})
 		}
 		if len(g.Members) == 0 {
 			return nil, errors.New("empty path cannot be selected")

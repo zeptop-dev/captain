@@ -520,3 +520,28 @@ func TestPathTransportLoadNodeReservesActualFutureProtocols(t *testing.T) {
 		}
 	}
 }
+
+func TestPathTransportRejectsAliasedEntryMemberIdentity(t *testing.T) {
+	ctx := context.Background()
+	s, _, _, r := pathTransportFixture(t, "udp", "relay", []string{"realm"})
+	r.Branches[0].ID = "branch-with-known-id"
+	path, err := s.ForwardPath(ctx, r.Branches[0].PathID, r.Branches[0].PathRevision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The entry ID is client controlled. It must not alias an expanded hop and
+	// let that hop's backend replace the native multi-candidate selector.
+	r.Entry.ID = pathKey(r.Branches[0].ID, path.Hops[0].Key)
+	if _, err = s.PreviewPathRoute(ctx, r); err == nil {
+		t.Fatal("preview accepted listener alias and replaced native entry backend")
+	}
+	if err = s.SavePathRoute(ctx, r); err == nil || !strings.Contains(err.Error(), "member IDs must be distinct") {
+		t.Fatalf("listener identity alias was not rejected before backend selection: %v", err)
+	}
+	for _, node := range []int64{1, 2, 3} {
+		fs, err := s.NodeForwards(ctx, node)
+		if err != nil || len(fs) != 0 {
+			t.Fatal("rejected identity collision left forwards", err)
+		}
+	}
+}
