@@ -124,3 +124,93 @@ func TestPathRolloutSnapshotVersionsStayInTheirPermissionScope(t *testing.T) {
 		})
 	}
 }
+
+func TestTopologyLinePreviewHonorsUDPAndBothReservations(t *testing.T) {
+	ctx := context.Background()
+	r := newRolloutRig(t)
+	p, err := r.s.PlanLineRollout(ctx, r.line, false, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reserve := func(protocol string) {
+		t.Helper()
+		raw, _ := json.Marshal([]LineChangeForward{{Tag: "future", Port: 23456, Protocol: protocol, Backend: "nft"}})
+		if _, err := r.s.db.Exec(`UPDATE line_rollout_nodes SET before_json='[]',after_json=? WHERE plan_id=? AND node_id=?`, string(raw), p.ID, r.nodes[0].ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	reserve("udp")
+	line := &ForwardLine{Name: "Independent TCP", Protocol: "tcp", Backend: "relay", TargetInboundID: r.ib.ID,
+		Groups: []LineGroup{{Members: []LineMember{{NodeID: r.nodes[0].ID, Port: 23456}}}}}
+	d := &TopologyChangeset{Name: "TCP beside reserved UDP", Operations: []TopologyOperation{{Key: "line", Kind: "line", Line: line}}}
+	if err := r.s.SaveTopologyChangeset(ctx, d); err != nil {
+		t.Fatal(err)
+	}
+	preview, err := r.s.PreviewTopologyChangeset(ctx, d.ID, d.Version)
+	if err != nil {
+		t.Fatal("UDP-only reservation incorrectly blocked an independent TCP line", err)
+	}
+	reserve("both")
+	if _, err := r.s.PreviewTopologyChangeset(ctx, d.ID, d.Version); err == nil {
+		t.Fatal("both reservation was bypassed by topology preview")
+	}
+	if _, err := r.s.CommitTopologyChangeset(ctx, d.ID, d.Version, preview.Revision); err == nil {
+		t.Fatal("commit ignored the changed transport reservation")
+	}
+}
+
+func TestPathRolloutBackendOmissionAndLegacyCompensation(t *testing.T) {
+	ctx := context.Background()
+	r, draft := pathRolloutRig(t)
+	if _, err := r.s.db.Exec(`UPDATE nodes SET version='v0.88.0'`); err != nil {
+		t.Fatal(err)
+	}
+	draft.Branches = draft.Branches[:1]
+	p, err := r.s.PlanPathRollout(ctx, draft, false, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p = r.drain(t, p.ID)
+	route, err := r.s.PathRoute(ctx, p.LineID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	route.EntryBackend = "realm"
+	route.Entry.Port += 1000
+	for i := range route.Branches[0].Ports {
+		route.Branches[0].Ports[i] += 1000
+	}
+	edit, err := r.s.PlanPathRollout(ctx, route, false, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edit = r.drain(t, edit.ID)
+	current, err := r.s.PathRoute(ctx, edit.LineID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	current.EntryBackend = "" // omitted/null from an older editor
+	preview, err := r.s.PreviewPathRollout(ctx, current, false, time.Minute)
+	if err != nil || preview.Draft.EntryBackend != "realm" {
+		t.Fatal("staged omission silently reset the entry backend", preview, err)
+	}
+	// Legacy history had no backend field. Compensation must restore native
+	// relay, independently of today's realm choice and omission merge rules.
+	if _, err := r.s.db.Exec(`UPDATE path_rollout_intents SET before_json=json_remove(before_json,'$.entry_backend') WHERE plan_id=?`, edit.ID); err != nil {
+		t.Fatal(err)
+	}
+	undo, err := r.s.CompensateLineRollout(ctx, edit.ID, edit.Version)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.drain(t, undo.ID)
+	got, err := r.s.PathRoute(ctx, edit.LineID)
+	if err != nil || pathWireBackend(got.EntryBackend) != "" {
+		t.Fatal("legacy compensation inherited the new backend", got, err)
+	}
+	for _, f := range pathOwned(t, r.s, draft.Entry.NodeID, edit.LineID) {
+		if f.Backend != "" {
+			t.Fatal("compensation did not deliver native relay", f)
+		}
+	}
+}

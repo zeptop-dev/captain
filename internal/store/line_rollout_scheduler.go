@@ -624,7 +624,7 @@ func (s *Store) ApplyLineRolloutForwards(ctx context.Context, nodeID int64, curr
 
 func pathTransportSnapshotRestricted(fs []LineChangeForward) bool {
 	for _, f := range fs {
-		if f.Protocol != "tcp" || (f.Backend != "" && f.Backend != "relay") {
+		if PathTransportRequiresModernAgent(f.Protocol, f.Backend) {
 			return true
 		}
 	}

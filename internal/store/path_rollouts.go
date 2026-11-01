@@ -87,6 +87,11 @@ func readPathRolloutIntentsTx(ctx context.Context, tx *sql.Tx, p *LineRollout) e
 			// An absent field in durable history means disabled at that time,
 			// unlike omission in a new editor request which preserves policy.
 			PreservePathRouteHealth(route, nil)
+			// Missing backend in immutable history means native relay, not
+			// "keep today's backend" when this intent is compensated later.
+			if route.EntryBackend == "" {
+				route.EntryBackend = "relay"
+			}
 		}
 	}
 	return nil
@@ -329,6 +334,7 @@ func pathRolloutPrepareContext(ctx context.Context, tx *sql.Tx, draft *PathRoute
 		}
 	}
 	PreservePathRouteHealth(next, before)
+	PreservePathRouteBackends(next, before)
 	if remove {
 		if before == nil {
 			return ctx, nil, ErrNotFound

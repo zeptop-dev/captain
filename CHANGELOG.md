@@ -6,6 +6,10 @@ Merge commits and formatting-only commits are left out. Binaries and
 `SHA256SUMS` for every tag are on the GitHub Release; the in-app updater
 installs them (Settings → System maintenance → Version and updates).
 
+- **v1.53.0** (2026-11-01) — Extend complete paths to derived TCP, UDP or same-port TCP+UDP transport, with fixed-version per-hop relay, realm and nft backends. Keep multi-path selection on native relay and use new-session round-robin for UDP; existing handshake health remains limited to all-native TCP paths.
+  - Preserve omitted backend edits, old native TCP configuration identities and immutable source versions. Compile real adjacent edges, reject incompatible families and listener identities, and require bosun v0.88.0 for the new path combinations, including delivery after a node downgrade.
+  - Reserve staged listeners by transport, preserve legacy release history and compensation, and show backend-specific connection interruption limits. No database migration or frozen authorization; Captain's rollback floor is v1.53.0 because older panels cannot preserve the new path intent.
+
 - **v1.52.0** (2026-11-01) — Add administrator-only evidence of actual activated core configuration files, bound to accepted process configuration receipts. Keep raw configuration and credentials on the node; distinguish historical activation, later runtime updates and current fresh confirmation. Malformed optional metadata never blocks valid accounting.
   - Add permission-filtered operation history across line/path releases, node jobs, topology changesets and durable future upgrade requests. Keep original outcome meanings, retry/compensation identities and independent read scopes; version observation never claims executable verification. Migrations 108-109 preserve existing configuration and accounting.
   - Include provincial carrier selection across existing probe interfaces, compact carrier headings and independent dual-stack metrics. Preserve custom monitoring targets and configured settings.
