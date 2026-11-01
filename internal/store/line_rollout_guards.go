@@ -79,8 +79,32 @@ func checkRolloutInboundTx(ctx context.Context, tx *sql.Tx, ib *domain.Inbound) 
 			}
 		}
 	}
+	// A managed WireGuard user's Enabled flag also controls a separate UDP
+	// listener. Read its stored ownership, rather than trusting the incoming
+	// settings, so all inbound update paths protect that listener as well.
+	if ib.ID > 0 {
+		var transitID int64
+		var port int
+		err := tx.QueryRowContext(ctx, `SELECT transit_id,listen_port FROM node_wireguard_links WHERE user_inbound_id=?`, ib.ID).Scan(&transitID, &port)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+		if err == nil {
+			return checkRolloutWireGuardTunnelTx(ctx, tx, transitID, port, true)
+		}
+	}
 	return nil
 }
+
+func checkRolloutWireGuardTunnelTx(ctx context.Context, tx *sql.Tx, nodeID int64, port int, enabled bool) error {
+	if !enabled {
+		return nil
+	}
+	// Managed tunnels always bind UDP on all addresses, independently of the
+	// subscriber inbound's own listen address, ingress and TCP port.
+	return checkRolloutForwardsTx(ctx, tx, nodeID, []NodeForward{{Forward: spec.Forward{Protocol: "udp", Port: port}}})
+}
+
 func checkRolloutForwardsTx(ctx context.Context, tx *sql.Tx, nodeID int64, fs []NodeForward) error {
 	reservations, err := lineRolloutReservationsTx(ctx, tx, nodeID, 0)
 	if err != nil {
