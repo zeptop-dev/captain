@@ -4,6 +4,7 @@ import { AppLayout } from './components/AppLayout'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import MonitoringPage from './pages/MonitoringPage'
+import OperationsPage from './pages/OperationsPage'
 import NodesPage from './pages/NodesPage'
 import NodePage from './pages/NodePage'
 import HostManagementPage from './pages/HostManagementPage'
@@ -47,6 +48,8 @@ export default function App() {
         <Route element={<Protected><AppLayout /></Protected>}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/monitoring" element={<MonitoringPage />} />
+          <Route path="/operations" element={<OperationsPage />} />
+          <Route path="/operations/:id" element={<OperationsPage />} />
           <Route path="/nodes" element={<NodesPage />} />
           <Route path="/nodes/:id/*" element={<NodePage />} />
           <Route path="/nodes/:id/host" element={<HostManagementPage />} />

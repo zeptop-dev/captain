@@ -3,7 +3,9 @@ import { modals } from '@mantine/modals'
 import { IconArrowDown, IconArrowUp, IconTrash } from '@tabler/icons-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { safeOperationSourceID } from '../lib/operations'
 import { api, type Line } from '../lib/api'
 import { toast } from '../lib/notify'
 import { SettingsDraftBoundary, useSettingsDirty } from '../lib/settings-draft'
@@ -18,7 +20,11 @@ export function TopologyChangesetsPanel({ onCommitted }: { onCommitted?: () => v
   const qc = useQueryClient()
   const catalog = useQuery({ queryKey: ['topology-changesets-catalog'], queryFn: () => api.get<TopologyCatalog>(`${base}/catalog`) })
   const drafts = useQuery({ queryKey: ['topology-changesets'], queryFn: () => api.get<TopologyDraft[]>(base) })
-  const [selected, setSelected] = useState<string | null>(null)
+  const [params, setParams] = useSearchParams()
+  const requested = safeOperationSourceID(params.get('changeset'))
+  const [localSelected, setSelected] = useState<string | null>(null)
+  const selected = localSelected ?? requested ?? null
+  const closeSelected = () => { setSelected(null); setParams(previous => { const next = new URLSearchParams(previous); next.delete('changeset'); return next }, { replace: true }) }
   const refresh = () => { qc.invalidateQueries({ queryKey: ['topology-changesets'] }); qc.invalidateQueries({ queryKey: ['topology-changesets-catalog'] }) }
   const discard = useMutation({ mutationFn: (draft: TopologyDraft) => api.del(`${base}/${draft.id}?version=${draft.version}`), onSuccess: refresh })
   return <Stack>
@@ -29,7 +35,7 @@ export function TopologyChangesetsPanel({ onCommitted }: { onCommitted?: () => v
     {discard.isError && <Alert color="red">{discard.error.message}</Alert>}
     {!drafts.data?.length && !drafts.isPending && <Text c="dimmed">{t('topologyChangesets.noDrafts')}</Text>}
     {drafts.data?.map(draft => <Card key={draft.id} withBorder><Group justify="space-between" align="flex-start"><Stack gap={4}><Text fw={600}>{draft.name}</Text><Text size="xs" c="dimmed">{new Date(draft.updated_at).toLocaleString()}</Text><Badge variant="light" color={draft.status === 'committed' ? 'teal' : 'gray'}>{t(draft.status === 'committed' ? 'topologyChangesets.statusCommitted' : 'topologyChangesets.statusDraft')}</Badge></Stack><Group><Button variant="default" onClick={() => setSelected(draft.id)} disabled={!catalog.data}>{t('topologyChangesets.open')}</Button>{draft.status === 'draft' && <ActionIcon color="red" variant="subtle" aria-label={t('topologyChangesets.discard')} disabled={discard.isPending} onClick={() => modals.openConfirmModal({ title: t('topologyChangesets.discard'), children: <Text size="sm">{t('topologyChangesets.discardHint')}</Text>, labels: { confirm: t('topologyChangesets.discard'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => discard.mutate(draft) })}><IconTrash size={16} /></ActionIcon>}</Group></Group></Card>)}
-    {selected && catalog.data && <DraftLoader key={selected} id={selected} catalog={catalog.data} catalogError={catalog.isError} onRefreshCatalog={() => catalog.refetch()} onClose={() => setSelected(null)} onSaved={refresh} onCommitted={() => { refresh(); onCommitted?.() }} />}
+    {selected && catalog.data && <DraftLoader key={selected} id={selected} catalog={catalog.data} catalogError={catalog.isError} onRefreshCatalog={() => catalog.refetch()} onClose={closeSelected} onSaved={refresh} onCommitted={() => { refresh(); onCommitted?.() }} />}
   </Stack>
 }
 function DraftLoader({ id, ...props }: EditorProps & { id: string }) {

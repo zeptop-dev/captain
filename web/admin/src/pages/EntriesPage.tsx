@@ -22,6 +22,7 @@ import { EntryCategoriesManager } from '../components/EntryCategoriesManager'
 import { matchesEntryCategory, visibleEntrySelection } from '../lib/entry-categories'
 import { LineEditor, LinesPanel } from '../components/LinesPanel'
 import { LineChangesModal } from '../components/LineChangesModal'
+import { safeOperationSourceID } from '../lib/operations'
 import { LineRolloutHistory } from '../components/LineRollouts'
 import { TopologyChangesetsPanel } from '../components/TopologyChangesetsPanel'
 import { PathRoutesPanel } from '../components/PathRoutesPanel'
@@ -65,6 +66,9 @@ function EntriesWorkspace() {
   const connectionSection = section === 'wireguard' || section === 'reverse' ? section : null
   const singleForward = section === 'legacy' || params.get('mode') === 'single'
   const pathRoutes = params.get('mode') === 'paths'
+  const operationRollout = safeOperationSourceID(params.get('operation_rollout'))
+  const operationResource = params.get('operation_source') === 'path_rollout' ? 'path-rollouts' : params.get('operation_source') === 'line_rollout' ? 'line-rollouts' : null
+  const closeOperationRollout = () => setParams(previous => { const next = new URLSearchParams(previous); next.delete('operation_rollout'); next.delete('operation_source'); return next }, { replace: true })
   const nodeFilter = params.get('node') ?? ''
   const serverID = Number(params.get('server')) || undefined
   const q = useQuery({ queryKey: ['entries'], queryFn: () => api.get<Entry[]>('/api/admin/entries') })
@@ -220,7 +224,8 @@ function EntriesWorkspace() {
     {editingLocation && <SettingsDraftBoundary><EntryLocationEditor key={`entry-location-${editingLocation.ID}`} entry={editingLocation} onClose={() => setEditingLocation(null)} /></SettingsDraftBoundary>}
     {editing !== null && <SettingsDraftBoundary><EntryEditor key={editing === 'new' ? `new-${initialLineID ?? ''}` : editing.ID} entry={editing === 'new' ? undefined : editing} nodes={nodes.data ?? []} inbounds={inbounds} entries={q.data ?? []} lines={lines.data ?? []} tags={tags.data ?? []} categories={categories.data ?? []} initialInboundID={Number(params.get('inbound')) || undefined} initialLineID={initialLineID} initialServerID={Number(nodeFilter) || serverID} canManageLines={admin} loading={sourcesLoading || categories.isLoading || categories.isError || admin && lines.isLoading} loadError={sourcesError || categories.isError || admin && lines.isError} onReload={() => { reloadSources(); categories.refetch() }} onClose={() => setEditing(null)} /></SettingsDraftBoundary>}
     {managingCategories && <SettingsDraftBoundary><EntryCategoriesManager onClose={() => setManagingCategories(false)} /></SettingsDraftBoundary>}
-    {admin && rollouts && <LineRolloutHistory key={`${rollouts.id ?? 'all'}-${rollouts.lineID ?? 'all'}`} initialID={rollouts.id} lineID={rollouts.lineID} onClose={() => setRollouts(null)} />}
+    {admin && operationRollout && operationResource && <LineRolloutHistory key={`${operationResource}-${operationRollout}`} initialID={operationRollout} resource={operationResource} onClose={closeOperationRollout} />}
+    {admin && !operationRollout && rollouts && <LineRolloutHistory key={`${rollouts.id ?? 'all'}-${rollouts.lineID ?? 'all'}`} initialID={rollouts.id} lineID={rollouts.lineID} onClose={() => setRollouts(null)} />}
     {admin && lineHistory && <LineChangesModal key={`line-history-${lineHistory.lineID ?? 'all'}-${lineHistory.changeID ?? 'latest'}`} selection={lineHistory} onClose={() => setLineHistory(null)} />}
     {editingLine !== null && <SettingsDraftBoundary><LineEditor key={editingLine === 'new' ? 'line-new' : `line-${editingLine.id}`} line={editingLine === 'new' ? undefined : editingLine} nodes={nodes.data ?? []} details={details} inbounds={inbounds} loading={sourcesLoading} loadError={sourcesError} onReload={reloadSources} onClose={() => setEditingLine(null)} onSaved={setLineHistory} onPlanned={id => setRollouts({ id })} /></SettingsDraftBoundary>}
   </>

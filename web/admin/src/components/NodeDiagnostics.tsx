@@ -12,6 +12,7 @@ import { NetworkDiagnosticsCard } from './NetworkDiagnosticsCard'
 import { ReturnRoutesCard } from './ReturnRoutesCard'
 import { NodeLiveDiagnostics } from './NodeLiveDiagnostics'
 import { NodeTrafficHistory } from './NodeTrafficHistory'
+import { NodeRenderedConfig } from './NodeRenderedConfig'
 
 export function NodeDiagnostics({ detail: d }: { detail: NodeDetail }) {
   const { t } = useTranslation()
@@ -20,8 +21,8 @@ export function NodeDiagnostics({ detail: d }: { detail: NodeDetail }) {
   const view = params.get('view') ?? 'health'
   const n = d.node
   return <>
-    <Group mb="lg">{['health', ...(me?.role === 'admin' ? [...(n.paired ? ['live'] : []), 'traffic-history', ...(n.paired ? ['network', 'routes'] : [])] : [])].map(key => <Button key={key} component={Link} variant={view === key ? 'light' : 'subtle'} aria-current={view === key ? 'page' : undefined} to={`/nodes/${n.id}/diagnostics?view=${key}`} onClick={e => { if (view === key) e.preventDefault() }}>{t(`serverDetail.diagnostics.${key}`)}</Button>)}</Group>
-    {view === 'traffic-history' && me?.role === 'admin' ? <NodeTrafficHistory key={`traffic-history-${n.id}`} nodeID={n.id} /> : !n.paired ? <><Alert color="orange" mb="lg">{t('nodes.unpaired')}</Alert><DNSHealthCard nodeID={n.id} /></> : view === 'live' && me?.role === 'admin' ? <NodeLiveDiagnostics key={`live-diagnostics-${n.id}`} nodeID={n.id} /> : view === 'network' && me?.role === 'admin' ? <NetworkDiagnosticsCard nodeID={n.id} /> : view === 'routes' && me?.role === 'admin' ? <ReturnRoutesCard nodeID={n.id} /> : <>
+    <Group mb="lg">{['health', ...(me?.role === 'admin' ? [...(n.paired ? ['live'] : []), 'traffic-history', 'rendered-config', ...(n.paired ? ['network', 'routes'] : [])] : [])].map(key => <Button key={key} component={Link} variant={view === key ? 'light' : 'subtle'} aria-current={view === key ? 'page' : undefined} to={`/nodes/${n.id}/diagnostics?view=${key}`} onClick={e => { if (view === key) e.preventDefault() }}>{t(`serverDetail.diagnostics.${key}`)}</Button>)}</Group>
+    {view === 'rendered-config' && me?.role === 'admin' ? <NodeRenderedConfig key={`rendered-config-${n.id}`} nodeID={n.id} /> : view === 'traffic-history' && me?.role === 'admin' ? <NodeTrafficHistory key={`traffic-history-${n.id}`} nodeID={n.id} /> : !n.paired ? <><Alert color="orange" mb="lg">{t('nodes.unpaired')}</Alert><DNSHealthCard nodeID={n.id} /></> : view === 'live' && me?.role === 'admin' ? <NodeLiveDiagnostics key={`live-diagnostics-${n.id}`} nodeID={n.id} /> : view === 'network' && me?.role === 'admin' ? <NetworkDiagnosticsCard nodeID={n.id} /> : view === 'routes' && me?.role === 'admin' ? <ReturnRoutesCard nodeID={n.id} /> : <>
       {me?.role === 'admin' && <NodeConfigurationCard nodeID={n.id} />}
       {d.status?.doctor ? <DoctorCard report={d.status.doctor} /> : <Card mb="lg"><Text c="dimmed">{t('common.empty')}</Text></Card>}
       {n.proxy_allowed !== false && <PrivateAccessReadiness nodeID={n.id} />}

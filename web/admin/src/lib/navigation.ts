@@ -19,7 +19,7 @@ export const navigation: NavigationGroup[] = [
     { to: '/sub-templates', labelKey: 'workspace.templateEditor' }, { to: '/sub-templates?mode=library', labelKey: 'subProfiles.library' }, { to: '/sub-templates?mode=profiles', labelKey: 'subProfiles.profiles' }, { to: '/sub-templates?mode=rules', labelKey: 'subTemplates.modeRules' },
   ] },
   { id: 'monitoring', labelKey: 'workspace.monitoring', items: [
-    { to: '/monitoring', labelKey: 'nav.monitoring' }, { to: '/monitoring?tab=alerts', labelKey: 'alerts.title' }, { to: '/monitoring?tab=dns', labelKey: 'dnsHealth.title' }, { to: '/speedtest', labelKey: 'nav.speedtest' },
+    { to: '/monitoring', labelKey: 'nav.monitoring' }, { to: '/monitoring?tab=alerts', labelKey: 'alerts.title' }, { to: '/monitoring?tab=dns', labelKey: 'dnsHealth.title' }, { to: '/speedtest', labelKey: 'nav.speedtest' }, { to: '/operations', labelKey: 'operations.title' },
   ] },
   { id: 'business', labelKey: 'workspace.transactions', items: [
     { to: '/plans', labelKey: 'nav.plans' }, { to: '/orders', labelKey: 'nav.orders' }, { to: '/coupons', labelKey: 'nav.coupons' }, { to: '/gifts', labelKey: 'nav.gifts' }, { to: '/withdrawals', labelKey: 'nav.withdrawals' },
@@ -34,7 +34,7 @@ export const navigation: NavigationGroup[] = [
 export function canVisit(to: string, role: string) {
   const path = to.split('?')[0]
   if (role === 'admin') return true
-  if (role === 'operator') return !['/settings', '/site', '/admins', '/sub-templates', '/infrastructure'].some(p => path === p || path.startsWith(`${p}/`))
+  if (role === 'operator') return !['/settings', '/site', '/admins', '/sub-templates', '/infrastructure', '/operations'].some(p => path === p || path.startsWith(`${p}/`))
   if (path === '/users' && ['groups', 'renewals'].includes(new URLSearchParams(to.split('?')[1]).get('tab') ?? '')) return false
   return ['/', '/users', '/orders', '/tickets', '/account'].includes(path)
 }

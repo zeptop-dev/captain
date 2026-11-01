@@ -1,6 +1,7 @@
-import { Accordion, Alert, Badge, Card, Code, Group, Loader, Stack, Table, Text, Title } from '@mantine/core'
+import { Accordion, Alert, Badge, Button, Card, Code, Group, Loader, Stack, Table, Text, Title } from '@mantine/core'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
 import { when } from '../lib/format'
@@ -57,6 +58,7 @@ export function NodeConfigurationCard({ nodeID }: { nodeID: number }) {
     <Stack gap="sm">
       <Group justify="space-between"><Title order={4}>{t('nodeConfiguration.title')}</Title><Badge color={status === 'applied' ? 'teal' : status === 'pending' ? 'orange' : 'gray'}>{t(`nodeConfiguration.status.${status}`)}</Badge></Group>
       <Text size="sm" c="dimmed">{t('nodeConfiguration.hint')}</Text>
+      <Button component={Link} to={`/nodes/${nodeID}/diagnostics?view=rendered-config`} size="xs" variant="subtle" w="fit-content">{t('renderedConfig.title')}</Button>
       {q.isLoading && <Loader size="sm" />}
       {q.isError && <Alert color="red">{t('nodeConfiguration.loadError')}</Alert>}
       {d && <>
