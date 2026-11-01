@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
+	"github.com/zeptop-dev/captain/internal/domain"
 	"testing"
 	"time"
 )
@@ -116,5 +117,32 @@ func TestRenderedConfigCurrentSurvivesHistoryWindowAndRollback(t *testing.T) {
 	h, err = s.NodeRenderedConfigHistory(ctx, id, at.Add(2*time.Second))
 	if err != nil || h.Current.ReceiptSequence != 1 {
 		t.Fatal(h, err)
+	}
+}
+
+func TestRenderedConfigRetentionAndReset(t *testing.T) {
+	s, id, at, _ := configEvidenceRig(t)
+	ctx := context.Background()
+	for i := 0; i < 105; i++ {
+		state := fmt.Sprintf("state-%d", i)
+		d := configDelivery(t, s, id, configSessionA, "cfg", state, at.Add(time.Duration(i)*time.Second))
+		r := configReceipt(d, "cfg", state, uint64(i+1), at.Add(time.Duration(i)*time.Second))
+		if _, err := s.RecordNodeReport(ctx, id, configTestToken, agentproto.Report{ConfigReceipt: r, AppliedRevision: state, RenderedConfig: renderedFixture(t)}, false, r.ObservedAt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var count int
+	if err := s.db.QueryRow(`SELECT count(*) FROM node_rendered_configs`).Scan(&count); err != nil || count != 100 {
+		t.Fatal(count, err)
+	}
+	admin := &domain.User{Email: "reset-rendered@example.com", PasswordHash: "fixture", Role: domain.RoleAdmin, Status: "active"}
+	if err := s.CreateStaff(ctx, admin); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ResetSite(ctx, admin.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.db.QueryRow(`SELECT count(*) FROM node_rendered_configs`).Scan(&count); err != nil || count != 0 {
+		t.Fatal(count, err)
 	}
 }
