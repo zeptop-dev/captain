@@ -42,7 +42,7 @@ export default function NodePage() {
     {(n.domain_shared || n.domain_conflict) && <Alert mb="md" color={n.domain_shared ? 'blue' : 'orange'} title={t(n.domain_shared ? 'nodes.domainExternal' : 'nodes.domainDuplicate')}>{t(n.domain_shared ? 'nodes.domainSharedHint' : 'nodes.domainLegacyHint')}</Alert>}
     {modePending && <Alert color="blue" mb="md">{t('nodeMode.pending', { mode: t(n.reported_mode === 'monitor' ? 'nodeMode.monitor' : 'nodeMode.full') })}</Alert>}
     {n.mode_error && <Alert color="red" mb="md" title={t('nodeMode.failed')}>{n.mode_error}</Alert>}
-    {!n.paired && <Card mb="lg"><Stack><Text fw={600}>{t('nodes.pairTitle')}</Text>{n.pair_code ? <PairCodeBox code={n.pair_code} mode={n.mode} /> : <Text c="dimmed">{t('nodes.unpaired')}</Text>}</Stack></Card>}
+    {!n.paired && <Card mb="lg"><Stack><Text fw={600}>{t('nodes.pairTitle')}</Text>{n.pair_code ? <PairCodeBox code={n.pair_code} mode={n.mode} agentURL={n.effective_agent_url} downloadSource={n.download_source} /> : <Text c="dimmed">{t('nodes.unpaired')}</Text>}</Stack></Card>}
     {route.tab === 'overview' && (n.paired ? <NodeOverview detail={d} /> : <Text c="dimmed">{t('serverDetail.waiting')}</Text>)}
     {route.tab === 'information' && <>
       <NodeDetailsCard node={n} section="profile" />

@@ -4243,5 +4243,17 @@
       "recovery_failed": "복구 실패",
       "journal_invalid": "유효하지 않은 복구 저널"
     }
+  },
+  "agentConnection": {
+    "title": "Agent 연결 및 다운로드",
+    "url": "Agent 통신 URL",
+    "urlHint": "비워 두면 패널 기본값을 사용합니다. HTTPS와 사용자 지정 포트를 지원합니다. 먼저 역방향 프록시, 인증서 및 포트 접근을 설정하세요.",
+    "source": "다운로드 소스",
+    "github": "GitHub에서 직접 다운로드",
+    "captain": "Captain을 통해 다운로드",
+    "githubHint": "서버가 공식 릴리스 소스에서 직접 다운로드합니다.",
+    "captainHint": "HTTPS를 통해 Captain이 bosun 네이티브 설치, 업데이트 및 관리형 코어를 제공합니다. 시스템 패키지와 Docker 이미지는 기존 소스를 사용합니다.",
+    "futureOnly": "이후 설치에만 적용됩니다. 실행 중인 Agent의 통신 URL 및 다운로드 설정은 자동으로 변경되지 않습니다.",
+    "default": "패널 기본값 사용"
   }
 }

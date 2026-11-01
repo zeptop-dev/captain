@@ -4243,5 +4243,17 @@
       "recovery_failed": "Recovery failed",
       "journal_invalid": "Invalid recovery journal"
     }
+  },
+  "agentConnection": {
+    "title": "Agent connection and downloads",
+    "url": "Agent communication URL",
+    "urlHint": "Leave empty to use the panel default. Supports HTTPS and custom ports; configure the reverse proxy, certificate and port access first.",
+    "source": "Download source",
+    "github": "Direct from GitHub",
+    "captain": "Download through Captain",
+    "githubHint": "The server downloads directly from official release sources.",
+    "captainHint": "Use HTTPS for native bosun installation, updates and managed cores through Captain. System packages and Docker images still use their own sources.",
+    "futureOnly": "Used for future installations only. Running agents keep their current communication URL and download settings.",
+    "default": "Use the panel default"
   }
 }

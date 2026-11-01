@@ -4243,5 +4243,17 @@
       "recovery_failed": "恢复失败",
       "journal_invalid": "恢复日志无效"
     }
+  },
+  "agentConnection": {
+    "title": "Agent 接入与下载",
+    "url": "Agent 通信地址",
+    "urlHint": "留空使用面板默认地址。支持 HTTPS 和自定义端口；请先配置反向代理、证书及端口放行。",
+    "source": "安装包来源",
+    "github": "GitHub 直连",
+    "captain": "通过 Captain 下载",
+    "githubHint": "服务器直接从官方发布源下载。",
+    "captainHint": "使用 HTTPS 地址，由 Captain 提供 bosun 原生安装、升级及托管内核下载。系统软件包与 Docker 镜像仍使用各自来源。",
+    "futureOnly": "仅用于后续安装，不会自动修改已运行 Agent 的通信地址或下载设置。",
+    "default": "使用面板默认地址"
   }
 }

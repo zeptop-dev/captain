@@ -50,6 +50,7 @@ export interface WireGuardDevicesResponse {
   entries: { id: number; name: string }[]
 }
 export interface Node {
+  agent_url?: string; effective_agent_url?: string; download_source?: 'github' | 'captain'
   host_traffic?: HostTraffic
   proxy_traffic?: ProxyTraffic
   monitor_group?: string

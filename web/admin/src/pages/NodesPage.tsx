@@ -21,20 +21,21 @@ import { NodeDomainFields } from '../components/NodeDomainFields'
 import { useNodeDomainCheck } from '../lib/use-node-domain-check'
 import { useAuth } from '../lib/auth'
 import { NodePublicAddresses } from '../components/NodePublicAddresses'
+import { AgentConnectionFields } from '../components/AgentConnectionFields'
+import { agentInstallCommands } from '../lib/agent-install'
 
-export function PairCodeBox({ code, mode = 'full' }: { code: string; mode?: 'full' | 'monitor' }) {
+export function PairCodeBox({ code, mode = 'full', agentURL, downloadSource }: { code: string; mode?: 'full' | 'monitor'; agentURL?: string; downloadSource?: string }) {
   const { t } = useTranslation()
-  const origin = window.location.origin
-  const install = `curl -fsSL "${origin}/api/agent/install.sh?pair=${code}" | sh`
-  const docker = `${install} -s -- --mode docker --web-upgrade`
-  const snippet = `${mode === 'monitor' ? 'node_mode: monitor\n' : ''}panel:\n  driver: captain\n  captain:\n    url: ${origin}\n    pair_code: ${code}`
+  const { install, docker, snippet } = agentInstallCommands(code, agentURL || window.location.origin, mode, downloadSource)
   return (
     <Stack gap="xs">
       <Text size="sm" c="dimmed">{t('nodes.pairHint')}</Text>
       <Text size="xs" fw={600}>{t('nodes.installCmd')}</Text>
       <Group align="flex-start" gap="xs"><Code block style={{ flex: 1, wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{install}</Code><Copy value={install} /></Group>
-      <Text size="xs" fw={600}>{t('nodes.dockerCmd')}</Text>
-      <Group align="flex-start" gap="xs"><Code block style={{ flex: 1, wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{docker}</Code><Copy value={docker} /></Group>
+      {downloadSource !== 'captain' && <>
+        <Text size="xs" fw={600}>{t('nodes.dockerCmd')}</Text>
+        <Group align="flex-start" gap="xs"><Code block style={{ flex: 1, wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{docker}</Code><Copy value={docker} /></Group>
+      </>}
       <Text size="xs" c="dimmed" mt="xs">{t('nodes.manualHint')}</Text>
       <Group gap="xs"><Code px="md" py={4}>{code}</Code><Copy value={code} /><Text size="xs" c="dimmed" ml="sm">{t('nodes.configSnippet')}</Text><Copy value={snippet} /></Group>
     </Stack>
@@ -59,7 +60,7 @@ export default function NodesPage() {
   const filtered = (q.data ?? []).filter(n => nodeGroup === null || (n.monitor_group ?? '') === nodeGroup).filter(n => status === 'all' || (status === 'offline' && n.paired && !n.online) || (status === 'unpaired' && !n.paired) || (status === 'doctor' && n.paired && n.doctor_fail) || (status === 'monitor' && n.mode === 'monitor'))
   const [opened, { open, close }] = useDisclosure()
   const [created, setCreated] = useState<Node | null>(null)
-  const form = useForm({ initialValues: { Name: '', AutoIPv4: true, AutoIPv6: true, PublicAddr: '', InternalAddr: '', V6Addr: '', Domain: '', DomainShared: false, MonitorURL: '', Mode: 'full' } })
+  const form = useForm({ initialValues: { Name: '', AutoIPv4: true, AutoIPv6: true, PublicAddr: '', InternalAddr: '', V6Addr: '', Domain: '', DomainShared: false, MonitorURL: '', Mode: 'full', AgentURL: '', DownloadSource: 'github' } })
   const domainCheck = useNodeDomainCheck(form.values.Domain, form.values.DomainShared, undefined, opened && !created)
   const sys = useQuery({ queryKey: ['update'], queryFn: () => api.get<SystemUpdate>('/api/admin/system/update'), enabled: isAdmin, staleTime: 10 * 60_000, retry: false })
   const rollback = useMutation({ mutationFn: (id: number) => api.post(`/api/admin/nodes/${id}/jobs`, { kind: 'rollback', params: {} }), onSuccess: () => { toast.ok(t('nodes.rollbackQueued')); qc.invalidateQueries({ queryKey: ['nodes'] }) }, onError: toast.err })
@@ -117,7 +118,7 @@ export default function NodesPage() {
       <Text size="xs" c="dimmed" mt={4}>{t('nodes.proxyTrafficHint')}</Text>
       {organizing && layout.data && <NodeLayoutEditor initial={layout.data} nodes={q.data ?? []} onSaved={() => setNodeGroup(null)} close={() => setOrganizing(false)} />}
       <Modal opened={opened} onClose={() => { close(); setCreated(null) }} title={created ? t('nodes.pairTitle') : t('nodes.create')} size="lg">
-        {created ? <PairCodeBox code={created.pair_code ?? ''} mode={created.mode} /> : (
+        {created ? <PairCodeBox code={created.pair_code ?? ''} mode={created.mode} agentURL={created.effective_agent_url} downloadSource={created.download_source} /> : (
           <form onSubmit={form.onSubmit((v) => create.mutate(v))}>
             <Stack>
               <Switch label={t('nodeMode.installOnly')} description={t('nodeMode.installHint')} checked={form.values.Mode === 'monitor'} onChange={e => form.setFieldValue('Mode', e.currentTarget.checked ? 'monitor' : 'full')} />
@@ -129,6 +130,7 @@ export default function NodesPage() {
               {!form.values.AutoIPv6 && <TextInput label={t('nodes.v6Addr')} description={t('nodeAddresses.fixedHint')} {...form.getInputProps('V6Addr')} />}
               <NodeDomainFields domain={form.values.Domain} shared={form.values.DomainShared} onDomainChange={v => form.setFieldValue('Domain', v)} onSharedChange={v => form.setFieldValue('DomainShared', v)} check={domainCheck} />
               <TextInput label={t('nodes.internalAddr')} description={t('nodeAddresses.internalHint')} {...form.getInputProps('InternalAddr')} />
+              <AgentConnectionFields agentURL={form.values.AgentURL} downloadSource={form.values.DownloadSource} onURLChange={value => form.setFieldValue('AgentURL', value)} onSourceChange={value => form.setFieldValue('DownloadSource', value)} />
               <Group justify="flex-end"><Button variant="default" onClick={close}>{t('common.cancel')}</Button><Button type="submit" disabled={domainCheck.blocked} loading={create.isPending}>{t('common.create')}</Button></Group>
             </Stack>
           </form>

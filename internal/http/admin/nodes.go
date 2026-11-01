@@ -203,6 +203,12 @@ func (h *handlers) createNode(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, installErr.Error())
 		return
 	}
+	if n.DownloadSource == agentendpoint.DownloadCaptain {
+		if effective, err := agentendpoint.NormalizeURL(agentendpoint.EffectiveURL(n.AgentURL, h.AgentURL, h.BaseURL)); err != nil || effective == "" {
+			fail(w, 400, "Captain downloads require an HTTPS agent communication URL")
+			return
+		}
+	}
 	if err := h.Store.CreateNodeWithAddressPolicy(r.Context(), n, auth.PairCode(), 24*time.Hour, auto4, auto6); err != nil {
 		nodeSaveError(w, err)
 		return
@@ -330,6 +336,21 @@ func (h *handlers) updateNode(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		in.DownloadSource = &value
+	}
+	if in.AgentURL != nil || in.DownloadSource != nil {
+		url, source := old.AgentURL, old.DownloadSource
+		if in.AgentURL != nil {
+			url = *in.AgentURL
+		}
+		if in.DownloadSource != nil {
+			source = *in.DownloadSource
+		}
+		if source == agentendpoint.DownloadCaptain {
+			if effective, err := agentendpoint.NormalizeURL(agentendpoint.EffectiveURL(url, h.AgentURL, h.BaseURL)); err != nil || effective == "" {
+				fail(w, 400, "Captain downloads require an HTTPS agent communication URL")
+				return
+			}
+		}
 	}
 	if err := h.Store.UpdateNodeWithAgentSettings(r.Context(), n, in.AgentURL, in.DownloadSource); err != nil {
 		nodeSaveError(w, err)

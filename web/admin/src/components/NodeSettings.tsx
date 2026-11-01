@@ -14,6 +14,7 @@ import { NodeModeCard } from './NodeModeCard'
 import { CoreManagementCard, type CoreInventory } from './CoreManagementCard'
 import { DeleteNodeModal } from './DeleteNodeModal'
 import { PairCodeBox } from '../pages/NodesPage'
+import { NodeAgentSettingsCard } from './NodeAgentSettingsCard'
 
 export function NodeSettings({ detail: d, section }: { detail: NodeDetail; section: ServerSetting }) {
   const { t } = useTranslation()
@@ -31,6 +32,7 @@ export function NodeSettings({ detail: d, section }: { detail: NodeDetail; secti
         qc.setQueryData<NodeDetail>(['node', String(n.id)], old => old?.status ? { ...old, status: { ...old.status, core_inventory: result } } : old)
         qc.invalidateQueries({ queryKey: ['node', String(n.id)] }); qc.invalidateQueries({ queryKey: ['nodes'] }); qc.invalidateQueries({ queryKey: ['core-options'] })
       }} />}
+      <NodeAgentSettingsCard node={n} />
       <NodeMaintenance detail={d} />
     </> : !n.paired ? <Alert color="orange">{t('nodes.unpaired')}</Alert> : current === 'proxy' ? <NodeDetailsCard node={n} section="policy" /> : <ServerProxySettings node={n} inbounds={d.inbounds} ingresses={d.ingresses ?? []} section={current} singleSection />}
   </>
@@ -41,15 +43,15 @@ function NodeMaintenance({ detail: { node: n } }: { detail: NodeDetail }) {
   const { me } = useAuth()
   const qc = useQueryClient()
   const nav = useNavigate()
-  const [pair, setPair] = useState<string | null>(null)
+  const [pair, setPair] = useState<{ pair_code: string; effective_agent_url?: string; download_source?: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
-  const repair = useMutation({ mutationFn: () => api.post<{ pair_code: string }>(`/api/admin/nodes/${n.id}/repair`), onSuccess: r => { setPair(r.pair_code); qc.invalidateQueries({ queryKey: ['node'] }); qc.invalidateQueries({ queryKey: ['nodes'] }) }, onError: toast.err })
+  const repair = useMutation({ mutationFn: () => api.post<{ pair_code: string; effective_agent_url?: string; download_source?: string }>(`/api/admin/nodes/${n.id}/repair`), onSuccess: r => { setPair(r); qc.invalidateQueries({ queryKey: ['node'] }); qc.invalidateQueries({ queryKey: ['nodes'] }) }, onError: toast.err })
   return <Card mb="lg"><Stack><Text fw={600}>{t('serverDetail.maintenance')}</Text><Text size="sm" c="dimmed">{t('serverDetail.maintenanceHint')}</Text><Group>
     {me?.role === 'admin' && <Button component={Link} to={`/nodes/${n.id}/host`} variant="light">{t('host.title')}</Button>}
     <Button variant="default" loading={repair.isPending} onClick={() => modals.openConfirmModal({ title: t('nodes.repair'), children: <Text size="sm">{t('nodes.repairHint')}</Text>, labels: { confirm: t('common.confirm'), cancel: t('common.cancel') }, onConfirm: () => repair.mutate() })}>{t('nodes.repair')}</Button>
     <Button variant="light" color="red" onClick={() => setDeleting(true)}>{t('common.delete')}</Button>
   </Group></Stack>
     <DeleteNodeModal node={n} opened={deleting} onClose={() => setDeleting(false)} onDeleted={() => { qc.invalidateQueries({ queryKey: ['nodes'] }); nav('/nodes') }} />
-    <Modal opened={pair !== null} onClose={() => setPair(null)} title={t('nodes.pairTitle')} size="lg">{pair && <PairCodeBox code={pair} mode={n.mode} />}</Modal>
+    <Modal opened={pair !== null} onClose={() => setPair(null)} title={t('nodes.pairTitle')} size="lg">{pair && <PairCodeBox code={pair.pair_code} mode={n.mode} agentURL={pair.effective_agent_url ?? n.effective_agent_url} downloadSource={pair.download_source ?? n.download_source} />}</Modal>
   </Card>
 }

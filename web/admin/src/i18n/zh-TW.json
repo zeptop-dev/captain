@@ -4243,5 +4243,17 @@
       "recovery_failed": "恢復失敗",
       "journal_invalid": "恢復日誌無效"
     }
+  },
+  "agentConnection": {
+    "title": "Agent 連線與下載",
+    "url": "Agent 通訊位址",
+    "urlHint": "留空使用面板預設位址。支援 HTTPS 與自訂連接埠；請先設定反向代理、憑證與連接埠放行。",
+    "source": "安裝套件來源",
+    "github": "直接連線 GitHub",
+    "captain": "透過 Captain 下載",
+    "githubHint": "伺服器直接從官方發布來源下載。",
+    "captainHint": "使用 HTTPS 位址，由 Captain 提供 bosun 原生安裝、升級與託管核心下載。系統套件與 Docker 映像仍使用各自來源。",
+    "futureOnly": "僅用於後續安裝，不會自動變更執行中 Agent 的通訊位址或下載設定。",
+    "default": "使用面板預設位址"
   }
 }

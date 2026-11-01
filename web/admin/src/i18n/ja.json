@@ -4243,5 +4243,17 @@
       "recovery_failed": "復元失敗",
       "journal_invalid": "無効な復元記録"
     }
+  },
+  "agentConnection": {
+    "title": "Agent の接続とダウンロード",
+    "url": "Agent 通信 URL",
+    "urlHint": "空欄の場合はパネルの既定値を使用します。HTTPS とカスタムポートに対応。先にリバースプロキシ、証明書、ポートの許可を設定してください。",
+    "source": "ダウンロード元",
+    "github": "GitHub から直接",
+    "captain": "Captain 経由でダウンロード",
+    "githubHint": "サーバーが公式リリース元から直接ダウンロードします。",
+    "captainHint": "HTTPS 経由で Captain が bosun のネイティブインストール、更新、管理対象コアを配信します。システムパッケージと Docker イメージは元の配信元を使用します。",
+    "futureOnly": "今後のインストールにのみ適用されます。稼働中の Agent の通信 URL やダウンロード設定は自動変更されません。",
+    "default": "パネルの既定値を使用"
   }
 }
