@@ -17,6 +17,7 @@ import (
 	"time"
 
 	nodedownload "github.com/zeptop-dev/bosun/pkg/agentdownload"
+	"github.com/zeptop-dev/bosun/pkg/bootstrap"
 	"github.com/zeptop-dev/bosun/pkg/coremanifest"
 	"github.com/zeptop-dev/captain/internal/agentdownload"
 	"github.com/zeptop-dev/captain/internal/auth"
@@ -95,6 +96,48 @@ func TestDownloadCredentialsSwitchFromPairToToken(t *testing.T) {
 }
 
 const MinVersionForTest = "v0.89.0"
+
+func TestOpenWrtServiceDownloadRequiresCurrentCredentials(t *testing.T) {
+	st, mux, _ := fixture(t)
+	ctx := context.Background()
+	n := &domain.Node{Name: "home-probe"}
+	if err := st.CreateNode(ctx, n, "OPENWRT-PAIR", time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	want, ok := bootstrap.File("bosun.procd")
+	if !ok || len(want) == 0 {
+		t.Fatal("OpenWrt service is missing from the bootstrap distribution")
+	}
+	get := func(pair, token string, code int) {
+		t.Helper()
+		r := httptest.NewRequest("GET", "/api/agent/downloads/bootstrap/bosun.procd", nil)
+		if pair != "" {
+			r.Header.Set("X-Bosun-Pair-Code", pair)
+		}
+		if token != "" {
+			r.Header.Set("Authorization", "Bearer "+token)
+		}
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, r)
+		if w.Code != code {
+			t.Fatalf("OpenWrt bootstrap status = %d, want %d", w.Code, code)
+		}
+		if code == http.StatusOK && w.Body.String() != string(want) {
+			t.Fatal("OpenWrt service differs from the embedded artifact")
+		}
+		if w.Header().Get("Cache-Control") != "private, no-store" {
+			t.Fatal("authenticated bootstrap must not be cached publicly")
+		}
+	}
+	get("", "", http.StatusUnauthorized)
+	get("OPENWRT-PAIR", "", http.StatusOK)
+	if _, err := st.RedeemPairCode(ctx, "OPENWRT-PAIR", auth.SHA256Hex("openwrt-node-token"), "home-probe", MinVersionForTest, "linux/arm64"); err != nil {
+		t.Fatal(err)
+	}
+	get("OPENWRT-PAIR", "", http.StatusUnauthorized)
+	get("", "openwrt-node-token", http.StatusOK)
+	get("", "invalid-node-token", http.StatusUnauthorized)
+}
 
 func TestDownloadRevalidatesPairAfterUpstreamWait(t *testing.T) {
 	st, mux, svc := fixture(t)
