@@ -5,7 +5,7 @@ import { bytes } from '../lib/format'
 
 // These are NIC counter deltas for the server's reset cycle, not proxy billing.
 // Keep the totals' own update time: a recent heartbeat cannot refresh old totals.
-export function HostTrafficSummary({ traffic }: { traffic?: HostTraffic }) {
+export function HostTrafficSummary({ traffic, compact = false }: { traffic?: HostTraffic; compact?: boolean }) {
   const { t, i18n } = useTranslation()
   const date = (seconds: number | null | undefined, time = false) => {
     if (seconds == null || !Number.isFinite(seconds)) return '—'
@@ -14,9 +14,9 @@ export function HostTrafficSummary({ traffic }: { traffic?: HostTraffic }) {
       ...(time ? { hour: '2-digit', minute: '2-digit', second: '2-digit' } as const : {}),
     })
   }
-  return <span>
+  return <span style={compact ? { display: 'inline-block', whiteSpace: 'nowrap' } : undefined}>
     {traffic?.valid
-      ? <Text component="span" size="sm" inherit style={{ display: 'flex', flexWrap: 'wrap', gap: '0 0.75em' }}>
+      ? <Text component="span" size="sm" inherit style={{ display: 'flex', flexWrap: compact ? 'nowrap' : 'wrap', gap: '0 0.75em' }}>
         <span style={{ whiteSpace: 'nowrap' }} title={t('resources.upload')}>↑ {bytes(traffic.used_up)}</span>
         <span style={{ whiteSpace: 'nowrap' }} title={t('resources.download')}>↓ {bytes(traffic.used_down)}</span>
       </Text>
