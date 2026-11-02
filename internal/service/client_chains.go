@@ -148,10 +148,11 @@ func ClientLines(lines []PublishedLine, format string, templates ...string) ([]s
 		if l.DialerEntryID == 0 {
 			return true
 		}
-		if format != "singbox" && l.Inbound.Protocol == spec.HTTP {
-			// HTTP outbounds ignore udp:true in mihomo. Selecting one skips
-			// matching UDP rules and can fall through to DIRECT. Keep ordinary
-			// HTTP proxies compatible, but do not publish this managed path.
+		if format != "singbox" && (l.Inbound.Protocol == spec.HTTP || l.Inbound.Protocol == spec.SSH) {
+			// TCP-only outbounds cannot gain UDP support from udp:true in
+			// mihomo. Selecting one can skip matching UDP rules and fall through
+			// to DIRECT. Keep ordinary entries and TCP fronts compatible, but
+			// do not publish this managed destination or its dependent chains.
 			return false
 		}
 		if format == "singbox" && l.Inbound.ShadowTLS != nil {

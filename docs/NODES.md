@@ -925,7 +925,27 @@ Open a node's details and expand **Core management**. Full administrators can do
 
 Update bosun first: the page requires its new `core_inventory` report and `core_manage` job support. The management API remains `POST /api/admin/nodes/{id}/jobs` with `kind: "core_manage"`; parameters are `action` (`download` or `activate`), `distribution`, `version`, and the reported `revision`. Captain adds the execution deadline and allows only one pending operation per node. Older nodes retain their existing behavior and cannot be assigned the new SSH/Extended features without a current capability report.
 
-Official sing-box and `singbox-extended` can coexist. Core package/version selection is separate from each inbound's protocol and `Core` choice. Extended Mieru must be selected explicitly and requires clients to refresh subscriptions after switching from mita; it does not support specific listen-IP/ingress binds or mita native rolling quotas. SSH is a TCP proxy with subscriber passwords and a generated host-key pin, not system SSH login or a shell. Only supported subscription formats expose it.
+Official sing-box and `singbox-extended` can coexist. Core package/version selection is separate from each inbound's protocol and `Core` choice. Extended Mieru must be selected explicitly and requires clients to refresh subscriptions after switching from mita; it does not support specific listen-IP/ingress binds or mita native rolling quotas.
+
+SSH inbounds require the reported `singbox-extended` server capability. They
+provide TCP proxy forwarding with subscriber passwords and a generated host-key
+pin, not system SSH login, a shell, SFTP or UDP. Create an enabled subscription
+entry and authorize the user's inbound access as for other protocols. A running
+SSH inbound is not automatically a published entry.
+
+Clients can use Mihomo (Clash Meta) subscriptions (`?client=clash`) or sing-box
+subscriptions (`?client=singbox`) when their bundled core and importer support
+SSH. NekoBox for Android 1.3.8+ needs an explicit sing-box subscription
+(`?client=nb4a`, `?client=nekobox-android` or `?client=singbox`) for SSH;
+its default Clash YAML importer omits SSH. Keep the existing subscription and
+add this explicit subscription separately; choosing a format does not add
+other protocol or plugin support to the client importer. Older
+Clash cores and the desktop NekoBox 4.0.1 importer do not gain support from
+these format aliases. Both supported formats include the host public-key pin and tagged
+subscriber credentials; neither exports the host private key. Stash and other
+unsupported formats omit SSH. See [SSH subscription details](SUBSCRIPTIONS.md#ssh-proxy-subscriptions)
+for client-chain and format boundaries. Server-side SSH inbound support is
+separate from a client's sing-box SSH outbound support.
 
 See [bosun core management](https://github.com/zeptop-dev/bosun/blob/master/docs/CORE_MANAGEMENT.md) for persistence, release sources, supported combinations and recovery behavior.
 

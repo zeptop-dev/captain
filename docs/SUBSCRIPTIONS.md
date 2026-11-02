@@ -37,6 +37,37 @@ Per-format coverage follows each client's own reference, so a server a
 client cannot express is left out of that client's document rather than
 written in a dialect it will reject.
 
+### SSH proxy subscriptions
+
+An SSH inbound needs an enabled **subscription entry** and an active user with
+permission to that inbound before it appears in a subscription. A running
+listener alone does not publish it. Use `?client=clash` for an SSH-capable
+Mihomo (Clash Meta) core, such as the compatible core bundled with Clash Verge,
+or `?client=singbox` for a sing-box client that supports SSH outbounds. The
+application name alone does not establish the bundled core's capabilities;
+older Clash cores and client importers may not support SSH.
+
+**NekoBox for Android 1.3.8+** can import the SSH outbound and its host-key pin
+through an explicit sing-box subscription: `?client=singbox`, `?client=nb4a`
+or `?client=nekobox-android`. Its default `Prefer ClashMeta Format` User-Agent
+still selects Clash YAML, whose NekoBox importer does not import SSH. Keep the
+existing subscription and add the explicit sing-box subscription separately
+for SSH: formats cover different protocols, and changing the format does not
+add support to the client importer. In particular, do not infer Mieru plugin
+support from either format. This Android
+import path is not a guarantee for other NekoBox variants: the older desktop
+NekoBox 4.0.1 importer does not support this JSON subscription path. See the
+[Android custom-configuration guide](https://matsuridayo.github.io/nb4a-configuration/)
+and its [JSON subscription importer](https://github.com/MatsuriDayo/NekoBoxForAndroid/blob/5768494d8ae3c74a057bb6d46c0f8dc071b0d821/app/src/main/java/io/nekohasekai/sagernet/group/RawUpdater.kt#L751).
+
+Both supported formats include the subscriber's tagged username and password
+and the generated **host public-key pin** (`host-key` in Mihomo, `host_key` in
+sing-box). The host private key stays on the server. SSH provides TCP
+forwarding, without a shell, SFTP or UDP. Stash and formats without SSH support
+omit it; there is no portable SSH share URI fallback. See the upstream
+[Mihomo SSH fields](https://wiki.metacubex.one/config/proxies/ssh/) and
+[sing-box SSH outbound](https://sing-box.sagernet.org/configuration/outbound/ssh/).
+
 ## Templates and the designer
 
 Admin → Sub templates edits the document *around* the servers, per format.
@@ -269,9 +300,12 @@ exported as a direct node. Other formats and single-node share URIs omit managed
 client chains. The portal marks them as requiring a full supported subscription.
 The current sing-box renderer cannot chain a destination's ShadowTLS carrier,
 so that combination is omitted. UDP support still depends on every hop.
-Mihomo and Stash omit managed HTTP destinations and their dependent chains:
-HTTP's lack of UDP can make mihomo skip the selected rule and fall through to
-direct routing. Ordinary HTTP entries and HTTP fronts keep their existing behavior.
+Mihomo and Stash omit managed HTTP or SSH destinations and their dependent
+chains: these TCP-only outbounds can make mihomo skip a selected UDP rule and
+fall through to direct routing. Ordinary entries and TCP-only fronts retain
+their behavior when the chosen renderer supports them; Stash still omits SSH.
+Sing-box can retain these managed destinations because unsupported UDP fails
+instead of skipping the selected route. This does not add UDP support to SSH.
 
 The chain limit is eight nodes. Cycles and self-references are rejected. A
 referenced node, inbound, server or owned reverse connection cannot be deleted

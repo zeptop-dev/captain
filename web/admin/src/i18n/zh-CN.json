@@ -1529,7 +1529,7 @@
     "nodeDualStackProtocols": "双栈协议支持范围",
     "nodeDualStackTCP": "TCP 拨号：VLESS、VMess、Trojan、Shadowsocks（含 ShadowTLS）、AnyTLS、Snell、SOCKS5、HTTP(S)。对客户端支持且已发布的节点生效。",
     "nodeDualStackQUIC": "Hysteria2、TUIC：当前 Mihomo 通过 QUIC 连接竞争选路，具体行为取决于内核版本。",
-    "nodeDualStackOther": "Mieru、WireGuard：可使用 IPv4 或 IPv6，但此开关不保证双栈竞争。SSH、Naive 不在当前 Mihomo 订阅支持范围内。"
+    "nodeDualStackOther": "Mieru、WireGuard 可使用 IPv4 或 IPv6，但此开关不保证双栈竞争。SSH 需要支持 SSH 的 Mihomo 内核；Mihomo 订阅仍不支持 Naive。"
   },
   "hwid": {
     "title": "设备（HWID）",
@@ -2433,7 +2433,7 @@
     "activate": "启用",
     "activateHint": "启用 {{core}} {{version}}？该内核上的连接会重启。系统先检查配置，启动失败时恢复旧版本。仅下载不会切换内核。",
     "inbounds": "现有入站",
-    "sshHint": "SSH 代理仅支持 TCP 转发，使用用户密码和自动生成的主机密钥。请使用 sing-box 订阅以校验主机公钥；不提供 shell、SFTP 或 UDP。",
+    "sshHint": "SSH 代理提供 TCP 转发，使用订阅用户密码和自动生成的主机公钥固定值。请使用支持 SSH 的客户端内核，通过 Mihomo（Clash Meta）或 sing-box 订阅导入；旧内核可能不支持。不提供 shell、SFTP 或 UDP。",
     "timeout": "操作等待超时，请先刷新查看服务器状态再重试。",
     "listenAddress": "此 Mieru 构建不能绑定指定监听 IP，请使用 mita。"
   },
