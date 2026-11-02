@@ -44,7 +44,7 @@
     "world-atlas": "^2.0.2"
   },
   "devDependencies": {
-    "@iconify/json": "^2.2.549",
+    "@iconify/json": "^2.2.550",
     "@tailwindcss/vite": "^4.1.16",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
