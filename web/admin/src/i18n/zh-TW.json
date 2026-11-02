@@ -289,6 +289,8 @@
       "vlessRealityDesc": "抗偵測最好的 TCP 方案，需要一對 x25519 金鑰。",
       "hysteria2": "Hysteria2",
       "hysteria2Desc": "QUIC，高丟包線路吞吐最好，需要憑證。",
+      "anytls": "AnyTLS",
+      "anytlsDesc": "基於 TLS 的 TCP 協定，需要網域和憑證。",
       "mieru": "mieru",
       "mieruDesc": "低特徵 TCP，IPLC 和電信 QoS 場景。",
       "ss2022": "Shadowsocks 2022",

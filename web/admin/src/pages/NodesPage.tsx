@@ -82,7 +82,7 @@ export default function NodesPage() {
       <Group align="flex-end" mb="md"><Select style={{ flex: '1 1 200px', minWidth: 0 }} label={t('monitoring.group')} placeholder={t('common.all')} clearable value={nodeGroup} onChange={setNodeGroup} data={[{ value: '', label: t('nodeLayout.ungrouped') }, ...(layout.data?.groups ?? []).map(g => ({ value: g, label: g }))]} />
       <Select style={{ flex: '1 1 200px', minWidth: 0 }} maw={320} label={t('monitoring.status')} value={status} onChange={value => setStatus(value ?? 'all')} allowDeselect={false} data={[{ value: 'all', label: t('common.all') }, { value: 'offline', label: t('nodes.offline') }, { value: 'unpaired', label: t('nodes.unpaired') }, { value: 'doctor', label: t('dashboard.lastCheckFailed') }, { value: 'monitor', label: t('nodeMode.monitor') }]} /></Group>
       <Card p={0}>
-        <Table.ScrollContainer minWidth={1150}>
+        <Table.ScrollContainer minWidth={1450}>
           <Table>
             <Table.Thead style={{ whiteSpace: 'nowrap' }}><Table.Tr>
               <Table.Th>{t('nodes.name')}</Table.Th><Table.Th>{t('monitoring.group')}</Table.Th><Table.Th>{t('nodes.status')}</Table.Th><Table.Th>{t('nodes.publicAddr')}</Table.Th>
@@ -96,17 +96,19 @@ export default function NodesPage() {
                   <Table.Td miw={140}><Group gap={4} style={{ minWidth: 'max-content' }}><NodeStatus n={n} />{n.cert_problem && <Badge color="red" size="xs" title={t('nodes.certProblem')}>TLS</Badge>}{n.doctor_fail && <Badge color="red" size="xs" variant="light" title={t('nodes.doctorFailHint')}>{t('nodes.doctor')}</Badge>}</Group></Table.Td>
                   <Table.Td><NodePublicAddresses node={n} /></Table.Td>
                   <Table.Td>{n.inbounds}</Table.Td>
-                  <Table.Td><HostTrafficSummary traffic={n.host_traffic} /></Table.Td>
+                  <Table.Td><HostTrafficSummary traffic={n.host_traffic} compact /></Table.Td>
                   <Table.Td><ProxyTrafficSummary traffic={n.proxy_traffic} collectedBytes={n.traffic_today_bytes} /></Table.Td>
-                  <Table.Td>
-                    <Group gap={6} wrap="nowrap">
-                      <Text size="sm">{n.version || '—'}</Text>
-                      {n.upgrade_to ? <Badge size="xs" color="blue">{t('nodes.upgrading', { version: n.upgrade_to })}</Badge> : isAdmin && n.outdated && n.paired && <Badge size="xs" color="orange" style={{ cursor: 'pointer' }} onClick={() => modals.openConfirmModal({ title: t('nodes.upgrade'), children: <Text size="sm">{t('nodes.upgradeConfirm', { name: n.name, version: sys.data?.bosun_latest ?? '' })}</Text>, labels: { confirm: t('nodes.upgrade'), cancel: t('common.cancel') }, confirmProps: { color: 'orange' }, onConfirm: () => upgrade.mutate(n.id) })}>{t('nodes.outdated', { version: sys.data?.bosun_latest ?? '' })}</Badge>}
-                      {isAdmin && n.paired && n.version && !n.upgrade_to && <Tooltip label={t('nodes.rollback')}><ActionIcon size="xs" variant="subtle" color="gray" aria-label={t('nodes.rollback')} onClick={() => modals.openConfirmModal({ title: t('nodes.rollback'), children: <Text size="sm">{t('nodes.rollbackConfirm', { name: n.name, version: n.version })}</Text>, labels: { confirm: t('nodes.rollback'), cancel: t('common.cancel') }, confirmProps: { color: 'orange' }, onConfirm: () => rollback.mutate(n.id) })}><IconArrowBackUp size={14} /></ActionIcon></Tooltip>}
-                    </Group>
-                    <Text size="xs" c="dimmed">{n.platform}</Text>
+                  <Table.Td miw={170} style={{ whiteSpace: 'nowrap' }}>
+                    <Stack gap={3} align="flex-start">
+                      <Group gap={6} wrap="nowrap">
+                        <Text size="sm">{n.version || '—'}</Text>
+                        {isAdmin && n.paired && n.version && !n.upgrade_to && <Tooltip label={t('nodes.rollback')}><ActionIcon size={28} variant="subtle" color="gray" style={{ flexShrink: 0 }} aria-label={t('nodes.rollback')} onClick={() => modals.openConfirmModal({ title: t('nodes.rollback'), children: <Text size="sm">{t('nodes.rollbackConfirm', { name: n.name, version: n.version })}</Text>, labels: { confirm: t('nodes.rollback'), cancel: t('common.cancel') }, confirmProps: { color: 'orange' }, onConfirm: () => rollback.mutate(n.id) })}><IconArrowBackUp size={16} /></ActionIcon></Tooltip>}
+                      </Group>
+                      <Text size="xs" c="dimmed">{n.platform}</Text>
+                      {n.upgrade_to ? <Badge size="sm" color="blue" style={{ maxWidth: 'none', flexShrink: 0 }}>{t('nodes.upgrading', { version: n.upgrade_to })}</Badge> : isAdmin && n.outdated && n.paired && <Button size="compact-xs" variant="light" color="orange" leftSection={<IconArrowUp size={14} />} onClick={() => modals.openConfirmModal({ title: t('nodes.upgrade'), children: <Text size="sm">{t('nodes.upgradeConfirm', { name: n.name, version: sys.data?.bosun_latest ?? '' })}</Text>, labels: { confirm: t('nodes.upgrade'), cancel: t('common.cancel') }, confirmProps: { color: 'orange' }, onConfirm: () => upgrade.mutate(n.id) })}>{t('nodes.outdated', { version: sys.data?.bosun_latest ?? '' })}</Button>}
+                    </Stack>
                   </Table.Td>
-                  <Table.Td>{ago(n.last_seen_at)}</Table.Td>
+                  <Table.Td style={{ whiteSpace: 'nowrap' }}>{ago(n.last_seen_at)}</Table.Td>
                 </Table.Tr>
               ))}
               {q.data && filtered.length === 0 && <Table.Tr><Table.Td colSpan={9}><Text c="dimmed" ta="center" py="lg">{t('common.empty')}</Text></Table.Td></Table.Tr>}

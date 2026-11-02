@@ -289,6 +289,8 @@
       "vlessRealityDesc": "Самый устойчивый к обнаружению TCP-вариант; нужна пара ключей x25519.",
       "hysteria2": "Hysteria2",
       "hysteria2Desc": "QUIC, лучшая пропускная способность на линиях с потерями; нужен сертификат.",
+      "anytls": "AnyTLS",
+      "anytlsDesc": "TCP с TLS; необходимы домен и сертификат.",
       "mieru": "mieru",
       "mieruDesc": "Малозаметный TCP для IPLC и операторского QoS.",
       "ss2022": "Shadowsocks 2022",

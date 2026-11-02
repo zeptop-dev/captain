@@ -289,6 +289,8 @@
       "vlessRealityDesc": "検出耐性が最も高い TCP 方式。x25519 の鍵ペアが必要です。",
       "hysteria2": "Hysteria2",
       "hysteria2Desc": "QUIC。パケットロスの多い回線で最高のスループット。証明書が必要です。",
+      "anytls": "AnyTLS",
+      "anytlsDesc": "TLS を使用する TCP プロトコル。ドメインと証明書が必要です。",
       "mieru": "mieru",
       "mieruDesc": "特徴の少ない TCP。IPLC やキャリアの QoS 環境向け。",
       "ss2022": "Shadowsocks 2022",
