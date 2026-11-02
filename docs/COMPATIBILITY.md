@@ -5,9 +5,9 @@ with, what the database is good for, and what is deliberately not there.
 
 For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
-time limit. The v1.48 application compatibility is unchanged; the development rollback floor is v1.54.0 (the first planned release containing interface-bound probes).
+time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.54.0 to preserve interface-bound probes.
 
-## Interface-bound probes (unreleased; Captain v1.54.0 / bosun v0.89.0 gates)
+## Interface-bound probes (Captain v1.54.0 / bosun v0.89.0)
 
 Migration 111 adds optional `source_interface` to custom ICMP/TCP tasks.
 Existing tasks keep system routing. Bound tasks require explicit server selection
@@ -23,9 +23,8 @@ does not relabel previous samples. Public views do not disclose the interface
 name or target address.
 
 The built-in Captain rollback floor becomes v1.54.0: older panels ignore the new
-database column and would emit the task in the legacy unbound list. This gate is
-for the first release containing the feature and does not mean it is released
-already. Manual rollback to an older panel requires a compatible backup; the
+database column and would emit the task in the legacy unbound list.
+Manual rollback to an older panel requires a compatible backup; the
 updater cannot protect manual executable replacement. Higher configured floors
 remain effective.
 
@@ -51,7 +50,7 @@ remain accessible under their original permissions. Captain's rollback floor
 is v1.53.0, since older panels cannot preserve these intents. bosun's floor stays
 v0.85.0; installing an older agent does not grant it the new path eligibility.
 
-## Agent connection and Captain downloads (unreleased)
+## Agent connection and Captain downloads (Captain v1.54.0 / bosun v0.89.0)
 
 Migration 110 adds optional per-server installation origins and download sources.
 Existing agents keep their stored endpoint; an admin edit does not switch an
@@ -612,6 +611,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
+| 1.54.0 | ≥ 0.89.0 for Captain delivery and interface-bound probes | Optional agent origins and native package delivery, OpenWrt monitor setup and path-isolated ICMP/TCP tasks; migrations 110–111. Older nodes retain existing services. |
 | 1.51.0 | ≥ 0.86.0 for live diagnostics and detailed traffic provenance | Temporary administrator leases and bounded private batch history; older nodes retain configuration and accounting compatibility. Migration 107. |
 | 1.53.0 | ≥ 0.88.0 for UDP/both or non-relay complete paths | Derived transport, per-hop backend intent and staged path snapshots; existing native TCP paths keep their earlier gates. No migration. |
 | 1.50.0 | ≥ 0.85.0 and fresh capability for path handshake health; ≥ 0.84.0 receipts for staged routes | Complete-route staged plans, atomic inbound/line/Entry changesets and optional TCP relay path health; migrations 104–106. Existing agents and immediate delivery remain compatible. |

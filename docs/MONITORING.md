@@ -685,6 +685,29 @@ are always private. Existing clients that omit `public_sections` or `layout`
 preserve saved choices. The status page offers node/group/status filters,
 responsive layouts and the same six languages as the management UI.
 
+## Interface-bound observation points (Captain 1.54 / bosun 0.89)
+
+An OpenWrt router can run a native **monitor-only** bosun on amd64 or arm64.
+Create a monitor server and use its generated installation command. procd manages
+the process; configuration and identity remain under `/etc/bosun`, with persistent
+data under `/etc/bosun/data`. Other router architectures and full proxy-server
+mode are not supported. See the [OpenWrt installation guide](https://github.com/zeptop-dev/bosun#openwrt-observation-point).
+
+In a custom ICMP/TCP task, select the reporting servers and optionally choose an
+actual Linux interface such as `pppoe-wan` from the reported device list, or enter
+its name manually. Use a literal IPv4/IPv6 target, adding a numeric port for TCP.
+OpenWrt logical network names are not necessarily Linux device names. An empty
+interface preserves system routing; an unavailable selected device fails without
+retrying through another device. Older agents do not receive bound tasks.
+
+Changing the interface, target or protocol starts a separate measurement identity;
+older samples cannot represent the newly selected path. Public views omit the
+interface and target. Binding does not override policy routing or transparent
+proxies, authenticate an endpoint, or measure an intermediate network segment.
+For a home-to-dedicated-line observation, choose a known target and verify the
+router's routing policy separately; a successful ICMP/TCP check is not a complete
+proxy application test.
+
 ## Network quality (Captain 1.7 / bosun 0.56)
 
 Node → Monitoring shows a **Network quality** card with the latest attempt,

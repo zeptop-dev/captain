@@ -53,6 +53,7 @@ mita（mieru）、Hysteria、snell-server 和 realm 作为子进程拉起来。
 
 ## 功能特性
 
+- 使用 bosun v0.89.0 接入仅监控的 OpenWrt 测点，ICMP/TCP 任务可绑定实际 Linux 网卡并独立记录路径历史。可选 Agent 专用 HTTPS 地址及 Captain 认证分发，覆盖原生安装、升级和托管预编译内核，保留现有节点的连接地址。[监控说明](docs/MONITORING.md) · [Agent 分发](docs/AGENT_DELIVERY.md)。
 - 可在独立探针域名安装原版 Komari 主题 ZIP，按版本配置并提供私有只读授权。兼容 Komari 1.6.1 公共探针 API，同时保留 Captain 的真实周期流量、采样新鲜度与未知数据语义，旧探针 API 继续兼容。[主题安装与边界](docs/PROBE_THEMES.md)。
 - 单服务器可选自动周期流量保护及独立手动暂停／限速，执行需要 bosun v0.83.0；管理连接、用户套餐额度和计费保持独立。[服务器流量控制](docs/COMPATIBILITY.md#server-traffic-controls-captain-v1480--bosun-v0830)。
 - 独立查看 IPv4/IPv6 DNS 健康，预览后手动同步记录，并可在订阅设计器启用 Mihomo 双栈连接优选。保留已有 DNS 归属、监听与模板配置。[双栈操作说明](docs/DUAL_STACK_DNS.md)。

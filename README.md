@@ -58,6 +58,7 @@ Monitor-only nodes can be installed without proxy cores and later switched to fu
 
 ## Features
 
+- Install monitor-only OpenWrt observation points with bosun v0.89.0, and bind ICMP/TCP tasks to an actual Linux device with independent path history. Optional Captain HTTPS origins and authenticated native package delivery cover installers, upgrades and managed prebuilt cores while preserving existing endpoints. [Monitoring](docs/MONITORING.md) · [Agent delivery](docs/AGENT_DELIVERY.md).
 - Original Komari themes can be installed as ZIP packages on an isolated probe hostname, with per-version configuration and private read-only access. Komari 1.6.1 public APIs share Captain's richer native probe model; legacy APIs remain compatible. [Theme setup and limits](docs/PROBE_THEMES.md).
 - Optional per-server traffic protection combines automatic cycle policies with independent manual pause/rate controls. Requires bosun v0.83.0 for enforcement; management access and customer billing stay separate. [Server controls](docs/COMPATIBILITY.md#server-traffic-controls-captain-v1480--bosun-v0830).
 - Inspect IPv4/IPv6 DNS health independently, review manual record synchronization, and optionally publish Mihomo dual-stack connection selection from the subscription designer. Existing DNS ownership, listener and template settings are preserved. [Dual-stack workflow](docs/DUAL_STACK_DNS.md).

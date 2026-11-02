@@ -6,7 +6,7 @@ The server creation form and its Settings page have two installation settings:
   `https://agent.example.com:24443`. Leave it empty to use the optional top-level
   `agent_url` in Captain's configuration, then the existing `base_url` fallback.
 - **Download source** defaults to GitHub. **Through Captain** delivers the native
-  bosun installer, program, checksums, systemd/OpenRC files, subsequent bosun
+  bosun installer, program, checksums, systemd/OpenRC/procd files, subsequent bosun
   upgrades, managed cores and the bundled GeoCheck/NextTrace diagnostic tools
   through the same reachable Agent origin.
 
