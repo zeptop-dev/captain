@@ -289,6 +289,8 @@
       "vlessRealityDesc": "탐지 저항이 가장 강한 TCP 방식으로 x25519 키 쌍이 필요합니다.",
       "hysteria2": "Hysteria2",
       "hysteria2Desc": "QUIC 기반으로 패킷 손실이 많은 회선에서 처리량이 가장 좋습니다. 인증서가 필요합니다.",
+      "anytls": "AnyTLS",
+      "anytlsDesc": "TLS 기반 TCP 프로토콜. 도메인과 인증서가 필요합니다.",
       "mieru": "mieru",
       "mieruDesc": "특징이 적은 TCP로 IPLC와 통신사 QoS 환경에 적합합니다.",
       "ss2022": "Shadowsocks 2022",

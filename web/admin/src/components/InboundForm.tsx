@@ -41,6 +41,7 @@ function randomPSK(): string { const b = new Uint8Array(32); crypto.getRandomVal
 const recipes: { key: string; protocol: string; port: number; settings: Record<string, unknown> }[] = [
   { key: 'vlessReality', protocol: 'vless', port: 443, settings: { flow: 'xtls-rprx-vision', tls: { mode: 2, server_name: 'www.apple.com', reality: { private_key: '', public_key: '', short_ids: ['0123abcd'], handshake_server: 'www.apple.com', handshake_port: 443 } } } },
   { key: 'hysteria2', protocol: 'hysteria2', port: 8443, settings: { tls: { mode: 1, server_name: 'node.example.com', auto_cert: true, acme: 'http' }, obfs: 'salamander', obfs_password: 'change-me', up_mbps: 100, down_mbps: 500 } },
+  { key: 'anytls', protocol: 'anytls', port: 8444, settings: { tls: { mode: 1, server_name: 'node.example.com', auto_cert: true, acme: 'http' } } },
   { key: 'mieru', protocol: 'mieru', port: 24450, settings: { mieru_transport: 'TCP' } },
   { key: 'snell', protocol: 'snell', port: 6160, settings: { snell_psk: '', snell_version: 5 } },
   { key: 'wireguard', protocol: 'wireguard', port: 51820, settings: { wg_private_key: '', wg_public_key: '', wg_address: '10.66.0.1/16', wg_mtu: 1420 } },
