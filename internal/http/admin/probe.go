@@ -226,8 +226,43 @@ func (h *handlers) listPingTasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) savePingTask(w http.ResponseWriter, r *http.Request) {
-	var t store.PingTask
-	if !decode(r, &t) || strings.TrimSpace(t.Name) == "" || strings.TrimSpace(t.Target) == "" {
+	h.Store.Topology.Lock()
+	defer h.Store.Topology.Unlock()
+	var in struct {
+		store.PingTask
+		SourceInterface *string `json:"source_interface"`
+	}
+	if !decode(r, &in) {
+		fail(w, 400, "invalid task")
+		return
+	}
+	t := in.PingTask
+	t.ID = idOf(r)
+	if t.ID > 0 {
+		tasks, err := h.Store.ListPingTasks(r.Context())
+		if err != nil {
+			serverErr(w, err)
+			return
+		}
+		found := false
+		for _, old := range tasks {
+			if old.ID == t.ID {
+				if in.SourceInterface == nil {
+					t.SourceInterface = old.SourceInterface
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			fail(w, 404, "task not found")
+			return
+		}
+	}
+	if in.SourceInterface != nil {
+		t.SourceInterface = strings.TrimSpace(*in.SourceInterface)
+	}
+	if strings.TrimSpace(t.Name) == "" || strings.TrimSpace(t.Target) == "" {
 		fail(w, http.StatusBadRequest, "name and target are required")
 		return
 	}
@@ -243,22 +278,39 @@ func (h *handlers) savePingTask(w http.ResponseWriter, r *http.Request) {
 	if t.IntervalSeconds < 5 {
 		t.IntervalSeconds = 30
 	}
-	if err := (spec.PingTask{Name: t.Name, Type: t.Type, Target: t.Target}).Validate(); err != nil {
+	if err := t.AgentTask().Validate(); err != nil {
 		fail(w, 400, err.Error())
 		return
 	}
-	t.ID = idOf(r)
+	if t.SourceInterface != "" && len(t.NodeIDs) == 0 {
+		fail(w, 400, "select specific probe servers for an outgoing interface")
+		return
+	}
+	for _, id := range t.NodeIDs {
+		if _, err := h.Store.NodeByID(r.Context(), id); err != nil {
+			fail(w, 400, "probe server not found")
+			return
+		}
+	}
 	if err := h.Store.SavePingTask(r.Context(), &t); err != nil {
 		serverErr(w, err)
 		return
+	}
+	if h.Probe != nil {
+		h.Probe.Invalidate()
 	}
 	ok(w, t)
 }
 
 func (h *handlers) deletePingTask(w http.ResponseWriter, r *http.Request) {
+	h.Store.Topology.Lock()
+	defer h.Store.Topology.Unlock()
 	if err := h.Store.DeletePingTask(r.Context(), idOf(r)); err != nil {
 		serverErr(w, err)
 		return
+	}
+	if h.Probe != nil {
+		h.Probe.Invalidate()
 	}
 	ok(w, map[string]bool{"ok": true})
 }

@@ -186,7 +186,8 @@ func publicPingTasks(s store.ProbeSettings, tasks []store.PingTask, nodeID int64
 	}
 	for _, task := range tasks {
 		if task.Enabled && (len(task.NodeIDs) == 0 || slices.Contains(task.NodeIDs, nodeID)) {
-			out = append(out, pingTaskView{ID: task.ID, Name: task.Name, Type: task.Type})
+			v := task.AgentTask()
+			out = append(out, pingTaskView{ID: task.ID, Name: task.Name, Type: task.Type, Series: v.Series, Family: v.Family})
 		}
 	}
 	return out
@@ -282,7 +283,7 @@ func (h *handlers) snapshot(w http.ResponseWriter, r *http.Request) {
 			v.Storage = storage.Public(store.StorageCandidates(host, received, now))
 		}
 		if host != nil {
-			visible := publicHost(*host, s)
+			visible := publicHost(store.FilterTaskSamples(*host, tasks, n.ID), s)
 			if !storage.RootVisible() {
 				hideRootDisk(&visible)
 			}
@@ -297,12 +298,12 @@ func (h *handlers) snapshot(w http.ResponseWriter, r *http.Request) {
 			if host == nil {
 				continue
 			}
-			if host.CarrierProbeVersion < 1 {
+			if (task.ID == 0 && host.CarrierProbeVersion < 1) || (task.ID > 0 && host.ProbeInterfaceVersion < 1) {
 				task.State, task.Reason = "unsupported", "agent_upgrade_required"
 				continue
 			}
 			for _, ping := range host.Pings {
-				if ping.TaskID == 0 && ping.Series == task.Series && ping.Family == task.Family && ping.Name == task.Name {
+				if ping.TaskID == task.ID && ping.Series == task.Series && ping.Family == task.Family && ping.Name == task.Name {
 					task.State, task.Reason = "", ""
 					break
 				}

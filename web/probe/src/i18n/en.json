@@ -61,7 +61,9 @@
       "canceled": "Canceled",
       "empty": "Empty response",
       "agent_upgrade_required": "Upgrade the server agent to use the selected probe",
-      "waiting": "Waiting for samples"
+      "waiting": "Waiting for samples",
+      "interface": "Interface unavailable",
+      "unsupported": "Unsupported platform"
     },
     "phases": {
       "dns_ms": "DNS",

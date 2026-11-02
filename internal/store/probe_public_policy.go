@@ -18,7 +18,7 @@ func (s *Store) ProbePublicPolicyFingerprint(ctx context.Context) ([32]byte, err
  UNION ALL
  SELECT 'settings',key,json_array(key,value_json) FROM settings WHERE key IN ('probe','site')
  UNION ALL
- SELECT 'tasks',id,json_array(id,name,type,target,interval_seconds,node_ids_json,enabled) FROM ping_tasks
+ SELECT 'tasks',id,json_array(id,name,type,target,interval_seconds,node_ids_json,enabled,source_interface) FROM ping_tasks
  ) ORDER BY kind,position`)
 	if err != nil {
 		return out, err

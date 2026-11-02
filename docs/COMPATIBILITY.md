@@ -5,7 +5,29 @@ with, what the database is good for, and what is deliberately not there.
 
 For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
-time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.53.0.
+time limit. The v1.48 application compatibility is unchanged; the development rollback floor is v1.54.0 (the first planned release containing interface-bound probes).
+
+## Interface-bound probes (unreleased; Captain v1.54.0 / bosun v0.89.0 gates)
+
+Migration 111 adds optional `source_interface` to custom ICMP/TCP tasks.
+Existing tasks keep system routing. Bound tasks require explicit server selection
+and literal IPv4/IPv6 targets; TCP requires an IP and numeric port. The device
+name identifies a Linux interface, not an OpenWrt logical network. Binding does
+not bypass firewall, policy-routing or transparent-proxy rules.
+
+Only agents reporting `probe_interface_version >= 1` receive these tasks, in the
+new `interface_tasks` list. Older agents ignore that entire list, including after
+a downgrade with a stale capability report, instead of probing an unbound path.
+Measurements carry a definition digest, so changing interface, protocol or target
+does not relabel previous samples. Public views do not disclose the interface
+name or target address.
+
+The built-in Captain rollback floor becomes v1.54.0: older panels ignore the new
+database column and would emit the task in the legacy unbound list. This gate is
+for the first release containing the feature and does not mean it is released
+already. Manual rollback to an older panel requires a compatible backup; the
+updater cannot protect manual executable replacement. Higher configured floors
+remain effective.
 
 ## Complete-path transports and backends (Captain v1.53.0 / bosun v0.88.0)
 
@@ -636,7 +658,7 @@ features it has never heard of, which the node page shows as an orange
 
 `min_version` in both `config.yaml` files is the floor a self-update or
 rollback may not go below; set it to the version you have tested. Captain's
-built-in floor is v1.53.0 to preserve complete-route transports, backend intent and health policies;
+built-in floor is v1.54.0 to preserve probe interface bindings as well as complete-route transports, backend intent and health policies;
 this also preserves shared infrastructure dates, payment actions, the homepage switch and inbound access policies, and
 retains device credentials, exit attribution and the earlier protections for line ownership, client chains, internal
 forwarding and public storage selection. A higher configured floor still wins.

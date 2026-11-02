@@ -166,12 +166,12 @@ func TestWireGuardManagedAPI(t *testing.T) {
 }
 
 func TestPanelRollbackFloor(t *testing.T) {
-	for _, configured := range []string{"", "invalid", "v1.20.0", "v1.32.0", "v1.34.0", "v1.44.0", "v1.45.0", "v1.46.0", "v1.47.0", "v1.48.0", "v1.49.0", "v1.50.0", "v1.51.0", "v1.52.0", "v1.53.0"} {
-		if got := captainUpdateFloor(configured); got != "v1.53.0" {
+	for _, configured := range []string{"", "invalid", "v1.20.0", "v1.32.0", "v1.34.0", "v1.44.0", "v1.45.0", "v1.46.0", "v1.47.0", "v1.48.0", "v1.49.0", "v1.50.0", "v1.51.0", "v1.52.0", "v1.53.0", "v1.54.0"} {
+		if got := captainUpdateFloor(configured); got != "v1.54.0" {
 			t.Fatalf("%q: %s", configured, got)
 		}
 	}
-	if got := captainUpdateFloor("v1.54.0"); got != "v1.54.0" {
+	if got := captainUpdateFloor("v1.55.0"); got != "v1.55.0" {
 		t.Fatalf("higher configured floor was weakened: %s", got)
 	}
 }

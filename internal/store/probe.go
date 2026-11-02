@@ -128,13 +128,20 @@ type PingTask struct {
 	Name            string  `json:"name"`
 	Type            string  `json:"type"`
 	Target          string  `json:"target"`
+	SourceInterface string  `json:"source_interface,omitempty"`
 	IntervalSeconds int     `json:"interval_seconds"`
 	NodeIDs         []int64 `json:"node_ids"` // empty = all
 	Enabled         bool    `json:"enabled"`
 }
 
 func (s *Store) ListPingTasks(ctx context.Context) ([]PingTask, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, name, type, target, interval_seconds, node_ids_json, enabled FROM ping_tasks ORDER BY id`)
+	return listPingTasks(ctx, s.db)
+}
+
+func listPingTasks(ctx context.Context, q interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}) ([]PingTask, error) {
+	rows, err := q.QueryContext(ctx, `SELECT id, name, type, target, interval_seconds, node_ids_json, enabled, source_interface FROM ping_tasks ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +151,7 @@ func (s *Store) ListPingTasks(ctx context.Context) ([]PingTask, error) {
 		var t PingTask
 		var ids string
 		var en int
-		if err := rows.Scan(&t.ID, &t.Name, &t.Type, &t.Target, &t.IntervalSeconds, &ids, &en); err != nil {
+		if err := rows.Scan(&t.ID, &t.Name, &t.Type, &t.Target, &t.IntervalSeconds, &ids, &en, &t.SourceInterface); err != nil {
 			return nil, err
 		}
 		_ = json.Unmarshal([]byte(ids), &t.NodeIDs)
@@ -160,16 +167,16 @@ func (s *Store) SavePingTask(ctx context.Context, t *PingTask) error {
 		ids = []byte("[]")
 	}
 	if t.ID == 0 {
-		res, err := s.db.ExecContext(ctx, `INSERT INTO ping_tasks (name, type, target, interval_seconds, node_ids_json, enabled, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			t.Name, t.Type, t.Target, t.IntervalSeconds, string(ids), boolInt(t.Enabled), now())
+		res, err := s.db.ExecContext(ctx, `INSERT INTO ping_tasks (name, type, target, interval_seconds, node_ids_json, enabled, created_at, source_interface) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			t.Name, t.Type, t.Target, t.IntervalSeconds, string(ids), boolInt(t.Enabled), now(), t.SourceInterface)
 		if err != nil {
 			return err
 		}
 		t.ID, _ = res.LastInsertId()
 		return nil
 	}
-	_, err := s.db.ExecContext(ctx, `UPDATE ping_tasks SET name = ?, type = ?, target = ?, interval_seconds = ?, node_ids_json = ?, enabled = ? WHERE id = ?`,
-		t.Name, t.Type, t.Target, t.IntervalSeconds, string(ids), boolInt(t.Enabled), t.ID)
+	_, err := s.db.ExecContext(ctx, `UPDATE ping_tasks SET name = ?, type = ?, target = ?, interval_seconds = ?, node_ids_json = ?, enabled = ?, source_interface = ? WHERE id = ?`,
+		t.Name, t.Type, t.Target, t.IntervalSeconds, string(ids), boolInt(t.Enabled), t.SourceInterface, t.ID)
 	return err
 }
 
@@ -699,7 +706,23 @@ func (s *Store) NodePingStats(ctx context.Context, nodeID int64, res string, fro
 		}
 		out = append(out, p)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	tasks, err := s.ListPingTasks(ctx)
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]PingPoint, 0, len(out))
+	for _, p := range out {
+		if CurrentTaskSample(tasks, nodeID, p.TaskID, p.Name, p.Series, p.Family) {
+			filtered = append(filtered, p)
+		}
+	}
+	return filtered, nil
 }
 
 // SustainedAverage returns the average of a metric over the last window

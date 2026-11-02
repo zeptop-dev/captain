@@ -61,7 +61,9 @@
       "canceled": "キャンセル",
       "empty": "空の応答",
       "agent_upgrade_required": "選択した測定を使用するにはサーバーを更新してください",
-      "waiting": "測定待ち"
+      "waiting": "測定待ち",
+      "interface": "インターフェース利用不可",
+      "unsupported": "非対応プラットフォーム"
     },
     "phases": {
       "dns_ms": "DNS",

@@ -13,7 +13,7 @@ export function NetworkQualityCard({ nodeID, compact = false }: { nodeID: number
  const history = <><Select label={t('networkQuality.range')} w={180} value={range} onChange={(v) => v && setRange(v)} allowDeselect={false} data={['1h', '24h', '7d', '14d', '30d', '90d']} /><NetworkHistoryChart history={q.data} /></>
  return <Card mb="lg"><Stack gap="sm"><Title order={5}>{t('networkQuality.title')}</Title>
   {q.isError && <Alert color="red">{t('networkQuality.error')}</Alert>}
-  {q.isLoading ? <Loader size="sm" /> : <NetworkQualityTable samples={q.data?.current ?? []} />}
+  {q.isLoading ? <Loader size="sm" /> : <NetworkQualityTable samples={q.data?.current ?? []} paths={q.data?.task_paths} />}
   {compact ? <Accordion variant="default"><Accordion.Item value="history"><Accordion.Control>{t('serverDetail.networkHistory')}</Accordion.Control><Accordion.Panel>{history}</Accordion.Panel></Accordion.Item></Accordion> : history}
  </Stack></Card>
 }

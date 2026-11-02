@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -138,6 +139,16 @@ func (p *Probe) AgentConfig(ctx context.Context, nodeID int64) *spec.Probe {
 		// cannot silently report legacy TCP results as ICMP or IPv6 samples.
 	}
 	tasks, _ := p.Store.ListPingTasks(ctx)
+	interfaceVersion := 0
+	if status, err := p.Store.NodeStatus(ctx, nodeID); err == nil {
+		var host spec.SystemStatus
+		if json.Unmarshal(status.Host, &host) == nil {
+			interfaceVersion = host.ProbeInterfaceVersion
+		}
+	}
+	if live, ok := p.Live(nodeID); ok {
+		interfaceVersion = live.Host.ProbeInterfaceVersion
+	}
 	for _, t := range tasks {
 		if !t.Enabled {
 			continue
@@ -154,7 +165,13 @@ func (p *Probe) AgentConfig(ctx context.Context, nodeID int64) *spec.Probe {
 				continue
 			}
 		}
-		cfg.Tasks = append(cfg.Tasks, spec.PingTask{ID: t.ID, Name: t.Name, Type: t.Type, Target: t.Target, IntervalSeconds: t.IntervalSeconds})
+		if t.SourceInterface != "" {
+			if interfaceVersion >= 1 && len(t.NodeIDs) > 0 {
+				cfg.InterfaceTasks = append(cfg.InterfaceTasks, t.AgentTask())
+			}
+			continue
+		}
+		cfg.Tasks = append(cfg.Tasks, t.AgentTask())
 	}
 	// Dedicated lines: measure each ingress from its own NIC to the far
 	// end (a refused connect still yields the line RTT). Task ids are the

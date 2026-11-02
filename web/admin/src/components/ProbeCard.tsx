@@ -1,10 +1,10 @@
 import { carrierProvinceOptions } from '../../../shared/carrier-provinces'
 import { SettingsFields } from './SettingsFields'
 import { SettingsLoadState } from './SettingsLoadState'
-import { ActionIcon, Button, Card, Code, Group, MultiSelect, NumberInput, Select, Stack, Switch, Table, Text, TextInput, Title, Textarea } from '@mantine/core'
+import { ActionIcon, Autocomplete, Button, Card, Code, Group, MultiSelect, NumberInput, Select, Stack, Switch, Table, Text, TextInput, Title, Textarea } from '@mantine/core'
 import { useSettingsForm as useForm } from '../lib/settings-draft'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { IconPlus, IconTrash } from '@tabler/icons-react'
+import { IconPlus, IconTrash, IconEdit } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, type Node } from '../lib/api'
@@ -24,7 +24,7 @@ interface ProbeSettings {
   enabled: boolean; page_enabled?: boolean; public_sections?: string[]; layout?: string; beat_seconds: number; carrier_ping: boolean; carriers?: { name: string; addr: string }[]; path: string; hosts: string[]; visibility: string; title: string; logo: string; show_globe: boolean; show_ip: boolean
   alerts: { offline_seconds: number; cpu_pct: number; mem_pct: number; disk_pct: number; window_minutes: number; traffic: boolean }
 }
-interface PingTask { id: number; name: string; type: string; target: string; interval_seconds: number; node_ids: number[] | null; enabled: boolean }
+interface PingTask { id: number; name: string; type: string; target: string; source_interface?: string; interval_seconds: number; node_ids: number[] | null; enabled: boolean }
 
 // Status page (probe) settings: master switch, address (path and/or
 // dedicated hosts), visibility, appearance, alert thresholds, ping tasks.
@@ -122,35 +122,63 @@ export function PingTasks() {
   const q = useQuery({ queryKey: ['ping-tasks'], queryFn: () => api.get<PingTask[]>('/api/admin/ping-tasks') })
   const nodes = useQuery({ queryKey: ['nodes'], queryFn: () => api.get<Node[]>('/api/admin/nodes') })
   const [adding, setAdding] = useState(false)
-  const form = useForm({ initialValues: { Name: '', Type: 'tcp', Target: '', IntervalSeconds: 30, NodeIDs: [] as string[] } })
-  const save = useMutation({ mutationFn: (v: typeof form.values) => api.post('/api/admin/ping-tasks', { name: v.Name, type: v.Type, target: v.Target, interval_seconds: v.IntervalSeconds, node_ids: v.NodeIDs.map(Number), enabled: true }), onSuccess: () => { form.resetDirty(); toast.ok(t('common.saved')); form.reset(); setAdding(false); qc.invalidateQueries({ queryKey: ['ping-tasks'] }) }, onError: toast.err })
+  const [editing, setEditing] = useState<number | null>(null)
+  const form = useForm({ initialValues: { Name: '', Type: 'tcp', Target: '', SourceInterface: '', IntervalSeconds: 30, NodeIDs: [] as string[] }, validate: {
+    NodeIDs: (value, values) => values.SourceInterface.trim() && !value.length ? t('probe.interfaceNeedsNodes') : null,
+  } })
+  const selected = form.values.NodeIDs
+  const inventory = useQuery({ queryKey: ['ping-interface-inventory', selected], enabled: adding && selected.length > 0, refetchInterval: 10000, queryFn: async () => Promise.all(selected.map(async id => {
+    type Host = { probe_interface_version?: number; resources?: { networks?: { name: string }[] } }
+    const [detail, probe] = await Promise.all([
+      api.get<{ status?: { host?: Host } }>(`/api/admin/nodes/${id}`),
+      api.get<{ live?: { host?: Host } }>(`/api/admin/nodes/${id}/probe`),
+    ])
+    const host = probe.live?.host ?? detail.status?.host
+    return { id, version: host?.probe_interface_version ?? 0, names: host?.resources?.networks?.map(n => n.name) ?? [] }
+  })) })
+  const interfaces = [...new Set((inventory.data ?? []).flatMap(n => n.names))].sort()
+  const close = () => { form.reset(); form.resetDirty(); setAdding(false); setEditing(null) }
+  const save = useMutation({ mutationFn: (v: typeof form.values) => {
+    const value = { name: v.Name, type: v.Type, target: v.Target.trim(), source_interface: v.SourceInterface.trim(), interval_seconds: v.IntervalSeconds, node_ids: v.NodeIDs.map(Number), enabled: editing ? (q.data?.find(n => n.id === editing)?.enabled ?? true) : true }
+    return editing ? api.patch(`/api/admin/ping-tasks/${editing}`, value) : api.post('/api/admin/ping-tasks', value)
+  }, onSuccess: () => { close(); toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['ping-tasks'] }); qc.invalidateQueries({ queryKey: ['network-quality'] }) }, onError: toast.err })
   const toggle = useMutation({ mutationFn: (tk: PingTask) => api.patch(`/api/admin/ping-tasks/${tk.id}`, { ...tk, node_ids: tk.node_ids ?? [], enabled: !tk.enabled }), onSuccess: () => qc.invalidateQueries({ queryKey: ['ping-tasks'] }), onError: toast.err })
   const del = useMutation({ mutationFn: (id: number) => api.del(`/api/admin/ping-tasks/${id}`), onSuccess: () => qc.invalidateQueries({ queryKey: ['ping-tasks'] }), onError: toast.err })
+  const edit = (tk: PingTask) => {
+    const values = { Name: tk.name, Type: tk.type, Target: tk.target, SourceInterface: tk.source_interface ?? '', IntervalSeconds: tk.interval_seconds, NodeIDs: (tk.node_ids ?? []).map(String) }
+    form.setValues(values); form.resetDirty(values); setEditing(tk.id); setAdding(true)
+  }
   if (q.data === undefined) return <SettingsLoadState query={q} />
   return (
     <Card><Stack gap="sm">
-      <Group justify="space-between"><Text size="sm" fw={600}>{t('probe.tasks')}</Text><Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => setAdding((a) => !a)}>{t('probe.addTask')}</Button></Group>
-      <Text size="xs" c="dimmed">{t('probe.tasksHint')}</Text><Text size="xs" c="dimmed">{t('networkQuality.semantics')}</Text>
+      <Group justify="space-between"><Text size="sm" fw={600}>{t('probe.tasks')}</Text><Button size="xs" variant="light" leftSection={<IconPlus size={14} />} disabled={adding} onClick={() => { setEditing(null); setAdding(true) }}>{t('probe.addTask')}</Button></Group>
+      <Text size="xs" c="dimmed">{t('probe.tasksHint')}</Text><Text size="xs" c="dimmed">{t('probe.interfaceSemantics')}</Text>
       {adding && (
-        <form onSubmit={form.onSubmit((v) => save.mutate(v))}><Group align="flex-end" wrap="wrap">
+        <form onSubmit={form.onSubmit((v) => save.mutate(v))}><Stack gap="sm"><Group align="flex-end" wrap="wrap">
           <TextInput label={t('probe.taskName')} required style={{ flex: 1, minWidth: 120 }} {...form.getInputProps('Name')} />
           <Select label={t('probe.taskType')} data={['icmp', 'tcp', 'http', 'download']} allowDeselect={false} style={{ width: 110 }} {...form.getInputProps('Type')} />
-          <TextInput label={t('probe.taskTarget')} placeholder="1.1.1.1 / host:443 / https://…" required style={{ flex: 2, minWidth: 180 }} {...form.getInputProps('Target')} />
+          <TextInput label={t('probe.taskTarget')} placeholder={form.values.SourceInterface ? '198.51.100.20:443 / 2001:db8::1' : 'host:443 / https://…'} required style={{ flex: 2, minWidth: 180 }} {...form.getInputProps('Target')} />
           <NumberInput label={t('probe.taskInterval')} min={5} style={{ width: 110 }} {...form.getInputProps('IntervalSeconds')} />
-          <MultiSelect label={t('probe.taskNodes')} placeholder={t('common.all')} data={(nodes.data ?? []).map((n) => ({ value: String(n.id), label: n.name }))} style={{ flex: 1, minWidth: 160 }} {...form.getInputProps('NodeIDs')} />
-          <Button type="submit" size="xs" mb={2} loading={save.isPending}>{t('settingsLayout.saveSection', { section: t('probe.tasks') })}</Button>
-        </Group></form>
+        </Group><Group align="flex-start" wrap="wrap">
+          <MultiSelect label={t('probe.taskNodes')} placeholder={t('common.all')} data={(nodes.data ?? []).map((n) => ({ value: String(n.id), label: n.name }))} style={{ flex: 1, minWidth: 200 }} {...form.getInputProps('NodeIDs')} />
+          <Autocomplete label={t('probe.sourceInterface')} placeholder={t('probe.defaultRoute')} description={t('probe.sourceInterfaceHint')} data={interfaces} maxLength={15} style={{ flex: 1, minWidth: 240 }} {...form.getInputProps('SourceInterface')} />
+        </Group>
+        {form.values.SourceInterface && <Text size="xs" c="dimmed">{t('probe.interfaceLiteralHint')}</Text>}
+        {form.values.SourceInterface && inventory.isError && <Text size="xs" c="orange">{t('probe.interfaceInventoryError')}</Text>}
+        {form.values.SourceInterface && (inventory.data ?? []).some(n => n.version < 1) && <Text size="xs" c="orange">{t('probe.interfaceUpgrade')}</Text>}
+        <Group justify="flex-end"><Button variant="default" size="xs" onClick={close} disabled={save.isPending}>{t('common.cancel')}</Button><Button type="submit" size="xs" loading={save.isPending}>{t('settingsLayout.saveSection', { section: t('probe.tasks') })}</Button></Group>
+        </Stack></form>
       )}
       {(q.data ?? []).length > 0 && (
         <Table.ScrollContainer minWidth={640}><Table fz="sm"><Table.Tbody>
           {q.data!.map((tk) => (
             <Table.Tr key={tk.id}>
               <Table.Td><Text fw={600}>{tk.name}</Text></Table.Td>
-              <Table.Td><Code>{tk.type}</Code> {tk.target}</Table.Td>
+              <Table.Td><Code>{tk.type}</Code> {tk.target}<Text size="xs" c="dimmed">{tk.source_interface ? `${t('probe.sourceInterface')}: ${tk.source_interface}` : t('probe.defaultRoute')}</Text></Table.Td>
               <Table.Td>{tk.interval_seconds}s</Table.Td>
               <Table.Td>{(tk.node_ids ?? []).length ? t('probe.taskNodeCount', { count: tk.node_ids!.length }) : t('common.all')}</Table.Td>
-              <Table.Td><Switch size="xs" checked={tk.enabled} onChange={() => toggle.mutate(tk)} /></Table.Td>
-              <Table.Td><ActionIcon variant="subtle" color="red" onClick={() => del.mutate(tk.id)}><IconTrash size={14} /></ActionIcon></Table.Td>
+              <Table.Td><Switch size="xs" checked={tk.enabled} onChange={() => toggle.mutate(tk)} disabled={adding || toggle.isPending} /></Table.Td>
+              <Table.Td><Group gap={4}><ActionIcon variant="subtle" aria-label={t('common.edit')} disabled={adding} onClick={() => edit(tk)}><IconEdit size={14} /></ActionIcon><ActionIcon variant="subtle" color="red" aria-label={t('common.delete')} disabled={adding || del.isPending} onClick={() => del.mutate(tk.id)}><IconTrash size={14} /></ActionIcon></Group></Table.Td>
             </Table.Tr>
           ))}
         </Table.Tbody></Table></Table.ScrollContainer>

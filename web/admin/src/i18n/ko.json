@@ -1313,7 +1313,15 @@
     "carrierProvince": "측정 대상 지역",
     "carrierCustomActive": "사용자 지정 대상 사용 중",
     "carrierPresetActive": "기본 대상 사용 중",
-    "carrierRestorePreset": "기본 대상 복원"
+    "carrierRestorePreset": "기본 대상 복원",
+    "sourceInterface": "송신 인터페이스",
+    "defaultRoute": "시스템 기본 경로",
+    "sourceInterfaceHint": "보고된 Linux 장치를 선택하거나 pppoe-wan 같은 이름을 입력하세요. OpenWrt 논리 이름 wan은 사용할 수 없습니다. 비우면 자동 선택합니다.",
+    "interfaceNeedsNodes": "인터페이스를 지정하기 전에 특정 서버를 선택하세요.",
+    "interfaceLiteralHint": "인터페이스 지정은 ICMP/TCP와 IPv4/IPv6 IP 주소만 지원합니다. TCP는 IP:포트 형식이며 주소 계열은 대상에 따릅니다.",
+    "interfaceInventoryError": "인터페이스 목록을 가져올 수 없습니다. 장치 이름을 직접 입력할 수 있습니다.",
+    "interfaceUpgrade": "일부 서버가 인터페이스 탐측 지원을 보고하지 않았습니다. bosun 0.89.0 이상으로 업데이트하세요. 지원이 보고될 때까지 실행을 기다립니다.",
+    "interfaceSemantics": "선택한 서버/라우터에서 대상까지 측정합니다. 장치 지정에도 방화벽, 정책 라우팅, 투명 프록시 규칙이 적용됩니다. 프록시나 전용선의 애플리케이션 경로를 검증하는 것은 아닙니다."
   },
   "nodeProbe": {
     "used": "이번 기간 사용량",
@@ -1931,7 +1939,9 @@
       "canceled": "취소됨",
       "empty": "빈 응답",
       "agent_upgrade_required": "선택한 측정을 사용하려면 서버 에이전트를 업그레이드하세요",
-      "waiting": "측정 대기 중"
+      "waiting": "측정 대기 중",
+      "interface": "인터페이스 사용 불가",
+      "unsupported": "지원하지 않는 플랫폼"
     },
     "phases": {
       "dns_ms": "DNS",
@@ -2571,7 +2581,8 @@
     "pending": "서버 적용 대기 중. 마지막 보고 모드: {{mode}}.",
     "upgradeHint": "모드 지원을 보고하는 온라인 서버가 필요합니다. bosun을 업그레이드하고 새 보고를 기다리세요.",
     "failed": "모드 변경 실패",
-    "installOnly": "모니터링 에이전트만 설치 (프록시 코어 없음)"
+    "installOnly": "모니터링 에이전트만 설치 (프록시 코어 없음)",
+    "openwrtHint": "OpenWrt는 bosun 0.89.0 이상에서 amd64 / arm64 모니터링 전용 설치를 지원합니다. 기본 설치 스크립트는 procd로 부팅 시 실행을 관리합니다."
   },
   "wireguard": {
     "sni": "사용자 인바운드 REALITY SNI",

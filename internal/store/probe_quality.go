@@ -200,6 +200,11 @@ func MonitorSnapshot(h spec.SystemStatus, at time.Time) spec.SystemStatus {
 }
 
 func recordPingHistory(ctx context.Context, tx *sql.Tx, nodeID int64, h spec.SystemStatus, at time.Time) error {
+	tasks, err := listPingTasks(ctx, tx)
+	if err != nil {
+		return err
+	}
+	h = FilterTaskSamples(h, tasks, nodeID)
 	for _, p := range h.Pings {
 		if len(p.Name) > 128 || !validPingSeries(p) {
 			continue
@@ -328,6 +333,9 @@ func validPingSeries(p spec.PingResult) bool {
 	}
 	if p.Series == "" {
 		return p.TaskID != 0
+	}
+	if p.TaskID > 0 && spec.ValidProbeTaskSeries(p.Series) {
+		return p.Quality.Type == "icmp" || p.Quality.Type == "tcp"
 	}
 	return p.TaskID == 0 && spec.ValidCarrierSeries(p.Series) &&
 		(p.Quality.Type == "icmp" || p.Quality.Type == "tcp_reachability")

@@ -61,7 +61,9 @@
       "canceled": "已取消",
       "empty": "空回應",
       "agent_upgrade_required": "升級伺服器端以啟用所選探測",
-      "waiting": "等待取樣"
+      "waiting": "等待取樣",
+      "interface": "網卡不可用",
+      "unsupported": "不支援的平台"
     },
     "phases": {
       "dns_ms": "DNS 解析",

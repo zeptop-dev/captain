@@ -1313,7 +1313,15 @@
     "carrierProvince": "測定先の省",
     "carrierCustomActive": "カスタム対象を使用中",
     "carrierPresetActive": "既定対象を使用中",
-    "carrierRestorePreset": "既定対象に戻す"
+    "carrierRestorePreset": "既定対象に戻す",
+    "sourceInterface": "送信インターフェース",
+    "defaultRoute": "システムの既定ルート",
+    "sourceInterfaceHint": "報告された Linux デバイスを選ぶか、pppoe-wan などの名前を入力します。OpenWrt の論理名 wan は使えません。空欄で自動選択。",
+    "interfaceNeedsNodes": "インターフェースを指定する前に対象サーバーを選択してください。",
+    "interfaceLiteralHint": "指定可能なのは ICMP / TCP と IPv4 / IPv6 の IP アドレスです。TCP は IP:ポートを入力し、アドレス族は対象から決まります。",
+    "interfaceInventoryError": "インターフェース一覧を取得できません。名前は手動で入力できます。",
+    "interfaceUpgrade": "一部のサーバーはこの機能を報告していません。bosun 0.89.0 以降へ更新してください。対応が報告されるまで実行を待ちます。",
+    "interfaceSemantics": "選択したサーバー／ルーターから対象までを測定します。デバイスを指定してもファイアウォール、ポリシールーティング、透過プロキシの規則は適用されます。プロキシや専用線のアプリ経路を検証するものではありません。"
   },
   "nodeProbe": {
     "used": "今期の使用量",
@@ -1931,7 +1939,9 @@
       "canceled": "キャンセル",
       "empty": "空の応答",
       "agent_upgrade_required": "選択した測定を使用するにはサーバーを更新してください",
-      "waiting": "測定待ち"
+      "waiting": "測定待ち",
+      "interface": "インターフェース利用不可",
+      "unsupported": "非対応プラットフォーム"
     },
     "phases": {
       "dns_ms": "DNS",
@@ -2571,7 +2581,8 @@
     "pending": "反映を待っています。最後に報告されたモード：{{mode}}。",
     "upgradeHint": "切り替えには、オンラインでモード対応を報告するサーバーが必要です。bosun を更新して新しい報告を待ってください。",
     "failed": "モード変更に失敗しました",
-    "installOnly": "監視エージェントのみをインストール（プロキシコアなし）"
+    "installOnly": "監視エージェントのみをインストール（プロキシコアなし）",
+    "openwrtHint": "OpenWrt は bosun 0.89.0 以降で amd64 / arm64 の監視専用インストールに対応します。ネイティブインストーラーは procd で自動起動を管理します。"
   },
   "wireguard": {
     "sni": "ユーザー入口の REALITY SNI",

@@ -626,11 +626,11 @@ func limitBodies(next http.Handler) http.Handler {
 
 func (s *Server) DNSHealth() *service.DNSHealth { return s.dnsHealth }
 
-// Older panels cannot preserve complete-path transport and per-hop backend
-// intent. Retain these and the earlier health, traffic and access protections.
+// Older panels drop probe interface bindings and can execute the same task
+// through the default route. Retain this and earlier topology/access protections.
 func captainUpdateFloor(configured string) string {
-	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.53.0", configured) {
-		return "v1.53.0"
+	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.54.0", configured) {
+		return "v1.54.0"
 	}
 	return configured
 }

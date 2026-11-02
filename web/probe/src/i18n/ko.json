@@ -61,7 +61,9 @@
       "canceled": "취소됨",
       "empty": "빈 응답",
       "agent_upgrade_required": "선택한 측정을 사용하려면 서버 에이전트를 업그레이드하세요",
-      "waiting": "측정 대기 중"
+      "waiting": "측정 대기 중",
+      "interface": "인터페이스 사용 불가",
+      "unsupported": "지원하지 않는 플랫폼"
     },
     "phases": {
       "dns_ms": "DNS",

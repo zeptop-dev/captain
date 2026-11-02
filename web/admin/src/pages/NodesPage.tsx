@@ -122,6 +122,7 @@ export default function NodesPage() {
           <form onSubmit={form.onSubmit((v) => create.mutate(v))}>
             <Stack>
               <Switch label={t('nodeMode.installOnly')} description={t('nodeMode.installHint')} checked={form.values.Mode === 'monitor'} onChange={e => form.setFieldValue('Mode', e.currentTarget.checked ? 'monitor' : 'full')} />
+              {form.values.Mode === 'monitor' && <Text size="xs" c="dimmed">{t('nodeMode.openwrtHint')}</Text>}
               <TextInput label={t('nodes.name')} placeholder="jp-1" required {...form.getInputProps('Name')} />
               <Text size="sm" c="dimmed">{t('nodeAddresses.createHint')}</Text>
               <Switch label={t('nodeAddresses.autoIPv4')} {...form.getInputProps('AutoIPv4', { type: 'checkbox' })} />

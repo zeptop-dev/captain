@@ -7,7 +7,7 @@ export interface NetworkPoint {
  task_id: number; name: string; series?: string; family?: 'ipv4' | 'ipv6'; type?: string; ts: number; n: number; lost: number; avg_ms: number; avg_mbps?: number
  quality?: { samples: number; type: string; min_ms: number | null; max_ms: number | null; p50_ms: number | null; p95_ms: number | null; jitter_ms: number | null; timings: ProbeTimings; outcomes: Record<string, number>; skipped: number }
 }
-export interface NetworkHistory { current: NetworkSample[]; points: NetworkPoint[]; from: number; to: number; step: number }
+export interface NetworkHistory { task_paths?: Record<string, string>; current: NetworkSample[]; points: NetworkPoint[]; from: number; to: number; step: number }
 
 // A probe target/protocol change starts a separate history, even when its name is unchanged.
 export function networkIdentity(p: Pick<NetworkPoint, 'task_id' | 'name' | 'series'>): string {

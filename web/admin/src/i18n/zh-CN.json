@@ -955,7 +955,15 @@
     "carrierProvince": "观测省份",
     "carrierCustomActive": "正在使用自定义目标",
     "carrierPresetActive": "正在使用预设目标",
-    "carrierRestorePreset": "恢复预设目标"
+    "carrierRestorePreset": "恢复预设目标",
+    "sourceInterface": "出口网卡",
+    "defaultRoute": "系统默认路由",
+    "sourceInterfaceHint": "选择服务器上报的 Linux 网卡，或手动填写名称，如 pppoe-wan；不是 OpenWrt 逻辑名称 wan。留空自动选路。",
+    "interfaceNeedsNodes": "指定出口网卡前，请先选择具体服务器。",
+    "interfaceLiteralHint": "指定网卡仅支持 ICMP、TCP 和 IPv4/IPv6 字面地址；TCP 填写 IP:端口，地址族随目标确定。",
+    "interfaceInventoryError": "暂时无法获取网卡列表，仍可手动填写网卡名称。",
+    "interfaceUpgrade": "部分服务器尚未上报指定网卡探测能力。请升级到 bosun 0.89.0 或更新版本；这些服务器会等待能力上报后执行。",
+    "interfaceSemantics": "测量方向为所选服务器／路由器到目标。指定网卡仅选择本机设备，仍受防火墙、策略路由与透明代理规则影响，不代表已验证代理或专线应用路径。"
   },
   "nodeProbe": {
     "used": "本周期已用",
@@ -1931,7 +1939,9 @@
       "canceled": "已取消",
       "empty": "空响应",
       "agent_upgrade_required": "升级服务器端以启用所选探测",
-      "waiting": "等待采样"
+      "waiting": "等待采样",
+      "interface": "网卡不可用",
+      "unsupported": "不支持的平台"
     },
     "phases": {
       "dns_ms": "DNS 解析",
@@ -2571,7 +2581,8 @@
     "pending": "等待服务器生效，最近上报的模式：{{mode}}。",
     "upgradeHint": "切换需要服务器在线并上报模式支持，请升级 bosun 后等待新上报。",
     "failed": "模式切换失败",
-    "installOnly": "仅安装探针（不安装代理内核）"
+    "installOnly": "仅安装探针（不安装代理内核）",
+    "openwrtHint": "OpenWrt 支持 amd64 / arm64 的仅监控安装，需要 bosun 0.89.0 或更新版本。原生安装脚本通过 procd 管理开机启动。"
   },
   "wireguard": {
     "sni": "用户入口 REALITY SNI",

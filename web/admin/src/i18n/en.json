@@ -955,7 +955,15 @@
     "carrierProvince": "Observation province",
     "carrierCustomActive": "Custom targets in use",
     "carrierPresetActive": "Preset targets in use",
-    "carrierRestorePreset": "Use preset targets"
+    "carrierRestorePreset": "Use preset targets",
+    "sourceInterface": "Outgoing interface",
+    "defaultRoute": "System default route",
+    "sourceInterfaceHint": "Choose a reported Linux device or enter its name, e.g. pppoe-wan. Do not use the OpenWrt logical name wan. Leave empty for automatic routing.",
+    "interfaceNeedsNodes": "Select specific servers before assigning an interface.",
+    "interfaceLiteralHint": "Interface binding supports ICMP and TCP with literal IPv4/IPv6 addresses only (TCP requires IP:port). Address family follows the target.",
+    "interfaceInventoryError": "Could not read interface inventory. A device name can still be entered manually.",
+    "interfaceUpgrade": "Some selected servers have not reported interface-probe support. Update to bosun 0.89.0 or later; those servers wait until support is reported.",
+    "interfaceSemantics": "Measures from the selected server/router to the target. Binding chooses a local device; firewall, policy routing and transparent proxy rules still apply. It does not prove a proxy or private-line application path."
   },
   "nodeProbe": {
     "used": "Used this period",
@@ -1931,7 +1939,9 @@
       "canceled": "Canceled",
       "empty": "Empty response",
       "agent_upgrade_required": "Upgrade the server agent to use the selected probe",
-      "waiting": "Waiting for samples"
+      "waiting": "Waiting for samples",
+      "interface": "Interface unavailable",
+      "unsupported": "Unsupported platform"
     },
     "phases": {
       "dns_ms": "DNS",
@@ -2571,7 +2581,8 @@
     "pending": "Waiting for the server to apply the change. Last reported mode: {{mode}}.",
     "upgradeHint": "Mode changes require an online server reporting mode support. Upgrade bosun and wait for a fresh report.",
     "failed": "Mode change failed",
-    "installOnly": "Install monitoring only (no proxy cores)"
+    "installOnly": "Install monitoring only (no proxy cores)",
+    "openwrtHint": "OpenWrt supports monitor-only installation on amd64 / arm64 with bosun 0.89.0 or later. The native installer manages startup with procd."
   },
   "wireguard": {
     "sni": "Subscriber REALITY SNI",

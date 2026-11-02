@@ -204,7 +204,7 @@ func (e *Engine) snapshot(ctx context.Context) (Snapshot, error) {
 			v.Status.Fresh = !received.After(out.Now.Add(time.Minute)) && out.Now.Sub(received) <= grace
 		}
 		if host != nil {
-			projectHost(&v, *host, s, np.Storage.RootVisible())
+			projectHost(&v, store.FilterTaskSamples(*host, tasks, n.ID), s, np.Storage.RootVisible())
 			if s.PublicShows("disk") {
 				for _, st := range np.Storage.Public(store.StorageCandidates(host, received, out.Now)) {
 					v.Storage = append(v.Storage, Storage{ID: st.ID, Name: st.Name, Kind: st.Kind, Total: st.Total, Used: st.Used})
@@ -278,7 +278,8 @@ func (e *Engine) snapshot(ctx context.Context) (Snapshot, error) {
 			if !t.Enabled {
 				continue
 			}
-			task := PingTask{ID: strconv.FormatInt(t.ID, 10), LegacyID: t.ID, Name: t.Name, Type: t.Type, Interval: t.IntervalSeconds, EntityIDs: []string{}}
+			at := t.AgentTask()
+			task := PingTask{ID: strconv.FormatInt(t.ID, 10), LegacyID: t.ID, Name: t.Name, Type: t.Type, Series: at.Series, Family: at.Family, Interval: t.IntervalSeconds, EntityIDs: []string{}}
 			for _, n := range out.Nodes {
 				if len(t.NodeIDs) == 0 || slices.Contains(t.NodeIDs, n.ID) {
 					task.EntityIDs = append(task.EntityIDs, n.UUID)

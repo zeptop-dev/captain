@@ -5,15 +5,16 @@ import (
 	"math"
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
 func taskMatches(t PingTask, p store.PingPoint) bool {
 	if t.Series != "" {
-		return p.TaskID == 0 && p.Series == t.Series && p.Family == t.Family && p.Name == t.Name
+		return (p.TaskID == t.LegacyID || (p.TaskID == 0 && strings.HasPrefix(t.Series, "carrier:"))) && p.Series == t.Series && p.Family == t.Family && p.Name == t.Name
 	}
-	return p.TaskID == t.LegacyID && p.Name == t.Name
+	return p.TaskID == t.LegacyID && p.Name == t.Name && p.Series == ""
 }
 func taskSelected(t PingTask, n Node, ids []string) bool {
 	return slices.Contains(t.EntityIDs, n.UUID) && (len(ids) == 0 || slices.Contains(ids, t.ID))
