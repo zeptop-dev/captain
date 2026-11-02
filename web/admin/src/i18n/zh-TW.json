@@ -1500,7 +1500,7 @@
     "cert": "憑證（fullchain PEM）",
     "key": "私鑰（PEM）",
     "webhook": "憑證推送 Webhook",
-    "webhookHint": "Certimate、acme.sh 等續期後 POST JSON 到此位址：domain / domains、certificate、privateKey（也接受 private_key、key）。下面是 Certimate 請求主體範本。",
+    "webhookHint": "Certimate：使用 Webhook 部署，選擇 POST 和 application/json，再貼上下方 JSON（保留引號）。範本傳送完整憑證鏈、私密金鑰和分號分隔的 SAN；Captain 從憑證讀取涵蓋網域。acme.sh 也可傳送相同欄位。",
     "enableWebhook": "產生 Webhook 位址",
     "rotate": "換一個位址"
   },

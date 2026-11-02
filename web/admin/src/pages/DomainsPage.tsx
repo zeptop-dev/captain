@@ -6,6 +6,7 @@ import { IconCertificate, IconPencil, IconPlus, IconRefresh, IconTrash, IconWorl
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
+import certimateWebhook from '../lib/certimate-webhook.json'
 import { when } from '../lib/format'
 import { toast } from '../lib/notify'
 import { Copy } from '../components/Copy'
@@ -115,7 +116,7 @@ export default function DomainsPage() {
             {certs.data?.webhook_url ? (
               <Group gap={4} wrap="nowrap"><Code style={{ wordBreak: 'break-all' }}>{certs.data.webhook_url}</Code><Copy value={certs.data.webhook_url} /><Tooltip label={t('certs.rotate')}><ActionIcon variant="subtle" size="sm" onClick={() => rotate.mutate()}><IconRefresh size={14} /></ActionIcon></Tooltip></Group>
             ) : <Button size="xs" variant="light" loading={rotate.isPending} onClick={() => rotate.mutate()}>{t('certs.enableWebhook')}</Button>}
-            {certs.data?.webhook_url && <Code block mt={6} style={{ fontSize: 11 }}>{'{"domain": "${DOMAINS}", "certificate": "${CERTIFICATE}", "privateKey": "${PRIVATE_KEY}"}'}</Code>}
+            {certs.data?.webhook_url && <Code block mt={6} style={{ fontSize: 11 }}>{JSON.stringify(certimateWebhook, null, 2)}</Code>}
           </Card>
         </Stack>
       )}

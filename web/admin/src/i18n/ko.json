@@ -1500,7 +1500,7 @@
     "cert": "인증서(fullchain PEM)",
     "key": "개인 키(PEM)",
     "webhook": "인증서 Webhook",
-    "webhookHint": "Certimate, acme.sh 등이 갱신 후 여기로 JSON 을 POST 합니다: domain / domains, certificate, privateKey(private_key, key 도 허용). 아래는 Certimate 요청 본문 템플릿입니다.",
+    "webhookHint": "Certimate에서 Webhook 배포, POST, application/json을 선택하고 따옴표를 유지한 채 아래 JSON을 붙여 넣으세요. 전체 인증서 체인, 개인 키, 세미콜론으로 구분된 SAN을 전송하며, Captain은 인증서에서 적용 도메인을 읽습니다. acme.sh도 같은 필드를 보낼 수 있습니다.",
     "enableWebhook": "Webhook 주소 생성",
     "rotate": "주소 바꾸기"
   },

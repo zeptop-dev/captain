@@ -775,6 +775,32 @@ hosts, the panel itself) and manages certificates:
   (≥ 0.13) uses it ahead of ACME and lists it as method `custom`. Deleting
   a certificate lets the nodes fall back to node-side ACME.
 
+For a Certimate **Webhook deployment**, use the URL shown on this page,
+method **POST**, and content type **application/json**. Paste this JSON body,
+keeping the quotes around the variables:
+
+```json
+{
+  "domain": "${CERTIMATE_DEPLOYER_SUBJECTALTNAMES}",
+  "certificate": "${CERTIMATE_DEPLOYER_CERTIFICATE}",
+  "privateKey": "${CERTIMATE_DEPLOYER_PRIVATEKEY}"
+}
+```
+
+Certimate replaces values after parsing the JSON and encodes the result again,
+so PEM newlines need no manual escaping. `CERTIMATE_DEPLOYER_CERTIFICATE`
+contains the complete supplied certificate chain; `CERTIMATE_DEPLOYER_CERTIFICATE_SERVER`
+contains only the leaf and should not replace it here. Subject alternative names
+are separated by semicolons. Captain uses the first as the primary record name
+and reads the covered names from the certificate itself. Other deploy scripts
+can also use `domains`, `private_key` or `key` with the existing API.
+
+These variables and JSON handling are verified against the
+[official Certimate v0.4.36 Webhook provider](https://github.com/certimate-go/certimate/blob/85626f68aef89f11cd41cdcc3cef37cbf4f38e37/pkg/core/deployer/providers/webhook/webhook.go).
+That version still accepts the old `${DOMAINS}`, `${CERTIFICATE}` and
+`${PRIVATE_KEY}` aliases, but marks them for future removal; use the prefixed
+variables for new or updated deployments.
+
 **Automatic DNS records.** A registered Cloudflare domain with *Auto DNS
 records* on (the default) gets A/AAAA records created or updated whenever a
 node with a host name under it is saved (node domain → public / IPv6

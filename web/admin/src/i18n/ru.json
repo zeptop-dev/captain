@@ -1500,7 +1500,7 @@
     "cert": "Сертификат (fullchain PEM)",
     "key": "Приватный ключ (PEM)",
     "webhook": "Webhook сертификатов",
-    "webhookHint": "Certimate, acme.sh и т. п. после продления шлют сюда POST с JSON: domain / domains, certificate, privateKey (также принимаются private_key, key). Ниже — шаблон тела запроса для Certimate.",
+    "webhookHint": "В Certimate выберите развёртывание Webhook, метод POST и application/json. Вставьте JSON ниже, сохранив кавычки. Он передаёт полную цепочку сертификатов, закрытый ключ и SAN через точку с запятой; Captain читает покрываемые имена из сертификата. acme.sh может отправлять те же поля.",
     "enableWebhook": "Создать URL webhook",
     "rotate": "Сменить URL"
   },

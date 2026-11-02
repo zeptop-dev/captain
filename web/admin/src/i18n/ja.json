@@ -1500,7 +1500,7 @@
     "cert": "証明書（fullchain PEM）",
     "key": "秘密鍵（PEM）",
     "webhook": "証明書 Webhook",
-    "webhookHint": "Certimate、acme.sh などが更新後にここへ JSON を POST します：domain / domains、certificate、privateKey（private_key、key も可）。下は Certimate のリクエスト本文テンプレートです。",
+    "webhookHint": "Certimate の Webhook デプロイで POST と application/json を選び、引用符を残して下の JSON を貼り付けます。証明書チェーン全体、秘密鍵、セミコロン区切りの SAN を送信し、Captain は証明書から対象ドメインを読み取ります。acme.sh も同じフィールドを送信できます。",
     "enableWebhook": "Webhook URL を生成",
     "rotate": "URL を変更"
   },
