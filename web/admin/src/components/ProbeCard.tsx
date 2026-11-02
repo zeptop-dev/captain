@@ -116,6 +116,8 @@ export function ProbeCard() {
   )
 }
 
+const emptyPingTaskDraft = () => ({ Name: '', Type: 'tcp', Target: '', SourceInterface: '', IntervalSeconds: 30, NodeIDs: [] as string[] })
+
 export function PingTasks() {
   const { t } = useTranslation()
   const qc = useQueryClient()
@@ -123,7 +125,7 @@ export function PingTasks() {
   const nodes = useQuery({ queryKey: ['nodes'], queryFn: () => api.get<Node[]>('/api/admin/nodes') })
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<number | null>(null)
-  const form = useForm({ initialValues: { Name: '', Type: 'tcp', Target: '', SourceInterface: '', IntervalSeconds: 30, NodeIDs: [] as string[] }, validate: {
+  const form = useForm({ initialValues: emptyPingTaskDraft(), validate: {
     NodeIDs: (value, values) => values.SourceInterface.trim() && !value.length ? t('probe.interfaceNeedsNodes') : null,
   } })
   const selected = form.values.NodeIDs
@@ -137,7 +139,12 @@ export function PingTasks() {
     return { id, version: host?.probe_interface_version ?? 0, names: host?.resources?.networks?.map(n => n.name) ?? [] }
   })) })
   const interfaces = [...new Set((inventory.data ?? []).flatMap(n => n.names))].sort()
-  const close = () => { form.reset(); form.resetDirty(); setAdding(false); setEditing(null) }
+  const clearDraft = () => {
+    // Editing changes the dirty baseline; new tasks must never reuse it.
+    const values = emptyPingTaskDraft()
+    form.setValues(values); form.resetDirty(values); form.clearErrors()
+  }
+  const close = () => { clearDraft(); setAdding(false); setEditing(null) }
   const save = useMutation({ mutationFn: (v: typeof form.values) => {
     const value = { name: v.Name, type: v.Type, target: v.Target.trim(), source_interface: v.SourceInterface.trim(), interval_seconds: v.IntervalSeconds, node_ids: v.NodeIDs.map(Number), enabled: editing ? (q.data?.find(n => n.id === editing)?.enabled ?? true) : true }
     return editing ? api.patch(`/api/admin/ping-tasks/${editing}`, value) : api.post('/api/admin/ping-tasks', value)
@@ -146,12 +153,12 @@ export function PingTasks() {
   const del = useMutation({ mutationFn: (id: number) => api.del(`/api/admin/ping-tasks/${id}`), onSuccess: () => qc.invalidateQueries({ queryKey: ['ping-tasks'] }), onError: toast.err })
   const edit = (tk: PingTask) => {
     const values = { Name: tk.name, Type: tk.type, Target: tk.target, SourceInterface: tk.source_interface ?? '', IntervalSeconds: tk.interval_seconds, NodeIDs: (tk.node_ids ?? []).map(String) }
-    form.setValues(values); form.resetDirty(values); setEditing(tk.id); setAdding(true)
+    form.setValues(values); form.resetDirty(values); form.clearErrors(); setEditing(tk.id); setAdding(true)
   }
   if (q.data === undefined) return <SettingsLoadState query={q} />
   return (
     <Card><Stack gap="sm">
-      <Group justify="space-between"><Text size="sm" fw={600}>{t('probe.tasks')}</Text><Button size="xs" variant="light" leftSection={<IconPlus size={14} />} disabled={adding} onClick={() => { setEditing(null); setAdding(true) }}>{t('probe.addTask')}</Button></Group>
+      <Group justify="space-between"><Text size="sm" fw={600}>{t('probe.tasks')}</Text><Button size="xs" variant="light" leftSection={<IconPlus size={14} />} disabled={adding} onClick={() => { clearDraft(); setEditing(null); setAdding(true) }}>{t('probe.addTask')}</Button></Group>
       <Text size="xs" c="dimmed">{t('probe.tasksHint')}</Text><Text size="xs" c="dimmed">{t('probe.interfaceSemantics')}</Text>
       {adding && (
         <form onSubmit={form.onSubmit((v) => save.mutate(v))}><Stack gap="sm"><Group align="flex-end" wrap="wrap">
