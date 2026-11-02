@@ -94,8 +94,8 @@ importers:
         version: 2.0.2
     devDependencies:
       '@iconify/json':
-        specifier: ^2.2.549
-        version: 2.2.549
+        specifier: ^2.2.550
+        version: 2.2.550
       '@tailwindcss/vite':
         specifier: ^4.1.16
         version: 4.3.3(vite@8.3.5(@types/node@24.19.2)(jiti@2.7.0)(sugarss@5.0.1(postcss@8.5.32)))
@@ -182,8 +182,8 @@ packages:
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
 
-  '@iconify/json@2.2.549':
-    resolution: {integrity: sha512-H6GtiY/PVO59KPWF3yFFOdoZQGcU9p0MWyp8k0hsqyOhfSQUWdcbPxXCxmFjawNDcasFCL6wF47e8aNjQKkbyg==}
+  '@iconify/json@2.2.550':
+    resolution: {integrity: sha512-7X+90mjpbgvCRRkOOrwV88L8CfqTUye5SZZXhAa/+131BYN2MYkPNZgNHz2MuaD7h2d2QPruu7HmwuN9v3IfIA==}
 
   '@iconify/react@6.0.3':
     resolution: {integrity: sha512-2x7gVs+tpUG75aXYo/0c5wPOqrFy75YSGKmuJZyuHyrHMydzXpI/+i9/USIzWXJL9WWc2BCgPVnGY2FhbeiiDQ==}
@@ -1829,7 +1829,7 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
-  '@iconify/json@2.2.549':
+  '@iconify/json@2.2.550':
     dependencies:
       '@iconify/types': 2.0.0
       pathe: 2.0.3
