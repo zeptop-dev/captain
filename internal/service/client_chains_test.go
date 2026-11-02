@@ -175,56 +175,72 @@ func TestClientChainCanonicalDialerAndTemplateNames(t *testing.T) {
 	}
 }
 
-func TestClientChainHTTPDestinationCannotFallBackDirectForUDP(t *testing.T) {
-	for _, format := range []string{"clash", "stash", "singbox"} {
-		t.Run(format, func(t *testing.T) {
-			input := chainFixture()
-			input[1].Inbound.Protocol = spec.HTTP
-			input = append(input,
-				PublishedLine{EntryID: 3, DialerEntryID: 2, Line: subscription.Line{Name: "Third", Host: "third.example.com", Port: 443, Inbound: spec.Inbound{Protocol: spec.VLESS}}},
-				PublishedLine{EntryID: 4, Line: subscription.Line{Name: "Ordinary HTTP", Host: "http.example.com", Port: 8080, Inbound: spec.Inbound{Protocol: spec.HTTP}}},
-			)
-			lines, err := ClientLines(input, format)
-			if err != nil {
-				t.Fatal(err)
-			}
-			body, err := subscription.Pick(format, "").Render(lines, subscription.Account{})
-			if err != nil {
-				t.Fatal(err)
-			}
-			names, err := renderedClientNames(format, body)
-			if err != nil {
-				t.Fatal(err)
-			}
-			for _, name := range []string{"Front renamed", "Ordinary HTTP"} {
-				if names[name] != 1 {
-					t.Fatalf("ordinary proxy %q changed: %s", name, body)
+func TestClientChainTCPOnlyDestinationCannotFallBackDirectForUDP(t *testing.T) {
+	for _, protocol := range []spec.Protocol{spec.HTTP, spec.SSH} {
+		for _, format := range []string{"clash", "stash", "singbox"} {
+			t.Run(string(protocol)+"/"+format, func(t *testing.T) {
+				input := chainFixture()
+				inbound := spec.Inbound{Protocol: protocol, Tag: "tcp-only"}
+				if err := inbound.EnsureSSHKey(); err != nil {
+					t.Fatal(err)
 				}
-			}
-			want := 0
-			if format == "singbox" {
-				want = 1 // Unsupported UDP returns an error; it does not skip a rule.
-			}
-			for _, name := range []string{"Home via front", "Third"} {
-				if names[name] != want {
-					t.Fatalf("unsafe HTTP chain or descendant %q: %s", name, body)
+				input[1].Inbound = inbound
+				input = append(input,
+					PublishedLine{EntryID: 3, DialerEntryID: 2, Line: subscription.Line{Name: "Third", Host: "third.example.com", Port: 443, Inbound: spec.Inbound{Protocol: spec.VLESS}}},
+					PublishedLine{EntryID: 4, Line: subscription.Line{Name: "Ordinary TCP proxy", Host: "tcp.example.com", Port: 2222, Inbound: inbound}},
+				)
+				lines, err := ClientLines(input, format)
+				if err != nil {
+					t.Fatal(err)
 				}
-			}
+				body, err := subscription.Pick(format, "").Render(lines, subscription.Account{})
+				if err != nil {
+					t.Fatal(err)
+				}
+				names, err := renderedClientNames(format, body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, name := range []string{"Front renamed", "Ordinary TCP proxy"} {
+					want := 1
+					if protocol == spec.SSH && format == "stash" && name == "Ordinary TCP proxy" {
+						want = 0 // Stash's renderer does not publish SSH.
+					}
+					if names[name] != want {
+						t.Fatalf("ordinary proxy %q changed: %s", name, body)
+					}
+				}
+				want := 0
+				if format == "singbox" {
+					want = 1 // Unsupported UDP returns an error; it does not skip a rule.
+				}
+				for _, name := range []string{"Home via front", "Third"} {
+					if names[name] != want {
+						t.Fatalf("unsafe %s chain or descendant %q: %s", protocol, name, body)
+					}
+				}
 
-			// An ordinary HTTP front still carries the destination's TCP transport.
-			input = chainFixture()
-			input[0].Inbound.Protocol = spec.HTTP
-			lines, err = ClientLines(input, format)
-			if err != nil || len(lines) != 2 {
-				t.Fatalf("ordinary HTTP front rejected: %+v %v", lines, err)
-			}
-			key := "dialer-proxy"
-			if format == "singbox" {
-				key = "detour"
-			}
-			if lines[1].Extra[key] != input[0].Name {
-				t.Fatalf("HTTP front reference lost: %+v", lines[1])
-			}
-		})
+				// An ordinary TCP-only front still carries the destination's TCP transport.
+				input = chainFixture()
+				input[0].Inbound = inbound
+				lines, err = ClientLines(input, format)
+				if protocol == spec.SSH && format == "stash" {
+					if err != nil || len(lines) != 1 || lines[0].Name != input[0].Name {
+						t.Fatalf("unsupported SSH front leaked a chain: %+v %v", lines, err)
+					}
+					return
+				}
+				if err != nil || len(lines) != 2 {
+					t.Fatalf("ordinary %s front rejected: %+v %v", protocol, lines, err)
+				}
+				key := "dialer-proxy"
+				if format == "singbox" {
+					key = "detour"
+				}
+				if lines[1].Extra[key] != input[0].Name {
+					t.Fatalf("%s front reference lost: %+v", protocol, lines[1])
+				}
+			})
+		}
 	}
 }

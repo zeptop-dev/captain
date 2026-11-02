@@ -1153,7 +1153,7 @@
     "nodeDualStackProtocols": "デュアルスタック対応プロトコル",
     "nodeDualStackTCP": "TCP 接続：VLESS、VMess、Trojan、Shadowsocks（ShadowTLS を含む）、AnyTLS、Snell、SOCKS5、HTTP(S)。クライアントが対応する公開済みノードに適用されます。",
     "nodeDualStackQUIC": "Hysteria2、TUIC：現在の Mihomo は QUIC 接続を並行して試みます。具体的な動作はコアのバージョンに依存します。",
-    "nodeDualStackOther": "Mieru と WireGuard は IPv4 または IPv6 を使えますが、この設定で接続競争は保証されません。現在の Mihomo サブスクリプション出力は SSH と Naive に対応していません。"
+    "nodeDualStackOther": "Mieru と WireGuard は IPv4 または IPv6 を使えますが、この設定で接続競争は保証されません。SSH には SSH 対応の Mihomo コアが必要です。Mihomo 購読は引き続き Naive に対応していません。"
   },
   "forwards": {
     "backendRealm": "Realm（別プロセス）",
@@ -1510,7 +1510,7 @@
     "cert": "証明書（fullchain PEM）",
     "key": "秘密鍵（PEM）",
     "webhook": "証明書 Webhook",
-    "webhookHint": "Certimate、acme.sh などが更新後にここへ JSON を POST します：domain / domains、certificate、privateKey（private_key、key も可）。下は Certimate のリクエスト本文テンプレートです。",
+    "webhookHint": "Certimate の Webhook デプロイで POST と application/json を選び、引用符を残して下の JSON を貼り付けます。証明書チェーン全体、秘密鍵、セミコロン区切りの SAN を送信し、Captain は証明書から対象ドメインを読み取ります。acme.sh も同じフィールドを送信できます。",
     "enableWebhook": "Webhook URL を生成",
     "rotate": "URL を変更"
   },
@@ -2445,7 +2445,7 @@
     "activate": "有効にする",
     "activateHint": "{{core}} {{version}} を有効にしますか？このコアの接続は再起動されます。設定を検証し、起動に失敗した場合は以前のバージョンに戻します。ダウンロードだけでは切り替わりません。",
     "inbounds": "現在のインバウンド",
-    "sshHint": "SSH プロキシは TCP 転送のみです。ユーザーパスワードと生成したホスト鍵を使用します。ホスト公開鍵を検証する sing-box 購読を使用してください。shell、SFTP、UDP は提供しません。",
+    "sshHint": "SSH プロキシは、購読ユーザーのパスワードと生成されたホスト公開鍵の固定値で TCP 転送を提供します。SSH 対応コアで Mihomo（Clash Meta）または sing-box 購読を使用してください。古いコアは対応していない場合があります。shell、SFTP、UDP は提供しません。",
     "timeout": "待機がタイムアウトしました。サーバーの状態を更新してから再試行してください。",
     "listenAddress": "この Mieru ビルドは特定の IP にバインドできません。mita を使用してください。"
   },

@@ -1153,7 +1153,7 @@
     "nodeDualStackProtocols": "雙棧協定支援範圍",
     "nodeDualStackTCP": "TCP 撥號：VLESS、VMess、Trojan、Shadowsocks（含 ShadowTLS）、AnyTLS、Snell、SOCKS5、HTTP(S)。對客戶端支援且已發佈的節點生效。",
     "nodeDualStackQUIC": "Hysteria2、TUIC：目前 Mihomo 透過 QUIC 連線競爭選路，具體行為取決於核心版本。",
-    "nodeDualStackOther": "Mieru、WireGuard：可使用 IPv4 或 IPv6，但此開關不保證雙棧競爭。SSH、Naive 不在目前 Mihomo 訂閱支援範圍內。"
+    "nodeDualStackOther": "Mieru、WireGuard 可使用 IPv4 或 IPv6，但此開關不保證雙棧競爭。SSH 需要支援 SSH 的 Mihomo 核心；Mihomo 訂閱仍不支援 Naive。"
   },
   "forwards": {
     "backendRealm": "Realm（獨立行程）",
@@ -1510,7 +1510,7 @@
     "cert": "憑證（fullchain PEM）",
     "key": "私鑰（PEM）",
     "webhook": "憑證推送 Webhook",
-    "webhookHint": "Certimate、acme.sh 等續期後 POST JSON 到此位址：domain / domains、certificate、privateKey（也接受 private_key、key）。下面是 Certimate 請求主體範本。",
+    "webhookHint": "Certimate：使用 Webhook 部署，選擇 POST 和 application/json，再貼上下方 JSON（保留引號）。範本傳送完整憑證鏈、私密金鑰和分號分隔的 SAN；Captain 從憑證讀取涵蓋網域。acme.sh 也可傳送相同欄位。",
     "enableWebhook": "產生 Webhook 位址",
     "rotate": "換一個位址"
   },
@@ -2445,7 +2445,7 @@
     "activate": "啟用",
     "activateHint": "啟用 {{core}} {{version}}？該核心上的連線會重新啟動。系統先檢查設定，啟動失敗時還原舊版本。僅下載不會切換核心。",
     "inbounds": "現有入站",
-    "sshHint": "SSH 代理僅支援 TCP 轉送，使用用戶密碼和自動產生的主機金鑰。請使用 sing-box 訂閱以驗證主機公鑰；不提供 shell、SFTP 或 UDP。",
+    "sshHint": "SSH 代理提供 TCP 轉送，使用訂閱用戶密碼和自動產生的主機公鑰固定值。請使用支援 SSH 的用戶端核心，透過 Mihomo（Clash Meta）或 sing-box 訂閱匯入；舊核心可能不支援。不提供 shell、SFTP 或 UDP。",
     "timeout": "操作等待逾時，請先重新整理查看伺服器狀態再重試。",
     "listenAddress": "此 Mieru 建置不能綁定指定監聽 IP，請使用 mita。"
   },

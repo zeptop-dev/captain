@@ -1255,7 +1255,7 @@
     "cert": "Certificate (fullchain PEM)",
     "key": "Private key (PEM)",
     "webhook": "Certificate webhook",
-    "webhookHint": "Certimate, acme.sh etc. POST JSON here after renewal: domain / domains, certificate, privateKey (private_key, key also accepted). Below is a Certimate body template.",
+    "webhookHint": "Certimate: choose a Webhook deployment with POST and application/json, then paste the JSON below with its quotes intact. It sends the full certificate chain, private key and semicolon-separated SANs; Captain reads covered names from the certificate. acme.sh can send the same fields.",
     "enableWebhook": "Create webhook URL",
     "rotate": "Rotate URL"
   },
@@ -1539,7 +1539,7 @@
     "nodeDualStackProtocols": "Dual-stack protocol support",
     "nodeDualStackTCP": "TCP dialing: VLESS, VMess, Trojan, Shadowsocks (including ShadowTLS), AnyTLS, Snell, SOCKS5 and HTTP(S). Applies to published nodes supported by the client.",
     "nodeDualStackQUIC": "Hysteria2 and TUIC: current Mihomo versions race QUIC connections; exact behavior depends on the core version.",
-    "nodeDualStackOther": "Mieru and WireGuard can use IPv4 or IPv6, but this option does not guarantee connection racing. SSH and Naive are not supported by the current Mihomo subscription renderer."
+    "nodeDualStackOther": "Mieru and WireGuard can use IPv4 or IPv6, but this option does not guarantee connection racing. SSH requires an SSH-capable Mihomo core; Naive remains unsupported by the Mihomo subscription renderer."
   },
   "hwid": {
     "title": "Devices (HWID)",
@@ -2445,7 +2445,7 @@
     "activate": "Activate",
     "activateHint": "Activate {{core}} {{version}}? Connections on this core will restart. Configuration is checked first; startup failure restores the previous version. Downloading alone does not switch cores.",
     "inbounds": "Current inbounds",
-    "sshHint": "SSH proxy supports TCP forwarding only, with per-user passwords and a generated host key. Use sing-box subscriptions for host key verification; no shell, SFTP or UDP.",
+    "sshHint": "SSH proxy provides TCP forwarding with subscriber passwords and a generated host-key pin. Use Mihomo (Clash Meta) or sing-box subscriptions with an SSH-capable client core; older cores may not support it. No shell, SFTP or UDP.",
     "timeout": "Operation timed out. Refresh to check the server before retrying.",
     "listenAddress": "This Mieru build cannot bind a specific listening IP. Use mita."
   },
