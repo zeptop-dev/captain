@@ -7,6 +7,8 @@
 #   ... | sh -s -- upgrade [--version vX.Y.Z]
 #   ... | sh -s -- enable-web-upgrade     register optional Docker web updater
 #   ... | sh -s -- uninstall --yes        permanently remove app and data
+#   ... | sh -s -- enable-agent-https --agent-https-port 2096
+#   New Docker installs may also pass --agent-https-port 2096.
 # Modes: docker (default when Docker is present) or binary (systemd service).
 # Piped through sh the script never touches the disk; nothing to clean up
 # afterwards besides the installation itself.
@@ -26,10 +28,11 @@ set -eu
 PRODUCT=captain NATIVE=/opt/captain/captain YES=0 WEB_UPGRADE=0
 REPO="zeptop-dev/captain"
 IMAGE="zeptop/captain:latest"
-MODE="" DOMAIN="" EMAIL="" CF_TOKEN="" ADMIN_EMAIL="" ADMIN_PASS="" PROXY=0 VERSION="" ACTION=install KEEP_DATA=0 RECONFIG=0
+MODE="" DOMAIN="" EMAIL="" CF_TOKEN="" ADMIN_EMAIL="" ADMIN_PASS="" PROXY=0 VERSION="" ACTION=install KEEP_DATA=0 RECONFIG=0 AGENT_HTTPS_PORT=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    install|upgrade|uninstall|enable-web-upgrade) ACTION="$1"; shift ;;
+    install|upgrade|uninstall|enable-web-upgrade|enable-agent-https) ACTION="$1"; shift ;;
+    --agent-https-port) [ $# -ge 2 ] || { echo "--agent-https-port requires a port" >&2; exit 2; }; AGENT_HTTPS_PORT="$2"; [ -n "$AGENT_HTTPS_PORT" ] || { echo "Agent HTTPS port cannot be empty" >&2; exit 2; }; shift 2 ;;
     --web-upgrade) WEB_UPGRADE=1; shift ;;
     --yes|-y) YES=1; shift ;;
     --keep-data) KEEP_DATA=1; shift ;;
@@ -51,6 +54,251 @@ done
 [ "$(id -u)" = 0 ] || { echo "run as root (sudo)" >&2; exit 1; }
 NETWORK=${NETWORK:-bridge}
 case "$NETWORK" in bridge|host) ;; *) echo "--network must be bridge or host" >&2; exit 2 ;; esac
+
+if [ -n "$AGENT_HTTPS_PORT" ]; then
+  case "$AGENT_HTTPS_PORT" in *[!0-9]*|0*|??????*) echo 'invalid Agent HTTPS port' >&2; exit 2 ;; esac
+  [ "$AGENT_HTTPS_PORT" -ge 1024 ] && [ "$AGENT_HTTPS_PORT" -le 65535 ] && [ "$AGENT_HTTPS_PORT" != 8080 ] || { echo 'Agent HTTPS port must be 1024-65535, excluding 8080' >&2; exit 2; }
+  case "$ACTION" in install|enable-agent-https) ;; *) echo '--agent-https-port applies to install or enable-agent-https only' >&2; exit 2 ;; esac
+fi
+if [ "$ACTION" = enable-agent-https ]; then
+  [ -n "$AGENT_HTTPS_PORT" ] || { echo 'pass --agent-https-port (for example 2096)' >&2; exit 2; }
+  command -v python3 >/dev/null || { echo 'python3 is required for safe Compose configuration; alternatively add the port mapping manually' >&2; exit 1; }
+  command -v docker >/dev/null || { echo 'Docker is required; binary/host deployments need no port mapping' >&2; exit 1; }
+  python3 - "$AGENT_HTTPS_PORT" /opt/captain <<'CAPTAIN_AGENT_HTTPS_PY'
+# BEGIN AGENT HTTPS HELPER
+import contextlib
+import fcntl
+import json
+import os
+from pathlib import Path
+import re
+import socket
+import stat
+import subprocess
+import sys
+import tempfile
+
+UPDATER_DIR = Path('/etc/captain-updater')
+UPDATER_STATE = Path('/var/lib/captain-updater')
+UPDATER_WORKER = Path('/usr/local/lib/captain-updater/worker')
+OVERRIDE = 'compose.agent-https.yaml'
+MARKER = '# Managed by Captain enable-agent-https; only the Agent TCP mapping.\n'
+
+
+def trusted(path, optional=False):
+    path = Path(path)
+    if optional and not path.exists() and not path.is_symlink():
+        path = path.parent
+    while True:
+        info = path.lstat()
+        if info.st_uid != 0 or info.st_mode & 0o022 or stat.S_ISLNK(info.st_mode):
+            raise ValueError('deployment files and parents must be root-owned, non-writable and not symlinks')
+        if path.parent == path:
+            return
+        path = path.parent
+
+
+def run(args):
+    # Docker inspect/config and .env may contain secrets. Never echo output.
+    result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=120)
+    if result.returncode:
+        raise ValueError('deployment command failed; inspect Docker locally (output may contain secrets)')
+    return result.stdout
+
+
+def atomic(path, data, mode=0o600):
+    fd, temp = tempfile.mkstemp(prefix='.agent-https-', dir=path.parent)
+    try:
+        with os.fdopen(fd, 'wb') as out:
+            os.fchmod(out.fileno(), mode)
+            out.write(data)
+            out.flush()
+            os.fsync(out.fileno())
+        os.replace(temp, path)
+    finally:
+        if os.path.exists(temp):
+            os.unlink(temp)
+
+
+def port_available(port):
+    # The bind check also catches non-Docker listeners; Docker remains the final
+    # authority if another process claims a port between this check and `up`.
+    for family, addr in [(socket.AF_INET, ('0.0.0.0', port)), (socket.AF_INET6, ('::', port))]:
+        try:
+            with socket.socket(family, socket.SOCK_STREAM) as sock:
+                if family == socket.AF_INET6:
+                    sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+                sock.bind(addr)
+        except OSError as exc:
+            if family == socket.AF_INET6 and exc.errno in (97, 99):
+                continue
+            raise ValueError('Agent HTTPS TCP port is already occupied') from None
+
+
+def main(port, directory):
+    with contextlib.ExitStack() as cleanup:
+        configure(port, directory, cleanup)
+
+
+def configure(port, directory, cleanup):
+    if not re.fullmatch(r'[1-9][0-9]{0,4}', port) or not 1024 <= int(port) <= 65535 or int(port) == 8080:
+        raise ValueError('Agent HTTPS port must be 1024-65535, excluding the main HTTP port 8080')
+    directory = Path(directory)
+    trusted(directory)
+    env_path, override = directory / '.env', directory / OVERRIDE
+    trusted(env_path, optional=True)
+    trusted(override, optional=True)
+    if override.exists() and not override.read_text().startswith(MARKER):
+        raise ValueError('existing Agent override is not installer-managed; configure its ports manually')
+    if os.environ.get('COMPOSE_FILE') or os.environ.get('COMPOSE_PROJECT_NAME') or os.environ.get('COMPOSE_PATH_SEPARATOR') or os.environ.get('COMPOSE_ENV_FILES'):
+        raise ValueError('unset COMPOSE_FILE/PROJECT_NAME/PATH_SEPARATOR/ENV_FILES before configuring the installed project')
+    ids = run(['docker', 'ps', '--all', '--filter', 'label=com.docker.compose.service=captain', '--format', '{{.ID}}']).split()
+    found = []
+    for ident in ids:
+        item = json.loads(run(['docker', 'inspect', ident]))[0]
+        if item['Config']['Labels'].get('com.docker.compose.project.working_dir') == str(directory):
+            found.append(item)
+    if len(found) != 1 or not found[0].get('State', {}).get('Running'):
+        raise ValueError('expected one running Captain Compose service in /opt/captain; use the manual Compose instructions for custom deployments')
+    item = found[0]
+    if item['HostConfig'].get('NetworkMode') == 'host':
+        print('Host networking needs no Docker port mapping. Enable the Agent HTTPS listener and check host/cloud firewall rules.')
+        return
+    labels = item['Config']['Labels']
+    project = labels['com.docker.compose.project']
+    if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]*', project):
+        raise ValueError('unsupported Compose project name')
+    files = labels['com.docker.compose.project.config_files'].split(',')
+    if len(set(files)) != len(files):
+        raise ValueError('duplicate Compose inputs; configure ports manually')
+    for filename in files:
+        if not re.fullmatch(r'/[a-zA-Z0-9_./-]+', filename) or str(Path(filename)) != filename or '..' in Path(filename).parts:
+            raise ValueError('unsupported Compose input path; configure ports manually')
+        trusted(filename)
+        if re.search(r'^\s*(include|extends)\s*:', Path(filename).read_text(), re.M):
+            raise ValueError('Compose include/extends requires manual port configuration')
+    had_env = env_path.exists()
+    env = env_path.read_bytes() if had_env else b''
+    # Accept simple COMPOSE_FILE declarations, never source/eval .env. Reject
+    # ambiguous/custom interpolation instead of silently changing its meaning.
+    env_lines = env.decode().splitlines()
+    declarations = [line.strip() for line in env_lines if re.match(r'^\s*(?:export\s+)?COMPOSE_FILE\s*=', line)]
+    if len(declarations) > 1:
+        raise ValueError('multiple COMPOSE_FILE declarations; configure ports manually')
+    if any(re.match(r'^\s*(?:export\s+)?COMPOSE_(?:PATH_SEPARATOR|ENV_FILES)\s*=', line) for line in env_lines):
+        raise ValueError('custom Compose environment requires manual port configuration')
+    if declarations:
+        value = declarations[0].split('=', 1)[1].strip()
+        if not re.fullmatch(r'[a-zA-Z0-9_./:-]+', value):
+            raise ValueError('complex COMPOSE_FILE declaration; configure ports manually')
+        declared = [str(directory / name) if not name.startswith('/') else name for name in value.split(':')]
+        if declared != files:
+            raise ValueError('Compose files changed since container creation; apply those changes before configuring the Agent port')
+    updater = UPDATER_DIR / 'config.json'
+    worker_lock = None
+    if updater.exists():
+        trusted(updater)
+        trusted(UPDATER_WORKER)
+        trusted(UPDATER_STATE)
+        lock_path = UPDATER_STATE / 'worker.lock'
+        trusted(lock_path, optional=True)
+        worker_lock = os.open(lock_path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        cleanup.callback(os.close, worker_lock)
+        try:
+            fcntl.flock(worker_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise ValueError('Captain updater is running. Wait for any upgrade to finish, stop captain-updater, then run this command again; successful setup restarts it.') from None
+        job_path = UPDATER_STATE / 'job.json'
+        trusted(job_path, optional=True)
+        job = json.loads(job_path.read_text()) if job_path.exists() else {}
+        if job.get('id') and job.get('phase') != 'complete':
+            raise ValueError('an unfinished updater job requires recovery before changing Docker ports')
+        registration = json.loads(updater.read_text())
+        if registration.get('dir') != str(directory) or registration.get('project') != project:
+            raise ValueError('updater registration does not match the running Compose project')
+    compose = ['docker', 'compose', '--project-directory', str(directory), '--project-name', project]
+    for filename in files:
+        compose.extend(['--file', filename])
+    current = json.loads(run(compose + ['config', '--format', 'json']))
+    actual_hash = run(compose + ['config', '--hash', 'captain']).strip().split()
+    if len(actual_hash) != 2 or actual_hash[0] != 'captain' or actual_hash[1] != labels.get('com.docker.compose.config-hash'):
+        raise ValueError('Compose configuration changed since container creation; apply those changes before configuring the Agent port')
+    service = current['services']['captain']
+    image = json.loads(run(['docker', 'image', 'inspect', service['image']]))[0]['Id']
+    if image != item['Image']:
+        raise ValueError('configured local image differs from the running image; finish that upgrade before changing ports')
+    # This operation must not apply unrelated edits to the active deployment.
+    if service.get('network_mode') == 'host':
+        raise ValueError('Compose networking changed since container creation; apply that change first')
+    existing = item['HostConfig'].get('PortBindings') or {}
+    already = any(binding.get('HostPort') == port and binding.get('HostIp') in ('', '0.0.0.0', '::') for binding in existing.get(port + '/tcp', []) or [])
+    if not already:
+        port_available(int(port))
+    for name, config in current['services'].items():
+        for mapping in config.get('ports', []):
+            if str(mapping.get('published')) == port and mapping.get('protocol', 'tcp') == 'tcp' and (name != 'captain' or str(mapping.get('target')) != port):
+                raise ValueError('requested port conflicts with an existing Compose mapping')
+    old_override = override.read_bytes() if override.exists() else None
+    files = [filename for filename in files if filename != str(override)]
+    # Keep the updater image pin last, so future upgrades still win.
+    position = next((i for i, name in enumerate(files) if Path(name).name == 'compose.updater.yaml'), len(files))
+    files.insert(position, str(override))
+    override_data = (MARKER + 'services:\n  captain:\n    ports:\n      - "' + port + ':' + port + '/tcp"\n').encode()
+    new_env = '\n'.join(line for line in env_lines if not re.match(r'^\s*(?:export\s+)?COMPOSE_FILE\s*=', line))
+    new_env = (new_env.rstrip('\n') + '\nCOMPOSE_FILE=' + ':'.join(files) + '\n').encode()
+    updated = ['docker', 'compose', '--project-directory', str(directory), '--project-name', project]
+    for filename in files:
+        updated.extend(['--file', filename])
+    try:
+        atomic(override, override_data)
+        atomic(env_path, new_env)
+        run(updated + ['config', '--quiet'])
+        run(updated + ['up', '-d', '--no-deps', '--no-build', '--pull', 'never', 'captain'])
+        active_ids = run(updated + ['ps', '--quiet', 'captain']).split()
+        if len(active_ids) != 1:
+            raise ValueError('recreated Captain container is unavailable')
+        active = json.loads(run(['docker', 'inspect', active_ids[0]]))[0]
+        bindings = (active['HostConfig'].get('PortBindings') or {}).get(port + '/tcp', []) or []
+        if not active.get('State', {}).get('Running') or active['Image'] != item['Image'] or not any(value.get('HostPort') == port and value.get('HostIp') in ('', '0.0.0.0', '::') for value in bindings):
+            raise ValueError('recreated Captain image or TCP mapping did not match the requested deployment')
+    except Exception:
+        if old_override is None:
+            override.unlink(missing_ok=True)
+        else:
+            atomic(override, old_override)
+        if had_env:
+            atomic(env_path, env)
+        else:
+            env_path.unlink(missing_ok=True)
+        try:
+            run(compose + ['up', '-d', '--no-deps', '--no-build', '--pull', 'never', 'captain'])
+        except Exception:
+            raise ValueError('port configuration failed; deployment files restored, but container recovery failed; inspect Docker locally') from None
+        raise ValueError('port configuration failed; original deployment files and service restored') from None
+    finally:
+        cleanup.close()
+    if updater.exists():
+        # Re-discover the recreated container's complete file list. No upgrade,
+        # image pull, account initialization or database operation is requested.
+        try:
+            run([str(UPDATER_WORKER), 'docker-updater', 'setup', '--dir', str(directory)])
+        except Exception:
+            raise ValueError('port mapping was applied, but updater registration failed; leave updater stopped and run enable-web-upgrade before future upgrades') from None
+    print('Docker TCP mapping configured. Select the matching Agent HTTPS port and certificate in Captain. This does not prove public/node reachability; check host and cloud firewall rules.')
+
+
+if __name__ == '__main__':
+    try:
+        main(sys.argv[1], sys.argv[2])
+    except (ValueError, KeyError, IndexError, TypeError, AttributeError, OSError, subprocess.TimeoutExpired):
+        # Expected errors carry fixed messages only, never Docker/config text.
+        error = sys.exc_info()[1]
+        print(str(error) if type(error) is ValueError else 'unsupported or unavailable deployment; configure the Compose TCP mapping manually', file=sys.stderr)
+        sys.exit(1)
+# END AGENT HTTPS HELPER
+CAPTAIN_AGENT_HTTPS_PY
+  exit 0
+fi
 
 # have_tty says whether the script can actually reach a terminal. /dev/tty
 # exists and passes [ -r ] even under "ssh host 'curl … | sh'", where
@@ -215,6 +463,14 @@ port_owner() { # port
   fi
   echo "$name"
 }
+if [ -n "$AGENT_HTTPS_PORT" ]; then
+  [ "$MODE" = docker ] || { echo '--agent-https-port is a Docker deployment option; enable the listener directly for binary installations' >&2; exit 2; }
+  [ ! -f /opt/captain/docker-compose.yml ] && [ ! -f /opt/captain/docker-compose.yaml ] && [ ! -f /opt/captain/compose.yml ] && [ ! -f /opt/captain/compose.yaml ] || { echo 'existing Docker installation: use enable-agent-https --agent-https-port instead of reinstalling' >&2; exit 1; }
+  command -v ss >/dev/null || { echo 'ss (iproute2) is required to check the requested TCP port' >&2; exit 1; }
+  PORT_STATUS=$(ss -ltnH "sport = :$AGENT_HTTPS_PORT") || { echo "could not inspect listening TCP ports" >&2; exit 1; }
+  [ -z "$PORT_STATUS" ] || { echo 'Agent HTTPS TCP port is already occupied' >&2; exit 1; }
+  [ -z "$(docker ps --filter "publish=$AGENT_HTTPS_PORT" --format '{{.ID}}')" ] || { echo 'Agent HTTPS TCP port is already published by another container' >&2; exit 1; }
+fi
 OWNER=$(port_owner 80); [ -n "$OWNER" ] || OWNER=$(port_owner 443)
 if [ "$PROXY" = 0 ]; then
   if [ -n "$OWNER" ]; then
@@ -320,7 +576,12 @@ if [ "$MODE" = docker ]; then
     NETS="    network_mode: host"
     [ "$PROXY" = 1 ] && [ -n "$PGW" ] && UPSTREAM="http://$PGW:8080"
   else
-    if [ "$PROXY" = 1 ]; then PORTS='    ports: ["127.0.0.1:8080:8080"]'; else PORTS='    ports: ["80:80", "443:443"]'; fi
+    if [ "$PROXY" = 1 ]; then PORTS='    ports:
+      - "127.0.0.1:8080:8080"'; else PORTS='    ports:
+      - "80:80"
+      - "443:443"'; fi
+    if [ -n "$AGENT_HTTPS_PORT" ]; then PORTS="$PORTS
+      - \"$AGENT_HTTPS_PORT:$AGENT_HTTPS_PORT/tcp\""; fi
     NETDEF="networks:"
     # Without IPv6 on the network, v6 clients reach a published port through
     # docker-proxy and Captain sees the bridge gateway instead of them: every
@@ -369,6 +630,7 @@ YAML
   echo
   echo "Captain is running (docker). Console: https://$DOMAIN/admin/   Users: https://$DOMAIN/portal/"
   [ "$PROXY" = 1 ] || echo "The certificate is requested at startup; watch it with: docker compose logs -f"
+  [ -z "$AGENT_HTTPS_PORT" ] || echo "Agent HTTPS TCP port $AGENT_HTTPS_PORT prepared. Select this port and a certificate in Captain to enable the listener; check host/cloud firewall rules separately."
   echo "Manage: cd $DIR && docker compose logs -f | docker compose pull && docker compose up -d"
   if [ "$NETWORK" = host ]; then
     echo "Network: host (Captain binds $LISTEN on the host directly; no port mapping)."
