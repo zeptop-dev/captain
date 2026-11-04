@@ -19,26 +19,47 @@ func TestExportCompiledPathRouteTCPFixture(t *testing.T) {
 	}
 	ctx := context.Background()
 	s, ns, ib, r := pathFixture(t)
-	var listeners []net.Listener
 	var ports []int
 	for range 5 {
 		ln, e := net.Listen("tcp", "127.0.0.1:0")
 		if e != nil {
 			t.Fatal(e)
 		}
-		listeners = append(listeners, ln)
+		t.Cleanup(func() { _ = ln.Close() })
 		ports = append(ports, ln.Addr().(*net.TCPAddr).Port)
 	}
-	defer func() {
-		for _, ln := range listeners {
-			ln.Close()
-		}
-	}()
 	for _, n := range ns {
 		n.PublicAddr = "127.0.0.1"
 		if e := s.UpdateNode(ctx, n); e != nil {
 			t.Fatal(e)
 		}
+	}
+	// The actual compiler must own the loopback bindings. The reader consumes
+	// the emitted rules unchanged instead of rewriting wildcard listeners.
+	ingresses := map[int64]int64{}
+	for _, node := range ns[:3] {
+		ingress := &Ingress{NodeID: node.ID, Name: "Loopback fixture", BindIP: "127.0.0.1", LineIP: "127.0.0.1", EntryHost: "127.0.0.1"}
+		if e := s.CreateIngress(ctx, ingress); e != nil {
+			t.Fatal(e)
+		}
+		ingresses[node.ID] = ingress.ID
+	}
+	entryIngress := ingresses[r.Entry.NodeID]
+	r.Entry.IngressID = &entryIngress
+	for i := range r.Branches {
+		branch := &r.Branches[i]
+		path, e := s.ForwardPath(ctx, branch.PathID, branch.PathRevision)
+		if e != nil {
+			t.Fatal(e)
+		}
+		for j := range path.Steps {
+			id := ingresses[path.Steps[j].NodeID]
+			path.Steps[j].IngressID = &id
+		}
+		if e = s.SaveForwardPath(ctx, path); e != nil {
+			t.Fatal(e)
+		}
+		branch.PathRevision = path.Version
 	}
 	ib.Port = ports[4]
 	if e := s.UpdateInbound(ctx, ib); e != nil {
@@ -59,7 +80,9 @@ func TestExportCompiledPathRouteTCPFixture(t *testing.T) {
 	for _, n := range ns[:3] {
 		var fs []spec.Forward
 		for _, f := range pathOwned(t, s, n.ID, r.ID) {
-			f.IngressID = ""
+			if f.Listen != "127.0.0.1" {
+				t.Fatalf("fixture must bind loopback: %+v", f)
+			}
 			fs = append(fs, f.Forward)
 		}
 		fixture.Nodes = append(fixture.Nodes, fs)
