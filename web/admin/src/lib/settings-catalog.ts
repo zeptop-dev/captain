@@ -15,6 +15,7 @@ export const settingsCatalog: SettingsEntry[] = [
   { id: 'purchase', category: 'business', titleKey: 'settings.singlePlan', hintKey: 'settings.singlePlanHint', keywords: 'single plan purchase 套餐 购买 单套餐' },
   { id: 'surplus', category: 'business', titleKey: 'settings.surplus', hintKey: 'settings.surplusHint', keywords: 'plan purchase credit 折抵 套餐' },
   { id: 'invite', category: 'business', titleKey: 'settings.invite', hintKey: 'settings.inviteHint', keywords: 'invite commission rebate 返佣 邀请' },
+  { id: 'agent-https', category: 'proxy', titleKey: 'agentHTTPS.title', hintKey: 'agentHTTPS.hint', keywords: 'Agent HTTPS bosun Docker Cloudflare po0 2096 接入 受限网络' },
   { id: 'acme', category: 'proxy', titleKey: 'settings.acme', hintKey: 'settings.acmeHint', keywords: 'TLS DNS ACME Cloudflare certificate 证书' },
   { id: 'connections', category: 'proxy', titleKey: 'connlog.title', hintKey: 'connlog.hint', keywords: 'connection log 连接记录' },
   { id: 'audit', category: 'proxy', titleKey: 'audit.title', hintKey: 'audit.hint', keywords: 'traffic rules audit 审计' },

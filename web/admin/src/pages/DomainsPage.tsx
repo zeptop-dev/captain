@@ -1,3 +1,4 @@
+import { useURLChoice } from '../lib/use-url-choice'
 import { ActionIcon, Badge, Button, Card, Code, Drawer, Group, Modal, PasswordInput, Select, Stack, Switch, Table, Tabs, TagsInput, Text, TextInput, Textarea, Tooltip } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
@@ -27,7 +28,7 @@ export default function DomainsPage() {
   const domains = useQuery({ queryKey: ['domains'], queryFn: () => api.get<{ domains: Domain[]; global_token: boolean; can_issue: boolean }>('/api/admin/domains') })
   const certs = useQuery({ queryKey: ['certificates'], queryFn: () => api.get<{ certificates: Cert[]; webhook_url: string; can_issue: boolean }>('/api/admin/certificates') })
   const refresh = () => { qc.invalidateQueries({ queryKey: ['domains'] }); qc.invalidateQueries({ queryKey: ['certificates'] }) }
-  const [tab, setTab] = useState<string | null>('domains')
+  const [tab, setTab] = useURLChoice('tab', ['domains', 'certs'], 'domains')
 
   // ---- domains ----
   const [editingDomain, setEditingDomain] = useState<Domain | 'new' | null>(null)
@@ -63,7 +64,7 @@ export default function DomainsPage() {
       <PageHeader title={t('domains.title')} subtitle={t('domains.subtitle')} actions={tab === 'domains'
         ? <Button leftSection={<IconPlus size={16} />} onClick={() => openDomain('new')}>{t('domains.add')}</Button>
         : <Group gap="xs"><Button variant="default" onClick={() => setUploading(true)}>{t('certs.upload')}</Button><Button leftSection={<IconPlus size={16} />} disabled={!canIssue} onClick={() => setIssuing(true)}>{t('certs.issue')}</Button></Group>} />
-      <Tabs value={tab} onChange={setTab} mb="md">
+      <Tabs value={tab} onChange={value => setTab(value ?? 'domains')} mb="md">
         <Tabs.List><Tabs.Tab value="domains" leftSection={<IconWorld size={14} />}>{t('domains.tabDomains')}</Tabs.Tab><Tabs.Tab value="certs" leftSection={<IconCertificate size={14} />}>{t('domains.tabCerts')}</Tabs.Tab></Tabs.List>
       </Tabs>
 

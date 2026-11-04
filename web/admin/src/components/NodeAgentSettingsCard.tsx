@@ -44,7 +44,7 @@ export function NodeAgentSettingsCard({ node }: { node: Node }) {
     </Stack></Card>
     <Modal opened={editing} onClose={close} title={t('agentConnection.title')} closeOnClickOutside={false} size="lg">
       <form onSubmit={form.onSubmit(values => save.mutate(values))}><fieldset disabled={save.isPending} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}><Stack>
-        <AgentConnectionFields agentURL={form.values.AgentURL} downloadSource={form.values.DownloadSource} onURLChange={value => form.setFieldValue('AgentURL', value)} onSourceChange={value => form.setFieldValue('DownloadSource', value)} />
+        <AgentConnectionFields active={editing} agentURL={form.values.AgentURL} downloadSource={form.values.DownloadSource} onURLChange={value => form.setFieldValue('AgentURL', value)} onSourceChange={value => form.setFieldValue('DownloadSource', value)} />
         <Text size="sm" c="dimmed">{t('agentConnection.futureOnly')}</Text>
         <Group justify="flex-end"><Button variant="default" onClick={close}>{t('common.cancel')}</Button><Button type="submit" loading={save.isPending}>{t('common.save')}</Button></Group>
       </Stack></fieldset></form>

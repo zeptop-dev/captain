@@ -11,6 +11,7 @@ import { PageHeader } from '../components/PageHeader'
 import classes from './SettingsPage.module.css'
 
 const editors: Record<string, ComponentType> = {
+  'agent-https': lazy(() => import('../components/settings/AgentHTTPSCard')),
   site: lazy(() => import('./SitePage').then(m => ({ default: () => <m.default embedded /> }))),
   purchase: lazy(() => import('../components/settings/GeneralCards').then(m => ({ default: m.PurchaseCard }))),
   'service-status': lazy(() => import('../components/settings/ServiceStatusCard')),
