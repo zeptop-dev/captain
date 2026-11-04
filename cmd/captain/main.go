@@ -133,6 +133,11 @@ func cmdServe(args []string) error {
 	srv := &http.Server{Addr: cfg.Listen, Handler: web.Handler(), ReadHeaderTimeout: 10 * time.Second, MaxHeaderBytes: 16 << 10}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	defer func() {
+		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = web.AgentHTTPS().Close(shutdown)
+	}()
 	go web.Bot().Run(ctx)
 	go web.DNSHealth().Run(ctx)
 	go web.NodeAddresses().Run(ctx)
@@ -213,14 +218,22 @@ func cmdServe(args []string) error {
 		}
 	}()
 	log.Info("captain listening", "addr", cfg.Listen, "tls", cfg.TLSEnabled(), "base_url", cfg.BaseURL, "version", version)
+	// Bind the primary listener first: an optional Agent entry must never win
+	// a startup race for the website's port and prevent the console from opening.
+	listener, err := net.Listen("tcp", cfg.Listen)
+	if err != nil {
+		return err
+	}
+	defer listener.Close()
 	if err := hostupdate.Readiness(ctx, "captain", version, cfg.DataDir, func() error { return hostupdate.Listening(cfg.Listen) }); err != nil {
 		return err
 	}
+	go web.AgentHTTPS().Run(ctx)
 	var err2 error
 	if cfg.TLSEnabled() {
-		err2 = srv.ListenAndServeTLS(cfg.TLS.Cert, cfg.TLS.Key) // empty paths use TLSConfig's GetCertificate
+		err2 = srv.ServeTLS(listener, cfg.TLS.Cert, cfg.TLS.Key) // empty paths use TLSConfig's GetCertificate
 	} else {
-		err2 = srv.ListenAndServe()
+		err2 = srv.Serve(listener)
 	}
 	if err2 != nil && err2 != http.ErrServerClosed {
 		return err2

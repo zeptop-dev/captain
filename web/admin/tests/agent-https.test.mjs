@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { existsSync } from 'node:fs'
 import { agentHTTPSOrigin, agentHTTPSDockerCommand, agentHTTPSCheckCommand, agentHTTPSFresh, suggestedAgentHTTPSURL } from '../src/lib/agent-https.ts'
 
 test('HTTPS origin validation rejects credentials, paths and malformed ports', () => {
@@ -14,6 +15,8 @@ test('HTTPS origin validation rejects credentials, paths and malformed ports', (
 })
 
 test('host commands use the saved port and target only the dedicated health route', () => {
+  const installerPath = agentHTTPSDockerCommand('https://panel.example.com:2096').match(/https:\/\/raw\.githubusercontent\.com\/zeptop-dev\/captain\/master\/([^ ]+)/)?.[1]
+  assert.ok(installerPath && existsSync(new URL(`../../../${installerPath}`, import.meta.url)), 'command must download an installer that exists in this repository')
   assert.match(agentHTTPSDockerCommand('https://panel.example.com:2087'), /enable-agent-https --agent-https-port 2087$/)
   assert.match(agentHTTPSDockerCommand('https://panel.example.com'), /--agent-https-port 443$/)
   assert.equal(agentHTTPSCheckCommand('https://panel.example.com:2096/'), "curl --fail --show-error --max-time 10 --proto '=https' -- 'https://panel.example.com:2096/api/agent/health'")

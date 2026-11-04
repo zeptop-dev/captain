@@ -3,6 +3,7 @@ package admin
 import (
 	"crypto/subtle"
 	"encoding/json"
+	"errors"
 
 	"net/http"
 	"strings"
@@ -189,7 +190,15 @@ func (h *handlers) uploadCertificate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) deleteCertificate(w http.ResponseWriter, r *http.Request) {
-	if err := h.Store.DeleteCertificate(r.Context(), idOf(r)); err != nil {
+	remove := h.Store.DeleteCertificate
+	if h.AgentHTTPS != nil {
+		remove = h.AgentHTTPS.DeleteCertificate
+	}
+	if err := remove(r.Context(), idOf(r)); err != nil {
+		if errors.Is(err, store.ErrCertificateInUse) {
+			fail(w, http.StatusConflict, err.Error())
+			return
+		}
 		serverErr(w, err)
 		return
 	}

@@ -191,8 +191,22 @@ func (s *Store) ListCertificates(ctx context.Context) ([]Certificate, error) {
 }
 
 func (s *Store) DeleteCertificate(ctx context.Context, id int64) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM certificates WHERE id = ?`, id)
-	return err
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	entry, err := readAgentHTTPS(ctx, tx)
+	if err != nil {
+		return err
+	}
+	if entry.CertificateID == id && id > 0 {
+		return ErrCertificateInUse
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM certificates WHERE id = ?`, id); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // CertificatesFor returns the certificates covering any of the names,

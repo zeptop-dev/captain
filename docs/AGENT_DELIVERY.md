@@ -10,10 +10,71 @@ The server creation form and its Settings page have two installation settings:
   upgrades, managed cores and the bundled GeoCheck/NextTrace diagnostic tools
   through the same reachable Agent origin.
 
-These settings prepare subsequent installations. Saving them does not migrate
+These per-server settings prepare subsequent installations. Saving them does not migrate
 an online node or open a listening port. Existing installed configuration is
 preserved; an installer refuses to silently change its connection/source. Node
 identities, tokens, reports, customer billing and monitoring remain independent.
+
+## Captain-managed Agent HTTPS entry
+
+In supporting builds, **Settings → Proxy and certificates → Agent HTTPS entry**
+can enable an additional HTTPS listener in the existing Captain process. It
+shares Agent authentication, rate limits, state, reports and the download cache.
+It does not start another database or scheduler, and does not relay subscriber
+proxy traffic. The website and `base_url` remain independent.
+
+Choose an HTTPS origin, a matching listening port (suggested `:2096`), and an
+existing certificate from **Domains and certificates**. A certificate must
+actually cover the hostname and be valid; editable certificate labels do not
+establish coverage. Wildcards and IP SANs follow normal TLS verification. For
+issuance, use the existing DNS-01 certificate workflow instead of competing
+with 1Panel for port 80 or 443. Uploads and certificate webhooks also work.
+No certificate is issued merely by saving, restarting or changing ports.
+
+Successful renewals are loaded into memory within five seconds without a
+restart. Invalid replacements retain the previous valid certificate and report
+an error; expired certificates cannot accept new handshakes or requests.
+Changing ports binds the new listener before draining the old one. A binding
+failure retains the old entry and displays its actual address separately from
+the saved intent. Website and HTTP challenge ports are reserved. Certificates
+selected by the configuration or still used by a retained entry cannot be
+deleted until that reference is removed.
+
+The additional listener serves only `/api/agent/` routes. Admin, portal,
+subscriptions, certificate webhooks, public monitoring and the main health
+endpoint remain unavailable there. Its unauthenticated minimal check is:
+
+```sh
+curl --fail --show-error --max-time 10 --proto '=https' \
+  'https://panel.example.com:2096/api/agent/health'
+```
+
+Run this on the target node. A successful response identifies `captain-agent`
+and proves TLS/HTTP access from that machine at that time. The console's local
+listener status alone does not prove Docker publishing, cloud firewall rules,
+Cloudflare routing or reachability from a restricted node. The example port
+is a suggestion, not a claim about any provider's network policy.
+
+For Docker, publish the matching TCP port; see the [script and 1Panel deployment
+steps](AGENT_HTTPS_DOCKER.md). The application cannot edit host Compose files or
+cloud firewall rules. Website HTTPS can remain with 1Panel while the Agent
+port reaches Captain directly, without another reverse-proxy site.
+
+In a node's installation settings, **Use managed Agent entry** explicitly copies
+the saved, locally ready origin and selects **Through Captain** downloads.
+Existing custom addresses and the `agent_url` / `base_url` fallback still work.
+This choice changes future installation commands only. It does not migrate
+running agents, automatically fail over URLs or change token-bound accounting
+journals. Before disabling/changing an entry used by existing agents, arrange
+their endpoint change separately.
+
+Configuration is stored in the existing settings table, with revision-checked
+saves. `GET/PUT /api/admin/settings/agent-https` require an administrator and the
+independent `agent-https:read/write` token scopes. Node operators can read only
+the non-secret installation summary under `/api/admin/nodes/agent-https` using
+their normal node permissions. Reset disables the listener and creates a fresh
+revision, preventing old drafts from binding reused certificate IDs. No bosun
+protocol change is needed; Captain downloads retain the bosun v0.89.0 minimum.
 
 ## Reverse proxy setup
 

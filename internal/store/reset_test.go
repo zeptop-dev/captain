@@ -112,6 +112,8 @@ func TestResetSiteAtomicAndFreshIDs(t *testing.T) {
 		switch table {
 		case "staff":
 			want = 1
+		case "settings":
+			want = 1 // a fresh, disabled Agent entry incarnation only
 		case "account_sequences":
 			want = 2
 		case "goose_db_version":

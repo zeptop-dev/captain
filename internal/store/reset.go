@@ -2,9 +2,12 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/zeptop-dev/captain/internal/agenthttps"
+	"github.com/zeptop-dev/captain/internal/auth"
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
@@ -81,6 +84,15 @@ func (s *Store) ResetSite(ctx context.Context, adminID int64) (*domain.User, err
 		return nil, err
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO account_sequences (name, value) VALUES ('agent', 0), ('user', 0)`); err != nil {
+		return nil, err
+	}
+	// A pre-reset initial draft has revision "0". Keep only a new disabled
+	// incarnation, so it cannot rebind a certificate ID reused after reset.
+	entry, err := json.Marshal(AgentHTTPSSettings{Config: agenthttps.Config{Listen: ":2096"}, Revision: auth.Token(24)})
+	if err != nil {
+		return nil, err
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO settings (key, value_json) VALUES (?, ?)`, SettingAgentHTTPS, string(entry)); err != nil {
 		return nil, err
 	}
 	at := now()

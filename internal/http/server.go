@@ -63,6 +63,8 @@ import (
 
 // Server is the HTTP front.
 type Server struct {
+	agentHTTPS    *service.AgentHTTPS
+	agentMux      *http.ServeMux
 	backups       *backup.Manager
 	certs         *service.Certs
 	external      *service.External
@@ -228,10 +230,22 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	s.mux.HandleFunc("POST "+probeaccess.MainPath, probeAccess.Main)
 	s.probe = probe.Register(s.mux, probe.Deps{ThemeAssets: web.ProbeThemeAssets(), Data: probeData, Access: probeAccess, Themes: probeThemes, Version: cfg.Version, Store: st, Probe: s.probeSvc, SiteName: cfg.SiteName, Resolve: resolve, Page: web.Probe(), GlassPage: web.ProbeGlass()})
 	dyn := &service.DynLimit{Store: st, State: s.state, Notify: notifier, Hooks: s.hooks, Log: log, PushSeconds: cfg.Agent.PushSeconds}
+	s.agentMux = http.NewServeMux()
+	agent.Register(s.agentMux, agent.Deps{Diagnostics: diagnostics, Addresses: s.nodeAddresses, Pairs: ratelimit.New(),
+		Store: st, Log: log, BaseURL: base, AgentURL: cfg.AgentURL, Downloads: agentdownload.New(filepath.Join(cfg.DataDir, "agent-downloads")),
+		State: s.state, Probe: s.probeSvc, Hooks: s.hooks, Notify: notifier, Dyn: dyn,
+	})
+	s.mux.Handle("/api/agent/", s.agentMux)
+	reserved := []string{cfg.Listen}
+	if cfg.TLSEnabled() {
+		reserved = append(reserved, cfg.TLS.HTTPListen)
+	}
+	s.agentHTTPS = service.NewAgentHTTPS(st, s.AgentHandler(), log, reserved...)
 	adminDeps := admin.Deps{Diagnostics: diagnostics, ClientCatalog: clients, ServiceStatus: serviceStatus, ClaudeRules: claudeFetcher, SubPresets: presetFetcher, NodeRegions: s.nodeRegions, Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, DNSHealth: s.dnsHealth, BaseURL: base, AgentURL: cfg.AgentURL, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external, Allow: allow, Heartbeat: s.heartbeat,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version, MinVersion: captainUpdateFloor(cfg.MinVersion)},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 		Registration:  cfg.Portal.Registration,
+		AgentHTTPS:    s.agentHTTPS,
 	}
 	admin.Register(s.mux, adminDeps)
 	admin.RegisterProbeThemes(s.mux, adminDeps, probeThemes, func(ctx context.Context) (probetheme.SelectorOptions, error) {
@@ -299,12 +313,29 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	portal.Register(s.mux, portal.Deps{ClientCatalog: clients, ServiceStatus: serviceStatus, Store: st, Log: log, Sessions: sessions, Orders: orders, Subscription: subSvc, BaseURL: base, Gateways: names, Registration: cfg.Portal.Registration, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot})
 	paymenthttp.Register(s.mux, paymenthttp.Deps{Log: log, Orders: orders, ReturnTo: base + "/portal/orders", Gateways: gateways, Store: st})
 	sub.Register(s.mux, sub.Deps{Store: st, Log: log, Service: subSvc, Name: cfg.SiteName, BaseURL: base})
-	agent.Register(s.mux, agent.Deps{Diagnostics: diagnostics, Addresses: s.nodeAddresses, Pairs: ratelimit.New(),
-		Store: st, Log: log, BaseURL: base, AgentURL: cfg.AgentURL, Downloads: agentdownload.New(filepath.Join(cfg.DataDir, "agent-downloads")),
-		State: s.state, Probe: s.probeSvc, Hooks: s.hooks, Notify: notifier,
-		Dyn: dyn,
-	})
 	return s
+}
+
+// AgentHTTPS exposes only the independent listener lifecycle to the process.
+func (s *Server) AgentHTTPS() *service.AgentHTTPS { return s.agentHTTPS }
+
+// AgentHandler shares the exact agent handlers, authentication, rate limiters
+// and download cache used by the main listener. No portal, admin, webhook,
+// subscription or probe-host wrapper is reachable on this listener.
+func (s *Server) AgentHandler() http.Handler {
+	routes := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/agent/health" && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
+			w.Header().Set("Cache-Control", "no-store")
+			writeJSON(w, http.StatusOK, map[string]any{"ok": true, "service": "captain-agent"})
+			return
+		}
+		if r.URL.Path != "/api/agent/state" && !strings.HasPrefix(r.URL.Path, "/api/agent/downloads/") {
+			s.store.Accounts.RLock()
+			defer s.store.Accounts.RUnlock()
+		}
+		s.agentMux.ServeHTTP(w, r)
+	})
+	return s.recover(s.logRequests(limitBodies(routes)))
 }
 
 // buildGateways instantiates the gateways enabled in the config.

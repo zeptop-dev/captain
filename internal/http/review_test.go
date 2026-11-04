@@ -24,6 +24,7 @@ import (
 // rig is the shared setup of the tests below: a panel, a logged-in admin
 // and a paired node with one inbound.
 type rig struct {
+	web    *Server
 	t      *testing.T
 	st     *store.Store
 	srv    *httptest.Server
@@ -50,9 +51,10 @@ func newRigAt(t *testing.T, baseURL string) *rig {
 	if err := st.CreateStaff(context.Background(), adminUser); err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(New(cfg, st, slog.Default()).Handler())
+	web := New(cfg, st, slog.Default())
+	srv := httptest.NewServer(web.Handler())
 	t.Cleanup(srv.Close)
-	r := &rig{t: t, st: st, srv: srv, c: &client{t: t, srv: srv}}
+	r := &rig{t: t, st: st, srv: srv, c: &client{t: t, srv: srv}, web: web}
 	r.c.do("POST", "/api/admin/login", map[string]string{"Email": "admin@test", "Password": "password123"}, nil)
 	_, b, _ := r.c.do("POST", "/api/admin/nodes", map[string]string{"Name": "n1"}, nil)
 	node := mustJSON[map[string]any](t, b)

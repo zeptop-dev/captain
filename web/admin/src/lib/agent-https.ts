@@ -29,7 +29,7 @@ export function agentHTTPSDockerCommand(savedURL: string): string | null {
   if (!url) return null
   const port = Number(url.port || 443)
   if (!Number.isInteger(port) || port < 1 || port > 65535) return null
-  return `curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/zeptop-dev/captain/master/scripts/install.sh -o captain-install.sh && sudo sh captain-install.sh enable-agent-https --agent-https-port ${port}`
+  return `curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/zeptop-dev/captain/master/install.sh -o captain-install.sh && sudo sh captain-install.sh enable-agent-https --agent-https-port ${port}`
 }
 
 // A stale success cannot survive a failed poll, browser offline event or sleep.

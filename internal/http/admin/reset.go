@@ -81,6 +81,9 @@ func (h *handlers) resetSite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	*actor = *fresh // the audit middleware records this action against ID 1
+	if h.AgentHTTPS != nil {
+		h.AgentHTTPS.Refresh(r.Context())
+	}
 	if h.State != nil {
 		h.State.Reset()
 	}

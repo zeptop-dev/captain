@@ -50,6 +50,18 @@ remain accessible under their original permissions. Captain's rollback floor
 is v1.53.0, since older panels cannot preserve these intents. bosun's floor stays
 v0.85.0; installing an older agent does not grant it the new path eligibility.
 
+## Captain-managed Agent HTTPS entry (unreleased)
+
+An opt-in second HTTPS listener reuses existing Agent routes and database
+certificates. There is no new bosun protocol requirement, config.yaml key or
+database schema migration. Captain downloads still require bosun v0.89.0.
+Settings are disabled by default; existing installation origins and running
+agents remain unchanged. A supporting Captain build is required while agents
+depend on this listener: older binaries ignore its settings and cannot serve
+its port. The existing update floor is unchanged; do not manually downgrade
+a deployment that still relies on this entry. See [deployment and certificate
+lifecycle](AGENT_DELIVERY.md#captain-managed-agent-https-entry).
+
 ## Agent connection and Captain downloads (Captain v1.54.0 / bosun v0.89.0)
 
 Migration 110 adds optional per-server installation origins and download sources.

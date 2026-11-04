@@ -112,7 +112,7 @@ func TestSiteResetAuthorizationAndFreshStart(t *testing.T) {
 		t.Fatalf("first customer: %s", body)
 	}
 	var settings int
-	if err := r.st.DB().QueryRow(`SELECT COUNT(*) FROM settings`).Scan(&settings); err != nil || settings != 0 {
+	if err := r.st.DB().QueryRow(`SELECT COUNT(*) FROM settings WHERE key <> 'agent_https'`).Scan(&settings); err != nil || settings != 0 {
 		t.Fatal("settings not cleared", settings, err)
 	}
 	var actor int64

@@ -53,6 +53,8 @@ mita（mieru）、Hysteria、snell-server 和 realm 作为子进程拉起来。
 
 ## 功能特性
 
+- Captain 可直接提供独立的 Agent HTTPS 端口，复用已有证书并自动热更新，共享认证包缓存；网站继续使用 1Panel HTTPS。后台生成节点安装命令，分别说明本地监听状态和节点实际可达性。[Agent 入口](docs/AGENT_DELIVERY.md#captain-managed-agent-https-entry) · [Docker 与 1Panel](docs/AGENT_HTTPS_DOCKER.md)。
+
 - 使用 bosun v0.89.0 接入仅监控的 OpenWrt 测点，ICMP/TCP 任务可绑定实际 Linux 网卡并独立记录路径历史。可选 Agent 专用 HTTPS 地址及 Captain 认证分发，覆盖原生安装、升级和托管预编译内核，保留现有节点的连接地址。[监控说明](docs/MONITORING.md) · [Agent 分发](docs/AGENT_DELIVERY.md)。
 - 可在独立探针域名安装原版 Komari 主题 ZIP，按版本配置并提供私有只读授权。兼容 Komari 1.6.1 公共探针 API，同时保留 Captain 的真实周期流量、采样新鲜度与未知数据语义，旧探针 API 继续兼容。[主题安装与边界](docs/PROBE_THEMES.md)。
 - 单服务器可选自动周期流量保护及独立手动暂停／限速，执行需要 bosun v0.83.0；管理连接、用户套餐额度和计费保持独立。[服务器流量控制](docs/COMPATIBILITY.md#server-traffic-controls-captain-v1480--bosun-v0830)。

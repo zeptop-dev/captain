@@ -42,6 +42,7 @@ type SessionStore interface {
 
 // Deps are the handlers' dependencies.
 type Deps struct {
+	AgentHTTPS    *service.AgentHTTPS
 	Diagnostics   *service.Diagnostics
 	ClientCatalog *service.ClientCatalog
 	ServiceStatus *service.ServiceStatusCatalog
@@ -136,6 +137,9 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("GET /api/admin/dashboard", h.requireAdmin(h.dashboard))
 
 	mux.HandleFunc("GET /api/admin/nodes/layout", h.requireAdmin(h.nodeLayout))
+	mux.HandleFunc("GET /api/admin/nodes/agent-https", h.requireAdmin(h.nodeAgentHTTPS))
+	mux.HandleFunc("GET /api/admin/settings/agent-https", h.requireAdmin(h.getAgentHTTPS))
+	mux.HandleFunc("PUT /api/admin/settings/agent-https", h.requireAdmin(h.putAgentHTTPS))
 	mux.HandleFunc("PUT /api/admin/nodes/layout", h.requireAdmin(h.nodeLayout))
 	mux.HandleFunc("POST /api/admin/nodes/{id}/region-detect", h.requireAdmin(h.detectNodeRegion))
 	mux.HandleFunc("GET /api/admin/nodes", h.requireAdmin(h.listNodes))

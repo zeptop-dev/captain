@@ -1,5 +1,8 @@
 # Changelog
 
+- **Unreleased** — Add an optional Captain-managed HTTPS listener for Agent pairing, state, reporting and authenticated downloads. Reuse the certificate inventory and existing Agent services; hot-load valid renewals, retain a working old entry on failed reconfiguration, protect website ports and certificate references, and keep admin/portal routes off the dedicated port.
+  - Add revision-checked settings, local readiness distinct from node reachability, explicit per-server installation selection, and guarded Docker port setup for script and 1Panel deployments. Existing node endpoints, billing identities and website URLs remain unchanged; bosun v0.89.0 remains sufficient for Captain downloads.
+
 One entry per release tag, newest first, condensed from the commit subjects
 between that tag and the previous one (`git log --format=%s <prev>..<tag>`).
 Merge commits and formatting-only commits are left out. Binaries and
