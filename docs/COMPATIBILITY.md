@@ -50,7 +50,7 @@ remain accessible under their original permissions. Captain's rollback floor
 is v1.53.0, since older panels cannot preserve these intents. bosun's floor stays
 v0.85.0; installing an older agent does not grant it the new path eligibility.
 
-## Captain-managed Agent HTTPS entry (unreleased)
+## Captain-managed Agent HTTPS entry (Captain v1.55.0)
 
 An opt-in second HTTPS listener reuses existing Agent routes and database
 certificates. There is no new bosun protocol requirement, config.yaml key or

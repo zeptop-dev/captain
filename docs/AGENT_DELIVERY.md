@@ -17,7 +17,7 @@ identities, tokens, reports, customer billing and monitoring remain independent.
 
 ## Captain-managed Agent HTTPS entry
 
-In supporting builds, **Settings → Proxy and certificates → Agent HTTPS entry**
+Since Captain v1.55.0, **Settings → Proxy and certificates → Agent HTTPS entry**
 can enable an additional HTTPS listener in the existing Captain process. It
 shares Agent authentication, rate limits, state, reports and the download cache.
 It does not start another database or scheduler, and does not relay subscriber
