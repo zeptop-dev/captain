@@ -41,13 +41,21 @@ inputs, and creates `compose.agent-https.yaml`. Existing Compose input order,
 custom networks, volumes, environment entries and the updater image override
 are retained. The container is recreated without pulling/building an image or
 initializing accounts. Its image must match the running image. Brief management
-connection interruption during recreation is expected.
+connection interruption during recreation is expected. A deployment lock covers
+validation, recreation, recovery and updater registration, so simultaneous
+installer invocations cannot undo each other’s changes.
 
 The operation refuses ambiguous/custom deployment layouts, changed Compose
 configuration, a different locally resolved image, occupied ports, and an
 existing override not owned by this installer. Such deployments should use the
 manual method below. Failed application restores the prior deployment files and
-attempts to restore the previous service; recovery failure is reported explicitly.
+attempts to restore the previous service. Success and recovery both inspect the
+running container; recovery also checks the original image, ports and Compose
+identity. If the image defines a Docker healthcheck, it must become healthy within
+180 seconds before the operation reports success or recovery. This confirms the
+existing Docker healthcheck only, not public TLS or Agent reachability. Recovery
+failure is reported explicitly. Forced process termination or a host power loss
+is not covered by automatic recovery; inspect the deployment before retrying.
 
 ### Installations with the Docker web updater
 
@@ -63,6 +71,13 @@ upgrade request can race with a manual stop. The installer additionally checks
 the persistent job while holding the worker lock and refuses any unfinished or
 failed job. Recover that job through the existing updater workflow before
 retrying; do not delete its state to bypass the check.
+
+Ordinary quoted `COMPOSE_FILE` declarations are supported, and other `.env`
+values—including multiline quoted values—are preserved without rewriting their
+bytes. The currently released updater has a separate line-based `.env` writer.
+If a multiline value contains a line that writer would mistake for a
+`COMPOSE_FILE` declaration, this operation refuses the updater-managed deployment
+before changing files. Use manual maintenance for that case.
 
 After successful recreation, the operation re-registers the updater with the
 complete Compose file list and restarts it. This preserves the Agent port on

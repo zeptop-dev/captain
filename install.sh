@@ -77,6 +77,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 
 UPDATER_DIR = Path('/etc/captain-updater')
 UPDATER_STATE = Path('/var/lib/captain-updater')
@@ -135,6 +136,110 @@ def port_available(port):
             raise ValueError('Agent HTTPS TCP port is already occupied') from None
 
 
+def lock_file(path, cleanup, message):
+    trusted(path, optional=True)
+    fd = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    cleanup.callback(os.close, fd)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        raise ValueError(message) from None
+    return fd
+
+
+def parse_env(raw):
+    # Preserve byte ranges, including comments, CRLFs and multiline quoted
+    # values. Only a top-level assignment can change Compose configuration.
+    text = raw.decode('utf-8')
+    entries = []
+    offset = 0
+    while offset < len(text):
+        end = text.find('\n', offset)
+        end = len(text) if end < 0 else end + 1
+        line = text[offset:end].rstrip('\r\n')
+        if not line.strip() or line.lstrip().startswith('#'):
+            offset = end
+            continue
+        match = re.match(r'^[ \t]*(?:export[ \t]+)?([A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*(.*)$', line)
+        if not match:
+            raise ValueError('unsupported .env syntax; configure ports manually')
+        key, value = match.groups()
+        if value.startswith(("'", '"')):
+            quote = value[0]
+            value_start = offset + match.start(2) + 1
+            cursor = value_start
+            while cursor < len(text):
+                if text[cursor] == '\\':
+                    cursor += 2
+                elif text[cursor] == quote:
+                    break
+                else:
+                    cursor += 1
+            if cursor >= len(text):
+                raise ValueError('unterminated quoted .env value; configure ports manually')
+            end = text.find('\n', cursor)
+            end = len(text) if end < 0 else end + 1
+            tail = text[cursor + 1:end].strip()
+            if tail and not tail.startswith('#'):
+                raise ValueError('unsupported quoted .env value; configure ports manually')
+            value = text[value_start:cursor]
+        else:
+            # Backslash continuations and interpolation inside COMPOSE_FILE
+            # are deliberately unsupported. Other assignments remain opaque.
+            value = re.split(r'[ \t]+#', value, maxsplit=1)[0].strip()
+            if value.endswith('\\'):
+                raise ValueError('continued .env values require manual port configuration')
+        entries.append((key, value, len(text[:offset].encode()), len(text[:end].encode())))
+        offset = end
+    return entries
+
+
+def replace_compose_env(raw, entries, files):
+    value = ('COMPOSE_FILE=' + ':'.join(files)).encode()
+    declarations = [entry for entry in entries if entry[0] == 'COMPOSE_FILE']
+    if declarations:
+        _, _, start, end = declarations[0]
+        old = raw[start:end]
+        ending = b'\r\n' if old.endswith(b'\r\n') else b'\n' if old.endswith(b'\n') else b''
+        return raw[:start] + value + ending + raw[end:]
+    separator = b'' if not raw or raw.endswith(b'\n') else b'\n'
+    return raw + separator + value + b'\n'
+
+
+def bindings(container):
+    return sorted((target, mapping.get('HostIp') or '0.0.0.0', mapping.get('HostPort', ''))
+                  for target, mappings in (container['HostConfig'].get('PortBindings') or {}).items()
+                  for mapping in mappings or [])
+
+
+def verify_container(compose, original, files, expected_bindings=None, port=None):
+    deadline = time.monotonic() + 180
+    while True:
+        ids = run(compose + ['ps', '--quiet', 'captain']).split()
+        if len(ids) != 1:
+            raise ValueError('Captain container is unavailable')
+        active = json.loads(run(['docker', 'inspect', ids[0]]))[0]
+        state = active.get('State', {})
+        labels = active['Config']['Labels']
+        old_labels = original['Config']['Labels']
+        if not state.get('Running') or state.get('Restarting') or state.get('Paused') or active['Image'] != original['Image']:
+            raise ValueError('Captain container is not running the expected image')
+        if any(labels.get(key) != old_labels.get(key) for key in ('com.docker.compose.project', 'com.docker.compose.project.working_dir', 'com.docker.compose.service')) or labels.get('com.docker.compose.project.config_files') != ','.join(files):
+            raise ValueError('Captain Compose identity did not match the expected deployment')
+        if expected_bindings is not None and (bindings(active) != expected_bindings or active['HostConfig'].get('NetworkMode') != original['HostConfig'].get('NetworkMode') or labels.get('com.docker.compose.config-hash') != old_labels.get('com.docker.compose.config-hash')):
+            raise ValueError('Captain original ports or configuration were not restored')
+        if port is not None and not any(target == port + '/tcp' and host in ('0.0.0.0', '::') and published == port for target, host, published in bindings(active)):
+            raise ValueError('Captain Agent TCP mapping did not match the requested deployment')
+        healthcheck = original['Config'].get('Healthcheck', {})
+        expected_health = bool(healthcheck.get('Test')) and healthcheck['Test'][0] != 'NONE'
+        health = state.get('Health', {}).get('Status')
+        if not expected_health or health == 'healthy':
+            return
+        if time.monotonic() >= deadline:
+            raise ValueError('Captain Docker healthcheck did not become healthy within 180 seconds')
+        time.sleep(1)
+
+
 def main(port, directory):
     with contextlib.ExitStack() as cleanup:
         configure(port, directory, cleanup)
@@ -145,6 +250,7 @@ def configure(port, directory, cleanup):
         raise ValueError('Agent HTTPS port must be 1024-65535, excluding the main HTTP port 8080')
     directory = Path(directory)
     trusted(directory)
+    lock_file(directory / '.agent-https.lock', cleanup, 'another Agent HTTPS deployment operation is running; retry after it finishes')
     env_path, override = directory / '.env', directory / OVERRIDE
     trusted(env_path, optional=True)
     trusted(override, optional=True)
@@ -158,7 +264,7 @@ def configure(port, directory, cleanup):
         item = json.loads(run(['docker', 'inspect', ident]))[0]
         if item['Config']['Labels'].get('com.docker.compose.project.working_dir') == str(directory):
             found.append(item)
-    if len(found) != 1 or not found[0].get('State', {}).get('Running'):
+    if len(found) != 1 or not found[0].get('State', {}).get('Running') or found[0]['State'].get('Paused') or found[0]['State'].get('Restarting'):
         raise ValueError('expected one running Captain Compose service in /opt/captain; use the manual Compose instructions for custom deployments')
     item = found[0]
     if item['HostConfig'].get('NetworkMode') == 'host':
@@ -179,35 +285,36 @@ def configure(port, directory, cleanup):
             raise ValueError('Compose include/extends requires manual port configuration')
     had_env = env_path.exists()
     env = env_path.read_bytes() if had_env else b''
-    # Accept simple COMPOSE_FILE declarations, never source/eval .env. Reject
-    # ambiguous/custom interpolation instead of silently changing its meaning.
-    env_lines = env.decode().splitlines()
-    declarations = [line.strip() for line in env_lines if re.match(r'^\s*(?:export\s+)?COMPOSE_FILE\s*=', line)]
+    env_entries = parse_env(env)
+    declarations = [entry for entry in env_entries if entry[0] == 'COMPOSE_FILE']
     if len(declarations) > 1:
         raise ValueError('multiple COMPOSE_FILE declarations; configure ports manually')
-    if any(re.match(r'^\s*(?:export\s+)?COMPOSE_(?:PATH_SEPARATOR|ENV_FILES)\s*=', line) for line in env_lines):
+    if any(entry[0] in ('COMPOSE_PATH_SEPARATOR', 'COMPOSE_ENV_FILES') for entry in env_entries):
         raise ValueError('custom Compose environment requires manual port configuration')
     if declarations:
-        value = declarations[0].split('=', 1)[1].strip()
+        value = declarations[0][1]
         if not re.fullmatch(r'[a-zA-Z0-9_./:-]+', value):
             raise ValueError('complex COMPOSE_FILE declaration; configure ports manually')
         declared = [str(directory / name) if not name.startswith('/') else name for name in value.split(':')]
         if declared != files:
             raise ValueError('Compose files changed since container creation; apply those changes before configuring the Agent port')
     updater = UPDATER_DIR / 'config.json'
-    worker_lock = None
+    worker_cleanup = contextlib.ExitStack()
+    cleanup.callback(worker_cleanup.close)
     if updater.exists():
+        # The currently released updater rewriter recognizes COMPOSE_FILE by
+        # physical line. Avoid giving it a multiline value that it could alter.
+        actual_declarations = {start for key, _, start, _ in env_entries if key == 'COMPOSE_FILE'}
+        physical_offset = 0
+        for line in env.split(b'\n'):
+            stripped = line.decode('utf-8').strip()
+            if stripped.startswith(('COMPOSE_FILE=', 'export COMPOSE_FILE=')) and physical_offset not in actual_declarations:
+                raise ValueError('the installed updater cannot preserve this multiline .env value; configure ports manually')
+            physical_offset += len(line) + 1
         trusted(updater)
         trusted(UPDATER_WORKER)
         trusted(UPDATER_STATE)
-        lock_path = UPDATER_STATE / 'worker.lock'
-        trusted(lock_path, optional=True)
-        worker_lock = os.open(lock_path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
-        cleanup.callback(os.close, worker_lock)
-        try:
-            fcntl.flock(worker_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            raise ValueError('Captain updater is running. Wait for any upgrade to finish, stop captain-updater, then run this command again; successful setup restarts it.') from None
+        lock_file(UPDATER_STATE / 'worker.lock', worker_cleanup, 'Captain updater is running. Arrange a maintenance window before stopping captain-updater and retrying; successful setup restarts it.')
         job_path = UPDATER_STATE / 'job.json'
         trusted(job_path, optional=True)
         job = json.loads(job_path.read_text()) if job_path.exists() else {}
@@ -239,13 +346,14 @@ def configure(port, directory, cleanup):
             if str(mapping.get('published')) == port and mapping.get('protocol', 'tcp') == 'tcp' and (name != 'captain' or str(mapping.get('target')) != port):
                 raise ValueError('requested port conflicts with an existing Compose mapping')
     old_override = override.read_bytes() if override.exists() else None
+    original_files = list(files)
+    original_bindings = bindings(item)
     files = [filename for filename in files if filename != str(override)]
     # Keep the updater image pin last, so future upgrades still win.
     position = next((i for i, name in enumerate(files) if Path(name).name == 'compose.updater.yaml'), len(files))
     files.insert(position, str(override))
     override_data = (MARKER + 'services:\n  captain:\n    ports:\n      - "' + port + ':' + port + '/tcp"\n').encode()
-    new_env = '\n'.join(line for line in env_lines if not re.match(r'^\s*(?:export\s+)?COMPOSE_FILE\s*=', line))
-    new_env = (new_env.rstrip('\n') + '\nCOMPOSE_FILE=' + ':'.join(files) + '\n').encode()
+    new_env = replace_compose_env(env, env_entries, files)
     updated = ['docker', 'compose', '--project-directory', str(directory), '--project-name', project]
     for filename in files:
         updated.extend(['--file', filename])
@@ -254,13 +362,7 @@ def configure(port, directory, cleanup):
         atomic(env_path, new_env)
         run(updated + ['config', '--quiet'])
         run(updated + ['up', '-d', '--no-deps', '--no-build', '--pull', 'never', 'captain'])
-        active_ids = run(updated + ['ps', '--quiet', 'captain']).split()
-        if len(active_ids) != 1:
-            raise ValueError('recreated Captain container is unavailable')
-        active = json.loads(run(['docker', 'inspect', active_ids[0]]))[0]
-        bindings = (active['HostConfig'].get('PortBindings') or {}).get(port + '/tcp', []) or []
-        if not active.get('State', {}).get('Running') or active['Image'] != item['Image'] or not any(value.get('HostPort') == port and value.get('HostIp') in ('', '0.0.0.0', '::') for value in bindings):
-            raise ValueError('recreated Captain image or TCP mapping did not match the requested deployment')
+        verify_container(updated, item, files, port=port)
     except Exception:
         if old_override is None:
             override.unlink(missing_ok=True)
@@ -272,11 +374,12 @@ def configure(port, directory, cleanup):
             env_path.unlink(missing_ok=True)
         try:
             run(compose + ['up', '-d', '--no-deps', '--no-build', '--pull', 'never', 'captain'])
+            verify_container(compose, item, original_files, expected_bindings=original_bindings)
         except Exception:
             raise ValueError('port configuration failed; deployment files restored, but container recovery failed; inspect Docker locally') from None
         raise ValueError('port configuration failed; original deployment files and service restored') from None
     finally:
-        cleanup.close()
+        worker_cleanup.close()
     if updater.exists():
         # Re-discover the recreated container's complete file list. No upgrade,
         # image pull, account initialization or database operation is requested.

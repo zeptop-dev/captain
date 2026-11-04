@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise the real installer with isolated files and fake Docker/host commands."""
 import fcntl
+import itertools
 import json
 import os
 from pathlib import Path
@@ -50,6 +51,8 @@ class ExistingInstall(unittest.TestCase):
         self.local_image = 'sha256:running'
         self.fail_up = False
         self.extra_ports = []
+        self.up_count = 0
+        self.after_up = None
         self.module.run = self.run_command
         self.environment = mock.patch.dict(os.environ, {k: '' for k in ('COMPOSE_FILE', 'COMPOSE_PROJECT_NAME', 'COMPOSE_ENV_FILES', 'COMPOSE_PATH_SEPARATOR')})
         self.environment.start()
@@ -75,6 +78,7 @@ class ExistingInstall(unittest.TestCase):
             if args[-3:] == ['ps', '--quiet', 'captain']:
                 return 'captain-id\n'
             if 'up' in args:
+                self.up_count += 1
                 if self.fail_up:
                     self.fail_up = False
                     raise ValueError('Docker failed')
@@ -85,6 +89,8 @@ class ExistingInstall(unittest.TestCase):
                 if str(override) in paths:
                     port = override.read_text().split('"')[1].split(':')[0]
                     self.item['HostConfig']['PortBindings'][port + '/tcp'] = [{'HostPort': port, 'HostIp': '0.0.0.0'}]
+                if self.after_up:
+                    self.after_up(self.item, self.up_count)
                 return ''
         raise AssertionError('unexpected command: ' + repr(args))
 
@@ -185,6 +191,107 @@ class ExistingInstall(unittest.TestCase):
         for port in ('0', '443', '8080', '65536', '02096', '2096;false', ''):
             with self.subTest(port=port), self.assertRaisesRegex(ValueError, 'port must be'):
                 self.apply(port)
+
+    def test_multiline_env_preserved_byte_for_byte(self):
+        prefix = b"# keep CRLF and Unicode\r\nKEY='first line\nCOMPOSE_FILE=inside-secret\nCOMPOSE_ENV_FILES=also-inside\nlast line'\r\nOTHER=\xe5\x80\xbc\r\n"
+        suffix = b"AFTER=still-here\n\n"
+        original = prefix + b'COMPOSE_FILE="' + ':'.join(self.files).encode() + b'" # old declaration\r\n' + suffix
+        self.env.write_bytes(original)
+        self.apply()
+        data = self.env.read_bytes()
+        self.assertTrue(data.startswith(prefix))
+        self.assertTrue(data.endswith(suffix))
+        self.assertIn(b'COMPOSE_FILE=inside-secret', data)
+        self.assertIn(b'compose.agent-https.yaml\r\n', data)
+        self.apply()
+        self.assertEqual(data, self.env.read_bytes())
+
+    def test_simple_quoted_compose_files_and_comments(self):
+        for quote in ("'", '"'):
+            self.env.write_text('KEEP=unchanged\nexport COMPOSE_FILE=' + quote + ':'.join(self.files) + quote + ' # a comment\n')
+            self.item['Config']['Labels']['com.docker.compose.project.config_files'] = ','.join(self.files)
+            self.apply()
+            self.assertTrue(self.env.read_text().startswith('KEEP=unchanged\nCOMPOSE_FILE='))
+
+    def test_ambiguous_env_refused_without_mutation(self):
+        for content in ("KEY='unterminated\nCOMPOSE_FILE=wrong\n", 'KEY=continued\\\nCOMPOSE_FILE=wrong\n', 'not an assignment\n'):
+            with self.subTest(content=content):
+                self.env.write_text(content)
+                with self.assertRaises(ValueError):
+                    self.apply()
+                self.assertEqual(content, self.env.read_text())
+                self.assertFalse((self.directory / self.module.OVERRIDE).exists())
+
+    def test_legacy_updater_cannot_rewrite_embedded_compose_line(self):
+        self.add_updater()
+        self.env.write_text("KEY='multiline\nCOMPOSE_FILE=inside-value\nend'\n" + 'COMPOSE_FILE=' + ':'.join(self.files) + '\n')
+        before = self.env.read_bytes()
+        with self.assertRaisesRegex(ValueError, 'cannot preserve this multiline'):
+            self.apply()
+        self.assertEqual(before, self.env.read_bytes())
+        self.assertFalse((self.directory / self.module.OVERRIDE).exists())
+
+    def test_rollback_checks_actual_running_image_ports_and_identity(self):
+        changes = [
+            lambda item: item['State'].update(Running=False),
+            lambda item: item.update(Image='sha256:unexpected'),
+            lambda item: item['HostConfig'].update(PortBindings={}),
+            lambda item: item['Config']['Labels'].update({'com.docker.compose.project': 'unexpected'}),
+        ]
+        original = json.loads(json.dumps(self.item))
+        for change in changes:
+            with self.subTest(change=change):
+                self.item = json.loads(json.dumps(original))
+                self.fail_up = True
+                self.after_up = lambda item, count: change(item)
+                with self.assertRaisesRegex(ValueError, 'container recovery failed'):
+                    self.apply()
+
+    def health_clock(self):
+        self.item['Config']['Healthcheck'] = {'Test': ['CMD', 'captain', 'healthcheck']}
+        self.item['State']['Health'] = {'Status': 'healthy'}
+        self.module.time = types.SimpleNamespace(monotonic=mock.Mock(side_effect=itertools.count(0, 60)), sleep=mock.Mock())
+
+    def test_success_waits_for_existing_healthcheck(self):
+        self.health_clock()
+        self.after_up = lambda item, count: item['State'].update(Health={'Status': 'starting'})
+        self.module.time.sleep.side_effect = lambda seconds: self.item['State'].update(Health={'Status': 'healthy'})
+        self.apply()
+        self.module.time.sleep.assert_called_once_with(1)
+
+    def test_unhealthy_success_rolls_back_and_waits_for_recovery_health(self):
+        self.health_clock()
+        def status(item, count):
+            item['State']['Health'] = {'Status': 'starting' if count == 1 else 'healthy'}
+        self.after_up = status
+        with self.assertRaisesRegex(ValueError, 'original deployment files and service restored'):
+            self.apply()
+        self.assertEqual(2, self.up_count)
+
+    def test_unhealthy_rollback_never_reports_restored(self):
+        self.health_clock()
+        self.fail_up = True
+        self.after_up = lambda item, count: item['State'].update(Health={'Status': 'unhealthy'})
+        with self.assertRaisesRegex(ValueError, 'container recovery failed'):
+            self.apply()
+
+    def test_deployment_lock_covers_checks_and_updater_registration(self):
+        self.add_updater()
+        original_run = self.module.run
+        checked = []
+        def concurrent(args):
+            if args[:2] == ['docker', 'ps'] or args[0] == str(self.module.UPDATER_WORKER):
+                before = self.env.read_bytes()
+                with self.assertRaisesRegex(ValueError, 'another Agent HTTPS deployment operation'):
+                    self.module.main('2083', str(self.directory))
+                self.assertEqual(before, self.env.read_bytes())
+                checked.append(args[0])
+            return original_run(args)
+        self.module.run = concurrent
+        self.apply()
+        self.assertEqual(['docker', str(self.module.UPDATER_WORKER)], checked)
+        self.assertIn('2096/tcp', self.item['HostConfig']['PortBindings'])
+        self.assertNotIn('2083/tcp', self.item['HostConfig']['PortBindings'])
 
     def test_host_mode_needs_no_mutation(self):
         self.item['HostConfig']['NetworkMode'] = 'host'
