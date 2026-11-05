@@ -185,3 +185,45 @@ func TestProbePlanEpochsAndCurrentSamples(t *testing.T) {
 		}
 	}
 }
+
+func TestProbePlanRollingWindowBoundary(t *testing.T) {
+	cfg := &spec.CarrierProbeConfig{Protocol: "icmp", Family: "ipv4"}
+	task := cfg.Tasks()[0]
+	plan := EffectiveProbePlan{Enabled: true, Config: cfg, ChangedAt: 2000}
+	for _, start := range []int64{0, 1999, 2000, 2001, 2011} {
+		original := spec.PingResult{Name: task.Name, Family: task.Family, Series: task.Series, At: 2010, LatencyMs: 24, Loss: 50, Quality: &spec.PingQuality{WindowStartedAt: start, Window: spec.ProbeWindow{Attempts: 30, Failed: 15}}}
+		host := spec.SystemStatus{CarrierProbeVersion: 1, Pings: []spec.PingResult{original}}
+		got := FilterCarrierSamples(host, plan).Pings[0]
+		if got.LatencyMs != 24 || got.At != 2010 {
+			t.Fatal("fresh latest sample lost", got)
+		}
+		valid := start > 2000 && start <= 2010
+		if valid && (got.Quality.Window.Attempts != 30 || got.Loss != 50) {
+			t.Fatal("valid window lost", got)
+		}
+		if !valid && (got.Quality.Window.Attempts != 0 || got.Loss != 0) {
+			t.Fatal("old window retained", got)
+		}
+		if original.Quality.Window.Attempts != 30 {
+			t.Fatal("shared host mutated")
+		}
+	}
+	at := time.Unix(2000, 0)
+	h := spec.SystemStatus{Resources: &spec.Resources{At: 1000000}, Pings: []spec.PingResult{{At: 995, Quality: &spec.PingQuality{WindowStartedAt: 900}}}}
+	got := MonitorSnapshot(h, at).Pings[0]
+	if got.At != 1995 || got.Quality.WindowStartedAt != 1900 || h.Pings[0].Quality.WindowStartedAt != 900 {
+		t.Fatal("clock normalization", got)
+	}
+	for _, start := range []int64{0, -1, 996} {
+		h.Pings[0].Quality.WindowStartedAt = start
+		if got := MonitorSnapshot(h, at).Pings[0]; got.Quality.WindowStartedAt != 0 {
+			t.Fatal("invalid boundary became fresh", got)
+		}
+	}
+	h.Resources.At = 100000000
+	h.Pings[0].At = 99995
+	h.Pings[0].Quality.WindowStartedAt = 100
+	if got := MonitorSnapshot(h, at).Pings[0]; got.Quality.WindowStartedAt != 0 {
+		t.Fatal("unbounded age became fresh", got)
+	}
+}

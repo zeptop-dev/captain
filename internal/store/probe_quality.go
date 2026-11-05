@@ -191,10 +191,28 @@ func MonitorSnapshot(h spec.SystemStatus, at time.Time) spec.SystemStatus {
 		q := *p.Quality
 		p.Quality = &q
 		q.Recent = nil
+		windowStart := q.WindowStartedAt
+		if windowStart <= 0 || windowStart > p.At {
+			windowStart = 0
+		}
 		if h.Resources != nil {
-			p.At = pingTime(h.Resources.At/1000, p.At, at).Unix()
+			clock := h.Resources.At / 1000
+			if windowStart > 0 {
+				// An invalid or unbounded age must remain unknown, rather than
+				// falling back to receipt time and certifying an old window.
+				if age := clock - windowStart; clock <= 0 || age < 0 || age > 86400 {
+					windowStart = 0
+				} else {
+					windowStart = pingTime(clock, windowStart, at).Unix()
+				}
+			}
+			p.At = pingTime(clock, p.At, at).Unix()
 			q.At = p.At
 		}
+		if windowStart > p.At {
+			windowStart = 0
+		}
+		q.WindowStartedAt = windowStart
 	}
 	return out
 }

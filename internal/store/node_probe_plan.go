@@ -270,9 +270,25 @@ func currentCarrier(plan EffectiveProbePlan, name, series, family string, at int
 func FilterCarrierSamples(host spec.SystemStatus, plan EffectiveProbePlan) spec.SystemStatus {
 	out := make([]spec.PingResult, 0, len(host.Pings))
 	for _, p := range host.Pings {
-		if p.TaskID != 0 || (host.CarrierProbeVersion >= 1 && currentCarrier(plan, p.Name, p.Series, p.Family, p.At)) {
+		if p.TaskID != 0 {
 			out = append(out, p)
+			continue
 		}
+		if host.CarrierProbeVersion < 1 || !currentCarrier(plan, p.Name, p.Series, p.Family, p.At) {
+			continue
+		}
+		// A new latest sample cannot certify the previous rolling window.
+		// Older agents lack this boundary, so keep their latest measurement
+		// but leave the window unknown after an effective plan change.
+		if plan.ChangedAt > 0 && (p.Quality == nil || p.Quality.WindowStartedAt <= plan.ChangedAt || p.Quality.WindowStartedAt > p.At) {
+			p.Loss = 0
+			if p.Quality != nil {
+				q := *p.Quality
+				q.Window = spec.ProbeWindow{}
+				p.Quality = &q
+			}
+		}
+		out = append(out, p)
 	}
 	host.Pings = out
 	return host
