@@ -15,6 +15,9 @@ intact. `NodeLayout.groups` and node membership still use stable keys; the
 optional `group_names` map carries `{zh,en}` display names. Older clients that
 omit it preserve translations for unchanged keys. Localized category fields
 are additive; updates that omit them preserve existing translations.
+Explicit bilingual category edits refresh the compatibility `Name` from the
+Chinese name, or English when Chinese is absent, retaining its existing
+case-insensitive uniqueness rule. Category IDs never change with display names.
 
 Captain's interfaces choose the Chinese name for Chinese locales and English
 for other locales, falling back to the other name and then the legacy label.

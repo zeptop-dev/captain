@@ -242,6 +242,11 @@ be categorized through the batch action. Deleting a category leaves its nodes
 intact and makes them uncategorized. Existing and automatically created nodes
 start uncategorized.
 
+Category IDs stay stable when names change. The existing unique-name rule still
+applies to the compatibility name: the Chinese name when supplied, otherwise the
+English name. An English translation may repeat when those compatibility names
+differ; filters always distinguish categories by ID.
+
 Categories are separate from tags, regions, server monitoring groups and access
 groups. They do not grant access, change billing or routing, add subscription
 tags, or reorder the subscription. Category ordering controls category selectors;
