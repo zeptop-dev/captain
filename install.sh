@@ -316,7 +316,22 @@ def ensure_firewall(port, directory, mode, readonly=False):
 def ufw_allowed(status, port, v6):
     target = re.escape(port) + r'/tcp' + (r'[ \t]+\(v6\)' if v6 else '')
     source = r'Anywhere' + (r'[ \t]+\(v6\)' if v6 else '')
-    return bool(re.search(r'^' + target + r'[ \t]+ALLOW(?: IN)?[ \t]+' + source + r'(?:[ \t]+#.*)?$', status, re.M))
+    # UFW pads uncommented status lines and renders logging after the source.
+    # Both are existing user allowances, not rules this installer may replace.
+    return bool(re.search(r'^' + target + r'[ \t]+ALLOW(?: IN)?[ \t]+' + source + r'(?:[ \t]+\(log(?:-all)?\))?(?:[ \t]+#.*)?[ \t]*$', status, re.M))
+
+
+def ufw_conflict(status, port, v6):
+    # UFW add replaces a matching packet tuple when action/logging/comment
+    # differ. Fail closed on another rule for this target instead of taking
+    # ownership of a user DENY/REJECT, or guessing at an unfamiliar status row.
+    target = re.compile(r'^' + re.escape(port) + r'(?:/tcp)?(?=[ \t]|$)([ \t]+\(v6\))?')
+    for line in status.splitlines():
+        row = line.split('#', 1)[0].strip()
+        match = target.match(row)
+        if match and bool(match.group(1)) == v6 and not ufw_allowed(row, port, v6):
+            return True
+    return False
 
 
 def configure_firewall(port, directory, mode, readonly=False):
@@ -345,10 +360,21 @@ def configure_firewall(port, directory, mode, readonly=False):
             ipv6 = re.findall(r'^[ \t]*IPV6[ \t]*=[ \t]*["\']?(yes|no)["\']?[ \t]*(?:#.*)?$', defaults, re.M)
             if len(ipv6) != 1:
                 raise ValueError('could not determine UFW IPv6 policy')
-            for v6 in ([False, True] if ipv6[0] == 'yes' else [False]):
+            families = [False, True] if ipv6[0] == 'yes' else [False]
+            status = firewall_command(['ufw', 'status'])
+            if status.returncode:
+                raise ValueError('could not inspect active UFW rules')
+            # Inspect both families before the first write; a user IPv6 rule
+            # must not cause a partial IPv4 change or an ownership record.
+            if any(ufw_conflict(status.stdout, port, v6) for v6 in families):
+                report('host_firewall', 'conflict', 'existing UFW TCP policy is not an unrestricted allow; no rules changed, inspect host rules manually')
+                return False
+            for v6 in families:
                 status = firewall_command(['ufw', 'status'])
                 if status.returncode:
                     raise ValueError('could not inspect active UFW rules')
+                if ufw_conflict(status.stdout, port, v6):
+                    raise ValueError('UFW policy changed; inspect host rules manually')
                 if ufw_allowed(status.stdout, port, v6):
                     continue
                 if readonly:

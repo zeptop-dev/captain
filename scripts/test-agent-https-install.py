@@ -4,6 +4,7 @@ import fcntl
 import itertools
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import ssl
@@ -320,6 +321,8 @@ class HostAccess(unittest.TestCase):
         self.available = ['ufw']
         self.module.shutil = types.SimpleNamespace(which=lambda name: name if name in self.available else None)
         self.ufw_rules = []
+        self.fail_ufw_v6 = False
+        self.after_ufw_add = None
         self.rich_rules = {False: set(), True: set()}
         self.plain_ports = {False: False, True: False}
         self.zone_output = 'public\n  interfaces: eth0\n'
@@ -342,7 +345,20 @@ class HostAccess(unittest.TestCase):
                 self.ufw_rules = [line for line in self.ufw_rules if not line.endswith('# ' + marker)]
             else:
                 family = ' (v6)' if '::/0' in args else ''
-                self.ufw_rules.append('2096/tcp' + family + ' ALLOW IN Anywhere' + family + ' # ' + marker)
+                if family and self.fail_ufw_v6:
+                    code = 1
+                else:
+                    # UFW replaces the same packet tuple when only action,
+                    # logging or comment differ; it does not append both rules.
+                    # Model that behavior so a successful add cannot hide loss
+                    # of a user DENY or logging policy.
+                    target = '2096/tcp' + family
+                    source = 'Anywhere' + family
+                    same_tuple = re.compile(r'^' + re.escape(target) + r'\s+(?:ALLOW|DENY|REJECT|LIMIT)(?: IN)?\s+' + re.escape(source) + r'(?:\s+\(log(?:-all)?\))?(?:\s+#.*)?\s*$')
+                    self.ufw_rules = [line for line in self.ufw_rules if not same_tuple.fullmatch(line)]
+                    self.ufw_rules.append(target + ' ALLOW IN ' + source + ' # ' + marker)
+                    if self.after_ufw_add:
+                        self.after_ufw_add()
         elif args == ['firewall-cmd', '--state']:
             output = 'running\n'
         elif args == ['firewall-cmd', '--get-active-zones']:
@@ -388,6 +404,72 @@ class HostAccess(unittest.TestCase):
         self.firewall_commands.clear()
         self.host_call()
         self.assertFalse(any(args[:2] == ['ufw', 'allow'] for args in self.firewall_commands))
+
+    def test_ufw_logged_and_uncommented_user_allows_are_not_replaced(self):
+        for suffix in (' (log) # user-owned', ' (log-all) # user-owned', '     '):
+            with self.subTest(suffix=suffix):
+                self.ufw_rules = ['2096/tcp ALLOW Anywhere' + suffix,
+                                  '2096/tcp (v6) ALLOW Anywhere (v6)' + suffix]
+                before = list(self.ufw_rules)
+                self.firewall_commands.clear()
+                self.assertTrue(self.host_call()[0])
+                self.assertEqual(before, self.ufw_rules)
+                self.assertFalse(any(args[0:2] == ['ufw', 'allow'] for args in self.firewall_commands))
+                self.assertFalse((self.directory / self.module.FW_STATE).exists())
+
+    def test_ufw_conflicting_user_rules_are_never_replaced(self):
+        for family in ('', ' (v6)'):
+            for action in ('DENY', 'REJECT', 'LIMIT', 'UNKNOWN'):
+                with self.subTest(family=family, action=action):
+                    self.ufw_rules = ['2096/tcp' + family + ' ' + action + ' IN Anywhere' + family + ' # user-owned']
+                    before = list(self.ufw_rules)
+                    self.firewall_commands.clear()
+                    result, output = self.host_call()
+                    self.assertFalse(result)
+                    self.assertEqual(before, self.ufw_rules)
+                    self.assertIn('inspect', output)
+                    self.assertFalse(any(args[0:2] == ['ufw', 'allow'] for args in self.firewall_commands))
+                    self.assertFalse((self.directory / self.module.FW_STATE).exists())
+
+    def test_ufw_ambiguous_or_restricted_target_never_widens_access(self):
+        for rule in ('2096/tcp ALLOW IN 192.0.2.10 # restricted source',
+                     '2096/tcp on eth0 ALLOW IN Anywhere # restricted interface',
+                     '2096 DENY Anywhere # all protocols',
+                     '2096/tcp ALLOW IN Anywhere (unknown) # unfamiliar policy'):
+            with self.subTest(rule=rule):
+                self.ufw_rules = [rule]
+                self.firewall_commands.clear()
+                self.assertFalse(self.host_call()[0])
+                self.assertEqual([rule], self.ufw_rules)
+                self.assertFalse(any(args[0:2] == ['ufw', 'allow'] for args in self.firewall_commands))
+
+    def test_ufw_conflict_after_first_add_rolls_back_only_owned_rule(self):
+        user_rule = '2096/tcp (v6) REJECT IN Anywhere (v6) # user-owned'
+        self.after_ufw_add = lambda: self.ufw_rules.append(user_rule)
+        result, _ = self.host_call()
+        self.assertFalse(result)
+        self.assertEqual([user_rule], self.ufw_rules)
+        self.assertEqual([], json.loads((self.directory / self.module.FW_STATE).read_text())['rules'])
+        self.assertEqual(1, len([args for args in self.firewall_commands if args[0:2] == ['ufw', 'allow']]))
+
+    def test_ufw_readonly_logged_allow_never_writes(self):
+        self.item['HostConfig']['PortBindings']['2096/tcp'] = [{'HostPort': '2096', 'HostIp': '0.0.0.0'}]
+        self.ufw_rules = ['2096/tcp ALLOW Anywhere (log) # user-owned',
+                          '2096/tcp (v6) ALLOW Anywhere (v6) (log-all) # user-owned']
+        before = {p.name: p.read_bytes() for p in self.directory.iterdir()}
+        self.assertTrue(self.host_call(action='check-agent-https')[0])
+        self.assertEqual(before, {p.name: p.read_bytes() for p in self.directory.iterdir()})
+        self.assertFalse(self.module.FW_LOCK.exists())
+        self.assertTrue(all(args == ['ufw', 'status'] for args in self.firewall_commands))
+
+    def test_ufw_failed_second_family_preserves_user_logged_rule(self):
+        self.ufw_rules = ['2096/tcp ALLOW Anywhere (log-all) # user-owned']
+        before = list(self.ufw_rules)
+        self.fail_ufw_v6 = True
+        result, _ = self.host_call()
+        self.assertFalse(result)
+        self.assertEqual(before, self.ufw_rules)
+        self.assertFalse(any('--force' in args for args in self.firewall_commands))
 
     def test_firewalld_runtime_permanent_preserves_plain_user_rules(self):
         self.available = ['firewall-cmd']
