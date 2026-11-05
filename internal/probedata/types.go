@@ -53,13 +53,14 @@ type Settings struct {
 	Sections       []string `json:"sections"`
 }
 type Node struct {
-	RootDiskPublic bool   `json:"root_disk_public"`
-	ID             int64  `json:"-"`
-	UUID           string `json:"uuid"`
-	Name           string `json:"name"`
-	Group          string `json:"group"`
-	GroupZH        string `json:"group_zh,omitempty"`
-	GroupEN        string `json:"group_en,omitempty"`
+	CarrierPlan    store.EffectiveProbePlan `json:"-"`
+	RootDiskPublic bool                     `json:"root_disk_public"`
+	ID             int64                    `json:"-"`
+	UUID           string                   `json:"uuid"`
+	Name           string                   `json:"name"`
+	Group          string                   `json:"group"`
+	GroupZH        string                   `json:"group_zh,omitempty"`
+	GroupEN        string                   `json:"group_en,omitempty"`
 	// Persisted node-row timestamps, independent of Status.ReceivedAt.
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

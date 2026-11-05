@@ -130,11 +130,12 @@ func (p *Probe) AgentConfig(ctx context.Context, nodeID int64) *spec.Probe {
 		return nil
 	}
 	cfg := &spec.Probe{Resources: resources, Enabled: true, BeatSeconds: s.BeatSeconds}
-	if s.CarrierPing {
+	plan, planErr := p.Store.NodeProbePlanView(ctx, nodeID)
+	if planErr == nil && plan.Effective.Enabled {
 		// Resolve presets here: agents with carrier-probe v1 support can use
 		// explicit targets even when they do not know the province field or
 		// still bundle the old NextTrace TCP defaults. Saved drafts stay empty.
-		cfg.CarrierProbe = s.CarrierProbe.Expanded()
+		cfg.CarrierProbe = plan.Effective.Config.Expanded()
 		// Older agents ignore CarrierProbe. Leave CarrierPing false so they
 		// cannot silently report legacy TCP results as ICMP or IPv6 samples.
 	}

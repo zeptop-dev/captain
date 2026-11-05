@@ -7,6 +7,30 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.54.0 to preserve interface-bound probes.
 
+## Per-server carrier probe plans (unreleased)
+
+Migration 113 stores independent per-server carrier plans and node-bound edit
+revisions. Existing and newly created servers inherit the global default;
+custom and disabled modes preserve the independent draft. Global monitoring
+remains the master collection switch, while the global carrier toggle is only
+the inherited default. Resource collection and separately assigned ping tasks
+keep their existing controls. Older metadata editors preserve the new plan.
+
+Agent delivery uses the existing carrier-probe configuration. Older compatible
+agents can execute the selected plan without a new version requirement. The
+additive `window_started_at` report field lets Captain establish whether all
+samples in a rolling window follow the current plan. After a plan change, agents
+without that field retain their fresh latest latency while the unverified
+rolling statistics remain unknown. No historical samples are relabeled as a
+new protocol, family, or target. Historical samples keep their original times;
+selecting the same exact target again retains its earlier history without
+reviving old current-state or rolling-window evidence.
+
+Older Captain binaries ignore server overrides and return to their global
+selection. Disable overrides or restore a compatible backup before manually
+downgrading a panel that relies on independent plans. This development change
+does not assign a release version or a new built-in rollback floor.
+
 ## Bilingual display groups and categories (unreleased)
 
 Migration 112 adds optional Chinese/English names to monitoring groups and

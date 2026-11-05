@@ -117,6 +117,10 @@ func (e *Engine) snapshot(ctx context.Context) (Snapshot, error) {
 	if err != nil {
 		return out, err
 	}
+	plans, err := e.Store.ListNodeProbePlans(ctx)
+	if err != nil {
+		return out, err
+	}
 	records, err := e.Store.ProbePublicRecords(ctx)
 	if err != nil {
 		return out, err
@@ -161,6 +165,10 @@ func (e *Engine) snapshot(ctx context.Context) (Snapshot, error) {
 				}
 			}
 		}
+		plan := store.ResolveNodeProbePlan(s, plans[n.ID])
+		v.CarrierPlan = plan
+		nodeSettings := s
+		nodeSettings.CarrierPing, nodeSettings.CarrierProbe = plan.Enabled, plan.Config
 		m := byID[n.ID]
 		host := m.Host
 		received := time.Time{}
@@ -204,7 +212,7 @@ func (e *Engine) snapshot(ctx context.Context) (Snapshot, error) {
 			v.Status.Fresh = !received.After(out.Now.Add(time.Minute)) && out.Now.Sub(received) <= grace
 		}
 		if host != nil {
-			projectHost(&v, store.FilterTaskSamples(*host, tasks, n.ID), s, np.Storage.RootVisible())
+			projectHost(&v, store.FilterCarrierSamples(store.FilterTaskSamples(*host, tasks, n.ID), plan), nodeSettings, np.Storage.RootVisible())
 			if s.PublicShows("disk") {
 				for _, st := range np.Storage.Public(store.StorageCandidates(host, received, out.Now)) {
 					v.Storage = append(v.Storage, Storage{ID: st.ID, Name: st.Name, Kind: st.Kind, Total: st.Total, Used: st.Used})
@@ -262,15 +270,20 @@ func (e *Engine) snapshot(ctx context.Context) (Snapshot, error) {
 		out.Nodes = append(out.Nodes, v)
 	}
 	if s.PublicShows("latency") {
-		if s.CarrierPing {
-			for _, t := range s.CarrierProbe.Tasks() {
-				task := PingTask{ID: carrierTaskID(t.Series), LegacyID: carrierLegacyID(t.Series), Name: t.Name, Type: t.Type, Series: t.Series, Family: t.Family, Province: s.CarrierProbe.PresetProvince(t.Family), Interval: t.IntervalSeconds, EntityIDs: []string{}}
-				if task.Interval <= 0 {
-					task.Interval = s.BeatSeconds
+		carrierIndexes := map[string]int{}
+		for _, n := range out.Nodes {
+			plan := n.CarrierPlan
+			if !plan.Enabled {
+				continue
+			}
+			for _, t := range plan.Config.Tasks() {
+				key := carrierTaskID(t.Series)
+				if i, ok := carrierIndexes[key]; ok {
+					out.PingTasks[i].EntityIDs = append(out.PingTasks[i].EntityIDs, n.UUID)
+					continue
 				}
-				for _, n := range out.Nodes {
-					task.EntityIDs = append(task.EntityIDs, n.UUID)
-				}
+				task := PingTask{ID: key, LegacyID: carrierLegacyID(t.Series), Name: t.Name, Type: t.Type, Series: t.Series, Family: t.Family, Province: plan.Config.PresetProvince(t.Family), Interval: t.IntervalSeconds, EntityIDs: []string{n.UUID}}
+				carrierIndexes[key] = len(out.PingTasks)
 				out.PingTasks = append(out.PingTasks, task)
 			}
 		}

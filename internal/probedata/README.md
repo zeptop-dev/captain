@@ -57,3 +57,18 @@ the compatibility transport.
 
 All existing `/api/probe` response types are retained. This package contains no
 agent protocol, billing policy or Komari management/terminal emulation.
+
+Carrier task membership is resolved per server from the global default or its
+independent plan. The collection master switch gates all plans; disabling only
+the global carrier default leaves explicit server plans active. Plan revisions
+and timestamps enter the private policy fingerprint, while configurations and
+target addresses remain absent from public output. A plan change hides old
+current samples. History remains filtered by the exact protocol, family and
+target, retaining its original times when that same plan is selected again.
+Rolling statistics require an
+actual first-sample timestamp later than that change; an unknown window stays
+unknown even when a new individual latency is available.
+
+Single-source public-address fallback observations belong only to the private
+server address API. They do not enter public IP fields, confirmation timers,
+entry reconciliation, line recompilation or automatic DNS changes.

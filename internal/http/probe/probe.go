@@ -221,6 +221,11 @@ func (h *handlers) snapshot(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	plans, err := h.Store.ListNodeProbePlans(r.Context())
+	if err != nil {
+		http.Error(w, "internal error", 500)
+		return
+	}
 	var tasks []store.PingTask
 	if s.PublicShows("latency") {
 		tasks, err = h.Store.ListPingTasks(r.Context())
@@ -246,7 +251,10 @@ func (h *handlers) snapshot(w http.ResponseWriter, r *http.Request) {
 		if !n.Paired || (np != nil && np.Hidden && !staff) {
 			continue
 		}
-		v := nodeView{ID: n.ID, Name: n.Name, Version: n.Version, PingTasks: publicPingTasks(s, tasks, n.ID)}
+		plan := store.ResolveNodeProbePlan(s, plans[n.ID])
+		nodeSettings := s
+		nodeSettings.CarrierPing, nodeSettings.CarrierProbe = plan.Enabled, plan.Config
+		v := nodeView{ID: n.ID, Name: n.Name, Version: n.Version, PingTasks: publicPingTasks(nodeSettings, tasks, n.ID)}
 		if s.ShowIP || staff {
 			v.Addr = n.PublicAddr
 		}
@@ -286,7 +294,9 @@ func (h *handlers) snapshot(w http.ResponseWriter, r *http.Request) {
 			v.Storage = storage.Public(store.StorageCandidates(host, received, now))
 		}
 		if host != nil {
-			visible := publicHost(store.FilterTaskSamples(*host, tasks, n.ID), s)
+			filtered := store.FilterCarrierSamples(*host, plan)
+			host = &filtered
+			visible := publicHost(store.FilterTaskSamples(*host, tasks, n.ID), nodeSettings)
 			if !storage.RootVisible() {
 				hideRootDisk(&visible)
 			}
@@ -477,14 +487,12 @@ func (h *handlers) pings(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	current := currentCarrierSeries(s)
-	filtered := make([]store.PingPoint, 0, len(pts))
-	for _, point := range pts {
-		if point.TaskID != 0 || carrierSeriesMatches(current, point.Series, point.Family, point.Name) {
-			filtered = append(filtered, point)
-		}
+	plan, err := h.Store.NodeProbePlan(r.Context(), id)
+	if err != nil {
+		http.Error(w, "internal error", 500)
+		return
 	}
-	pts = filtered
+	pts = store.FilterCarrierPoints(pts, store.ResolveNodeProbePlan(s, plan))
 	w.Header().Set("Content-Type", "application/json")
 	step := 60
 	if res == "h" {

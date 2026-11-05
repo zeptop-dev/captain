@@ -28,6 +28,9 @@ func (s *Store) SetSetting(ctx context.Context, key string, v any) error {
 	if err != nil {
 		return err
 	}
+	if key == SettingProbe {
+		return s.setProbeSetting(ctx, raw)
+	}
 	_, err = s.db.ExecContext(ctx, `INSERT INTO settings (key, value_json) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json`, key, string(raw))
 	return err
 }
