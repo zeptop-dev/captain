@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
@@ -43,9 +44,82 @@ func TestNodeCostValidationAndLegacy(t *testing.T) {
 	if normalizeNodeCost(&info, NodeProbeInfo{}) == nil {
 		t.Fatal("accepted invalid date")
 	}
-	info = NodeProbeInfo{TrafficReset: &NodeTrafficReset{Mode: "expiry"}}
-	if normalizeNodeCost(&info, NodeProbeInfo{}) == nil {
-		t.Fatal("missing expiry accepted")
+	for _, mode := range []string{"expiry", "expiry_previous", "expiry_next"} {
+		info = NodeProbeInfo{TrafficReset: &NodeTrafficReset{Mode: mode}}
+		if normalizeNodeCost(&info, NodeProbeInfo{}) == nil {
+			t.Fatal("missing expiry accepted", mode)
+		}
+	}
+}
+
+func TestNodeCostPreviousExpiryBoundaries(t *testing.T) {
+	for _, tc := range []struct{ at, expiry, start, end string }{
+		{"2027-01-29", "2027-01-31", "2026-12-30", "2027-01-30"},
+		{"2027-01-30", "2027-01-31", "2027-01-30", "2027-02-27"},
+		{"2027-01-31", "2027-01-31", "2027-01-30", "2027-02-27"},
+		{"2027-02-26", "2027-01-31", "2027-01-30", "2027-02-27"},
+		{"2027-02-27", "2027-01-31", "2027-02-27", "2027-03-30"},
+		{"2028-02-28", "2027-01-31", "2028-02-28", "2028-03-30"},
+		{"2027-04-29", "2027-01-31", "2027-04-29", "2027-05-30"},
+		{"2027-01-01", "2027-01-01", "2026-12-31", "2027-01-31"},
+		{"2027-01-30", "2027-01-01", "2026-12-31", "2027-01-31"},
+		{"2027-01-31", "2027-01-01", "2027-01-31", "2027-02-28"},
+		{"2027-02-28", "2027-01-01", "2027-02-28", "2027-03-31"},
+		{"2028-02-29", "2027-01-01", "2028-02-29", "2028-03-31"},
+		{"2027-12-31", "2027-01-01", "2027-12-31", "2028-01-31"},
+		{"2027-06-08", "2027-06-09", "2027-06-08", "2027-07-08"},
+	} {
+		t.Run(tc.at+"/"+tc.expiry, func(t *testing.T) {
+			at, _ := time.Parse("2006-01-02", tc.at)
+			p := NodeProbe{ResetDay: 15, Info: NodeProbeInfo{ExpiresAt: tc.expiry, TrafficReset: &NodeTrafficReset{Mode: "expiry_previous"}}}
+			start := nodePeriodStart(at, &p)
+			if got := start.Format("2006-01-02"); got != tc.start {
+				t.Fatalf("start = %s; want %s", got, tc.start)
+			}
+			for _, from := range []time.Time{start, at.Add(12 * time.Hour)} {
+				if got := nodePeriodEnd(from, &p).Format("2006-01-02"); got != tc.end {
+					t.Fatalf("end from %s = %s; want %s", from, got, tc.end)
+				}
+			}
+		})
+	}
+}
+
+func TestNodeCostPreviousExpiryPreservesRenewalAnchor(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		for _, anchorDay := range []int{0, 31} {
+			t.Run(fmt.Sprintf("enabled=%v/day=%d", enabled, anchorDay), func(t *testing.T) {
+				p := NodeProbe{ResetDay: 1, Info: NodeProbeInfo{
+					ExpiresAt: "2027-02-28", TrafficReset: &NodeTrafficReset{Mode: "expiry_previous"},
+					AutoRenewal: &NodeAutoRenewal{Enabled: enabled, AnchorDate: "2027-01-31", AnchorDay: anchorDay},
+				}}
+				if anchorDay != 0 {
+					p.Info.AutoRenewal.AnchorDate = "2027-02-28"
+				}
+				at := time.Date(2027, 3, 30, 0, 0, 0, 0, time.UTC)
+				if got := nodePeriodStart(at, &p); !got.Equal(at) {
+					t.Fatalf("clamped expiry lost original anchor: %s", got)
+				}
+			})
+		}
+	}
+}
+
+func TestNodeCostPreviousExpiryUsesCalendarDay(t *testing.T) {
+	loc, err := time.LoadLocation("America/Los_Angeles")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Spring/autumn DST changes must not move a reset away from midnight.
+	for _, date := range []string{"2027-03-14", "2027-11-07"} {
+		want, _ := time.ParseInLocation("2006-01-02", date, loc)
+		p := NodeProbe{Info: NodeProbeInfo{ExpiresAt: want.AddDate(0, 0, 1).Format("2006-01-02"), TrafficReset: &NodeTrafficReset{Mode: "expiry_previous"}}}
+		if got := nodePeriodStart(want.Add(12*time.Hour), &p); !got.Equal(want) || got.Location() != loc {
+			t.Fatalf("reset = %s; want %s", got, want)
+		}
+		if got := nodePeriodEnd(want.Add(-time.Second), &p); !got.Equal(want) {
+			t.Fatalf("upcoming reset = %s; want %s", got, want)
+		}
 	}
 }
 func TestNodeCostMonthlyBoundaries(t *testing.T) {

@@ -95,6 +95,9 @@ func TestNodeHostTrafficLegacyAndCycleEnd(t *testing.T) {
 		{"2028-02-29", "2028-03-31", "2027-01-31", "expiry", 1},
 		{"2027-02-01", "2027-03-01", "2027-01-31", "expiry_next", 1},
 		{"2027-06-15", "2027-07-10", "2027-06-09", "expiry_next", 1},
+		{"2027-01-31", "2027-02-28", "2027-01-01", "expiry_previous", 1},
+		{"2027-02-27", "2027-03-30", "2027-01-31", "expiry_previous", 1},
+		{"2027-03-15", "2027-03-30", "2027-01-31", "expiry_previous", 1},
 	} {
 		t.Run(tc.start+tc.mode, func(t *testing.T) {
 			start, err := time.ParseInLocation("2006-01-02", tc.start, time.Local)
@@ -111,6 +114,56 @@ func TestNodeHostTrafficLegacyAndCycleEnd(t *testing.T) {
 				t.Fatal("legacy zero without measurement became known")
 			}
 		})
+	}
+}
+
+func TestNodeHostTrafficPreviousExpiryRollover(t *testing.T) {
+	s, id, _ := monitorRig(t)
+	ctx := context.Background()
+	info := NodeProbeInfo{ExpiresAt: "2027-02-01", TrafficReset: &NodeTrafficReset{Mode: "expiry_previous"}}
+	if err := s.UpdateNodeProbe(ctx, id, false, info, 10000, 1, "sum"); err != nil {
+		t.Fatal(err)
+	}
+	boundary := time.Date(2027, 1, 31, 0, 0, 0, 0, time.Local)
+	// The settings API uses the real clock; pin this fixture's period so that
+	// running the test after January 2027 cannot make these samples look old.
+	if err := s.ResetNodeTraffic(ctx, id, boundary.Add(-2*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	beat := func(seq uint64, at time.Time, up uint64) *NodeProbe {
+		t.Helper()
+		if err := s.RecordBeat(ctx, id, spec.SystemStatus{Resources: &spec.Resources{Epoch: "one", Sequence: seq, Networks: []spec.NetworkResource{{Name: "eth0", ID: "boot:1", Included: true, Up: up, Down: up * 2}}}}, at); err != nil {
+			t.Fatal(err)
+		}
+		p, err := s.NodeProbe(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	beat(1, boundary.Add(-2*time.Second), 1000)
+	if p := beat(2, boundary.Add(-time.Second), 1100); p.UsedUp != 100 || p.UsedDown != 200 {
+		t.Fatalf("old period accumulation: %+v", p)
+	}
+	if p := beat(3, boundary, 1110); p.PrevUsed != 300 || p.UsedUp != 10 || p.UsedDown != 20 || !p.PeriodStart.Equal(boundary) {
+		t.Fatalf("month-end rollover: %+v", p)
+	}
+	if p := beat(4, boundary.Add(time.Second), 1120); p.PrevUsed != 300 || p.UsedUp != 20 || p.UsedDown != 40 || !p.PeriodStart.Equal(boundary) {
+		t.Fatalf("repeated beat reset usage again: %+v", p)
+	}
+	// A manual reset keeps its partial period until the next scheduled reset.
+	reset := time.Date(2027, 2, 10, 12, 0, 0, 0, time.Local)
+	if err := s.ResetNodeTraffic(ctx, id, reset); err != nil {
+		t.Fatal(err)
+	}
+	p := beat(5, reset.Add(time.Second), 1130)
+	wantEnd := time.Date(2027, 2, 28, 0, 0, 0, 0, time.Local)
+	v := hostTrafficView(p)
+	if !p.PeriodStart.Equal(reset) || p.UsedUp != 10 || p.UsedDown != 20 || v.CycleEnd == nil || *v.CycleEnd != wantEnd.Unix() {
+		t.Fatalf("manual partial period: %+v %+v", p, v)
+	}
+	if p := beat(6, wantEnd, 1140); !p.PeriodStart.Equal(wantEnd) || p.PrevUsed != 30 || p.UsedUp != 10 || p.UsedDown != 20 {
+		t.Fatalf("following month rollover: %+v", p)
 	}
 }
 
