@@ -7,6 +7,7 @@ import { api, ApiError } from '../lib/api'
 import { carrierProbeDraft, carrierTargetPlaceholder, type CarrierFamily } from '../lib/carrier-probe'
 import { nodeProbePlanDraft, nodeProbePlanPayload, type NodeProbePlan, type ProbePlanMode } from '../lib/node-probe-plan'
 import { useSettingsForm } from '../lib/settings-draft'
+import { clearProbePlanResults } from '../lib/probe-plan-cache'
 import { toast } from '../lib/notify'
 import { CarrierProbeFields } from './CarrierProbeFields'
 import { SettingsLoadState } from './SettingsLoadState'
@@ -29,11 +30,12 @@ export function NodeProbePlanCard({ nodeID }: { nodeID: number }) {
   const q = useQuery({ queryKey: ['node-probe-plan', nodeID], queryFn: () => api.get<NodeProbePlan>(`/api/admin/nodes/${nodeID}/probe-plan`) })
   const form = useSettingsForm({ initialValues: { mode: 'inherit' as ProbePlanMode, revision: '', initialized: false, ...carrierProbeDraft() } })
   useEffect(() => { if (q.data) form.hydrate(nodeProbePlanDraft(q.data)) }, [q.data]) // eslint-disable-line react-hooks/exhaustive-deps
-  const save = useMutation({ mutationFn: (values: typeof form.values) => api.put<NodeProbePlan>(`/api/admin/settings/nodes/${nodeID}/probe-plan`, nodeProbePlanPayload(values)), onSuccess: plan => {
+  const save = useMutation({ mutationFn: (values: typeof form.values) => api.put<NodeProbePlan>(`/api/admin/settings/nodes/${nodeID}/probe-plan`, nodeProbePlanPayload(values)), onSuccess: async plan => {
     const values = nodeProbePlanDraft(plan)
     form.setValues(values); form.resetDirty(values)
     qc.setQueryData(['node-probe-plan', nodeID], plan)
-    qc.invalidateQueries({ queryKey: ['network-quality', nodeID] }); qc.invalidateQueries({ queryKey: ['node', String(nodeID)] })
+    await clearProbePlanResults(qc, nodeID)
+    qc.invalidateQueries({ queryKey: ['node', String(nodeID)] })
     toast.ok(t('common.saved'))
   }, onError: error => { if (error instanceof ApiError && error.status === 409) { toast.err(new Error(t('nodeProbePlan.conflict'))); qc.invalidateQueries({ queryKey: ['node-probe-plan', nodeID] }) } else toast.err(error) } })
   if (!q.data) return <SettingsLoadState query={q} />
