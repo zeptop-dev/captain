@@ -51,7 +51,7 @@ export function NodeInformationSummary({ data, host }: { data: NodeProbe; host?:
   const resources = p.resources
   const resetPolicy = info.traffic_reset?.mode ?? 'manual'
   const resetDay = renewalAnchorDay(info.auto_renewal, info.expires_at)
-  const resetText = resetPolicy === 'manual' ? t('nodeInformation.manualReset', { day: p.reset_day }) : resetDay === null ? t('nodeCost.dateRequired') : t(resetPolicy === 'expiry_next' ? 'nodeCost.resetNextHint' : 'nodeCost.resetHint', { day: resetDay })
+  const resetText = resetPolicy === 'manual' ? t('nodeInformation.manualReset', { day: p.reset_day }) : resetDay === null ? t('nodeCost.dateRequired') : t(resetPolicy === 'expiry_previous' ? 'nodeCost.resetPreviousHint' : resetPolicy === 'expiry_next' ? 'nodeCost.resetNextHint' : 'nodeCost.resetHint', { day: resetDay })
   const bandwidth = info.bandwidth
   const storage = p.storage?.mode === 'manual' ? p.storage.items : recommendedStorage(data.storage_candidates ?? [])
   const mode = nodeLocationDraft(info.location_settings, p.region_mode).mode
