@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"net/netip"
+	"net/url"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
@@ -19,11 +22,20 @@ type AddressFamily struct {
 	CandidateSince int64  `json:"candidate_since"`
 	ConfirmedAt    int64  `json:"confirmed_at"`
 }
+
+// AddressFallback is advisory single-source evidence. It never enters the
+// confirmation or reconciliation fields consumed by older Captain versions.
+type AddressFallback struct {
+	agentproto.PublicAddressFallback
+	ReceivedAt int64 `json:"received_at"`
+}
 type AddressObservation struct {
-	SampledAt  int64         `json:"sampled_at"`
-	ReceivedAt int64         `json:"received_at"`
-	IPv4       AddressFamily `json:"ipv4"`
-	IPv6       AddressFamily `json:"ipv6"`
+	FallbackIPv4 *AddressFallback `json:"fallback_ipv4,omitempty"`
+	FallbackIPv6 *AddressFallback `json:"fallback_ipv6,omitempty"`
+	SampledAt    int64            `json:"sampled_at"`
+	ReceivedAt   int64            `json:"received_at"`
+	IPv4         AddressFamily    `json:"ipv4"`
+	IPv6         AddressFamily    `json:"ipv6"`
 }
 type NodeAddresses struct {
 	AutoIPv4   bool               `json:"auto_ipv4"`
@@ -113,6 +125,8 @@ func (s *Store) ObserveNodeAddresses(ctx context.Context, id int64, token string
 	}
 	advance(&obs.IPv4, sample.IPv4, entry4)
 	advance(&obs.IPv6, sample.IPv6, entry6)
+	obs.FallbackIPv4 = addressFallback(sample.FallbackIPv4, sample.SampledAt, at, false)
+	obs.FallbackIPv6 = addressFallback(sample.FallbackIPv6, sample.SampledAt, at, true)
 	obs.SampledAt = sample.SampledAt
 	obs.ReceivedAt = at.Unix()
 	buf, _ := json.Marshal(obs)
@@ -181,4 +195,36 @@ func (s *Store) BeginAddressDNS(ctx context.Context, id int64, at time.Time) err
 func (s *Store) FinishAddressDNS(ctx context.Context, id int64) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE nodes SET address_dns_pending=0 WHERE id=?`, id)
 	return err
+}
+
+// Invalid optional evidence must not prevent otherwise valid observations from
+// being recorded. Only bounded, credential-free origin and error metadata is kept.
+func addressFallback(in *agentproto.PublicAddressFallback, sampledAt int64, at time.Time, v6 bool) *AddressFallback {
+	if in == nil || in.Source != "captain_cloudflare_trace" || len(in.Origin) > 2048 || in.SampledAt <= 0 || in.SampledAt > sampledAt+1 || in.SampledAt < sampledAt-60 {
+		return nil
+	}
+	u, err := url.Parse(in.Origin)
+	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Opaque != "" || u.Path != "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || strings.HasSuffix(u.Host, ":") {
+		return nil
+	}
+	if port := u.Port(); port != "" {
+		n, err := strconv.Atoi(port)
+		if err != nil || n < 1 || n > 65535 {
+			return nil
+		}
+	}
+	value := *in
+	if value.Address != "" {
+		if value.Error != "" || !agentproto.ValidPublicAddress(value.Address, v6) {
+			return nil
+		}
+		value.Address = netip.MustParseAddr(value.Address).String()
+	} else {
+		switch value.Error {
+		case "timeout", "network", "tls", "http_status", "invalid_response", "invalid_origin":
+		default:
+			return nil
+		}
+	}
+	return &AddressFallback{PublicAddressFallback: value, ReceivedAt: at.Unix()}
 }

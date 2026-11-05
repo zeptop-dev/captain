@@ -28,6 +28,7 @@ func (e *Engine) pingSeries(ctx context.Context, n Node, tasks []PingTask, q Que
 	if err != nil {
 		return nil, err
 	}
+	points = store.FilterCarrierPoints(points, n.CarrierPlan)
 	out := []Series{}
 	for _, t := range tasks {
 		if !taskSelected(t, n, nil) || (q.Tags["task_id"] != "" && q.Tags["task_id"] != t.ID) {
@@ -146,6 +147,7 @@ func (e *Engine) PingStats(ctx context.Context, scope Scope, q PingQuery) ([]Pin
 		if err != nil {
 			return nil, err
 		}
+		points = store.FilterCarrierPoints(points, n.CarrierPlan)
 		for _, t := range snap.PingTasks {
 			if !taskSelected(t, n, q.TaskIDs) {
 				continue

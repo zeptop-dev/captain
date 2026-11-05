@@ -76,7 +76,7 @@ function NodeCard({ n, snapshot, onOpen }: { n: Node; snapshot: Snapshot; onOpen
   const mem = !h || h.valid?.memory === false ? null : pct(h.mem_used, h.mem_total)
   const tr = n.traffic
   const trafficPct = tr.limit > 0 ? Math.min(100, Math.round((tr.used / tr.limit) * 100)) : 0
-  const carriers: PublicPingTask[] = !show('latency') || !snapshot.carrier_ping ? [] : (n.ping_tasks ?? (h?.pings ?? []).map(p => ({ id: p.task_id, name: p.name, series: p.series, family: p.family, type: p.type }))).filter(p => p.id === 0)
+  const carriers: PublicPingTask[] = !show('latency') ? [] : (n.ping_tasks ?? (!snapshot.carrier_ping ? [] : (h?.pings ?? [])).map(p => ({ id: p.task_id, name: p.name, series: p.series, family: p.family, type: p.type }))).filter(p => p.id === 0)
   return (
     <Card className={`glass monitor-node ${snapshot.layout === 'compact' ? 'monitor-compact' : ''}`} withBorder={false} style={{ cursor: 'pointer', opacity: n.online ? 1 : 0.6 }} onClick={onOpen} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() } }}>
       <Group justify="space-between" wrap="nowrap">
@@ -107,7 +107,8 @@ function NodeCard({ n, snapshot, onOpen }: { n: Node; snapshot: Snapshot; onOpen
             const reason = task.reason || (stale ? 'stale' : p?.quality?.outcome)
             const unavailable = !p || stale || carrierUnavailable(task, p)
             const value = unavailable || !Number.isFinite(p.latency_ms) ? '—' : p.latency_ms < 0 ? '×' : `${Math.round(p.latency_ms)}ms`
-            const loss = !unavailable && p.loss != null ? `${p.loss.toFixed(0)}%` : '—'
+            const lossValue = p?.quality ? (p.quality.window.attempts > 0 ? 100 * p.quality.window.failed / p.quality.window.attempts : null) : p?.loss
+            const loss = show('history') && !unavailable && lossValue != null ? `${lossValue.toFixed(0)}%` : '—'
             return <Tooltip key={networkIdentity({ ...task, task_id: task.id })} label={`${label} ${t('page.loss')} ${loss}${reason ? ` · ${reason === 'stale' ? t('networkQuality.stale') : t(`networkQuality.outcomes.${reason}`)}` : ''}`}><Text size="xs" c={unavailable ? 'dimmed' : p.latency_ms < 0 ? 'red' : p.latency_ms > 200 ? 'orange' : 'dimmed'}>{label} {value}</Text></Tooltip>
           })}
         </Group>

@@ -112,12 +112,25 @@ func (h *handlers) networkQuality(w http.ResponseWriter, r *http.Request) {
 			paths[task.ID] = task.SourceInterface
 		}
 	}
+	plan, err := h.Store.NodeProbePlan(r.Context(), idOf(r))
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
+	var settings store.ProbeSettings
+	if err = h.Store.GetSetting(r.Context(), store.SettingProbe, &settings); err != nil && err != store.ErrNotFound {
+		serverErr(w, err)
+		return
+	}
+	settings.Normalize()
+	effective := store.ResolveNodeProbePlan(settings, plan)
+	points = store.FilterCarrierPoints(points, effective)
 	current := []spec.PingResult{}
 	if nodes[0].Host != nil {
-		current = store.FilterTaskSamples(*nodes[0].Host, tasks, idOf(r)).Pings
+		current = store.FilterCarrierSamples(store.FilterTaskSamples(*nodes[0].Host, tasks, idOf(r)), effective).Pings
 	}
 	if current == nil {
 		current = []spec.PingResult{}
 	}
-	ok(w, map[string]any{"current": current, "points": points, "task_paths": paths, "from": now.Add(-window).Unix(), "to": now.Unix(), "step": int64(step / time.Second)})
+	ok(w, map[string]any{"probe_plan": effective, "current": current, "points": points, "task_paths": paths, "from": now.Add(-window).Unix(), "to": now.Unix(), "step": int64(step / time.Second)})
 }
