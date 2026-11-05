@@ -76,7 +76,7 @@ their normal node permissions. Reset disables the listener and creates a fresh
 revision, preventing old drafts from binding reused certificate IDs. No bosun
 protocol change is needed; Captain downloads retain the bosun v0.89.0 minimum.
 
-## Explicit access diagnostics (unreleased)
+## Explicit access diagnostics (Captain v1.56.0 / bosun v0.90.0)
 
 The Agent HTTPS settings card offers **Check entry**. Its authenticated
 `POST /api/admin/settings/agent-https/check` accepts only a saved `revision`,

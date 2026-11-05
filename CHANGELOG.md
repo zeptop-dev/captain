@@ -1,9 +1,11 @@
 # Changelog
 
-- **Unreleased** — Add default and per-server carrier probe plans with independent TCP/ICMP, IP-family and target selection; retain drafts and keep current/history views tied to each server’s active plan. Show automatic high-port public-IP fallback as separate advisory evidence, never as an automatic entry/DNS update.
+- **v1.56.0** (2026-11-05) — Add default and per-server carrier probe plans with independent TCP/ICMP, IP-family and target selection; retain drafts and keep current/history views tied to each server’s active plan. Show automatic high-port public-IP fallback as separate advisory evidence, never as an automatic entry/DNS update.
   - Add Chinese and English display names to monitoring groups and subscription-node categories. Either name is sufficient; Chinese interfaces prefer the Chinese name and other languages prefer English, with fallback to the other name and legacy data. Keep stable group/category identities, ordering, access and accounting unchanged across language switches.
-
   - Add explicit checks of the saved Agent HTTPS origin with fresh same-process proof, separate from local listener, Docker and firewall status. The host installer can publish a TCP port and configure a uniquely identified active UFW/firewalld manager, preserving operator rules; include a read-only check command and 1Panel guidance. Stop generated install commands when the initial download fails.
+
+  - Add expiry-linked traffic resets on the preceding day, including month-end and leap-year boundaries, while retaining existing reset modes and renewal anchors.
+  - Use the formal bosun v0.90.0 dependency. Migrations 112–113 preserve existing group identities and default all servers to the global probe plan. Older compatible agents can run independent plans; high-port IP observations and complete rolling-window evidence require bosun v0.90.0. Raise Captain’s built-in rollback floor to v1.56.0 so older panels cannot silently discard independent probe plans.
 
 - **v1.55.0** (2026-11-04) — Add an optional Captain-managed HTTPS listener for Agent pairing, state, reporting and authenticated downloads. Reuse the certificate inventory and existing Agent services; hot-load valid renewals, retain a working old entry on failed reconfiguration, protect website ports and certificate references, and keep admin/portal routes off the dedicated port.
   - Add revision-checked settings, local readiness distinct from node reachability, explicit per-server installation selection, and guarded Docker port setup for script and 1Panel deployments. Existing node endpoints, billing identities and website URLs remain unchanged; bosun v0.89.0 remains sufficient for Captain downloads.

@@ -5,9 +5,9 @@ with, what the database is good for, and what is deliberately not there.
 
 For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
-time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.54.0 to preserve interface-bound probes.
+time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.56.0 to preserve independent server plans and interface-bound probes.
 
-## Per-server carrier probe plans (unreleased)
+## Per-server carrier probe plans (Captain v1.56.0)
 
 Migration 113 stores independent per-server carrier plans and node-bound edit
 revisions. Existing and newly created servers inherit the global default;
@@ -18,7 +18,7 @@ keep their existing controls. Older metadata editors preserve the new plan.
 
 Agent delivery uses the existing carrier-probe configuration. Older compatible
 agents can execute the selected plan without a new version requirement. The
-additive `window_started_at` report field lets Captain establish whether all
+additive bosun v0.90.0 `window_started_at` report field lets Captain establish whether all
 samples in a rolling window follow the current plan. After a plan change, agents
 without that field retain their fresh latest latency while the unverified
 rolling statistics remain unknown. No historical samples are relabeled as a
@@ -27,11 +27,23 @@ selecting the same exact target again retains its earlier history without
 reviving old current-state or rolling-window evidence.
 
 Older Captain binaries ignore server overrides and return to their global
-selection. Disable overrides or restore a compatible backup before manually
-downgrading a panel that relies on independent plans. This development change
-does not assign a release version or a new built-in rollback floor.
+selection, including re-enabling probes disabled for one server. Captain
+v1.56.0 therefore raises the built-in rollback floor to v1.56.0. Higher
+configured floors remain effective. Manual downgrade requires restoring a
+compatible backup and explicitly checking the resulting probe configuration.
 
-## Bilingual display groups and categories (unreleased)
+## Public IP fallback (Captain v1.56.0 / bosun v0.90.0)
+
+bosun v0.90.0 can anonymously query the configured Captain HTTPS origin,
+including its port, when the normal independent public-IP sources fail. A
+Cloudflare trace result is separate single-source advisory evidence. It never
+replaces the authoritative address, changes an entry, or updates DNS. No new
+option is required; direct origins without that endpoint remain unknown.
+Older panels ignore these additive fields and older agents keep their existing
+address detection. No proxy-core version or bosun rollback-floor change is
+required.
+
+## Bilingual display groups and categories (Captain v1.56.0)
 
 Migration 112 adds optional Chinese/English names to monitoring groups and
 subscription-node categories. Existing keys, IDs and legacy name fields remain
@@ -107,7 +119,7 @@ its port. The existing update floor is unchanged; do not manually downgrade
 a deployment that still relies on this entry. See [deployment and certificate
 lifecycle](AGENT_DELIVERY.md#captain-managed-agent-https-entry).
 
-The unreleased access diagnostic and host firewall helper add no Agent protocol
+The Captain v1.56.0 access diagnostic and host firewall helper add no Agent protocol
 or schema requirement. Existing nodes keep working. The new installer preflight
 is a script change: Captain must embed the supporting bosun bootstrap dependency
 when released; it is not provided by the v0.89.0 module. Compatibility fallback
@@ -674,6 +686,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
+| 1.56.0 | ≥ 0.90.0 for high-port IP observations and complete rolling-window evidence; existing compatible agents can run independent plans | Default/per-server carrier plans and advisory IP fallback, bilingual groups/categories, Agent access/firewall diagnostics and preceding-day traffic resets. Migrations 112–113; Captain rollback floor v1.56.0 protects per-server probe intent. |
 | 1.54.0 | ≥ 0.89.0 for Captain delivery and interface-bound probes | Optional agent origins and native package delivery, OpenWrt monitor setup and path-isolated ICMP/TCP tasks; migrations 110–111. Older nodes retain existing services. |
 | 1.51.0 | ≥ 0.86.0 for live diagnostics and detailed traffic provenance | Temporary administrator leases and bounded private batch history; older nodes retain configuration and accounting compatibility. Migration 107. |
 | 1.53.0 | ≥ 0.88.0 for UDP/both or non-relay complete paths | Derived transport, per-hop backend intent and staged path snapshots; existing native TCP paths keep their earlier gates. No migration. |
@@ -721,7 +734,7 @@ features it has never heard of, which the node page shows as an orange
 
 `min_version` in both `config.yaml` files is the floor a self-update or
 rollback may not go below; set it to the version you have tested. Captain's
-built-in floor is v1.54.0 to preserve probe interface bindings as well as complete-route transports, backend intent and health policies;
+built-in floor is v1.56.0 to preserve independent server probe plans, interface bindings, complete-route transports, backend intent and health policies;
 this also preserves shared infrastructure dates, payment actions, the homepage switch and inbound access policies, and
 retains device credentials, exit attribution and the earlier protections for line ownership, client chains, internal
 forwarding and public storage selection. A higher configured floor still wins.

@@ -57,6 +57,36 @@ routing, billing or subscriptions, or automatically applies to other nodes on th
 same server. Saving publication settings uses a revision check to prevent another
 administrator's changes from being overwritten.
 
+## Default and per-server probe plans
+
+Captain v1.56.0 places the default carrier plan in **Settings → Monitoring and
+status → Server probes → Default probe plan**. Each server, including a
+monitor-only server, can choose **Inherit global**, **Custom** or **Disabled**
+in **Settings → Monitoring and probes**. Custom plans independently retain
+TCP/ICMP, IPv4/IPv6/dual, the TCP province and four target lists. Switching back
+to inheritance or disabling carrier probes preserves the custom draft.
+
+The global monitoring switch still stops collection. The global carrier switch
+controls only the inherited default; a custom server plan can remain enabled
+when that default is off. Resource collection, heartbeats and separately
+assigned ping tasks keep their existing controls. New and existing servers
+inherit the global plan until explicitly changed.
+
+Current measurements and rolling windows must belong to the active plan;
+changing plans clears obsolete current evidence without relabeling history.
+Selecting an earlier exact target retains its original history. bosun v0.90.0
+reports the first actual sample in each rolling window. Older compatible
+agents can run the selected plan, but Captain shows unverifiable rolling
+statistics as unknown after a plan change while retaining fresh latest latency.
+
+For public-IP detection, bosun v0.90.0 automatically tries an anonymous
+Cloudflare trace on the configured Captain HTTPS origin (including its port)
+when independent HTTPS sources fail. The server's public-address card shows
+this as **Advisory observation**, with its source and time. A single source
+never qualifies for automatic entry following or DNS updates. No extra option
+or externally configured lookup service is needed; a direct origin without the
+trace endpoint, or missing IPv6 connectivity, leaves that result unknown.
+
 ## Probe and status page
 
 Monitoring → Collection and status page → Probe. Off by default — nothing extra runs on the nodes until it
