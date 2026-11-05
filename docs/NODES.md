@@ -71,6 +71,16 @@ server; retired process sessions remain fenced within their pairing identity.
 
 ## Groups and display order
 
+Group creation and editing offer **Chinese name** and **English name**. Fill in
+either one or both. Chinese interfaces (including Simplified and Traditional
+Chinese) prefer the Chinese name; all other interface languages prefer English.
+If that name is absent, the other one is used. Existing groups retain their
+original names until edited; no automatic translation is performed. Changing
+a display name or interface language does not move servers, reorder groups or
+change the selection in a filter. The same names appear in administration and
+the built-in probe themes. Third-party theme packages may continue displaying
+the legacy group label.
+
 These groups organize **servers** for monitoring. To categorize the subscription
 nodes customers select, use **Nodes & lines → Subscription nodes → Manage
 categories** instead (see [subscription categories](SUBSCRIPTIONS.md#entries-what-each-user-sees)).

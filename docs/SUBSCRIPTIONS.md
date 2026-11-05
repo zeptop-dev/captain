@@ -230,7 +230,12 @@ clients see, give them free-form tags (shown in the portal, usable as a
 filter and in the designer) and a region.
 
 **Nodes & lines → Subscription nodes → Manage categories** manages display
-categories with a name, a short plain-text description and an order. Each
+categories with Chinese/English names, a short plain-text description and an order.
+At least one name is required. Chinese interfaces prefer Chinese; other interface
+languages prefer English. A missing translation falls back to the other name,
+and existing categories retain their original name until edited. This applies
+to administration, the portal and public service status, within their existing
+visibility rules. Descriptions remain the single supplied text. Each
 subscription node can belong to one category; edit a node or select several
 visible rows to assign them together. Managed reverse-connection nodes can also
 be categorized through the batch action. Deleting a category leaves its nodes
@@ -253,7 +258,7 @@ The admin API adds `/api/admin/entry-categories` (list/create), `/{id}`
 null preserves the current category; send `0` to clear it. Bulk assignment
 requires an explicit category ID, including `0` for uncategorized. The portal's
 existing server array adds an optional `category` object
-(`id`, `name`, `description`, `sort`); no global category catalogue is public.
+(`id`, `name`, `name_zh`, `name_en`, `description`, `sort`); no global category catalogue is public.
 The portal rank is relative to the caller's visible categories. Category CRUD
 uses the separate `entry-categories` API-token resource; assigning a node's
 category uses `entries`. Both operations retain the existing administrator and

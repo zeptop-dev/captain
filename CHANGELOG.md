@@ -1,5 +1,7 @@
 # Changelog
 
+- **Unreleased** — Add Chinese and English display names to monitoring groups and subscription-node categories. Either name is sufficient; Chinese interfaces prefer the Chinese name and other languages prefer English, with fallback to the other name and legacy data. Keep stable group/category identities, ordering, access and accounting unchanged across language switches.
+
 - **v1.55.0** (2026-11-04) — Add an optional Captain-managed HTTPS listener for Agent pairing, state, reporting and authenticated downloads. Reuse the certificate inventory and existing Agent services; hot-load valid renewals, retain a working old entry on failed reconfiguration, protect website ports and certificate references, and keep admin/portal routes off the dedicated port.
   - Add revision-checked settings, local readiness distinct from node reachability, explicit per-server installation selection, and guarded Docker port setup for script and 1Panel deployments. Existing node endpoints, billing identities and website URLs remain unchanged; bosun v0.89.0 remains sufficient for Captain downloads.
 

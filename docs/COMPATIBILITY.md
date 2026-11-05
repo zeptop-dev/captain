@@ -7,6 +7,24 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.54.0 to preserve interface-bound probes.
 
+## Bilingual display groups and categories (unreleased)
+
+Migration 112 adds optional Chinese/English names to monitoring groups and
+subscription-node categories. Existing keys, IDs and legacy name fields remain
+intact. `NodeLayout.groups` and node membership still use stable keys; the
+optional `group_names` map carries `{zh,en}` display names. Older clients that
+omit it preserve translations for unchanged keys. Localized category fields
+are additive; updates that omit them preserve existing translations.
+
+Captain's interfaces choose the Chinese name for Chinese locales and English
+for other locales, falling back to the other name and then the legacy label.
+Translation changes never modify access, billing, subscription output, ordering
+or agent configuration. Public metadata is attached only to already-visible
+objects. No bosun upgrade is required. Older Captain binaries do not understand
+the extra names and may discard group translations when rewriting layouts;
+keep a compatible backup before manually downgrading. No new built-in rollback
+floor is introduced for this optional presentation metadata.
+
 ## Interface-bound probes (Captain v1.54.0 / bosun v0.89.0)
 
 Migration 111 adds optional `source_interface` to custom ICMP/TCP tasks.
