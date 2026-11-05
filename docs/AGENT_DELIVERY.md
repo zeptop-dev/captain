@@ -168,9 +168,25 @@ error. Captain itself still needs access to the official artifact sources.
 
 Docker images and operating-system packages are not distributed by this
 feature. The interface offers the native command for Captain delivery. Missing
-system tools are reported instead of starting package-manager downloads in
-that mode. Install the required OS packages through a reachable distribution
-mirror beforehand. Network quality probes continue measuring their actual
+system tools are reported by default in that mode. The full native installation
+command offers a separate **Install dependencies from OS repositories** choice:
+GitHub defaults to enabled and Captain defaults to disabled. A changed choice
+adds `--system-packages install` or `--system-packages skip`; it does not change
+the node's saved download source. Debian 11/12/13 use nftables and iproute2;
+Alpine additionally needs iproute2-tc. WireGuard tooling is handled separately.
+Monitor-only, OpenWrt and Docker commands do not use this option.
+
+Explicit choices require an installer declaring `system-packages-v1` support.
+If the selected bootstrap is older, the wrapper stops before executing it and
+asks for an update; it never silently ignores the administrator's choice.
+Default commands remain compatible with old installers. For Captain delivery,
+the supporting embedded bootstrap must be included in Captain's fixed bosun
+dependency before release; the UI alone cannot provide the updated script.
+
+Missing system tools, nft kernel read access, and applied protection are
+separate results. Runtime recovery needs the supporting bosun binary, not only
+the new installation script. LXC host permissions and traffic-shaping kernel
+support cannot be supplied by a package download. Network quality probes continue measuring their actual
 targets directly; downloading through Captain does not bypass network policy
 for proxy traffic or monitoring.
 

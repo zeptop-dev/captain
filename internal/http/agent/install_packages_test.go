@@ -91,3 +91,32 @@ exit "$CURL_STATUS"
 		})
 	}
 }
+
+// Run against the supporting bosun dependency before integration/release. The
+// fixed published dependency may intentionally remain older during development.
+func TestSystemPackagesEmbeddedInstaller(t *testing.T) {
+	if os.Getenv("CAPTAIN_TEST_SYSTEM_PACKAGES_BOOTSTRAP") != "1" {
+		t.Skip("set CAPTAIN_TEST_SYSTEM_PACKAGES_BOOTSTRAP=1 with the supporting bosun dependency")
+	}
+	st, mux, _ := fixture(t)
+	const pair = "EMBEDDED-PACKAGES"
+	if err := st.CreateNode(context.Background(), &domain.Node{Name: "embedded-package-test", DownloadSource: "captain"}, pair, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest("GET", "/api/agent/downloads/bootstrap/install.sh", nil)
+	request.Header.Set("X-Bosun-Pair-Code", pair)
+	response := httptest.NewRecorder()
+	mux.ServeHTTP(response, request)
+	if response.Code != 200 {
+		t.Fatalf("authenticated installer status: %d", response.Code)
+	}
+	body := response.Body.String()
+	for _, required := range []string{"# bosun-installer-feature: system-packages-v1", "prepare_system_packages", "iproute2-tc", "--system-packages"} {
+		if !strings.Contains(body, required) {
+			t.Fatalf("embedded installer lacks %q; fix the bosun dependency before release", required)
+		}
+	}
+	if strings.Contains(body, pair) {
+		t.Fatal("generic embedded installer contains a pair credential")
+	}
+}

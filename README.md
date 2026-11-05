@@ -58,6 +58,7 @@ Monitor-only nodes can be installed without proxy cores and later switched to fu
 
 ## Features
 
+- Full native Agent installation separates OS dependency installation from Captain/GitHub program downloads, with explicit package-source opt-in and compatibility checks for older installers. [Installation dependencies](docs/AGENT_DELIVERY.md#scope-limits).
 - Serve an optional Agent-only HTTPS port directly from Captain, reusing existing certificates with hot reload and the authenticated package cache. Keep 1Panel website HTTPS separate; the console prepares node install commands and offers explicit origin diagnostics. Host setup can configure an active UFW/firewalld firewall and inspect Docker publication; local, host, panel-originated and remote-node checks remain distinct. [Agent entry](docs/AGENT_DELIVERY.md#captain-managed-agent-https-entry) · [Docker and 1Panel](docs/AGENT_HTTPS_DOCKER.md).
 
 - Install monitor-only OpenWrt observation points with bosun v0.89.0, and bind ICMP/TCP tasks to an actual Linux device with independent path history. Optional Captain HTTPS origins and authenticated native package delivery cover installers, upgrades and managed prebuilt cores while preserving existing endpoints. [Monitoring](docs/MONITORING.md) · [Agent delivery](docs/AGENT_DELIVERY.md).

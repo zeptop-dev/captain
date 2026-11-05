@@ -53,6 +53,7 @@ mita（mieru）、Hysteria、snell-server 和 realm 作为子进程拉起来。
 
 ## 功能特性
 
+- 完整服务器原生安装可单独选择从系统软件源安装依赖，与 Captain／GitHub 程序下载来源分开；兼容旧安装命令，旧脚本不会静默忽略明确选择。[安装依赖](docs/AGENT_DELIVERY.md#scope-limits)。
 - Captain 可直接提供独立的 Agent HTTPS 端口，复用已有证书并自动热更新，共享认证包缓存；网站继续使用 1Panel HTTPS。后台生成节点安装命令并提供入口检测；宿主机脚本可处理已启用的 UFW/firewalld 并检查 Docker 端口映射。本地监听、宿主机、面板侧访问与目标节点可达性分别报告。[Agent 入口](docs/AGENT_DELIVERY.md#captain-managed-agent-https-entry) · [Docker 与 1Panel](docs/AGENT_HTTPS_DOCKER.md)。
 
 - 使用 bosun v0.89.0 接入仅监控的 OpenWrt 测点，ICMP/TCP 任务可绑定实际 Linux 网卡并独立记录路径历史。可选 Agent 专用 HTTPS 地址及 Captain 认证分发，覆盖原生安装、升级和托管预编译内核，保留现有节点的连接地址。[监控说明](docs/MONITORING.md) · [Agent 分发](docs/AGENT_DELIVERY.md)。

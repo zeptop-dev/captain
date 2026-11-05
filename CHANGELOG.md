@@ -1,5 +1,7 @@
 # Changelog
 
+- **Unreleased** — Add a separate OS-dependency installation choice to full native server setup. Preserve Captain/GitHub defaults and older install commands, reject unsupported explicit choices before executing an old installer, and keep Docker/monitor-only setup independent.
+
 - **v1.56.0** (2026-11-05) — Add default and per-server carrier probe plans with independent TCP/ICMP, IP-family and target selection; retain drafts and keep current/history views tied to each server’s active plan. Show automatic high-port public-IP fallback as separate advisory evidence, never as an automatic entry/DNS update.
   - Add Chinese and English display names to monitoring groups and subscription-node categories. Either name is sufficient; Chinese interfaces prefer the Chinese name and other languages prefer English, with fallback to the other name and legacy data. Keep stable group/category identities, ordering, access and accounting unchanged across language switches.
   - Add explicit checks of the saved Agent HTTPS origin with fresh same-process proof, separate from local listener, Docker and firewall status. The host installer can publish a TCP port and configure a uniquely identified active UFW/firewalld manager, preserving operator rules; include a read-only check command and 1Panel guidance. Stop generated install commands when the initial download fails.
