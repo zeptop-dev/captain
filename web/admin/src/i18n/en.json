@@ -4305,9 +4305,8 @@
     "localStatus": "Local listener status",
     "activeURL": "Active address",
     "expires": "Certificate expires",
-    "externalUnknown": "A local listener does not verify DNS, Docker publishing, cloud firewall or connectivity from a node. External and node connectivity are not yet verified.",
-    "dockerTitle": "Publish the Docker port",
-    "dockerHint": "Run this once on the Captain host for a script-managed Docker installation. It uses the saved port and recreates the container to apply publishing. Custom Compose deployments require a matching TCP port mapping; cloud firewall rules remain separate.",
+    "dockerTitle": "Configure host access",
+    "dockerHint": "Run on the Captain host for a script-managed Docker installation. This configures the saved port mapping, allows it in the active supported host firewall, and checks access. Applying a new mapping recreates the container and may briefly interrupt service. Cloud firewall rules remain separate.",
     "useManaged": "Use Captain-managed Agent endpoint",
     "selectionHint": "Copies the saved endpoint and selects Captain for downloads. You can still edit these fields.",
     "selectionUnavailable": "The configured endpoint is not locally ready. Check Agent HTTPS settings first.",
@@ -4320,7 +4319,36 @@
       "unknown": "Status unavailable"
     },
     "checkTitle": "Check from the target node",
-    "checkHint": "Run this command on the target bosun host. A successful TLS/HTTP response must contain \"ok\": true and \"service\": \"captain-agent\". It checks access from that host; it does not pair or change any node."
+    "checkHint": "Run this command on the target bosun host. A successful TLS/HTTP response must contain \"ok\": true and \"service\": \"captain-agent\". It checks access from that host; it does not pair or change any node.",
+    "access": {
+      "title": "Entry access check",
+      "check": "Check entry",
+      "perspective": "Checks the saved address from the Captain server. A successful result does not verify access from a bosun node. Results expire after 30 seconds.",
+      "saveFirst": "Save your changes before checking.",
+      "conflict": "The saved settings changed during this check. Check again after refreshing the settings.",
+      "failed": "The check could not finish. No access result is confirmed.",
+      "checkedAt": "Checked at {{time}} · {{elapsed}} ms",
+      "originTimeout": "HTTP 522 means the proxy could not connect to the origin in time. Check the origin address, Docker port mapping, host and cloud firewall rules, and whether the listener is running.",
+      "troubleshoot": "Check DNS, certificate hostname, port mapping, host firewall and cloud security rules for the saved address.",
+      "unchecked": "No fresh result. Run the check to verify current access.",
+      "hostUnknown": "Docker port mapping and host firewall: check on the Captain host.",
+      "nodeUnknown": "Target bosun node: not verified. Run the command below on that node.",
+      "hostCheck": "Read-only host check",
+      "onePanel": "For 1Panel or a custom Compose project, preserve the existing project configuration and add the TCP port mapping there, then redeploy/recreate the container. Restart alone does not apply a new mapping. Cloud firewall rules require separate configuration.",
+      "results": {
+        "ok": "Reachable from the Captain server",
+        "disabled": "Agent HTTPS is disabled",
+        "not_ready": "Local listener is not ready",
+        "dns_error": "DNS resolution failed",
+        "connect_error": "Could not connect to the entry",
+        "timeout": "Connection or response timed out",
+        "tls_error": "TLS certificate verification failed",
+        "redirect": "The entry returned a redirect",
+        "http_error": "The entry returned an HTTP error",
+        "unexpected_service": "The response is not from this Captain instance"
+      },
+      "busy": "Another entry check is already running. Try again when it finishes."
+    }
   },
   "bilingualName": {
     "zh": "Chinese name",
