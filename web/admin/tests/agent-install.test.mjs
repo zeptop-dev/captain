@@ -71,3 +71,16 @@ test('a real curl download executes the saved installer with Docker arguments', 
     assert.deepEqual(readdirSync(temp), [])
   } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); rmSync(root, { recursive: true, force: true }) }
 })
+
+test('native dependency choice is independent of program source, Docker and monitor installs', () => {
+  for (const source of ['github', 'captain']) {
+    const enabledByDefault = source === 'github'
+    const defaults = agentInstallCommands('CODE', 'https://example.com', 'full', source, enabledByDefault)
+    assert.doesNotMatch(defaults.install, /--system-packages/, 'unchanged defaults remain compatible with old installers')
+    const changed = agentInstallCommands('CODE', 'https://example.com', 'full', source, !enabledByDefault)
+    assert.match(changed.install, new RegExp(`--system-packages ${source === 'captain' ? 'install' : 'skip'}\\)$`))
+    assert.equal(changed.docker, defaults.docker)
+    assert.equal(changed.snippet, defaults.snippet, 'installation option is not a saved agent setting')
+    assert.doesNotMatch(agentInstallCommands('CODE', 'https://example.com', 'monitor', source, !enabledByDefault).install, /--system-packages/)
+  }
+})

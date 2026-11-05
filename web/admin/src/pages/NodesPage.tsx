@@ -26,11 +26,17 @@ import { AgentConnectionFields } from '../components/AgentConnectionFields'
 import { agentInstallCommands } from '../lib/agent-install'
 
 export function PairCodeBox({ code, mode = 'full', agentURL, downloadSource }: { code: string; mode?: 'full' | 'monitor'; agentURL?: string; downloadSource?: string }) {
+  return <PairCodeOptions key={JSON.stringify([code, mode, agentURL, downloadSource])} code={code} mode={mode} agentURL={agentURL} downloadSource={downloadSource} />
+}
+
+function PairCodeOptions({ code, mode, agentURL, downloadSource }: { code: string; mode: 'full' | 'monitor'; agentURL?: string; downloadSource?: string }) {
   const { t } = useTranslation()
-  const { install, docker, snippet } = agentInstallCommands(code, agentURL || window.location.origin, mode, downloadSource)
+  const [installSystemPackages, setInstallSystemPackages] = useState(downloadSource !== 'captain')
+  const { install, docker, snippet } = agentInstallCommands(code, agentURL || window.location.origin, mode, downloadSource, installSystemPackages)
   return (
     <Stack gap="xs">
       <Text size="sm" c="dimmed">{t('nodes.pairHint')}</Text>
+      {mode === 'full' && <Switch label={t('nodes.installSystemPackages')} description={t('nodes.installSystemPackagesHint')} checked={installSystemPackages} onChange={e => setInstallSystemPackages(e.currentTarget.checked)} />}
       <Text size="xs" fw={600}>{t('nodes.installCmd')}</Text>
       <Group align="flex-start" gap="xs"><Code block style={{ flex: 1, wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{install}</Code><Copy value={install} /></Group>
       {downloadSource !== 'captain' && <>

@@ -219,7 +219,7 @@
     "certExpires": "{{date}} に期限切れ",
     "certOk": "正常",
     "certProblem": "証明書の取得に失敗したか、期限が近づいています",
-    "installCmd": "ワンライナーインストール（systemd）",
+    "installCmd": "ネイティブインストール（systemd / OpenRC）",
     "dockerCmd": "Docker（host ネットワーク）",
     "manualHint": "bosun をインストール済みですか？ペアリングコードで手動で引き継ぐか、設定スニペットをコピーしてください：",
     "monitorUrlHint": "別の監視ツールを使う場合、このサーバーのページURLを入力すると、サーバーページにリンクが表示されます。",
@@ -280,7 +280,9 @@
     "proxyTrafficReceived": "前段サーバーで計測：{{bytes}}",
     "proxyTrafficUnattributed": "出口不明分を含む：{{bytes}}",
     "proxyTrafficLegacy": "計測サーバー別の旧データ",
-    "proxyTrafficPartial": "{{date}} UTC 以降の帰属を完全に記録しています。それ以前の履歴は不完全な場合があります。"
+    "proxyTrafficPartial": "{{date}} UTC 以降の帰属を完全に記録しています。それ以前の履歴は不完全な場合があります。",
+    "installSystemPackages": "システムリポジトリからネットワーク依存関係をインストール",
+    "installSystemPackagesHint": "ネイティブインストールのみ。サーバーのリポジトリから nftables と iproute2（Alpine では iproute2-tc も）を取得します。Captain 経由ではありません。LXC ホストの制限でファイアウォールや速度制限が使えない場合があります。"
   },
   "inbounds": {
     "title": "インバウンド",

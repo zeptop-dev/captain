@@ -219,7 +219,7 @@
     "certExpires": "expires {{date}}",
     "certOk": "ok",
     "certProblem": "A certificate failed or expires soon",
-    "installCmd": "One-line install (systemd)",
+    "installCmd": "Native install (systemd / OpenRC)",
     "dockerCmd": "Docker (host network)",
     "manualHint": "bosun already installed? Adopt with the code, or copy the config snippet:",
     "monitorUrlHint": "If you run another probe , paste this server's page there; the server page shows a link.",
@@ -280,7 +280,9 @@
     "proxyTrafficReceived": "Measured on front servers: {{bytes}}",
     "proxyTrafficUnattributed": "Includes unknown exit: {{bytes}}",
     "proxyTrafficLegacy": "Grouped by collector (legacy data)",
-    "proxyTrafficPartial": "Attribution is fully recorded from {{date}} UTC; earlier history may be incomplete."
+    "proxyTrafficPartial": "Attribution is fully recorded from {{date}} UTC; earlier history may be incomplete.",
+    "installSystemPackages": "Install network dependencies from system repositories",
+    "installSystemPackagesHint": "Native installation only. Uses the server’s package repositories for nftables and iproute2 (plus iproute2-tc on Alpine); these packages are not downloaded through Captain. LXC host restrictions may still prevent firewall rules or speed limits."
   },
   "inbounds": {
     "title": "Inbounds",

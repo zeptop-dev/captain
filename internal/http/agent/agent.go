@@ -503,7 +503,13 @@ set -eu
 command -v curl >/dev/null || { echo "curl is required" >&2; exit 1; }
 installer=$(mktemp)
 trap 'rm -f "$installer"' EXIT HUP INT TERM
-curl -fsSL --globoff%s %s -o "$installer"
+curl -q -fsSL --globoff%s %s -o "$installer"
+for arg in "$@"; do
+  if [ "$arg" = --system-packages ] && ! grep -Fqx '# bosun-installer-feature: system-packages-v1' "$installer"; then
+    echo 'The downloaded installer does not support the selected system-package option. Update Captain or the bosun installer, then retry.' >&2
+    exit 2
+  fi
+done
 sh "$installer" --captain %s --pair %s%s%s "$@"
 `, headerArg, shellQuote(upstream), shellQuote(endpoint), shellQuote(code), modeArg, sourceArg)
 }
