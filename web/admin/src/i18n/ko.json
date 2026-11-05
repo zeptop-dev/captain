@@ -90,7 +90,22 @@
     "dnsPending": "주소가 갱신되었습니다. DNS 동기화 대기 또는 재시도 중입니다. DNS 상태와 변경 기록을 확인하세요.",
     "confirming": "주소가 탐지되었습니다. 다음 독립 측정으로 확인 중입니다.",
     "applying": "주소가 확인되었습니다. 진입 주소 업데이트와 DNS 동기화를 기다리는 중입니다.",
-    "unregistered": "미등록"
+    "unregistered": "미등록",
+    "fallbackTitle": "보조 관측",
+    "fallbackSingle": "단일 출처",
+    "fallbackStale": "만료됨 / 미검증",
+    "fallbackSource": "출처",
+    "fallbackCloudflare": "Captain 접속 주소의 Cloudflare trace",
+    "fallbackSampled": "측정 시간",
+    "fallbackHint": "단일 출처의 관측입니다. 진입 주소나 DNS 자동 갱신에 사용하지 않습니다.",
+    "fallbackErrors": {
+      "timeout": "보조 조회 시간이 초과되었습니다.",
+      "network": "보조 조회 주소에 연결할 수 없습니다.",
+      "tls": "보조 조회의 TLS 인증서를 확인할 수 없습니다.",
+      "http_status": "접속 주소에서 사용 가능한 trace 응답을 반환하지 않았습니다.",
+      "invalid_response": "보조 응답에 해당 주소 계열의 유효한 공인 주소가 없습니다.",
+      "invalid_origin": "유효한 Captain HTTPS 접속 주소가 설정되지 않았습니다."
+    }
   },
   "app": {
     "logout": "로그아웃"
@@ -3552,7 +3567,8 @@
       "ingresses": "NAT / 전용선 매핑",
       "routing": "아웃바운드 및 라우팅",
       "overrides": "코어 재정의",
-      "runtime": "유지 관리"
+      "runtime": "유지 관리",
+      "monitoring": "모니터링 및 탐사"
     },
     "networkHistory": "지연 및 패킷 손실 기록"
   },
@@ -4326,5 +4342,32 @@
     "zh": "중국어 이름",
     "en": "영어 이름",
     "hint": "이름을 하나 이상 입력하세요. 중국어 화면에서는 중국어 이름을, 다른 언어에서는 영어 이름을 우선 표시하며 없으면 다른 이름을 표시합니다."
+  },
+  "nodeProbePlan": {
+    "title": "모니터링 및 탐사",
+    "defaultTitle": "기본 탐사 계획",
+    "defaultHint": "서버는 독립 계획을 선택하지 않으면 이 통신사 탐사 계획을 따릅니다. 위의 모니터링 수집 스위치는 모든 서버에 적용됩니다.",
+    "hint": "이 서버의 통신사 탐사를 설정합니다. 리소스 수집과 개별 지정된 사용자 지정 작업 설정은 유지됩니다.",
+    "effective": "현재 저장된 계획",
+    "modeLabel": "탐사 계획",
+    "mode": {
+      "inherit": "전역 설정 따르기",
+      "custom": "독립 설정",
+      "disabled": "통신사 탐사 끄기"
+    },
+    "modeHint": {
+      "inherit": "현재 전역 기본 계획을 사용합니다. 저장된 독립 설정은 유지됩니다.",
+      "custom": "처음에는 전역 계획으로 시작하여 이 서버에 맞게 변경합니다. 프로토콜과 주소 계열별 대상 목록을 별도로 저장합니다.",
+      "disabled": "이 서버의 통신사 탐사만 중지합니다. 리소스 수집과 지정된 사용자 지정 작업은 계속됩니다."
+    },
+    "masterOff": "전역 모니터링 수집이 꺼져 있습니다",
+    "off": "통신사 탐사가 꺼져 있습니다",
+    "masterOffHint": "전역 모니터링 수집이 꺼져 있습니다. 계획은 저장할 수 있지만 수집을 켜야 실행됩니다.",
+    "edit": "계획 수정",
+    "waiting": "현재 계획의 새 측정 결과를 기다리는 중입니다.",
+    "loadError": "탐사 계획을 새로 고칠 수 없습니다.",
+    "adminOnly": "이 계획을 설정하려면 관리자 권한이 필요합니다.",
+    "conflict": "다른 곳에서 계획이 변경되었습니다. 저장된 계획을 다시 불러온 후 편집하세요. 현재 초안은 저장되지 않았습니다.",
+    "reload": "저장된 계획 다시 불러오기"
   }
 }

@@ -90,7 +90,22 @@
     "dnsPending": "位址已更新，DNS 同步待處理或重試；可查看 DNS 健康與變更歷史。",
     "confirming": "已偵測到位址，等待下一次獨立採樣確認。",
     "applying": "位址已確認，等待更新入口與同步 DNS。",
-    "unregistered": "未登記"
+    "unregistered": "未登記",
+    "fallbackTitle": "備用觀測",
+    "fallbackSingle": "單一來源",
+    "fallbackStale": "已過期／未驗證",
+    "fallbackSource": "來源",
+    "fallbackCloudflare": "Captain 入口的 Cloudflare trace",
+    "fallbackSampled": "取樣時間",
+    "fallbackHint": "僅單一來源觀測，未用於自動更新入口或 DNS。",
+    "fallbackErrors": {
+      "timeout": "備用查詢逾時。",
+      "network": "無法連線至備用查詢入口。",
+      "tls": "備用查詢的 TLS 憑證驗證失敗。",
+      "http_status": "入口未傳回可用的 trace 回應。",
+      "invalid_response": "備用回應沒有此位址族的有效公網位址。",
+      "invalid_origin": "未設定有效的 Captain HTTPS 入口。"
+    }
   },
   "app": {
     "logout": "登出"
@@ -3552,7 +3567,8 @@
       "ingresses": "NAT / 專線映射",
       "routing": "出站與分流",
       "overrides": "核心覆寫",
-      "runtime": "執行維護"
+      "runtime": "執行維護",
+      "monitoring": "監控與探測"
     },
     "networkHistory": "延遲與丟包歷史"
   },
@@ -4326,5 +4342,32 @@
     "zh": "中文名稱",
     "en": "英文名稱",
     "hint": "至少填寫一個名稱。中文介面優先顯示中文，其他語言優先顯示英文；未填寫時顯示另一個名稱。"
+  },
+  "nodeProbePlan": {
+    "title": "監控與探測",
+    "defaultTitle": "預設探測方案",
+    "defaultHint": "伺服器預設跟隨此三網探測方案，也可個別設定。上方的監控採集開關對所有伺服器生效。",
+    "hint": "設定本機三網探測。資源採集和個別指派的自訂探測任務維持原有設定。",
+    "effective": "目前已儲存方案",
+    "modeLabel": "探測方案",
+    "mode": {
+      "inherit": "跟隨全域",
+      "custom": "獨立設定",
+      "disabled": "關閉本機三網探測"
+    },
+    "modeHint": {
+      "inherit": "使用目前全域預設方案，已儲存的獨立設定會保留。",
+      "custom": "首次從全域方案開始，可個別修改本機方案。不同協定和位址族的目標清單分別儲存。",
+      "disabled": "僅停止本機三網探測，資源採集和已指派的自訂任務繼續執行。"
+    },
+    "masterOff": "全域監控採集已關閉",
+    "off": "三網探測已關閉",
+    "masterOffHint": "全域監控採集已關閉。可以儲存方案，開啟採集後才會執行。",
+    "edit": "修改方案",
+    "waiting": "等待目前方案的新探測結果。",
+    "loadError": "無法更新探測方案。",
+    "adminOnly": "需要管理員權限才能設定探測方案。",
+    "conflict": "方案已在其他位置修改。請重新載入已儲存方案後再編輯；目前草稿尚未儲存。",
+    "reload": "重新載入已儲存方案"
   }
 }

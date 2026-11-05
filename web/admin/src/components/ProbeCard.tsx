@@ -1,7 +1,7 @@
-import { carrierProvinceOptions } from '../../../shared/carrier-provinces'
+import { CarrierProbeFields } from './CarrierProbeFields'
 import { SettingsFields } from './SettingsFields'
 import { SettingsLoadState } from './SettingsLoadState'
-import { ActionIcon, Autocomplete, Button, Card, Code, Group, MultiSelect, NumberInput, Select, Stack, Switch, Table, Text, TextInput, Title, Textarea } from '@mantine/core'
+import { ActionIcon, Autocomplete, Button, Card, Code, Group, MultiSelect, NumberInput, Select, Stack, Switch, Table, Text, TextInput, Title } from '@mantine/core'
 import { useSettingsForm as useForm } from '../lib/settings-draft'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { IconPlus, IconTrash, IconEdit } from '@tabler/icons-react'
@@ -14,7 +14,7 @@ import { ProbeAppearanceFields } from './ProbeAppearanceFields'
 import { ProbeThemes } from './ProbeThemes'
 import { toast } from '../lib/notify'
 import { currencyOptions } from '../lib/currency-options'
-import { carrierProbeDraft, carrierProbePayload, carrierTargetPlaceholder, type CarrierProbe, type CarrierTargetTexts, type CarrierFamily } from '../lib/carrier-probe'
+import { carrierProbeDraft, carrierProbePayload, type CarrierProbe, type CarrierTargetTexts } from '../lib/carrier-probe'
 
 interface ProbeSettings {
   follow_site_branding?: boolean; logo_dark?: string; favicon?: string
@@ -35,7 +35,7 @@ export function ProbeCard() {
   const q = useQuery({ queryKey: ['probe-settings'], queryFn: () => api.get<ProbeSettings>('/api/admin/settings/probe') })
   const form = useForm<ProbeSettings & { hostsText: string; carrier_probe: CarrierProbe; carrierTargetsText: CarrierTargetTexts }>({ initialValues: { follow_site_branding: false, logo_dark: '', favicon: '', finance_currency: 'CNY', appearance: { preset: 'inherit', scheme: 'inherit' }, enabled: false, page_enabled: true, public_sections: ['cpu', 'memory', 'disk', 'network', 'system', 'info', 'traffic', 'latency', 'history', 'availability'], layout: 'grid', beat_seconds: 10, carrier_ping: true, carrier_probe: carrierProbeDraft().probe, carrierTargetsText: carrierProbeDraft().texts, path: '/status', hosts: [], hostsText: '', visibility: 'public', title: '', logo: '', show_globe: false, show_ip: false, alerts: { offline_seconds: 180, cpu_pct: 0, mem_pct: 0, disk_pct: 0, window_minutes: 5, traffic: true } }, validate: { logo: value => validBrandAssetInput(value) ? null : t('branding.invalidURL'), logo_dark: value => validBrandAssetInput(value) ? null : t('branding.invalidURL'), favicon: value => validBrandAssetInput(value) ? null : t('branding.invalidURL') } })
   useEffect(() => { if (q.data) form.hydrate({ ...q.data, follow_site_branding: q.data.follow_site_branding ?? false, logo_dark: q.data.logo_dark ?? '', favicon: q.data.favicon ?? '', finance_currency: q.data.finance_currency ?? 'CNY', appearance: q.data.appearance ?? { preset: 'inherit', scheme: 'inherit' }, public_sections: q.data.public_sections ?? ['cpu', 'memory', 'disk', 'network', 'system', 'info', 'traffic', 'latency', 'history', 'availability'], layout: q.data.layout || 'grid', page_enabled: q.data.page_enabled ?? true, hostsText: (q.data.hosts ?? []).join(', '), carrier_probe: carrierProbeDraft(q.data.carrier_probe, q.data.carriers).probe, carrierTargetsText: carrierProbeDraft(q.data.carrier_probe, q.data.carriers).texts }) }, [q.data]) // eslint-disable-line react-hooks/exhaustive-deps
-  const save = useMutation({ mutationFn: (v: typeof form.values) => { const { hostsText, carrierTargetsText, ...settings } = v; const carrier_probe = carrierProbePayload(v.carrier_probe, carrierTargetsText); return api.put('/api/admin/settings/probe', { ...settings, hosts: hostsText.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean), carrier_probe, carriers: carrier_probe.tcp_ipv4 }) }, onSuccess: () => { form.resetDirty(); setShowIndependentBrandErrors(false); toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['probe-settings'] }) }, onError: toast.err })
+  const save = useMutation({ mutationFn: (v: typeof form.values) => { const { hostsText, carrierTargetsText, ...settings } = v; const carrier_probe = carrierProbePayload(v.carrier_probe, carrierTargetsText); return api.put('/api/admin/settings/probe', { ...settings, hosts: hostsText.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean), carrier_probe, carriers: carrier_probe.tcp_ipv4 }) }, onSuccess: () => { form.resetDirty(); setShowIndependentBrandErrors(false); toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['probe-settings'] }); qc.invalidateQueries({ queryKey: ['node-probe-plan'] }); qc.invalidateQueries({ queryKey: ['network-quality'] }) }, onError: toast.err })
   const v = form.values
   const origin = window.location.origin
   if (q.data === undefined) return <SettingsLoadState query={q} />
@@ -48,30 +48,14 @@ export function ProbeCard() {
         <SettingsFields>
           <Switch label={t('probe.collection')} {...form.getInputProps('enabled', { type: 'checkbox' })} />
           <NumberInput label={t('probe.beat')} min={3} max={300} {...form.getInputProps('beat_seconds')} />
-          <Switch label={t('probe.carrier')} {...form.getInputProps('carrier_ping', { type: 'checkbox' })} />
         </SettingsFields>
+        <Card withBorder p="sm"><Stack gap="sm">
+          <Title order={6}>{t('nodeProbePlan.defaultTitle')}</Title>
+          <Text size="sm" c="dimmed">{t('nodeProbePlan.defaultHint')}</Text>
+          <Switch label={t('probe.carrier')} {...form.getInputProps('carrier_ping', { type: 'checkbox' })} />
+          {v.carrier_ping && <CarrierProbeFields probe={v.carrier_probe} texts={v.carrierTargetsText} onProbeChange={value => form.setFieldValue('carrier_probe', value)} onTextsChange={value => form.setFieldValue('carrierTargetsText', value)} />}
+        </Stack></Card>
         <Switch label={t('probe.pageEnabled')} description={t('probe.pageEnabledHint')} {...form.getInputProps('page_enabled', { type: 'checkbox' })} />
-        {v.carrier_ping && <Stack gap="xs">
-          <SettingsFields>
-            <Select label={t('probe.carrierProtocol')} data={['tcp', 'icmp'].map(value => ({ value, label: value.toUpperCase() }))} allowDeselect={false} {...form.getInputProps('carrier_probe.protocol')} />
-            <Select label={t('probe.carrierFamily')} data={[{ value: 'ipv4', label: 'IPv4' }, { value: 'ipv6', label: 'IPv6' }, { value: 'dual', label: 'IPv4 + IPv6' }]} allowDeselect={false} {...form.getInputProps('carrier_probe.family')} />
-            {v.carrier_probe.protocol === 'tcp' && <Select label={t('probe.carrierProvince')} data={carrierProvinceOptions(i18n.language)} searchable allowDeselect={false} {...form.getInputProps('carrier_probe.tcp_province')} />}
-          </SettingsFields>
-          <Text size="xs" c="dimmed">{t('probe.carrierModesHint')}</Text>
-          <SettingsFields>
-            {(['ipv4', 'ipv6'] as CarrierFamily[]).filter(family => v.carrier_probe.family === 'dual' || v.carrier_probe.family === family).map(family => {
-              const key = `${v.carrier_probe.protocol}_${family}` as const
-              const custom = !!v.carrierTargetsText[key].trim()
-              return <Stack key={key} gap={4} style={{ minWidth: 0 }}>
-                <Textarea label={`${t('probe.carriers')} · ${family === 'ipv4' ? 'IPv4' : 'IPv6'}`} description={v.carrier_probe.protocol === 'icmp' ? t('probe.carriersICMPHint') : t('probe.carriersHint')} autosize minRows={3} placeholder={carrierTargetPlaceholder(v.carrier_probe.protocol, family, v.carrier_probe.tcp_province)} styles={{ input: { fontFamily: 'monospace', fontSize: 12 } }} {...form.getInputProps(`carrierTargetsText.${key}`)} />
-                <Group justify="space-between" gap="xs">
-                  <Text size="xs" c={custom ? 'orange' : 'dimmed'}>{t(custom ? 'probe.carrierCustomActive' : 'probe.carrierPresetActive')}</Text>
-                  {custom && <Button size="compact-xs" variant="subtle" onClick={() => form.setFieldValue(`carrierTargetsText.${key}`, '')}>{t('probe.carrierRestorePreset')}</Button>}
-                </Group>
-              </Stack>
-            })}
-          </SettingsFields>
-        </Stack>}
         <SettingsFields>
           <TextInput label={t('probe.path')} description={t('probe.pathHint')} placeholder="/status" {...form.getInputProps('path')} />
           <TextInput label={t('probe.hosts')} description={t('probe.hostsHint')} placeholder="status.example.com, probes.example.com" {...form.getInputProps('hostsText')} />

@@ -20,7 +20,7 @@ test('information and diagnostics remain distinct destinations', () => {
 })
 
 test('each settings destination keeps its own editor selection', () => {
-  for (const section of ['proxy', 'ingresses', 'routing', 'overrides', 'runtime']) {
+  for (const section of ['proxy', 'ingresses', 'routing', 'overrides', 'monitoring', 'runtime']) {
     assert.ok(serverSettings.includes(section))
     assert.deepEqual(locate(`/nodes/42/settings/${section}`), { tab: 'settings', section, redirect: null })
   }

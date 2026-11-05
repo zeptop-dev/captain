@@ -11,7 +11,7 @@ export interface NodeDetail {
 }
 export const serverTabs = ['overview', 'information', 'diagnostics', 'settings'] as const
 export type ServerTab = typeof serverTabs[number]
-export const serverSettings = ['proxy', 'ingresses', 'routing', 'overrides', 'runtime'] as const
+export const serverSettings = ['proxy', 'ingresses', 'routing', 'overrides', 'monitoring', 'runtime'] as const
 export type ServerSetting = typeof serverSettings[number]
 export function serverDetailLocation(id: string, pathname: string, search: string, hash: string) {
   const base = `/nodes/${id}`

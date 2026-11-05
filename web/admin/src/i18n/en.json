@@ -90,7 +90,22 @@
     "dnsPending": "Address updated; DNS sync is pending or retrying. See DNS health and change history.",
     "confirming": "Address detected; waiting for another independent sample to confirm it.",
     "applying": "Address confirmed; waiting to update the entry address and synchronize DNS.",
-    "unregistered": "Not registered"
+    "unregistered": "Not registered",
+    "fallbackTitle": "Fallback observation",
+    "fallbackSingle": "Single source",
+    "fallbackStale": "Outdated / unverified",
+    "fallbackSource": "Source",
+    "fallbackCloudflare": "Cloudflare trace at the Captain endpoint",
+    "fallbackSampled": "Sample time",
+    "fallbackHint": "Single source only. Not used to update the entry address or DNS automatically.",
+    "fallbackErrors": {
+      "timeout": "The fallback request timed out.",
+      "network": "The fallback endpoint could not be reached.",
+      "tls": "The fallback TLS certificate could not be verified.",
+      "http_status": "The endpoint did not return an available trace response.",
+      "invalid_response": "The fallback response did not contain a valid address for this family.",
+      "invalid_origin": "No valid Captain HTTPS origin is configured."
+    }
   },
   "app": {
     "logout": "Log out"
@@ -3552,7 +3567,8 @@
       "ingresses": "NAT / line mapping",
       "routing": "Outbound and routing",
       "overrides": "Core overrides",
-      "runtime": "Maintenance"
+      "runtime": "Maintenance",
+      "monitoring": "Monitoring and probes"
     },
     "networkHistory": "Latency and packet loss history"
   },
@@ -4326,5 +4342,32 @@
     "zh": "Chinese name",
     "en": "English name",
     "hint": "Fill in either name. Chinese interfaces prefer the Chinese name; other languages prefer English. If unavailable, the other name is shown."
+  },
+  "nodeProbePlan": {
+    "title": "Monitoring and probes",
+    "defaultTitle": "Default probe plan",
+    "defaultHint": "Servers follow this carrier probe plan unless they select an independent plan. The monitoring collection switch above applies to every server.",
+    "hint": "Configure this server’s carrier probes. Resource collection and separately assigned custom probe tasks keep their existing settings.",
+    "effective": "Current saved plan",
+    "modeLabel": "Probe plan",
+    "mode": {
+      "inherit": "Follow global",
+      "custom": "Independent plan",
+      "disabled": "Disable carrier probes"
+    },
+    "modeHint": {
+      "inherit": "Use the current global default. Any saved independent plan is retained.",
+      "custom": "Start with the global plan and customize this server. Protocol and address-family target lists are saved independently.",
+      "disabled": "Stop only this server’s carrier probes. Resource collection and assigned custom tasks continue."
+    },
+    "masterOff": "Monitoring collection is disabled globally",
+    "off": "Carrier probes are disabled",
+    "masterOffHint": "Global monitoring collection is disabled. You can save a plan, but it will run only after collection is enabled.",
+    "edit": "Change plan",
+    "waiting": "Waiting for fresh results from the current plan.",
+    "loadError": "Could not refresh the probe plan.",
+    "adminOnly": "An administrator is required to configure this plan.",
+    "conflict": "This plan changed elsewhere. Reload the saved plan before editing again; your draft has not been saved.",
+    "reload": "Reload saved plan"
   }
 }
