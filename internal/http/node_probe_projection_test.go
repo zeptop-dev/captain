@@ -9,6 +9,7 @@ import (
 
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
 	"github.com/zeptop-dev/bosun/pkg/spec"
+	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
@@ -109,5 +110,32 @@ func TestAddressAdvisoryReportIsPrivateAndNeverAutoFollows(t *testing.T) {
 	}
 	if err := json.Unmarshal(raw, &legacy); err != nil || legacy.IPv4 != "" || legacy.IPv6 != "" {
 		t.Fatal("legacy consensus fields populated", legacy, err)
+	}
+}
+
+func TestNetworkQualitySummaryDoesNotDisclosePrivateProbeTargets(t *testing.T) {
+	r := newRig(t)
+	ctx := context.Background()
+	accessAuditCall(t, r.c, "PUT", "/api/admin/settings/probe", map[string]any{"enabled": true}, 200)
+	plan, err := r.st.NodeProbePlan(ctx, r.nodeID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := &spec.CarrierProbeConfig{Protocol: "tcp", Family: "ipv4", TCPIPv4: []spec.Carrier{{Name: "private-label", Addr: "10.10.0.2:2096"}}}
+	_, err = r.st.UpdateNodeProbePlan(ctx, r.nodeID, store.NodeProbePlanChange{Revision: plan.Revision, Mode: "custom", Custom: cfg}, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, operator := accessAuditStaff(t, r, domain.RoleOperator)
+	narrow := accessAuditToken(t, r, 1, "read", []string{"nodes:*"})
+	for _, c := range []*client{operator, narrow} {
+		accessAuditCall(t, c, "GET", "/api/admin/nodes/"+itoa(r.nodeID)+"/probe-plan", nil, 403)
+		b := accessAuditCall(t, c, "GET", "/api/admin/nodes/"+itoa(r.nodeID)+"/network-quality?range=1h", nil, 200)
+		if strings.Contains(string(b), "10.10.0.2") || strings.Contains(string(b), "private-label") || strings.Contains(string(b), "tcp_ipv4") {
+			t.Fatal("private target leaked", string(b))
+		}
+		if !strings.Contains(string(b), `"custom_targets":true`) || !strings.Contains(string(b), `"protocol":"tcp"`) {
+			t.Fatal("safe summary missing", string(b))
+		}
 	}
 }

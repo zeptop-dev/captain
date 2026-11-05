@@ -16,7 +16,7 @@ export function ProbePlanSummary({ plan, targets = false }: { plan: { effective:
   const { t, i18n } = useTranslation()
   const effective = plan.effective
   const probe = effective.config
-  const custom = (['ipv4', 'ipv6'] as CarrierFamily[]).filter(family => probe.family === 'dual' || probe.family === family).some(family => probe[`${probe.protocol}_${family}`]?.length)
+  const custom = effective.custom_targets ?? (['ipv4', 'ipv6'] as CarrierFamily[]).filter(family => probe.family === 'dual' || probe.family === family).some(family => probe[`${probe.protocol}_${family}`]?.length)
   const province = carrierProvinceOptions(i18n.language).find(p => p.value === (probe.tcp_province || 'bj'))?.label
   return <Stack gap={4}>
     <Group gap="xs"><Badge color={effective.enabled ? 'blue' : 'gray'}>{t(`nodeProbePlan.mode.${effective.source}`)}</Badge><Text size="sm">{plan.monitoring_enabled === false ? t('nodeProbePlan.masterOff') : !effective.enabled ? t('nodeProbePlan.off') : `${probe.protocol.toUpperCase()} · ${probe.family === 'dual' ? 'IPv4 + IPv6' : probe.family === 'ipv6' ? 'IPv6' : 'IPv4'}${custom ? ` · ${t('probe.carrierCustomActive')}` : probe.protocol === 'tcp' ? ` · ${province}` : ''}`}</Text></Group>

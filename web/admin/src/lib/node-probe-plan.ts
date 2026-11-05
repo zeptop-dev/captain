@@ -7,7 +7,7 @@ export interface NodeProbePlan {
   custom: CarrierProbe | null
   monitoring_enabled: boolean
   global: { enabled: boolean; config: CarrierProbe }
-  effective: { enabled: boolean; source: ProbePlanMode; config: CarrierProbe; changed_at: number }
+  effective: { custom_targets?: boolean; enabled: boolean; source: ProbePlanMode; config: CarrierProbe; changed_at: number }
 }
 export function nodeProbePlanDraft(plan: NodeProbePlan) {
   return { mode: plan.mode, revision: plan.revision, initialized: plan.custom !== null, ...carrierProbeDraft(plan.custom ?? plan.global.config) }

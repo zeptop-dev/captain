@@ -132,5 +132,18 @@ func (h *handlers) networkQuality(w http.ResponseWriter, r *http.Request) {
 	if current == nil {
 		current = []spec.PingResult{}
 	}
-	ok(w, map[string]any{"probe_plan": effective, "current": current, "points": points, "task_paths": paths, "from": now.Add(-window).Unix(), "to": now.Unix(), "step": int64(step / time.Second)})
+	ok(w, map[string]any{"probe_plan": publicProbePlanSummary(effective), "current": current, "points": points, "task_paths": paths, "from": now.Add(-window).Unix(), "to": now.Unix(), "step": int64(step / time.Second)})
+}
+
+// Network quality readers do not necessarily have permission to inspect the
+// private plan. Only presentation metadata belongs on this broader endpoint.
+func publicProbePlanSummary(plan store.EffectiveProbePlan) map[string]any {
+	cfg := plan.Config.Normalize()
+	custom := false
+	if cfg.Protocol == "icmp" {
+		custom = (cfg.Family != "ipv6" && len(cfg.ICMPIPv4) > 0) || (cfg.Family != "ipv4" && len(cfg.ICMPIPv6) > 0)
+	} else {
+		custom = (cfg.Family != "ipv6" && len(cfg.TCPIPv4) > 0) || (cfg.Family != "ipv4" && len(cfg.TCPIPv6) > 0)
+	}
+	return map[string]any{"enabled": plan.Enabled, "source": plan.Source, "changed_at": plan.ChangedAt, "custom_targets": custom, "config": map[string]string{"protocol": cfg.Protocol, "family": cfg.Family, "tcp_province": cfg.TCPProvince}}
 }
