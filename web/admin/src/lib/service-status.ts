@@ -8,7 +8,7 @@ export interface ServiceStatusSettings {
 }
 export interface ServiceStatusEntry {
   id: number; name: string; rate: number; region: string
-  category: { id: number; name: string; description: string; sort: number } | null
+  category: { id: number; name: string; name_zh?: string; name_en?: string; description: string; sort: number } | null
   state: ServiceState; reason: string; evidence: string[]; observed_at: number | null; end_to_end: false
   maintenance: Omit<ServiceMaintenance, 'entry_id'> | null
 }

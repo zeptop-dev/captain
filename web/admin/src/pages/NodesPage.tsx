@@ -1,3 +1,4 @@
+import { localizedName } from '../lib/localized-name'
 import { NodeLayoutEditor } from '../components/NodeLayoutEditor'
 import { HostTrafficSummary } from '../components/HostTrafficSummary'
 import { ProxyTrafficSummary } from '../components/ProxyTrafficSummary'
@@ -49,7 +50,7 @@ export function NodeStatus({ n }: { n: Node }) {
 }
 
 export default function NodesPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const isAdmin = useAuth().me?.role === 'admin'
   const qc = useQueryClient()
   const q = useQuery({ queryKey: ['nodes'], queryFn: () => api.get<Node[]>('/api/admin/nodes'), refetchInterval: 15_000 })
@@ -79,7 +80,7 @@ export default function NodesPage() {
         <Button variant="light" disabled={!layout.data || !q.data || layout.isError || q.isError} loading={layout.isFetching} onClick={() => { void layout.refetch().then(r => { if (r.data && !r.isError) setOrganizing(true); else toast.err(r.error) }) }}>{t('nodeLayout.title')}</Button>
         <Button leftSection={<IconPlus size={16} />} onClick={open}>{t('nodes.create')}</Button>
       </>} />
-      <Group align="flex-end" mb="md"><Select style={{ flex: '1 1 200px', minWidth: 0 }} label={t('monitoring.group')} placeholder={t('common.all')} clearable value={nodeGroup} onChange={setNodeGroup} data={[{ value: '', label: t('nodeLayout.ungrouped') }, ...(layout.data?.groups ?? []).map(g => ({ value: g, label: g }))]} />
+      <Group align="flex-end" mb="md"><Select style={{ flex: '1 1 200px', minWidth: 0 }} label={t('monitoring.group')} placeholder={t('common.all')} clearable value={nodeGroup} onChange={setNodeGroup} data={[{ value: '', label: t('nodeLayout.ungrouped') }, ...(layout.data?.groups ?? []).map(g => ({ value: g, label: localizedName(i18n.resolvedLanguage || i18n.language, layout.data?.group_names?.[g]?.zh, layout.data?.group_names?.[g]?.en, g) }))]} />
       <Select style={{ flex: '1 1 200px', minWidth: 0 }} maw={320} label={t('monitoring.status')} value={status} onChange={value => setStatus(value ?? 'all')} allowDeselect={false} data={[{ value: 'all', label: t('common.all') }, { value: 'offline', label: t('nodes.offline') }, { value: 'unpaired', label: t('nodes.unpaired') }, { value: 'doctor', label: t('dashboard.lastCheckFailed') }, { value: 'monitor', label: t('nodeMode.monitor') }]} /></Group>
       <Card p={0}>
         <Table.ScrollContainer minWidth={1450}>
@@ -92,7 +93,7 @@ export default function NodesPage() {
               {filtered.map((n) => (
                 <Table.Tr key={n.id}>
                   <Table.Td miw={220}><Anchor component={Link} to={`/nodes/${n.id}`} fw={600}>{n.name}</Anchor>{n.mode === 'monitor' && <Badge ml="xs" size="xs" color="cyan" style={{ maxWidth: 'none' }}>{t('nodeMode.monitor')}</Badge>}<Text size="xs" c="dimmed">{n.hostname}</Text></Table.Td>
-                  <Table.Td><Text size="sm">{n.monitor_group || t('nodeLayout.ungrouped')}</Text></Table.Td>
+                  <Table.Td><Text size="sm">{localizedName(i18n.resolvedLanguage || i18n.language, n.monitor_group_zh, n.monitor_group_en, n.monitor_group) || t('nodeLayout.ungrouped')}</Text></Table.Td>
                   <Table.Td miw={140}><Group gap={4} style={{ minWidth: 'max-content' }}><NodeStatus n={n} />{n.cert_problem && <Badge color="red" size="xs" title={t('nodes.certProblem')}>TLS</Badge>}{n.doctor_fail && <Badge color="red" size="xs" variant="light" title={t('nodes.doctorFailHint')}>{t('nodes.doctor')}</Badge>}</Group></Table.Td>
                   <Table.Td><NodePublicAddresses node={n} /></Table.Td>
                   <Table.Td>{n.inbounds}</Table.Td>

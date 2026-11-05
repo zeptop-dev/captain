@@ -425,7 +425,6 @@
     "empty": "还没有分类，现有节点保持未分类。",
     "create": "创建分类",
     "edit": "编辑分类",
-    "name": "分类名称",
     "description": "分类说明",
     "deleteHint": "删除“{{name}}”？其中的节点会保留，并移到未分类。",
     "moveUp": "上移 {{name}}",
@@ -1830,7 +1829,6 @@
     "offline": "离线",
     "unpaired": "未配对",
     "ungrouped": "未分组",
-    "groupHint": "独立于用户组。留空取消分组；分组名称也会显示在状态页。",
     "noNodes": "没有匹配的服务器。",
     "compareHint": "最多选择四个服务器，对比同一指标。",
     "publicSections": "公开显示内容",
@@ -4321,5 +4319,10 @@
     },
     "checkTitle": "从目标节点检查",
     "checkHint": "在准备安装 bosun 的节点执行此命令。TLS/HTTP 请求成功后，响应应包含 \"ok\": true 和 \"service\": \"captain-agent\"。这仅验证该节点到入口的连通性，不会配对或修改节点。"
+  },
+  "bilingualName": {
+    "zh": "中文名称",
+    "en": "英文名称",
+    "hint": "至少填写一个名称。中文界面优先显示中文，其他语言优先显示英文；未填写时显示另一个名称。"
   }
 }

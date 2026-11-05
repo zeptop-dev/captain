@@ -1,3 +1,4 @@
+import { localizedName } from '../lib/localized-name'
 import { ActionIcon, Alert, Badge, Button, Card, Checkbox, Code, Group, Loader, Menu, Select, Stack, Table, Tabs, Text } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -51,7 +52,7 @@ export default function EntriesPage() {
 }
 
 function EntriesWorkspace() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { me } = useAuth()
   const admin = me?.role === 'admin'
   const canWrite = admin || me?.role === 'operator'
@@ -123,7 +124,8 @@ function EntriesWorkspace() {
   const [selected, setSelected] = useState<number[]>([])
   const [assignCategory, setAssignCategory] = useState<string | null>(null)
   const [managingCategories, setManagingCategories] = useState(false)
-  const categoryOptions = [{ value: '0', label: t('entryCategories.unclassified') }, ...(categories.data ?? []).map(category => ({ value: String(category.ID), label: category.Name }))]
+  const categoryName = (category?: EntryCategory) => category ? localizedName(i18n.resolvedLanguage || i18n.language, category.NameZH, category.NameEN, category.Name) : undefined
+  const categoryOptions = [{ value: '0', label: t('entryCategories.unclassified') }, ...(categories.data ?? []).map(category => ({ value: String(category.ID), label: categoryName(category) || '' }))]
   const invalidate = () => { qc.invalidateQueries({ queryKey: ['entries'] }); qc.invalidateQueries({ queryKey: ['entry-tags'] }); qc.invalidateQueries({ queryKey: ['node-access'] }) }
   const del = useMutation({ mutationFn: (id: number) => api.del(`/api/admin/entries/${id}`), onSuccess: () => { toast.ok(t('common.deleted')); invalidate() }, onError: toast.err })
   const reorder = useMutation({ mutationFn: (ids: number[]) => api.put('/api/admin/entries/order', { IDs: ids }), onSuccess: invalidate, onError: (error: Error) => { toast.err(error); invalidate() } })
@@ -201,7 +203,7 @@ function EntriesWorkspace() {
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}><SortableContext items={visible.map(row => row.ID)} strategy={verticalListSortingStrategy}>
               <Table.ScrollContainer minWidth={940}><Table verticalSpacing="sm">
                 <Table.Thead><Table.Tr><Table.Th w={32} />{canWrite && <Table.Th w={36}><Checkbox aria-label={t('entryCategories.selectVisible')} checked={visible.length > 0 && selectedVisible.length === visible.length} indeterminate={selectedVisible.length > 0 && selectedVisible.length < visible.length} disabled={q.isLoading || q.isError || assign.isPending || !visible.length} onChange={event => setSelected(event.currentTarget.checked ? visible.map(entry => entry.ID) : [])} /></Table.Th>}<Table.Th>{t('entries.name')}</Table.Th><Table.Th>{t('entryCategories.label')}</Table.Th><Table.Th>{t('entryFlow.path')}</Table.Th><Table.Th>{t('entryFlow.publishedAddress')}</Table.Th><Table.Th>{t('entries.rate')}</Table.Th><Table.Th>{t('entries.enabled')}</Table.Th><Table.Th /></Table.Tr></Table.Thead>
-                <Table.Tbody>{visible.map(entry => <EntryRow key={entry.ID} entry={entry} accessRow={access.isError ? undefined : access.data?.inbounds.find(row => row.inbound_id === entry.InboundID)} accessDirectory={access.data} onAccess={admin ? () => setEditingAccess(entry) : undefined} categoryName={categories.data?.find(category => category.ID === entry.CategoryID)?.Name} categoryKnown={!categories.isLoading && !categories.isError} selectable={canWrite} selected={selectedSet.has(entry.ID)} onSelect={checked => setSelected(checked ? [...selectedVisible, entry.ID] : selectedVisible.filter(id => id !== entry.ID))} selectionBusy={assign.isPending || q.isError} inboundLabel={label(entry.InboundID)} inboundKnown={inbounds.some(c => c.ib.ID === entry.InboundID)} managed={managedType(entry)} lineName={lines.data?.find(line => line.id === entry.LineID)?.name} dialerName={q.data?.find(item => item.ID === entry.ClientDialerEntryID)?.Name} draggable={draggable} canWrite={canWrite && (!managedType(entry) || admin)} busy={del.isPending} canEditLocation={canWrite} onLocation={() => setEditingLocation(entry)} onEdit={() => editEntry(entry)} onDelete={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text size="sm">{t('entryFlow.deleteHint')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => del.mutate(entry.ID) })} />)}
+                <Table.Tbody>{visible.map(entry => <EntryRow key={entry.ID} entry={entry} accessRow={access.isError ? undefined : access.data?.inbounds.find(row => row.inbound_id === entry.InboundID)} accessDirectory={access.data} onAccess={admin ? () => setEditingAccess(entry) : undefined} categoryName={categoryName(categories.data?.find(category => category.ID === entry.CategoryID))} categoryKnown={!categories.isLoading && !categories.isError} selectable={canWrite} selected={selectedSet.has(entry.ID)} onSelect={checked => setSelected(checked ? [...selectedVisible, entry.ID] : selectedVisible.filter(id => id !== entry.ID))} selectionBusy={assign.isPending || q.isError} inboundLabel={label(entry.InboundID)} inboundKnown={inbounds.some(c => c.ib.ID === entry.InboundID)} managed={managedType(entry)} lineName={lines.data?.find(line => line.id === entry.LineID)?.name} dialerName={q.data?.find(item => item.ID === entry.ClientDialerEntryID)?.Name} draggable={draggable} canWrite={canWrite && (!managedType(entry) || admin)} busy={del.isPending} canEditLocation={canWrite} onLocation={() => setEditingLocation(entry)} onEdit={() => editEntry(entry)} onDelete={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text size="sm">{t('entryFlow.deleteHint')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => del.mutate(entry.ID) })} />)}
                   {!q.isLoading && !q.isError && visible.length === 0 && <Table.Tr><Table.Td colSpan={canWrite ? 9 : 8}><Text c="dimmed" ta="center" py="lg">{t('common.empty')}</Text></Table.Td></Table.Tr>}
                 </Table.Tbody>
               </Table></Table.ScrollContainer>

@@ -54,6 +54,8 @@ export interface Node {
   host_traffic?: HostTraffic
   proxy_traffic?: ProxyTraffic
   monitor_group?: string
+  monitor_group_zh?: string
+  monitor_group_en?: string
   mode_revision?: number; reported_mode_revision?: number; mode_switch_available?: boolean; mode?: 'full' | 'monitor'; reported_mode?: 'full' | 'monitor' | ''; mode_reported_at?: string; mode_error?: string; proxy_allowed?: boolean;
   id: number; name: string; public_addr: string; internal_addr: string; v6_addr: string; domain: string; domain_shared?: boolean; domain_conflict?: boolean; monitor_url: string; dstatus_sid?: string; decoy_enabled?: boolean; decoy_upstream?: string; user_speed_limit_mbps?: number
   version: string; platform: string; hostname: string; last_seen_at: string | null; online: boolean; paired: boolean
@@ -133,7 +135,7 @@ export interface OnlineDevice { via_relay?: boolean; ip: string; node_id: number
 export interface HwidDevice { hwid: string; platform?: string; os_version?: string; device_model?: string; user_agent?: string; request_ip?: string; first_seen_at: string; last_seen_at: string }
 export interface SubRequest { id: number; at: string; request_ip: string; user_agent: string; hwid?: string; rule?: string; response: string }
 
-export interface EntryCategory { ID: number; Name: string; Description: string; Sort: number }
+export interface EntryCategory { ID: number; Name: string; NameZH?: string; NameEN?: string; Description: string; Sort: number }
 
 export interface Entry {
   LocationSettings?: LocationSettings; Location?: GeoLocation | null

@@ -425,7 +425,6 @@
     "empty": "No categories yet. Existing nodes remain unclassified.",
     "create": "Create category",
     "edit": "Edit category",
-    "name": "Category name",
     "description": "Description",
     "deleteHint": "Delete “{{name}}”? Its nodes will remain and become unclassified.",
     "moveUp": "Move {{name}} up",
@@ -1830,7 +1829,6 @@
     "offline": "Offline",
     "unpaired": "Unpaired",
     "ungrouped": "Ungrouped",
-    "groupHint": "Independent from user groups. Empty removes this grouping; group names also appear on the status page.",
     "noNodes": "No matching servers.",
     "compareHint": "Choose up to four servers to compare the same metric.",
     "publicSections": "Public sections",
@@ -4321,5 +4319,10 @@
     },
     "checkTitle": "Check from the target node",
     "checkHint": "Run this command on the target bosun host. A successful TLS/HTTP response must contain \"ok\": true and \"service\": \"captain-agent\". It checks access from that host; it does not pair or change any node."
+  },
+  "bilingualName": {
+    "zh": "Chinese name",
+    "en": "English name",
+    "hint": "Fill in either name. Chinese interfaces prefer the Chinese name; other languages prefer English. If unavailable, the other name is shown."
   }
 }

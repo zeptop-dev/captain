@@ -1,3 +1,5 @@
+import { localizedName } from '../lib/localized-name'
+import { nodeLayoutQuery } from '../lib/node-layout'
 import { DNSHealthCard } from '../components/DNSHealthCard'
 import { Alert, Badge, Button, Card, Checkbox, Group, Loader, MultiSelect, Select, SimpleGrid, Stack, Table, Text, TextInput, Title } from '@mantine/core'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -13,15 +15,22 @@ import { ResourceHistoryCard } from '../components/ResourceHistoryCard'
 import { useURLChoice } from '../lib/use-url-choice'
 
 export default function MonitoringPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const qc = useQueryClient()
   const [tab] = useURLChoice('tab', ['nodes', 'alerts', 'dns'], 'nodes')
   const q = useQuery({ queryKey: ['monitoring'], queryFn: () => api.get<MonitorNode[]>('/api/admin/monitoring'), refetchInterval: 10_000 })
+  const layout = useQuery(nodeLayoutQuery)
   const [search, setSearch] = useState(''), [group, setGroup] = useState<string | null>(null), [status, setStatus] = useState<string | null>(null)
   const [sort, setSort] = useState<string | null>('name'), [selected, setSelected] = useState<string[]>([])
   const [editing, setEditing] = useState<number | null>(null), [newGroup, setNewGroup] = useState('')
   const saveGroup = useMutation({ mutationFn: () => api.put(`/api/admin/nodes/${editing}/monitor-group`, { group: newGroup }), onSuccess: () => { setEditing(null); qc.invalidateQueries({ queryKey: ['monitoring'] }); qc.invalidateQueries({ queryKey: ['node-layout'] }); qc.invalidateQueries({ queryKey: ['nodes'] }); qc.invalidateQueries({ queryKey: ['node'] }); toast.ok(t('common.saved')) }, onError: toast.err })
   const nodes = q.data ?? []
+  const groupsByKey = new Map(nodes.map(node => [node.group, node]))
+  const groupName = (key: string) => {
+    const node = groupsByKey.get(key), names = layout.data?.group_names?.[key]
+    return localizedName(i18n.resolvedLanguage || i18n.language, names?.zh ?? node?.group_zh, names?.en ?? node?.group_en, key)
+  }
+  const groupChoices = [...new Set([...(layout.data?.groups ?? []), ...nodes.map(n => n.group).filter(Boolean)])].map(key => ({ value: key, label: groupName(key) }))
   const val = (n: MonitorNode, metric: string): number | null => {
     const h = n.host
     if (!n.online || !h || n.stale) return null
@@ -29,7 +38,7 @@ export default function MonitoringPage() {
     if (metric === 'memory') return h.valid?.memory === false || !h.mem_total ? null : 100 * (h.mem_used ?? 0) / h.mem_total
     return h.valid?.network === false ? null : (h.net_up ?? 0) + (h.net_down ?? 0)
   }
-  const filtered = nodes.filter((n) => `${n.name} ${n.info.region ?? ''} ${n.info.provider ?? ''} ${n.group}`.toLowerCase().includes(search.toLowerCase()) && (!group || n.group === group) && (!status || (status === 'online' ? n.online : status === 'offline' ? n.paired && !n.online : !n.paired))).sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name) : (val(b, sort ?? 'cpu') ?? -1) - (val(a, sort ?? 'cpu') ?? -1))
+  const filtered = nodes.filter((n) => `${n.name} ${n.info.region ?? ''} ${n.info.provider ?? ''} ${n.group} ${n.group_zh ?? ''} ${n.group_en ?? ''} ${groupName(n.group)}`.toLowerCase().includes(search.toLowerCase()) && (!group || n.group === group) && (!status || (status === 'online' ? n.online : status === 'offline' ? n.paired && !n.online : !n.paired))).sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name) : (val(b, sort ?? 'cpu') ?? -1) - (val(a, sort ?? 'cpu') ?? -1))
   const format = (n: MonitorNode, metric: string) => { const x = val(n, metric); return x == null ? '—' : metric === 'network' ? `${bytes(x)}/s` : `${x.toFixed(1)}%` }
   return <Stack>
     <Title order={2}>{t('monitoring.title')}</Title>
@@ -40,7 +49,7 @@ export default function MonitoringPage() {
     <Card><Stack>
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
         <TextInput label={t('monitoring.search')} value={search} onChange={(e) => setSearch(e.currentTarget.value)} />
-        <Select label={t('monitoring.group')} clearable searchable data={[...new Set(nodes.map((n) => n.group).filter(Boolean))].sort()} value={group} onChange={setGroup} />
+        <Select label={t('monitoring.group')} clearable searchable data={groupChoices} value={group} onChange={setGroup} />
         <Select label={t('monitoring.status')} clearable data={['online', 'offline', 'unpaired'].map((k) => ({ value: k, label: t(`monitoring.${k}`) }))} value={status} onChange={setStatus} />
         <Select label={t('monitoring.sort')} data={['name', 'cpu', 'memory', 'network'].map((k) => ({ value: k, label: t(`monitoring.sorts.${k}`) }))} value={sort} onChange={setSort} allowDeselect={false} />
       </SimpleGrid>
@@ -48,14 +57,14 @@ export default function MonitoringPage() {
         {filtered.map((n) => <Table.Tr key={n.id}>
           <Table.Td><Checkbox aria-label={`${t('monitoring.compare')} ${n.name}`} checked={selected.includes(String(n.id))} disabled={!selected.includes(String(n.id)) && selected.length >= 4} onChange={(e) => setSelected(e.currentTarget.checked ? [...selected, String(n.id)] : selected.filter((id) => id !== String(n.id)))} /></Table.Td>
           <Table.Td><Text component={Link} to={`/nodes/${n.id}`} fw={600}>{n.name}</Text><Text size="xs" c="dimmed">{[n.info.region, n.info.provider].filter(Boolean).join(' · ')}</Text></Table.Td>
-          <Table.Td><Button size="compact-xs" variant="subtle" onClick={() => { setEditing(n.id); setNewGroup(n.group) }}>{n.group || t('monitoring.ungrouped')}</Button></Table.Td>
+          <Table.Td><Button size="compact-xs" variant="subtle" onClick={() => { setEditing(n.id); setNewGroup(n.group) }}>{groupName(n.group) || t('monitoring.ungrouped')}</Button></Table.Td>
           <Table.Td><Badge color={!n.paired ? 'gray' : n.online ? 'teal' : 'red'}>{t(`monitoring.${!n.paired ? 'unpaired' : n.online ? 'online' : 'offline'}`)}</Badge></Table.Td>
           <Table.Td>{format(n, 'cpu')}</Table.Td><Table.Td>{format(n, 'memory')}</Table.Td><Table.Td>{format(n, 'network')}</Table.Td>
           <Table.Td><Text size="xs">{n.sampled_at ? new Date(n.sampled_at * 1000).toLocaleString() : '—'}</Text></Table.Td>
         </Table.Tr>)}
       </Table.Tbody></Table></Table.ScrollContainer>
       {filtered.length === 0 && !q.isLoading && <Text c="dimmed">{t('monitoring.noNodes')}</Text>}
-      {editing != null && <Group align="flex-start"><TextInput label={`${t('monitoring.group')} · ${nodes.find((n) => n.id === editing)?.name ?? ''}`} description={t('monitoring.groupHint')} maxLength={128} value={newGroup} onChange={(e) => setNewGroup(e.currentTarget.value)} /><Stack gap="xs" pt={25}><Button size="xs" loading={saveGroup.isPending} onClick={() => saveGroup.mutate()}>{t('common.save')}</Button><Button size="xs" variant="subtle" onClick={() => setEditing(null)}>{t('common.cancel')}</Button></Stack></Group>}
+      {editing != null && <Group align="flex-start"><Stack gap="xs" style={{ flex: 1, minWidth: 0 }}><Select label={`${t('monitoring.group')} · ${nodes.find((n) => n.id === editing)?.name ?? ''}`} data={[{ value: '', label: t('monitoring.ungrouped') }, ...groupChoices]} value={newGroup} onChange={value => setNewGroup(value ?? '')} allowDeselect={false} searchable disabled={!layout.data || layout.isError || saveGroup.isPending} /><Button component={Link} to="/nodes" size="compact-xs" variant="subtle" style={{ alignSelf: 'flex-start' }}>{t('nodeLayout.title')}</Button></Stack><Stack gap="xs" pt={25}><Button size="xs" loading={saveGroup.isPending} disabled={!layout.data || layout.isError} onClick={() => saveGroup.mutate()}>{t('common.save')}</Button><Button size="xs" variant="subtle" onClick={() => setEditing(null)}>{t('common.cancel')}</Button></Stack></Group>}
       <MultiSelect label={t('monitoring.compare')} description={t('monitoring.compareHint')} maxValues={4} searchable clearable value={selected} onChange={setSelected} data={nodes.map((n) => ({ value: String(n.id), label: n.name }))} />
     </Stack></Card>
     {selected.length > 0 && <ResourceHistoryCard nodes={selected.map((id) => nodes.find((n) => String(n.id) === id)).filter((n): n is MonitorNode => !!n)} />}

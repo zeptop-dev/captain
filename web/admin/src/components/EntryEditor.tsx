@@ -1,3 +1,4 @@
+import { localizedName } from '../lib/localized-name'
 import { Alert, Button, Code, Group, JsonInput, Modal, NumberInput, Select, SimpleGrid, Stack, Switch, TagsInput, Text, TextInput } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
@@ -26,7 +27,7 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
   entry?: Entry; nodes: Node[]; inbounds: InboundChoice[]; entries: Entry[]; lines: Line[]; tags: string[]; categories: EntryCategory[]
   initialInboundID?: number; initialLineID?: number; initialServerID?: number; canManageLines: boolean; loading: boolean; loadError: boolean; onReload: () => void; onClose: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const qc = useQueryClient()
   const { me } = useAuth()
   const admin = me?.role === 'admin'
@@ -143,7 +144,7 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
             <Select label={t('entries.region')} searchable clearable data={REGIONS.map(r => ({ value: r.code, label: `${flag(r.code)} ${r.code} ${r.name}` }))} disabled={save.isPending} value={form.values.Region || null} onChange={v => form.setFieldValue('Region', v ?? '')} />
             <NumberInput label={t('entries.rate')} min={0} step={0.1} decimalScale={2} disabled={save.isPending} {...form.getInputProps('Rate')} />
           </SimpleGrid>
-          <Select label={t('entryCategories.label')} description={t('entryCategories.hint')} searchable allowDeselect={false} data={[{ value: '0', label: t('entryCategories.unclassified') }, ...categories.map(category => ({ value: String(category.ID), label: category.Name }))]} disabled={save.isPending || loading || loadError} {...form.getInputProps('CategoryID')} />
+          <Select label={t('entryCategories.label')} description={t('entryCategories.hint')} searchable allowDeselect={false} data={[{ value: '0', label: t('entryCategories.unclassified') }, ...categories.map(category => ({ value: String(category.ID), label: localizedName(i18n.resolvedLanguage || i18n.language, category.NameZH, category.NameEN, category.Name) }))]} disabled={save.isPending || loading || loadError} {...form.getInputProps('CategoryID')} />
           <TagsInput label={t('entries.tags')} data={tags} disabled={save.isPending} {...form.getInputProps('Tags')} />
           <JsonInput label={t('entries.clientExtra')} description={lineExtraReadOnly ? t('entryFlow.lineExtraAdminOnly') : t('entries.clientExtraHint')} autosize minRows={2} maxRows={8} formatOnBlur validationError={t('overrides.invalid')} disabled={save.isPending || lineExtraReadOnly} {...form.getInputProps('ClientExtra')} />
           <Switch label={t('entries.enabled')} disabled={save.isPending} {...form.getInputProps('Enabled', { type: 'checkbox' })} />

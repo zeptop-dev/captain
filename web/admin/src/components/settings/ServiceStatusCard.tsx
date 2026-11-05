@@ -1,3 +1,4 @@
+import { localizedName } from '../../lib/localized-name'
 import { Alert, Anchor, Badge, Box, Button, Card, Checkbox, Group, MultiSelect, Select, SimpleGrid, Stack, Table, Text, Textarea, TextInput, Title } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -15,7 +16,7 @@ const queryKey = ['service-status-settings']
 const at = (unix: number | null) => unix ? new Date(unix * 1000).toLocaleString() : '—'
 
 export default function ServiceStatusCard() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const qc = useQueryClient()
   const q = useQuery({ queryKey, queryFn: ({ signal }) => api.get<ServiceStatusSettings>(path, signal), refetchOnWindowFocus: false })
   const entries = useQuery({ queryKey: ['entries'], queryFn: ({ signal }) => api.get<Entry[]>('/api/admin/entries', signal) })
@@ -91,7 +92,7 @@ export default function ServiceStatusCard() {
         <Group gap="xs">{serviceStates.map(state => <Badge key={state} color={serviceStateColor[state]}>{t(`serviceStatus.states.${state}`)} {preview.data.summary[state]}</Badge>)}</Group>
         <Text size="xs" c="dimmed">{t('serviceStatus.updatedAt', { time: at(preview.data.generated_at) })}</Text>
         {preview.data.entries.length === 0 ? <Text c="dimmed">{t('serviceStatus.noEntries')}</Text> : <Table.ScrollContainer minWidth={560}><Table verticalSpacing="sm"><Table.Thead><Table.Tr><Table.Th>{t('serviceStatus.entry')}</Table.Th><Table.Th>{t('serviceStatus.state')}</Table.Th><Table.Th>{t('serviceStatus.basis')}</Table.Th><Table.Th>{t('serviceStatus.observedAt')}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{preview.data.entries.map(entry => <Table.Tr key={entry.id}>
-          <Table.Td><Text size="sm" fw={500}>{entry.name}</Text>{entry.category && <Text size="xs" c="dimmed">{entry.category.name}</Text>}</Table.Td>
+          <Table.Td><Text size="sm" fw={500}>{entry.name}</Text>{entry.category && <Text size="xs" c="dimmed">{localizedName(i18n.resolvedLanguage || i18n.language, entry.category.name_zh, entry.category.name_en, entry.category.name)}</Text>}</Table.Td>
           <Table.Td><Badge color={serviceStateColor[entry.state] ?? 'gray'}>{t(`serviceStatus.states.${entry.state}`, { defaultValue: t('serviceStatus.states.unknown') })}</Badge></Table.Td>
           <Table.Td><Text size="sm">{t(`serviceStatus.reasons.${entry.reason}`, { defaultValue: t('serviceStatus.reasonFallback') })}</Text>{entry.maintenance?.note && <Text size="xs" style={{ whiteSpace: 'pre-wrap' }}>{entry.maintenance.note}</Text>}<Text size="xs" c="dimmed">{entry.evidence.map(evidence => t(`serviceStatus.evidence.${evidence}`, { defaultValue: t('serviceStatus.evidenceFallback') })).join(' · ')}</Text><Text size="xs" c="dimmed">{t('serviceStatus.noEndToEnd')}</Text></Table.Td>
           <Table.Td><Text size="xs">{at(entry.observed_at)}</Text></Table.Td>

@@ -10,6 +10,7 @@ import { api, ApiError, type Node } from '../lib/api'
 import { toast } from '../lib/notify'
 
 import { type NodeLayout } from '../lib/node-layout'
+import { localizedName, localizedNameDraft } from '../lib/localized-name'
 
 function SortRow({ id, children, index, count, move, receiving = false }: { receiving?: boolean; id: string; children: ReactNode; index: number; count: number; move: (from: number, to: number) => void }) {
   const { t } = useTranslation()
@@ -34,17 +35,18 @@ const layoutCollision: CollisionDetection = args => {
 }
 
 export function NodeLayoutEditor({ initial, nodes, close, onSaved }: { initial: NodeLayout; nodes: Node[]; close: () => void; onSaved: () => void }) {
-  const { t } = useTranslation(), qc = useQueryClient()
+  const { t, i18n } = useTranslation(), qc = useQueryClient()
   const [draft, setDraft] = useState<NodeLayout>(() => structuredClone(initial))
   const [group, setGroup] = useState('')
   const [selected, setSelected] = useState<number[]>([])
   const [target, setTarget] = useState<string | null>(null)
-  const [rename, setRename] = useState<string | null>(null), [name, setName] = useState('')
+  const [rename, setRename] = useState<string | null>(null), [name, setName] = useState({ zh: '', en: '' })
   const [conflict, setConflict] = useState(false)
   const [dragged, setDragged] = useState<string | null>(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }))
   const save = useMutation({ mutationFn: () => api.put<NodeLayout>('/api/admin/nodes/layout', draft), onSuccess: () => { qc.invalidateQueries({ queryKey: ['nodes'] }); qc.invalidateQueries({ queryKey: ['node'] }); qc.invalidateQueries({ queryKey: ['monitoring'] }); qc.invalidateQueries({ queryKey: ['node-layout'] }); toast.ok(t('common.saved')); onSaved(); close() }, onError: e => { if (e instanceof ApiError && e.status === 409) setConflict(true); else toast.err(e) } })
-  const options = [{ value: '', label: t('nodeLayout.ungrouped') }, ...draft.groups.map(g => ({ value: g, label: g }))]
+  const groupName = (key: string) => localizedName(i18n.resolvedLanguage || i18n.language, draft.group_names?.[key]?.zh, draft.group_names?.[key]?.en, key)
+  const options = [{ value: '', label: t('nodeLayout.ungrouped') }, ...draft.groups.map(g => ({ value: g, label: groupName(g) }))]
   const members = draft.nodes.filter(n => n.group === group)
   const moveGroups = (from: number, to: number) => setDraft(d => ({ ...d, groups: arrayMove(d.groups, from, to) }))
   const moveNodes = (from: number, to: number) => {
@@ -53,15 +55,14 @@ export function NodeLayoutEditor({ initial, nodes, close, onSaved }: { initial: 
     setDraft(d => ({ ...d, nodes: d.nodes.map(n => n.group === group ? reordered[i++] : n) }))
   }
   const applyName = () => {
-    const value = name.trim()
-    if (!value || new TextEncoder().encode(value).length > 128 || /[\p{Cc}<>&"'`]/u.test(value) || draft.groups.some(g => g === value && g !== rename)) { toast.err(t('nodeLayout.invalidName')); return }
-    setDraft(d => ({ ...d, groups: rename === '' ? [...d.groups, value] : d.groups.map(g => g === rename ? value : g), nodes: d.nodes.map(n => n.group === rename && rename !== '' ? { ...n, group: value } : n) }))
-    if (rename === group && rename !== '') setGroup(value)
-    if (rename === target && rename !== '') setTarget(value)
+    const names = { zh: name.zh.trim(), en: name.en.trim() }
+    const key = rename || names.zh || names.en
+    if ((!names.zh && !names.en) || Object.values(names).some(value => new TextEncoder().encode(value).length > 128 || /[\p{Cc}<>&"'`]/u.test(value)) || (rename === '' && draft.groups.includes(key))) { toast.err(t('nodeLayout.invalidName')); return }
+    setDraft(d => ({ ...d, groups: rename === '' ? [...d.groups, key] : d.groups, group_names: { ...d.group_names, [key]: names } }))
     setRename(null)
   }
   const removeGroup = (g: string) => {
-    setDraft(d => ({ ...d, groups: d.groups.filter(x => x !== g), nodes: d.nodes.map(n => n.group === g ? { ...n, group: '' } : n) }))
+    setDraft(d => ({ ...d, groups: d.groups.filter(x => x !== g), group_names: Object.fromEntries(Object.entries(d.group_names || {}).filter(([key]) => key !== g)), nodes: d.nodes.map(n => n.group === g ? { ...n, group: '' } : n) }))
     if (group === g) { setGroup(''); setSelected([]) }
     if (target === g) setTarget(null)
   }
@@ -87,8 +88,8 @@ export function NodeLayoutEditor({ initial, nodes, close, onSaved }: { initial: 
       <Alert>{t('nodeLayout.hint')}</Alert>
       {conflict && <Alert color="orange">{t('nodeLayout.conflict')}</Alert>}
       <fieldset disabled={save.isPending} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}><Stack>
-      <Group justify="space-between"><Text fw={600}>{t('monitoring.group')}</Text><Button size="xs" variant="light" onClick={() => { setRename(''); setName('') }}>{t('nodeLayout.addGroup')}</Button></Group>
-      <SortableContext items={draft.groups.map(g => `group:${g}`)} strategy={verticalListSortingStrategy}><Stack gap="xs">{draft.groups.map((g, i) => <SortRow key={g} id={`group:${g}`} receiving={dragged?.startsWith('node:')} index={i} count={draft.groups.length} move={moveGroups}><Group justify="space-between" wrap="nowrap"><Text style={{ overflowWrap: 'anywhere' }}>{g} <Text span size="xs" c="dimmed">({draft.nodes.filter(n => n.group === g).length})</Text></Text><Group gap={4} wrap="nowrap"><ActionIcon variant="subtle" aria-label={t('nodeLayout.rename')} onClick={() => { setRename(g); setName(g) }}><IconPencil size={16} /></ActionIcon><ActionIcon variant="subtle" color="red" aria-label={t('nodeLayout.deleteGroup')} onClick={() => removeGroup(g)}><IconTrash size={16} /></ActionIcon></Group></Group></SortRow>)}</Stack></SortableContext>
+      <Group justify="space-between"><Text fw={600}>{t('monitoring.group')}</Text><Button size="xs" variant="light" onClick={() => { setRename(''); setName({ zh: '', en: '' }) }}>{t('nodeLayout.addGroup')}</Button></Group>
+      <SortableContext items={draft.groups.map(g => `group:${g}`)} strategy={verticalListSortingStrategy}><Stack gap="xs">{draft.groups.map((g, i) => <SortRow key={g} id={`group:${g}`} receiving={dragged?.startsWith('node:')} index={i} count={draft.groups.length} move={moveGroups}><Group justify="space-between" wrap="nowrap"><Text style={{ overflowWrap: 'anywhere' }}>{groupName(g)} <Text span size="xs" c="dimmed">({draft.nodes.filter(n => n.group === g).length})</Text></Text><Group gap={4} wrap="nowrap"><ActionIcon variant="subtle" aria-label={t('nodeLayout.rename')} onClick={() => { setRename(g); setName(localizedNameDraft(draft.group_names?.[g]?.zh, draft.group_names?.[g]?.en, g)) }}><IconPencil size={16} /></ActionIcon><ActionIcon variant="subtle" color="red" aria-label={t('nodeLayout.deleteGroup')} onClick={() => removeGroup(g)}><IconTrash size={16} /></ActionIcon></Group></Group></SortRow>)}</Stack></SortableContext>
       <UngroupedDrop active={!!dragged?.startsWith('node:')}><Text>{t('nodeLayout.ungrouped')} <Text span size="xs" c="dimmed">({draft.nodes.filter(n => !n.group).length})</Text></Text></UngroupedDrop>
       <Text size="xs" c="dimmed">{t('nodeLayout.deleteHint')}</Text>
       <Select label={t('nodeLayout.groupNodes')} value={group} onChange={v => { setGroup(v ?? ''); setSelected([]) }} data={options} allowDeselect={false} />
@@ -101,6 +102,6 @@ export function NodeLayoutEditor({ initial, nodes, close, onSaved }: { initial: 
     </Stack>
     <DragOverlay>{dragged?.startsWith('node:') && <Card p="sm" shadow="md"><Text>{nodes.find(n => n.id === Number(dragged.slice(5)))?.name ?? dragged.slice(5)}</Text></Card>}</DragOverlay>
     </DndContext>
-    <Modal opened={rename !== null} onClose={() => setRename(null)} title={t(rename === '' ? 'nodeLayout.addGroup' : 'nodeLayout.rename')}><form onSubmit={e => { e.preventDefault(); applyName() }}><Stack><TextInput data-autofocus label={t('monitoring.group')} value={name} onChange={e => setName(e.currentTarget.value)} /><Button type="submit">{t('common.save')}</Button></Stack></form></Modal>
+    <Modal opened={rename !== null} onClose={() => setRename(null)} title={t(rename === '' ? 'nodeLayout.addGroup' : 'nodeLayout.rename')}><form onSubmit={e => { e.preventDefault(); applyName() }}><Stack><TextInput data-autofocus label={t('bilingualName.zh')} value={name.zh} onChange={e => setName({ ...name, zh: e.currentTarget.value })} /><TextInput label={t('bilingualName.en')} value={name.en} onChange={e => setName({ ...name, en: e.currentTarget.value })} /><Text size="xs" c="dimmed">{t('bilingualName.hint')}</Text><Button type="submit" disabled={!name.zh.trim() && !name.en.trim()}>{t('common.save')}</Button></Stack></form></Modal>
   </Modal>
 }
