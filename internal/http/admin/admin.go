@@ -622,7 +622,7 @@ func allowed(role, method, path string) bool {
 	if strings.HasPrefix(path, "/api/admin/nodes/") && strings.HasSuffix(path, "/dns-sync") && role != domain.RoleAdmin {
 		return false
 	}
-	if strings.HasPrefix(path, "/api/admin/nodes/") && (strings.HasSuffix(path, "/service-control") || strings.HasSuffix(path, "/configuration") || strings.HasSuffix(path, "/rendered-config")) && role != domain.RoleAdmin {
+	if strings.HasPrefix(path, "/api/admin/nodes/") && (strings.HasSuffix(path, "/service-control") || strings.HasSuffix(path, "/probe-plan") || strings.HasSuffix(path, "/configuration") || strings.HasSuffix(path, "/rendered-config")) && role != domain.RoleAdmin {
 		return false
 	}
 	if (path == "/api/admin/infrastructure" || strings.HasPrefix(path, "/api/admin/infrastructure/")) && role != domain.RoleAdmin {

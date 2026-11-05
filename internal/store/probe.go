@@ -16,10 +16,12 @@ import (
 
 // ProbeSettings is the admin-edited monitoring configuration.
 type ProbeSettings struct {
-	FinanceCurrency *string          `json:"finance_currency,omitempty"`
-	Appearance      *ProbeAppearance `json:"appearance,omitempty"`
-	PublicSections  *[]string        `json:"public_sections,omitempty"`
-	Layout          string           `json:"layout,omitempty"` // grid | compact
+	MonitoringChangedAt int64            `json:"monitoring_changed_at"`
+	CarrierChangedAt    int64            `json:"carrier_changed_at"`
+	FinanceCurrency     *string          `json:"finance_currency,omitempty"`
+	Appearance          *ProbeAppearance `json:"appearance,omitempty"`
+	PublicSections      *[]string        `json:"public_sections,omitempty"`
+	Layout              string           `json:"layout,omitempty"` // grid | compact
 
 	PageEnabled  *bool                    `json:"page_enabled,omitempty"` // nil preserves the pre-v1.7 enabled-page behavior
 	Enabled      bool                     `json:"enabled"`

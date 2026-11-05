@@ -203,6 +203,8 @@ func (h *handlers) registerOps(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/admin/ping-tasks", h.requireAdmin(h.savePingTask))
 	mux.HandleFunc("PATCH /api/admin/ping-tasks/{id}", h.requireAdmin(h.savePingTask))
 	mux.HandleFunc("DELETE /api/admin/ping-tasks/{id}", h.requireAdmin(h.deletePingTask))
+	mux.HandleFunc("GET /api/admin/nodes/{id}/probe-plan", h.requireAdmin(h.getNodeProbePlan))
+	mux.HandleFunc("PUT /api/admin/settings/nodes/{id}/probe-plan", h.requireAdmin(h.putNodeProbePlan))
 	mux.HandleFunc("GET /api/admin/nodes/{id}/probe", h.requireAdmin(h.getNodeProbe))
 	mux.HandleFunc("PUT /api/admin/nodes/{id}/probe", h.requireAdmin(h.putNodeProbe))
 	mux.HandleFunc("POST /api/admin/nodes/{id}/probe/reset-traffic", h.requireAdmin(h.resetNodeTraffic))

@@ -213,7 +213,8 @@ func (h *handlers) putProbe(w http.ResponseWriter, r *http.Request) {
 	if h.SubLinks != nil {
 		h.SubLinks.Invalidate()
 	}
-	ok(w, v)
+	// Return the persisted server-owned probe epochs, never an echoed client value.
+	h.getProbe(w, r)
 }
 
 func (h *handlers) listPingTasks(w http.ResponseWriter, r *http.Request) {
