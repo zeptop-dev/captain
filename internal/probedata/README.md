@@ -63,7 +63,9 @@ independent plan. The collection master switch gates all plans; disabling only
 the global carrier default leaves explicit server plans active. Plan revisions
 and timestamps enter the private policy fingerprint, while configurations and
 target addresses remain absent from public output. A plan change hides old
-current samples and overlapping history buckets. Rolling statistics require an
+current samples. History remains filtered by the exact protocol, family and
+target, retaining its original times when that same plan is selected again.
+Rolling statistics require an
 actual first-sample timestamp later than that change; an unknown window stays
 unknown even when a new individual latency is available.
 

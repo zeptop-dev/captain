@@ -201,10 +201,7 @@ func (s *Store) UpdateNodeProbePlan(ctx context.Context, id int64, in NodeProbeP
 // setProbeSetting owns the server-generated epochs. Older clients can omit or
 // echo them, but cannot reset history by supplying an arbitrary timestamp.
 func (s *Store) setProbeSetting(ctx context.Context, raw []byte) error {
-	var next ProbeSettings
-	if err := json.Unmarshal(raw, &next); err != nil {
-		return err
-	}
+	next, nextErr := probePlanSettings(raw)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -216,28 +213,28 @@ func (s *Store) setProbeSetting(ctx context.Context, raw []byte) error {
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
-	var old ProbeSettings
-	if exists {
-		if err := json.Unmarshal([]byte(oldRaw), &old); err != nil {
-			return err
-		}
-	}
+	old, oldErr := probePlanSettings([]byte(oldRaw))
 	next.MonitoringChangedAt, next.CarrierChangedAt = old.MonitoringChangedAt, old.CarrierChangedAt
 	if exists {
 		a, b := old, next
 		a.Normalize()
 		b.Normalize()
-		if a.Enabled != b.Enabled {
+		if nextErr != nil || oldErr != nil || a.Enabled != b.Enabled {
 			next.MonitoringChangedAt = max(time.Now().Unix(), old.MonitoringChangedAt)
 		}
-		if a.CarrierPing != b.CarrierPing || (b.CarrierPing && !reflect.DeepEqual(a.CarrierProbe.Tasks(), b.CarrierProbe.Tasks())) {
+		if nextErr != nil || oldErr != nil || a.CarrierPing != b.CarrierPing || (b.CarrierPing && !reflect.DeepEqual(a.CarrierProbe.Tasks(), b.CarrierProbe.Tasks())) {
 			next.CarrierChangedAt = max(time.Now().Unix(), old.CarrierChangedAt)
 		}
 	}
 	// Retain unknown fields and original omission semantics of generic settings clients.
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &fields); err != nil {
-		return err
+		// Preserve the generic JSON store contract even for a malformed whole
+		// document. On repair, the undecodable old selection advances epochs.
+		if _, err = tx.ExecContext(ctx, `INSERT INTO settings(key,value_json) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json`, SettingProbe, string(raw)); err != nil {
+			return err
+		}
+		return tx.Commit()
 	}
 	if fields == nil {
 		fields = map[string]json.RawMessage{}
@@ -294,8 +291,11 @@ func FilterCarrierSamples(host spec.SystemStatus, plan EffectiveProbePlan) spec.
 	return host
 }
 
-// The bucket overlapping a plan change is omitted as it can contain both eras.
+// Historical buckets keep their actual timestamps. Selecting the same exact
+// protocol/family/target again makes its previous history visible, while current
+// values and rolling windows still require fresh evidence after the change.
 func FilterCarrierPoints(points []PingPoint, plan EffectiveProbePlan) []PingPoint {
+	plan.ChangedAt = 0 // History is not a claim that this plan is currently applied.
 	out := make([]PingPoint, 0, len(points))
 	for _, p := range points {
 		if p.TaskID != 0 || currentCarrier(plan, p.Name, p.Series, p.Family, p.TS) {
@@ -303,4 +303,20 @@ func FilterCarrierPoints(points []PingPoint, plan EffectiveProbePlan) []PingPoin
 		}
 	}
 	return out
+}
+
+// Epoch maintenance reads only probe-selection fields. Generic storage must
+// still permit repairing unrelated malformed settings, and their readers must
+// remain responsible for failing closed (for example a retired theme origin).
+func probePlanSettings(raw []byte) (ProbeSettings, error) {
+	var v struct {
+		Enabled             bool                     `json:"enabled"`
+		CarrierPing         bool                     `json:"carrier_ping"`
+		CarrierProbe        *spec.CarrierProbeConfig `json:"carrier_probe"`
+		Carriers            []spec.Carrier           `json:"carriers"`
+		CarrierChangedAt    int64                    `json:"carrier_changed_at"`
+		MonitoringChangedAt int64                    `json:"monitoring_changed_at"`
+	}
+	err := json.Unmarshal(raw, &v)
+	return ProbeSettings{Enabled: v.Enabled, CarrierPing: v.CarrierPing, CarrierProbe: v.CarrierProbe, Carriers: v.Carriers, CarrierChangedAt: v.CarrierChangedAt, MonitoringChangedAt: v.MonitoringChangedAt}, err
 }

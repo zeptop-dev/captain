@@ -165,8 +165,8 @@ func TestProbePlanEpochsAndCurrentSamples(t *testing.T) {
 		t.Fatal("legacy report accepted", got)
 	}
 	points := []PingPoint{{Name: a.Name, Series: a.Series, Family: a.Family, TS: p.Effective.ChangedAt}, {Name: a.Name, Series: a.Series, Family: a.Family, TS: p.Effective.ChangedAt + 1}, {TaskID: 7}}
-	if got := FilterCarrierPoints(points, p.Effective); len(got) != 2 || got[0].TS != p.Effective.ChangedAt+1 {
-		t.Fatal(got)
+	if got := FilterCarrierPoints(points, p.Effective); len(got) != 3 || got[0].TS != p.Effective.ChangedAt {
+		t.Fatal("same-target history must remain timestamped and accessible", got)
 	}
 	// An unrelated setting or inactive list edit must not clear the active results.
 	_ = s.GetSetting(ctx, SettingProbe, &g)
@@ -225,5 +225,26 @@ func TestProbePlanRollingWindowBoundary(t *testing.T) {
 	h.Pings[0].Quality.WindowStartedAt = 100
 	if got := MonitorSnapshot(h, at).Pings[0]; got.Quality.WindowStartedAt != 0 {
 		t.Fatal("unbounded age became fresh", got)
+	}
+}
+
+func TestProbePlanEpochsPreserveMalformedSettingRepair(t *testing.T) {
+	s, id := probePlanRig(t)
+	ctx := context.Background()
+	for _, bad := range []any{map[string]any{"enabled": true, "hosts": "invalid"}, map[string]any{"enabled": true, "carrier_probe": "invalid"}, "invalid document", []any{"invalid document"}} {
+		if err := s.SetSetting(ctx, SettingProbe, bad); err != nil {
+			t.Fatal("generic store blocked malformed document fixture", err)
+		}
+		var raw ProbeSettings
+		if err := s.GetSetting(ctx, SettingProbe, &raw); err == nil {
+			t.Fatal("malformed setting silently accepted by typed reader")
+		}
+		if err := s.SetSetting(ctx, SettingProbe, ProbeSettings{Enabled: true, CarrierPing: true}); err != nil {
+			t.Fatal("cannot repair invalid settings", err)
+		}
+		v, err := s.NodeProbePlanView(ctx, id)
+		if err != nil || !v.Effective.Enabled {
+			t.Fatal("repair did not restore valid effective plan", v, err)
+		}
 	}
 }

@@ -22,7 +22,9 @@ additive `window_started_at` report field lets Captain establish whether all
 samples in a rolling window follow the current plan. After a plan change, agents
 without that field retain their fresh latest latency while the unverified
 rolling statistics remain unknown. No historical samples are relabeled as a
-new protocol, family, or target; the history bucket crossing a change is hidden.
+new protocol, family, or target. Historical samples keep their original times;
+selecting the same exact target again retains its earlier history without
+reviving old current-state or rolling-window evidence.
 
 Older Captain binaries ignore server overrides and return to their global
 selection. Disable overrides or restore a compatible backup before manually
