@@ -64,7 +64,7 @@ func TokenAllowsRequest(policy, method, path, pattern string) bool {
 		return false
 	}
 	resource := strings.Split(strings.TrimPrefix(path, "/api/admin/"), "/")[0]
-	if path == "/api/admin/settings/agent-https" {
+	if path == "/api/admin/settings/agent-https" || path == "/api/admin/settings/agent-https/check" {
 		resource = "agent-https"
 	}
 	if resource == "nodes" && strings.HasSuffix(path, "/rendered-config") {

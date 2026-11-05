@@ -60,8 +60,9 @@ test('a real curl download executes the saved installer with Docker arguments', 
   })
   try {
     server.listen(0, '127.0.0.1'); await once(server, 'listening')
+    writeFileSync(join(root, '.curlrc'), `url = http://127.0.0.1:${server.address().port}/unexpected\n`)
     const command = agentInstallCommands('EXAMPLE', `http://127.0.0.1:${server.address().port}`, 'full', 'captain').docker
-    const child = spawn('sh', ['-c', command], { env: { ...process.env, TMPDIR: temp, CALLED_FILE: marker }, stdio: 'pipe' })
+    const child = spawn('sh', ['-c', command], { env: { ...process.env, TMPDIR: temp, CURL_HOME: root, CALLED_FILE: marker }, stdio: 'pipe' })
     const errors = []; child.stderr.on('data', data => errors.push(data.toString()))
     const [code] = await once(child, 'exit')
     assert.equal(code, 0, errors.join(''))

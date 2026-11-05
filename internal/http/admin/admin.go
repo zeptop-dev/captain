@@ -16,6 +16,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/http/origin"
 
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
+	"github.com/zeptop-dev/captain/internal/agenthttps"
 	"github.com/zeptop-dev/captain/internal/backup"
 	"github.com/zeptop-dev/captain/internal/clauderules"
 	"github.com/zeptop-dev/captain/internal/http/ratelimit"
@@ -42,7 +43,10 @@ type SessionStore interface {
 
 // Deps are the handlers' dependencies.
 type Deps struct {
-	AgentHTTPS    *service.AgentHTTPS
+	AgentHTTPS *service.AgentHTTPS
+	AgentCheck interface {
+		Check(context.Context, string) agenthttps.AccessCheck
+	}
 	Diagnostics   *service.Diagnostics
 	ClientCatalog *service.ClientCatalog
 	ServiceStatus *service.ServiceStatusCatalog
@@ -116,6 +120,7 @@ type handlers struct {
 	subPresetSync        sync.Mutex
 	claudeRuleSync       sync.Mutex
 	dnsSync              sync.Mutex
+	agentCheck           sync.Mutex
 	subscriptionSettings sync.Mutex
 }
 
@@ -140,6 +145,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("GET /api/admin/nodes/agent-https", h.requireAdmin(h.nodeAgentHTTPS))
 	mux.HandleFunc("GET /api/admin/settings/agent-https", h.requireAdmin(h.getAgentHTTPS))
 	mux.HandleFunc("PUT /api/admin/settings/agent-https", h.requireAdmin(h.putAgentHTTPS))
+	mux.HandleFunc("POST /api/admin/settings/agent-https/check", h.checkAgentHTTPS)
 	mux.HandleFunc("PUT /api/admin/nodes/layout", h.requireAdmin(h.nodeLayout))
 	mux.HandleFunc("POST /api/admin/nodes/{id}/region-detect", h.requireAdmin(h.detectNodeRegion))
 	mux.HandleFunc("GET /api/admin/nodes", h.requireAdmin(h.listNodes))

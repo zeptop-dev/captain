@@ -32,11 +32,12 @@ on 443. Agent traffic on 2096 reaches Captain directly and needs no extra
 Use the dedicated operation; do not reinstall or use `--reconfigure`:
 
 ```sh
-sh install.sh enable-agent-https --agent-https-port 2096
+sh install.sh enable-agent-https --agent-https-port 2096 \
+  --agent-https-url https://panel.example.com:2096 --agent-firewall auto
 ```
 
 This requires Python 3 and a current Docker Compose plugin. It identifies the
-running Captain service in `/opt/captain`, validates root-owned deployment
+running Captain service in `/opt/captain` (or an explicit trusted `--dir`), validates root-owned deployment
 inputs, and creates `compose.agent-https.yaml`. Existing Compose input order,
 custom networks, volumes, environment entries and the updater image override
 are retained. The container is recreated without pulling/building an image or
@@ -105,6 +106,10 @@ For `network_mode: host`, do not add `ports`; the listener already binds the hos
 If the Captain web updater also owns this deployment, coordinate the change in
 a maintenance window and re-register it after changing the Compose file list.
 
+Recreate the service after changing its ports; merely restarting an existing
+container does not apply new publications. Use the actual project directory
+from 1Panel, not a second copy of its Compose files.
+
 Open the chosen TCP port in the host and provider firewalls if needed. For a
 Cloudflare-proxied hostname, choose an HTTPS port supported by Cloudflare and
 use a matching origin listener and valid certificate; no DNS port mapping is
@@ -115,3 +120,45 @@ TLS validation and node reachability are separate checks.
 Changing the deployment port or the console's install settings does not migrate
 existing bosun connections. Install/reconfigure nodes through their documented
 workflow; this operation does not modify node credentials or accounting journals.
+
+## Firewall setup and layered checks (unreleased)
+
+`enable-agent-https` defaults to `--agent-firewall auto`. The same firewall step
+runs for a new Docker install with `--agent-https-port` and for Docker host
+networking. It only acts when exactly one active UFW or firewalld manager can be
+identified. It never enables, resets or reloads a firewall. Existing allowed
+rules remain operator-owned. Conflicting UFW deny/reject rules stop automatic
+changes. New rules carry a recorded identity, and a failed firewall update only
+rolls back that invocation's rules; it never deletes unrelated rules or old ports.
+Firewalld requires a single identifiable active zone and checks runtime and
+permanent configuration separately. `--agent-firewall skip` leaves host rules
+alone and reports the skip. Other managers and ambiguous zones require manual
+configuration. Provider security groups and Docker forwarding filters remain
+outside this helper.
+
+After the mapping succeeds, a failed firewall or network check retains the
+working deployment and reports the failing layer. Do not retry installation
+with `--reconfigure`. For an existing deployment, use this read-only check:
+
+```sh
+sudo sh install.sh check-agent-https --agent-https-port 2096 \
+  --agent-https-url https://panel.example.com:2096 --dir /opt/captain
+```
+
+It inspects actual Docker publication and host firewall rules, then checks
+loopback TLS with the configured hostname and a request to the domain from the
+host. Both HTTPS checks use system certificate verification, a bounded response
+and fixed Agent health path without redirects. The health response identifies
+an Agent service; use the console diagnostic to confirm it is this Captain
+process. Exit code 0 means the requested known layers passed, 2 means one needs
+attention, and 1 means the deployment or parameters could not be safely handled.
+Unknown cloud filters remain unknown even when the checks pass. Omitting the URL
+on `enable-agent-https` skips the network checks; it does not imply reachability.
+
+The console's **Check entry** button separately tests the saved origin from the
+Captain process and verifies a fresh challenge response. It cannot inspect the
+host's firewall or edit Compose files. Run the displayed node command on the
+target node to test that node's own path. DNS, TCP, TLS, redirects, unexpected
+services and HTTP errors (including 522) are reported separately. This does not
+bypass provider network policy. Native binary installations still configure
+host firewall rules through their normal host administration tools.

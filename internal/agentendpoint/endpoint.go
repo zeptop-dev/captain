@@ -1,5 +1,6 @@
 // Package agentendpoint resolves the published address used by agent installers.
-// An address is configuration for the node, not a server-side fetch permission.
+// An address alone grants no server-side fetch permission. The explicit admin
+// Agent HTTPS diagnostic separately authorizes one saved origin and fixed path.
 package agentendpoint
 
 import (
