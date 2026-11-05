@@ -1,3 +1,4 @@
+import { localizedName } from '../lib/localized-name'
 import { Alert, Badge, Button, Card, Group, Skeleton, Stack, Text, Title } from '@mantine/core'
 import { IconChevronDown, IconRefresh } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
@@ -43,7 +44,7 @@ export default function ServiceStatusPage() {
   const entries = data ? currentEntries(data, at) : []
   const summary = summarize(entries)
   const categories = statusCategories(entries)
-  const options = [{ value: 'all', name: t('serviceStatus.all'), description: '' }, ...categories.map(value => ({ value: String(value.id), name: value.name, description: value.description }))]
+  const options = [{ value: 'all', name: t('serviceStatus.all'), description: '' }, ...categories.map(value => ({ value: String(value.id), name: localizedName(i18n.language, value.name_zh, value.name_en, value.name), description: value.description }))]
   if (entries.some(entry => !entry.category)) options.push({ value: '0', name: t('servers.uncategorized'), description: '' })
   const activeCategory = options.some(option => option.value === category) ? category : 'all'
   const visibleEntries = activeCategory === 'all' ? entries : entries.filter(entry => String(entry.category?.id ?? 0) === activeCategory)

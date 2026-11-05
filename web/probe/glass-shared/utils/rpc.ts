@@ -103,6 +103,8 @@ export interface Client {
   currency: string
   expired_at: string
   group: string
+  group_zh?: string
+  group_en?: string
   tags: string
   hidden: boolean
   traffic_limit: number

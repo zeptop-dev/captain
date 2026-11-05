@@ -2,7 +2,8 @@ import type { CSSProperties, Ref } from 'react'
 import { asyncComponent } from '@/lib/asyncComponent'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '@iconify/react'
-import { t } from '@shared/i18n'
+import { t, language } from '@shared/i18n'
+import { monitorGroupOptions } from '../../../src/lib/localized-name'
 import type { PermissionKey } from '@shared/services/auth.service'
 import { UI_CONFIG } from '@shared/constants/ui'
 import * as financeHelper from '@shared/utils/financeHelper'
@@ -157,10 +158,13 @@ export default function HomeView({ ref }: { ref?: Ref<HTMLDivElement> }) {
     return () => clearTimeout(id)
   }, [searchText])
 
-  const groups = useMemo(() => [
-    { tab: t('全部节点'), name: 'all' },
-    ...nodeGroups.map(g => ({ tab: g, name: g })),
-  ], [nodeGroups])
+  const groups = useMemo(() => {
+    const labels = new Map(monitorGroupOptions(visibleNodes, language).map(option => [option.value, option.label]))
+    return [
+      { tab: t('全部节点'), name: 'all' },
+      ...nodeGroups.map(g => ({ tab: labels.get(g) ?? g, name: g })),
+    ]
+  }, [nodeGroups, visibleNodes])
 
   const quickControlKeys = useMemo<HomeQuickControlKey[]>(() => app.homeQuickControlOrder.filter(key => key !== 'monthlyCost'), [app.homeQuickControlOrder])
 

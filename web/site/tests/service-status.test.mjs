@@ -66,3 +66,15 @@ test('confirmed service pauses remain down only while their evidence is fresh', 
   assert.equal(currentEntries(snapshot([entry({ state: 'down', reason: 'service_paused', observed_at: null })]), now)[0].reason, 'no_data')
   assert.equal(currentEntries(snapshot([entry({ state: 'down', reason: 'traffic_quota' })]), now)[0].reason, 'unsupported')
 })
+
+
+test('equal translated category names retain separate IDs and ordering', () => {
+  const categories = [
+    { id: 4, name: 'west', name_zh: '西区', name_en: 'Shared label', description: 'Original description', sort: 2 },
+    { id: 8, name: 'east', name_zh: '东区', name_en: 'Shared label', description: '', sort: 1 },
+  ]
+  const result = statusCategories(categories.map((category, index) => entry({ id: index + 1, category })))
+  assert.deepEqual(result.map(category => category.id), [8, 4])
+  assert.deepEqual(result.map(category => category.name_en), ['Shared label', 'Shared label'])
+  assert.equal(result[1].description, 'Original description')
+})

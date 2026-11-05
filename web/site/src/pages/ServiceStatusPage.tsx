@@ -1,3 +1,4 @@
+import { localizedName } from '../lib/localized-name'
 import { IconArrowUpRight, IconRefresh } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState, type CSSProperties } from 'react'
@@ -50,7 +51,7 @@ export default function ServiceStatusPage({ site }: { site?: Site }) {
   const entries = data ? currentEntries(data, at) : []
   const summary = summarize(entries)
   const categories = statusCategories(entries)
-  const options = categories.map(value => ({ value: String(value.id), name: value.name, description: value.description }))
+  const options = categories.map(value => ({ value: String(value.id), name: localizedName(i18n.language, value.name_zh, value.name_en, value.name), description: value.description }))
   if (entries.some(entry => !entry.category)) options.push({ value: '0', name: t('serviceStatus.uncategorized'), description: '' })
   if (options.length > 1) options.push({ value: 'all', name: t('serviceStatus.all'), description: '' })
   const activeCategory = options.some(option => option.value === category) ? category : options[0]?.value ?? 'all'

@@ -1,3 +1,4 @@
+import { localizedName, monitorGroupOptions } from './lib/localized-name'
 import { carrierUnavailable, matchesPing } from '../glass-shared/ping-selection'
 import { networkIdentity, networkLabel } from './lib/network'
 import { nodeBandwidth } from './lib/node-bandwidth'
@@ -32,7 +33,7 @@ export default function App({ snap }: { snap: UseQueryResult<Snapshot, Error> })
   const s = snap.data
   if (!s) return null
   const show = (section: string) => publicShows(s, section)
-  const filtered = s.nodes.filter((n) => n.name.toLowerCase().includes(search.toLowerCase()) && (!group || n.group === group) && (!status || n.online === (status === 'online')))
+  const filtered = s.nodes.filter((n) => [n.name, n.group, n.group_zh, n.group_en].filter(Boolean).join(' ').toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()) && (!group || n.group === group) && (!status || n.online === (status === 'online')))
   const online = s.nodes.filter((n) => n.online).length
   const validNetworkNodes = s.nodes.filter((n) => n.online && n.host && n.host.valid?.network !== false)
   const totalUp = validNetworkNodes.reduce((a, n) => a + (n.host?.net_up ?? 0), 0)
@@ -51,7 +52,7 @@ export default function App({ snap }: { snap: UseQueryResult<Snapshot, Error> })
         </Group>
       </Container>
       <Container size="lg" pb={60}>
-        <SimpleGrid cols={{ base: 1, sm: 3 }} mb="md"><TextInput aria-label={t('page.search')} placeholder={t('page.search')} value={search} onChange={(e) => setSearch(e.currentTarget.value)} /><Select aria-label={t('page.group')} placeholder={t('page.group')} clearable data={[...new Set(s.nodes.map((n) => n.group).filter((g): g is string => !!g))]} value={group} onChange={setGroup} /><Select aria-label={t('page.status')} placeholder={t('page.status')} clearable value={status} onChange={setStatus} data={['online', 'offline'].map((value) => ({ value, label: t(`page.${value}`) }))} /></SimpleGrid>
+        <SimpleGrid cols={{ base: 1, sm: 3 }} mb="md"><TextInput aria-label={t('page.search')} placeholder={t('page.search')} value={search} onChange={(e) => setSearch(e.currentTarget.value)} /><Select aria-label={t('page.group')} placeholder={t('page.group')} clearable data={monitorGroupOptions(s.nodes, i18n.language)} value={group} onChange={setGroup} /><Select aria-label={t('page.status')} placeholder={t('page.status')} clearable value={status} onChange={setStatus} data={['online', 'offline'].map((value) => ({ value, label: t(`page.${value}`) }))} /></SimpleGrid>
         <SimpleGrid cols={s.layout === 'compact' ? 1 : { base: 1, sm: 2, lg: 3 }} spacing="md">
           {filtered.map((n) => <NodeCard key={n.id} n={n} snapshot={s} onOpen={() => setOpen(n.id)} />)}
         </SimpleGrid>
@@ -83,7 +84,7 @@ function NodeCard({ n, snapshot, onOpen }: { n: Node; snapshot: Snapshot; onOpen
           <Text fz="lg">{flag(n.info.region) || <IconServer size={18} />}</Text>
           <div style={{ minWidth: 0 }}>
             <Text fw={700} truncate>{n.name}</Text>
-            <Text size="xs" c="dimmed" truncate>{[n.group, n.info.provider, h?.info?.os, h?.uptime ? uptime(h.uptime) : ''].filter(Boolean).join(' · ')}</Text>
+            <Text size="xs" c="dimmed" truncate>{[localizedName(i18n.language, n.group_zh, n.group_en, n.group), n.info.provider, h?.info?.os, h?.uptime ? uptime(h.uptime) : ''].filter(Boolean).join(' · ')}</Text>
           </div>
         </Group>
         <Badge size="sm" style={{ flexShrink: 0 }} color={n.online ? 'teal' : 'red'} variant={n.online ? 'light' : 'filled'}>{t(n.online ? 'page.online' : 'page.offline')}</Badge>

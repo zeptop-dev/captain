@@ -52,7 +52,7 @@ export function clientFor(n: Node, weight: number): Client {
     // Keep the legacy day-based finance model disabled. Cost cards read Captain's
     // structured calendar billing from the public snapshot; never infer days or FX.
     price: Number.NaN, billing_cycle: 0, auto_renewal: false, currency: '', expired_at: n.info.expires_at ?? '',
-    group: n.group ?? '', tags: '', hidden: false, traffic_limit: shows('traffic') ? n.traffic.limit : Number.NaN,
+    group: n.group ?? '', group_zh: n.group_zh, group_en: n.group_en, tags: '', hidden: false, traffic_limit: shows('traffic') ? n.traffic.limit : Number.NaN,
     traffic_limit_type: n.traffic.mode || 'sum', created_at: '', updated_at: n.last_seen ?? '',
   }
 }

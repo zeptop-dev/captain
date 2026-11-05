@@ -43,6 +43,8 @@ export function isNodeMatchSearch(node: NodeData, search: string): boolean {
     node.arch,
     node.region,
     node.group,
+    node.group_zh,
+    node.group_en,
     ...node.groups,
     node.tags,
     node.public_remark,

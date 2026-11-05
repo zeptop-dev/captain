@@ -295,3 +295,15 @@ test('carrier unreachable and permissions show unavailable without changing time
  for (const outcome of ['permission', 'unreachable', 'timeout']) assert.equal(carrierUnavailable({ ...carrier, id: 7 }, { quality: { outcome } }), false)
  assert.equal(carrierUnavailable(null, { quality: { outcome: 'unreachable' } }), false)
 })
+
+
+test('glass clients keep stable group keys and both display names independently', () => {
+  const source = { ...node, group: 'stable;group,key', group_zh: '亚洲', group_en: 'Asia, Pacific | West' }
+  const client = clientFor(source, 0)
+  assert.equal(client.group, 'stable;group,key')
+  assert.equal(client.group_zh, '亚洲')
+  assert.equal(client.group_en, 'Asia, Pacific | West')
+  const legacy = clientFor({ ...node, group: 'Legacy group' }, 1)
+  assert.equal(legacy.group, 'Legacy group')
+  assert.equal(legacy.group_en, undefined)
+})

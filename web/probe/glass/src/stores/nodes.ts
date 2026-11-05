@@ -25,7 +25,7 @@ const CLIENT_FIELDS = [
   'kernel_version', 'gpu_name', 'ipv4', 'ipv6', 'region', 'location', 'remark', 'public_remark',
   'mem_total', 'swap_total', 'disk_total', 'version', 'weight', 'price', 'billing_cycle',
   'auto_renewal', 'currency', 'expired_at', 'tags', 'hidden', 'traffic_limit',
-  'created_at', 'updated_at',
+  'created_at', 'updated_at', 'group_zh', 'group_en',
 ] as const satisfies readonly (keyof NodeData & keyof Client)[]
 
 function areStringArraysEqual(left: string[], right: string[]): boolean {
@@ -61,6 +61,8 @@ function createNodeFromClient(client: Client): NodeData {
     currency: client.currency,
     expired_at: client.expired_at,
     group: client.group,
+    group_zh: client.group_zh,
+    group_en: client.group_en,
     groups: parseNodeGroups(client.group),
     tags: client.tags,
     hidden: client.hidden,

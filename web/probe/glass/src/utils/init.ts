@@ -41,7 +41,7 @@ async function refresh(): Promise<boolean> {
     } as PublicSettings)
     nodesStore.updateNodeClients(Object.fromEntries(s.nodes.map((n, i) => [String(n.id), clientFor(n, i)])))
     nodesStore.updateNodeStatuses(Object.fromEntries(s.nodes.map(n => [String(n.id), statusFor(n)])))
-    // Exact group labels; commas in Captain group names are not separators.
+    // Captain has one stable group identity per node; punctuation is never a separator.
     const byId = new Map(s.nodes.map(v => [String(v.id), v]))
     nodesStore.patchNodes((n) => {
       const source = byId.get(n.uuid)

@@ -4,7 +4,7 @@ export const statusStates = ['healthy', 'degraded', 'down', 'maintenance', 'unkn
 export type StatusState = typeof statusStates[number]
 export const statusReasons = ['healthy', 'no_data', 'stale', 'config_pending', 'component_failure', 'no_route', 'partial_failure', 'partial_unknown', 'unsupported', 'external_path', 'maintenance', 'service_paused'] as const
 export const statusEvidence = ['inbound', 'forward_tcp', 'wireguard', 'vless_reverse', 'client_chain'] as const
-export interface StatusCategory { id: number; name: string; description: string; sort: number }
+export interface StatusCategory { id: number; name: string; name_zh?: string; name_en?: string; description: string; sort: number }
 export interface StatusEntry {
   id: number; name: string; rate: number; region: string; category: StatusCategory | null
   location?: GeoLocation | null

@@ -32,6 +32,8 @@ export interface NodeData {
   currency: string
   expired_at: string
   group: string
+  group_zh?: string
+  group_en?: string
   groups: string[]
   tags: string
   hidden: boolean

@@ -1,7 +1,8 @@
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode, Ref } from 'react'
 import { Fragment, useMemo, useRef, useState } from 'react'
 import { Icon } from '@iconify/react'
-import { t } from '@shared/i18n'
+import { t, language } from '@shared/i18n'
+import { localizedName } from '../../../src/lib/localized-name'
 import { shows, captainPrice, captainBandwidth } from '@shared/captain'
 import { UI_CONFIG } from '@shared/constants/ui'
 import { formatCityNameZh } from '@shared/utils/cityNameHelper'
@@ -239,7 +240,8 @@ export default function NodeList({ nodes, transitionKey, sortResetKey, pingEnabl
         }
         case 'group': {
           node.groups.forEach((group, index) => {
-            items.push({ key: `group-${index}-${group}`, value: group, title: group, icon: 'tabler:folder', variant: 'outline', class: 'max-w-[8rem] bg-background/45 text-foreground/80 border-border/60' })
+            const label = group === node.group ? localizedName(language, node.group_zh, node.group_en, group) : group
+            items.push({ key: `group-${index}-${group}`, value: label, title: label, icon: 'tabler:folder', variant: 'outline', class: 'max-w-[8rem] bg-background/45 text-foreground/80 border-border/60' })
           })
           break
         }

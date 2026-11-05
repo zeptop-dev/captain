@@ -1,3 +1,4 @@
+import { localizedName } from '../lib/localized-name'
 import { ActionIcon, Alert, Anchor, Badge, Button, Card, Group, Select, SimpleGrid, Skeleton, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core'
 import { IconArrowLeft, IconCopy, IconSearch, IconServer } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
@@ -18,7 +19,7 @@ export default function ServersPage() {
 }
 
 export function ServerList() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const q = useQuery({ queryKey: ['servers'], queryFn: () => api.get<Server[]>('/api/portal/servers'), meta: { handlesError: true } })
   const [search, setSearch] = useState('')
   const [protocol, setProtocol] = useState<string | null>(null)
@@ -28,12 +29,12 @@ export function ServerList() {
   const protocols = Array.from(new Set(servers.map(server => server.protocol))).sort()
   const tags = Array.from(new Set(servers.flatMap(server => server.tags ?? []))).sort()
   const categories = Array.from(new Map(servers.flatMap(server => server.category ? [[server.category.id, server.category] as const] : [])).values()).sort((a, b) => a.sort - b.sort || a.id - b.id)
-  const categoryOptions = categories.map(value => ({ value: String(value.id), label: value.name }))
+  const categoryOptions = categories.map(value => ({ value: String(value.id), label: localizedName(i18n.language, value.name_zh, value.name_en, value.name) }))
   if (servers.some(server => !server.category)) categoryOptions.push({ value: '0', label: t('servers.uncategorized') })
   const activeCategory = categoryOptions.some(option => option.value === category) ? category : null
   const selectedCategory = categories.find(value => String(value.id) === activeCategory)
   const needle = search.trim().toLocaleLowerCase()
-  const visible = servers.filter(server => (!activeCategory || String(server.category?.id ?? 0) === activeCategory) && (!protocol || server.protocol === protocol) && (!tag || server.tags?.includes(tag)) && (!needle || [server.name, server.host, server.protocol, server.category?.name ?? '', ...(server.tags ?? [])].join(' ').toLocaleLowerCase().includes(needle)))
+  const visible = servers.filter(server => (!activeCategory || String(server.category?.id ?? 0) === activeCategory) && (!protocol || server.protocol === protocol) && (!tag || server.tags?.includes(tag)) && (!needle || [server.name, server.host, server.protocol, server.category?.name ?? '', server.category?.name_zh ?? '', server.category?.name_en ?? '', ...(server.tags ?? [])].join(' ').toLocaleLowerCase().includes(needle)))
   return <Stack gap="md">
     <Text size="sm" c="dimmed">{t('connection.nodesHint')}</Text>
     {q.isPending && <SimpleGrid cols={{ base: 1, sm: 2 }}><Skeleton height={100} /><Skeleton height={100} /></SimpleGrid>}
@@ -53,7 +54,7 @@ export function ServerList() {
           <Group gap="sm" wrap="nowrap" style={{ minWidth: 0 }}><IconServer size={18} className={classes.serverIcon} aria-hidden /><Text fw={600} style={{ overflowWrap: 'anywhere' }}>{server.name}</Text></Group>
           <Group gap={6} wrap="nowrap"><Badge variant="light" size="sm">{server.protocol}</Badge>{server.uri && <Tooltip label={t('servers.copyLink')}><ActionIcon variant="subtle" aria-label={t('servers.copyLink')} onClick={async () => { if (await copyText(server.uri)) toast.ok(t('home.copied')) }}><IconCopy size={17} /></ActionIcon></Tooltip>}</Group>
         </Group>
-        {(server.category || (server.tags ?? []).length > 0) && <Group gap={5} mt="sm">{server.category && <Badge size="xs" variant="outline" style={{ maxWidth: '100%' }}>{server.category.name}</Badge>}{(server.tags ?? []).map(value => <Badge key={value} size="xs" color="gray" variant="light">{value}</Badge>)}</Group>}
+        {(server.category || (server.tags ?? []).length > 0) && <Group gap={5} mt="sm">{server.category && <Badge size="xs" variant="outline" style={{ maxWidth: '100%' }}>{localizedName(i18n.language, server.category.name_zh, server.category.name_en, server.category.name)}</Badge>}{(server.tags ?? []).map(value => <Badge key={value} size="xs" color="gray" variant="light">{value}</Badge>)}</Group>}
         <Text size="xs" c="dimmed" ff="monospace" mt="sm" style={{ overflowWrap: 'anywhere' }}>{server.host}:{server.port}</Text>
         {server.client_chain && <Text size="xs" c="dimmed" mt="xs">{t('servers.clientChain')}</Text>}
         {server.protocol === 'wireguard' && <Text size="xs" c="dimmed" mt="xs">{t('wgDevices.serverHint')} <Anchor component={Link} to="/connect#wireguard" size="xs">{t('connection.manageWG')}</Anchor></Text>}
