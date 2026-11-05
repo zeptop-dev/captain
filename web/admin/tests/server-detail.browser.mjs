@@ -93,7 +93,10 @@ async function setup(role = 'admin', { locale = 'en', scheme = 'light', viewport
       if (suffix === 'return-routes') return send({ schedule: { enabled: false, interval_hours: 6, city: 'beijing', family: 'ipv4' }, history: [], tool_supported: false, tool_online: false })
       if (suffix === 'addresses') return send({ auto_ipv4: false, auto_ipv6: false, entry_ipv4: '192.0.2.10', entry_ipv6: '', observed: { received_at: 0, ipv4: {}, ipv6: {} } })
       if (suffix === 'dns-health') return send({ node_id: id, node: nodes[id - 1].name, checked_at: 0, stale: true, targets: [], failure_count: 0 })
-      if (suffix === 'configuration') return send({ status: 'unknown', config_revision: '', state_revision: '', history: [] })
+      if (suffix === 'configuration') {
+        assert.equal(role, 'admin', 'Operators must not fetch configuration history')
+        return send({ status: 'unavailable', config_revision: '', state_revision: '', current: null, history: [] })
+      }
       const now = Math.floor(timestamp / 1000)
       if (suffix === 'availability') {
         const summary = { online_seconds: 3600, offline_seconds: 0, unknown_seconds: 0, maintenance_seconds: 0, percent: 100, coverage_percent: 100 }
