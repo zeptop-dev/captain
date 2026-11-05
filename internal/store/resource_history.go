@@ -390,6 +390,8 @@ type MonitorNode struct {
 	ID        int64              `json:"id"`
 	Name      string             `json:"name"`
 	Group     string             `json:"group"`
+	GroupZH   string             `json:"group_zh,omitempty"`
+	GroupEN   string             `json:"group_en,omitempty"`
 	Paired    bool               `json:"paired"`
 	Online    bool               `json:"online"`
 	LastSeen  *time.Time         `json:"last_seen"`
@@ -401,7 +403,7 @@ type MonitorNode struct {
 // The persisted snapshot survives panel restarts. Receipt time is independent
 // from liveness: a recent status/task request must not make old metrics fresh.
 func (s *Store) MonitorNodes(ctx context.Context, at time.Time, grace time.Duration, nodeIDs ...int64) ([]MonitorNode, error) {
-	query := `SELECT id,name,monitor_group,token_hash,last_seen_at,probe_info_json,monitor_at,monitor_host_json,host_reported_at,host_status_json,region_mode,address_json,region_detection_json FROM nodes`
+	query := `SELECT id,name,monitor_group,token_hash,last_seen_at,probe_info_json,monitor_at,monitor_host_json,host_reported_at,host_status_json,region_mode,address_json,region_detection_json,COALESCE((SELECT name_zh FROM node_display_groups WHERE name=nodes.monitor_group),''),COALESCE((SELECT name_en FROM node_display_groups WHERE name=nodes.monitor_group),'') FROM nodes`
 	var args []any
 	if len(nodeIDs) > 0 {
 		query += ` WHERE id=?`
@@ -419,7 +421,7 @@ func (s *Store) MonitorNodes(ctx context.Context, at time.Time, grace time.Durat
 		var info, beatHost, reportHost, regionMode, addressJSON, regionJSON string
 		var last sql.NullInt64
 		var beatAt, reportAt int64
-		if err := rows.Scan(&n.ID, &n.Name, &n.Group, &token, &last, &info, &beatAt, &beatHost, &reportAt, &reportHost, &regionMode, &addressJSON, &regionJSON); err != nil {
+		if err := rows.Scan(&n.ID, &n.Name, &n.Group, &token, &last, &info, &beatAt, &beatHost, &reportAt, &reportHost, &regionMode, &addressJSON, &regionJSON, &n.GroupZH, &n.GroupEN); err != nil {
 			return nil, err
 		}
 		n.Paired = token.Valid && token.String != ""

@@ -48,7 +48,7 @@ func TestServiceStatusPublicationAndPortalIsolation(t *testing.T) {
 	blocked := entry("Blocked node", ib.ID, nil)
 	dependent := entry("Dependent node", ib.ID, &blocked.ID)
 	for _, e := range []domain.Entry{a, hidden, b, blocked, dependent} {
-		c := mustJSON[domain.EntryCategory](t, post("/api/admin/entry-categories", map[string]string{"Name": "Category " + e.Name}))
+		c := mustJSON[domain.EntryCategory](t, post("/api/admin/entry-categories", map[string]string{"NameZH": "分类 " + e.Name, "NameEN": "Category " + e.Name}))
 		if err := p.st.AssignEntryCategory(ctx, []int64{e.ID}, c.ID); err != nil {
 			t.Fatal(err)
 		}
@@ -66,6 +66,9 @@ func TestServiceStatusPublicationAndPortalIsolation(t *testing.T) {
 		t.Fatalf("caller scope/category leak: %+v", view)
 	}
 	for _, e := range view.Entries {
+		if e.Category == nil || e.Category.NameZH != "分类 "+e.Name || e.Category.NameEN != "Category "+e.Name {
+			t.Fatal("missing bilingual category", e)
+		}
 		if e.State != "unknown" || e.ObservedAt != nil || e.EndToEnd {
 			t.Fatal("unobserved node called healthy", e)
 		}
@@ -81,7 +84,7 @@ func TestServiceStatusPublicationAndPortalIsolation(t *testing.T) {
 	cfg = mustJSON[store.ServiceStatusConfig](t, call(p.admin, "PUT", "/api/admin/settings/service-status", cfg, 200))
 	raw := call(visitor, "GET", "/api/site/service-status", nil, 200)
 	public := mustJSON[service.ServiceStatusView](t, raw)
-	if public.Summary.Total != 1 || len(public.Entries) != 1 || public.Entries[0].ID != b.ID || public.Entries[0].State != "maintenance" || public.Entries[0].Maintenance.Note != "Scheduled upgrade" || public.Entries[0].Category.Sort != 0 {
+	if public.Summary.Total != 1 || len(public.Entries) != 1 || public.Entries[0].ID != b.ID || public.Entries[0].State != "maintenance" || public.Entries[0].Maintenance.Note != "Scheduled upgrade" || public.Entries[0].Category.Sort != 0 || public.Entries[0].Category.NameZH != "分类 Visible B" || public.Entries[0].Category.NameEN != "Category Visible B" {
 		t.Fatal("public allowlist/maintenance/chain mismatch", public)
 	}
 	for _, secret := range []string{"203.0.113.30", "private-endpoint", "Private infrastructure", u.UUID, u.SubToken, "Restricted", "Blocked", "Dependent"} {

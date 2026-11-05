@@ -23,6 +23,8 @@ type ServiceStatusCatalog struct {
 type ServiceStatusCategory struct {
 	ID          int64  `json:"id"`
 	Name        string `json:"name"`
+	NameZH      string `json:"name_zh,omitempty"`
+	NameEN      string `json:"name_en,omitempty"`
 	Description string `json:"description"`
 	Sort        int    `json:"sort"`
 }
@@ -166,7 +168,7 @@ func (s *ServiceStatusCatalog) build(ctx context.Context, entries []*domain.Entr
 		position := 0
 		for _, c := range all {
 			if _, ok := categories[c.ID]; ok {
-				categories[c.ID] = &ServiceStatusCategory{ID: c.ID, Name: c.Name, Description: c.Description, Sort: position}
+				categories[c.ID] = &ServiceStatusCategory{ID: c.ID, Name: c.Name, NameZH: c.NameZH, NameEN: c.NameEN, Description: c.Description, Sort: position}
 				position++
 			}
 		}

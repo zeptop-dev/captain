@@ -25,6 +25,8 @@ type nodeView struct {
 	EffectiveAgentURL    string                  `json:"effective_agent_url"`
 	DownloadSource       string                  `json:"download_source"`
 	MonitorGroup         string                  `json:"monitor_group"`
+	MonitorGroupZH       string                  `json:"monitor_group_zh,omitempty"`
+	MonitorGroupEN       string                  `json:"monitor_group_en,omitempty"`
 	ModeRevision         uint64                  `json:"mode_revision"`
 	ReportedModeRevision uint64                  `json:"reported_mode_revision"`
 	ModeSwitchAvailable  bool                    `json:"mode_switch_available"`
@@ -67,7 +69,7 @@ type nodeView struct {
 
 func toNodeView(n *domain.Node, at time.Time) nodeView {
 	return nodeView{ModeRevision: n.ModeRevision, ReportedModeRevision: n.ReportedModeRevision, ModeSwitchAvailable: !n.Paired || (n.ReportedMode != "" && n.ModeReportedAt != nil && at.Sub(*n.ModeReportedAt) < 3*time.Minute), ProxyAllowed: store.NodeProxyAllowed(n), Mode: n.Mode.Effective(), ReportedMode: n.ReportedMode, ModeReportedAt: n.ModeReportedAt, ModeError: n.ModeError,
-		ID: n.ID, Name: n.Name, MonitorGroup: n.MonitorGroup, PublicAddr: n.PublicAddr, InternalAddr: n.InternalAddr, V6Addr: n.V6Addr, Domain: n.Domain, DomainShared: n.DomainShared, MonitorURL: n.MonitorURL, DecoyEnabled: n.DecoyEnabled, DecoyUpstream: n.DecoyUpstream, UserSpeedLimitMbps: n.UserSpeedLimitMbps, MitaQuotas: n.MitaQuotas, EgressByIngress: n.EgressByIngress, DStatusSID: n.DStatusSID,
+		ID: n.ID, Name: n.Name, MonitorGroup: n.MonitorGroup, MonitorGroupZH: n.MonitorGroupZH, MonitorGroupEN: n.MonitorGroupEN, PublicAddr: n.PublicAddr, InternalAddr: n.InternalAddr, V6Addr: n.V6Addr, Domain: n.Domain, DomainShared: n.DomainShared, MonitorURL: n.MonitorURL, DecoyEnabled: n.DecoyEnabled, DecoyUpstream: n.DecoyUpstream, UserSpeedLimitMbps: n.UserSpeedLimitMbps, MitaQuotas: n.MitaQuotas, EgressByIngress: n.EgressByIngress, DStatusSID: n.DStatusSID,
 		Version: n.Version, Platform: n.Platform, Hostname: n.Hostname, LastSeenAt: n.LastSeenAt,
 		Online: n.LastSeenAt != nil && at.Sub(*n.LastSeenAt) < 3*time.Minute, Paired: n.Paired, PairCode: n.PairCode,
 		UpgradeTo: n.UpgradeTo, AgentURL: n.AgentURL, DownloadSource: n.DownloadSource,

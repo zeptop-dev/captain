@@ -348,7 +348,7 @@ func (h *handlers) servers(w http.ResponseWriter, r *http.Request) {
 		for _, c := range list {
 			if _, used := categories[c.ID]; used {
 				// Keep relative order without revealing gaps occupied by hidden categories.
-				categories[c.ID] = map[string]any{"id": c.ID, "name": c.Name, "description": c.Description, "sort": position}
+				categories[c.ID] = map[string]any{"id": c.ID, "name": c.Name, "name_zh": c.NameZH, "name_en": c.NameEN, "description": c.Description, "sort": position}
 				position++
 			}
 		}

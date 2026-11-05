@@ -16,7 +16,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-const nodeCols = "id, name, token_hash, pair_code, public_addr, internal_addr, v6_addr, domain, monitor_url, version, platform, hostname, last_seen_at, applied_revision, upgrade_to, created_at, decoy_enabled, decoy_upstream, user_speed_limit_mbps, mita_quotas, egress_by_ingress, dstatus_sid, domain_shared, node_mode, reported_mode, mode_reported_at, mode_error, mode_managed, mode_revision, reported_mode_revision, monitor_group, agent_url, download_source"
+const nodeCols = "id, name, token_hash, pair_code, public_addr, internal_addr, v6_addr, domain, monitor_url, version, platform, hostname, last_seen_at, applied_revision, upgrade_to, created_at, decoy_enabled, decoy_upstream, user_speed_limit_mbps, mita_quotas, egress_by_ingress, dstatus_sid, domain_shared, node_mode, reported_mode, mode_reported_at, mode_error, mode_managed, mode_revision, reported_mode_revision, monitor_group, agent_url, download_source, COALESCE((SELECT name_zh FROM node_display_groups WHERE name=nodes.monitor_group),''), COALESCE((SELECT name_en FROM node_display_groups WHERE name=nodes.monitor_group),'')"
 
 func scanNode(row interface{ Scan(...any) error }) (*domain.Node, error) {
 	var n domain.Node
@@ -25,7 +25,7 @@ func scanNode(row interface{ Scan(...any) error }) (*domain.Node, error) {
 	var created, modeReported int64
 	var decoy, mitaQ, egress, shared, modeManaged int
 	if err := row.Scan(&n.ID, &n.Name, &tokenHash, &pairCode, &n.PublicAddr, &n.InternalAddr, &n.V6Addr, &n.Domain, &n.MonitorURL,
-		&n.Version, &n.Platform, &n.Hostname, &lastSeen, &n.AppliedRevision, &n.UpgradeTo, &created, &decoy, &n.DecoyUpstream, &n.UserSpeedLimitMbps, &mitaQ, &egress, &n.DStatusSID, &shared, &n.Mode, &n.ReportedMode, &modeReported, &n.ModeError, &modeManaged, &n.ModeRevision, &n.ReportedModeRevision, &n.MonitorGroup, &n.AgentURL, &n.DownloadSource); err != nil {
+		&n.Version, &n.Platform, &n.Hostname, &lastSeen, &n.AppliedRevision, &n.UpgradeTo, &created, &decoy, &n.DecoyUpstream, &n.UserSpeedLimitMbps, &mitaQ, &egress, &n.DStatusSID, &shared, &n.Mode, &n.ReportedMode, &modeReported, &n.ModeError, &modeManaged, &n.ModeRevision, &n.ReportedModeRevision, &n.MonitorGroup, &n.AgentURL, &n.DownloadSource, &n.MonitorGroupZH, &n.MonitorGroupEN); err != nil {
 		return nil, wrapNotFound(err)
 	}
 	n.ModeManaged = modeManaged != 0

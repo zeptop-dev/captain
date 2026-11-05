@@ -16,6 +16,8 @@ func (s *Store) ProbePublicPolicyFingerprint(ctx context.Context) ([32]byte, err
  SELECT 'nodes' AS kind,n.id AS position,json_array(n.id,p.uuid,n.token_hash IS NOT NULL AND n.token_hash<>'',n.probe_hidden,n.name,n.monitor_group,n.public_addr,n.v6_addr,n.probe_storage_json,n.probe_info_json,n.region_mode) AS body
  FROM nodes n LEFT JOIN probe_public_ids p ON p.node_id=n.id
  UNION ALL
+ SELECT 'groups',name,json_array(name,name_zh,name_en) FROM node_display_groups
+ UNION ALL
  SELECT 'settings',key,json_array(key,value_json) FROM settings WHERE key IN ('probe','site')
  UNION ALL
  SELECT 'tasks',id,json_array(id,name,type,target,interval_seconds,node_ids_json,enabled,source_interface) FROM ping_tasks

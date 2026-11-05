@@ -50,7 +50,7 @@ func TestPortalEntryCategoriesRespectAccessAndSubscription(t *testing.T) {
 	before := request(customer, "GET", subPath, nil)
 	categories := make([]domain.EntryCategory, 0, 5)
 	for _, name := range []string{"Public A", "Public B", "Secret group", "Secret blocked", "Secret dependent"} {
-		categories = append(categories, mustJSON[domain.EntryCategory](t, post("/api/admin/entry-categories", map[string]string{"Name": name, "Description": "Plain description"})))
+		categories = append(categories, mustJSON[domain.EntryCategory](t, post("/api/admin/entry-categories", map[string]string{"NameZH": "分类 " + name, "NameEN": name, "Description": "Plain description"})))
 	}
 	for i, e := range []domain.Entry{first, second, hidden, blocked, dependent} {
 		request(p.admin, "PUT", "/api/admin/entries/category", map[string]any{"IDs": []int64{e.ID}, "CategoryID": categories[i].ID})
@@ -67,6 +67,8 @@ func TestPortalEntryCategoriesRespectAccessAndSubscription(t *testing.T) {
 		Category *struct {
 			ID          int64  `json:"id"`
 			Name        string `json:"name"`
+			NameZH      string `json:"name_zh"`
+			NameEN      string `json:"name_en"`
 			Description string `json:"description"`
 			Sort        int    `json:"sort"`
 		} `json:"category"`
@@ -79,7 +81,7 @@ func TestPortalEntryCategoriesRespectAccessAndSubscription(t *testing.T) {
 	}
 	for i, category := range []domain.EntryCategory{categories[1], categories[0]} {
 		got := servers[i]
-		if got.Category == nil || got.Category.ID != category.ID || got.Category.Name != category.Name || got.Category.Description != "Plain description" || got.Category.Sort != 1-i {
+		if got.Category == nil || got.Category.ID != category.ID || got.Category.Name != category.Name || got.Category.NameZH != category.NameZH || got.Category.NameEN != category.NameEN || got.Category.Description != "Plain description" || got.Category.Sort != 1-i {
 			t.Fatalf("missing category: %s", body)
 		}
 		if len(got.Tags) != 1 || got.Tags[0] != "original" {

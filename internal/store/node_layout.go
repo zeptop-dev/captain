@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/zeptop-dev/bosun/pkg/spec"
 )
@@ -20,25 +22,38 @@ type NodePlacement struct {
 	ID    int64  `json:"id"`
 	Group string `json:"group"`
 }
+type DisplayGroupName struct {
+	ZH string `json:"zh"`
+	EN string `json:"en"`
+}
+
 type NodeLayout struct {
-	Revision string          `json:"revision"`
-	Groups   []string        `json:"groups"`
-	Nodes    []NodePlacement `json:"nodes"`
+	GroupNames map[string]DisplayGroupName `json:"group_names,omitempty"`
+	Revision   string                      `json:"revision"`
+	Groups     []string                    `json:"groups"`
+	Nodes      []NodePlacement             `json:"nodes"`
 }
 
 // Read in one transaction so the revision covers a consistent membership and order.
 func readNodeLayout(ctx context.Context, tx *sql.Tx) (NodeLayout, error) {
 	out := NodeLayout{Groups: []string{}, Nodes: []NodePlacement{}}
-	rows, err := tx.QueryContext(ctx, `SELECT name FROM node_display_groups ORDER BY position,name`)
+	rows, err := tx.QueryContext(ctx, `SELECT name,name_zh,name_en FROM node_display_groups ORDER BY position,name`)
 	if err != nil {
 		return out, err
 	}
 	for rows.Next() {
 		var name string
-		if err = rows.Scan(&name); err != nil {
+		var labels DisplayGroupName
+		if err = rows.Scan(&name, &labels.ZH, &labels.EN); err != nil {
 			break
 		}
 		out.Groups = append(out.Groups, name)
+		if labels.ZH != "" || labels.EN != "" {
+			if out.GroupNames == nil {
+				out.GroupNames = map[string]DisplayGroupName{}
+			}
+			out.GroupNames[name] = labels
+		}
 	}
 	rowErr := rows.Err()
 	rows.Close()
@@ -87,9 +102,28 @@ func validDisplayGroup(name string) bool {
 	return name != "" && name == strings.TrimSpace(name) && len(name) <= 128 && spec.PublicLabel(name)
 }
 
+func validDisplayGroupTranslation(name string) bool {
+	if !utf8.ValidString(name) || !validDisplayGroup(name) {
+		return false
+	}
+	for _, r := range name {
+		if unicode.IsControl(r) {
+			return false
+		}
+	}
+	return true
+}
+
 // Group order is explicit; the submitted node order is retained within each group.
 func writeNodeLayout(ctx context.Context, tx *sql.Tx, in NodeLayout) error {
 	ranks := map[string]int{"": len(in.Groups)}
+	for key, label := range in.GroupNames {
+		label.ZH, label.EN = strings.TrimSpace(label.ZH), strings.TrimSpace(label.EN)
+		if (label.ZH == "" && label.EN == "") || (label.ZH != "" && !validDisplayGroupTranslation(label.ZH)) || (label.EN != "" && !validDisplayGroupTranslation(label.EN)) {
+			return ErrNodeLayoutInvalid
+		}
+		in.GroupNames[key] = label
+	}
 	for i, g := range in.Groups {
 		if !validDisplayGroup(g) {
 			return ErrNodeLayoutInvalid
@@ -98,6 +132,11 @@ func writeNodeLayout(ctx context.Context, tx *sql.Tx, in NodeLayout) error {
 			return ErrNodeLayoutInvalid
 		}
 		ranks[g] = i
+	}
+	for key := range in.GroupNames {
+		if _, ok := ranks[key]; !ok || key == "" {
+			return ErrNodeLayoutInvalid
+		}
 	}
 	for _, n := range in.Nodes {
 		if _, ok := ranks[n.Group]; !ok {
@@ -109,7 +148,7 @@ func writeNodeLayout(ctx context.Context, tx *sql.Tx, in NodeLayout) error {
 		return err
 	}
 	for i, g := range in.Groups {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO node_display_groups (name,position) VALUES (?,?)`, g, i); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO node_display_groups (name,position,name_zh,name_en) VALUES (?,?,?,?)`, g, i, in.GroupNames[g].ZH, in.GroupNames[g].EN); err != nil {
 			return err
 		}
 	}
@@ -145,6 +184,17 @@ func (s *Store) SaveNodeLayout(ctx context.Context, in NodeLayout) error {
 			return ErrNodeLayoutInvalid
 		}
 		delete(ids, n.ID)
+	}
+	// Legacy clients omit the new map. Retained group identities keep translations.
+	if in.GroupNames == nil {
+		in.GroupNames = map[string]DisplayGroupName{}
+	}
+	for _, key := range in.Groups {
+		if _, explicit := in.GroupNames[key]; !explicit {
+			if label, exists := current.GroupNames[key]; exists {
+				in.GroupNames[key] = label
+			}
+		}
 	}
 	if err = writeNodeLayout(ctx, tx, in); err != nil {
 		return err

@@ -20,6 +20,26 @@ const MaxEntryCategoryAssignment = 10000
 
 func normalizeEntryCategory(c *domain.EntryCategory) error {
 	c.Name = strings.TrimSpace(c.Name)
+	c.NameZH, c.NameEN = strings.TrimSpace(c.NameZH), strings.TrimSpace(c.NameEN)
+	if c.Name == "" {
+		c.Name = c.NameZH
+		if c.Name == "" {
+			c.Name = c.NameEN
+		}
+	}
+	for _, label := range []string{c.NameZH, c.NameEN} {
+		if label == "" {
+			continue
+		}
+		if !utf8.ValidString(label) || utf8.RuneCountInString(label) > 80 || !spec.PublicLabel(label) {
+			return ErrEntryCategoryInvalid
+		}
+		for _, r := range label {
+			if unicode.IsControl(r) {
+				return ErrEntryCategoryInvalid
+			}
+		}
+	}
 	c.Description = strings.TrimSpace(c.Description)
 	if c.Name == "" || !utf8.ValidString(c.Name) || utf8.RuneCountInString(c.Name) > 80 || !spec.PublicLabel(c.Name) ||
 		!utf8.ValidString(c.Description) || utf8.RuneCountInString(c.Description) > 500 {
@@ -40,12 +60,12 @@ func normalizeEntryCategory(c *domain.EntryCategory) error {
 
 func scanEntryCategory(row interface{ Scan(...any) error }) (*domain.EntryCategory, error) {
 	var c domain.EntryCategory
-	err := row.Scan(&c.ID, &c.Name, &c.Description, &c.Sort)
+	err := row.Scan(&c.ID, &c.Name, &c.Description, &c.Sort, &c.NameZH, &c.NameEN)
 	return &c, wrapNotFound(err)
 }
 
 func (s *Store) ListEntryCategories(ctx context.Context) ([]*domain.EntryCategory, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,name,description,sort FROM entry_categories ORDER BY sort,id`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id,name,description,sort,name_zh,name_en FROM entry_categories ORDER BY sort,id`)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +82,7 @@ func (s *Store) ListEntryCategories(ctx context.Context) ([]*domain.EntryCategor
 }
 
 func (s *Store) EntryCategoryByID(ctx context.Context, id int64) (*domain.EntryCategory, error) {
-	return scanEntryCategory(s.db.QueryRowContext(ctx, `SELECT id,name,description,sort FROM entry_categories WHERE id=?`, id))
+	return scanEntryCategory(s.db.QueryRowContext(ctx, `SELECT id,name,description,sort,name_zh,name_en FROM entry_categories WHERE id=?`, id))
 }
 
 // Category writes serialize their validation and mutation in the database.
@@ -85,7 +105,7 @@ func (s *Store) CreateEntryCategory(ctx context.Context, c *domain.EntryCategory
 		return err
 	}
 	c.Sort = int(last.Int64) + 10
-	res, err := tx.ExecContext(ctx, `INSERT INTO entry_categories(name,name_key,description,sort) VALUES(?,?,?,?)`, c.Name, strings.ToLower(c.Name), c.Description, c.Sort)
+	res, err := tx.ExecContext(ctx, `INSERT INTO entry_categories(name,name_key,description,sort,name_zh,name_en) VALUES(?,?,?,?,?,?)`, c.Name, strings.ToLower(c.Name), c.Description, c.Sort, c.NameZH, c.NameEN)
 	if err != nil {
 		return err
 	}
@@ -124,7 +144,7 @@ func (s *Store) UpdateEntryCategory(ctx context.Context, c *domain.EntryCategory
 	if err := entryCategoryNameAvailable(ctx, tx, c.Name, c.ID); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE entry_categories SET name=?,name_key=?,description=? WHERE id=?`, c.Name, strings.ToLower(c.Name), c.Description, c.ID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE entry_categories SET name=?,name_key=?,description=?,name_zh=?,name_en=? WHERE id=?`, c.Name, strings.ToLower(c.Name), c.Description, c.NameZH, c.NameEN, c.ID); err != nil {
 		return err
 	}
 	return tx.Commit()

@@ -139,6 +139,8 @@ type nodeView struct {
 	Storage   []store.PublicStorage `json:"storage"`
 	PingTasks []pingTaskView        `json:"ping_tasks"`
 	Group     string                `json:"group"`
+	GroupZH   string                `json:"group_zh,omitempty"`
+	GroupEN   string                `json:"group_en,omitempty"`
 	ID        int64                 `json:"id"`
 	Name      string                `json:"name"`
 	Online    bool                  `json:"online"`
@@ -253,6 +255,7 @@ func (h *handlers) snapshot(w http.ResponseWriter, r *http.Request) {
 		var host *spec.SystemStatus
 		var received time.Time
 		v.Group = n.MonitorGroup
+		v.GroupZH, v.GroupEN = n.MonitorGroupZH, n.MonitorGroupEN
 		if snapshot.Host != nil {
 			host, received = snapshot.Host, time.Unix(snapshot.SampledAt, 0)
 		}

@@ -141,6 +141,8 @@ func (s *Subscription) Usable(t time.Time) bool {
 
 type Node struct {
 	MonitorGroup         string
+	MonitorGroupZH       string
+	MonitorGroupEN       string
 	ModeRevision         uint64
 	ReportedModeRevision uint64
 	ModeManaged          bool
@@ -239,6 +241,8 @@ type Entry struct {
 type EntryCategory struct {
 	ID          int64
 	Name        string
+	NameZH      string
+	NameEN      string
 	Description string
 	Sort        int
 }

@@ -3,6 +3,7 @@ package admin
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/store"
@@ -35,7 +36,7 @@ func (h *handlers) createEntryCategory(w http.ResponseWriter, r *http.Request) {
 	h.Store.Topology.Lock()
 	defer h.Store.Topology.Unlock()
 	var c domain.EntryCategory
-	if !decode(r, &c) {
+	if !decodeCategoryEdit(r, &c) {
 		fail(w, 400, "invalid category")
 		return
 	}
@@ -63,7 +64,7 @@ func (h *handlers) updateEntryCategory(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	if !decode(r, c) {
+	if !decodeCategoryEdit(r, c) {
 		fail(w, 400, "invalid category")
 		return
 	}
@@ -129,4 +130,36 @@ func (h *handlers) assignEntryCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, map[string]bool{"ok": true})
+}
+
+// Pointer fields distinguish an omitted label from an explicit clear. Legacy
+// Name-only and description-only edits preserve translations.
+func decodeCategoryEdit(r *http.Request, c *domain.EntryCategory) bool {
+	var in struct{ Name, NameZH, NameEN, Description *string }
+	if !decode(r, &in) {
+		return false
+	}
+	if in.Name != nil {
+		c.Name = *in.Name
+	}
+	if in.Description != nil {
+		c.Description = *in.Description
+	}
+	if in.NameZH != nil {
+		c.NameZH = *in.NameZH
+	}
+	if in.NameEN != nil {
+		c.NameEN = *in.NameEN
+	}
+	if in.NameZH != nil || in.NameEN != nil {
+		c.NameZH, c.NameEN = strings.TrimSpace(c.NameZH), strings.TrimSpace(c.NameEN)
+		if c.NameZH == "" && c.NameEN == "" {
+			return false
+		}
+		c.Name = c.NameZH
+		if c.Name == "" {
+			c.Name = c.NameEN
+		}
+	}
+	return true
 }

@@ -57,12 +57,14 @@ func (h *handlers) v2Nodes(w http.ResponseWriter, r *http.Request) {
 		UUID      string              `json:"uuid"`
 		Name      string              `json:"name"`
 		Group     string              `json:"group"`
+		GroupZH   string              `json:"group_zh,omitempty"`
+		GroupEN   string              `json:"group_en,omitempty"`
 		Inventory probedata.Inventory `json:"inventory"`
 		Info      *probedata.Info     `json:"info,omitempty"`
 	}
 	nodes := make([]inventory, 0, len(s.Nodes))
 	for _, n := range s.Nodes {
-		nodes = append(nodes, inventory{n.UUID, n.Name, n.Group, n.Inventory, n.Info})
+		nodes = append(nodes, inventory{n.UUID, n.Name, n.Group, n.GroupZH, n.GroupEN, n.Inventory, n.Info})
 	}
 	v2Write(w, map[string]any{"schema": s.Schema, "now": s.Now, "nodes": nodes}, err)
 }
