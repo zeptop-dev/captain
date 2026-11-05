@@ -18,8 +18,13 @@ test('host commands use the saved port and target only the dedicated health rout
   const installerPath = agentHTTPSDockerCommand('https://panel.example.com:2096').match(/https:\/\/raw\.githubusercontent\.com\/zeptop-dev\/captain\/master\/([^ ]+)/)?.[1]
   assert.ok(installerPath && existsSync(new URL(`../../../${installerPath}`, import.meta.url)), 'command must download an installer that exists in this repository')
   assert.match(agentHTTPSDockerCommand('https://panel.example.com:2087'), /enable-agent-https --agent-https-port 2087 --agent-https-url 'https:\/\/panel.example.com:2087' --agent-firewall auto$/)
-  assert.match(agentHTTPSDockerCommand('https://panel.example.com'), /--agent-https-port 443 --agent-https-url 'https:\/\/panel.example.com' --agent-firewall auto$/)
-  assert.equal(agentHTTPSCheckCommand('https://panel.example.com:2096/'), "curl --fail --show-error --globoff --max-time 10 --proto '=https' -- 'https://panel.example.com:2096/api/agent/health'")
+  for (const port of ['', ':443', ':1023', ':8080']) {
+    assert.equal(agentHTTPSDockerCommand(`https://panel.example.com${port}`), null)
+    assert.equal(agentHTTPSDockerCommand(`https://panel.example.com${port}`, true), null)
+    assert.ok(agentHTTPSCheckCommand(`https://panel.example.com${port}`), 'node health check still supports HTTPS origins on reserved ports')
+  }
+  for (const port of [1024, 2096, 65535]) assert.match(agentHTTPSDockerCommand(`https://panel.example.com:${port}`), /^curl -q /)
+  assert.equal(agentHTTPSCheckCommand('https://panel.example.com:2096/'), "curl -q --fail --show-error --globoff --max-time 10 --proto '=https' -- 'https://panel.example.com:2096/api/agent/health'")
   assert.ok(!agentHTTPSCheckCommand('https://panel.example.com').includes('-k'))
 })
 
@@ -34,6 +39,7 @@ test('freshness expires after suspension or time rollback', () => {
 test('read-only host command cannot modify firewalls and result identity is configuration-bound', () => {
   const command = agentHTTPSDockerCommand('https://[2001:db8::1]:2096', true)
   assert.match(command, /check-agent-https --agent-https-port 2096 --agent-https-url 'https:\/\/\[2001:db8::1\]:2096'$/)
+  assert.match(command, /^curl -q /)
   assert.doesNotMatch(command, /--agent-firewall|enable-agent-https/)
   const settings = { enabled: true, url: 'https://example.com:2096', revision: 'r1' }
   const observation = { result: { perspective: 'panel', url: settings.url, revision: 'r1', status: 'ok' }, start: { wall: 1000, mono: 1000 } }

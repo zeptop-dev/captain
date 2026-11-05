@@ -38,9 +38,9 @@ export function agentHTTPSDockerCommand(savedURL: string, readOnly = false): str
   const url = agentHTTPSOrigin(savedURL)
   if (!url) return null
   const port = Number(url.port || 443)
-  if (!Number.isInteger(port) || port < 1 || port > 65535) return null
+  if (!Number.isInteger(port) || port < 1024 || port > 65535 || port === 8080) return null
   const origin = url.origin.replaceAll("'", "'\"'\"'")
-  return `curl -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/zeptop-dev/captain/master/install.sh -o captain-install.sh && sudo sh captain-install.sh ${readOnly ? 'check-agent-https' : 'enable-agent-https'} --agent-https-port ${port} --agent-https-url '${origin}'${readOnly ? '' : ' --agent-firewall auto'}`
+  return `curl -q -fsSL --proto '=https' --proto-redir '=https' https://raw.githubusercontent.com/zeptop-dev/captain/master/install.sh -o captain-install.sh && sudo sh captain-install.sh ${readOnly ? 'check-agent-https' : 'enable-agent-https'} --agent-https-port ${port} --agent-https-url '${origin}'${readOnly ? '' : ' --agent-firewall auto'}`
 }
 
 // A stale success cannot survive a failed poll, browser offline event or sleep.
@@ -53,5 +53,5 @@ export function agentHTTPSCheckCommand(savedURL: string): string | null {
   const url = agentHTTPSOrigin(savedURL)
   if (!url) return null
   const target = `${url.origin}/api/agent/health`.replaceAll("'", "'\"'\"'")
-  return `curl --fail --show-error --globoff --max-time 10 --proto '=https' -- '${target}'`
+  return `curl -q --fail --show-error --globoff --max-time 10 --proto '=https' -- '${target}'`
 }
