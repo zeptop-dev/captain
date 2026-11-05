@@ -4305,9 +4305,8 @@
     "localStatus": "로컬 수신 상태",
     "activeURL": "현재 실행 주소",
     "expires": "인증서 만료",
-    "externalUnknown": "로컬 수신 상태는 DNS, Docker 포트 매핑, 클라우드 방화벽 또는 노드 연결을 확인하지 않습니다. 외부 및 노드 연결은 아직 검증되지 않았습니다.",
-    "dockerTitle": "Docker 포트 매핑",
-    "dockerHint": "스크립트로 설치한 Docker 환경에서는 Captain 호스트에서 한 번 실행하세요. 저장된 포트를 사용하고 컨테이너를 다시 생성해 매핑을 적용합니다. 사용자 지정 Compose에는 해당 TCP 매핑이 필요합니다. 클라우드 방화벽은 별도로 설정하세요.",
+    "dockerTitle": "호스트 접속 설정",
+    "dockerHint": "스크립트로 관리하는 Docker 배포의 Captain 호스트에서 실행하세요. 저장된 포트를 매핑하고 지원되는 활성 호스트 방화벽에서 허용한 후 연결을 검사합니다. 새 매핑 적용 시 컨테이너를 다시 생성하므로 서비스가 잠시 중단될 수 있습니다. 클라우드 방화벽은 별도로 설정하세요.",
     "useManaged": "Captain 관리 Agent 주소 사용",
     "selectionHint": "저장된 주소를 복사하고 다운로드 소스를 Captain으로 설정합니다. 이후 수동으로 수정할 수 있습니다.",
     "selectionUnavailable": "설정된 주소가 로컬에서 준비되지 않았습니다. Agent HTTPS 설정을 확인하세요.",
@@ -4320,7 +4319,36 @@
       "unknown": "상태 확인 불가"
     },
     "checkTitle": "대상 노드에서 확인",
-    "checkHint": "bosun을 설치할 호스트에서 실행하세요. TLS/HTTP 요청이 성공하고 응답에 \"ok\": true 및 \"service\": \"captain-agent\"가 포함되어야 합니다. 해당 호스트에서의 연결만 확인하며 노드를 페어링하거나 변경하지 않습니다."
+    "checkHint": "bosun을 설치할 호스트에서 실행하세요. TLS/HTTP 요청이 성공하고 응답에 \"ok\": true 및 \"service\": \"captain-agent\"가 포함되어야 합니다. 해당 호스트에서의 연결만 확인하며 노드를 페어링하거나 변경하지 않습니다.",
+    "access": {
+      "title": "접속 주소 검사",
+      "check": "접속 검사",
+      "perspective": "Captain 서버에서 저장된 주소를 검사합니다. 성공해도 bosun 노드에서의 연결을 보장하지 않습니다. 결과는 30초 후 만료됩니다.",
+      "saveFirst": "변경 내용을 저장한 다음 검사하세요.",
+      "conflict": "검사 중 저장된 설정이 변경되었습니다. 설정을 새로 고친 후 다시 검사하세요.",
+      "failed": "검사를 완료하지 못했습니다. 연결은 아직 확인되지 않았습니다.",
+      "checkedAt": "검사 시간 {{time}} · {{elapsed}} ms",
+      "originTimeout": "HTTP 522는 프록시에서 원본 서버로 연결할 때 시간이 초과되었음을 뜻합니다. 원본 주소, Docker 포트 매핑, 호스트 및 클라우드 방화벽, 수신 상태를 확인하세요.",
+      "troubleshoot": "저장된 주소의 DNS, 인증서 호스트 이름, 포트 매핑, 호스트 방화벽 및 클라우드 보안 규칙을 확인하세요.",
+      "unchecked": "유효한 검사 결과가 없습니다. 현재 연결을 직접 검사하세요.",
+      "hostUnknown": "Docker 포트 매핑 및 호스트 방화벽: Captain 호스트에서 확인해야 합니다.",
+      "nodeUnknown": "대상 bosun 노드: 미확인. 해당 노드에서 아래 명령을 실행하세요.",
+      "hostCheck": "호스트 읽기 전용 검사",
+      "onePanel": "1Panel 또는 사용자 정의 Compose 프로젝트에서는 기존 구성을 유지하고 해당 프로젝트에 TCP 포트 매핑을 추가한 후 컨테이너를 다시 배포하거나 생성하세요. 다시 시작만으로는 새 매핑이 적용되지 않습니다. 클라우드 방화벽은 별도로 설정해야 합니다.",
+      "results": {
+        "ok": "Captain 서버에서 연결 가능",
+        "disabled": "Agent HTTPS가 비활성화되었습니다",
+        "not_ready": "로컬 수신 준비가 안 됨",
+        "dns_error": "DNS 확인 실패",
+        "connect_error": "접속 주소에 연결할 수 없음",
+        "timeout": "연결 또는 응답 시간 초과",
+        "tls_error": "TLS 인증서 검증 실패",
+        "redirect": "접속 주소가 리디렉션을 반환함",
+        "http_error": "접속 주소가 HTTP 오류를 반환함",
+        "unexpected_service": "현재 Captain 인스턴스의 응답이 아님"
+      },
+      "busy": "다른 접속 검사가 진행 중입니다. 완료 후 다시 시도하세요."
+    }
   },
   "bilingualName": {
     "zh": "중국어 이름",

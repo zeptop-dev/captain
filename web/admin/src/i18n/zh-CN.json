@@ -4305,9 +4305,8 @@
     "localStatus": "本地监听状态",
     "activeURL": "实际运行地址",
     "expires": "证书到期时间",
-    "externalUnknown": "本地监听不代表 DNS、Docker 映射、云防火墙或节点连接正常。公网与节点连通性尚未验证。",
-    "dockerTitle": "配置 Docker 端口映射",
-    "dockerHint": "脚本安装的 Docker 部署需在 Captain 宿主机执行一次。命令使用已保存端口，并重建容器应用映射。自定义 Compose 需自行添加对应 TCP 映射；云防火墙仍需单独放行。",
+    "dockerTitle": "配置宿主机入口",
+    "dockerHint": "在 Captain 宿主机运行，适用于脚本管理的 Docker 部署。命令配置已保存端口的映射、在受支持的活动宿主机防火墙中放行并检测入口。应用新映射会重建容器，可能短暂中断服务；云防火墙规则需单独配置。",
     "useManaged": "使用自管 Agent 入口",
     "selectionHint": "填入已保存的入口地址，并使用 Captain 下载依赖。填入后仍可手动修改。",
     "selectionUnavailable": "配置的入口尚未在本地就绪，请先检查 Agent HTTPS 设置。",
@@ -4320,7 +4319,36 @@
       "unknown": "状态不可用"
     },
     "checkTitle": "从目标节点检查",
-    "checkHint": "在准备安装 bosun 的节点执行此命令。TLS/HTTP 请求成功后，响应应包含 \"ok\": true 和 \"service\": \"captain-agent\"。这仅验证该节点到入口的连通性，不会配对或修改节点。"
+    "checkHint": "在准备安装 bosun 的节点执行此命令。TLS/HTTP 请求成功后，响应应包含 \"ok\": true 和 \"service\": \"captain-agent\"。这仅验证该节点到入口的连通性，不会配对或修改节点。",
+    "access": {
+      "title": "入口访问检测",
+      "check": "检测入口",
+      "perspective": "从 Captain 服务器检测已保存地址。成功不代表目标 bosun 节点可达；结果在 30 秒后失效。",
+      "saveFirst": "请先保存修改，再检测入口。",
+      "conflict": "检测期间已保存配置发生变化，请刷新配置后重新检测。",
+      "failed": "检测未完成，尚未确认入口可达。",
+      "checkedAt": "检测时间 {{time}} · {{elapsed}} 毫秒",
+      "originTimeout": "HTTP 522 表示代理连接源站超时。请检查源站地址、Docker 端口映射、宿主机与云防火墙放行，以及监听是否运行。",
+      "troubleshoot": "请检查已保存地址对应的 DNS、证书域名、端口映射、宿主机防火墙和云安全规则。",
+      "unchecked": "暂无有效检测结果，请手动检测当前可达性。",
+      "hostUnknown": "Docker 端口映射与宿主机防火墙：需在 Captain 宿主机检查。",
+      "nodeUnknown": "目标 bosun 节点：尚未验证，请在该节点运行下方命令。",
+      "hostCheck": "宿主机只读检查",
+      "onePanel": "1Panel 或自定义 Compose 部署：保留现有项目配置，在该项目中增加 TCP 端口映射后重新部署或重建容器，仅重启不会应用新映射。云防火墙规则需另行配置。",
+      "results": {
+        "ok": "Captain 服务器视角可达",
+        "disabled": "Agent HTTPS 已关闭",
+        "not_ready": "本地监听尚未就绪",
+        "dns_error": "DNS 解析失败",
+        "connect_error": "无法连接入口",
+        "timeout": "连接或响应超时",
+        "tls_error": "TLS 证书验证失败",
+        "redirect": "入口返回重定向",
+        "http_error": "入口返回 HTTP 错误",
+        "unexpected_service": "响应并非来自当前 Captain 实例"
+      },
+      "busy": "另一项入口检测正在进行，请稍后手动重试。"
+    }
   },
   "bilingualName": {
     "zh": "中文名称",

@@ -35,7 +35,7 @@ type rig struct {
 
 func newRig(t *testing.T) *rig { return newRigAt(t, "http://test") }
 
-func newRigAt(t *testing.T, baseURL string) *rig {
+func newRigAt(t *testing.T, baseURL string, opts ...Options) *rig {
 	t.Helper()
 	cfg := config.Default()
 	cfg.BaseURL = baseURL
@@ -51,7 +51,7 @@ func newRigAt(t *testing.T, baseURL string) *rig {
 	if err := st.CreateStaff(context.Background(), adminUser); err != nil {
 		t.Fatal(err)
 	}
-	web := New(cfg, st, slog.Default())
+	web := New(cfg, st, slog.Default(), opts...)
 	srv := httptest.NewServer(web.Handler())
 	t.Cleanup(srv.Close)
 	r := &rig{t: t, st: st, srv: srv, c: &client{t: t, srv: srv}, web: web}

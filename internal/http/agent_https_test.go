@@ -126,6 +126,13 @@ func TestAgentHTTPSSettingsLifecycleAndIsolation(t *testing.T) {
 	if resp.StatusCode != 200 || !bytes.Contains(body, []byte(`"service":"captain-agent"`)) || resp.Header.Get("Cache-Control") != "no-store" {
 		t.Fatalf("health: %d %s", resp.StatusCode, body)
 	}
+	challenge := strings.Repeat("a", 64)
+	resp = request("GET", "/api/agent/health?challenge="+challenge, "")
+	body, _ = io.ReadAll(resp.Body)
+	proof := mustJSON[map[string]any](t, body)["proof"]
+	if proof != r.web.agentCheck.Proof(challenge) {
+		t.Fatal("dedicated listener did not authenticate this process")
+	}
 	if code, _, _ := r.c.do("GET", "/api/agent/health", nil, nil); code != 404 {
 		t.Fatal("Agent-specific health appeared on the main listener")
 	}
@@ -239,6 +246,9 @@ func TestAgentHTTPSPermissionsAndCAS(t *testing.T) {
 		}
 		c := &client{t: t, srv: r.srv}
 		c.do("POST", "/api/admin/login", map[string]string{"Email": u.Email, "Password": "password123"}, nil)
+		if code, _, _ := c.do("POST", agentHTTPSPath+"/check", map[string]string{"revision": "0"}, nil); code != 403 {
+			t.Fatal("role accessed diagnostics", role, code)
+		}
 		for _, method := range []string{"GET", "PUT"} {
 			if code, _, _ := c.do(method, agentHTTPSPath, map[string]any{}, nil); code != 403 {
 				t.Fatalf("%s %s: %d", role, method, code)
@@ -264,6 +274,13 @@ func TestAgentHTTPSPermissionsAndCAS(t *testing.T) {
 			}
 		} else if code != 403 {
 			t.Fatalf("summary escaped scope %s: %d", scope, code)
+		}
+		want = 403
+		if scope == "agent-https:write" {
+			want = 409
+		}
+		if code, _, _ := anonymous.do("POST", agentHTTPSPath+"/check", map[string]string{"revision": "stale"}, h); code != want {
+			t.Fatalf("%s diagnostic permission: %d want %d", scope, code, want)
 		}
 		want = 403
 		if scope == "agent-https:write" {

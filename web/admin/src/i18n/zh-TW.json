@@ -4305,9 +4305,8 @@
     "localStatus": "本機監聽狀態",
     "activeURL": "實際執行位址",
     "expires": "憑證到期時間",
-    "externalUnknown": "本機監聽不代表 DNS、Docker 映射、雲端防火牆或節點連線正常。公網與節點連通性尚未驗證。",
-    "dockerTitle": "設定 Docker 連接埠映射",
-    "dockerHint": "以指令碼安裝的 Docker 部署須在 Captain 主機執行一次。指令使用已儲存連接埠，並重建容器套用映射。自訂 Compose 須自行新增對應 TCP 映射；雲端防火牆仍須另行放行。",
+    "dockerTitle": "設定宿主機入口",
+    "dockerHint": "在 Captain 宿主機執行，適用於腳本管理的 Docker 部署。命令設定已儲存連接埠對應、在支援的啟用中宿主機防火牆放行並檢測入口。套用新對應會重建容器，可能短暫中斷服務；雲端防火牆需另外設定。",
     "useManaged": "使用自管 Agent 入口",
     "selectionHint": "填入已儲存的入口位址，並透過 Captain 下載依賴。填入後仍可手動修改。",
     "selectionUnavailable": "設定的入口尚未在本機就緒，請先檢查 Agent HTTPS 設定。",
@@ -4320,7 +4319,36 @@
       "unknown": "狀態無法使用"
     },
     "checkTitle": "從目標節點檢查",
-    "checkHint": "在準備安裝 bosun 的節點執行此指令。TLS/HTTP 請求成功後，回應應包含 \"ok\": true 和 \"service\": \"captain-agent\"。這僅驗證該節點到入口的連通性，不會配對或修改節點。"
+    "checkHint": "在準備安裝 bosun 的節點執行此指令。TLS/HTTP 請求成功後，回應應包含 \"ok\": true 和 \"service\": \"captain-agent\"。這僅驗證該節點到入口的連通性，不會配對或修改節點。",
+    "access": {
+      "title": "入口存取檢測",
+      "check": "檢測入口",
+      "perspective": "從 Captain 伺服器檢測已儲存位址。成功不代表目標 bosun 節點可達；結果在 30 秒後失效。",
+      "saveFirst": "請先儲存修改，再檢測入口。",
+      "conflict": "檢測期間已儲存設定發生變化，請重新整理設定後再次檢測。",
+      "failed": "檢測未完成，尚未確認入口可達。",
+      "checkedAt": "檢測時間 {{time}} · {{elapsed}} 毫秒",
+      "originTimeout": "HTTP 522 表示代理連線來源伺服器逾時。請檢查來源位址、Docker 連接埠對應、宿主機與雲端防火牆規則，以及監聽是否執行。",
+      "troubleshoot": "請檢查已儲存位址對應的 DNS、憑證網域、連接埠對應、宿主機防火牆與雲端安全規則。",
+      "unchecked": "目前沒有有效檢測結果，請手動檢測可達性。",
+      "hostUnknown": "Docker 連接埠對應與宿主機防火牆：需在 Captain 宿主機檢查。",
+      "nodeUnknown": "目標 bosun 節點：尚未驗證，請在該節點執行下方命令。",
+      "hostCheck": "宿主機唯讀檢查",
+      "onePanel": "1Panel 或自訂 Compose 部署：保留現有專案設定，在該專案增加 TCP 連接埠對應後重新部署或重建容器，僅重新啟動不會套用新對應。雲端防火牆規則需另行設定。",
+      "results": {
+        "ok": "從 Captain 伺服器可連線",
+        "disabled": "Agent HTTPS 已關閉",
+        "not_ready": "本機監聽尚未就緒",
+        "dns_error": "DNS 解析失敗",
+        "connect_error": "無法連線入口",
+        "timeout": "連線或回應逾時",
+        "tls_error": "TLS 憑證驗證失敗",
+        "redirect": "入口回傳重新導向",
+        "http_error": "入口回傳 HTTP 錯誤",
+        "unexpected_service": "回應並非來自目前 Captain 執行個體"
+      },
+      "busy": "另一項入口檢測正在進行，請稍後手動重試。"
+    }
   },
   "bilingualName": {
     "zh": "中文名稱",

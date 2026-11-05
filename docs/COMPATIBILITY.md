@@ -83,6 +83,12 @@ its port. The existing update floor is unchanged; do not manually downgrade
 a deployment that still relies on this entry. See [deployment and certificate
 lifecycle](AGENT_DELIVERY.md#captain-managed-agent-https-entry).
 
+The unreleased access diagnostic and host firewall helper add no Agent protocol
+or schema requirement. Existing nodes keep working. The new installer preflight
+is a script change: Captain must embed the supporting bosun bootstrap dependency
+when released; it is not provided by the v0.89.0 module. Compatibility fallback
+supports older main listeners. No rollback floor is raised by these diagnostics.
+
 ## Agent connection and Captain downloads (Captain v1.54.0 / bosun v0.89.0)
 
 Migration 110 adds optional per-server installation origins and download sources.

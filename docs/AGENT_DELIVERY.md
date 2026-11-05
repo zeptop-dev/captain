@@ -45,7 +45,7 @@ subscriptions, certificate webhooks, public monitoring and the main health
 endpoint remain unavailable there. Its unauthenticated minimal check is:
 
 ```sh
-curl --fail --show-error --max-time 10 --proto '=https' \
+curl -q --fail --show-error --max-time 10 --proto '=https' \
   'https://panel.example.com:2096/api/agent/health'
 ```
 
@@ -75,6 +75,35 @@ the non-secret installation summary under `/api/admin/nodes/agent-https` using
 their normal node permissions. Reset disables the listener and creates a fresh
 revision, preventing old drafts from binding reused certificate IDs. No bosun
 protocol change is needed; Captain downloads retain the bosun v0.89.0 minimum.
+
+## Explicit access diagnostics (unreleased)
+
+The Agent HTTPS settings card offers **Check entry**. Its authenticated
+`POST /api/admin/settings/agent-https/check` accepts only a saved `revision`,
+requires `agent-https:write`, and never accepts an arbitrary target URL. One
+request at a time tests the saved origin with verified TLS, no redirects,
+no credentials and a fresh process-local challenge. A 200 page or another
+Captain instance cannot pass this check. The response includes `perspective:
+"panel"`, the revision, observation time, elapsed milliseconds and a bounded
+status; no remote body or raw transport error is returned. Settings changes
+return 409 and concurrent checks return 429. Authorization is checked again
+before returning; remote I/O holds no account lock.
+
+The UI expires the result after 30 seconds from request start and discards it
+on edits, save, configuration changes, offline state or failed settings reads.
+It separately shows local listener status and the need for host and node checks.
+It does not run an ongoing external probe or automatically change host rules.
+See [firewall setup and layered checks](AGENT_HTTPS_DOCKER.md).
+
+Supporting bosun installer scripts also make an anonymous bounded health check
+before dependency or update-worker downloads, trying the dedicated Agent health
+route and the compatible main health route. This works with older Captain main
+listeners and existing HTTP/path-prefix configurations. Offline uninstall and
+GitHub-only installations without a Captain URL skip this check. The initial
+bootstrap script must already have downloaded before its own checks can run;
+generated console commands preserve that download's failure status and do not
+execute a partial script. These installer changes require the updated embedded
+bosun bootstrap dependency; existing published v0.89.0 scripts are unchanged.
 
 ## Reverse proxy setup
 

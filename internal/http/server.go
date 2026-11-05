@@ -20,6 +20,7 @@ import (
 
 	"github.com/zeptop-dev/bosun/pkg/selfupdate"
 	"github.com/zeptop-dev/captain/internal/agentdownload"
+	"github.com/zeptop-dev/captain/internal/agenthttps"
 	"github.com/zeptop-dev/captain/internal/backup"
 	"github.com/zeptop-dev/captain/internal/branding"
 	"github.com/zeptop-dev/captain/internal/certs"
@@ -64,6 +65,7 @@ import (
 // Server is the HTTP front.
 type Server struct {
 	agentHTTPS    *service.AgentHTTPS
+	agentCheck    *agenthttps.Checker
 	agentMux      *http.ServeMux
 	backups       *backup.Manager
 	certs         *service.Certs
@@ -86,6 +88,10 @@ type Server struct {
 
 // Options carries wiring the config alone cannot express (test gateways).
 type Options struct {
+	// AgentCheck overrides only the diagnostic transport in isolated tests.
+	AgentCheck interface {
+		Check(context.Context, string) agenthttps.AccessCheck
+	}
 	ClientCatalogSource clientcatalog.Source
 	ClaudeRules         interface {
 		Fetch(context.Context) (clauderules.Snapshot, error)
@@ -240,12 +246,19 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, opts ...Options)
 	if cfg.TLSEnabled() {
 		reserved = append(reserved, cfg.TLS.HTTPListen)
 	}
+	s.agentCheck = agenthttps.NewChecker()
 	s.agentHTTPS = service.NewAgentHTTPS(st, s.AgentHandler(), log, reserved...)
 	adminDeps := admin.Deps{Diagnostics: diagnostics, ClientCatalog: clients, ServiceStatus: serviceStatus, ClaudeRules: claudeFetcher, SubPresets: presetFetcher, NodeRegions: s.nodeRegions, Store: st, Log: log, Dyn: dyn, Sessions: sessions, State: s.state, Metrics: s.metricsHandler(st), Backups: s.backups, Certs: s.certs, DNS: &service.DNS{Store: st, Log: log, Base: dnsBase}, DNSHealth: s.dnsHealth, BaseURL: base, AgentURL: cfg.AgentURL, Version: cfg.Version, Logins: logins, Secure: secure, SubLinks: s.subLinks, Mail: mailer, SiteName: cfg.SiteName, Notify: notifier, Bot: s.bot, Hooks: s.hooks, Probe: s.probeSvc, External: s.external, Allow: allow, Heartbeat: s.heartbeat,
 		Updater:       &selfupdate.Client{Repo: "zeptop-dev/captain", Binary: "captain", Version: cfg.Version, MinVersion: captainUpdateFloor(cfg.MinVersion)},
 		BosunReleases: &selfupdate.Client{Repo: "zeptop-dev/bosun", Binary: "bosun", Version: "v0.0.0"},
 		Registration:  cfg.Portal.Registration,
 		AgentHTTPS:    s.agentHTTPS,
+		AgentCheck:    s.agentCheck,
+	}
+	for _, o := range opts {
+		if o.AgentCheck != nil {
+			adminDeps.AgentCheck = o.AgentCheck
+		}
 	}
 	admin.Register(s.mux, adminDeps)
 	admin.RegisterProbeThemes(s.mux, adminDeps, probeThemes, func(ctx context.Context) (probetheme.SelectorOptions, error) {
@@ -326,7 +339,11 @@ func (s *Server) AgentHandler() http.Handler {
 	routes := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/agent/health" && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
 			w.Header().Set("Cache-Control", "no-store")
-			writeJSON(w, http.StatusOK, map[string]any{"ok": true, "service": "captain-agent"})
+			health := map[string]any{"ok": true, "service": "captain-agent"}
+			if proof := s.agentCheck.Proof(r.URL.Query().Get("challenge")); proof != "" {
+				health["proof"] = proof
+			}
+			writeJSON(w, http.StatusOK, health)
 			return
 		}
 		if r.URL.Path != "/api/agent/state" && !strings.HasPrefix(r.URL.Path, "/api/agent/downloads/") {
@@ -410,9 +427,10 @@ func (s *Server) Handler() http.Handler {
 		// lock, fetches without it, then re-authenticates before committing.
 		presetSync := r.Method == http.MethodPost && (r.URL.Path == "/api/admin/settings/sub-design/presets/sync" || r.URL.Path == "/api/admin/settings/sub-design/claude-rules/sync")
 		catalogIO := r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/admin/settings/client-catalog/") && (strings.HasSuffix(r.URL.Path, "/check") || strings.HasSuffix(r.URL.Path, "/download"))
+		agentCheckIO := r.Method == http.MethodPost && r.URL.Path == "/api/admin/settings/agent-https/check"
 		clientDownload := (r.Method == http.MethodGet || r.Method == http.MethodHead) && strings.HasPrefix(r.URL.Path, "/downloads/clients/")
 		dnsSyncIO := (r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodPost) && strings.HasPrefix(r.URL.Path, "/api/admin/nodes/") && strings.HasSuffix(r.URL.Path, "/dns-sync")
-		if r.URL.Path != "/api/agent/state" && r.URL.Path != probeaccess.MainPath && !s.probe.Dedicated(r) && !presetSync && !catalogIO && !clientDownload && !dnsSyncIO && !strings.HasPrefix(r.URL.Path, "/api/agent/downloads/") {
+		if r.URL.Path != "/api/agent/state" && r.URL.Path != probeaccess.MainPath && !s.probe.Dedicated(r) && !presetSync && !catalogIO && !clientDownload && !dnsSyncIO && !agentCheckIO && !strings.HasPrefix(r.URL.Path, "/api/agent/downloads/") {
 			accounts := &s.state.Store.Accounts
 			renumber := r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, "/id") && (strings.HasPrefix(r.URL.Path, "/api/admin/users/") || strings.HasPrefix(r.URL.Path, "/api/admin/admins/"))
 			reset := r.Method == http.MethodPost && r.URL.Path == "/api/admin/system/reset"
@@ -424,7 +442,7 @@ func (s *Server) Handler() http.Handler {
 				defer accounts.RUnlock()
 			}
 		}
-		if r.Method != http.MethodGet && !strings.HasPrefix(r.URL.Path, "/api/admin/node-diagnostics/") && (strings.HasPrefix(r.URL.Path, "/api/admin/") || strings.HasPrefix(r.URL.Path, "/api/portal/me/wireguard-devices")) && s.state != nil {
+		if r.Method != http.MethodGet && !agentCheckIO && !strings.HasPrefix(r.URL.Path, "/api/admin/node-diagnostics/") && (strings.HasPrefix(r.URL.Path, "/api/admin/") || strings.HasPrefix(r.URL.Path, "/api/portal/me/wireguard-devices")) && s.state != nil {
 			defer s.state.Invalidate()
 		}
 		h.ServeHTTP(w, r)

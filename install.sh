@@ -8,6 +8,8 @@
 #   ... | sh -s -- enable-web-upgrade     register optional Docker web updater
 #   ... | sh -s -- uninstall --yes        permanently remove app and data
 #   ... | sh -s -- enable-agent-https --agent-https-port 2096
+#   ... | sh -s -- check-agent-https --agent-https-port 2096 --agent-https-url https://panel.example.com:2096
+#   Agent host commands accept --agent-firewall auto|skip and --dir /opt/captain.
 #   New Docker installs may also pass --agent-https-port 2096.
 # Modes: docker (default when Docker is present) or binary (systemd service).
 # Piped through sh the script never touches the disk; nothing to clean up
@@ -28,11 +30,15 @@ set -eu
 PRODUCT=captain NATIVE=/opt/captain/captain YES=0 WEB_UPGRADE=0
 REPO="zeptop-dev/captain"
 IMAGE="zeptop/captain:latest"
-MODE="" DOMAIN="" EMAIL="" CF_TOKEN="" ADMIN_EMAIL="" ADMIN_PASS="" PROXY=0 VERSION="" ACTION=install KEEP_DATA=0 RECONFIG=0 AGENT_HTTPS_PORT=""
+MODE="" DOMAIN="" EMAIL="" CF_TOKEN="" ADMIN_EMAIL="" ADMIN_PASS="" PROXY=0 VERSION="" ACTION=install KEEP_DATA=0 RECONFIG=0 AGENT_HTTPS_PORT="" AGENT_HTTPS_URL="" AGENT_FIREWALL=auto AGENT_DIR=/opt/captain
 while [ $# -gt 0 ]; do
   case "$1" in
-    install|upgrade|uninstall|enable-web-upgrade|enable-agent-https) ACTION="$1"; shift ;;
+    install|upgrade|uninstall|enable-web-upgrade|enable-agent-https|check-agent-https) ACTION="$1"; shift ;;
     --agent-https-port) [ $# -ge 2 ] || { echo "--agent-https-port requires a port" >&2; exit 2; }; AGENT_HTTPS_PORT="$2"; [ -n "$AGENT_HTTPS_PORT" ] || { echo "Agent HTTPS port cannot be empty" >&2; exit 2; }; shift 2 ;;
+    --agent-https-url|--agent-firewall|--dir)
+      [ $# -ge 2 ] && [ -n "$2" ] || { echo "$1 requires a value" >&2; exit 2; }
+      case "$1" in --agent-https-url) AGENT_HTTPS_URL="$2" ;; --agent-firewall) AGENT_FIREWALL="$2" ;; --dir) AGENT_DIR="$2" ;; esac
+      shift 2 ;;
     --web-upgrade) WEB_UPGRADE=1; shift ;;
     --yes|-y) YES=1; shift ;;
     --keep-data) KEEP_DATA=1; shift ;;
@@ -58,17 +64,27 @@ case "$NETWORK" in bridge|host) ;; *) echo "--network must be bridge or host" >&
 if [ -n "$AGENT_HTTPS_PORT" ]; then
   case "$AGENT_HTTPS_PORT" in *[!0-9]*|0*|??????*) echo 'invalid Agent HTTPS port' >&2; exit 2 ;; esac
   [ "$AGENT_HTTPS_PORT" -ge 1024 ] && [ "$AGENT_HTTPS_PORT" -le 65535 ] && [ "$AGENT_HTTPS_PORT" != 8080 ] || { echo 'Agent HTTPS port must be 1024-65535, excluding 8080' >&2; exit 2; }
-  case "$ACTION" in install|enable-agent-https) ;; *) echo '--agent-https-port applies to install or enable-agent-https only' >&2; exit 2 ;; esac
+  case "$ACTION" in install|enable-agent-https|check-agent-https) ;; *) echo '--agent-https-port applies to install, enable-agent-https or check-agent-https only' >&2; exit 2 ;; esac
 fi
-if [ "$ACTION" = enable-agent-https ]; then
+[ -z "$AGENT_HTTPS_URL" ] || [ -n "$AGENT_HTTPS_PORT" ] || { echo "--agent-https-url requires --agent-https-port" >&2; exit 2; }
+case "$AGENT_FIREWALL" in auto|skip) ;; *) echo '--agent-firewall must be auto or skip' >&2; exit 2 ;; esac
+case "$ACTION" in enable-agent-https|check-agent-https) ;; *) [ "$AGENT_DIR" = /opt/captain ] || { echo '--dir is only supported by Agent HTTPS host commands' >&2; exit 2; } ;; esac
+agent_https_host() {
   [ -n "$AGENT_HTTPS_PORT" ] || { echo 'pass --agent-https-port (for example 2096)' >&2; exit 2; }
   command -v python3 >/dev/null || { echo 'python3 is required for safe Compose configuration; alternatively add the port mapping manually' >&2; exit 1; }
   command -v docker >/dev/null || { echo 'Docker is required; binary/host deployments need no port mapping' >&2; exit 1; }
-  python3 - "$AGENT_HTTPS_PORT" /opt/captain <<'CAPTAIN_AGENT_HTTPS_PY'
+  python3 - "$AGENT_HTTPS_PORT" "$AGENT_DIR" "$1" "$AGENT_FIREWALL" "$AGENT_HTTPS_URL" <<'CAPTAIN_AGENT_HTTPS_PY'
 # BEGIN AGENT HTTPS HELPER
 import contextlib
 import fcntl
 import json
+import http.client
+import ipaddress
+import shutil
+import signal
+import ssl
+import uuid
+from urllib.parse import urlsplit
 import os
 from pathlib import Path
 import re
@@ -83,6 +99,9 @@ UPDATER_DIR = Path('/etc/captain-updater')
 UPDATER_STATE = Path('/var/lib/captain-updater')
 UPDATER_WORKER = Path('/usr/local/lib/captain-updater/worker')
 OVERRIDE = 'compose.agent-https.yaml'
+FW_STATE = '.agent-https-firewall.json'
+FW_LOCK = Path('/run/captain-agent-access.lock')
+UFW_DEFAULTS = Path('/etc/default/ufw')
 MARKER = '# Managed by Captain enable-agent-https; only the Agent TCP mapping.\n'
 
 
@@ -240,17 +259,303 @@ def verify_container(compose, original, files, expected_bindings=None, port=None
         time.sleep(1)
 
 
-def main(port, directory):
+def validate_origin(raw, port):
+    if not raw:
+        return None
+    if any(ord(c) < 33 or ord(c) > 126 for c in raw) or any(c in raw for c in ('?', '#', '\\')):
+        raise ValueError('Agent URL must be an HTTPS origin without credentials, query or fragment')
+    try:
+        parsed = urlsplit(raw)
+        if parsed.scheme != 'https' or not parsed.hostname or parsed.username is not None or parsed.password is not None or parsed.path not in ('', '/') or parsed.port != int(port):
+            raise ValueError()
+        host = parsed.hostname
+        try:
+            ipaddress.ip_address(host)
+        except ValueError:
+            if not all(re.fullmatch(r'[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?', label) for label in host.rstrip('.').split('.')):
+                raise ValueError()
+    except ValueError:
+        raise ValueError('Agent URL must be an HTTPS origin with the same explicit port') from None
+    return parsed
+
+
+def report(layer, state, detail):
+    print('[' + layer + '] ' + state + ': ' + detail, flush=True)
+
+
+def firewall_command(args):
+    return subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30, env=dict(os.environ, LC_ALL='C'))
+
+
+def firewall_state():
+    active, unknown = [], False
+    if shutil.which('ufw'):
+        result = firewall_command(['ufw', 'status'])
+        if result.returncode == 0 and result.stdout.startswith('Status: active'):
+            active.append('ufw')
+        elif result.returncode != 0 or not result.stdout.startswith('Status: inactive'):
+            unknown = True
+    if shutil.which('firewall-cmd'):
+        result = firewall_command(['firewall-cmd', '--state'])
+        if result.returncode == 0 and result.stdout.strip() == 'running':
+            active.append('firewalld')
+        elif result.returncode != 252 and result.stdout.strip() != 'not running':
+            unknown = True
+    if unknown or len(active) != 1:
+        return None
+    return active[0]
+
+
+def ensure_firewall(port, directory, mode, readonly=False):
     with contextlib.ExitStack() as cleanup:
-        configure(port, directory, cleanup)
+        if mode != 'skip' and not readonly:
+            lock_file(FW_LOCK, cleanup, 'another Captain firewall operation is running; retry after it finishes')
+        return configure_firewall(port, directory, mode, readonly)
 
 
-def configure(port, directory, cleanup):
+def ufw_allowed(status, port, v6):
+    target = re.escape(port) + r'/tcp' + (r'[ \t]+\(v6\)' if v6 else '')
+    source = r'Anywhere' + (r'[ \t]+\(v6\)' if v6 else '')
+    # UFW pads uncommented status lines and renders logging after the source.
+    # Both are existing user allowances, not rules this installer may replace.
+    return bool(re.search(r'^' + target + r'[ \t]+ALLOW(?: IN)?[ \t]+' + source + r'(?:[ \t]+\(log(?:-all)?\))?(?:[ \t]+#.*)?[ \t]*$', status, re.M))
+
+
+def ufw_conflict(status, port, v6):
+    # UFW add replaces a matching packet tuple when action/logging/comment
+    # differ. Fail closed on another rule for this target instead of taking
+    # ownership of a user DENY/REJECT, or guessing at an unfamiliar status row.
+    target = re.compile(r'^' + re.escape(port) + r'(?:/tcp)?(?=[ \t]|$)([ \t]+\(v6\))?')
+    for line in status.splitlines():
+        row = line.split('#', 1)[0].strip()
+        match = target.match(row)
+        if match and bool(match.group(1)) == v6 and not ufw_allowed(row, port, v6):
+            return True
+    return False
+
+
+def configure_firewall(port, directory, mode, readonly=False):
+    if mode == 'skip' and not readonly:
+        report('host_firewall', 'skipped', 'requested skip; no firewall rules changed')
+        return True
+    manager = firewall_state()
+    if manager is None:
+        report('host_firewall', 'unknown', 'no unique active UFW/firewalld manager; no changes made, inspect host rules manually')
+        return False
+    state_path = directory / FW_STATE
+    trusted(state_path, optional=True)
+    owned = json.loads(state_path.read_text()) if state_path.exists() else {'version': 1, 'rules': []}
+    if owned.get('version') != 1 or not isinstance(owned.get('rules'), list):
+        raise ValueError('invalid Agent firewall ownership record; inspect host rules manually')
+    added = []
+    def remember(rule):
+        # Persist exact intended identity before mutation. After interruption,
+        # later runs can recognize only this rule instead of adopting user rules.
+        added.append(rule)
+        pending = dict(owned, rules=owned['rules'] + added)
+        atomic(state_path, (json.dumps(pending, indent=2) + '\n').encode())
+    try:
+        if manager == 'ufw':
+            defaults = UFW_DEFAULTS.read_text()
+            ipv6 = re.findall(r'^[ \t]*IPV6[ \t]*=[ \t]*["\']?(yes|no)["\']?[ \t]*(?:#.*)?$', defaults, re.M)
+            if len(ipv6) != 1:
+                raise ValueError('could not determine UFW IPv6 policy')
+            families = [False, True] if ipv6[0] == 'yes' else [False]
+            status = firewall_command(['ufw', 'status'])
+            if status.returncode:
+                raise ValueError('could not inspect active UFW rules')
+            # Inspect both families before the first write; a user IPv6 rule
+            # must not cause a partial IPv4 change or an ownership record.
+            if any(ufw_conflict(status.stdout, port, v6) for v6 in families):
+                report('host_firewall', 'conflict', 'existing UFW TCP policy is not an unrestricted allow; no rules changed, inspect host rules manually')
+                return False
+            for v6 in families:
+                status = firewall_command(['ufw', 'status'])
+                if status.returncode:
+                    raise ValueError('could not inspect active UFW rules')
+                if ufw_conflict(status.stdout, port, v6):
+                    raise ValueError('UFW policy changed; inspect host rules manually')
+                if ufw_allowed(status.stdout, port, v6):
+                    continue
+                if readonly:
+                    report('host_firewall', 'unconfirmed', 'UFW has no matching unrestricted TCP allow rule for each enabled family')
+                    return False
+                marker = 'captain-agent-' + uuid.uuid4().hex[:16]
+                # Family-specific rules cannot overwrite an existing user IPv6
+                # allow while repairing a missing IPv4 rule (or vice versa).
+                address = '::/0' if v6 else '0.0.0.0/0'
+                args = ['allow', 'in', 'proto', 'tcp', 'from', address, 'to', address, 'port', port, 'comment', marker]
+                record = {'manager': manager, 'port': port, 'comment': marker, 'args': args}
+                remember(record)
+                if firewall_command(['ufw'] + args).returncode:
+                    raise ValueError('UFW TCP rule could not be added')
+                status = firewall_command(['ufw', 'status'])
+                if status.returncode or not any(line.rstrip().endswith('# ' + marker) for line in status.stdout.splitlines()) or not ufw_allowed(status.stdout, port, v6):
+                    raise ValueError('UFW did not confirm the new owned rule')
+        else:
+            zones = firewall_command(['firewall-cmd', '--get-active-zones'])
+            active_zones = [line.strip() for line in zones.stdout.splitlines() if line and not line[0].isspace()]
+            if zones.returncode or len(active_zones) != 1 or not re.fullmatch(r'[a-zA-Z0-9_-]+', active_zones[0]):
+                report('host_firewall', 'unknown', 'firewalld needs one explicit active zone; no changes made')
+                return False
+            zone = active_zones[0]
+            for permanent in (False, True):
+                base = ['firewall-cmd', '--zone=' + zone] + (['--permanent'] if permanent else [])
+                query = firewall_command(base + ['--query-port=' + port + '/tcp'])
+                if query.returncode not in (0, 1):
+                    raise ValueError('firewalld TCP rule query failed')
+                if query.returncode == 0:
+                    continue
+                previous = [rule for rule in owned['rules'] if rule.get('manager') == manager and rule.get('port') == port and rule.get('zone') == zone and rule.get('permanent') == permanent and isinstance(rule.get('rich_rule'), str)]
+                confirmed = False
+                for rule in previous:
+                    query = firewall_command(base + ['--query-rich-rule=' + rule['rich_rule']])
+                    if query.returncode not in (0, 1):
+                        raise ValueError('firewalld owned rule query failed')
+                    if query.returncode == 0:
+                        confirmed = True
+                        break
+                if confirmed:
+                    continue
+                if readonly:
+                    report('host_firewall', 'unconfirmed', 'firewalld TCP allow rule missing from runtime or permanent configuration')
+                    return False
+                # A distinct rich rule avoids deleting a concurrent user-owned
+                # plain port allowance when this invocation needs rollback.
+                rich = 'rule priority="' + str(1 + uuid.uuid4().int % 32767) + '" port port="' + port + '" protocol="tcp" accept'
+                query = firewall_command(base + ['--query-rich-rule=' + rich])
+                if query.returncode != 1:
+                    raise ValueError('could not allocate a distinct firewalld rule')
+                remember({'manager': manager, 'port': port, 'zone': zone, 'permanent': permanent, 'rich_rule': rich})
+                if firewall_command(base + ['--add-rich-rule=' + rich]).returncode:
+                    raise ValueError('firewalld TCP rule could not be added')
+                if firewall_command(base + ['--query-rich-rule=' + rich]).returncode:
+                    raise ValueError('firewalld did not confirm the new rule')
+        report('host_firewall', 'configured', manager + ' TCP allow rule confirmed; Docker forwarding, other rules and cloud firewalls remain separate')
+        return True
+    except (ValueError, OSError, subprocess.TimeoutExpired):
+        rollback_ok = True
+        for rule in reversed(added):
+            try:
+                if rule['manager'] == 'ufw':
+                    status = firewall_command(['ufw', 'status'])
+                    if status.returncode:
+                        rollback_ok = False
+                        continue
+                    if not any(line.rstrip().endswith('# ' + rule['comment']) for line in status.stdout.splitlines()):
+                        continue
+                    args = ['ufw', '--force', 'delete'] + rule['args']
+                else:
+                    base = ['firewall-cmd', '--zone=' + rule['zone']] + (['--permanent'] if rule['permanent'] else [])
+                    query = firewall_command(base + ['--query-rich-rule=' + rule['rich_rule']])
+                    if query.returncode == 1:
+                        continue
+                    if query.returncode != 0:
+                        rollback_ok = False
+                        continue
+                    args = base + ['--remove-rich-rule=' + rule['rich_rule']]
+                removed = firewall_command(args).returncode == 0
+                if rule['manager'] == 'ufw':
+                    after = firewall_command(['ufw', 'status'])
+                    removed = removed and after.returncode == 0 and not any(line.rstrip().endswith('# ' + rule['comment']) for line in after.stdout.splitlines())
+                else:
+                    removed = removed and firewall_command(base + ['--query-rich-rule=' + rule['rich_rule']]).returncode == 1
+                rollback_ok = removed and rollback_ok
+            except (OSError, subprocess.TimeoutExpired):
+                rollback_ok = False
+        if rollback_ok and added:
+            try:
+                atomic(state_path, (json.dumps(owned, indent=2) + '\n').encode())
+            except OSError:
+                rollback_ok = False
+        report('host_firewall', 'error', 'rule update failed; only rules added in this invocation were reverted' if rollback_ok else 'rule update failed and cleanup was incomplete; inspect the host firewall')
+        return False
+
+
+class ProbeHTTPS(http.client.HTTPSConnection):
+    def __init__(self, host, port, address):
+        super().__init__(host, port, timeout=10, context=ssl.create_default_context())
+        self.address = address
+
+    def connect(self):
+        sock = socket.create_connection((self.address or self.host, self.port), timeout=self.timeout)
+        try:
+            self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
+        except BaseException:
+            sock.close()
+            raise
+
+
+def probe_health(origin, local=False):
+    # Bound DNS, TLS, headers and a slow-drip body by one wall-clock deadline,
+    # not merely a per-recv idle timeout. This helper runs on Linux's main thread.
+    def expired(signum, frame):
+        raise TimeoutError('Agent health deadline exceeded')
+    previous = signal.signal(signal.SIGALRM, expired)
+    signal.setitimer(signal.ITIMER_REAL, 15)
+    connection = None
+    try:
+        connection = ProbeHTTPS(origin.hostname, origin.port, '127.0.0.1' if local else None)
+        connection.request('GET', '/api/agent/health', headers={'Cache-Control': 'no-cache', 'Accept': 'application/json'})
+        response = connection.getresponse()
+        raw = response.read(8193)
+        if response.status != 200 or len(raw) > 8192:
+            return False
+        payload = json.loads(raw)
+        return isinstance(payload, dict) and payload.get('ok') is True and payload.get('service') == 'captain-agent'
+    except (OSError, ValueError, http.client.HTTPException):
+        return False
+    finally:
+        if connection is not None:
+            connection.close()
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous)
+
+
+def host_checks(port, directory, origin, firewall, readonly, item):
+    host = item['HostConfig'].get('NetworkMode') == 'host'
+    mapped = host or any(target == port + '/tcp' and published == port and address in ('0.0.0.0', '::') for target, address, published in bindings(item))
+    report('docker_mapping', 'host' if host else 'ready' if mapped else 'missing', 'host networking requires no publication' if host else 'actual container TCP publication inspected')
+    try:
+        firewall_ok = ensure_firewall(port, directory, firewall, readonly)
+    except (ValueError, OSError, subprocess.TimeoutExpired):
+        firewall_ok = False
+        report('host_firewall', 'error', 'could not safely inspect or update host firewall; inspect host configuration')
+    report('external_filtering', 'unknown', 'cloud security groups, DOCKER-USER and other packet filters are not managed by this operation')
+    if origin is None:
+        report('host_tls', 'not_checked', 'pass --agent-https-url with the saved HTTPS origin')
+        report('domain_health', 'not_checked', 'listener/certificate may still need enabling in Captain')
+        return mapped and firewall_ok
+    local_ok = probe_health(origin, local=True)
+    remote_ok = probe_health(origin)
+    report('host_tls', 'ready' if local_ok else 'failed', 'loopback connection with hostname, system CA verification and Agent health response')
+    report('domain_health', 'ready' if remote_ok else 'failed', 'host-originated domain request with system CA verification and Agent health response')
+    print('These checks do not prove reachability from a po0 or other remote node. Check the same origin from the target node; provider/cloud firewalls remain external.', flush=True)
+    return mapped and firewall_ok and local_ok and remote_ok
+
+
+def main(port, directory, action='enable-agent-https', firewall='auto', url=''):
+    origin = validate_origin(url, port)
+    if action == 'validate':
+        return True
+    if firewall not in ('auto', 'skip'):
+        raise ValueError('invalid firewall mode')
+    if action == 'check-agent-https' and origin is None:
+        raise ValueError('check-agent-https requires --agent-https-url')
+    with contextlib.ExitStack() as cleanup:
+        return configure(port, directory, cleanup, action, firewall, origin)
+
+
+def configure(port, directory, cleanup, action, firewall, origin):
     if not re.fullmatch(r'[1-9][0-9]{0,4}', port) or not 1024 <= int(port) <= 65535 or int(port) == 8080:
         raise ValueError('Agent HTTPS port must be 1024-65535, excluding the main HTTP port 8080')
+    if not re.fullmatch(r'/[a-zA-Z0-9_./-]+', directory) or str(Path(directory)) != directory or '..' in Path(directory).parts or directory == '/':
+        raise ValueError('--dir must be an absolute normalized deployment directory')
     directory = Path(directory)
     trusted(directory)
-    lock_file(directory / '.agent-https.lock', cleanup, 'another Agent HTTPS deployment operation is running; retry after it finishes')
+    # Read-only checks create no lock file and mutate no deployment state.
+    if action != 'check-agent-https':
+        lock_file(directory / '.agent-https.lock', cleanup, 'another Agent HTTPS deployment operation is running; retry after it finishes')
     env_path, override = directory / '.env', directory / OVERRIDE
     trusted(env_path, optional=True)
     trusted(override, optional=True)
@@ -267,9 +572,8 @@ def configure(port, directory, cleanup):
     if len(found) != 1 or not found[0].get('State', {}).get('Running') or found[0]['State'].get('Paused') or found[0]['State'].get('Restarting'):
         raise ValueError('expected one running Captain Compose service in /opt/captain; use the manual Compose instructions for custom deployments')
     item = found[0]
-    if item['HostConfig'].get('NetworkMode') == 'host':
-        print('Host networking needs no Docker port mapping. Enable the Agent HTTPS listener and check host/cloud firewall rules.')
-        return
+    if action in ('check-agent-https', 'finish-install') or item['HostConfig'].get('NetworkMode') == 'host':
+        return host_checks(port, directory, origin, firewall, action == 'check-agent-https', item)
     labels = item['Config']['Labels']
     project = labels['com.docker.compose.project']
     if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]*', project):
@@ -387,12 +691,19 @@ def configure(port, directory, cleanup):
             run([str(UPDATER_WORKER), 'docker-updater', 'setup', '--dir', str(directory)])
         except Exception:
             raise ValueError('port mapping was applied, but updater registration failed; leave updater stopped and run enable-web-upgrade before future upgrades') from None
-    print('Docker TCP mapping configured. Select the matching Agent HTTPS port and certificate in Captain. This does not prove public/node reachability; check host and cloud firewall rules.')
+    print('Docker TCP mapping configured and retained even if subsequent host/network checks fail.', flush=True)
+    active_ids = run(updated + ['ps', '--quiet', 'captain']).split()
+    if len(active_ids) != 1:
+        raise ValueError('port mapping was applied but the active container is no longer available')
+    active = json.loads(run(['docker', 'inspect', active_ids[0]]))[0]
+    return host_checks(port, directory, origin, firewall, False, active)
+
 
 
 if __name__ == '__main__':
     try:
-        main(sys.argv[1], sys.argv[2])
+        if not main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]):
+            sys.exit(2)
     except (ValueError, KeyError, IndexError, TypeError, AttributeError, OSError, subprocess.TimeoutExpired):
         # Expected errors carry fixed messages only, never Docker/config text.
         error = sys.exc_info()[1]
@@ -400,7 +711,10 @@ if __name__ == '__main__':
         sys.exit(1)
 # END AGENT HTTPS HELPER
 CAPTAIN_AGENT_HTTPS_PY
-  exit 0
+}
+if [ "$ACTION" = enable-agent-https ] || [ "$ACTION" = check-agent-https ]; then
+  agent_https_host "$ACTION"
+  exit $?
 fi
 
 # have_tty says whether the script can actually reach a terminal. /dev/tty
@@ -567,6 +881,8 @@ port_owner() { # port
   echo "$name"
 }
 if [ -n "$AGENT_HTTPS_PORT" ]; then
+  command -v python3 >/dev/null || { echo "python3 is required for Agent host setup" >&2; exit 1; }
+  agent_https_host validate
   [ "$MODE" = docker ] || { echo '--agent-https-port is a Docker deployment option; enable the listener directly for binary installations' >&2; exit 2; }
   [ ! -f /opt/captain/docker-compose.yml ] && [ ! -f /opt/captain/docker-compose.yaml ] && [ ! -f /opt/captain/compose.yml ] && [ ! -f /opt/captain/compose.yaml ] || { echo 'existing Docker installation: use enable-agent-https --agent-https-port instead of reinstalling' >&2; exit 1; }
   command -v ss >/dev/null || { echo 'ss (iproute2) is required to check the requested TCP port' >&2; exit 1; }
@@ -727,6 +1043,9 @@ YAML
   cd "$DIR"
   docker compose pull -q
   docker compose up -d
+  if [ -n "$AGENT_HTTPS_PORT" ]; then
+    if ! agent_https_host finish-install; then echo "Captain installation completed; Agent host setup/checks need attention (see layer results above)." >&2; fi
+  fi
   if [ "$WEB_UPGRADE" = 1 ]; then prepare_worker; "$WORKER" docker-updater setup --dir "$DIR"; fi
   sleep 4
   docker compose exec -T captain captain admin create -c /etc/captain/config.yaml -email "$ADMIN_EMAIL" -password "$ADMIN_PASS" || true
