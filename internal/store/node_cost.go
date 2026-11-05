@@ -61,7 +61,7 @@ func normalizeNodeCost(info *NodeProbeInfo, old NodeProbeInfo) error {
 	if r := info.TrafficReset; r != nil {
 		switch r.Mode {
 		case "manual":
-		case "expiry", "expiry_next":
+		case "expiry", "expiry_previous", "expiry_next":
 			if info.ExpiresAt == "" && (old.ExpiresAt != "" || old.TrafficReset == nil || old.TrafficReset.Mode != r.Mode) {
 				return ErrNodeCost
 			}
@@ -102,7 +102,10 @@ func nodePeriodDay(p *NodeProbe) (day, after int) {
 			if renewal := p.Info.AutoRenewal; renewal != nil && renewal.AnchorDay >= 1 && renewal.AnchorDay <= 31 {
 				day = renewal.AnchorDay
 			}
-			if r.Mode == "expiry_next" {
+			switch r.Mode {
+			case "expiry_previous":
+				after = -1
+			case "expiry_next":
 				after = 1
 			}
 		}
@@ -115,7 +118,12 @@ func nodePeriodDay(p *NodeProbe) (day, after int) {
 
 func nodePeriodStart(at time.Time, p *NodeProbe) time.Time {
 	day, after := nodePeriodDay(p)
-	start := monthlyBoundary(at, 0, day, after)
+	// The day before a first-of-month expiry belongs to the previous month.
+	// Consider next month's anchor before looking back for the latest boundary.
+	start := monthlyBoundary(at, 1, day, after)
+	if start.After(at) {
+		start = monthlyBoundary(at, 0, day, after)
+	}
 	if start.After(at) {
 		start = monthlyBoundary(at, -1, day, after)
 	}
@@ -127,8 +135,10 @@ func nodePeriodStart(at time.Time, p *NodeProbe) time.Time {
 func nodePeriodEnd(start time.Time, p *NodeProbe) time.Time {
 	day, after := nodePeriodDay(p)
 	end := monthlyBoundary(start, 0, day, after)
-	if !end.After(start) {
-		end = monthlyBoundary(start, 1, day, after)
+	// For expiry_previous on day 1, next month's anchor can still land on
+	// start itself. Continue to the following anchor in that case.
+	for offset := 1; !end.After(start); offset++ {
+		end = monthlyBoundary(start, offset, day, after)
 	}
 	return end
 }

@@ -10,6 +10,12 @@ import (
 )
 
 func TestNodeCostAPIAndScheduleEdit(t *testing.T) {
+	for _, mode := range []string{"expiry_next", "expiry_previous"} {
+		t.Run(mode, func(t *testing.T) { testNodeCostAPIAndScheduleEdit(t, mode) })
+	}
+}
+
+func testNodeCostAPIAndScheduleEdit(t *testing.T, mode string) {
 	r := newRig(t)
 	ctx := context.Background()
 	path := "/api/admin/nodes/" + itoa(r.nodeID) + "/probe"
@@ -28,10 +34,10 @@ func TestNodeCostAPIAndScheduleEdit(t *testing.T) {
 		}
 	}
 	before, _ := r.st.NodeProbe(ctx, r.nodeID)
-	info := map[string]any{"expires_at": "2027-06-09", "billing": map[string]string{"amount": "36.36", "currency": "USD", "cycle": "custom", "years": "1.5"}, "traffic_reset": map[string]string{"mode": "expiry_next"}}
+	info := map[string]any{"expires_at": "2027-06-09", "billing": map[string]string{"amount": "36.36", "currency": "USD", "cycle": "custom", "years": "1.5"}, "traffic_reset": map[string]string{"mode": mode}}
 	call(info, 1, 200)
 	p, err := r.st.NodeProbe(ctx, r.nodeID)
-	if err != nil || p.Info.Price != "USD 36.36 / 1.5 years" || p.Info.TrafficReset.Mode != "expiry_next" {
+	if err != nil || p.Info.Price != "USD 36.36 / 1.5 years" || p.Info.TrafficReset.Mode != mode {
 		t.Fatal(p, err)
 	}
 	if err := r.st.RecordBeat(ctx, r.nodeID, spec.SystemStatus{NetTotalUp: 300, NetTotalDown: 300}, time.Now().Add(time.Second)); err != nil {
@@ -44,7 +50,7 @@ func TestNodeCostAPIAndScheduleEdit(t *testing.T) {
 	// An old client echo must preserve the newly added fields.
 	call(map[string]any{"price": p.Info.Price, "expires_at": p.Info.ExpiresAt}, 1, 200)
 	p, _ = r.st.NodeProbe(ctx, r.nodeID)
-	if p.Info.Billing == nil || p.Info.TrafficReset.Mode != "expiry_next" {
+	if p.Info.Billing == nil || p.Info.TrafficReset.Mode != mode {
 		t.Fatal("legacy client cleared new settings")
 	}
 	info["expires_at"] = ""

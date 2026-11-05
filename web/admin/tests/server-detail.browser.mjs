@@ -57,11 +57,12 @@ async function setup(role = 'admin', { locale = 'en', scheme = 'light', viewport
       assert.equal(role, 'admin', 'Only administrators may control services')
       const body = request.postDataJSON(), value = controls[Number(match[1])]
       state.writes.push({ method, path, body })
-      assert.ok(Object.keys(body).every(key => ['revision', 'policy', 'manual', 'exempt_current_period'].includes(key)), 'Control writes cannot overwrite information drafts')
+      assert.ok(Object.keys(body).every(key => ['revision', 'policy', 'manual', 'exempt_current_period', 'offline_enabled'].includes(key)), 'Control writes cannot overwrite information drafts')
       if (state.controlConflict) { state.controlConflict = false; value.revision += '-external'; return send({ error: 'Control revision changed' }, 409) }
       if (body.revision !== value.revision) return send({ error: 'Stale control revision' }, 409)
       if (body.manual?.mode === 'normal' && value.automatic.active && !body.exempt_current_period) return send({ error: 'Exemption required' }, 409)
       if (body.policy) value.policy = body.policy
+      if (body.offline_enabled !== undefined) value.offline_enabled = body.offline_enabled
       if (body.manual) value.manual = body.manual
       if (body.exempt_current_period !== undefined) { value.automatic.exempt_current_period = body.exempt_current_period; if (body.exempt_current_period) value.automatic.active = false }
       value.revision += '-saved'
@@ -92,6 +93,10 @@ async function setup(role = 'admin', { locale = 'en', scheme = 'light', viewport
       if (suffix === 'return-routes') return send({ schedule: { enabled: false, interval_hours: 6, city: 'beijing', family: 'ipv4' }, history: [], tool_supported: false, tool_online: false })
       if (suffix === 'addresses') return send({ auto_ipv4: false, auto_ipv6: false, entry_ipv4: '192.0.2.10', entry_ipv6: '', observed: { received_at: 0, ipv4: {}, ipv6: {} } })
       if (suffix === 'dns-health') return send({ node_id: id, node: nodes[id - 1].name, checked_at: 0, stale: true, targets: [], failure_count: 0 })
+      if (suffix === 'configuration') {
+        assert.equal(role, 'admin', 'Operators must not fetch configuration history')
+        return send({ status: 'unavailable', config_revision: '', state_revision: '', current: null, history: [] })
+      }
       const now = Math.floor(timestamp / 1000)
       if (suffix === 'availability') {
         const summary = { online_seconds: 3600, offline_seconds: 0, unknown_seconds: 0, maintenance_seconds: 0, percent: 100, coverage_percent: 100 }
@@ -452,12 +457,59 @@ try {
   assert.ok(!operator.state.reads.some(path => /\/(network-diagnostics|return-routes)$/.test(path)), 'Operator navigation does not request admin diagnostic histories')
   operator.clean(); await operator.context.close()
 
+  // A short-month expiry keeps its original anchor; the UI must not subtract
+  // from the displayed/clamped date or overwrite the saved manual reset day.
+  const resetFlow = await setup()
+  resetFlow.probes[1].probe.info.expires_at = '2028-02-29'
+  const resetPage = resetFlow.page
+  const resetSelect = () => resetFlow.editor().getByRole('textbox', { name: t('nodeProbe.resetDay'), exact: true }).first()
+  const expiryInput = () => resetPage.getByLabel(t('nodeProbe.expires'), { exact: true })
+  await resetFlow.information(1)
+  assert.equal(await resetSelect().inputValue(), t('nodeCost.reset_manual'))
+  await resetSelect().click()
+  for (const mode of ['expiry', 'expiry_previous', 'expiry_next', 'manual']) {
+    await resetPage.getByRole('option', { name: t(`nodeCost.reset_${mode}`), exact: true }).waitFor()
+  }
+  await resetPage.screenshot({ path: resolve(artifacts, 'expiry-previous-options.png') })
+  await resetPage.getByRole('option', { name: t('nodeCost.reset_expiry_previous'), exact: true }).click()
+  await resetPage.getByText(t('nodeCost.resetPreviousHint').replace('{{day}}', '31'), { exact: true }).waitFor()
+  await resetFlow.save(1)
+  await resetPage.getByText(t('nodeCost.resetPreviousHint').replace('{{day}}', '31'), { exact: true }).waitFor()
+  await resetPage.getByTestId('node-information').screenshot({ path: resolve(artifacts, 'expiry-previous-summary.png') })
+  assert.equal(resetFlow.state.writes.at(-1).body.Info.traffic_reset.mode, 'expiry_previous')
+  assert.equal(resetFlow.state.writes.at(-1).body.Info.expires_at, '2028-02-29')
+  assert.equal(resetFlow.state.writes.at(-1).body.ResetDay, 1)
+  await resetFlow.information(1)
+  assert.equal(await resetSelect().inputValue(), t('nodeCost.reset_expiry_previous'))
+  await resetPage.getByText(t('nodeCost.resetPreviousHint').replace('{{day}}', '31'), { exact: true }).waitFor()
+  await expiryInput().fill('2028-03-01')
+  await resetPage.getByText(t('nodeCost.resetPreviousHint').replace('{{day}}', '1'), { exact: true }).waitFor()
+  await expiryInput().fill('')
+  const writesBeforeMissingExpiry = resetFlow.state.writes.length
+  await resetFlow.probeSave().click()
+  await resetPage.getByText(t('nodeCost.dateRequired'), { exact: true }).first().waitFor()
+  assert.equal(resetFlow.state.writes.length, writesBeforeMissingExpiry, 'An automatic reset requires an expiry date')
+  await resetPage.getByRole('button', { name: t('nodeInformation.cancel'), exact: true }).click()
+  for (const [mode, hintKey] of [['expiry', 'resetHint'], ['expiry_next', 'resetNextHint'], ['manual', null]]) {
+    await resetFlow.information(1)
+    await resetSelect().click()
+    await resetPage.getByRole('option', { name: t(`nodeCost.reset_${mode}`), exact: true }).click()
+    if (hintKey) await resetPage.getByText(t(`nodeCost.${hintKey}`).replace('{{day}}', '31'), { exact: true }).waitFor()
+    await resetFlow.save(1)
+    assert.equal(resetFlow.probes[1].probe.info.traffic_reset.mode, mode)
+  }
+  await resetFlow.information(1)
+  assert.equal(await resetSelect().inputValue(), t('nodeCost.reset_manual'))
+  assert.equal(resetFlow.probes[1].probe.reset_day, 1, 'Automatic modes preserve the manual reset day')
+  resetFlow.clean(); await resetFlow.context.close()
+
   // Capture populated monitoring views for responsive, Chinese and dark review.
   for (const [name, options] of [
     ['overview-zh-dark', { locale: 'zh-CN', scheme: 'dark' }],
     ['overview-mobile-zh-light', { locale: 'zh-CN', viewport: { width: 390, height: 844 } }],
   ]) {
     const visual = await setup('admin', options)
+    visual.probes[1].probe.info.traffic_reset.mode = 'expiry_previous'
     if (options.viewport) visual.controls[1].policy = { action: 'limit', threshold_percent: 95, limit_mbps: 20, auto_resume: true }
     overviewOnly(await visual.open(1))
     await visual.page.locator('.mantine-Loader-root').first().waitFor({ state: 'hidden' })
@@ -485,7 +537,7 @@ try {
     }
     visual.clean(); await visual.context.close()
   }
-  console.log('PASS: overview query isolation, information save/discard, sibling and modal drafts, legacy links, monitor/operator/unpaired boundaries, independent control/probe drafts, CAS recovery, pending/error/manual/exemption states, capability and role gates, Chinese dark/mobile screenshots and keyboard navigation')
+  console.log('PASS: overview query isolation, information save/discard, sibling and modal drafts, legacy links, monitor/operator/unpaired boundaries, independent control/probe drafts, CAS recovery, pending/error/manual/exemption states, capability and role gates, expiry-relative traffic reset save/reload and anchor hints, Chinese dark/mobile screenshots and keyboard navigation')
 } catch (error) {
   if (currentPage && !currentPage.isClosed()) {
     await currentPage.screenshot({ path: resolve(artifacts, 'failure.png'), fullPage: true })

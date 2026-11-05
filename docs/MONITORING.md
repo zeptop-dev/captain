@@ -1073,10 +1073,13 @@ snapshot, independently of hardware/system visibility.
 
 The expiry input is a calendar/date field stored as YYYY-MM-DD, without timezone
 conversion. Monthly NIC traffic may reset on a manually
-chosen day (1–31), the expiry day-of-month, or its following day. A short month
+chosen day (1–31), the expiry day-of-month, its preceding day, or its following day. A short month
 clamps the anniversary to its last day before applying the optional one-day offset.
 For example, an expiry on the 31st with the next-day option resets on March 1 after
-February. Payment frequency does not change monthly traffic accounting.
+February. The preceding-day option (`expiry_previous`) resets on the 30th for a
+31st expiry, or February 27 (28 in a leap year) after clamping that expiry to the
+end of February. An expiry on the 1st resets on the previous month's last day.
+Payment frequency does not change monthly traffic accounting.
 
 Existing nodes keep their manual reset days. New nodes default to following the
 expiry day; before an expiry is supplied they retain the default day-1 fallback.
@@ -1107,7 +1110,7 @@ node returns after several cycles, the next date is calculated from its original
 calendar anchor rather than from its reconnection date. For example, monthly
 renewal on January 31 proceeds to February 28 (29 in a leap year), then March 31.
 Expiry-linked monthly traffic resets retain the same original day, including the
-next-day option; automatic renewal does not clear or relabel traffic usage itself.
+preceding-day and next-day options; automatic renewal does not clear or relabel traffic usage itself.
 
 The backend saves the updated date so that the homepage, detail page and remaining
 value use the same record. Changes are logged with the previous and new date.
