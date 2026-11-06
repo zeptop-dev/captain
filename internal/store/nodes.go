@@ -287,12 +287,12 @@ func (s *Store) UpdateNodeWithAgentSettings(ctx context.Context, n *domain.Node,
 	// An explicit edit to a published address opts that family back into fixed
 	// mode. Old clients that leave the value unchanged preserve following.
 	if n.PublicAddr != old.PublicAddr {
-		if _, err = tx.ExecContext(ctx, `UPDATE nodes SET address_auto_v4=0 WHERE id=?`, n.ID); err != nil {
+		if _, err = tx.ExecContext(ctx, `UPDATE nodes SET address_auto_v4=0,address_fallback_changed_v4=MAX(address_fallback_changed_v4,unixepoch()),address_json=json_remove(address_json,'$.fallback_follow_ipv4') WHERE id=?`, n.ID); err != nil {
 			return err
 		}
 	}
 	if n.V6Addr != old.V6Addr {
-		if _, err = tx.ExecContext(ctx, `UPDATE nodes SET address_auto_v6=0 WHERE id=?`, n.ID); err != nil {
+		if _, err = tx.ExecContext(ctx, `UPDATE nodes SET address_auto_v6=0,address_fallback_changed_v6=MAX(address_fallback_changed_v6,unixepoch()),address_json=json_remove(address_json,'$.fallback_follow_ipv6') WHERE id=?`, n.ID); err != nil {
 			return err
 		}
 	}

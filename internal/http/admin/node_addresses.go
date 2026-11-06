@@ -16,8 +16,10 @@ func (h *handlers) registerNodeAddresses(mux *http.ServeMux) {
 	})
 	mux.HandleFunc("PUT /api/admin/settings/nodes/{id}/addresses", h.requireAdmin(func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
-			AutoIPv4 *bool `json:"auto_ipv4"`
-			AutoIPv6 *bool `json:"auto_ipv6"`
+			FallbackAutoIPv4 *bool `json:"fallback_auto_ipv4"`
+			FallbackAutoIPv6 *bool `json:"fallback_auto_ipv6"`
+			AutoIPv4         *bool `json:"auto_ipv4"`
+			AutoIPv6         *bool `json:"auto_ipv6"`
 		}
 		if !readJSON(w, r, &in) {
 			return
@@ -40,11 +42,15 @@ func (h *handlers) registerNodeAddresses(mux *http.ServeMux) {
 			fail(w, 409, "wait for a fresh public address report from an updated bosun")
 			return
 		}
-		if err = h.Store.SetAddressPolicy(r.Context(), idOf(r), v4, v6); err != nil {
+		if err = h.Store.SetAddressFollowPolicy(r.Context(), idOf(r), v4, v6, in.FallbackAutoIPv4, in.FallbackAutoIPv6); err != nil {
 			serverErr(w, err)
 			return
 		}
-		out.AutoIPv4, out.AutoIPv6 = v4, v6
+		out, err = h.Store.NodeAddresses(r.Context(), idOf(r))
+		if err != nil {
+			serverErr(w, err)
+			return
+		}
 		ok(w, out)
 	}))
 }
