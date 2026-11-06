@@ -3,11 +3,10 @@ package service
 import (
 	"context"
 	"github.com/zeptop-dev/bosun/pkg/spec"
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/notify"
 	"github.com/zeptop-dev/captain/internal/store"
-	"path/filepath"
+	"github.com/zeptop-dev/captain/internal/testdb"
 	"strings"
 	"testing"
 	"time"
@@ -15,14 +14,8 @@ import (
 
 func TestMonitorRecoveryAcrossServiceRestartAndMissingMetrics(t *testing.T) {
 	ctx := context.Background()
-	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "monitor.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-	if err = db.Migrate(ctx, conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	conn := testdb.Open(t)
+	var err error
 	st := store.New(conn)
 	n := &domain.Node{Name: "<edge>"}
 	if err = st.CreateNode(ctx, n, "code", time.Hour); err != nil {
@@ -97,14 +90,8 @@ func TestMonitorRecoveryAcrossServiceRestartAndMissingMetrics(t *testing.T) {
 
 func TestMonitorPendingBatchHonorsNewSilenceAndDisable(t *testing.T) {
 	ctx := context.Background()
-	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "batch.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-	if err = db.Migrate(ctx, conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	conn := testdb.Open(t)
+	var err error
 	st := store.New(conn)
 	n := &domain.Node{Name: "edge"}
 	if err = st.CreateNode(ctx, n, "code", time.Hour); err != nil {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 type probeFXTransport func(*http.Request) (*http.Response, error)
@@ -25,6 +26,12 @@ func probeFXResponse(body string) *http.Response {
 }
 
 func probeFXRig(t *testing.T) (*store.Store, time.Time) {
+	t.Helper()
+	return store.New(testdb.Open(t)), time.Date(2026, 10, 24, 12, 0, 0, 0, time.UTC)
+}
+
+// Reset coverage keeps the complete migration chain from an empty database.
+func probeFXMigrationRig(t *testing.T) (*store.Store, time.Time) {
 	t.Helper()
 	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "fx.db"))
 	if err != nil {
@@ -170,7 +177,7 @@ func TestProbeExchangeRatesRefreshPersistenceRetryAndGating(t *testing.T) {
 }
 
 func TestProbeExchangeRatesInflightPolicyAndReset(t *testing.T) {
-	st, at := probeFXRig(t)
+	st, at := probeFXMigrationRig(t)
 	ctx := context.Background()
 	if err := st.SetSetting(ctx, store.SettingProbe, store.ProbeSettings{Enabled: true}); err != nil {
 		t.Fatal(err)

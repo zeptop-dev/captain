@@ -2,13 +2,12 @@ package service
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 func TestInWindows(t *testing.T) {
@@ -37,8 +36,7 @@ func TestInWindows(t *testing.T) {
 // (not again while the limit runs); whitelisted users never are; the
 // throttle shows up in the node spec speeds and lapses on its own.
 func TestDynLimitObserve(t *testing.T) {
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.Open(t)
 	st := store.New(conn)
 	ctx := context.Background()
 	u := &domain.User{Email: "fast@example.com", UUID: "u1", SubToken: "t1", Status: "active"}
@@ -80,8 +78,7 @@ func TestDynLimitObserve(t *testing.T) {
 // rate over its own window, not a spike: an ordinary user must not be
 // throttled just because the panel was restarted.
 func TestDynLimitBacklogIsNotASpike(t *testing.T) {
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.Open(t)
 	st := store.New(conn)
 	ctx := context.Background()
 	u := &domain.User{Email: "steady@example.com", UUID: "u3", SubToken: "t3", Status: "active"}

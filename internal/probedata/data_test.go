@@ -2,6 +2,7 @@ package probedata
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"math"
@@ -15,9 +16,16 @@ import (
 	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 func fixture(t *testing.T) *Engine {
+	t.Helper()
+	return fixtureWithDB(t, testdb.Open(t))
+}
+
+// Site reset coverage keeps the complete migration chain from an empty database.
+func migrationFixture(t *testing.T) *Engine {
 	t.Helper()
 	ctx := context.Background()
 	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "probe.db"))
@@ -28,16 +36,22 @@ func fixture(t *testing.T) *Engine {
 	if err = db.Migrate(ctx, conn, "sqlite"); err != nil {
 		t.Fatal(err)
 	}
+	return fixtureWithDB(t, conn)
+}
+
+func fixtureWithDB(t *testing.T, conn *sql.DB) *Engine {
+	t.Helper()
+	ctx := context.Background()
 	st := store.New(conn)
 	s := store.ProbeSettings{Enabled: true, Title: "Public monitor", Visibility: "public", ShowIP: false, CarrierPing: false}
 	s.Normalize()
-	if err = st.SetSetting(ctx, store.SettingProbe, s); err != nil {
+	if err := st.SetSetting(ctx, store.SettingProbe, s); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = conn.Exec(`INSERT INTO nodes(id,name,token_hash,public_addr,created_at,updated_at) VALUES(1,'Public','paired','203.0.113.30',0,0),(2,'Private','paired-2','198.51.100.20',0,0),(3,'Unpaired',NULL,'192.0.2.10',0,0)`); err != nil {
+	if _, err := conn.Exec(`INSERT INTO nodes(id,name,token_hash,public_addr,created_at,updated_at) VALUES(1,'Public','paired','203.0.113.30',0,0),(2,'Private','paired-2','198.51.100.20',0,0),(3,'Unpaired',NULL,'192.0.2.10',0,0)`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = conn.Exec(`UPDATE nodes SET probe_hidden=1 WHERE id=2`); err != nil {
+	if _, err := conn.Exec(`UPDATE nodes SET probe_hidden=1 WHERE id=2`); err != nil {
 		t.Fatal(err)
 	}
 	now := time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
@@ -398,7 +412,7 @@ func TestAcceptedSequenceAndNICDeltasShareTransaction(t *testing.T) {
 	}
 }
 func TestSiteResetClearsPublicIdentityAndMetricRows(t *testing.T) {
-	e := fixture(t)
+	e := migrationFixture(t)
 	ctx := context.Background()
 	old := publicID(t, e)
 	record(t, e, spec.SystemStatus{CPUPercent: 12}, e.clock())

@@ -2,16 +2,15 @@ package service
 
 import (
 	"context"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/notify"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 // Alerts raised within the window go out as one message; a lone alert is
@@ -63,13 +62,7 @@ func TestAlertBatchFitsTelegram(t *testing.T) {
 // period to beat again before anything is called offline.
 func TestOfflineGraceAfterRestart(t *testing.T) {
 	ctx := context.Background()
-	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := db.Migrate(ctx, conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	conn := testdb.Open(t)
 	st := store.New(conn)
 	node := &domain.Node{Name: "n1"}
 	if err := st.CreateNode(ctx, node, "paircode", time.Hour); err != nil {

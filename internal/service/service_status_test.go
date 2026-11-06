@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -13,9 +12,9 @@ import (
 
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
 	"github.com/zeptop-dev/bosun/pkg/spec"
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 type runtimeRig struct {
@@ -32,14 +31,7 @@ type runtimeRig struct {
 func newRuntimeRig(t *testing.T) *runtimeRig {
 	t.Helper()
 	ctx := context.Background()
-	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "captain.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { conn.Close() })
-	if err := db.Migrate(ctx, conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	conn := testdb.Open(t)
 	st := store.New(conn)
 	state := &AgentState{Store: st}
 	return &runtimeRig{t: t, ctx: ctx, conn: conn, store: st, state: state, service: NewServiceStatus(st, state), at: time.Now().UTC().Truncate(time.Second), seq: map[int64]uint64{}}

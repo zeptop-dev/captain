@@ -4,31 +4,23 @@ import (
 	"context"
 	"errors"
 	"net"
-	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/dns"
 	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/notify"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 func dnsTestStore(t *testing.T) (*store.Store, *domain.Node) {
 	t.Helper()
 	ctx := context.Background()
-	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "dns.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { conn.Close() })
-	if err := db.Migrate(ctx, conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	conn := testdb.Open(t)
 	st := store.New(conn)
 	n := &domain.Node{Name: "<edge>", Domain: "node.example.com", PublicAddr: "192.0.2.10"}
 	if err := st.CreateNode(ctx, n, "dns-test", time.Hour); err != nil {
