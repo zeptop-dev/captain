@@ -46,3 +46,29 @@ or skipped checks, reruns/newer runs, pagination, malformed responses and
 network failures. A missing trusted run is an optimization miss, never a way
 to publish without validation. Reuse saves the duplicate suite's duration;
 the first full CI and the mandatory manual rehearsal still need to finish.
+
+## Isolated SQLite fixtures
+
+Ordinary business tests use `internal/testdb.Open(t)` or `OpenAt(t, path)`.
+Each test process applies the current embedded migrations once, checkpoints
+and closes that temporary template, then keeps only its bytes in memory.
+Every fixture gets its own new disk file and a production `db.Open` connection,
+including WAL, foreign keys, busy timeout and the single-connection limit.
+Test cleanup closes the connection; no mutable database is shared between tests.
+`OpenAt` refuses to overwrite a file and supports tests that later reopen it.
+
+Migration, old-schema upgrades, reset and backup regressions continue using
+real `db.Open` + `db.Migrate` setup. Do not change those to the cached fixture.
+The factory regression compares the schema and initial table contents with a
+fresh migration and checks isolation, random identities, reopening and cleanup.
+Password hashing, real HTTP logins and the existing business assertions remain
+unchanged. Do not add `t.Parallel` blindly: some suites replace package globals.
+
+For an uncached local race setup comparison (build the four SPAs first):
+
+```sh
+GOWORK=off go test -race -run '^$' -bench '^BenchmarkDatabaseSetup$' -benchtime=3x -count=1 ./internal/testdb
+```
+
+Full-suite elapsed time must be measured separately; a setup microbenchmark
+does not include business logic, Argon2 authentication or runner contention.

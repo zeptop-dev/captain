@@ -100,6 +100,7 @@ func TestEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = conn.Close() })
 	if err := db.Migrate(context.Background(), conn, "sqlite"); err != nil {
 		t.Fatal(err)
 	}
@@ -2297,8 +2298,14 @@ func TestBackups(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "https://panel.test"
 	cfg.DataDir = t.TempDir()
-	conn, _ := db.Open("sqlite", filepath.Join(cfg.DataDir, "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn, err := db.Open("sqlite", filepath.Join(cfg.DataDir, "c.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	if err := db.Migrate(context.Background(), conn, "sqlite"); err != nil {
+		t.Fatal(err)
+	}
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
