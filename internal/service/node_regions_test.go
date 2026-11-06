@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -184,7 +185,7 @@ func TestNodeRegionsOfflineKeepsCountryWithoutQuerying(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	at := time.Now().Add(-16 * time.Minute)
+	at := time.Now().Add(-time.Minute)
 	if err = st.ObserveNodeAddresses(ctx, n.ID, "token", &agentproto.PublicAddresses{SampledAt: at.Unix(), IPv4: "198.51.100.20"}, at); err != nil {
 		t.Fatal(err)
 	}
@@ -193,6 +194,15 @@ func TestNodeRegionsOfflineKeepsCountryWithoutQuerying(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = st.SaveRegionDetection(ctx, state, store.RegionDetection{IPv4: store.RegionResult{IP: "198.51.100.20", Country: "JP", Status: "ok", CheckedAt: at.Unix()}}); err != nil {
+		t.Fatal(err)
+	}
+	// Time passes after the successful lookup: stale observations are readable
+	// cache history, but must no longer be accepted as new lookup evidence.
+	observed := state.Observed
+	observed.IPv4.LastSuccess = time.Now().Add(-16 * time.Minute).Unix()
+	observed.SampledAt = observed.IPv4.LastSuccess
+	raw, _ := json.Marshal(observed)
+	if _, err = st.DB().Exec(`UPDATE nodes SET address_json=? WHERE id=?`, string(raw), n.ID); err != nil {
 		t.Fatal(err)
 	}
 	svc := &NodeRegions{Store: st, Lookup: func(context.Context, string) (string, error) { t.Fatal("stale address queried"); return "", nil }}
@@ -324,4 +334,115 @@ func TestNodeLocationsIndependentModesAndLateManualChoice(t *testing.T) {
 		return nil, nil
 	}
 	svc.Tick(ctx, time.Now())
+}
+
+func TestNodeLocationIPManualEntryAndLatePolicyResult(t *testing.T) {
+	ctx := context.Background()
+	st, n := dnsTestStore(t)
+	must := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	set := func(settings store.LocationIPSettings) {
+		t.Helper()
+		mode := "auto"
+		must(st.UpdateNodeProbeWithLocationIP(ctx, n.ID, false, store.NodeProbeInfo{}, 0, 1, "sum", nil, &mode, nil, store.NodeInfrastructureGuard{}, &settings))
+	}
+	set(store.LocationIPSettings{Mode: "manual", ManualIP: "203.0.113.30"})
+	calls := []string{}
+	svc := &NodeRegions{Store: st, Lookup: func(_ context.Context, ip string) (string, error) { calls = append(calls, ip); return "JP", nil }}
+	// This server has not paired and has no public observations.
+	must(svc.Detect(ctx, n.ID, false))
+	if len(calls) != 1 || calls[0] != "203.0.113.30" {
+		t.Fatal(calls)
+	}
+	p, err := st.NodeProbe(ctx, n.ID)
+	must(err)
+	if p.Info.Region != "JP" || p.RegionDetection.IPSource != "manual" {
+		t.Fatal(p)
+	}
+	set(store.LocationIPSettings{Mode: "entry"})
+	state, err := st.NodeRegionState(ctx, n.ID)
+	must(err)
+	a, b := state.IPs()
+	if a == "" && b == "" {
+		t.Fatal("fixture needs an existing entry")
+	}
+	must(svc.Detect(ctx, n.ID, true))
+	p, err = st.NodeProbe(ctx, n.ID)
+	must(err)
+	if p.RegionDetection.IPSource != "entry_override" || p.Info.Region != "JP" {
+		t.Fatal(p)
+	}
+	set(store.LocationIPSettings{Mode: "manual", ManualIP: "192.0.2.99"})
+	svc.Lookup = func(context.Context, string) (string, error) {
+		set(store.LocationIPSettings{Mode: "auto"})
+		set(store.LocationIPSettings{Mode: "manual", ManualIP: "192.0.2.99"})
+		return "US", nil
+	}
+	if err = svc.Detect(ctx, n.ID, true); !errors.Is(err, store.ErrRegionObservationChanged) {
+		t.Fatal("late policy ABA lookup accepted", err)
+	}
+	p, err = st.NodeProbe(ctx, n.ID)
+	must(err)
+	if p.Info.Region != "" {
+		t.Fatal("late location published", p)
+	}
+}
+
+func TestNodeLocationIPRejectsLookupCrossingPrimaryExpiryIntoEntryFallback(t *testing.T) {
+	ctx := context.Background()
+	st, n := dnsTestStore(t)
+	must := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err := st.RedeemPairCode(ctx, "dns-test", "token", "node", "test", "linux")
+	must(err)
+	mode := "auto"
+	must(st.UpdateNodeProbeWithLocationIP(ctx, n.ID, false, store.NodeProbeInfo{}, 0, 1, "sum", nil, &mode, nil, store.NodeInfrastructureGuard{}, &store.LocationIPSettings{Mode: "auto", AllowEntryFallback: true}))
+	// Construct a valid primary sample that expires while the provider request
+	// is in flight. The explicit entry remains available throughout; no write or
+	// revision change is needed for the effective source to switch with time.
+	lastSuccess := time.Now().Truncate(time.Second).Add(-15*time.Minute + time.Second)
+	must(st.ObserveNodeAddresses(ctx, n.ID, "token", &agentproto.PublicAddresses{SampledAt: lastSuccess.Unix(), IPv4: "198.51.100.20"}, lastSuccess))
+	started := make(chan struct{})
+	svc := &NodeRegions{Store: st, Lookup: func(ctx context.Context, ip string) (string, error) {
+		if ip != "198.51.100.20" {
+			t.Errorf("lookup changed address before starting: %s", ip)
+		}
+		close(started)
+		timer := time.NewTimer(time.Until(lastSuccess.Add(15*time.Minute + time.Second)))
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+			return "JP", nil
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+	}}
+	if err = svc.Detect(ctx, n.ID, true); !errors.Is(err, store.ErrRegionObservationChanged) {
+		t.Fatal("accepted stale primary result under entry fallback", err)
+	}
+	select {
+	case <-started:
+	default:
+		t.Fatal("lookup never started")
+	}
+	state, err := st.NodeRegionState(ctx, n.ID)
+	must(err)
+	if state.Detection.IPSource != "entry_fallback" || !state.Fresh(time.Now()) {
+		t.Fatal("fallback should now be valid", state)
+	}
+	var cache string
+	must(st.DB().QueryRow(`SELECT region_detection_json FROM nodes WHERE id=?`, n.ID).Scan(&cache))
+	var detection store.RegionDetection
+	must(json.Unmarshal([]byte(cache), &detection))
+	if detection.IPv4.Country != "" {
+		t.Fatal("obsolete primary lookup persisted", cache)
+	}
 }

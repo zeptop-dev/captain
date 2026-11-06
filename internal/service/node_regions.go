@@ -15,7 +15,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
-// Geolocation is panel-side and uses only the observed public IP. It never
+// Geolocation is panel-side and uses the resolved location IP. It never
 // connects to that IP, accepts a user-supplied URL, or sends node credentials.
 func lookupLocation(ctx context.Context, ip string) (*domain.GeoLocation, error) {
 	client := &http.Client{Timeout: 4 * time.Second}

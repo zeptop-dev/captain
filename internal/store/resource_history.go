@@ -403,7 +403,7 @@ type MonitorNode struct {
 // The persisted snapshot survives panel restarts. Receipt time is independent
 // from liveness: a recent status/task request must not make old metrics fresh.
 func (s *Store) MonitorNodes(ctx context.Context, at time.Time, grace time.Duration, nodeIDs ...int64) ([]MonitorNode, error) {
-	query := `SELECT id,name,monitor_group,token_hash,last_seen_at,probe_info_json,monitor_at,monitor_host_json,host_reported_at,host_status_json,region_mode,address_json,region_detection_json,COALESCE((SELECT name_zh FROM node_display_groups WHERE name=nodes.monitor_group),''),COALESCE((SELECT name_en FROM node_display_groups WHERE name=nodes.monitor_group),'') FROM nodes`
+	query := `SELECT id,name,monitor_group,token_hash,last_seen_at,probe_info_json,monitor_at,monitor_host_json,host_reported_at,host_status_json,region_mode,address_json,region_detection_json,COALESCE((SELECT name_zh FROM node_display_groups WHERE name=nodes.monitor_group),''),COALESCE((SELECT name_en FROM node_display_groups WHERE name=nodes.monitor_group),''),` + locationIPColumns + ` FROM nodes`
 	var args []any
 	if len(nodeIDs) > 0 {
 		query += ` WHERE id=?`
@@ -421,7 +421,9 @@ func (s *Store) MonitorNodes(ctx context.Context, at time.Time, grace time.Durat
 		var info, beatHost, reportHost, regionMode, addressJSON, regionJSON string
 		var last sql.NullInt64
 		var beatAt, reportAt int64
-		if err := rows.Scan(&n.ID, &n.Name, &n.Group, &token, &last, &info, &beatAt, &beatHost, &reportAt, &reportHost, &regionMode, &addressJSON, &regionJSON, &n.GroupZH, &n.GroupEN); err != nil {
+		var locationInput locationIPInput
+		args := append([]any{&n.ID, &n.Name, &n.Group, &token, &last, &info, &beatAt, &beatHost, &reportAt, &reportHost, &regionMode, &addressJSON, &regionJSON, &n.GroupZH, &n.GroupEN}, locationInput.scanArgs()...)
+		if err := rows.Scan(args...); err != nil {
 			return nil, err
 		}
 		n.Paired = token.Valid && token.String != ""
@@ -435,7 +437,8 @@ func (s *Store) MonitorNodes(ctx context.Context, at time.Time, grace time.Durat
 		var detection RegionDetection
 		_ = json.Unmarshal([]byte(addressJSON), &obs)
 		_ = json.Unmarshal([]byte(regionJSON), &detection)
-		resolveRegion(&n.Info, regionMode, obs, detection)
+		locationInput.decode(obs)
+		resolveRegion(&n.Info, regionMode, obs, detection, locationInput)
 		n.SampledAt = beatAt
 		raw := beatHost
 		if reportAt > beatAt {

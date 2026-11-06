@@ -357,6 +357,7 @@ func (h *handlers) putNodeProbe(w http.ResponseWriter, r *http.Request) {
 		InfrastructureRevision *string
 		SupplierID             *int64
 		RegionMode             *string
+		LocationIP             *store.LocationIPSettings
 		Hidden                 bool
 		Info                   store.NodeProbeInfo
 		LimitBytes             int64
@@ -393,7 +394,7 @@ func (h *handlers) putNodeProbe(w http.ResponseWriter, r *http.Request) {
 	}
 	canControl := h.serviceControlWriteAllowed(r)
 	guard := store.NodeInfrastructureGuard{Revision: in.InfrastructureRevision, SupplierID: in.SupplierID, CanWrite: h.infrastructureWriteAllowed(r, idOf(r)), ServiceControlWrite: &canControl}
-	if err := h.Store.UpdateNodeProbeWithInfrastructure(r.Context(), idOf(r), in.Hidden, in.Info, in.LimitBytes, in.ResetDay, in.Mode, in.Resources, in.RegionMode, in.ExpectedExpiresAt, guard, in.Storage); err != nil {
+	if err := h.Store.UpdateNodeProbeWithLocationIP(r.Context(), idOf(r), in.Hidden, in.Info, in.LimitBytes, in.ResetDay, in.Mode, in.Resources, in.RegionMode, in.ExpectedExpiresAt, guard, in.LocationIP, in.Storage); err != nil {
 		if errors.Is(err, store.ErrServiceControlPermission) || errors.Is(err, store.ErrInfrastructureConflict) || errors.Is(err, store.ErrInfrastructurePermission) || errors.Is(err, store.ErrInfrastructureConversion) || errors.Is(err, store.ErrInfrastructureLinked) {
 			infraError(w, err)
 			return
@@ -406,7 +407,7 @@ func (h *handlers) putNodeProbe(w http.ResponseWriter, r *http.Request) {
 			fail(w, http.StatusConflict, err.Error())
 			return
 		}
-		if errors.Is(err, domain.ErrGeoLocation) || errors.Is(err, domain.ErrLocationSettings) || errors.Is(err, store.ErrNodeRegion) || errors.Is(err, store.ErrNodeCost) || errors.Is(err, store.ErrNodeBandwidth) || errors.Is(err, store.ErrNodeStorage) {
+		if errors.Is(err, domain.ErrGeoLocation) || errors.Is(err, domain.ErrLocationSettings) || errors.Is(err, store.ErrNodeRegion) || errors.Is(err, store.ErrLocationIP) || errors.Is(err, store.ErrNodeCost) || errors.Is(err, store.ErrNodeBandwidth) || errors.Is(err, store.ErrNodeStorage) {
 			fail(w, 400, err.Error())
 			return
 		}
