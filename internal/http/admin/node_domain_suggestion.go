@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/zeptop-dev/captain/internal/dns"
@@ -30,12 +31,45 @@ type nodeDomainZone struct {
 	Token  string
 }
 
-func (h *handlers) suggestionZone(ctx context.Context, name string) (*nodeDomainZone, error) {
-	d, err := h.Store.DomainFor(ctx, name)
+var errAmbiguousSuggestionZone = errors.New("registered domains contain equivalent names; remove the duplicate before generating a hostname")
+
+// The catalog predates canonical IDNA storage. Match a normalized copy while
+// retaining the original row for provider credentials and change validation.
+func (h *handlers) suggestionDomainFor(ctx context.Context, name string) (*store.Domain, error) {
+	list, err := h.Store.ListDomains(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if d == nil || d.Name != name {
+	var best *store.Domain
+	bestLength := 0
+	seen := map[string]bool{}
+	for i := range list {
+		candidate := &list[i]
+		canonical, err := domain.NormalizeNodeDomain(candidate.Name)
+		if err != nil || canonical == "" || (name != canonical && !strings.HasSuffix(name, "."+canonical)) {
+			continue
+		}
+		if seen[canonical] {
+			return nil, errAmbiguousSuggestionZone
+		}
+		seen[canonical] = true
+		if len(canonical) > bestLength {
+			best, bestLength = candidate, len(canonical)
+		}
+	}
+	return best, nil
+}
+
+func (h *handlers) suggestionZone(ctx context.Context, name string) (*nodeDomainZone, error) {
+	d, err := h.suggestionDomainFor(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	canonical := ""
+	if d != nil {
+		canonical, _ = domain.NormalizeNodeDomain(d.Name)
+	}
+	if d == nil || canonical != name {
 		return nil, store.ErrNotFound
 	}
 	token := d.CFToken
@@ -86,6 +120,10 @@ func (h *handlers) suggestNodeDomain(w http.ResponseWriter, r *http.Request) {
 	h.Store.Accounts.RLock()
 	h.requireAdmin(func(w http.ResponseWriter, r *http.Request) {
 		saved, err = h.suggestionZone(r.Context(), zone)
+		if errors.Is(err, errAmbiguousSuggestionZone) {
+			fail(w, 409, errAmbiguousSuggestionZone.Error())
+			return
+		}
 		if errors.Is(err, store.ErrNotFound) {
 			fail(w, 400, "select a registered domain")
 			return
@@ -162,7 +200,7 @@ func (h *handlers) suggestNodeDomain(w http.ResponseWriter, r *http.Request) {
 	defer h.Store.Accounts.Unlock()
 	h.requireAdmin(func(w http.ResponseWriter, r *http.Request) {
 		current, e := h.suggestionZone(r.Context(), zone)
-		if errors.Is(e, store.ErrNotFound) {
+		if errors.Is(e, store.ErrNotFound) || errors.Is(e, errAmbiguousSuggestionZone) {
 			fail(w, 409, "domain settings changed; try again")
 			return
 		}
@@ -187,7 +225,11 @@ func (h *handlers) suggestNodeDomain(w http.ResponseWriter, r *http.Request) {
 			fail(w, 409, "domain was just claimed; try again")
 			return
 		}
-		actual, e := h.Store.DomainFor(r.Context(), result.Domain)
+		actual, e := h.suggestionDomainFor(r.Context(), result.Domain)
+		if errors.Is(e, errAmbiguousSuggestionZone) {
+			fail(w, 409, "domain settings changed; try again")
+			return
+		}
 		if e != nil {
 			serverErr(w, e)
 			return

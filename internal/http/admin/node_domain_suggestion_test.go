@@ -300,3 +300,104 @@ func TestNodeDomainSuggestionClaims(t *testing.T) {
 		t.Fatal("wildcard certificate or IP treated as an exact hostname claim")
 	}
 }
+
+func TestNodeDomainSuggestionUnicodeRegisteredZone(t *testing.T) {
+	h, _, _ := suggestionRig(t, "manual", "")
+	ctx := context.Background()
+	z := &store.Domain{Name: "bücher.example", Provider: "cloudflare", CFToken: "unicode-fixture-token"}
+	if err := h.Store.CreateDomain(ctx, z); err != nil {
+		t.Fatal(err)
+	}
+	cf := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var result any = []any{}
+		if r.URL.Path == "/zones" {
+			if r.URL.Query().Get("name") != "xn--bcher-kva.example" {
+				t.Error("provider zone was not canonical ASCII", r.URL)
+			}
+			result = []map[string]string{{"id": "zone"}}
+		} else if !strings.HasSuffix(r.URL.Query().Get("name"), ".xn--bcher-kva.example") {
+			t.Error("provider hostname was not canonical ASCII", r.URL)
+		}
+		if r.Header.Get("Authorization") != "Bearer unicode-fixture-token" {
+			t.Error("wrong zone token")
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"success": true, "result": result})
+	}))
+	defer cf.Close()
+	h.DNS.Base = cf.URL
+	for _, name := range []string{"bücher.example", "xn--bcher-kva.example"} {
+		body, _ := json.Marshal(map[string]string{"zone": name})
+		w := requestSuggestion(h, string(body))
+		if w.Code != 200 {
+			t.Fatalf("registered %s: %d %s", name, w.Code, w.Body.String())
+		}
+		var result nodeDomainSuggestion
+		if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+			t.Fatal(err)
+		}
+		if result.DNSCheck != "checked" || !strings.HasSuffix(result.Domain, ".xn--bcher-kva.example") {
+			t.Fatal(w.Body.String())
+		}
+	}
+}
+
+func TestNodeDomainSuggestionEquivalentCatalogNames(t *testing.T) {
+	for _, late := range []bool{false, true} {
+		t.Run(map[bool]string{false: "initial", true: "during-provider-check"}[late], func(t *testing.T) {
+			h, _, _ := suggestionRig(t, "manual", "")
+			ctx := context.Background()
+			if err := h.Store.CreateDomain(ctx, &store.Domain{Name: "bücher.example", Provider: "cloudflare", CFToken: "first-token"}); err != nil {
+				t.Fatal(err)
+			}
+			duplicate := func() {
+				t.Helper()
+				if err := h.Store.CreateDomain(ctx, &store.Domain{Name: "xn--bcher-kva.example", Provider: "cloudflare", CFToken: "different-token"}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if !late {
+				duplicate()
+			}
+			var calls atomic.Int32
+			cf := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls.Add(1)
+				var result any = []any{}
+				if r.URL.Path == "/zones" {
+					result = []map[string]string{{"id": "zone"}}
+				} else {
+					duplicate()
+				}
+				_ = json.NewEncoder(w).Encode(map[string]any{"success": true, "result": result})
+			}))
+			defer cf.Close()
+			h.DNS.Base = cf.URL
+			w := requestSuggestion(h, `{"zone":"bücher.example"}`)
+			if w.Code != 409 || strings.Contains(w.Body.String(), `"prefix"`) {
+				t.Fatal(w.Code, w.Body.String())
+			}
+			if !late && calls.Load() != 0 {
+				t.Fatal("ambiguous catalog chose a provider token")
+			}
+		})
+	}
+}
+
+func TestNodeDomainSuggestionLongestCanonicalSuffix(t *testing.T) {
+	h, _, _ := suggestionRig(t, "manual", "")
+	ctx := context.Background()
+	parent := &store.Domain{Name: "bücher.example", Provider: "manual"}
+	child := &store.Domain{Name: "edge.bücher.example", Provider: "cloudflare", CFToken: "child-token"}
+	for _, z := range []*store.Domain{parent, child} {
+		if err := h.Store.CreateDomain(ctx, z); err != nil {
+			t.Fatal(err)
+		}
+	}
+	match, err := h.suggestionDomainFor(ctx, "host.edge.xn--bcher-kva.example")
+	if err != nil || match == nil || match.ID != child.ID || match.Name != child.Name || match.CFToken != child.CFToken {
+		t.Fatal("longest normalized match did not retain original row", match, err)
+	}
+	saved, err := h.suggestionZone(ctx, "edge.xn--bcher-kva.example")
+	if err != nil || saved.Domain.ID != child.ID || saved.Token != child.CFToken {
+		t.Fatal(saved, err)
+	}
+}
