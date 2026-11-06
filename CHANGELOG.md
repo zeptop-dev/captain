@@ -1,5 +1,7 @@
 # Changelog
 
+- **Unreleased** — Compose server hostnames from a subdomain prefix and registered domain, with read-only random suggestions and explicit DNS-check results. Preserve complete external/apex names and shared-DNS behavior; block incomplete drafts without changing the stored domain API.
+
 - **v1.57.1** (2026-11-06) — Use the formal bosun v0.91.3 catalog for standard sing-box security packages: compatible `1.14.1-r3` is tested, while `1.14.4-r1` requires explicit activation after configuration preflight. Preserve existing selected versions and the routing API's accepted member lists, including unrelated edits to historical configurations with repeated members. Add real HTTP regression coverage for preservation and invalid-reference rejection. No database migration, protocol change or rollback-floor change.
 
 - **v1.57.0** (2026-11-06) — Add a separate OS-dependency installation choice to full native server setup. Preserve Captain/GitHub defaults and older install commands, reject unsupported explicit choices before executing an old installer, and keep Docker/monitor-only setup independent.

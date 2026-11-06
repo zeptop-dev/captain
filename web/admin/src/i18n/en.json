@@ -4422,6 +4422,7 @@
     "manualHint": "Full input only changes how you enter the name. The shared-domain switch controls automatic DNS separately. To use the domain list, first clear any hostname that does not match it.",
     "checked": "Checked: no DNS records with this name were found. The name is not reserved; saving handles DNS according to the current settings.",
     "unverified": "Name generated, but existing DNS records could not be checked. Review them before saving.",
-    "randomFailed": "Could not generate a name. Try again or enter one manually."
+    "randomFailed": "Could not generate a name. Try again or enter one manually.",
+    "idnHint": "For automatic DNS, register this domain using its ASCII (Punycode) name."
   }
 }

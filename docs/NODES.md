@@ -771,6 +771,24 @@ or its own token when the zone lives in another account, or "manual" —
 shows what uses each one (node host names, inbound TLS names, subscription
 hosts, the panel itself) and manages certificates:
 
+Server creation and profile editing offer a subdomain prefix plus a searchable
+registered-domain selector. **Random** proposes a short word and four random
+characters after selecting a domain. It only fills the draft: it does not save
+a server, reserve a name or create DNS records. Suggestions avoid names already
+used in the panel. When Cloudflare credentials are available, the panel also
+checks for existing records of any type; an unavailable check is clearly marked
+unverified. DNS may change after this advisory check, so review existing records
+before saving. Normal save-time server-domain validation still applies. Internationalized names
+are normalized for suggestions. For automatic DNS, register their ASCII
+(Punycode) suffix in the catalog: the existing DNS writer matches catalog names
+literally; the picker flags this limitation for Unicode catalog entries.
+
+Shared / externally managed DNS uses a full-hostname field. Existing apex names
+and names outside the current domain catalog remain editable in that form;
+manual input alone does not enable sharing or disable automatic DNS. Partial
+prefix/domain selections cannot be submitted, and an empty prefix never silently
+selects an apex domain. The API continues to store one complete `Domain` value.
+
 - **Issue** — Let's Encrypt through DNS-01 on the panel, one certificate
   for any set of names (`example.com` plus `*.example.com` together is
   fine), stored in the database and renewed 30 days before expiry; the

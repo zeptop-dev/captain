@@ -68,6 +68,7 @@ export default function NodesPage() {
   const [opened, { open, close }] = useDisclosure()
   const [created, setCreated] = useState<Node | null>(null)
   const form = useForm({ initialValues: { Name: '', AutoIPv4: true, AutoIPv6: true, PublicAddr: '', InternalAddr: '', V6Addr: '', Domain: '', DomainShared: false, MonitorURL: '', Mode: 'full', AgentURL: '', DownloadSource: 'github' } })
+  const [domainIncomplete, setDomainIncomplete] = useState(false)
   const domainCheck = useNodeDomainCheck(form.values.Domain, form.values.DomainShared, undefined, opened && !created)
   const sys = useQuery({ queryKey: ['update'], queryFn: () => api.get<SystemUpdate>('/api/admin/system/update'), enabled: isAdmin, staleTime: 10 * 60_000, retry: false })
   const rollback = useMutation({ mutationFn: (id: number) => api.post(`/api/admin/nodes/${id}/jobs`, { kind: 'rollback', params: {} }), onSuccess: () => { toast.ok(t('nodes.rollbackQueued')); qc.invalidateQueries({ queryKey: ['nodes'] }) }, onError: toast.err })
@@ -126,9 +127,9 @@ export default function NodesPage() {
       <Text size="xs" c="dimmed" mt="xs">{t('nodes.hostTrafficHint')}</Text>
       <Text size="xs" c="dimmed" mt={4}>{t('nodes.proxyTrafficHint')}</Text>
       {organizing && layout.data && <NodeLayoutEditor initial={layout.data} nodes={q.data ?? []} onSaved={() => setNodeGroup(null)} close={() => setOrganizing(false)} />}
-      <Modal opened={opened} onClose={() => { close(); setCreated(null) }} title={created ? t('nodes.pairTitle') : t('nodes.create')} size="lg">
+      <Modal keepMounted opened={opened} onClose={() => { close(); setCreated(null) }} title={created ? t('nodes.pairTitle') : t('nodes.create')} size="lg">
         {created ? <PairCodeBox code={created.pair_code ?? ''} mode={created.mode} agentURL={created.effective_agent_url} downloadSource={created.download_source} /> : (
-          <form onSubmit={form.onSubmit((v) => create.mutate(v))}>
+          <form onSubmit={form.onSubmit((v) => { if (!domainIncomplete && !domainCheck.blocked) create.mutate(v) })}>
             <Stack>
               <Switch label={t('nodeMode.installOnly')} description={t('nodeMode.installHint')} checked={form.values.Mode === 'monitor'} onChange={e => form.setFieldValue('Mode', e.currentTarget.checked ? 'monitor' : 'full')} />
               {form.values.Mode === 'monitor' && <Text size="xs" c="dimmed">{t('nodeMode.openwrtHint')}</Text>}
@@ -138,10 +139,10 @@ export default function NodesPage() {
               {!form.values.AutoIPv4 && <TextInput label={t('nodes.publicAddr')} description={t('nodeAddresses.fixedHint')} placeholder="198.51.100.20" {...form.getInputProps('PublicAddr')} />}
               <Switch label={t('nodeAddresses.autoIPv6')} {...form.getInputProps('AutoIPv6', { type: 'checkbox' })} />
               {!form.values.AutoIPv6 && <TextInput label={t('nodes.v6Addr')} description={t('nodeAddresses.fixedHint')} {...form.getInputProps('V6Addr')} />}
-              <NodeDomainFields domain={form.values.Domain} shared={form.values.DomainShared} onDomainChange={v => form.setFieldValue('Domain', v)} onSharedChange={v => form.setFieldValue('DomainShared', v)} check={domainCheck} />
+              <NodeDomainFields active={opened && !created} domain={form.values.Domain} shared={form.values.DomainShared} onDomainChange={v => form.setFieldValue('Domain', v)} onSharedChange={v => form.setFieldValue('DomainShared', v)} check={domainCheck} onIncompleteChange={setDomainIncomplete} />
               <TextInput label={t('nodes.internalAddr')} description={t('nodeAddresses.internalHint')} {...form.getInputProps('InternalAddr')} />
               <AgentConnectionFields active={opened && !created} agentURL={form.values.AgentURL} downloadSource={form.values.DownloadSource} onURLChange={value => form.setFieldValue('AgentURL', value)} onSourceChange={value => form.setFieldValue('DownloadSource', value)} />
-              <Group justify="flex-end"><Button variant="default" onClick={close}>{t('common.cancel')}</Button><Button type="submit" disabled={domainCheck.blocked} loading={create.isPending}>{t('common.create')}</Button></Group>
+              <Group justify="flex-end"><Button variant="default" onClick={close}>{t('common.cancel')}</Button><Button type="submit" disabled={domainCheck.blocked || domainIncomplete} loading={create.isPending}>{t('common.create')}</Button></Group>
             </Stack>
           </form>
         )}

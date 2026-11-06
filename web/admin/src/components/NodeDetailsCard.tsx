@@ -24,7 +24,8 @@ export function NodeDetailsCard({ node: n, section }: { node: Node; section: Nod
   const [editNode, setEditNode] = useState(false)
   const [baseline, setBaseline] = useState(() => nodeEditValues(n))
   const nodeForm = useForm({ initialValues: baseline })
-  useSettingsDirty(editNode && nodeForm.isDirty())
+  const [domainIncomplete, setDomainIncomplete] = useState(false)
+  useSettingsDirty(editNode && (nodeForm.isDirty() || domainIncomplete))
   const internalUsage = useQuery({ queryKey: ['internal-address-usage', String(n.id)], queryFn: () => api.get<InternalAddressUsage>(`/api/admin/nodes/${n.id}/internal-address-usage`), enabled: editNode && section === 'profile' })
   const domainCheck = useNodeDomainCheck(nodeForm.values.Domain, nodeForm.values.DomainShared, n.id, editNode && section === 'profile')
   const internalChanged = nodeForm.values.InternalAddr.trim() !== baseline.InternalAddr.trim()
@@ -42,7 +43,7 @@ export function NodeDetailsCard({ node: n, section }: { node: Node; section: Nod
   })
   const close = () => {
     if (saveNode.isPending) return
-    if (!nodeForm.isDirty()) { setEditNode(false); return }
+    if (!nodeForm.isDirty() && !domainIncomplete) { setEditNode(false); return }
     modals.openConfirmModal({ title: t('workspace.unsaved'), children: <Text size="sm">{t('workspace.leaveHint')}</Text>, labels: { confirm: t('workspace.discard'), cancel: t('workspace.stay') }, onConfirm: () => setEditNode(false) })
   }
   return <>
@@ -59,11 +60,11 @@ export function NodeDetailsCard({ node: n, section }: { node: Node; section: Nod
     </Card>
     {section === 'profile' && <NodeAddressesCard nodeID={n.id} canWrite={me?.role === 'admin'} />}
     <Modal opened={editNode} onClose={close} title={t(section === 'profile' ? 'serverDetail.profile' : 'serverDetail.settings.proxy')} size="lg" closeOnClickOutside={false}>
-      <form onSubmit={nodeForm.onSubmit(v => { if (!internalBlocked) saveNode.mutate(v) })}><fieldset disabled={saveNode.isPending} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}><Stack>
+      <form onSubmit={nodeForm.onSubmit(v => { if (!internalBlocked && (section !== 'profile' || !domainIncomplete && !domainCheck.blocked)) saveNode.mutate(v) })}><fieldset disabled={saveNode.isPending} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}><Stack>
         {section === 'profile' ? <>
           <TextInput label={t('nodes.name')} required {...nodeForm.getInputProps('Name')} />
           <TextInput label={t('nodes.publicAddr')} {...nodeForm.getInputProps('PublicAddr')} />
-          <NodeDomainFields domain={nodeForm.values.Domain} shared={nodeForm.values.DomainShared} onDomainChange={v => nodeForm.setFieldValue('Domain', v)} onSharedChange={v => nodeForm.setFieldValue('DomainShared', v)} check={domainCheck} />
+          <NodeDomainFields active={editNode && section === 'profile'} domain={nodeForm.values.Domain} shared={nodeForm.values.DomainShared} onDomainChange={v => nodeForm.setFieldValue('Domain', v)} onSharedChange={v => nodeForm.setFieldValue('DomainShared', v)} check={domainCheck} onIncompleteChange={setDomainIncomplete} />
           <Group grow><TextInput label={t('nodes.internalAddr')} description={t('nodeAddresses.internalHint')} {...nodeForm.getInputProps('InternalAddr')} /><TextInput label={t('nodes.v6Addr')} {...nodeForm.getInputProps('V6Addr')} /></Group>
           {internalUsage.isPending && <Text size="xs" c="dimmed">{t('forwardAddress.checkingUsage')}</Text>}
           {internalUsage.isError && <Alert color="red"><Text size="sm">{t('forwardAddress.usageError')}</Text><Button variant="subtle" size="xs" onClick={() => internalUsage.refetch()}>{t('workspace.retry')}</Button></Alert>}
@@ -82,7 +83,7 @@ export function NodeDetailsCard({ node: n, section }: { node: Node; section: Nod
           {nodeForm.values.DecoyEnabled && <TextInput label={t('nodes.decoyUpstream')} description={t('nodes.decoyUpstreamHint')} placeholder="https://www.example.com" {...nodeForm.getInputProps('DecoyUpstream')} />}
 
         </>}
-        <Group justify="flex-end"><Button variant="default" disabled={saveNode.isPending} onClick={close}>{t('common.cancel')}</Button><Button type="submit" disabled={section === 'profile' && domainCheck.blocked || internalBlocked} loading={saveNode.isPending}>{t('common.save')}</Button></Group>
+        <Group justify="flex-end"><Button variant="default" disabled={saveNode.isPending} onClick={close}>{t('common.cancel')}</Button><Button type="submit" disabled={section === 'profile' && (domainCheck.blocked || domainIncomplete) || internalBlocked} loading={saveNode.isPending}>{t('common.save')}</Button></Group>
       </Stack></fieldset></form>
     </Modal>
   </>

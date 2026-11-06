@@ -90,6 +90,7 @@ mita（mieru）、Hysteria、snell-server 和 realm 作为子进程拉起来。
 - 将入站、普通线路与订阅节点放进同一份草稿，预览最终拓扑后原子提交；提交时重新检查对象身份、版本及原有操作权限。[跨对象变更集与支持范围](docs/TOPOLOGY_CHANGESETS.md)。
 - 可选探测穿过完整 TCP 中继候选路径的 TLS/HTTP/SOCKS5 握手。自动切换默认关闭；开启后只选择已确认健康的候选，没有健康候选时拒绝新连接。需要 bosun v0.85.0 及新鲜能力报告。[路径健康与验证边界](docs/PATH_HEALTH.md)。
 - 订阅节点支持独立展示分类，可单个或批量归类，并在后台和用户门户筛选。分类名称、说明与顺序不改变权限、计费、标签或订阅节点顺序。[节点分类](docs/SUBSCRIPTIONS.md#entries-what-each-user-sees)。
+- 创建和修改服务器时，可用子域名前缀与已登记域名组合主机名，随机生成候选并查看 DNS 占用检查结果；共享或外部域名仍可完整输入。[服务器域名](docs/NODES.md)。
 - 节点域名冲突检查与显式共享／外部 DNS 模式防止误覆盖记录；DNS 健康检查、持续异常告警和自动变更历史帮助定位问题，并按已保存的旧值手动恢复。[DNS 运维说明](docs/MONITORING.md)。
 - 在节点详情下载已审核的内核包并激活指定版本（bosun ≥ 0.64）。官方与 Extended sing-box 可同时运行；SSH TCP 代理订阅带有持久主机公钥验证。[内核管理与支持范围](docs/NODES.md#managing-node-core-packages)。
 - Captain v1.27 / bosun v0.74 将私网策略能力与 nft 运行状态分开报告，提供前提检查并自动判定防护方式；仅内核授权须管理员明确确认，继续支持指定地址、协议和端口。[自动防护方式](docs/NODES.md#automatic-protection-mode)。
