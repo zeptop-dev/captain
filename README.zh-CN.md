@@ -19,7 +19,7 @@
 
 ---
 
-Captain v1.57.0 / bosun v0.91.0 新增原生安装的独立系统包选项，以及缺失网络依赖后的有界恢复。Doctor 区分工具缺失与部分生效；LXC 仍需宿主机提供相应内核权限。[兼容性](docs/COMPATIBILITY.md#native-network-dependencies-captain-v1570--bosun-v0910)。
+Captain v1.57.0 / bosun v0.91.1 新增原生安装的独立系统包选项，以及缺失网络依赖后的有界恢复。Doctor 区分工具缺失与部分生效；LXC 仍需宿主机提供相应内核权限。[兼容性](docs/COMPATIBILITY.md#native-network-dependencies-captain-v1570--bosun-v0911)。
 
 Captain v1.22 / bosun v0.70 新增 NextTrace 一键安装、工具与 ICMP 权限检查，以及显示实际阶段的升级进度条。
 
