@@ -7,6 +7,28 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.56.0 to preserve independent server plans and interface-bound probes.
 
+## Standard sing-box security packages (Captain v1.57.1 / bosun v0.91.3)
+
+The shared catalog includes a compatible `1.14.1-r3` rebuild using Go 1.26.10
+and reviewed dependency security updates. It is the tested default; affected
+`1.14.1-r1` and `1.14.1-r2` keep their immutable identities and are marked broken.
+Previously selected exact packages remain selected until an administrator
+changes them. Installing a new bosun version alone does not prove that its
+running proxy cores have changed.
+
+The newer `1.14.4-r1` package is caution and requires explicit activation.
+Its upstream parser rejects repeated members in outbound groups that older
+versions accepted. Captain keeps the existing routing API contract, including
+unrelated edits to these historical configurations. Correct incompatible
+groups and use core management's candidate configuration preflight before
+switching; a downloaded package is not an active package. A failed candidate
+preflight preserves the running core.
+
+Captain v1.57.1 uses the formal bosun v0.91.3 module to serve these package
+identities through Captain delivery. Existing agent protocol fields, schema
+113 and rollback floors are unchanged. Older panels do not gain the new
+download catalog until upgraded.
+
 ## Native network dependencies (Captain v1.57.0 / bosun v0.91.2)
 
 This release also recognizes the reviewed Extended r4 core package and GeoCheck

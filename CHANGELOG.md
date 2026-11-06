@@ -1,5 +1,7 @@
 # Changelog
 
+- **v1.57.1** (2026-11-06) — Use the formal bosun v0.91.3 catalog for standard sing-box security packages: compatible `1.14.1-r3` is tested, while `1.14.4-r1` requires explicit activation after configuration preflight. Preserve existing selected versions and the routing API's accepted member lists, including unrelated edits to historical configurations with repeated members. Add real HTTP regression coverage for preservation and invalid-reference rejection. No database migration, protocol change or rollback-floor change.
+
 - **v1.57.0** (2026-11-06) — Add a separate OS-dependency installation choice to full native server setup. Preserve Captain/GitHub defaults and older install commands, reject unsupported explicit choices before executing an old installer, and keep Docker/monitor-only setup independent.
   - Reduce repeated SQLite migration work in business tests by cloning a checkpointed, fully migrated empty database into an isolated file for each test; retain real migration, upgrade and reset coverage. Release tags can reuse verified successful master-push CI for the exact commit, with full-test fallback and binary smoke checks; manual dry runs remain complete and publish nothing.
   - Use the formal bosun v0.91.2 dependency for native network-dependency recovery and accurate enforcement diagnostics. Recognize the security-rebuilt Extended r4 and GeoCheck r2 download identities. Existing agents remain compatible; no database migration or rollback-floor change.

@@ -21,6 +21,8 @@
 
 Captain v1.57.0 / bosun v0.91.2 新增原生安装的独立系统包选项，以及缺失网络依赖后的有界恢复。Doctor 区分工具缺失与部分生效；LXC 仍需宿主机提供相应内核权限。[兼容性](docs/COMPATIBILITY.md#native-network-dependencies-captain-v1570--bosun-v0912)。
 
+Captain v1.57.1 / bosun v0.91.3 新增标准 sing-box 安全包：兼容旧配置的 1.14.1-r3 为经过验证的默认版本，1.14.4-r1 需要预检后显式激活。现有路由数据和已选择的内核版本保持不变。[内核兼容性](docs/COMPATIBILITY.md#standard-sing-box-security-packages-captain-v1571--bosun-v0913)。
+
 Captain v1.22 / bosun v0.70 新增 NextTrace 一键安装、工具与 ICMP 权限检查，以及显示实际阶段的升级进度条。
 
 监控分组与订阅节点分类支持中英文名称，任填一个即可保存；中文界面优先中文，其余语言优先英文，缺少时回退已有名称。节点管理提供共用分组与排序：支持拖拽、上下移动、批量改组和并发保存检查，公开探针同步沿用。无需升级 bosun。 地区下拉框支持按机器公网 IP 自动识别、手动选择国旗与代码，或不显示地区。[分组与排序](docs/NODES.md#groups-and-display-order)。
