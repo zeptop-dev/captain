@@ -2,23 +2,16 @@ package store
 
 import (
 	"context"
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/domain"
 	"path/filepath"
 	"testing"
 	"time"
 )
 
-func monitorRig(t *testing.T) (*Store, int64, time.Time) {
+func monitorRig(t *testing.T, mode ...fixtureDBMode) (*Store, int64, time.Time) {
 	t.Helper()
-	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "monitor.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { conn.Close() })
-	if err = db.Migrate(context.Background(), conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	conn := fixtureDB(t, filepath.Join(t.TempDir(), "monitor.db"), mode...)
+	var err error
 	s := New(conn)
 	n := &domain.Node{Name: "edge"}
 	if err = s.CreateNode(context.Background(), n, "monitor", time.Hour); err != nil {

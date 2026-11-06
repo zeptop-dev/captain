@@ -13,7 +13,7 @@ import (
 
 func TestResetSiteClearsPinnedPathsActiveRolloutAndOldIdentity(t *testing.T) {
 	ctx := context.Background()
-	r := newRolloutRig(t)
+	r := newRolloutRig(t, migrateFixture)
 	r.line.Groups = r.line.Groups[1:]
 	if err := r.s.SaveLine(ctx, r.line); err != nil {
 		t.Fatal(err)

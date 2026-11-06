@@ -23,17 +23,11 @@ const configTestToken = "config-test-identity"
 const configSessionA = "11111111111111111111111111111111"
 const configSessionB = "22222222222222222222222222222222"
 
-func configEvidenceRig(t *testing.T) (*Store, int64, time.Time, string) {
+func configEvidenceRig(t *testing.T, mode ...fixtureDBMode) (*Store, int64, time.Time, string) {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "evidence.db")
-	conn, err := db.Open("sqlite", path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { conn.Close() })
-	if err = db.Migrate(context.Background(), conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	conn := fixtureDB(t, path, mode...)
+	var err error
 	s := New(conn)
 	n := &domain.Node{Name: "Evidence test"}
 	if err = s.CreateNode(context.Background(), n, "EVIDENCE", time.Hour); err != nil {
@@ -334,7 +328,7 @@ func TestNodeConfigEvidenceTransactionsRollback(t *testing.T) {
 	}
 }
 func TestNodeConfigEvidenceReopenAndMigrationPreserveLegacy(t *testing.T) {
-	s, id, at, path := configEvidenceRig(t)
+	s, id, at, path := configEvidenceRig(t, migrateFixture)
 	a := configDelivery(t, s, id, configSessionA, "cfg", "state", at)
 	recordConfig(t, s, id, configReceipt(a, "cfg", "state", 1, at), at)
 	b := configDelivery(t, s, id, configSessionB, "cfg", "state", at.Add(time.Second))
@@ -418,7 +412,7 @@ func TestNodeConfigEvidenceDeleteAndIDReuse(t *testing.T) {
 }
 
 func TestNodeConfigEvidenceSiteResetClearsFencesAndHistory(t *testing.T) {
-	s, id, at, _ := configEvidenceRig(t)
+	s, id, at, _ := configEvidenceRig(t, migrateFixture)
 	ctx := context.Background()
 	d := configDelivery(t, s, id, configSessionA, "cfg", "state", at)
 	recordConfig(t, s, id, configReceipt(d, "cfg", "state", 1, at), at)

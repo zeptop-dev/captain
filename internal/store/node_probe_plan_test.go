@@ -8,20 +8,13 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/spec"
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-func probePlanRig(t *testing.T) (*Store, int64) {
+func probePlanRig(t *testing.T, mode ...fixtureDBMode) (*Store, int64) {
 	t.Helper()
-	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "probe.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { conn.Close() })
-	if err = db.Migrate(context.Background(), conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	conn := fixtureDB(t, filepath.Join(t.TempDir(), "probe.db"), mode...)
+	var err error
 	s := New(conn)
 	n := &domain.Node{Name: "Monitor", Mode: spec.NodeMonitor}
 	if err = s.CreateNode(context.Background(), n, "pair", time.Hour); err != nil {

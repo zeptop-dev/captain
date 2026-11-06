@@ -12,9 +12,9 @@ import (
 	"time"
 )
 
-func pathRolloutRig(t *testing.T) (*rolloutRig, *PathRoute) {
+func pathRolloutRig(t *testing.T, mode ...fixtureDBMode) (*rolloutRig, *PathRoute) {
 	t.Helper()
-	s, ns, ib, p := pathFixture(t)
+	s, ns, ib, p := pathFixture(t, mode...)
 	r := &rolloutRig{s: s, nodes: ns, ib: ib, at: time.Now().UTC().Truncate(time.Millisecond), seq: map[int64]uint64{}}
 	for _, n := range ns {
 		if _, e := s.db.Exec(`UPDATE nodes SET token_hash=? WHERE id=?`, r.token(n.ID), n.ID); e != nil {
@@ -261,7 +261,7 @@ func TestPathRolloutReopenAndConcurrentPlanners(t *testing.T) {
 
 func TestPathRolloutIncarnationFenceAndReset(t *testing.T) {
 	ctx := context.Background()
-	r, draft := pathRolloutRig(t)
+	r, draft := pathRolloutRig(t, migrateFixture)
 	p, e := r.s.PlanPathRollout(ctx, draft, false, time.Minute)
 	if e != nil {
 		t.Fatal(e)

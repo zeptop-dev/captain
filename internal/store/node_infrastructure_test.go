@@ -11,9 +11,9 @@ import (
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-func infrastructureRig(t *testing.T) (*Store, int64, InfraSupplier) {
+func infrastructureRig(t *testing.T, mode ...fixtureDBMode) (*Store, int64, InfraSupplier) {
 	t.Helper()
-	s, id := nodeRenewalRig(t)
+	s, id := nodeRenewalRig(t, mode...)
 	sup := InfraSupplier{Name: "Example provider", URL: "https://example.com", Contact: "private contact", Notes: "private notes"}
 	if err := s.SaveInfraSupplier(context.Background(), &sup); err != nil {
 		t.Fatal(err)
@@ -301,7 +301,7 @@ func TestNodeInfrastructureExactConversion(t *testing.T) {
 }
 
 func TestNodeInfrastructureConcurrentSelectionAndReset(t *testing.T) {
-	s, id, sup := infrastructureRig(t)
+	s, id, sup := infrastructureRig(t, migrateFixture)
 	ctx := context.Background()
 	v := infrastructureView(t, s, id)
 	changes := []NodeInfrastructureChange{

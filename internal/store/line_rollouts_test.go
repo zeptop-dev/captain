@@ -25,9 +25,9 @@ type rolloutRig struct {
 	seq   map[int64]uint64
 }
 
-func newRolloutRig(t *testing.T) *rolloutRig {
+func newRolloutRig(t *testing.T, mode ...fixtureDBMode) *rolloutRig {
 	t.Helper()
-	s, ns, ib, l := lineFixture(t)
+	s, ns, ib, l := lineFixture(t, mode...)
 	l.Groups = []LineGroup{{Strategy: "failover", Members: []LineMember{{NodeID: ns[0].ID, Port: 18443}}}, {Strategy: "failover", Members: []LineMember{{NodeID: ns[1].ID, Port: 19443}}}, {Strategy: "failover", Members: []LineMember{{NodeID: ns[2].ID, Port: 20443}}}}
 	r := &rolloutRig{s: s, nodes: ns, line: l, ib: ib, at: time.Now().UTC().Truncate(time.Millisecond), seq: map[int64]uint64{}}
 	for _, n := range ns {

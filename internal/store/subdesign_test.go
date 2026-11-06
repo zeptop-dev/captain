@@ -8,19 +8,11 @@ import (
 	"testing"
 
 	"github.com/zeptop-dev/bosun/pkg/subdesign"
-	"github.com/zeptop-dev/captain/internal/db"
 )
 
-func subDesignStore(t *testing.T) *Store {
+func subDesignStore(t *testing.T, mode ...fixtureDBMode) *Store {
 	t.Helper()
-	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "captain.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { conn.Close() })
-	if err := db.Migrate(context.Background(), conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	conn := fixtureDB(t, filepath.Join(t.TempDir(), "captain.db"), mode...)
 	return New(conn)
 }
 

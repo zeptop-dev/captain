@@ -121,7 +121,7 @@ func TestRenderedConfigCurrentSurvivesHistoryWindowAndRollback(t *testing.T) {
 }
 
 func TestRenderedConfigRetentionAndReset(t *testing.T) {
-	s, id, at, _ := configEvidenceRig(t)
+	s, id, at, _ := configEvidenceRig(t, migrateFixture)
 	ctx := context.Background()
 	for i := 0; i < 105; i++ {
 		state := fmt.Sprintf("state-%d", i)

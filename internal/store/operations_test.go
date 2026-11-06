@@ -353,7 +353,7 @@ func TestOperationUpgradeClearedSlotDoesNotSwallowSameVersionRequest(t *testing.
 
 func TestOperationUpgradeRetentionDeleteAndReset(t *testing.T) {
 	ctx := context.Background()
-	s, ns, _, _ := lineFixture(t)
+	s, ns, _, _ := lineFixture(t, migrateFixture)
 	id := ns[0].ID
 	_, e := s.db.Exec(`UPDATE nodes SET token_hash='paired-'||id`)
 	if e != nil {

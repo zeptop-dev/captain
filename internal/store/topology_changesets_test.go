@@ -13,9 +13,9 @@ import (
 )
 
 func topologyPtr[T any](v T) *T { return &v }
-func topologyDraftFixture(t *testing.T) (*Store, *TopologyChangeset) {
+func topologyDraftFixture(t *testing.T, mode ...fixtureDBMode) (*Store, *TopologyChangeset) {
 	t.Helper()
-	s, ns, _, l := lineFixture(t)
+	s, ns, _, l := lineFixture(t, mode...)
 	d := &TopologyChangeset{Name: "New subscription route", Operations: []TopologyOperation{
 		{Key: "landing", Kind: "inbound", Inbound: &TopologyInboundPatch{NodeID: ns[3].ID, Tag: topologyPtr("new-landing"), Port: topologyPtr(2443), Protocol: spec.Shadowsocks, Settings: &spec.Inbound{Cipher: "2022-blake3-aes-128-gcm"}}},
 		{Key: "route", Kind: "line", InboundRef: "landing", Line: l},
@@ -291,7 +291,7 @@ func TestTopologyChangesetCreationSecretStableAcrossDraftUpdates(t *testing.T) {
 }
 func TestTopologyChangesetResetRemovesDraftAndIncarnations(t *testing.T) {
 	ctx := context.Background()
-	s, d := topologyDraftFixture(t)
+	s, d := topologyDraftFixture(t, migrateFixture)
 	admin := &domain.User{Email: "admin@example.com", PasswordHash: "test-hash", Role: domain.RoleAdmin, Status: "active"}
 	if err := s.CreateStaff(ctx, admin); err != nil {
 		t.Fatal(err)

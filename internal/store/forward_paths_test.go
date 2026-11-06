@@ -12,10 +12,10 @@ import (
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-func pathFixture(t *testing.T) (*Store, []*domain.Node, *domain.Inbound, *PathRoute) {
+func pathFixture(t *testing.T, mode ...fixtureDBMode) (*Store, []*domain.Node, *domain.Inbound, *PathRoute) {
 	t.Helper()
 	ctx := context.Background()
-	s, ns, ib, _ := lineFixture(t)
+	s, ns, ib, _ := lineFixture(t, mode...)
 	b := &ForwardPath{Name: "Complete B", Steps: []PathStep{{NodeID: ns[1].ID}, {NodeID: ns[2].ID}}}
 	c := &ForwardPath{Name: "Complete C", Steps: []PathStep{{NodeID: ns[2].ID}}}
 	for _, p := range []*ForwardPath{b, c} {
@@ -361,7 +361,7 @@ func TestPathRouteLandingAndAddressModeEditsCompileNewIntent(t *testing.T) {
 }
 func TestPathLimitsAndReset(t *testing.T) {
 	ctx := context.Background()
-	s, ns, _, r := pathFixture(t)
+	s, ns, _, r := pathFixture(t, migrateFixture)
 	prev, e := s.ForwardPath(ctx, r.Branches[1].PathID, 1)
 	if e != nil {
 		t.Fatal(e)

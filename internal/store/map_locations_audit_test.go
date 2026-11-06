@@ -9,7 +9,7 @@ import (
 
 func TestSiteMapResetStartsWithEmptyPublicationAudit(t *testing.T) {
 	ctx := context.Background()
-	s, _, ib, _ := lineFixture(t)
+	s, _, ib, _ := lineFixture(t, migrateFixture)
 	admin := &domain.User{Email: "admin@example.com", PasswordHash: "test-hash", Role: "admin", Status: "active"}
 	if err := s.CreateStaff(ctx, admin); err != nil {
 		t.Fatal(err)

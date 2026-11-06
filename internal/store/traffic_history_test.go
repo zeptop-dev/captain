@@ -199,7 +199,7 @@ func TestTrafficHistoryHardBudgetsAndDeletion(t *testing.T) {
 }
 
 func TestTrafficHistoryGlobalCapAndReset(t *testing.T) {
-	s, node, _ := monitorRig(t)
+	s, node, _ := monitorRig(t, migrateFixture)
 	ctx := context.Background()
 	at := time.Now()
 	ids := []int64{node}

@@ -12,7 +12,6 @@ import (
 
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
 	"github.com/zeptop-dev/bosun/pkg/spec"
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
@@ -99,17 +98,10 @@ func TestNodeAutoRenewalCalendarAndNormalization(t *testing.T) {
 	}
 }
 
-func nodeRenewalRig(t *testing.T) (*Store, int64) {
+func nodeRenewalRig(t *testing.T, mode ...fixtureDBMode) (*Store, int64) {
 	t.Helper()
-	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "renewal.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = conn.Close() })
+	conn := fixtureDB(t, filepath.Join(t.TempDir(), "renewal.db"), mode...)
 	ctx := context.Background()
-	if err := db.Migrate(ctx, conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
 	s := New(conn)
 	n := &domain.Node{Name: "renewal fixture"}
 	if err := s.CreateNode(ctx, n, "RENEW", time.Hour); err != nil {

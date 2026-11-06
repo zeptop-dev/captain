@@ -10,21 +10,14 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/spec"
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-func lineFixture(t *testing.T) (*Store, []*domain.Node, *domain.Inbound, *ForwardLine) {
+func lineFixture(t *testing.T, mode ...fixtureDBMode) (*Store, []*domain.Node, *domain.Inbound, *ForwardLine) {
 	t.Helper()
 	ctx := context.Background()
-	c, err := db.Open("sqlite", filepath.Join(t.TempDir(), "captain.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { c.Close() })
-	if err = db.Migrate(ctx, c, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	c := fixtureDB(t, filepath.Join(t.TempDir(), "captain.db"), mode...)
+	var err error
 	s := New(c)
 	var ns []*domain.Node
 	for i, addr := range []string{"192.0.2.10", "198.51.100.20", "203.0.113.30", "10.10.0.2"} {
@@ -250,7 +243,7 @@ func TestLineRejectsIncompatibleCandidatesAndModes(t *testing.T) {
 }
 
 func TestLineMetadataPreservesRuntimeAndTransportChangesAtomically(t *testing.T) {
-	s, ns, ib, l := lineFixture(t)
+	s, ns, ib, l := lineFixture(t, migrateFixture)
 	ctx := context.Background()
 	if err := s.SaveLine(ctx, l); err != nil {
 		t.Fatal(err)

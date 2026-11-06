@@ -17,23 +17,24 @@ import (
 
 func carrierHistoryDB(t *testing.T, legacy bool) *sql.DB {
 	t.Helper()
-	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "carrier.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { conn.Close() })
+	var conn *sql.DB
 	if legacy {
+		var err error
+		conn, err = db.Open("sqlite", filepath.Join(t.TempDir(), "carrier.db"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { conn.Close() })
 		goose.SetBaseFS(migrations.FS)
 		goose.SetLogger(goose.NopLogger())
 		if err := goose.SetDialect("sqlite"); err != nil {
 			t.Fatal(err)
 		}
-		err = goose.UpToContext(context.Background(), conn, ".", 88)
+		if err := goose.UpToContext(context.Background(), conn, ".", 88); err != nil {
+			t.Fatal(err)
+		}
 	} else {
-		err = db.Migrate(context.Background(), conn, "sqlite")
-	}
-	if err != nil {
-		t.Fatal(err)
+		conn = fixtureDB(t, filepath.Join(t.TempDir(), "carrier.db"))
 	}
 	if _, err := conn.Exec(`INSERT INTO nodes(id,name,created_at,updated_at) VALUES(1,'Carrier test',0,0)`); err != nil {
 		t.Fatal(err)
