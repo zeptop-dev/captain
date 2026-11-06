@@ -2,6 +2,7 @@ import { Anchor, Divider, Group, Progress, SimpleGrid, Stack, Text, Title } from
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { bytes } from '../lib/format'
+import { NodeLocationIPEvidence } from './NodeLocationIPFields'
 import { locationName, nodeLocationDraft } from '../lib/location'
 import { supplierURL } from '../lib/node-infrastructure'
 import type { NodeProbe } from '../lib/node-probe'
@@ -85,6 +86,7 @@ export function NodeInformationSummary({ data, host }: { data: NodeProbe; host?:
     })}</Stack> : t(p.storage?.mode === 'manual' ? 'nodeStorage.empty' : 'nodeStorage.noCandidates')}</Fact>
     <Divider />
     <Title order={5}>{t('nodeInformation.location')}</Title>
+    <Fact label={t('locationIP.title')}><NodeLocationIPEvidence detection={p.region_detection} /></Fact>
     <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
       <Fact label={t('nodeProbe.region')}>{p.region_mode === 'off' ? t('nodeRegion.off') : p.region_mode === 'auto' ? t('nodeRegion.auto', { country: region }) : region}</Fact>
       <Fact label={t('mapLocation.mode')}>{t(`mapLocation.${mode}`)}</Fact>

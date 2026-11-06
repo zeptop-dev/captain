@@ -5,6 +5,8 @@ import { NodeStorageFields } from './NodeStorageFields'
 import { storageDraft } from '../lib/probe-storage'
 import { NodeBandwidthFields, emptyBandwidth } from './NodeBandwidthFields'
 import { NodeRegionSelect } from './NodeRegionSelect'
+import { NodeLocationIPFields } from './NodeLocationIPFields'
+import { locationIPDraft, locationIPSettings, locationIPChanged, locationIPError } from '../lib/location-ip'
 import { ResourceOptionsFields } from './ResourceOptionsFields'
 import type { ResourceHost, ResourceOptions } from '../lib/resources'
 import { Alert, Button, Card, Divider, Group, NumberInput, Select, SimpleGrid, Stack, Switch, Text, TextInput, Title } from '@mantine/core'
@@ -39,16 +41,16 @@ export function NodeInformationCard({ nodeID, reportedHost }: { nodeID: number; 
   const [loaded, setLoaded] = useState(false)
   const [expiryConflict, setExpiryConflict] = useState(false)
   const [financeConflict, setFinanceConflict] = useState(false)
-  const form = useForm({ initialValues: { ...financeDraft(), Location: locationDraft(), Storage: storageDraft(), Bandwidth: emptyBandwidth, Resources: {} as ResourceOptions, Hidden: false, region: '', resetPolicy: 'manual', note: '', Limit: trafficLimitInput(0), ResetDay: 1, Mode: 'sum' }, validate: { Limit: v => validTrafficLimit(v) ? null : t('nodeProbe.limitInvalid') } })
+  const form = useForm({ initialValues: { ...financeDraft(), Location: locationDraft(), LocationIP: locationIPDraft(), Storage: storageDraft(), Bandwidth: emptyBandwidth, Resources: {} as ResourceOptions, Hidden: false, region: '', resetPolicy: 'manual', note: '', Limit: trafficLimitInput(0), ResetDay: 1, Mode: 'sum' }, validate: { Limit: v => validTrafficLimit(v) ? null : t('nodeProbe.limitInvalid') } })
   const [baseline, setBaseline] = useState(() => form.getValues())
   const draftFromProbe = (data: NodeProbe, supplierID: number) => {
     const p = data.probe
-    return { ...financeDraft(p.info, data.infrastructure_revision, supplierID), Location: nodeLocationDraft(p.info.location_settings, p.region_mode), Storage: storageDraft(p.storage), Bandwidth: p.info.bandwidth ?? emptyBandwidth, Resources: p.resources ?? {}, Hidden: p.hidden, region: p.region_mode === 'auto' ? 'auto' : p.region_mode === 'off' ? 'off' : p.info.region || 'off', resetPolicy: p.info.traffic_reset?.mode ?? 'manual', note: p.info.note ?? '', Limit: trafficLimitInput(p.limit_bytes), ResetDay: p.reset_day, Mode: p.mode }
+    return { ...financeDraft(p.info, data.infrastructure_revision, supplierID), Location: nodeLocationDraft(p.info.location_settings, p.region_mode), LocationIP: locationIPDraft(p.location_ip_settings), Storage: storageDraft(p.storage), Bandwidth: p.info.bandwidth ?? emptyBandwidth, Resources: p.resources ?? {}, Hidden: p.hidden, region: p.region_mode === 'auto' ? 'auto' : p.region_mode === 'off' ? 'off' : p.info.region || 'off', resetPolicy: p.info.traffic_reset?.mode ?? 'manual', note: p.info.note ?? '', Limit: trafficLimitInput(p.limit_bytes), ResetDay: p.reset_day, Mode: p.mode }
   }
   const coherent = !admin || sameInfrastructureSnapshot(q.data?.infrastructure_revision, infra.data)
   const sourceError = q.isError || admin && (infra.isError || suppliers.isError)
   const cancelReads = () => Promise.all([qc.cancelQueries({ queryKey: ['node-probe', nodeID] }), qc.cancelQueries({ queryKey: nodeInfrastructureKey(nodeID) })])
-  const save = useMutation({ onMutate: cancelReads, mutationFn: (v: typeof form.values) => api.put<NodeProbe>(`/api/admin/nodes/${nodeID}/probe`, { ExpectedExpiresAt: baseline.expires_at, ...(admin ? { InfrastructureRevision: v.InfrastructureRevision, ...(v.SupplierID !== baseline.SupplierID ? { SupplierID: v.SupplierID } : {}) } : {}), Hidden: v.Hidden, RegionMode: v.region === 'auto' || v.region === 'off' ? v.region : 'manual', Info: { location_settings: locationSettings(v.Location), bandwidth: v.Bandwidth, region: v.region === 'auto' || v.region === 'off' ? '' : v.region.toUpperCase(), provider: v.provider, provider_url: v.provider_url, price: v.price, billing: v.costMode === 'structured' ? { amount: String(v.amount), currency: v.currency, cycle: v.cycle, years: v.cycle === 'custom' ? String(v.years) : '' } : undefined, traffic_reset: { mode: v.resetPolicy }, auto_renewal: { enabled: v.AutoRenewal }, expires_at: v.expires_at, note: v.note }, LimitBytes: v.Limit.bytes, ResetDay: v.ResetDay, Mode: v.Mode, Resources: v.Resources, Storage: storageDraft(v.Storage) }), onSuccess: async (data, submitted) => {
+  const save = useMutation({ onMutate: cancelReads, mutationFn: (v: typeof form.values) => api.put<NodeProbe>(`/api/admin/nodes/${nodeID}/probe`, { ExpectedExpiresAt: baseline.expires_at, ...(admin ? { InfrastructureRevision: v.InfrastructureRevision, ...(v.SupplierID !== baseline.SupplierID ? { SupplierID: v.SupplierID } : {}) } : {}), Hidden: v.Hidden, LocationIP: locationIPSettings(v.LocationIP), RegionMode: v.region === 'auto' || v.region === 'off' ? v.region : 'manual', Info: { location_settings: locationSettings(v.Location), bandwidth: v.Bandwidth, region: v.region === 'auto' || v.region === 'off' ? '' : v.region.toUpperCase(), provider: v.provider, provider_url: v.provider_url, price: v.price, billing: v.costMode === 'structured' ? { amount: String(v.amount), currency: v.currency, cycle: v.cycle, years: v.cycle === 'custom' ? String(v.years) : '' } : undefined, traffic_reset: { mode: v.resetPolicy }, auto_renewal: { enabled: v.AutoRenewal }, expires_at: v.expires_at, note: v.note }, LimitBytes: v.Limit.bytes, ResetDay: v.ResetDay, Mode: v.Mode, Resources: v.Resources, Storage: storageDraft(v.Storage) }), onSuccess: async (data, submitted) => {
     await cancelReads()
     const saved = draftFromProbe(data, submitted.SupplierID)
     const current = applyDraftSave(form.getValues(), submitted, saved)
@@ -90,9 +92,12 @@ export function NodeInformationCard({ nodeID, reportedHost }: { nodeID: number; 
   const staleFinance = admin && loaded && !!infra.data && form.values.InfrastructureRevision !== infra.data.revision
   const editingDisabled = !loaded || sourceError || save.isPending || reload.isPending
   const billingReadOnly = !admin && !!q.data?.infrastructure_linked
-  const detect = useMutation({ mutationFn: () => api.post<NodeProbe>(`/api/admin/nodes/${nodeID}/region-detect`), onSuccess: data => qc.setQueryData(['node-probe', nodeID], data), onError: toast.err })
+  // The lookup response can predate a save in another tab (including A→B→A).
+  // Refresh the current saved state instead of installing its old full snapshot.
+  const detect = useMutation({ mutationFn: () => api.post<NodeProbe>(`/api/admin/nodes/${nodeID}/region-detect`), onSuccess: () => qc.invalidateQueries({ queryKey: ['node-probe', nodeID] }), onError: toast.err })
   const reset = useMutation({ mutationFn: () => api.post(`/api/admin/nodes/${nodeID}/probe/reset-traffic`), onSuccess: () => { toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['node-probe', nodeID] }); qc.invalidateQueries({ queryKey: serviceControlKey(nodeID) }) }, onError: toast.err })
   const p = q.data?.probe
+  const locationIPUnsaved = locationIPChanged(form.values.LocationIP, p?.location_ip_settings)
   const renewalReason = renewalUnavailable(form.values.expires_at, form.values.costMode, form.values.cycle, form.values.years)
   const draftMonths = renewalPeriodMonths(form.values.cycle, form.values.years)
   const savedMonths = p?.info.billing ? renewalPeriodMonths(p.info.billing.cycle, p.info.billing.years ?? '') : null
@@ -136,7 +141,7 @@ export function NodeInformationCard({ nodeID, reportedHost }: { nodeID: number; 
           <Divider />
           <Stack gap={4}><Title order={5}>{t('nodeProbe.note')}</Title><Text size="sm" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{p?.info.note || t('nodeInformation.notSet')}</Text></Stack>
         </>}
-      {editing && <form data-testid="node-information-editor" onSubmit={form.onSubmit((v) => { if (!p || editingDisabled || !coherent || staleFinance || financeConflict || locationDraftError(v.Location)) return; if (v.resetPolicy !== 'manual' && !v.expires_at) { form.setFieldError('expires_at', t('nodeCost.dateRequired')); return }; if (v.AutoRenewal && renewalReason) { form.setFieldError('AutoRenewal', t(renewalReason)); return }; save.mutate(v) })}><fieldset disabled={!loaded} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}><Stack gap="sm">
+      {editing && <form data-testid="node-information-editor" onSubmit={form.onSubmit((v) => { if (!p || editingDisabled || !coherent || staleFinance || financeConflict || locationDraftError(v.Location) || locationIPError(v.LocationIP)) return; if (v.resetPolicy !== 'manual' && !v.expires_at) { form.setFieldError('expires_at', t('nodeCost.dateRequired')); return }; if (v.AutoRenewal && renewalReason) { form.setFieldError('AutoRenewal', t(renewalReason)); return }; save.mutate(v) })}><fieldset disabled={!loaded} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}><Stack gap="sm">
         <Title order={5}>{t('nodeInformation.traffic')}</Title>
         <ResourceOptionsFields disabled={!host?.resources} value={form.values.Resources} onChange={(v) => form.setFieldValue("Resources", v)} />
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
@@ -152,7 +157,8 @@ export function NodeInformationCard({ nodeID, reportedHost }: { nodeID: number; 
         <NodeBandwidthFields value={form.values.Bandwidth} onChange={v => form.setFieldValue('Bandwidth', v)} />
         <Divider my="xs" />
         <Title order={5}>{t('nodeInformation.location')}</Title>
-        <NodeRegionSelect value={form.values.region || 'off'} onChange={v => form.setFieldValue('region', v)} countries={q.data?.region_countries ?? []} detection={p?.region_detection} detect={() => detect.mutate()} pending={detect.isPending} disabled={editingDisabled} />
+        <NodeLocationIPFields value={form.values.LocationIP} onChange={v => form.setFieldValue('LocationIP', v)} detection={p?.region_detection} disabled={editingDisabled} unsaved={locationIPUnsaved} />
+        <NodeRegionSelect value={form.values.region || 'off'} onChange={v => form.setFieldValue('region', v)} countries={q.data?.region_countries ?? []} detection={p?.region_detection} detect={() => detect.mutate()} pending={detect.isPending} disabled={editingDisabled} detectionDisabled={locationIPUnsaved} />
         <LocationFields value={form.values.Location} onChange={v => form.setFieldValue('Location', v)} effective={p?.info.location} countries={q.data?.region_countries} disabled={!p || q.isError || save.isPending} />
         {form.values.Location.mode === 'auto' && <Stack gap={4}>{p?.region_detection.last_success_at ? <Text size="xs" c="dimmed">{t('mapLocation.lastSuccess', { time: new Date(p.region_detection.last_success_at * 1000).toLocaleString() })}</Text> : null}{p?.region_detection.stale && <Text size="xs" c="orange">{t('mapLocation.stale')}</Text>}</Stack>}
         <Divider my="xs" />
@@ -180,7 +186,7 @@ export function NodeInformationCard({ nodeID, reportedHost }: { nodeID: number; 
         {(expiryConflict || financeConflict || staleFinance) && <Alert color="yellow"><Stack gap="xs"><Text size="sm">{t(admin ? 'infraLink.conflict' : 'nodeCost.renewalConflict')}</Text><Button variant="light" size="xs" loading={reload.isPending} onClick={() => reload.mutate()}>{t(admin ? 'infraLink.reloadFinance' : 'nodeCost.reloadExpiry')}</Button></Stack></Alert>}
         <Group justify="space-between">
           <Button type="button" size="xs" variant="default" disabled={save.isPending || reload.isPending} onClick={cancelEditing}>{t('nodeInformation.cancel')}</Button>
-          <Group gap="xs"><Button size="xs" variant="subtle" color="gray" onClick={() => reset.mutate()}>{t('nodeProbe.reset')}</Button><Button type="submit" size="xs" disabled={!p || editingDisabled || !coherent || staleFinance || financeConflict || !!locationDraftError(form.values.Location)} loading={save.isPending}>{t('common.save')}</Button></Group>
+          <Group gap="xs"><Button size="xs" variant="subtle" color="gray" onClick={() => reset.mutate()}>{t('nodeProbe.reset')}</Button><Button type="submit" size="xs" disabled={!p || editingDisabled || !coherent || staleFinance || financeConflict || !!locationDraftError(form.values.Location) || !!locationIPError(form.values.LocationIP)} loading={save.isPending}>{t('common.save')}</Button></Group>
         </Group>
       </Stack></fieldset></form>}
       </Stack>

@@ -2849,12 +2849,12 @@
     "auto": "{{country}} (automatic)",
     "unknown": "Unidentified",
     "pending": "Not detected",
-    "hint": "Captain queries Country.is using the machine public IP observed by bosun (IPv4 first). Manual choices do not follow IP changes.",
-    "conflict": "IPv4 reports {{ipv4}}, IPv6 reports {{ipv6}}. Automatic mode uses IPv4; you can override it manually.",
+    "hint": "Automatic detection uses the selected location IP to query Country.is. A manually selected country does not follow IP changes.",
+    "conflict": "IPv4 reports {{ipv4}}, IPv6 reports {{ipv6}}. Automatic mode uses the location IP shown above; you can select the country manually.",
     "failed": "Country lookup failed. Try again later.",
     "detect": "Detect / refresh country",
-    "noIP": "Waiting for bosun to report the machine public IP. Manually configured entry addresses are not used.",
-    "stale": "The public IP observation has expired. Wait for a fresh bosun report before detecting again."
+    "noIP": "No usable IP is available under the saved location policy. Wait for an eligible observation or configure a location IP.",
+    "stale": "This location evidence is no longer current. A new eligible IP is required to refresh it."
   },
   "nodeCost": {
     "amount": "Total per cycle",
@@ -4438,5 +4438,35 @@
     "unverified": "Name generated, but existing DNS records could not be checked. Review them before saving.",
     "randomFailed": "Could not generate a name. Try again or enter one manually.",
     "idnHint": "For automatic DNS, register this domain using its ASCII (Punycode) name."
+  },
+  "locationIP": {
+    "title": "Location IP source",
+    "mode": "Select location IP",
+    "hint": "Used only for automatic country and map location. Manual country and map choices stay independent.",
+    "modes": {
+      "auto": "Select automatically",
+      "entry": "Use the configured public entry address",
+      "manual": "Specify a location IP"
+    },
+    "manual": "Location IP",
+    "manualHint": "A public IPv4 or IPv6 address. This does not change entry addresses, DNS or IP-follow settings.",
+    "invalid": "Enter a public IPv4 or IPv6 address without a port. Private addresses, hostnames and URLs are not accepted.",
+    "priority": "Automatic priority: fresh regular observations, then confirmed fallback observations allowed by IP-follow policy. IPv4 is preferred within the same source.",
+    "allowEntry": "Use the public entry address when no observation is available",
+    "entryHint": "A NAT or dedicated-line entry may be in a different location from the server. Entry fallback is off by default.",
+    "saveFirst": "Save the location IP settings before detecting. The evidence below still belongs to the saved settings.",
+    "current": "Current location IP: {{ip}}",
+    "previous": "Last location IP: {{ip}}",
+    "source": "IP source: {{source}}",
+    "checked": "Last location lookup: {{time}}",
+    "entryUnavailable": "No usable public entry IP is configured. Enter a public IP or select another location source.",
+    "sources": {
+      "manual": "Manual location IP",
+      "entry_override": "Explicit public entry",
+      "primary": "Regular observation",
+      "fallback": "Confirmed fallback observation",
+      "entry_fallback": "Public entry fallback",
+      "unknown": "Not provided"
+    }
   }
 }

@@ -2849,12 +2849,12 @@
     "auto": "{{country}}（自動）",
     "unknown": "未識別",
     "pending": "未偵測",
-    "hint": "自動使用 bosun 偵測的機器公網 IP（IPv4 優先），由 Captain 向 Country.is 查詢。手動選擇不隨 IP 變更。",
-    "conflict": "IPv4 為 {{ipv4}}，IPv6 為 {{ipv6}}；自動顯示 IPv4 的地區，可手動覆寫。",
+    "hint": "自動識別使用選定的定位 IP，由 Captain 向 Country.is 查詢。手動選擇的地區不隨 IP 變化。",
+    "conflict": "IPv4 顯示 {{ipv4}}，IPv6 顯示 {{ipv6}}。自動識別使用上述定位 IP；也可手動選擇地區。",
     "failed": "地區查詢失敗，請稍後重試。",
     "detect": "偵測 / 更新地區",
-    "noIP": "等待 bosun 回報機器公網 IP；不會使用手動設定的公網入口。",
-    "stale": "公網位址觀測已過期，等待 bosun 重新回報後再偵測。"
+    "noIP": "已儲存的定位策略下暫無可用 IP。請等待符合條件的觀測，或設定定位 IP。",
+    "stale": "這份定位依據已不再有效；需要新的可用 IP 才能重新識別。"
   },
   "nodeCost": {
     "amount": "週期總價",
@@ -4438,5 +4438,35 @@
     "unverified": "已產生名稱，但未確認 DNS 使用情況，請核對現有記錄後儲存。",
     "randomFailed": "暫時無法產生名稱，請重試或手動輸入。",
     "idnHint": "如需自動解析，請在網域目錄中使用 ASCII（Punycode）名稱登記。"
+  },
+  "locationIP": {
+    "title": "定位依據",
+    "mode": "定位 IP 選擇",
+    "hint": "僅用於自動地區與地圖識別；手動選擇的地區與地圖位置分別保留。",
+    "modes": {
+      "auto": "自動選擇",
+      "entry": "使用已填寫的公網入口位址",
+      "manual": "手動指定定位 IP"
+    },
+    "manual": "定位 IP",
+    "manualHint": "填寫公網 IPv4 或 IPv6；不會修改公網入口、DNS 或 IP 自動跟隨設定。",
+    "invalid": "請輸入不含連接埠的公網 IPv4 或 IPv6；不接受私網位址、網域或 URL。",
+    "priority": "自動順序：有效的常規探測 → IP 跟隨策略允許且已確認的備用觀測。同一來源內 IPv4 優先。",
+    "allowEntry": "無可用觀測時使用公網入口位址",
+    "entryHint": "NAT 或專線入口的位置可能與伺服器不同；公網入口備援預設關閉。",
+    "saveFirst": "請先儲存定位 IP 設定，再偵測地區。下方依據仍屬於已儲存的設定。",
+    "current": "目前定位 IP：{{ip}}",
+    "previous": "上次定位 IP：{{ip}}",
+    "source": "IP 來源：{{source}}",
+    "checked": "上次定位查詢：{{time}}",
+    "entryUnavailable": "尚未填寫可用的公網入口 IP。請填寫公網 IP 或選擇其他定位來源。",
+    "sources": {
+      "manual": "手動定位 IP",
+      "entry_override": "指定公網入口",
+      "primary": "常規探測",
+      "fallback": "已確認的備用觀測",
+      "entry_fallback": "公網入口備援",
+      "unknown": "未提供"
+    }
   }
 }
