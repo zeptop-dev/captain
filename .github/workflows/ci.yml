@@ -3,6 +3,14 @@ on:
   push:
     branches: [master]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GOWORK: "off"
+  PYTHONDONTWRITEBYTECODE: "1"
 
 jobs:
   test:
@@ -13,17 +21,34 @@ jobs:
         with: { version: 9 }
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: 24, cache: pnpm, cache-dependency-path: "web/*/pnpm-lock.yaml" }
-      - run: python3 scripts/i18n-check.py web/admin/src/i18n web/portal/src/i18n web/probe/src/i18n web/site/src/i18n
-      - run: cd web/admin && pnpm install --frozen-lockfile && pnpm test && pnpm exec oxlint src && pnpm build
-      - run: cd web/portal && pnpm install --frozen-lockfile && pnpm exec oxlint src && pnpm build
-      - run: cd web/site && pnpm install --frozen-lockfile && pnpm test && pnpm exec oxlint src && pnpm build
-      - run: cd web/probe && pnpm install --frozen-lockfile && pnpm build
+      - name: Check release CI helpers
+        run: python3 -m unittest discover -s scripts/ci -p 'test_*.py'
+      - name: Check translations
+        run: python3 scripts/i18n-check.py web/admin/src/i18n web/portal/src/i18n web/probe/src/i18n web/site/src/i18n
+      - name: Build and test admin
+        run: cd web/admin && pnpm install --frozen-lockfile && pnpm test && pnpm exec oxlint src && pnpm build
+      - name: Build and lint portal
+        run: cd web/portal && pnpm install --frozen-lockfile && pnpm exec oxlint src && pnpm build
+      - name: Build and test site
+        run: cd web/site && pnpm install --frozen-lockfile && pnpm test && pnpm exec oxlint src && pnpm build
+      - name: Build probe
+        run: cd web/probe && pnpm install --frozen-lockfile && pnpm build
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version-file: go.mod }
-      - run: git ls-files '*.go' | xargs gofmt -l | tee /dev/stderr | test -z "$(cat)"
-      - run: go vet ./...
-      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+      - name: Check Go formatting
+        run: |
+          unformatted="$(git ls-files -z '*.go' | xargs -0 gofmt -l)"
+          if [ -n "$unformatted" ]; then
+            printf '%s\n' "$unformatted"
+            exit 1
+          fi
+      - name: Go vet
+        run: go vet ./...
+      - name: Go vulnerability scan
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
       # Race and coverage make the cumulative HTTP and store suites sensitive to runner speed.
       # Allow slower runners to finish without weakening either check.
-      - run: go test -race -timeout 60m -coverpkg=./... -coverprofile=coverage.out ./...
-      - run: go tool cover -func=coverage.out | tail -1
+      - name: Go race and coverage
+        run: go test -race -timeout 60m -coverpkg=./... -coverprofile=coverage.out ./...
+      - name: Report coverage
+        run: go tool cover -func=coverage.out | tail -1

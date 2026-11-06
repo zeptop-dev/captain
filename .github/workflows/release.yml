@@ -8,11 +8,32 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
+
+env:
+  GOWORK: "off"
+  PYTHONDONTWRITEBYTECODE: "1"
 
 jobs:
+  ci-evidence:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      reuse: ${{ steps.ci.outputs.reuse }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Find trusted exact-commit CI
+        id: ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci/reuse.py
+
   binaries:
+    needs: ci-evidence
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -20,6 +41,8 @@ jobs:
         with: { version: 9 }
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: 24, cache: pnpm, cache-dependency-path: "web/*/pnpm-lock.yaml" }
+      - name: Check release CI helpers
+        run: python3 -m unittest discover -s scripts/ci -p 'test_*.py'
       - run: python3 scripts/i18n-check.py web/admin/src/i18n web/portal/src/i18n web/probe/src/i18n web/site/src/i18n
       - run: cd web/admin && pnpm install --frozen-lockfile && pnpm test && pnpm exec oxlint src && pnpm build
       - run: cd web/portal && pnpm install --frozen-lockfile && pnpm exec oxlint src && pnpm build
@@ -34,11 +57,19 @@ jobs:
             go.sum
             .github/workflows/release.yml
       # A tag must clear the same gates as master: a red commit may not ship.
-      - run: git ls-files '*.go' | xargs gofmt -l | tee /dev/stderr | test -z "$(cat)"
+      - run: |
+          unformatted="$(git ls-files -z '*.go' | xargs -0 gofmt -l)"
+          if [ -n "$unformatted" ]; then
+            printf '%s\n' "$unformatted"
+            exit 1
+          fi
       - run: go vet ./...
       - run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
-      # Keep the full race suite budget aligned with CI on slower runners.
-      - run: go test -race -timeout 60m ./...
+      # Only trusted exact-commit master push CI can replace this duplicate suite.
+      # Manual dry runs always exercise the full fallback, and never publish.
+      - name: Full Go race suite (fallback)
+        if: needs.ci-evidence.outputs.reuse != 'true'
+        run: go test -race -timeout 60m ./...
       - run: |
           for arch in amd64 arm64; do
             CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=${GITHUB_REF_NAME}" -o bin/captain-linux-$arch ./cmd/captain
@@ -54,8 +85,13 @@ jobs:
             got="$(go version "$f" | awk '{print $NF}')"
             echo "$f: $got"
             [ "$got" = "$want" ] || { echo "$f was built with $got, not $want"; exit 1; }
+            metadata="$(go version -m "$f")"
+            echo "$metadata" | grep -Fq "vcs.revision=${GITHUB_SHA}"
+            echo "$metadata" | grep -Fq 'vcs.modified=false'
           done
-          cd bin && sha256sum captain-linux-* > SHA256SUMS && cat SHA256SUMS
+          cd bin && sha256sum captain-linux-* > SHA256SUMS && sha256sum -c SHA256SUMS && cat SHA256SUMS
+      - name: Smoke test release binary
+        run: python3 scripts/ci/smoke.py bin/captain-linux-amd64 "${GITHUB_REF_NAME}"
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         if: github.event_name == 'push'
         with:
@@ -66,6 +102,9 @@ jobs:
             bin/SHA256SUMS
 
   image:
+    permissions:
+      contents: read
+      packages: write
     needs: binaries
     runs-on: ubuntu-latest
     steps:
@@ -84,9 +123,9 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name == 'push' }}
           provenance: false
-          build-args: VERSION=${{ github.ref_name }}
+          build-args: VERSION=${{ github.event_name == 'push' && github.ref_name || 'dry-run' }}
           tags: |
-            ghcr.io/zeptop-dev/captain:${{ github.ref_name }}
+            ghcr.io/zeptop-dev/captain:${{ github.event_name == 'push' && github.ref_name || 'dry-run' }}
             ghcr.io/zeptop-dev/captain:latest
-            zeptop/captain:${{ github.ref_name }}
+            zeptop/captain:${{ github.event_name == 'push' && github.ref_name || 'dry-run' }}
             zeptop/captain:latest
