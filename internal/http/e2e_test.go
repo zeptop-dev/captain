@@ -42,6 +42,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/mail"
 	"github.com/zeptop-dev/captain/internal/service"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 type client struct {
@@ -322,8 +323,7 @@ func itoa(i int64) string { return strconv.FormatInt(i, 10) }
 func TestAdminLists(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "http://test"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -370,8 +370,7 @@ func TestDeviceLimit(t *testing.T) {
 	defer func() { service.DeviceHold, service.CacheTTL = 5*time.Minute, 10*time.Second }()
 	cfg := config.Default()
 	cfg.BaseURL = "http://test"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -422,8 +421,7 @@ func TestDeviceLimit(t *testing.T) {
 func TestNodeUpgradeRequest(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "http://test"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -477,8 +475,7 @@ func TestNodeUpgradeRequest(t *testing.T) {
 func TestLoginRateLimit(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "https://test"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -502,8 +499,7 @@ func TestLoginRateLimit(t *testing.T) {
 func TestSecureCookie(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "https://test"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -532,8 +528,7 @@ func TestSecureCookie(t *testing.T) {
 func TestACMESettingsReachNodes(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "http://test"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -653,8 +648,7 @@ func TestACMESettingsReachNodes(t *testing.T) {
 func TestSubscriptionURLsAndHosts(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "https://my.test"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -724,8 +718,7 @@ func TestSubscriptionURLsAndHosts(t *testing.T) {
 func TestEntryDefaultsFromInbound(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "http://test"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -759,8 +752,7 @@ func TestMailVerificationAndReset(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "http://test"
 	cfg.Portal.Registration = true
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -851,8 +843,7 @@ func TestPeriodsCouponsInvites(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "http://test"
 	cfg.Portal.Registration = true
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -952,8 +943,7 @@ func TestPeriodsCouponsInvites(t *testing.T) {
 func TestAgentLongPoll(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "http://test"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -993,8 +983,7 @@ func TestRegistrationLimits(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "http://test"
 	cfg.Portal.Registration = true
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -1105,8 +1094,7 @@ func TestRegistrationLimits(t *testing.T) {
 func TestNodeInstallScript(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "https://panel.test"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -1144,8 +1132,7 @@ func TestOpsBatch(t *testing.T) {
 	cfg.BaseURL = "https://panel.test"
 	cfg.Portal.Registration = true
 	cfg.SiteName = "Captain"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -1300,8 +1287,7 @@ func TestSurplusAndMultiLevelCommission(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "https://panel.test"
 	cfg.Portal.Registration = true
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -1442,8 +1428,7 @@ func TestStaffRolesAndWebhooks(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "https://panel.test"
 	cfg.Portal.Registration = true
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -1566,8 +1551,7 @@ func TestProbePageAndBeats(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "https://panel.test"
 	cfg.Portal.Registration = true
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -1792,8 +1776,7 @@ func TestExternalNodesAndRouting(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "https://panel.test"
 	cfg.Portal.Registration = true
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -1932,8 +1915,7 @@ func TestSubscriptionAdjustments(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "https://panel.test"
 	cfg.Portal.Registration = true
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -1999,8 +1981,7 @@ func TestSubscriptionAdjustments(t *testing.T) {
 func TestSpeedtest(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "https://panel.test"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -2073,8 +2054,7 @@ func TestAPITokensAndMCP(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "https://panel.test"
 	cfg.Portal.Registration = true
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -2167,8 +2147,7 @@ func TestAPITokensAndMCP(t *testing.T) {
 func TestSubLinksAndTOTP(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "https://panel.test"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -2436,8 +2415,7 @@ func TestDomainsAndIssuedCertificates(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "https://panel.example.com"
 	cfg.DataDir = t.TempDir()
-	conn, _ := db.Open("sqlite", filepath.Join(cfg.DataDir, "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(cfg.DataDir, "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -2574,8 +2552,7 @@ func TestDomainsAndIssuedCertificates(t *testing.T) {
 func TestLineIngresses(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "https://panel.test"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -2738,8 +2715,7 @@ func (f *fakeCloudflare) get(name, typ string) string {
 func TestAutoDNS(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "https://panel.example.com"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -2822,8 +2798,7 @@ func TestDeviceLimitRelay(t *testing.T) {
 	defer func() { service.DeviceHold, service.CacheTTL = 5*time.Minute, 10*time.Second }()
 	cfg := config.Default()
 	cfg.BaseURL = "http://test"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)

@@ -17,9 +17,9 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/spec"
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/probedata"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/testdb"
 	"golang.org/x/net/websocket"
 )
 
@@ -793,14 +793,8 @@ func TestEmptyPingWindowKeepsAssignmentsWithoutFakeHistorySummaries(t *testing.T
 
 func TestCanonicalReaderThroughRealRESTAndRPC(t *testing.T) {
 	ctx := context.Background()
-	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "probe.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-	if err = db.Migrate(ctx, conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "probe.db"))
+	var err error
 	st := store.New(conn)
 	settings := store.ProbeSettings{Enabled: true, Title: "Example", Visibility: "public"}
 	settings.Normalize()

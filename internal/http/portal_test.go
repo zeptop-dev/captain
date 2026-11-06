@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -17,13 +16,13 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/captain/internal/config"
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/http/admin"
 	"github.com/zeptop-dev/captain/internal/mail"
 	"github.com/zeptop-dev/captain/internal/service"
 	"github.com/zeptop-dev/captain/internal/store"
 	"github.com/zeptop-dev/captain/internal/telegram"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 // portalRig is the setup of the customer-facing tests below: a panel, an
@@ -40,16 +39,19 @@ type portalRig struct {
 // server exists, for settings the server caches (mail, Telegram).
 func newPortalRig(t *testing.T, registration bool, seed ...func(*store.Store)) *portalRig {
 	t.Helper()
+	return newPortalRigWithDB(t, testdb.Open(t), registration, seed...)
+}
+
+func newMigratedPortalRig(t *testing.T, registration bool, seed ...func(*store.Store)) *portalRig {
+	t.Helper()
+	return newPortalRigWithDB(t, newMigratedTestDB(t), registration, seed...)
+}
+
+func newPortalRigWithDB(t *testing.T, conn *sql.DB, registration bool, seed ...func(*store.Store)) *portalRig {
+	t.Helper()
 	cfg := config.Default()
 	cfg.BaseURL = "http://test"
 	cfg.Portal.Registration = registration
-	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := db.Migrate(context.Background(), conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	if err := st.CreateStaff(context.Background(), adminUser); err != nil {

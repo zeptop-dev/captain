@@ -13,21 +13,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/service"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 func subscriptionSettingsHandler(t *testing.T) *handlers {
 	t.Helper()
-	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "settings.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = conn.Close() })
-	if err := db.Migrate(context.Background(), conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "settings.db"))
 	st := store.New(conn)
 	return &handlers{Deps: Deps{Store: st, SubLinks: &service.SubLinks{Store: st, BaseURL: "https://panel.example.com"}}}
 }

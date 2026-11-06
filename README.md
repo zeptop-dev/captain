@@ -297,10 +297,14 @@ API, webhook payloads and config keys are stable within 1.x; migrations run
 forward only. The details, and the Captain ↔ bosun matrix, are in
 [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
 
-Every release runs the same gates as CI (i18n parity, oxlint, gofmt, vet,
-`go test -race`), and releases that touch the node protocol, subscription
-output or the money paths also pass a live regression against real nodes
-and a real client (`scripts/e2e/README.md`).
+Every release requires the CI gates (i18n parity, oxlint, gofmt, vet and
+`go test -race`). A tag can reuse a successful, verified `master` push CI
+run for its exact commit instead of repeating the full Go suite; missing
+or incomplete evidence falls back to the full suite. Manual release dry
+runs always run it. Release binaries still pass build and smoke checks.
+See [CI validation](scripts/ci/VALIDATION.md). Releases that touch the node
+protocol, subscription output or the money paths also pass a live regression
+against real nodes and a real client (`scripts/e2e/README.md`).
 
 ## Building from source
 

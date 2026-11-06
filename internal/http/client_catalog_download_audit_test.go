@@ -15,9 +15,9 @@ import (
 
 	"github.com/zeptop-dev/captain/internal/clientcatalog"
 	"github.com/zeptop-dev/captain/internal/config"
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 const catalogFixtureBody = "synthetic installer bytes for authorization tests"
@@ -53,14 +53,8 @@ func newCatalogAuditRig(t *testing.T, source clientcatalog.Source) (*portalRig, 
 	t.Helper()
 	cfg := config.Default()
 	cfg.BaseURL, cfg.DataDir = "http://example.com", t.TempDir()
-	conn, err := db.Open("sqlite", filepath.Join(cfg.DataDir, "captain.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { conn.Close() })
-	if err := db.Migrate(context.Background(), conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	conn := testdb.OpenAt(t, filepath.Join(cfg.DataDir, "captain.db"))
+	var err error
 	st := store.New(conn)
 	u := &domain.User{Email: "catalog-admin@example.com", Role: domain.RoleAdmin, Status: "active"}
 	if err := st.CreateStaff(context.Background(), u); err != nil {

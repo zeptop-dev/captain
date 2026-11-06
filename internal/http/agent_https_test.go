@@ -209,7 +209,7 @@ func TestAgentHTTPSSettingsLifecycleAndIsolation(t *testing.T) {
 }
 
 func TestAgentHTTPSResetRejectsInitialDraft(t *testing.T) {
-	r := newRig(t)
+	r := newMigratedRig(t)
 	ctx := context.Background()
 	before, err := r.st.AgentHTTPSSettings(ctx)
 	if err != nil {

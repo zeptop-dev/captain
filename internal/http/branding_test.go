@@ -286,7 +286,7 @@ func TestProbeBrandingInheritanceDedicatedHostAndPreservation(t *testing.T) {
 }
 
 func TestBrandAssetsFollowDatabaseBackupAndReset(t *testing.T) {
-	p := newPortalRig(t, true)
+	p := newMigratedPortalRig(t, true)
 	code, raw, _ := brandRequest(t, p.admin, "POST", brandUploadPath, "", brandPNG(t), nil)
 	if code != 200 {
 		t.Fatalf("upload: %d %s", code, raw)

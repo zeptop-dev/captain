@@ -115,7 +115,7 @@ func TestNodeDiagnosticsIsolatedFromConfigurationHistoryAndAccounting(t *testing
 }
 
 func TestNodeDiagnosticsTokenUsePauseAndReset(t *testing.T) {
-	r := newRig(t)
+	r := newMigratedRig(t)
 	serviceControlHTTPReport(t, r, 1, &agentproto.ServiceControlReport{Supported: true, CheckedAt: time.Now().Unix(), Mode: "normal"})
 	ctx := context.Background()
 	control, err := r.st.NodeServiceControl(ctx, r.nodeID, time.Now())

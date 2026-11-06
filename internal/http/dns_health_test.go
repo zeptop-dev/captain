@@ -9,7 +9,7 @@ import (
 )
 
 func TestDNSHealthPermissionsHistoryPaginationAndReset(t *testing.T) {
-	r := newRig(t)
+	r := newMigratedRig(t)
 	ctx := context.Background()
 	nodePath := "/api/admin/nodes/" + itoa(r.nodeID) + "/dns-health"
 	paths := []string{nodePath, "/api/admin/monitoring/dns", "/api/admin/settings/dns/history"}

@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -19,6 +20,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/http/admin"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 // rig is the shared setup of the tests below: a panel, a logged-in admin
@@ -37,15 +39,32 @@ func newRig(t *testing.T) *rig { return newRigAt(t, "http://test") }
 
 func newRigAt(t *testing.T, baseURL string, opts ...Options) *rig {
 	t.Helper()
-	cfg := config.Default()
-	cfg.BaseURL = baseURL
+	return newRigWithDB(t, testdb.Open(t), baseURL, opts...)
+}
+
+// Reset and backup tests retain a real fresh-install migration path.
+func newMigratedTestDB(t *testing.T) *sql.DB {
+	t.Helper()
 	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = conn.Close() })
 	if err := db.Migrate(context.Background(), conn, "sqlite"); err != nil {
 		t.Fatal(err)
 	}
+	return conn
+}
+
+func newMigratedRig(t *testing.T) *rig {
+	t.Helper()
+	return newRigWithDB(t, newMigratedTestDB(t), "http://test")
+}
+
+func newRigWithDB(t *testing.T, conn *sql.DB, baseURL string, opts ...Options) *rig {
+	t.Helper()
+	cfg := config.Default()
+	cfg.BaseURL = baseURL
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	if err := st.CreateStaff(context.Background(), adminUser); err != nil {

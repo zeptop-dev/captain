@@ -21,9 +21,9 @@ import (
 	"github.com/zeptop-dev/bosun/pkg/coremanifest"
 	"github.com/zeptop-dev/captain/internal/agentdownload"
 	"github.com/zeptop-dev/captain/internal/auth"
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 type upstreamFunc func(*http.Request) (*http.Response, error)
@@ -32,14 +32,7 @@ func (f upstreamFunc) RoundTrip(r *http.Request) (*http.Response, error) { retur
 
 func fixture(t *testing.T) (*store.Store, *http.ServeMux, *agentdownload.Service) {
 	t.Helper()
-	conn, e := db.Open("sqlite", filepath.Join(t.TempDir(), "test.db"))
-	if e != nil {
-		t.Fatal(e)
-	}
-	t.Cleanup(func() { conn.Close() })
-	if e = db.Migrate(context.Background(), conn, "sqlite"); e != nil {
-		t.Fatal(e)
-	}
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "test.db"))
 	st := store.New(conn)
 	svc := agentdownload.New(t.TempDir())
 	mux := http.NewServeMux()

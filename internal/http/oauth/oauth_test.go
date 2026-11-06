@@ -20,10 +20,10 @@ import (
 	"github.com/go-jose/go-jose/v4/jwt"
 
 	"github.com/zeptop-dev/captain/internal/config"
-	"github.com/zeptop-dev/captain/internal/db"
 	chttp "github.com/zeptop-dev/captain/internal/http"
 	"github.com/zeptop-dev/captain/internal/http/admin"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 // fakeIdP is a minimal OIDC provider: discovery, JWKS, auth (auto-approves),
@@ -80,8 +80,7 @@ func testOIDCLogin(t *testing.T, suffix string) {
 	idp := newFakeIdPWithIssuerSuffix(t, suffix)
 	cfg := config.Default()
 	cfg.Portal.Registration = true
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -196,14 +195,8 @@ func TestOIDCRegistrationMasterSwitch(t *testing.T) {
 	idp := newFakeIdP(t)
 	cfg := config.Default()
 	cfg.Portal.Registration = false
-	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "registration.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-	if err := db.Migrate(ctx, conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "registration.db"))
+	var err error
 	st := store.New(conn)
 	if err := st.SetSetting(ctx, store.SettingOIDC, store.OIDCSettings{Providers: []store.OIDCProvider{{ID: "idp", Name: "Example", Issuer: idp.srv.URL, ClientID: "captain-client", AutoRegister: true}}}); err != nil {
 		t.Fatal(err)

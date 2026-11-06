@@ -15,10 +15,10 @@ import (
 
 	"github.com/zeptop-dev/bosun/pkg/subdesign"
 	"github.com/zeptop-dev/captain/internal/config"
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/store"
 	"github.com/zeptop-dev/captain/internal/subpreset"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 type subPresetFetchFunc func(context.Context) (subpreset.Snapshot, error)
@@ -32,14 +32,8 @@ func newSubPresetRig(t *testing.T, fetch subPresetFetchFunc) (*store.Store, *cli
 
 func newSubDesignRig(t *testing.T, options Options) (*store.Store, *client, int64, int64) {
 	t.Helper()
-	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "captain.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { conn.Close() })
-	if err = db.Migrate(context.Background(), conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "captain.db"))
+	var err error
 	st := store.New(conn)
 	u := &domain.User{Email: "admin@example.com", Role: domain.RoleAdmin, Status: "active"}
 	if err = st.CreateStaff(context.Background(), u); err != nil {

@@ -14,22 +14,19 @@ import (
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
 
 	"github.com/zeptop-dev/captain/internal/config"
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/http/admin"
 	"github.com/zeptop-dev/captain/internal/payment"
 	"github.com/zeptop-dev/captain/internal/payment/epay"
 	"github.com/zeptop-dev/captain/internal/payment/stripe"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 func TestPurchaseFlow(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "http://test"
 	cfg.Portal.Registration = true
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	if err := db.Migrate(context.Background(), conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)

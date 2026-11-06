@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/probetheme"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 type themeSessions struct {
@@ -27,14 +27,8 @@ func (s themeSessions) Resolve(context.Context, string) (*domain.User, bool, err
 func (s themeSessions) Delete(context.Context, string) error { return nil }
 func TestThemeManagementRequiresFullConsoleSession(t *testing.T) {
 	ctx := context.Background()
-	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "theme.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-	if err = db.Migrate(ctx, conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "theme.db"))
+	var err error
 	st := store.New(conn)
 	admin := &domain.User{Email: "admin@example.com", PasswordHash: "test", Role: domain.RoleAdmin, Status: "active"}
 	if err = st.CreateStaff(ctx, admin); err != nil {

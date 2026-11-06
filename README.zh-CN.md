@@ -287,9 +287,13 @@ SQLite，而且只有 SQLite —— 没有 Postgres，没有 MySQL，没有 Redi
 稳定；数据库迁移只向前，不回退。细节以及 Captain ↔ bosun 的版本
 对应表见 [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)。
 
-每次发布都跑和 CI 一样的检查（i18n 一致性、oxlint、gofmt、vet、
-`go test -race`）；凡是动到节点协议、订阅输出或资金链路的版本，还要
-在真实节点和真实客户端上跑一遍线上回归（`scripts/e2e/README.md`）。
+每次发布都要求通过 CI 检查（i18n 一致性、oxlint、gofmt、vet、
+`go test -race`）。正式 tag 可以复用同一提交、经过核验的 `master`
+push CI 成功结果，省去重复的全量 Go 测试；证据缺失或不完整时仍完整
+运行。手动发布演练始终跑完整测试，发布二进制仍需通过构建与冒烟检查。
+具体规则见 [CI 验证说明](scripts/ci/VALIDATION.md)。凡是动到节点协议、
+订阅输出或资金链路的版本，还要在真实节点和真实客户端上跑一遍线上
+回归（`scripts/e2e/README.md`）。
 
 ## 从源码构建
 

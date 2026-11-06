@@ -20,7 +20,7 @@ func resetInput() map[string]any {
 }
 
 func TestSiteResetAuthorizationAndFreshStart(t *testing.T) {
-	r := newRig(t)
+	r := newMigratedRig(t)
 	ctx := context.Background()
 	id, _ := r.user("customer@example.com")
 	u, _ := r.st.UserByID(ctx, id)
@@ -122,7 +122,7 @@ func TestSiteResetAuthorizationAndFreshStart(t *testing.T) {
 }
 
 func TestSiteResetRequiresFreshTOTP(t *testing.T) {
-	r := newRig(t)
+	r := newMigratedRig(t)
 	ctx := context.Background()
 	secret := auth.NewTOTPSecret()
 	if err := r.st.SetTOTP(ctx, 1, secret, true); err != nil {
@@ -158,7 +158,7 @@ func TestSiteResetRequiresFreshTOTP(t *testing.T) {
 }
 
 func TestSiteResetPasswordAttemptsAreLimited(t *testing.T) {
-	r := newRig(t)
+	r := newMigratedRig(t)
 	in := resetInput()
 	in["password"] = "wrong"
 	for range 5 {
@@ -172,7 +172,7 @@ func TestSiteResetPasswordAttemptsAreLimited(t *testing.T) {
 }
 
 func TestSiteResetRevokesWaitingNodeBeforeIDReuse(t *testing.T) {
-	r := newRig(t)
+	r := newMigratedRig(t)
 	_, _, headers := r.agent.do("GET", "/api/agent/state", nil, nil)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

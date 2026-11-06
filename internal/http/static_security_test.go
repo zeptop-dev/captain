@@ -12,9 +12,9 @@ import (
 	"testing"
 
 	"github.com/zeptop-dev/captain/internal/config"
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/http/site"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 // Exercise the real router as well as the FileServer path cleaner: a custom
@@ -24,14 +24,7 @@ func TestStaticRoutesDoNotExposeDataDirectory(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "http://example.com"
 	cfg.DataDir = t.TempDir()
-	conn, err := db.Open("sqlite", filepath.Join(cfg.DataDir, "captain.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = conn.Close() })
-	if err := db.Migrate(context.Background(), conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	conn := testdb.OpenAt(t, filepath.Join(cfg.DataDir, "captain.db"))
 	const private = "PRIVATE-CONFIG-AND-BACKUP-SENTINEL"
 	for _, name := range []string{"config.yaml", "backups/captain-audit.db"} {
 		p := filepath.Join(cfg.DataDir, name)

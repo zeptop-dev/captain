@@ -11,9 +11,9 @@ import (
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
 	"github.com/zeptop-dev/bosun/pkg/spec"
 	"github.com/zeptop-dev/captain/internal/config"
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/http/admin"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 // Console credentials cannot create a portal session; only the console
@@ -21,8 +21,7 @@ import (
 func TestPortalSessionCannotReachAdmin(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "http://test"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -59,8 +58,7 @@ func TestPortalSessionCannotReachAdmin(t *testing.T) {
 func TestNodeReportScopedToItsUsers(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "http://test"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -118,8 +116,7 @@ func TestNodeReportScopedToItsUsers(t *testing.T) {
 func TestNodeJobChangesRevision(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "http://test"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -150,8 +147,7 @@ func TestNodeJobChangesRevision(t *testing.T) {
 func TestMetricsEndpoint(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "http://test"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)
@@ -178,8 +174,7 @@ func TestMetricsEndpoint(t *testing.T) {
 func TestCrossSiteWritesRefused(t *testing.T) {
 	cfg := config.Default()
 	cfg.BaseURL = "http://test"
-	conn, _ := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	_ = db.Migrate(context.Background(), conn, "sqlite")
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	adminUser, _ := admin.NewUser("admin@test", "password123", "admin")
 	_ = st.CreateStaff(context.Background(), adminUser)

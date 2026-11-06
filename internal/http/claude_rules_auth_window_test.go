@@ -15,10 +15,10 @@ import (
 
 	"github.com/zeptop-dev/captain/internal/clauderules"
 	"github.com/zeptop-dev/captain/internal/config"
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/http/admin"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 // pausedClaudeSessions pauses after the final authorization has read the
@@ -61,14 +61,8 @@ func (s *pausedClaudeSessions) Resolve(ctx context.Context, session string) (*do
 
 func TestClaudeSyncFinalAuthorizationSerializesWithHTTPRevocation(t *testing.T) {
 	ctx := context.Background()
-	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "captain.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { conn.Close() })
-	if err := db.Migrate(ctx, conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "captain.db"))
+	var err error
 	st := store.New(conn)
 	requester := &domain.User{Email: "requester@example.com", Role: domain.RoleAdmin, Status: "active"}
 	operator := &domain.User{Email: "operator@example.com", Role: domain.RoleAdmin, Status: "active"}

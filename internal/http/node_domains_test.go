@@ -9,21 +9,14 @@ import (
 	"testing"
 
 	"github.com/zeptop-dev/captain/internal/config"
-	"github.com/zeptop-dev/captain/internal/db"
 	"github.com/zeptop-dev/captain/internal/http/admin"
 	"github.com/zeptop-dev/captain/internal/store"
+	"github.com/zeptop-dev/captain/internal/testdb"
 )
 
 func TestNodeDomainOwnership(t *testing.T) {
 	ctx := context.Background()
-	conn, err := db.Open("sqlite", filepath.Join(t.TempDir(), "c.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-	if err := db.Migrate(ctx, conn, "sqlite"); err != nil {
-		t.Fatal(err)
-	}
+	conn := testdb.OpenAt(t, filepath.Join(t.TempDir(), "c.db"))
 	st := store.New(conn)
 	staff, _ := admin.NewUser("admin@example.com", "password123", "admin")
 	if err := st.CreateStaff(ctx, staff); err != nil {
