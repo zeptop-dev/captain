@@ -302,6 +302,7 @@ func nodeLocationMode(settings *domain.LocationSettings, oldMode string) string 
 }
 
 type NodeRegionState struct {
+	incarnation  string
 	input        locationIPInput
 	selection    locationIPSelection
 	LocationMode string
@@ -312,12 +313,13 @@ type NodeRegionState struct {
 	Detection    RegionDetection
 }
 
-const nodeRegionStateColumns = `region_mode,address_json,region_detection_json,probe_info_json,` + locationIPColumns
+const nodeRegionStateColumns = `region_mode,address_json,region_detection_json,probe_info_json,` + locationIPColumns + `,COALESCE((SELECT uuid FROM probe_public_ids WHERE node_id=nodes.id),'')`
 
 func scanNodeRegionState(row interface{ Scan(...any) error }, id int64) (NodeRegionState, error) {
 	out := NodeRegionState{ID: id}
 	var obs, cache, info string
 	args := append([]any{&out.Mode, &obs, &cache, &info}, out.input.scanArgs()...)
+	args = append(args, &out.incarnation)
 	if err := row.Scan(args...); err != nil {
 		return out, wrapNotFound(err)
 	}
@@ -341,7 +343,7 @@ func (n NodeRegionState) Automatic() bool       { return n.Mode == "auto" || n.L
 func (n NodeRegionState) IPs() (string, string) { return n.selection.ips() }
 func (n NodeRegionState) Fresh(at time.Time) bool {
 	current := n.input.selectIP(at)
-	return current.Fresh && current.Source == n.selection.Source && current.IPv4 == n.selection.IPv4 && current.IPv6 == n.selection.IPv6
+	return n.incarnation != "" && current.Fresh && current.Source == n.selection.Source && current.IPv4 == n.selection.IPv4 && current.IPv6 == n.selection.IPv6
 }
 func (s *Store) SaveRegionDetection(ctx context.Context, expected NodeRegionState, d RegionDetection) error {
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -357,8 +359,10 @@ func (s *Store) SaveRegionDetection(ctx context.Context, expected NodeRegionStat
 	before, after := expected.selection, current.input.selectIP(at)
 	// A monotonic persisted revision catches policy/address A→B→A; current
 	// freshness catches evidence expiring during the provider request. Pairing
-	// identity remains relevant even for explicit location overrides.
-	if current.Token != expected.Token || current.input.Revision != expected.input.Revision || !expected.Fresh(at) || !after.Fresh || before.Source != after.Source || before.IPv4 != after.IPv4 || before.IPv6 != after.IPv6 {
+	// identity remains relevant even for explicit location overrides. The UUID
+	// also binds unpaired overrides to one incarnation: SQLite row IDs and
+	// per-row revisions can both be reused after deletion.
+	if current.incarnation == "" || current.incarnation != expected.incarnation || current.Token != expected.Token || current.input.Revision != expected.input.Revision || !expected.Fresh(at) || !after.Fresh || before.Source != after.Source || before.IPv4 != after.IPv4 || before.IPv6 != after.IPv6 {
 		return ErrRegionObservationChanged
 	}
 	buf, _ := json.Marshal(d)

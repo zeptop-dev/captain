@@ -223,7 +223,7 @@ func TestLocationIPLookupSnapshotCannotChangeSourceAsTimePasses(t *testing.T) {
 	input := locationIPFixture(at)
 	input.Addresses.Observed.IPv4.LastSuccess = at.Add(-14 * time.Minute).Unix()
 	input.Addresses.Observed.IPv6.LastSuccess = at.Add(-14 * time.Minute).Unix()
-	snapshot := NodeRegionState{input: input, selection: input.selectIP(at)}
+	snapshot := NodeRegionState{incarnation: "fixture", input: input, selection: input.selectIP(at)}
 	if !snapshot.Fresh(at) {
 		t.Fatal("initial source unavailable")
 	}
@@ -290,5 +290,77 @@ func TestLocationIPLateLookupRejectsRevokedAndExpiredEvidence(t *testing.T) {
 				t.Fatal("late evidence accepted", err)
 			}
 		})
+	}
+}
+
+func TestLocationIPRejectsLookupForRecreatedUnpairedNode(t *testing.T) {
+	for _, mode := range []string{"manual", "entry"} {
+		t.Run(mode, func(t *testing.T) {
+			s := subDesignStore(t)
+			ctx := context.Background()
+			must := func(err error) {
+				t.Helper()
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			settings := &LocationIPSettings{Mode: mode, ManualIP: "198.51.100.20"}
+			create := func() *domain.Node {
+				t.Helper()
+				n := &domain.Node{Name: "example", PublicAddr: "198.51.100.20"}
+				must(s.CreateNode(ctx, n, "location-recreate", time.Hour))
+				regionMode := "auto"
+				must(s.UpdateNodeProbeWithLocationIP(ctx, n.ID, false, NodeProbeInfo{}, 0, 1, "sum", nil, &regionMode, nil, NodeInfrastructureGuard{}, settings))
+				return n
+			}
+			old := create()
+			expected, err := s.NodeRegionState(ctx, old.ID)
+			must(err)
+			must(s.DeleteNode(ctx, old.ID))
+			replacement := create()
+			current, err := s.NodeRegionState(ctx, replacement.ID)
+			must(err)
+			if replacement.ID != old.ID || expected.Token != "" || current.Token != "" || expected.input.Revision != current.input.Revision {
+				t.Fatal("fixture did not reproduce identical reusable identity", expected, current)
+			}
+			if err = s.SaveRegionDetection(ctx, expected, RegionDetection{IPv4: RegionResult{IP: "198.51.100.20", Country: "JP", Status: "ok", CheckedAt: time.Now().Unix()}}); !errors.Is(err, ErrRegionObservationChanged) {
+				t.Fatal("accepted deleted node result for replacement", err)
+			}
+			probe, err := s.NodeProbe(ctx, replacement.ID)
+			must(err)
+			if probe.Info.Region != "" {
+				t.Fatal("replacement inherited old location", probe)
+			}
+		})
+	}
+}
+
+func TestLocationIPMissingIncarnationFailsClosed(t *testing.T) {
+	s := subDesignStore(t)
+	ctx := context.Background()
+	n := &domain.Node{Name: "example", PublicAddr: "198.51.100.20"}
+	must := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	must(s.CreateNode(ctx, n, "identity-missing", time.Hour))
+	mode := "auto"
+	must(s.UpdateNodeProbeWithLocationIP(ctx, n.ID, false, NodeProbeInfo{}, 0, 1, "sum", nil, &mode, nil, NodeInfrastructureGuard{}, &LocationIPSettings{Mode: "entry"}))
+	before, err := s.NodeRegionState(ctx, n.ID)
+	must(err)
+	if !before.Fresh(time.Now()) {
+		t.Fatal("valid fixture is not eligible")
+	}
+	_, err = s.db.Exec(`DELETE FROM probe_public_ids WHERE node_id=?`, n.ID)
+	must(err)
+	after, err := s.NodeRegionState(ctx, n.ID)
+	must(err)
+	if after.Fresh(time.Now()) {
+		t.Fatal("missing incarnation remains query eligible")
+	}
+	if err = s.SaveRegionDetection(ctx, before, RegionDetection{}); !errors.Is(err, ErrRegionObservationChanged) {
+		t.Fatal("accepted result without current incarnation", err)
 	}
 }

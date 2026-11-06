@@ -75,3 +75,41 @@ func TestLocationIPMigration115PreservesDataAndSelectionRevision(t *testing.T) {
 	must(err)
 	revisionIs(5)
 }
+
+func TestLocationIPLegacyNodeIncarnations(t *testing.T) {
+	ctx := context.Background()
+	conn, err := Open("sqlite", filepath.Join(t.TempDir(), "legacy-identities.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	must := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	goose.SetBaseFS(migrations.FS)
+	goose.SetLogger(goose.NopLogger())
+	must(goose.SetDialect("sqlite"))
+	must(goose.UpToContext(ctx, conn, ".", 96))
+	// These predate the introduction of public per-incarnation UUIDs.
+	_, err = conn.Exec(`INSERT INTO nodes(id,name,created_at,updated_at) VALUES(1,'legacy-1',1,1),(2,'legacy-2',1,1)`)
+	must(err)
+	must(Migrate(ctx, conn, "sqlite"))
+	var total, distinct int
+	must(conn.QueryRow(`SELECT COUNT(*),COUNT(DISTINCT p.uuid) FROM nodes n JOIN probe_public_ids p ON p.node_id=n.id WHERE length(p.uuid)=36`).Scan(&total, &distinct))
+	if total != 2 || distinct != 2 {
+		t.Fatal("legacy nodes lack unique incarnation UUIDs", total, distinct)
+	}
+	var before, after string
+	must(conn.QueryRow(`SELECT uuid FROM probe_public_ids WHERE node_id=2`).Scan(&before))
+	_, err = conn.Exec(`DELETE FROM nodes WHERE id=2`)
+	must(err)
+	_, err = conn.Exec(`INSERT INTO nodes(id,name,created_at,updated_at) VALUES(2,'replacement',1,1)`)
+	must(err)
+	must(conn.QueryRow(`SELECT uuid FROM probe_public_ids WHERE node_id=2`).Scan(&after))
+	if before == after || len(after) != 36 {
+		t.Fatal("replacement reused incarnation identity", before, after)
+	}
+}
