@@ -92,12 +92,9 @@ exit "$CURL_STATUS"
 	}
 }
 
-// Run against the supporting bosun dependency before integration/release. The
-// fixed published dependency may intentionally remain older during development.
+// Keep the pinned bosun bootstrap in sync with the installation choices exposed
+// by Captain. This must run in ordinary CI, without a local workspace override.
 func TestSystemPackagesEmbeddedInstaller(t *testing.T) {
-	if os.Getenv("CAPTAIN_TEST_SYSTEM_PACKAGES_BOOTSTRAP") != "1" {
-		t.Skip("set CAPTAIN_TEST_SYSTEM_PACKAGES_BOOTSTRAP=1 with the supporting bosun dependency")
-	}
 	st, mux, _ := fixture(t)
 	const pair = "EMBEDDED-PACKAGES"
 	if err := st.CreateNode(context.Background(), &domain.Node{Name: "embedded-package-test", DownloadSource: "captain"}, pair, time.Hour); err != nil {
