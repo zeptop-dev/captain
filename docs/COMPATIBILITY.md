@@ -387,6 +387,22 @@ can expose restricted nodes.
 
 ## City locations and map publication
 
+Location lookup policy is stored separately from published server addresses and
+public probe metadata. The additive administrator probe fields
+`probe.location_ip_settings` and optional update input `LocationIP` select
+`auto`, `manual` or `entry`; omitted input preserves the saved policy. The policy
+defaults to automatic observations without entry fallback. Normal observations
+outrank explicitly permitted confirmed fallback observations across both address
+families; IPv4 is preferred within a source tier. Manual region/coordinates and
+hidden display modes remain independent. Public location projections exclude
+the selected IP, policy and evidence metadata. No agent protocol, published entry,
+DNS or billing change is implied by choosing a location input.
+
+The new policy requires an additive migration. Older panels ignore this
+display-only preference, so their automatic location may differ; existing
+rollback floors are unchanged. Confirmed fallback selection uses the existing
+bosun v0.92.0 evidence, while manual/entry lookup needs no agent upgrade.
+
 Migration 91 adds independent subscription-node map metadata and a foreign-key
 homepage publication list with an optimistic revision. No existing Entry columns,
 proxy configuration, subscription region, agent protocol or billing fields change.

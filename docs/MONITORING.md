@@ -314,48 +314,67 @@ See [node organization](NODES.md#groups-and-display-order).
 
 ## Automatic country / region
 
-Node details → Probe and monthly traffic → Region offers, in order:
+Server details → Information → Region offers, in order:
 **Do not show**, the current **automatic** country, and searchable flag/code/name
-choices. Names follow the admin UI language. Manual choices are fixed; automatic
-mode uses bosun's independently observed machine public IP, preferring IPv4 and
-using IPv6 only when IPv4 is absent. A differing IPv6 country is shown as a hint.
-A failed IPv4 lookup does not silently switch to the IPv6 country.
+choices. Names follow the admin UI language. Manual country and map choices are
+independent and remain fixed; hidden settings stay hidden.
+
+The separate **Location IP** settings determine the address used by automatic
+country and map lookups. Choose automatic selection, reuse the registered public
+entry addresses, or provide one public IPv4/IPv6 address explicitly for location.
+Manual location input does not change the server's published address, DNS records
+or proxy configuration. Save these settings before requesting a lookup.
+
+Automatic selection first uses recent normal machine observations, then a fresh,
+confirmed fallback observation whose address-follow and fallback-follow switches
+are both enabled. An optional, default-off entry fallback can use the registered
+public entry only when neither observation source qualifies. Source priority
+comes before address family: a normal IPv6 observation outranks a fallback IPv4
+observation, and IPv4 is preferred within the selected source tier. A failed
+lookup does not silently switch source or family. Entry addresses can refer to
+a remote NAT or dedicated-line entrance, so entry reuse must be chosen explicitly.
 
 Captain queries [Country.is](https://country.is/) over HTTPS with the public IP
 only, requesting country, subdivision, city and coordinates. No node hostname,
 token or credentials are sent. An IP location lookup is an
 estimate, not proof of physical location; use manual selection for broadcast IPs
-or inaccurate database entries. The form shows the lookup IP and time and offers
+or inaccurate database entries. The form shows the selected IP, its source and
+lookup time and offers
 **Detect / refresh country**. Detection previews do not change the saved choice.
 Public pages receive only the effective country code and permitted map position,
 never lookup metadata or the detection IP through this feature.
 
-Automatic mode checks for changes every minute using recent bosun observations
-(15 minutes). Successes are cached per IP for seven days; unknown/failed lookups
+Automatic mode checks for changes every minute; observed sources must still be
+recent (15 minutes). Manual location IPs and explicit entry reuse do not require
+an agent observation. Successes are cached per IP for seven days; unknown/failed lookups
 retry after an hour. Interactive refresh is limited to once per minute per cached
 IP; all requests share a bounded rate-limited stream. An IP change immediately
 invalidates the previous country's display on the next uncached page read, and
-late results are discarded if the observed IP or pairing identity changed.
-Offline nodes keep their last matching country but do not trigger new lookups.
+late results are discarded if the selection policy, evidence, pairing identity
+or relevant address changed while the request was running. Matching historical
+results can remain marked stale after observations expire; they do not authorize
+a new observation-based lookup.
 
 Migration 77 preserves existing nonempty region codes as manual choices and
 existing empty regions as Do not show. Newly added nodes default to automatic.
-Automatic observations require bosun's public-address report (v0.69.0+); manually
-configured public entries, NAT mappings, domain records and HTTP peer addresses
-are not substitutes. No further bosun upgrade is needed. The probe update API
+Normal automatic observations require bosun's public-address report (v0.69.0+).
+Confirmed single-source fallback requires bosun v0.92.0 and the existing explicit
+per-family permission. No further bosun upgrade is needed for location settings.
+NAT mappings, domain records and HTTP peer addresses are not inferred as location
+inputs. The probe update API
 adds optional `RegionMode: auto|manual|off`; legacy clients can still change the
 country explicitly and an unchanged effective country preserves automatic mode.
 
 ## City locations and public maps
 
-Server details → Probe and monthly traffic → **Map location** has independent
+Server details → Information → **Map location** has independent
 automatic, manual-correction and hidden modes. The flag's country choice remains
 separate: changing the map position does not change flags, subscription region
 groups, routing or accounting. Existing hidden region settings remain hidden
 until a map mode is explicitly selected. Older manual country markers remain
 country approximations when no automatic position is available.
 
-Automatic lookup uses the same observed-IP selection and bounded cache as the
+Automatic lookup uses the same location-IP selection and bounded cache as the
 country lookup above. Country-only cached results are refreshed to obtain city
 data. A failed refresh for the same IP retains the last successful position;
 the administrator sees the failed attempt and last success separately. An IP

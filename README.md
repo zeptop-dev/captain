@@ -25,7 +25,7 @@ Captain v1.57.1 / bosun v0.91.3 add standard sing-box security packages: compati
 
 Captain v1.22 / bosun v0.70 add one-click managed NextTrace installation, runtime tool/ICMP checks and upgrade dialogs showing actual stages.
 
-Monitoring groups and subscription-node categories support Chinese/English display names; either name is sufficient, and interface language determines the preferred label. Node management provides shared status-page groups and ordering: drag or use arrow buttons, move nodes in batches, and save with concurrent-edit protection. No bosun update is required. The node country selector also supports automatic IP detection, manual flag/code selection, or hiding the region. [Groups and order](docs/NODES.md#groups-and-display-order).
+Monitoring groups and subscription-node categories support Chinese/English display names; either name is sufficient, and interface language determines the preferred label. Node management provides shared status-page groups and ordering: drag or use arrow buttons, move nodes in batches, and save with concurrent-edit protection. No bosun update is required. Country and map lookup share independent location-IP settings: specify an IP, select valid observations automatically, or explicitly reuse a public entry. Manual country, coordinates and hidden modes remain independent. [Groups and order](docs/NODES.md#groups-and-display-order) · [Country and location](docs/MONITORING.md#automatic-country--region).
 
 Captain v1.21 / bosun v0.69 add private three-carrier return-route diagnostics and independently observed public IPv4/IPv6, with optional address following that preserves fixed public entries. [Node monitoring and addresses](docs/NODES.md).
 
