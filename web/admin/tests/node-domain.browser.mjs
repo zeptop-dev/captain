@@ -26,7 +26,7 @@ async function setup({ domain = '', shared = false, catalog = zones, failCatalog
   const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 }, serviceWorkers: 'block', colorScheme: scheme })
   await context.addInitScript(({ locale, scheme }) => { localStorage.setItem('i18nextLng', locale); localStorage.setItem('mantine-color-scheme-value', scheme) }, { locale, scheme })
   await context.routeWebSocket('**/*', socket => socket.close())
-  const state = { writes: [], unexpected: [], external: [], errors: [], suggestionRequests: [], release: null, hold: false, dnsCheck: 'checked', failSuggestion: false, catalogReads: 0 }
+  const state = { writes: [], unexpected: [], external: [], errors: [], suggestionRequests: [], release: null, hold: false, dnsCheck: 'checked', failSuggestion: false, catalogReads: 0, catalog: structuredClone(catalog) }
   const node = { id: 1, name: 'Example server', hostname: 'host.example.com', public_addr: '192.0.2.10', internal_addr: '', v6_addr: '', domain, domain_shared: shared, paired: true, online: true, mode: 'full', version: 'v0.91.4', platform: 'linux/amd64', monitor_url: '', inbounds: 0, traffic_today_bytes: 0, user_speed_limit_mbps: 42, decoy_enabled: true, mita_quotas: true }
   await context.route('**/*', async route => {
     const req = route.request(), url = new URL(req.url()), path = url.pathname, method = req.method()
@@ -65,7 +65,7 @@ async function setup({ domain = '', shared = false, catalog = zones, failCatalog
         const valid = !name || /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/.test(name)
         return send({ domain: name, valid, unchanged: name === node.domain, conflicts: name === 'taken.example.com' ? [{ id: 9, name: 'Other server', shared: false }] : [] })
       }
-      case '/api/admin/domains': state.catalogReads++; if (role !== 'admin') return send({ error: 'Forbidden' }, 403); return failCatalog ? send({ error: 'Directory unavailable' }, 503) : send({ domains: catalog, global_token: false })
+      case '/api/admin/domains': state.catalogReads++; if (role !== 'admin') return send({ error: 'Forbidden' }, 403); return failCatalog ? send({ error: 'Directory unavailable' }, 503) : send({ domains: state.catalog, global_token: false })
       case '/api/admin/groups': case '/api/admin/entries': case '/api/admin/infrastructure/suppliers': return send([])
       case '/api/admin/nodes/1': return send({ node, status: {}, inbounds: [], ingresses: [], traffic: {} })
       case '/api/admin/nodes/1/internal-address-usage': return send({ uses: [] })
@@ -122,6 +122,35 @@ async function setup({ domain = '', shared = false, catalog = zones, failCatalog
 }
 
 try {
+  // A half-entered hostname belongs to the same retained draft as the server name.
+  if (process.env.NODE_DOMAIN_REPRO !== 'catalog') {
+    const reopen = await setup(); await reopen.createForm(); await reopen.prefix().fill('keep-prefix'); await reopen.settled()
+    assert.equal(await reopen.create().isDisabled(), true)
+    await reopen.dialog().getByRole('button', { name: reopen.t('common.cancel'), exact: true }).click()
+    await reopen.dialog().waitFor({ state: 'hidden' }); await reopen.page.waitForTimeout(200)
+    await reopen.page.getByRole('button', { name: reopen.t('nodes.create'), exact: true }).click()
+    assert.equal(await reopen.dialog().getByRole('textbox', { name: reopen.t('nodes.name'), exact: true }).inputValue(), 'New example server')
+    await reopen.settled()
+    assert.deepEqual({ prefix: await reopen.prefix().inputValue(), canSubmit: await reopen.create().isEnabled() }, { prefix: 'keep-prefix', canSubmit: false }, 'Cancel/reopen must retain and validate the half-entered hostname alongside other draft fields')
+    assert.deepEqual(reopen.state.writes, []); await reopen.close()
+  }
+  // A background directory refresh must not erase an incomplete hostname or unblock save.
+  if (process.env.NODE_DOMAIN_REPRO !== 'close') {
+    const empty = await setup(); await empty.createForm(); await empty.prefix().fill('keep-prefix'); await empty.settled()
+    await empty.page.clock.install(); const reads = empty.state.catalogReads
+    empty.state.catalog = []; await empty.page.clock.fastForward(61_000)
+    await empty.page.evaluate(() => { window.dispatchEvent(new Event('offline')); window.dispatchEvent(new Event('online')) })
+    // Playwright's virtual clock is paused: use real host time to wait for HTTP delivery.
+    for (let i = 0; empty.state.catalogReads === reads && i < 100; i++) await new Promise(resolve => setTimeout(resolve, 20))
+    assert.ok(empty.state.catalogReads > reads, 'Fixture actually refetched the emptied domain catalog')
+    await new Promise(resolve => setTimeout(resolve, 100))
+    assert.equal(await empty.prefix().count(), 1, 'An empty directory refresh must keep the incomplete prefix input visible')
+    assert.equal(await empty.prefix().inputValue(), 'keep-prefix', 'An empty directory refresh must preserve incomplete input')
+    assert.equal(await empty.create().isDisabled(), true, 'Directory removal must not turn partial input into an empty valid hostname')
+    assert.deepEqual(empty.state.writes, []); await empty.close()
+  }
+  if (process.env.NODE_DOMAIN_REPRO) { console.log('PASS: isolated incomplete hostname draft regression'); await browser.close(); process.exit(0) }
+
   // Optional means both empty, never a half-filled hostname or implicit apex.
   const c = await setup(); await c.createForm()
   assert.equal(await c.random().isDisabled(), true)
