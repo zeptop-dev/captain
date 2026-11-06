@@ -1,7 +1,8 @@
 # Changelog
 
-- **Unreleased** — Add a separate OS-dependency installation choice to full native server setup. Preserve Captain/GitHub defaults and older install commands, reject unsupported explicit choices before executing an old installer, and keep Docker/monitor-only setup independent.
+- **v1.57.0** (2026-11-06) — Add a separate OS-dependency installation choice to full native server setup. Preserve Captain/GitHub defaults and older install commands, reject unsupported explicit choices before executing an old installer, and keep Docker/monitor-only setup independent.
   - Reduce repeated SQLite migration work in business tests by cloning a checkpointed, fully migrated empty database into an isolated file for each test; retain real migration, upgrade and reset coverage. Release tags can reuse verified successful master-push CI for the exact commit, with full-test fallback and binary smoke checks; manual dry runs remain complete and publish nothing.
+  - Use the formal bosun v0.91.0 dependency for native network-dependency recovery and accurate enforcement diagnostics. Existing agents remain compatible; no database migration or rollback-floor change.
 
 - **v1.56.0** (2026-11-05) — Add default and per-server carrier probe plans with independent TCP/ICMP, IP-family and target selection; retain drafts and keep current/history views tied to each server’s active plan. Show automatic high-port public-IP fallback as separate advisory evidence, never as an automatic entry/DNS update.
   - Add Chinese and English display names to monitoring groups and subscription-node categories. Either name is sufficient; Chinese interfaces prefer the Chinese name and other languages prefer English, with fallback to the other name and legacy data. Keep stable group/category identities, ordering, access and accounting unchanged across language switches.

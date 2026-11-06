@@ -19,6 +19,8 @@
 
 ---
 
+Captain v1.57.0 / bosun v0.91.0 add a separate OS-package choice for native setup and bounded recovery of missing network helpers. Doctor distinguishes missing tools and partial enforcement; LXC host capabilities remain a prerequisite. [Compatibility](docs/COMPATIBILITY.md#native-network-dependencies-captain-v1570--bosun-v0910).
+
 Captain v1.22 / bosun v0.70 add one-click managed NextTrace installation, runtime tool/ICMP checks and upgrade dialogs showing actual stages.
 
 Monitoring groups and subscription-node categories support Chinese/English display names; either name is sufficient, and interface language determines the preferred label. Node management provides shared status-page groups and ordering: drag or use arrow buttons, move nodes in batches, and save with concurrent-edit protection. No bosun update is required. The node country selector also supports automatic IP detection, manual flag/code selection, or hiding the region. [Groups and order](docs/NODES.md#groups-and-display-order).
