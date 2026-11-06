@@ -27,7 +27,10 @@ preflight preserves the running core.
 Captain v1.57.1 uses the formal bosun v0.91.3 module to serve these package
 identities through Captain delivery. Existing agent protocol fields, schema
 113 and rollback floors are unchanged. Older panels do not gain the new
-download catalog until upgraded.
+download catalog until upgraded. When nodes use Captain delivery, upgrade the
+panel first so an unpinned node can fetch the new compatible default when it
+restarts. Nodes using direct GitHub downloads do not depend on the panel's
+catalog for that fetch.
 
 ## Native network dependencies (Captain v1.57.0 / bosun v0.91.2)
 
