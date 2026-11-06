@@ -181,3 +181,14 @@ func (c *Cloudflare) ApplyAddress(ctx context.Context, p AddressPlan) (*Record, 
 	err := c.do(ctx, method, path, p.Wanted, &record)
 	return record, err
 }
+
+// NameExists checks all record types at an exact name. It never creates or
+// changes records, and a negative result is a point-in-time observation only.
+func (c *Cloudflare) NameExists(ctx context.Context, zoneID, name string) (bool, error) {
+	var records []Record
+	err := c.do(ctx, http.MethodGet, "/zones/"+url.PathEscape(zoneID)+"/dns_records?name="+url.QueryEscape(name)+"&per_page=5", nil, &records)
+	if err == nil && records == nil {
+		return false, errors.New("cloudflare: missing DNS record list")
+	}
+	return len(records) > 0, err
+}

@@ -53,7 +53,8 @@ func TokenAllowsRequest(policy, method, path, pattern string) bool {
 	if base != "full" && base != ScopeRead {
 		return false
 	}
-	if base == ScopeRead && method != "GET" {
+	domainSuggestion := method == "POST" && path == "/api/admin/nodes/domain-suggestion"
+	if base == ScopeRead && method != "GET" && !domainSuggestion {
 		return false
 	}
 	if !restricted {
@@ -64,6 +65,9 @@ func TokenAllowsRequest(policy, method, path, pattern string) bool {
 		return false
 	}
 	resource := strings.Split(strings.TrimPrefix(path, "/api/admin/"), "/")[0]
+	if domainSuggestion {
+		resource = "domains"
+	}
 	if path == "/api/admin/settings/agent-https" || path == "/api/admin/settings/agent-https/check" {
 		resource = "agent-https"
 	}
@@ -91,7 +95,7 @@ func TokenAllowsRequest(policy, method, path, pattern string) bool {
 		return false
 	}
 	action := "write"
-	if method == "GET" {
+	if method == "GET" || domainSuggestion {
 		action = "read"
 	}
 	for _, s := range scopes {

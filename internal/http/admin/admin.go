@@ -120,6 +120,7 @@ type handlers struct {
 	subPresetSync        sync.Mutex
 	claudeRuleSync       sync.Mutex
 	dnsSync              sync.Mutex
+	domainSuggestion     sync.Mutex
 	agentCheck           sync.Mutex
 	subscriptionSettings sync.Mutex
 }
@@ -150,6 +151,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/admin/nodes/{id}/region-detect", h.requireAdmin(h.detectNodeRegion))
 	mux.HandleFunc("GET /api/admin/nodes", h.requireAdmin(h.listNodes))
 	mux.HandleFunc("GET /api/admin/nodes/domain-check", h.requireAdmin(h.checkNodeDomain))
+	mux.HandleFunc("POST /api/admin/nodes/domain-suggestion", h.suggestNodeDomain)
 	mux.HandleFunc("POST /api/admin/nodes", h.requireAdmin(h.createNode))
 	mux.HandleFunc("GET /api/admin/nodes/{id}", h.requireAdmin(h.getNode))
 	mux.HandleFunc("GET /api/admin/nodes/{id}/traffic-history", h.requireAdmin(h.getTrafficHistory))
@@ -612,6 +614,9 @@ func fail(w http.ResponseWriter, code int, msg string) {
 // Operator: everything except settings, system, staff management and the
 // landing page. Support: tickets, plus read-only users, orders, dashboard.
 func allowed(role, method, path string) bool {
+	if path == "/api/admin/nodes/domain-suggestion" && role != domain.RoleAdmin {
+		return false
+	}
 	if strings.HasPrefix(path, "/api/admin/nodes/") && strings.HasSuffix(path, "/traffic-history") && role != domain.RoleAdmin {
 		return false
 	}
