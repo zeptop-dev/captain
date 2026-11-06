@@ -82,11 +82,11 @@
     "waiting": "Waiting for a fresh address report from an updated bosun. Old values are for reference only.",
     "detected": "Detected",
     "unknown": "Unconfirmed",
-    "machine": "Observed machine address",
-    "lastSuccess": "Last successful probe",
+    "machine": "Dual-source observed address",
+    "lastSuccess": "Last successful dual-source probe",
     "entry": "Current public entry address",
     "follow": "Automatically follow observed address",
-    "behavior": "Existing entries stay fixed by default. Following requires two consecutive confirmed probes before updating this address and eligible automatic DNS. Failed probes retain old values. Manually editing a server address disables following for that family. Explicit NAT/line entries, subscription addresses and WG endpoints stay unchanged.",
+    "behavior": "Regular detection requires two matching sources. Explicitly allowing the fallback source enables single-source confirmation. Confirmed observations update this address and eligible automatic DNS; failures retain old values. Manually editing an address disables following for that family. Explicit NAT/line entries, subscription addresses and WG endpoints stay unchanged.",
     "dnsPending": "Address updated; DNS sync is pending or retrying. See DNS health and change history.",
     "confirming": "Address detected; waiting for another independent sample to confirm it.",
     "applying": "Address confirmed; waiting to update the entry address and synchronize DNS.",
@@ -105,7 +105,21 @@
       "http_status": "The endpoint did not return an available trace response.",
       "invalid_response": "The fallback response did not contain a valid address for this family.",
       "invalid_origin": "No valid Captain HTTPS origin is configured."
-    }
+    },
+    "fallbackFollow": "Allow the fallback source when regular probes fail",
+    "fallbackFollowHint": "Single-source following is off by default. At least two new matching samples over 120 seconds are required before updating the entry and eligible DNS. Failures retain the current address.",
+    "fallbackLegacy": "This report lacks the confirmation information required for automatic following and is for reference only. Check that bosun is up to date.",
+    "fallbackStatus": {
+      "primary": "Following uses regular confirmed observations; this fallback is not selected.",
+      "unavailable": "Fallback following is enabled. Waiting for a fresh successful observation; the current address is retained.",
+      "legacy": "Waiting for updated bosun consistency evidence; the current address is retained.",
+      "conflict": "Sources report different addresses. Automatic updates are paused; the current address is retained.",
+      "waiting": "Fallback following is enabled. Waiting for new samples to start confirmation.",
+      "confirming": "Single-source confirmation in progress: at least two matching samples over 120 seconds are required.",
+      "applying": "Single source confirmed. Waiting for the entry update and DNS synchronization.",
+      "following": "Single source · automatic following enabled; the entry matches the confirmed address."
+    },
+    "fallbackFollowing": "Following single source"
   },
   "app": {
     "logout": "Log out"
