@@ -1141,6 +1141,41 @@ Each node supports at most 64 links. Tunnel host addresses are allocated from
 `10.10.0.0/16` and `fd42:626f:7375::/112`; existing address, route and interface
 ownership conflicts are rejected rather than overwritten.
 
+## Optional single-source fallback following
+
+The development version adds **When normal detection fails, allow the fallback
+source** below each IPv4/IPv6 automatic-follow switch in **Machine public
+addresses and entry**. Both switches must be enabled for that family. The new
+choice defaults to off and persists per server; an older client omitting it does
+not clear it. An agent with only the original advisory fallback fields must be
+updated before its observations can qualify.
+
+The fallback uses the configured Captain HTTPS origin, including its port, at
+`/cdn-cgi/trace`. It requires a functioning Cloudflare trace endpoint; direct
+Captain origins without one do not supply fallback evidence. Requests retain
+normal TLS verification and family-specific direct sockets, without credentials,
+environment proxies or redirects.
+
+Normal dual-source confirmation has priority. When that confirmation is
+unavailable, a valid fallback must agree with every successful normal-source
+response. A conflict suspends fallback following. At least two distinct samples
+from the same uninterrupted run must span 120 seconds on both the node's sampling
+clock and the panel's receiving clock. Five-minute steady-state sampling can make
+the actual wait longer than two minutes; repeated reports of one sample do not
+advance confirmation.
+
+Failures, conflicts, address/source/origin changes and agent restarts break the
+observation run, including failures between panel reports. Re-pairing or changing
+the policy requires fresh confirmation. Stale evidence cannot update an address;
+failures retain the last published address. The panel labels this **single-source**
+following even after repeated confirmation. Candidates are stored separately from
+dual-source observations so old panels do not interpret them as dual-source proof.
+
+Confirmed changes use the existing entry-update, line-recompile and DNS-sync
+workflow described below. These remain outbound public-IP observations, not a
+reachability test; keep fixed NAT entries manual if their inbound and outbound
+addresses differ. No additional public-IP provider is needed.
+
 ## Observed public addresses and automatic following (Captain 1.21 / bosun 0.69)
 
 The **Machine public addresses and entry** card keeps the bosun-observed public

@@ -84,6 +84,24 @@ compatible backup and explicitly checking the resulting probe configuration.
 
 ## Public IP fallback (Captain v1.56.0 / bosun v0.90.0)
 
+### Development extension: explicit fallback following
+
+The unreleased extension adds per-family `fallback_auto_ipv4` and
+`fallback_auto_ipv6` settings to the existing node address API, defaulting to
+false. Omitted fields preserve the stored choice. Migration 114 stores policy
+boundaries; fallback candidates remain separate from the original dual-source
+address fields. Existing address and configuration keys retain their meanings.
+
+New bosun reports add `check_status` and `run_id` to the existing optional
+fallback object. Only fresh `no_conflict` observations in the same uninterrupted
+run can qualify. Old agents without these fields still display their fallback
+observations but cannot use the new automatic-follow option. Old Captain versions
+ignore the evidence and do not promote a single-source result into dual-source
+confirmation; downgrading stops fallback following. Normal dual-source following
+and proxy traffic continue using the established protocol.
+
+The following describes the originally released observation-only behavior:
+
 bosun v0.90.0 can anonymously query the configured Captain HTTPS origin,
 including its port, when the normal independent public-IP sources fail. A
 Cloudflare trace result is separate single-source advisory evidence. It never

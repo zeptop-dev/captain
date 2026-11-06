@@ -29,6 +29,8 @@ Captain v1.22 / bosun v0.70 新增 NextTrace 一键安装、工具与 ICMP 权�
 
 Captain v1.21 / bosun v0.69 新增管理员专用的三网回程探测，以及独立采集的机器公网 IPv4/IPv6。可按地址族启用自动跟随，既有固定公网入口保持不变。[节点监控与地址](docs/NODES.md)。
 
+对于 HTTPS 访问受限的服务器，开发版新增按地址族开启的高端口 Cloudflare 备用来源自动跟随。需要新版节点提供无冲突和采样连续性证据，经重复确认且开启原自动跟随后才应用；默认仍仅展示观测。[备用单来源跟随](docs/NODES.md#optional-single-source-fallback-following)。
+
 Captain v1.20 / bosun v0.68 新增托管反向 WireGuard：B 主动建立隧道，A 鉴权计费，内网按网段、协议和端口授权，由 B 执行 SNAT。同一 A 上普通出口与多条 WG 共享用户限速。 [WireGuard](docs/NODES.md#managed-reverse-wireguard-captain-120--bosun-068).
 
 **v1.28 / v0.75 的 WG 改进**：新建连接默认对双栈域名优先使用 IPv4，并明确启用 B 的 UFW

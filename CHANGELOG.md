@@ -1,6 +1,7 @@
 # Changelog
 
 - **Unreleased** — Compose server hostnames from a subdomain prefix and registered domain, with read-only random suggestions and explicit DNS-check results. Preserve complete external/apex names and shared-DNS behavior; block incomplete drafts without changing the stored domain API.
+  - Allow administrators to opt individual IPv4/IPv6 families into automatic following of the high-port fallback source. Require fresh, conflict-free samples from one uninterrupted observation sequence across a confirmation window; keep single-source evidence separate from normal dual-source confirmation, preserve addresses on failure, and leave the new option disabled by default.
 
 - **v1.57.1** (2026-11-06) — Use the formal bosun v0.91.3 catalog for standard sing-box security packages: compatible `1.14.1-r3` is tested, while `1.14.4-r1` requires explicit activation after configuration preflight. Preserve existing selected versions and the routing API's accepted member lists, including unrelated edits to historical configurations with repeated members. Add real HTTP regression coverage for preservation and invalid-reference rejection. No database migration, protocol change or rollback-floor change.
 
