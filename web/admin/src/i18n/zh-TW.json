@@ -4399,5 +4399,29 @@
     "adminOnly": "需要管理員權限才能設定探測方案。",
     "conflict": "方案已在其他位置修改。請重新載入已儲存方案後再編輯；目前草稿尚未儲存。",
     "reload": "重新載入已儲存方案"
+  },
+  "nodeDomain": {
+    "loading": "正在載入已登記網域…",
+    "loadFailed": "網域清單載入失敗，仍可填寫完整網域名稱。",
+    "chooseZone": "使用已登記網域",
+    "enterFull": "輸入完整網域名稱",
+    "fullName": "完整網域名稱",
+    "prefix": "子網域前綴",
+    "prefixRequired": "請填寫前綴或點選隨機，不會自動使用根網域。",
+    "random": "隨機",
+    "zone": "所屬網域",
+    "selectZone": "選擇已登記網域",
+    "zoneRemoved": "此網域已從清單移除，請重新選擇。",
+    "zoneRequired": "請選擇所屬網域。",
+    "preview": "完整網域名稱：",
+    "manualDNS": "DNS 手動管理",
+    "autoOff": "自動解析已關閉",
+    "noToken": "尚未設定 DNS 認證資訊",
+    "autoDNS": "自動管理 DNS",
+    "randomHint": "先選網域，再隨機產生「短單字 + 4 位字元」，也可以手動填寫前綴。",
+    "manualHint": "完整輸入只改變填寫方式，共用網域開關仍獨立控制自動 DNS。使用下拉選單前，請先清空無法匹配的網域名稱。",
+    "checked": "已檢查：未發現同名 DNS 記錄。名稱未保留，儲存時才依現有設定處理解析。",
+    "unverified": "已產生名稱，但未確認 DNS 使用情況，請核對現有記錄後儲存。",
+    "randomFailed": "暫時無法產生名稱，請重試或手動輸入。"
   }
 }

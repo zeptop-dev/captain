@@ -4399,5 +4399,29 @@
     "adminOnly": "An administrator is required to configure this plan.",
     "conflict": "This plan changed elsewhere. Reload the saved plan before editing again; your draft has not been saved.",
     "reload": "Reload saved plan"
+  },
+  "nodeDomain": {
+    "loading": "Loading registered domains…",
+    "loadFailed": "Could not load domains. You can still enter a full hostname.",
+    "chooseZone": "Use a registered domain",
+    "enterFull": "Enter full hostname",
+    "fullName": "Full hostname",
+    "prefix": "Subdomain prefix",
+    "prefixRequired": "Enter a prefix or choose Random. The root domain is not selected automatically.",
+    "random": "Random",
+    "zone": "Parent domain",
+    "selectZone": "Select a registered domain",
+    "zoneRemoved": "This domain is no longer registered. Choose another domain.",
+    "zoneRequired": "Select a parent domain.",
+    "preview": "Full hostname:",
+    "manualDNS": "Manually managed DNS",
+    "autoOff": "Automatic DNS disabled",
+    "noToken": "DNS credentials not configured",
+    "autoDNS": "Automatically managed DNS",
+    "randomHint": "Choose a domain, then generate a short word with four random characters, or enter your own prefix.",
+    "manualHint": "Full input only changes how you enter the name. The shared-domain switch controls automatic DNS separately. To use the domain list, first clear any hostname that does not match it.",
+    "checked": "Checked: no DNS records with this name were found. The name is not reserved; saving handles DNS according to the current settings.",
+    "unverified": "Name generated, but existing DNS records could not be checked. Review them before saving.",
+    "randomFailed": "Could not generate a name. Try again or enter one manually."
   }
 }

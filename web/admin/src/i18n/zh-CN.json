@@ -4399,5 +4399,29 @@
     "adminOnly": "需要管理员权限才能配置探测方案。",
     "conflict": "方案已在其他位置修改。请重新加载已保存方案后再编辑；当前草稿尚未保存。",
     "reload": "重新加载已保存方案"
+  },
+  "nodeDomain": {
+    "loading": "正在加载已登记域名…",
+    "loadFailed": "域名列表加载失败，仍可填写完整域名。",
+    "chooseZone": "使用已登记域名",
+    "enterFull": "输入完整域名",
+    "fullName": "完整域名",
+    "prefix": "子域名前缀",
+    "prefixRequired": "请填写前缀或点击随机，不会自动使用根域名。",
+    "random": "随机",
+    "zone": "所属域名",
+    "selectZone": "选择已登记域名",
+    "zoneRemoved": "该域名已从目录移除，请重新选择。",
+    "zoneRequired": "请选择所属域名。",
+    "preview": "完整域名：",
+    "manualDNS": "DNS 手动管理",
+    "autoOff": "自动解析已关闭",
+    "noToken": "尚未配置 DNS 凭据",
+    "autoDNS": "自动管理 DNS",
+    "randomHint": "先选域名，再随机生成“短单词 + 4 位字符”，也可以手动填写前缀。",
+    "manualHint": "完整输入只改变填写方式，共享域名开关仍独立控制自动 DNS。使用下拉框前，请先清空无法匹配的域名。",
+    "checked": "已检查：未发现同名 DNS 记录。名称未预留，保存时才按现有设置处理解析。",
+    "unverified": "已生成名称，但未确认 DNS 占用情况，请核对现有记录后保存。",
+    "randomFailed": "暂时无法生成名称，请重试或手动输入。"
   }
 }
