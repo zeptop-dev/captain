@@ -19,7 +19,7 @@
 
 ---
 
-Captain v1.57.0 / bosun v0.91.1 add a separate OS-package choice for native setup and bounded recovery of missing network helpers. Doctor distinguishes missing tools and partial enforcement; LXC host capabilities remain a prerequisite. [Compatibility](docs/COMPATIBILITY.md#native-network-dependencies-captain-v1570--bosun-v0911).
+Captain v1.57.0 / bosun v0.91.2 add a separate OS-package choice for native setup and bounded recovery of missing network helpers. Doctor distinguishes missing tools and partial enforcement; LXC host capabilities remain a prerequisite. [Compatibility](docs/COMPATIBILITY.md#native-network-dependencies-captain-v1570--bosun-v0912).
 
 Captain v1.22 / bosun v0.70 add one-click managed NextTrace installation, runtime tool/ICMP checks and upgrade dialogs showing actual stages.
 

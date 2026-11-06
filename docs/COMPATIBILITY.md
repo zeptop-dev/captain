@@ -7,7 +7,7 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.56.0 to preserve independent server plans and interface-bound probes.
 
-## Native network dependencies (Captain v1.57.0 / bosun v0.91.1)
+## Native network dependencies (Captain v1.57.0 / bosun v0.91.2)
 
 This release also recognizes the reviewed Extended r4 core package and GeoCheck
 0.3.0-r2 diagnostic identity. During mixed-version upgrades using Captain
@@ -16,7 +16,7 @@ identity. The optional GeoCheck download can remain unavailable until both
 components are upgraded; normal reporting and proxy service remain independent
 of that tool. The affected r1 helper is not restored as a compatibility fallback.
 
-Captain v1.57.0 uses the formal bosun v0.91.1 shared module and exposes a
+Captain v1.57.0 uses the formal bosun v0.91.2 shared module and exposes a
 separate OS-package choice for full native server installation. Existing
 Captain/GitHub defaults and unchanged legacy install commands remain valid.
 Explicit choices require the fetched installer's exact
@@ -25,7 +25,7 @@ installer executes. This is an installation option, not a new agent protocol
 field or persisted configuration key. Docker, monitor-only and OpenWrt setup
 retain their existing behavior.
 
-bosun v0.91.1 adds bounded runtime recovery after fresh authorized control pulls,
+bosun v0.91.2 adds bounded runtime recovery after fresh authorized control pulls,
 preserves requested user limits, and distinguishes missing tools, unavailable
 kernel enforcement and partial application in Doctor. Installing packages does
 not supply capabilities withheld by an LXC host or prove measured throughput.
@@ -711,7 +711,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
-| 1.57.0 | 0.91.1 for new native dependency recovery/Doctor behavior; older agents remain compatible | Formal v0.91.1 shared module and separate install-time OS-package choice; no schema or rollback-floor change. |
+| 1.57.0 | 0.91.2 for new native dependency recovery/Doctor behavior; older agents remain compatible | Formal v0.91.2 shared module and separate install-time OS-package choice; no schema or rollback-floor change. |
 | 1.56.0 | ≥ 0.90.0 for high-port IP observations and complete rolling-window evidence; existing compatible agents can run independent plans | Default/per-server carrier plans and advisory IP fallback, bilingual groups/categories, Agent access/firewall diagnostics and preceding-day traffic resets. Migrations 112–113; Captain rollback floor v1.56.0 protects per-server probe intent. |
 | 1.54.0 | ≥ 0.89.0 for Captain delivery and interface-bound probes | Optional agent origins and native package delivery, OpenWrt monitor setup and path-isolated ICMP/TCP tasks; migrations 110–111. Older nodes retain existing services. |
 | 1.51.0 | ≥ 0.86.0 for live diagnostics and detailed traffic provenance | Temporary administrator leases and bounded private batch history; older nodes retain configuration and accounting compatibility. Migration 107. |
