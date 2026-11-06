@@ -84,15 +84,15 @@ compatible backup and explicitly checking the resulting probe configuration.
 
 ## Public IP fallback (Captain v1.56.0 / bosun v0.90.0)
 
-### Development extension: explicit fallback following
+### Explicit fallback following (Captain v1.58.0 / bosun v0.92.0)
 
-The unreleased extension adds per-family `fallback_auto_ipv4` and
+Captain v1.58.0 adds per-family `fallback_auto_ipv4` and
 `fallback_auto_ipv6` settings to the existing node address API, defaulting to
 false. Omitted fields preserve the stored choice. Migration 114 stores policy
 boundaries; fallback candidates remain separate from the original dual-source
 address fields. Existing address and configuration keys retain their meanings.
 
-New bosun reports add `check_status` and `run_id` to the existing optional
+bosun v0.92.0 reports add `check_status` and `run_id` to the existing optional
 fallback object. Only fresh `no_conflict` observations in the same uninterrupted
 run can qualify. Old agents without these fields still display their fallback
 observations but cannot use the new automatic-follow option. Old Captain versions
@@ -754,6 +754,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
+| 1.58.0 | ≥ 0.92.0 for optional fallback following; older agents remain compatible and observation-only | Per-family opt-in with conflict/continuity evidence and sustained confirmation. Migration 114; existing rollback floors remain unchanged. |
 | 1.57.0 | 0.91.2 for new native dependency recovery/Doctor behavior; older agents remain compatible | Formal v0.91.2 shared module and separate install-time OS-package choice; no schema or rollback-floor change. |
 | 1.56.0 | ≥ 0.90.0 for high-port IP observations and complete rolling-window evidence; existing compatible agents can run independent plans | Default/per-server carrier plans and advisory IP fallback, bilingual groups/categories, Agent access/firewall diagnostics and preceding-day traffic resets. Migrations 112–113; Captain rollback floor v1.56.0 protects per-server probe intent. |
 | 1.54.0 | ≥ 0.89.0 for Captain delivery and interface-bound probes | Optional agent origins and native package delivery, OpenWrt monitor setup and path-isolated ICMP/TCP tasks; migrations 110–111. Older nodes retain existing services. |

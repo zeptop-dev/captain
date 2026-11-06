@@ -29,7 +29,7 @@ Monitoring groups and subscription-node categories support Chinese/English displ
 
 Captain v1.21 / bosun v0.69 add private three-carrier return-route diagnostics and independently observed public IPv4/IPv6, with optional address following that preserves fixed public entries. [Node monitoring and addresses](docs/NODES.md).
 
-For servers with restricted HTTPS access, the development version adds an explicit per-family option to follow the high-port Cloudflare fallback. It requires an updated agent's conflict and continuity evidence, repeated confirmation, and the existing automatic-follow switch; the default remains observation only. [Fallback following](docs/NODES.md#optional-single-source-fallback-following).
+For servers with restricted HTTPS access, Captain v1.58.0 with bosun v0.92.0 adds an explicit per-family option to follow the high-port Cloudflare fallback. It requires an updated agent's conflict and continuity evidence, repeated confirmation, and the existing automatic-follow switch; the default remains observation only. [Fallback following](docs/NODES.md#optional-single-source-fallback-following).
 
 Captain v1.20 / bosun v0.68 add managed reverse WireGuard: B initiates the tunnel, A authenticates and bills users, and explicit private-network grants use B-side SNAT. User speed limits are shared across ordinary egress and WG links on A. [WireGuard](docs/NODES.md#managed-reverse-wireguard-captain-120--bosun-068).
 

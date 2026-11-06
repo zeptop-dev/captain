@@ -1143,7 +1143,7 @@ ownership conflicts are rejected rather than overwritten.
 
 ## Optional single-source fallback following
 
-The development version adds **When normal detection fails, allow the fallback
+Captain v1.58.0 with bosun v0.92.0 adds **When normal detection fails, allow the fallback
 source** below each IPv4/IPv6 automatic-follow switch in **Machine public
 addresses and entry**. Both switches must be enabled for that family. The new
 choice defaults to off and persists per server; an older client omitting it does
