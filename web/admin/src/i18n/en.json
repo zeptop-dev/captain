@@ -4491,7 +4491,8 @@
       "chain": "Select the IP version on the front node of a client chain.",
       "extraConflict": "Remove conflicting client extra fields, or follow the client/template.",
       "dualDomain": "Dual stack requires a domain. A fixed IP has only one address family.",
-      "familyMismatch": "The selected IP version does not match the connection address."
+      "familyMismatch": "The selected IP version does not match the connection address.",
+      "wireguardDomain": "WireGuard needs a fixed endpoint IP to select only IPv4 or IPv6."
     },
     "checking": "Checking subscription compatibility…",
     "checkFailed": "Compatibility could not be checked. Refresh the check before publishing.",
@@ -4502,6 +4503,7 @@
     "templatesUnchecked": "Global templates were not checked with this account. Ask an administrator to confirm IPv6 compatibility.",
     "supportTitle": "IP option compatibility",
     "protocolSupport": "The client must also support the node protocol.",
-    "clientNative": "Client-controlled address selection: {{formats}}. These formats retain the domain without an explicit IP option."
+    "clientNative": "Client-controlled address selection: {{formats}}. These formats retain the domain without an explicit IP option.",
+    "wireguardHint": "To select an IP family for the WireGuard endpoint, enter a fixed IPv4 or IPv6 address. A domain keeps client-controlled address selection; this setting does not change DNS for traffic inside the tunnel."
   }
 }

@@ -4491,7 +4491,8 @@
       "chain": "请在客户端链式代理的前置节点选择 IP 协议。",
       "extraConflict": "请移除冲突的客户端附加字段，或选择跟随客户端／模板。",
       "dualDomain": "双栈需要填写域名，固定 IP 只有一种地址族。",
-      "familyMismatch": "所选 IP 协议与连接地址不一致。"
+      "familyMismatch": "所选 IP 协议与连接地址不一致。",
+      "wireguardDomain": "WireGuard 需要填写固定端点 IP，才能选择仅 IPv4 或仅 IPv6。"
     },
     "checking": "正在检查订阅兼容性…",
     "checkFailed": "暂时无法检查兼容性，请在发布前重新检查。",
@@ -4502,6 +4503,7 @@
     "templatesUnchecked": "当前账号未检查全局模板，请联系管理员确认 IPv6 兼容性。",
     "supportTitle": "IP 选项的客户端兼容性",
     "protocolSupport": "客户端还需要支持此节点使用的代理协议。",
-    "clientNative": "由客户端自行选址：{{formats}}。这些格式保留域名，不附加明确的 IP 选项。"
+    "clientNative": "由客户端自行选址：{{formats}}。这些格式保留域名，不附加明确的 IP 选项。",
+    "wireguardHint": "WireGuard 如需限定端点的 IP 协议，请填写固定 IPv4 或 IPv6 地址。域名由客户端自动选址，此设置不改变隧道内访问目标的 DNS 解析。"
   }
 }

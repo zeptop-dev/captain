@@ -49,7 +49,7 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
     CategoryID: String(entry?.CategoryID || 0), mode: entry?.LineID || initialLineID ? 'line' : entry?.ClientDialerEntryID ? 'client' : 'direct', LineID: String(entry?.LineID || initialLineID || ''), LineMemberID: entry?.LineMemberID || initialLine?.endpoints.find(e => e.host.trim())?.member_id || '', ClientDialerEntryID: String(entry?.ClientDialerEntryID || ''),
   }
   const form = useForm<Values>({ initialValues: initial, validate: {
-    IPVersion: (value, values) => { const host = values.mode === 'line' ? lines.find(l => String(l.id) === values.LineID)?.endpoints.find(e => e.member_id === values.LineMemberID)?.host ?? entry?.DisplayHost ?? '' : values.DisplayHost; const error = entryIPPolicyError(value, host, values.mode === 'client', values.ClientExtra); return error ? t(`entryIP.errors.${error}`) : null },
+    IPVersion: (value, values) => { const host = values.mode === 'line' ? lines.find(l => String(l.id) === values.LineID)?.endpoints.find(e => e.member_id === values.LineMemberID)?.host ?? entry?.DisplayHost ?? '' : values.DisplayHost; const target = values.mode === 'line' ? lines.find(l => String(l.id) === values.LineID)?.target_inbound_id : Number(values.InboundID); const error = entryIPPolicyError(value, host, values.mode === 'client', values.ClientExtra, inbounds.find(c => c.ib.ID === target)?.ib.Protocol ?? (createdInbound && createdInbound.ib.ID === target ? createdInbound.ib.Protocol : '')); return error ? t(`entryIP.errors.${error}`) : null },
     Name: value => value.trim() ? null : t('entryFlow.required'),
     InboundID: (value, values) => value || values.mode === 'line' ? null : t('entryFlow.required'),
     DisplayHost: (value, values) => values.mode === 'line' || value.trim() ? null : t('entryFlow.required'),
@@ -66,10 +66,11 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
   const line = lines.find(l => String(l.id) === form.values.LineID)
   const endpoint = line?.endpoints.find(e => e.member_id === form.values.LineMemberID)
   const connectionHost = form.values.mode === 'line' ? endpoint?.host ?? entry?.DisplayHost ?? '' : form.values.DisplayHost
-  const ipError = entryIPPolicyError(form.values.IPVersion, connectionHost, form.values.mode === 'client', form.values.ClientExtra)
-  const variantsAvailable = canCreateIPVariants(connectionHost, form.values.mode === 'client', form.values.ClientExtra)
-  const extraConflicts = entryIPExtraConflicts(form.values.ClientExtra)
   const targetID = form.values.mode === 'line' ? line?.target_inbound_id ?? 0 : Number(form.values.InboundID)
+  const protocol = choices.find(c => c.ib.ID === targetID)?.ib.Protocol ?? ''
+  const ipError = entryIPPolicyError(form.values.IPVersion, connectionHost, form.values.mode === 'client', form.values.ClientExtra, protocol)
+  const variantsAvailable = canCreateIPVariants(connectionHost, form.values.mode === 'client', form.values.ClientExtra, protocol)
+  const extraConflicts = entryIPExtraConflicts(form.values.ClientExtra)
   const accessRow = access.data?.inbounds.find(row => row.inbound_id === targetID)
   const accessValue = accessEdit?.source.inbound_id === targetID ? accessEdit : accessRow ? accessDraft(accessRow) : null
   const accessDirty = !!accessValue && accessChanged(accessValue)
@@ -157,11 +158,12 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
           </>}
           <Stack gap="xs">
             <Select label={t('entryIP.label')} allowDeselect={false} value={form.values.IPVersion} disabled={busy || lineExtraReadOnly || form.values.mode === 'client' || form.values.CreateIPVariants}
-              data={ENTRY_IP_VERSIONS.map(value => ({ value, label: t(entryIPLabelKey(value)), disabled: !!value && (form.values.mode === 'client' || ['ipv4', 'ipv6'].includes(entryHostFamily(connectionHost)) && value !== entryHostFamily(connectionHost)) }))}
+              data={ENTRY_IP_VERSIONS.map(value => ({ value, label: t(entryIPLabelKey(value)), disabled: !!value && (form.values.mode === 'client' || entryIPPolicyError(value, connectionHost, false, '', protocol) === 'wireguardDomain' || ['ipv4', 'ipv6'].includes(entryHostFamily(connectionHost)) && value !== entryHostFamily(connectionHost)) }))}
               onChange={value => { setPolicyTouched(true); form.setFieldValue('IPVersion', (value ?? '') as EntryIPVersion) }} error={ipError ? t(`entryIP.errors.${ipError}`) : undefined} />
             <Text size="xs" c="dimmed">{t(form.values.mode === 'client' ? 'entryIP.chainHint' : form.values.mode === 'line' ? 'entryIP.lineHint' : 'entryIP.hint')}</Text>
+            {protocol === 'wireguard' && <Text size="xs" c="dimmed">{t('entryIP.wireguardHint')}</Text>}
             {!!extraConflicts.length && <Text size="xs" c="orange">{t('entryIP.extraHint', { keys: extraConflicts.join(', ') })}</Text>}
-            <EntryIPSupport host={connectionHost} protocol={choices.find(c => c.ib.ID === targetID)?.ib.Protocol ?? ''} policy={form.values.IPVersion} variants={form.values.CreateIPVariants} disabled={!!ipError} />
+            <EntryIPSupport host={connectionHost} protocol={protocol} policy={form.values.IPVersion} variants={form.values.CreateIPVariants} disabled={!!ipError} />
             {!entry && <><Checkbox label={t('entryIP.variants')} checked={form.values.CreateIPVariants} disabled={busy || !variantsAvailable && !form.values.CreateIPVariants} onChange={event => form.setValues({ CreateIPVariants: event.currentTarget.checked, ...(event.currentTarget.checked ? { IPVersion: 'dual' } : {}) })} /><Text size="xs" c="dimmed">{t('entryIP.variantsHint')}</Text></>}
           </Stack>
           {admin && !!targetID && <Stack gap="xs">

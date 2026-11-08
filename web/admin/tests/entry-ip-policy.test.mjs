@@ -37,3 +37,14 @@ test('variant batches require a domain, direct dialing and no endpoint overrides
   assert.equal(canCreateIPVariants('node.example.com', true, ''), false)
   assert.equal(canCreateIPVariants('node.example.com', false, '{"server":"other.example.com"}'), false)
 })
+
+test('WireGuard selects only endpoint literals and leaves domain resolution to clients', () => {
+  assert.equal(entryIPPolicyError('ipv4', 'node.example.com', false, '', 'wireguard'), 'wireguardDomain')
+  assert.equal(entryIPPolicyError('ipv6', 'node.example.com', false, '', 'wireguard'), 'wireguardDomain')
+  assert.equal(entryIPPolicyError('dual', 'node.example.com', false, '', 'wireguard'), null)
+  assert.equal(entryIPPolicyError('', 'node.example.com', false, '', 'wireguard'), null)
+  assert.equal(entryIPPolicyError('ipv4', '192.0.2.10', false, '', 'wireguard'), null)
+  assert.equal(entryIPPolicyError('ipv6', '[2001:db8::20]', false, '', 'wireguard'), null)
+  assert.equal(entryIPPolicyError('ipv4', '[2001:db8::20]', false, '', 'wireguard'), 'familyMismatch')
+  assert.equal(canCreateIPVariants('node.example.com', false, '', 'wireguard'), false)
+})

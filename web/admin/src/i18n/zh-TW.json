@@ -4491,7 +4491,8 @@
       "chain": "請在用戶端鏈式代理的前置節點選擇 IP 協定。",
       "extraConflict": "請移除衝突的用戶端附加欄位，或選擇跟隨用戶端／範本。",
       "dualDomain": "雙棧需要填寫網域，固定 IP 只有一種位址族。",
-      "familyMismatch": "所選 IP 協定與連線位址不一致。"
+      "familyMismatch": "所選 IP 協定與連線位址不一致。",
+      "wireguardDomain": "WireGuard 需要填寫固定端點 IP，才能選擇僅 IPv4 或僅 IPv6。"
     },
     "checking": "正在檢查訂閱相容性…",
     "checkFailed": "暫時無法檢查相容性，請在發布前重新檢查。",
@@ -4502,6 +4503,7 @@
     "templatesUnchecked": "目前帳號未檢查全域範本，請聯絡管理員確認 IPv6 相容性。",
     "supportTitle": "IP 選項的用戶端相容性",
     "protocolSupport": "用戶端還需要支援此節點使用的代理協定。",
-    "clientNative": "由用戶端自行選址：{{formats}}。這些格式保留網域，不附加明確的 IP 選項。"
+    "clientNative": "由用戶端自行選址：{{formats}}。這些格式保留網域，不附加明確的 IP 選項。",
+    "wireguardHint": "WireGuard 如需限定端點的 IP 協定，請填寫固定 IPv4 或 IPv6 位址。網域由用戶端自動選址，此設定不改變隧道內存取目標的 DNS 解析。"
   }
 }

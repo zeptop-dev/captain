@@ -29,18 +29,19 @@ export function entryIPExtraConflicts(raw: string): string[] {
   } catch { return [] }
 }
 
-export function entryIPPolicyError(policy: EntryIPVersion, host: string, clientChain: boolean, rawExtra: string): string | null {
+export function entryIPPolicyError(policy: EntryIPVersion, host: string, clientChain: boolean, rawExtra: string, protocol = ''): string | null {
   if (!ENTRY_IP_VERSIONS.includes(policy)) return 'invalid'
   if (!policy) return null // Existing subscriptions retain client/template behavior.
   if (clientChain) return 'chain'
   if (entryIPExtraConflicts(rawExtra).length) return 'extraConflict'
   const family = entryHostFamily(host)
+  if (protocol === 'wireguard' && family === 'domain' && policy !== 'dual') return 'wireguardDomain'
   if ((family === 'ipv4' || family === 'ipv6') && policy !== family) return policy === 'dual' ? 'dualDomain' : 'familyMismatch'
   return null
 }
 
-export function canCreateIPVariants(host: string, clientChain: boolean, rawExtra: string) {
-  return entryHostFamily(host) === 'domain' && !clientChain && !entryIPExtraConflicts(rawExtra).length
+export function canCreateIPVariants(host: string, clientChain: boolean, rawExtra: string, protocol = '') {
+  return protocol !== 'wireguard' && entryHostFamily(host) === 'domain' && !clientChain && !entryIPExtraConflicts(rawExtra).length
 }
 
 export const entryIPLabelKey = (policy?: string) => `entryIP.options.${policy || 'inherit'}`

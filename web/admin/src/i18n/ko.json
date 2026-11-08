@@ -4491,7 +4491,8 @@
       "chain": "클라이언트 체인의 전단 노드에서 IP 버전을 선택하세요.",
       "extraConflict": "충돌하는 추가 필드를 제거하거나 클라이언트/템플릿을 따르세요.",
       "dualDomain": "듀얼 스택에는 도메인이 필요합니다. 고정 IP에는 한 주소 계열만 있습니다.",
-      "familyMismatch": "선택한 IP 버전이 연결 주소와 일치하지 않습니다."
+      "familyMismatch": "선택한 IP 버전이 연결 주소와 일치하지 않습니다.",
+      "wireguardDomain": "WireGuard에서 IPv4 또는 IPv6만 선택하려면 고정 엔드포인트 IP가 필요합니다."
     },
     "checking": "구독 호환성 확인 중…",
     "checkFailed": "호환성을 확인하지 못했습니다. 게시 전에 다시 확인하세요.",
@@ -4502,6 +4503,7 @@
     "templatesUnchecked": "이 계정으로 전역 템플릿을 확인하지 않았습니다. 관리자에게 IPv6 호환성을 확인하세요.",
     "supportTitle": "IP 옵션 호환성",
     "protocolSupport": "클라이언트가 노드의 프록시 프로토콜도 지원해야 합니다.",
-    "clientNative": "클라이언트가 주소 선택: {{formats}}. 이 형식은 도메인을 유지하며 별도의 IP 옵션을 추가하지 않습니다."
+    "clientNative": "클라이언트가 주소 선택: {{formats}}. 이 형식은 도메인을 유지하며 별도의 IP 옵션을 추가하지 않습니다.",
+    "wireguardHint": "WireGuard 엔드포인트의 IP 버전을 제한하려면 고정 IPv4 또는 IPv6 주소를 입력하세요. 도메인은 클라이언트가 자동으로 주소를 선택하며, 터널 내부 대상의 DNS 해석은 변경하지 않습니다."
   }
 }

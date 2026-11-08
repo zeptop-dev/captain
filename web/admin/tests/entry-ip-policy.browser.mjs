@@ -10,7 +10,7 @@ const artifacts = process.env.ENTRY_IP_ARTIFACTS || '/tmp/captain-entry-ip-ui'
 await mkdir(artifacts, { recursive: true })
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
 const browser = await chromium.launch({ headless: true, ...(process.env.CHROME_EXECUTABLE ? { executablePath: process.env.CHROME_EXECUTABLE } : {}) })
-async function setup({ locale = 'en', mobile = false, role = 'admin', existing = false, failure = '', line = false } = {}) {
+async function setup({ locale = 'en', mobile = false, role = 'admin', existing = false, failure = '', line = false, protocol = 'vless' } = {}) {
   const dict = JSON.parse(await readFile(resolve(root, `src/i18n/${locale}.json`), 'utf8'))
   const t = key => { const text = key.split('.').reduce((v,k) => v?.[k],dict); assert.equal(typeof text,'string',key); return text }
   const context = await browser.newContext({ viewport: { width: mobile ? 390 : 1440, height: 1000 }, serviceWorkers: 'block' })
@@ -18,7 +18,7 @@ async function setup({ locale = 'en', mobile = false, role = 'admin', existing =
   await context.routeWebSocket('**/*', socket => socket.close())
   const state = { writes: [], unexpected: [], errors: [], entries: existing ? [{ ID: 9, Name: 'Legacy node', InboundID: 1, DisplayHost: 'node.example.com', DisplayPort: 443, Rate: 1, Sort: 0, Enabled: true, Tags: [], ClientExtra: null, ...(line ? { LineID: 1, LineMemberID: 'front' } : {}) }] : [], supportFailure: false, holdSupport: false, releaseSupport: null }
   const node = { id: 1, name: 'Example server', mode: 'full', public_addr: '192.0.2.10', domain: 'node.example.com', online: true, paired: true, inbounds: 1 }
-  const inbound = { ID: 1, NodeID: 1, Tag: 'Example inbound', Protocol: 'vless', Port: 443, Listen: '', Enabled: true, Settings: {} }
+  const inbound = { ID: 1, NodeID: 1, Tag: 'Example inbound', Protocol: protocol, Port: 443, Listen: '', Enabled: true, Settings: {} }
   const access = { revision: 'test', inbounds: [{ inbound_id: 1, node_id: 1, node_name: node.name, tag: inbound.Tag, protocol: 'vless', port: 443, policy: 'all', group_ids: [], legacy: false, editable: true, revision: 'test', entries: state.entries.map(e => ({ id: e.ID, name: e.Name })), plan_ids: [] }], groups: [], plans: [] }
   await context.route('**/*', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname, method = request.method()
@@ -153,6 +153,18 @@ try {
     await dialog.getByText(t('entryIP.excluded').replace('{{formats}}','uri'),{exact:true}).waitFor()
     assert.equal(await dialog.getByText(t('entryIP.templateConflict').replace('{{formats}}','clash')).count(),0)
     await s.finish()
+  }
+  {
+    const s=await setup({protocol:'wireguard'}),{dialog,page,state,t}=s
+    await dialog.getByText(t('entryIP.wireguardHint'),{exact:true}).waitFor()
+    assert.equal(await dialog.getByRole('checkbox',{name:t('entryIP.variants')}).isDisabled(),true)
+    await dialog.getByRole('textbox',{name:t('entryIP.label'),exact:true}).click()
+    for(const key of ['ipv4','ipv6']) assert.equal(await page.getByRole('option',{name:t(`entryIP.options.${key}`),exact:true}).evaluate(el=>el.hasAttribute('data-combobox-disabled')),true)
+    await page.keyboard.press('Escape')
+    await dialog.getByRole('textbox',{name:t('entryFlow.connectHost'),exact:true}).fill('192.0.2.10')
+    assert.equal(await dialog.getByRole('textbox',{name:t('entryIP.label'),exact:true}).inputValue(),t('entryIP.options.ipv4'))
+    await dialog.getByRole('button',{name:t('common.save'),exact:true}).click();await dialog.waitFor({state:'hidden'})
+    assert.equal(state.writes[0].body.IPVersion,'ipv4');assert.equal(state.writes[0].body.DisplayHost,'192.0.2.10');await s.finish()
   }
   console.log('Entry IP browser checks passed: six locales, mobile, legacy, literal mismatch, extra conflicts, atomic variants, uncertain retries, operator and client chain.')
 } finally {await browser.close()}
