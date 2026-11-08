@@ -7,6 +7,7 @@ export interface ChangesetInbound {
   protocol?: string; core?: string; settings?: InitialInboundSettings; settings_configured?: boolean
 }
 export interface ChangesetEntry {
+  follow_ingress?: boolean
   name: string; inbound_id?: number; inbound_ref?: string; line_id?: number; line_ref?: string; line_member_id?: string
   display_host: string; display_port: number; rate: number; sort: number; enabled: boolean; tags: string[]; region: string
 }
@@ -56,8 +57,8 @@ export function selectChangesetResource(op: EditableOperation, id: number, catal
   if (op.kind === 'entry') {
     const source = catalog.entries.find(item => item.id === id && item.editable)
     if (source) {
-      const { name, inbound_id, line_id, line_member_id, display_host, display_port, rate, sort, enabled, tags, region } = source
-      return { ...base, revision: source.revision, entry: { name, inbound_id, line_id, line_member_id, display_host, display_port, rate, sort, enabled, tags: tags || [], region: region || '' } }
+      const { follow_ingress, name, inbound_id, line_id, line_member_id, display_host, display_port, rate, sort, enabled, tags, region } = source
+      return { ...base, revision: source.revision, entry: { ...(follow_ingress !== undefined ? { follow_ingress } : {}), name, inbound_id, line_id, line_member_id, display_host, display_port, rate, sort, enabled, tags: tags || [], region: region || '' } }
     }
   }
   return { ...newChangesetOperation(op.kind), key: op.key, id: 0, editMode: true }
@@ -87,7 +88,7 @@ export function operationInput(op: EditableOperation): ChangesetOperation {
   if (op.kind === 'entry' && op.entry) {
     const v = op.entry
     return { ...base, entry: omitPreserved({
-      name: v.name.trim(), inbound_id: v.inbound_ref ? 0 : v.inbound_id || 0, ...(v.inbound_ref ? { inbound_ref: v.inbound_ref } : {}),
+      ...(v.follow_ingress !== undefined ? { follow_ingress: v.follow_ingress } : {}), name: v.name.trim(), inbound_id: v.inbound_ref ? 0 : v.inbound_id || 0, ...(v.inbound_ref ? { inbound_ref: v.inbound_ref } : {}),
       line_id: v.line_ref ? 0 : v.line_id || 0, ...(v.line_ref ? { line_ref: v.line_ref } : {}), line_member_id: v.line_member_id || '',
       display_host: v.display_host.trim(), display_port: v.display_port, rate: v.rate, sort: v.sort, enabled: v.enabled, tags: [...v.tags], region: v.region.trim(),
     }, op.preservedFields) }
@@ -102,7 +103,7 @@ function omitPreserved<T extends object>(value: T, preserved?: Record<string, un
   return input as T
 }
 const inboundPatchFields = ['tag', 'listen', 'port', 'enabled', 'sort', 'ingress_id']
-const entryPatchFields = ['name', 'inbound_id', 'line_id', 'line_member_id', 'display_host', 'display_port', 'rate', 'sort', 'enabled', 'tags', 'region']
+const entryPatchFields = ['follow_ingress', 'name', 'inbound_id', 'line_id', 'line_member_id', 'display_host', 'display_port', 'rate', 'sort', 'enabled', 'tags', 'region']
 export function modelFromDraft(draft: TopologyDraft, catalog?: TopologyCatalog): ChangesetModel {
   return { name: draft.name, operations: structuredClone(draft.operations).map(op => {
     const operation: EditableOperation = { ...op, editMode: !!op.id }

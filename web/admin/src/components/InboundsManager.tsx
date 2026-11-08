@@ -96,7 +96,7 @@ function Manager({ serverID, onServerChange, canWrite = true, editInboundID, onE
       </Table></Table.ScrollContainer>
       {data.inbounds.length === 0 && <Text size="sm" c="dimmed">{t('common.empty')}</Text>}
       <Modal opened={editing !== null} onClose={close} title={editing === 'new' ? t('inbounds.create') : t('common.edit')} size="xl" closeOnClickOutside={false}>
-        {editing !== null && <InboundForm key={editing === 'new' ? 'new' : editing.ID} nodeID={data.node.id} domain={data.node.domain} decoyDomain={data.node.decoy_enabled ? data.node.domain : undefined} lineOnly={!data.node.public_addr && !data.node.domain} ingresses={data.ingresses ?? []} usedPorts={data.inbounds.filter(ib => editing === 'new' || ib.ID !== editing.ID).map(ib => ib.Port)} initial={toValues(editing === 'new' ? undefined : editing)} groups={groups.data ?? []} busy={save.isPending || !editable} onDirtyChange={setDirty} onSubmit={v => save.mutate(v)} onCancel={close} />}
+        {editing !== null && <InboundForm key={editing === 'new' ? 'new' : editing.ID} node={data.node} nodeID={data.node.id} domain={data.node.domain} decoyDomain={data.node.decoy_enabled ? data.node.domain : undefined} lineOnly={!data.node.public_addr && !data.node.domain} ingresses={data.ingresses ?? []} usedPorts={data.inbounds.filter(ib => editing === 'new' || ib.ID !== editing.ID).map(ib => ib.Port)} initial={toValues(editing === 'new' ? undefined : editing)} groups={groups.data ?? []} busy={save.isPending || !editable} onDirtyChange={setDirty} onSubmit={v => save.mutate(v)} onCancel={close} />}
       </Modal>
     </>}
   </Stack>

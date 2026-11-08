@@ -164,3 +164,16 @@ test('the six-language fragment has identical keys and covers the new component 
   const source = readFileSync(new URL('../src/components/TopologyChangesetsPanel.tsx', import.meta.url), 'utf8')
   for (const [, key] of source.matchAll(/t\('topologyChangesets\.([^']+)'/g)) assert.ok(keys.includes(key), key)
 })
+
+
+test('ingress-follow intent survives API draft reopening and unrelated edits', () => {
+  const c = catalog()
+  const op = newChangesetOperation('entry')
+  op.key = 'entry'; op.entry.name = 'Before'; op.entry.follow_ingress = true
+  const draft = { id: 'test', version: 1, name: 'Draft', operations: [op] }
+  const model = modelFromDraft(draft, c)
+  model.operations[0].entry.name = 'After'
+  assert.equal(changesetInput(model).operations[0].entry.follow_ingress, true)
+  const old = structuredClone(draft);delete old.operations[0].entry.follow_ingress
+  assert.equal('follow_ingress' in changesetInput(modelFromDraft(old, c)).operations[0].entry, false)
+})

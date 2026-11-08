@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { api, type Ingress } from '../lib/api'
+import { api, type Ingress, type Node } from '../lib/api'
 import { dnsToast, toast, type DNSResult } from '../lib/notify'
 import { useSettingsDirty } from '../lib/settings-draft'
 
@@ -15,18 +15,20 @@ import { ingressPortLabel } from '../lib/ingress'
 
 // Line ingresses of one node (IPLC / dedicated NICs). Inbounds pick one;
 // entries and relay forwards derive their addresses from it.
-export function IngressesCard({ nodeID, ingresses, inbounds, embedded }: { nodeID: number; ingresses: Ingress[]; inbounds: { IngressID: number | null }[]; embedded?: boolean }) {
+export function IngressesCard({ nodeID, node, ingresses, inbounds, embedded }: { nodeID: number; node: Pick<Node, 'public_addr' | 'v6_addr'>; ingresses: Ingress[]; inbounds: { IngressID: number | null }[]; embedded?: boolean }) {
   // Embedded inside the node page's advanced section: no card frame, no title.
   const Root = embedded ? Box : Card
   const { t } = useTranslation()
   const qc = useQueryClient()
   const [editing, setEditing] = useState<Ingress | 'new' | null>(null)
+  const [editorKey, setEditorKey] = useState(0)
+  const [blocked, setBlocked] = useState(false)
   const form = useForm<IngressValues>({ initialValues: emptyIngress })
   useSettingsDirty(editing !== null && form.isDirty())
-  const invalidate = () => { qc.invalidateQueries({ queryKey: ['dns-health'] }); qc.invalidateQueries({ queryKey: ['dns-history'] }); qc.invalidateQueries({ queryKey: ['node', String(nodeID)] }); qc.invalidateQueries({ queryKey: ['node', nodeID] }) }
+  const invalidate = () => { qc.invalidateQueries({ queryKey: ['entries'] }); qc.invalidateQueries({ queryKey: ['dns-health'] }); qc.invalidateQueries({ queryKey: ['dns-history'] }); qc.invalidateQueries({ queryKey: ['node', String(nodeID)] }); qc.invalidateQueries({ queryKey: ['node', nodeID] }) }
   const save = useMutation({ mutationFn: (v: IngressValues) => editing === 'new' ? api.post<{ dns?: DNSResult[] }>(`/api/admin/nodes/${nodeID}/ingresses`, ingressPayload(v)) : api.patch<{ dns?: DNSResult[] }>(`/api/admin/ingresses/${(editing as Ingress).id}`, ingressPayload(v)), onSuccess: (r) => { toast.ok(t('common.saved')); setEditing(null); invalidate(); dnsToast(r.dns) }, onError: toast.err })
   const del = useMutation({ mutationFn: (id: number) => api.del(`/api/admin/ingresses/${id}`), onSuccess: () => { toast.ok(t('common.deleted')); invalidate() }, onError: toast.err })
-  const open = (g: Ingress | 'new') => { const values = g === 'new' ? emptyIngress : ingressValues(g); form.setValues(values); form.resetDirty(values); setEditing(g) }
+  const open = (g: Ingress | 'new') => { setEditorKey(value => value + 1); setBlocked(false); const values = { ...(g === 'new' ? emptyIngress : ingressValues(g)), DomainDraft: undefined }; form.setValues(values); form.resetDirty(values); setEditing(g) }
   const close = () => {
     if (!form.isDirty()) { setEditing(null); return }
     modals.openConfirmModal({ title: t('workspace.unsaved'), children: <Text>{t('workspace.leaveHint')}</Text>, labels: { confirm: t('workspace.discard'), cancel: t('workspace.stay') }, onConfirm: () => setEditing(null) })
@@ -44,7 +46,7 @@ export function IngressesCard({ nodeID, ingresses, inbounds, embedded }: { nodeI
                 <Table.Td><Text fw={600}>{g.name}</Text></Table.Td>
                 <Table.Td>{g.bind_ip ? <Code>{g.bind_ip}</Code> : <Text size="xs" c="dimmed">{t('ingress.anyAddr')}</Text>}</Table.Td>
                 <Table.Td>{g.line_ip ? <Code>{g.line_ip}</Code> : '—'}</Table.Td>
-                <Table.Td>{g.entry_host ? <><Code>{g.entry_host}</Code>{g.entry_domain && <Text size="xs" c="dimmed">{g.entry_domain}</Text>}</> : <Tooltip label={t('ingress.noEntryHint')}><Badge size="xs" color="orange" variant="light">{t('ingress.noEntry')}</Badge></Tooltip>}</Table.Td>
+                <Table.Td>{g.entry_host ? <><Code>{g.entry_host}</Code>{g.entry_domain && <Text size="xs" c="dimmed">{g.entry_domain}</Text>}{g.entry_address_source && g.entry_address_source !== 'custom' && <Text size="xs" c="dimmed">{t(g.entry_address_source === 'server_ipv4' ? 'ingress.addressIPv4' : 'ingress.addressIPv6')}</Text>}</> : <Tooltip label={t('ingress.noEntryHint')}><Badge size="xs" color="orange" variant="light">{t('ingress.noEntry')}</Badge></Tooltip>}</Table.Td>
                 <Table.Td><Text size="xs">{ingressPortLabel(g) || t('ingress.anyPort')}</Text></Table.Td>
                 <Table.Td><Text size="xs">{uses(g.id)}</Text></Table.Td>
                 <Table.Td><Group gap={4} justify="flex-end"><ActionIcon variant="subtle" onClick={() => open(g)}><IconPencil size={14} /></ActionIcon><ActionIcon variant="subtle" color="red" onClick={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text size="sm">{t('ingress.deleteHint')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => del.mutate(g.id) })}><IconTrash size={14} /></ActionIcon></Group></Table.Td>
@@ -53,9 +55,9 @@ export function IngressesCard({ nodeID, ingresses, inbounds, embedded }: { nodeI
           </Table.Tbody></Table></Table.ScrollContainer>
       )}
       <Modal opened={editing !== null} onClose={close} title={editing === 'new' ? t('ingress.add') : t('common.edit')} size="lg" closeOnClickOutside={false}>
-        <form onSubmit={form.onSubmit((v) => save.mutate(v))}><Stack>
-          <IngressFields form={form} />
-          <Group justify="flex-end"><Button variant="default" onClick={close}>{t('common.cancel')}</Button><Button type="submit" loading={save.isPending}>{t('common.save')}</Button></Group>
+        <form onSubmit={form.onSubmit((v) => { if (!blocked && !save.isPending) save.mutate(v) })}><Stack>
+          <IngressFields key={editorKey} form={form} node={node} active={editing !== null} onBlockedChange={setBlocked} />
+          <Group justify="flex-end"><Button variant="default" onClick={close}>{t('common.cancel')}</Button><Button type="submit" loading={save.isPending} disabled={blocked}>{t('common.save')}</Button></Group>
         </Stack></form>
       </Modal>
     </Root>

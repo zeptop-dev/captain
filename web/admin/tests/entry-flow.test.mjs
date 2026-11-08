@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { entryEndpoint, changeEntryInbound, canDialThrough, lineSupportsGroups, freshLineStatus } from '../src/lib/entry-flow.ts'
+import { canFollowIngress, entryEndpoint, changeEntryInbound, canDialThrough, lineSupportsGroups, freshLineStatus } from '../src/lib/entry-flow.ts'
 
 const choice = (port, host = 'one.example.com', ingress) => ({ ib: { Port: port, Settings: {} }, node: { domain: host, public_addr: '' }, ingress })
 
@@ -45,4 +45,13 @@ test('a registered internal address does not change a subscription endpoint', ()
  const target = choice(443)
  target.node.internal_addr = '10.10.0.2'
  assert.deepEqual(entryEndpoint(target), { DisplayHost: 'one.example.com', DisplayPort: 443 })
+})
+
+
+test('managed reverse, WireGuard and chain endpoints cannot opt into ingress following', () => {
+  const c = choice(443, '', { entry_host: '192.0.2.10' })
+  assert.equal(canFollowIngress(c), true)
+  assert.equal(canFollowIngress(c, 7), false)
+  for (const settings of [{ reverse: {} }, { wireguard_slot: 2 }]) assert.equal(canFollowIngress({ ...c, ib: { ...c.ib, Settings: settings } }), false)
+  assert.equal(canFollowIngress(choice(443)), false)
 })

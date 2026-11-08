@@ -1339,7 +1339,7 @@
     "noEntryHint": "这条线没有公网入口：在能连通它的前置服务器上加一条端口转发到外部连接 IP，订阅行写前置的地址。",
     "deleteHint": "仍有入站或转发使用时不能删除。请先修改或移除相关配置。",
     "entryDomain": "入口域名（可选）",
-    "entryDomainHint": "给公网入口起个域名，订阅里写它而不是 IP；域名登记且开了自动 DNS 时会自动建 A 记录指向公网入口。",
+    "entryDomainHint": "为此入口单独设置域名。所选域名开启自动 DNS 后，保存会创建或更新 A / AAAA 记录，指向此入口而非服务器的直连地址。切换 IPv4/IPv6 后，请核对并清理不再使用的 DNS 记录。",
     "reserved": "保留端口",
     "reservedHint": "服务商占用的本地端口，例如 SSH；逗号分隔。入站和转发均不能使用。",
     "derive": "按尾号派生",
@@ -1359,7 +1359,16 @@
     "addMapping": "添加映射",
     "requireIngress": "本服务器必须选择入口",
     "requireIngressHint": "本服务器所有入站和转发都必须选择入口。保存前检查已有配置；其他网卡仍需直连时请关闭。",
-    "providerHint": "此处登记服务商已有映射，不会修改其 NAT 或防火墙。修改后请核对已创建的订阅节点地址。"
+    "providerHint": "此处登记服务商已有映射，不会修改其 NAT 或防火墙。修改后请核对已创建的订阅节点地址。",
+    "addressSource": "公网入口地址来源",
+    "addressCustom": "自定义 IP 或域名",
+    "addressIPv4": "使用服务器 IPv4 入口",
+    "addressIPv6": "使用服务器 IPv6 入口",
+    "currentAddress": "当前继承地址",
+    "addressMissing": "服务器尚无对应地址，请先在服务器信息中设置。",
+    "addressFollowHint": "随服务器公网入口地址更新。仅在服务商的 NAT 入站确实使用该地址时选择。",
+    "followEndpoint": "跟随入口地址与端口",
+    "followEndpointHint": "入口地址、域名或端口映射变化时同步此订阅节点。手动修改连接地址或端口会关闭跟随。"
   },
   "warp": {
     "title": "Cloudflare WARP 出站",

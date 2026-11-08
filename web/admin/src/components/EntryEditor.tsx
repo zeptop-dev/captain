@@ -3,14 +3,14 @@ import { Alert, Button, Checkbox, Code, Group, JsonInput, Modal, NumberInput, Se
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '../lib/auth'
 import { accessChanged, accessDraft, changedAccessPayload, sharedEntries, validAccess, type AccessDraft } from '../lib/node-access'
 import { AccessFields } from './NodeAccess'
 import { useTranslation } from 'react-i18next'
 import { useNodeAccess } from '../lib/node-access-query'
 import { api, ApiError, type Entry, type EntryCategory, type Line, type Node } from '../lib/api'
-import { canDialThrough, changeEntryInbound, entryEndpoint, type InboundChoice } from '../lib/entry-flow'
+import { canFollowIngress, canDialThrough, changeEntryInbound, entryEndpoint, type InboundChoice } from '../lib/entry-flow'
 import { hostPort } from '../lib/ingress'
 import { flag, REGIONS } from '../lib/regions'
 import { useSettingsDirty } from '../lib/settings-draft'
@@ -21,7 +21,7 @@ import { EntryInboundCreator } from './EntryInboundCreator'
 
 type Mode = 'direct' | 'line' | 'client'
 interface Values {
-  Name: string; InboundID: string; DisplayHost: string; DisplayPort: number; Rate: number; Sort: number; Enabled: boolean; Tags: string[]; Region: string; ClientExtra: string
+  FollowIngress: boolean; Name: string; InboundID: string; DisplayHost: string; DisplayPort: number; Rate: number; Sort: number; Enabled: boolean; Tags: string[]; Region: string; ClientExtra: string
   IPVersion: EntryIPVersion; CreateIPVariants: boolean; CategoryID: string; mode: Mode; LineID: string; LineMemberID: string; ClientDialerEntryID: string
 }
 
@@ -42,6 +42,7 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
   const [policyTouched, setPolicyTouched] = useState(false)
   const initialHost = entry?.DisplayHost ?? initialLine?.endpoints.find(e => e.host.trim())?.host ?? entryEndpoint(initialInbound).DisplayHost
   const initial: Values = {
+    FollowIngress: entry ? !!entry.FollowIngress : canFollowIngress(initialInbound),
     IPVersion: entry ? entry.IPVersion ?? '' : defaultEntryIPVersion(initialHost), CreateIPVariants: false,
     Name: entry?.Name ?? initialInbound?.ib.Tag ?? initialLine?.name ?? '', InboundID: String(entry?.InboundID || initialLine?.target_inbound_id || initialInboundID || ''),
     ...entryEndpoint(initialInbound), ...(entry ? { DisplayHost: entry.DisplayHost, DisplayPort: entry.DisplayPort } : {}),
@@ -63,6 +64,10 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
   const [createdInbound, setCreatedInbound] = useState<InboundChoice | null>(null)
   const choices = createdInbound && !inbounds.some(c => c.ib.ID === createdInbound.ib.ID) ? [...inbounds, createdInbound] : inbounds
   const selected = choices.find(c => String(c.ib.ID) === form.values.InboundID)
+  const followingEndpoint = entryEndpoint(selected)
+  useEffect(() => {
+    if (form.values.mode !== 'line' && form.values.FollowIngress && canFollowIngress(selected, entry?.ChainID) && (form.values.DisplayHost !== followingEndpoint.DisplayHost || form.values.DisplayPort !== followingEndpoint.DisplayPort)) form.setValues(followingEndpoint)
+  }, [form, selected, entry?.ChainID, followingEndpoint])
   const line = lines.find(l => String(l.id) === form.values.LineID)
   const endpoint = line?.endpoints.find(e => e.member_id === form.values.LineMemberID)
   const connectionHost = form.values.mode === 'line' ? endpoint?.host ?? entry?.DisplayHost ?? '' : form.values.DisplayHost
@@ -86,7 +91,7 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
       if (accessBlocked) throw new Error(t('nodeAccess.reloadHint'))
       const Access = admin ? changedAccessPayload(accessValue, targetID) : undefined
       const extra = JSON.parse(v.ClientExtra || '{}')
-      const payload = { ...(Access ? { Access } : {}), Name: v.Name.trim(), InboundID: v.mode === 'line' ? line?.target_inbound_id ?? Number(v.InboundID) : Number(v.InboundID), DisplayHost: v.mode === 'line' ? !canManageLines && entry ? entry.DisplayHost : '' : v.DisplayHost.trim(), DisplayPort: v.mode === 'line' ? !canManageLines && entry ? entry.DisplayPort : 0 : v.DisplayPort, Rate: v.Rate, Sort: v.Sort, Enabled: v.Enabled, Tags: v.Tags, Region: v.Region, CategoryID: Number(v.CategoryID), IPVersion: lineExtraReadOnly ? entry?.IPVersion ?? '' : v.IPVersion, ClientExtra: lineExtraReadOnly ? entry?.ClientExtra ?? null : Object.keys(extra).length ? extra : null,
+      const payload = { FollowIngress: v.mode !== 'line' && canFollowIngress(selected, entry?.ChainID) && v.FollowIngress, ...(Access ? { Access } : {}), Name: v.Name.trim(), InboundID: v.mode === 'line' ? line?.target_inbound_id ?? Number(v.InboundID) : Number(v.InboundID), DisplayHost: v.mode === 'line' ? !canManageLines && entry ? entry.DisplayHost : '' : v.DisplayHost.trim(), DisplayPort: v.mode === 'line' ? !canManageLines && entry ? entry.DisplayPort : 0 : v.DisplayPort, Rate: v.Rate, Sort: v.Sort, Enabled: v.Enabled, Tags: v.Tags, Region: v.Region, CategoryID: Number(v.CategoryID), IPVersion: lineExtraReadOnly ? entry?.IPVersion ?? '' : v.IPVersion, ClientExtra: lineExtraReadOnly ? entry?.ClientExtra ?? null : Object.keys(extra).length ? extra : null,
         LineID: v.mode === 'line' ? Number(v.LineID) : null, LineMemberID: v.mode === 'line' ? v.LineMemberID : '', ClientDialerEntryID: v.mode === 'client' ? Number(v.ClientDialerEntryID) : null }
       if (!entry && v.CreateIPVariants) {
         if (!variantsAvailable) throw new Error(t('entryIP.variantsHint'))
@@ -111,7 +116,7 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
     const next = choices.find(c => String(c.ib.ID) === id)
     if (!next) { form.setFieldValue('InboundID', id ?? ''); return }
     const changed = changeEntryInbound(form.getValues(), selected, next)
-    form.setValues({ CreateIPVariants: false, InboundID: String(next.ib.ID), ...changed, ...(form.values.mode !== 'client' ? newHostPolicy(changed.DisplayHost ?? form.values.DisplayHost) : {}), ...(!form.values.Name ? { Name: next.ib.Tag } : {}) })
+    form.setValues({ CreateIPVariants: false, InboundID: String(next.ib.ID), ...changed, FollowIngress: canFollowIngress(next, entry?.ChainID) && (form.values.FollowIngress || !entry && changed.DisplayHost === entryEndpoint(next).DisplayHost && changed.DisplayPort === entryEndpoint(next).DisplayPort), ...(form.values.mode !== 'client' ? newHostPolicy(changed.DisplayHost ?? form.values.DisplayHost) : {}), ...(!form.values.Name ? { Name: next.ib.Tag } : {}) })
   }
   const pickLine = (id: string | null) => {
     const next = lines.find(l => String(l.id) === id)
@@ -135,7 +140,7 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
             if (nextTargetID !== targetID) setAccessEdit(null)
             if (mode !== 'line' && form.values.mode === 'line') {
               const target = choices.find(c => c.ib.ID === line?.target_inbound_id)
-              form.setValues({ mode, ...entryEndpoint(target), ...(mode === 'client' ? { IPVersion: '' } : newHostPolicy(entryEndpoint(target).DisplayHost)), InboundID: String(target?.ib.ID ?? '') })
+              form.setValues({ mode, FollowIngress: canFollowIngress(target, entry?.ChainID), ...entryEndpoint(target), ...(mode === 'client' ? { IPVersion: '' } : newHostPolicy(entryEndpoint(target).DisplayHost)), InboundID: String(target?.ib.ID ?? '') })
             } else form.setValues({ mode, ...(mode === 'client' ? { IPVersion: '' } : newHostPolicy(mode === 'line' ? endpoint?.host ?? '' : form.values.DisplayHost)) })
           }} />
           <Text size="sm" c="dimmed">{form.values.mode === 'line' ? t('entryFlow.lineHint') : form.values.mode === 'client' ? t('entryFlow.clientHint') : t('entryFlow.directHint')}</Text>
@@ -153,7 +158,8 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
               <Select label={t('entryFlow.dialer')} required searchable data={entries.filter(e => canDialThrough(entries, e.ID, entry?.ID)).map(e => ({ value: String(e.ID), label: e.Name }))} disabled={busy} {...form.getInputProps('ClientDialerEntryID')} />
               <Alert color="blue">{t('entryFlow.clientCompatibility')}</Alert>
             </>}
-            <SimpleGrid cols={{ base: 1, sm: 2 }}><TextInput label={t('entryFlow.connectHost')} required disabled={busy} placeholder="example.com" {...form.getInputProps('DisplayHost')} onChange={event => form.setValues({ DisplayHost: event.currentTarget.value, CreateIPVariants: false, ...(form.values.mode !== 'client' ? newHostPolicy(event.currentTarget.value) : {}) })} /><NumberInput label={t('entryFlow.connectPort')} required disabled={busy} min={1} max={65535} {...form.getInputProps('DisplayPort')} /></SimpleGrid>
+            {canFollowIngress(selected, entry?.ChainID) && <Switch label={t('ingress.followEndpoint')} description={t('ingress.followEndpointHint')} disabled={busy} checked={form.values.FollowIngress} onChange={event => { const follow = event.currentTarget.checked; form.setValues({ FollowIngress: follow, ...(follow ? entryEndpoint(selected) : {}) }) }} />}
+            <SimpleGrid cols={{ base: 1, sm: 2 }}><TextInput label={t('entryFlow.connectHost')} required disabled={busy} placeholder="example.com" {...form.getInputProps('DisplayHost')} onChange={event => form.setValues({ DisplayHost: event.currentTarget.value, FollowIngress: false, CreateIPVariants: false, ...(form.values.mode !== 'client' ? newHostPolicy(event.currentTarget.value) : {}) })} /><NumberInput label={t('entryFlow.connectPort')} required disabled={busy} min={1} max={65535} {...form.getInputProps('DisplayPort')} onChange={value => form.setValues({ DisplayPort: Number(value), FollowIngress: false })} /></SimpleGrid>
             <Text size="xs" c="dimmed">{t('entryFlow.addressHint')}</Text>
           </>}
           <Stack gap="xs">
@@ -187,9 +193,9 @@ export function EntryEditor({ entry, nodes, inbounds, entries, lines, tags, cate
         </Stack>
       </form>
     </Modal>
-    {creatingInbound && <EntryInboundCreator nodes={nodes} initialServerID={initialServerID} onClose={() => setCreatingInbound(false)} onCreated={choice => {
+    {creatingInbound && <EntryInboundCreator nodes={nodes} initialServerID={initialServerID ?? selected?.node.id} onClose={() => setCreatingInbound(false)} onCreated={choice => {
       setAccessEdit(null); void access.refetch(); setCreatedInbound(choice); setCreatingInbound(false)
-      form.setValues({ CreateIPVariants: false, InboundID: String(choice.ib.ID), ...entryEndpoint(choice), ...(form.values.mode !== 'client' ? newHostPolicy(entryEndpoint(choice).DisplayHost) : {}), ...(!form.values.Name ? { Name: choice.ib.Tag } : {}) })
+      form.setValues({ CreateIPVariants: false, InboundID: String(choice.ib.ID), FollowIngress: canFollowIngress(choice, entry?.ChainID), ...entryEndpoint(choice), ...(form.values.mode !== 'client' ? newHostPolicy(entryEndpoint(choice).DisplayHost) : {}), ...(!form.values.Name ? { Name: choice.ib.Tag } : {}) })
     }} />}
   </>
 }

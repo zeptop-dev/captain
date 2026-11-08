@@ -2,13 +2,18 @@ import { ActionIcon, Button, Group, NumberInput, Select, SimpleGrid, Stack, Swit
 import type { useForm } from '@mantine/form'
 import { IconTrash } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
-import type { Ingress, IngressInput, PortMapping } from '../lib/api'
+import type { Ingress, IngressInput, PortMapping, Node, IngressAddressSource } from '../lib/api'
 
-export type IngressValues = { Name: string; Kind: string; BindIP: string; LineIP: string; EntryHost: string; EntryDomain: string; PortFrom: number | string; PortTo: number | string; PortOffset: number | string; ReservedPorts: string; PortMode: string; PortMappings: PortMapping[]; RequireIngress: boolean }
+import { useEffect, useState } from 'react'
+import { ManagedDomainFields } from './ManagedDomainFields'
+import { entryHostFamily } from '../lib/entry-ip-policy'
+import { type DomainDraft } from '../lib/node-domain'
+
+export type IngressValues = { EntryAddressSource: IngressAddressSource; DomainDraft?: DomainDraft; Name: string; Kind: string; BindIP: string; LineIP: string; EntryHost: string; EntryDomain: string; PortFrom: number | string; PortTo: number | string; PortOffset: number | string; ReservedPorts: string; PortMode: string; PortMappings: PortMapping[]; RequireIngress: boolean }
 export const parsePorts = (s: string) => s.split(/[\s,]+/).filter(Boolean).map(Number)
-export const emptyIngress: IngressValues = { Name: '', Kind: 'nat', BindIP: '', LineIP: '', EntryHost: '', EntryDomain: '', PortFrom: '', PortTo: '', PortOffset: 0, ReservedPorts: '', PortMode: 'range', PortMappings: [], RequireIngress: true }
-export const ingressPayload = (v: IngressValues): IngressInput => ({ Name: v.Name, Kind: v.Kind, BindIP: v.BindIP, LineIP: v.LineIP, EntryHost: v.EntryHost, EntryDomain: v.EntryDomain, PortFrom: v.PortMode === 'range' ? Number(v.PortFrom) || 0 : 0, PortTo: v.PortMode === 'range' ? Number(v.PortTo) || 0 : 0, PortOffset: v.PortMode === 'range' ? Number(v.PortOffset) || 0 : 0, ReservedPorts: parsePorts(v.ReservedPorts), PortMappings: v.PortMode === 'mapped' ? v.PortMappings : [], RequireIngress: v.RequireIngress })
-export const ingressValues = (g: Ingress): IngressValues => ({ Name: g.name, Kind: g.kind === 'nat' ? 'nat' : g.kind === 'iplc' ? 'iplc' : 'mapped', BindIP: g.bind_ip, LineIP: g.line_ip, EntryHost: g.entry_host, EntryDomain: g.entry_domain ?? '', PortFrom: g.port_from || '', PortTo: g.port_to || '', PortOffset: g.port_offset, ReservedPorts: (g.reserved_ports ?? []).join(', '), PortMode: g.port_mappings?.length ? 'mapped' : 'range', PortMappings: (g.port_mappings ?? []).map(m => ({ ...m })), RequireIngress: !!g.require_ingress })
+export const emptyIngress: IngressValues = { EntryAddressSource: 'custom', Name: '', Kind: 'nat', BindIP: '', LineIP: '', EntryHost: '', EntryDomain: '', PortFrom: '', PortTo: '', PortOffset: 0, ReservedPorts: '', PortMode: 'range', PortMappings: [], RequireIngress: true }
+export const ingressPayload = (v: IngressValues): IngressInput => ({ EntryAddressSource: v.Kind === 'nat' ? v.EntryAddressSource : 'custom', Name: v.Name, Kind: v.Kind, BindIP: v.BindIP, LineIP: v.LineIP, EntryHost: v.EntryHost, EntryDomain: v.EntryDomain, PortFrom: v.PortMode === 'range' ? Number(v.PortFrom) || 0 : 0, PortTo: v.PortMode === 'range' ? Number(v.PortTo) || 0 : 0, PortOffset: v.PortMode === 'range' ? Number(v.PortOffset) || 0 : 0, ReservedPorts: parsePorts(v.ReservedPorts), PortMappings: v.PortMode === 'mapped' ? v.PortMappings : [], RequireIngress: v.RequireIngress })
+export const ingressValues = (g: Ingress): IngressValues => ({ EntryAddressSource: g.entry_address_source || 'custom', Name: g.name, Kind: g.kind === 'nat' ? 'nat' : g.kind === 'iplc' ? 'iplc' : 'mapped', BindIP: g.bind_ip, LineIP: g.line_ip, EntryHost: g.entry_host, EntryDomain: g.entry_domain ?? '', PortFrom: g.port_from || '', PortTo: g.port_to || '', PortOffset: g.port_offset, ReservedPorts: (g.reserved_ports ?? []).join(', '), PortMode: g.port_mappings?.length ? 'mapped' : 'range', PortMappings: (g.port_mappings ?? []).map(m => ({ ...m })), RequireIngress: !!g.require_ingress })
 export const clientHost = (g: Ingress) => g.entry_domain || g.entry_host
 
 export const derivedPool = (bindIP: string) => {
@@ -19,18 +24,29 @@ export const derivedPool = (bindIP: string) => {
   return { reserved: base, from: base + 1, to: base + 99 }
 }
 
-export function IngressFields({ form }: { form: ReturnType<typeof useForm<IngressValues>> }) {
+export function IngressFields({ form, node, active = true, onBlockedChange }: { form: ReturnType<typeof useForm<IngressValues>>; node?: Pick<Node, 'public_addr' | 'v6_addr'>; active?: boolean; onBlockedChange: (blocked: boolean) => void }) {
   const { t } = useTranslation()
+  const source = form.values.Kind === 'nat' ? form.values.EntryAddressSource : 'custom'
+  const address = source === 'server_ipv4' ? node?.public_addr : source === 'server_ipv6' ? node?.v6_addr : form.values.EntryHost
+  const missingAddress = source !== 'custom' && entryHostFamily(address || '') !== (source === 'server_ipv4' ? 'ipv4' : 'ipv6')
+  const [domainBlocked, setDomainBlocked] = useState(false)
+  useEffect(() => { onBlockedChange(missingAddress || domainBlocked) }, [missingAddress, domainBlocked, onBlockedChange])
   const order = ['label', 'input', 'description', 'error'] as const
   return <>
     <SimpleGrid cols={{ base: 1, sm: 2 }}>
       <TextInput label={t('ingress.name')} required {...form.getInputProps('Name')} />
-      <Select label={t('ingress.kind')} allowDeselect={false} data={[{ value: 'nat', label: t('ingress.kindNat') }, { value: 'iplc', label: t('ingress.kindIplc') }, ...(form.values.Kind === 'mapped' ? [{ value: 'mapped', label: t('ingress.kindMapped') }] : [])]} value={form.values.Kind} onChange={v => form.setValues({ Kind: v || 'nat', RequireIngress: v === 'nat' })} />
+      <Select label={t('ingress.kind')} allowDeselect={false} data={[{ value: 'nat', label: t('ingress.kindNat') }, { value: 'iplc', label: t('ingress.kindIplc') }, ...(form.values.Kind === 'mapped' ? [{ value: 'mapped', label: t('ingress.kindMapped') }] : [])]} value={form.values.Kind} onChange={v => form.setValues({ Kind: v || 'nat', RequireIngress: v === 'nat', ...(v !== 'nat' ? { EntryAddressSource: 'custom' } : {}) })} />
       <TextInput label={t('ingress.bindIP')} inputWrapperOrder={[...order]} description={t('ingress.bindIPHint')} placeholder="10.10.0.2" {...form.getInputProps('BindIP')} />
       <TextInput label={t('ingress.lineIP')} inputWrapperOrder={[...order]} description={t('ingress.lineIPHint')} placeholder="198.51.100.20" {...form.getInputProps('LineIP')} />
-      <TextInput label={t('ingress.entryHost')} inputWrapperOrder={[...order]} description={t('ingress.entryHostHint')} required={form.values.Kind === 'nat'} placeholder="203.0.113.30" {...form.getInputProps('EntryHost')} />
-      <TextInput label={t('ingress.entryDomain')} inputWrapperOrder={[...order]} description={t('ingress.entryDomainHint')} placeholder="entry.example.com" {...form.getInputProps('EntryDomain')} />
+      <Stack gap="xs">
+        {form.values.Kind === 'nat' && <Select label={t('ingress.addressSource')} allowDeselect={false} data={[{ value: 'custom', label: t('ingress.addressCustom') }, { value: 'server_ipv4', label: t('ingress.addressIPv4') }, { value: 'server_ipv6', label: t('ingress.addressIPv6') }]} value={source} onChange={value => form.setFieldValue('EntryAddressSource', (value || 'custom') as IngressAddressSource)} />}
+        {source === 'custom' ? <TextInput label={t('ingress.entryHost')} inputWrapperOrder={[...order]} description={t('ingress.entryHostHint')} required={form.values.Kind === 'nat'} placeholder="203.0.113.30" {...form.getInputProps('EntryHost')} /> : <TextInput label={t('ingress.currentAddress')} readOnly value={address || ''} error={missingAddress ? t('ingress.addressMissing') : undefined} description={t('ingress.addressFollowHint')} />}
+      </Stack>
     </SimpleGrid>
+    <ManagedDomainFields domain={form.values.EntryDomain} active={active} label={t('ingress.entryDomain')} hint={t('ingress.entryDomainHint')}
+      draft={form.values.DomainDraft} onDraftChange={value => form.setFieldValue('DomainDraft', value)}
+      onDomainChange={value => form.setFieldValue('EntryDomain', value)} onIncompleteChange={setDomainBlocked}
+      suggestionEndpoint="/api/admin/ingresses/domain-suggestion" />
     <Select label={t('ingress.portMode')} allowDeselect={false} data={[{ value: 'range', label: t('ingress.modeRange') }, { value: 'mapped', label: t('ingress.modeMapped') }]} value={form.values.PortMode} onChange={v => form.setValues({ PortMode: v || 'range', ...(v === 'mapped' && !form.values.PortMappings.length ? { PortMappings: [{ local_from: 20001, local_to: 20001, public_from: 30001 }] } : {}) })} />
     {form.values.PortMode === 'range' ? <SimpleGrid cols={{ base: 1, sm: 3 }}>
       <NumberInput label={t('ingress.portFrom')} min={1} max={65535} allowDecimal={false} placeholder="20001" {...form.getInputProps('PortFrom')} />

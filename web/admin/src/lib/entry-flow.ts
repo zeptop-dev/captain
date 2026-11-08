@@ -52,3 +52,8 @@ export function isSubscriberInbound(ib: Inbound): boolean {
 }
 
 export const proxyServer = (node: Node) => node.mode !== 'monitor' && node.proxy_allowed !== false
+
+// Managed reverse/WG/chain endpoints have their own address owner.
+export function canFollowIngress(choice?: InboundChoice, chainID?: number | null): boolean {
+  return !!choice?.ingress && !chainID && !choice.ib.Settings?.reverse && !choice.ib.Settings?.wireguard_slot
+}

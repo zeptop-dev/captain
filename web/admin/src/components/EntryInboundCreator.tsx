@@ -76,7 +76,7 @@ export function EntryInboundCreator({ nodes, initialServerID, onCreated, onClose
       {hasCreatedIngress && <Alert color="blue">{t('entryFlow.ingressSaved')}</Alert>}
       {uncertain && <Alert color="yellow">{t('entryFlow.uncertainCreate')}</Alert>}
       {q.data && groups.data && <Box component="fieldset" disabled={save.isPending || uncertain} style={{ margin: 0, padding: 0, border: 0, minWidth: 0 }} onChangeCapture={() => setDirty(true)}>
-        <InboundForm key={serverID} initial={toValues()} nodeID={q.data.node.id} domain={q.data.node.domain} decoyDomain={q.data.node.decoy_enabled ? q.data.node.domain : undefined} lineOnly={!q.data.node.public_addr && !q.data.node.domain} ingresses={q.data.ingresses ?? []} usedPorts={q.data.inbounds.map(i => i.Port)} groups={groups.data} busy={save.isPending} onDirtyChange={setDirty} onSubmit={v => { setDirty(true); save.mutate(v) }} onCancel={close} />
+        <InboundForm key={serverID} initial={toValues()} node={q.data.node} nodeID={q.data.node.id} domain={q.data.node.domain} decoyDomain={q.data.node.decoy_enabled ? q.data.node.domain : undefined} lineOnly={!q.data.node.public_addr && !q.data.node.domain} ingresses={q.data.ingresses ?? []} usedPorts={q.data.inbounds.map(i => i.Port)} groups={groups.data} busy={save.isPending} onDirtyChange={setDirty} onSubmit={v => { setDirty(true); save.mutate(v) }} onCancel={close} />
       </Box>}
       {uncertain && <Group justify="flex-end"><Button variant="default" onClick={close}>{t('common.cancel')}</Button></Group>}
     </Stack>

@@ -1339,7 +1339,7 @@
     "noEntryHint": "This line has no public entry: add a port forward on a relay server that can reach it (target = the far-end address) and use the relay's address in subscription nodes.",
     "deleteHint": "An ingress still used by an inbound or forward cannot be deleted. Reassign or remove those configurations first.",
     "entryDomain": "Entry domain (optional)",
-    "entryDomainHint": "A name for the public entry: subscription nodes advertise it instead of the IP; with auto DNS on the registered domain, an A record pointing at the entry IP is created automatically.",
+    "entryDomainHint": "A separate hostname for this ingress. Saving creates or updates its A or AAAA record when automatic DNS is enabled. It points to this ingress, not the server direct address. After switching IPv4/IPv6, review and remove DNS records that are no longer used.",
     "reserved": "Reserved ports",
     "reservedHint": "Provider-owned local ports, such as SSH, separated by commas. Neither inbounds nor forwards may use them.",
     "derive": "Derive from last octet",
@@ -1359,7 +1359,16 @@
     "addMapping": "Add mapping",
     "requireIngress": "Require an ingress on this server",
     "requireIngressHint": "Every inbound and forward must select an ingress. Existing configurations are checked before saving. Leave off if other interfaces need direct listeners.",
-    "providerHint": "This records existing provider mappings; it does not configure their NAT or firewall. After changing mappings, review existing subscription node addresses."
+    "providerHint": "This records existing provider mappings; it does not configure their NAT or firewall. After changing mappings, review existing subscription node addresses.",
+    "addressSource": "Public entry address source",
+    "addressCustom": "Custom IP or domain",
+    "addressIPv4": "Use server IPv4 entry",
+    "addressIPv6": "Use server IPv6 entry",
+    "currentAddress": "Current inherited address",
+    "addressMissing": "This server has no address for the selected IP version. Set it in server information first.",
+    "addressFollowHint": "Follows the server public entry address. Select this only if the NAT provider uses that address for incoming connections.",
+    "followEndpoint": "Follow ingress address and port",
+    "followEndpointHint": "Updates this subscription node when its ingress address, domain or port mapping changes. Editing the address or port turns following off."
   },
   "warp": {
     "title": "Cloudflare WARP exit",

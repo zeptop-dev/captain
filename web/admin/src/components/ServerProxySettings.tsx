@@ -25,7 +25,7 @@ export function ServerProxySettings({ node, inbounds, ingresses, section, single
   }, [section])
   if (singleSection) return <Card data-section={section ?? undefined} mb="lg"><Stack gap="md">
     <div><Text fw={600}>{t(`lines.sections.${section}`)}</Text><Text size="xs" c="dimmed">{t(section === 'ingresses' ? 'nodes.advIngressHint' : section === 'routing' ? 'nodes.advRoutingHint' : 'nodes.advOverridesHint')}</Text></div>
-    {section === 'ingresses' && (editable ? <IngressesCard embedded nodeID={node.id} ingresses={ingresses} inbounds={inbounds} /> : <Text>{t('nodes.advIngressCount', { count: ingresses.length })}</Text>)}
+    {section === 'ingresses' && (editable ? <IngressesCard embedded node={node} nodeID={node.id} ingresses={ingresses} inbounds={inbounds} /> : <Text>{t('nodes.advIngressCount', { count: ingresses.length })}</Text>)}
     {section === 'routing' && <><RoutingCard embedded nodeID={node.id} inboundTags={inbounds.map(ib => ib.Tag)} readOnly={!editable} />{editable && me?.role === 'admin' && <EgressUpstreams endpoint={`/api/admin/settings/nodes/${node.id}/egress`} />}</>}
     {section === 'overrides' && <OverridesCard embedded readOnly={!editable} queryKey={['overrides', node.id]} load={() => api.get<Record<string, string>>(`/api/admin/nodes/${node.id}/overrides`)} save={value => api.put(`/api/admin/nodes/${node.id}/overrides`, value)} />}
   </Stack></Card>
@@ -35,7 +35,7 @@ export function ServerProxySettings({ node, inbounds, ingresses, section, single
       <Accordion multiple defaultValue={isServerSettingsSection(section) ? [section] : []} chevronPosition="right" variant="default">
         <Accordion.Item value="ingresses" data-section="ingresses" style={{ scrollMarginTop: 80 }}>
           <Accordion.Control><Text size="sm" fw={600}>{t('lines.sections.ingresses')}</Text><Text size="xs" c="dimmed">{t('nodes.advIngressHint')}</Text></Accordion.Control>
-          <Accordion.Panel>{editable ? <IngressesCard embedded nodeID={node.id} ingresses={ingresses} inbounds={inbounds} /> : <Stack gap="xs"><Text size="sm">{t('nodes.advIngressCount', { count: ingresses.length })}</Text>{ingresses.map(g => <Text key={g.id} size="sm">{g.name} · {g.entry_domain || g.entry_host}</Text>)}</Stack>}</Accordion.Panel>
+          <Accordion.Panel>{editable ? <IngressesCard embedded node={node} nodeID={node.id} ingresses={ingresses} inbounds={inbounds} /> : <Stack gap="xs"><Text size="sm">{t('nodes.advIngressCount', { count: ingresses.length })}</Text>{ingresses.map(g => <Text key={g.id} size="sm">{g.name} · {g.entry_domain || g.entry_host}</Text>)}</Stack>}</Accordion.Panel>
         </Accordion.Item>
         <Accordion.Item value="routing" data-section="routing" style={{ scrollMarginTop: 80 }}>
           <Accordion.Control><Text size="sm" fw={600}>{t('lines.sections.routing')}</Text><Text size="xs" c="dimmed">{t('nodes.advRoutingHint')}</Text></Accordion.Control>

@@ -4,7 +4,7 @@ import { Button, Card, Group, JsonInput, NumberInput, Select, SimpleGrid, Stack,
 import { useForm } from '@mantine/form'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Group as UGroup, Inbound, Ingress } from '../lib/api'
+import type { Group as UGroup, Inbound, Ingress, Node } from '../lib/api'
 import { firstFreeIngressPort, ingressPortLabel } from '../lib/ingress'
 import { IngressFields, emptyIngress, type IngressValues } from './IngressesCard'
 import { RealityScan } from './RealityScan'
@@ -104,7 +104,7 @@ export function toPayload(v: InboundValues) {
   return { Tag: v.Tag, Protocol: v.Protocol, Listen: v.Listen, Port: v.Port, Core: v.Core, ...(!v.ExistingInboundID ? { GroupID: v.GroupID ? Number(v.GroupID) : null } : {}), Enabled: v.Enabled, Settings: settings, IngressID: v.IngressID ? Number(v.IngressID) : null }
 }
 
-export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain, ingresses = [], usedPorts = [], lineOnly, nodeID, decoyDomain, fixedCore, onDirtyChange }: { initial: InboundValues; groups: UGroup[]; onSubmit: (v: InboundValues) => void; busy: boolean; onCancel: () => void; domain?: string; ingresses?: Ingress[]; usedPorts?: number[]; lineOnly?: boolean; nodeID?: number; decoyDomain?: string; fixedCore?: string; onDirtyChange?: (dirty: boolean) => void }) {
+export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain, ingresses = [], usedPorts = [], lineOnly, nodeID, node, decoyDomain, fixedCore, onDirtyChange }: { initial: InboundValues; groups: UGroup[]; onSubmit: (v: InboundValues) => void; busy: boolean; onCancel: () => void; domain?: string; ingresses?: Ingress[]; usedPorts?: number[]; lineOnly?: boolean; nodeID?: number; node?: Pick<Node, 'public_addr' | 'v6_addr'>; decoyDomain?: string; fixedCore?: string; onDirtyChange?: (dirty: boolean) => void }) {
   const { t } = useTranslation()
   const { me } = useAuth()
   const form = useForm<InboundValues>({
@@ -127,16 +127,17 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
   }
   // A node reachable only through a line (no public address, no domain) defaults new inbounds to its first ingress.
   useEffect(() => { if ((lineOnly || ingresses.some(g => g.require_ingress)) && !initial.IngressID && !initial.Tag && ingresses[0]) form.setValues({ IngressID: String(ingresses[0].id), Port: firstFree(ingresses[0]) || form.values.Port }) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const [ingressBlocked, setIngressBlocked] = useState(false)
   const ingressForm = useForm<IngressValues>({ initialValues: form.values.NewIngress ?? emptyIngress })
   const dirty = form.isDirty() || (!!form.values.NewIngress && ingressForm.isDirty())
   useEffect(() => { onDirtyChange?.(dirty) }, [dirty, onDirtyChange])
   useEffect(() => { if (form.values.NewIngress) ingressForm.setValues(form.values.NewIngress) }, [form.values.NewIngress]) // eslint-disable-line react-hooks/exhaustive-deps
   const onIngress = (v: string | null) => {
-    if (v === 'new') { form.setValues({ IngressID: '', NewIngress: { ...emptyIngress } }); return }
+    if (v === 'new') { form.setValues({ IngressID: '', NewIngress: ingressForm.values }); return }
     const g = ingresses.find((x) => String(x.id) === v)
     form.setValues({ IngressID: v ?? '', NewIngress: undefined, Port: g ? firstFree(g) || form.values.Port : form.values.Port })
   }
-  const submit = (v: InboundValues) => { if (!coreSelection.blocked) onSubmit(v.NewIngress ? { ...v, NewIngress: ingressForm.values } : v) }
+  const submit = (v: InboundValues) => { if (!busy && !coreSelection.blocked && !(v.NewIngress && ingressBlocked)) onSubmit(v.NewIngress ? { ...v, NewIngress: ingressForm.values } : v) }
   return (
     <form onSubmit={form.onSubmit(submit)}>
       <Stack>
@@ -163,7 +164,7 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
           data={[{ value: '', label: t('inbounds.ingressDirect'), disabled: ingresses.some(g => g.require_ingress) }, ...ingresses.map((g) => ({ value: String(g.id), label: `${g.name} → ${g.entry_domain || g.entry_host || t('ingress.noEntry')}` })), { value: 'new', label: t('inbounds.ingressNew'), disabled: !!fixedCore }]}
           value={form.values.NewIngress ? 'new' : form.values.IngressID} onChange={onIngress} />
         {lineOnly && !form.values.IngressID && !form.values.NewIngress && <Text size="xs" c="orange">{t('inbounds.lineOnlyHint')}</Text>}
-        {form.values.NewIngress && <Stack gap="xs" p="sm" style={{ border: '1px dashed var(--mantine-color-default-border)', borderRadius: 8 }}><Text size="xs" c="dimmed">{t('inbounds.ingressNewFields')}</Text><IngressFields form={ingressForm} /></Stack>}
+        {form.values.NewIngress && <Stack gap="xs" p="sm" style={{ border: '1px dashed var(--mantine-color-default-border)', borderRadius: 8 }}><Text size="xs" c="dimmed">{t('inbounds.ingressNewFields')}</Text><IngressFields form={ingressForm} node={node} onBlockedChange={setIngressBlocked} /></Stack>}
         <Group grow align="flex-start">
           <TextInput label={t('inbounds.listen')} placeholder={selectedIngress?.bind_ip || '::'} {...form.getInputProps('Listen')} />
           <NumberInput label={t('inbounds.port')} min={1} max={65535} required {...form.getInputProps('Port')} />
@@ -256,7 +257,7 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
         {nodeID && coreInbound?.private_access && (coreInbound.private_access as { mode?: string }).mode !== 'off' ? <PrivateAccessReadiness key={nodeID} nodeID={nodeID} compact /> : null}
         <PrivateAccessFields allowCoreOnly runtimeMode={coreSelection.runtimeMode} json={form.values.Settings} onChange={(s) => form.setFieldValue('Settings', s)} disabled={me?.role !== 'admin'} />
         <JsonInput label={t('inbounds.settings')} description={t('inbounds.settingsHint')} autosize minRows={4} maxRows={16} formatOnBlur {...form.getInputProps('Settings')} />
-        <Group justify="flex-end"><Button variant="default" onClick={onCancel}>{t('common.cancel')}</Button><Button type="submit" loading={busy} disabled={coreSelection.blocked}>{t('common.save')}</Button></Group>
+        <Group justify="flex-end"><Button variant="default" onClick={onCancel}>{t('common.cancel')}</Button><Button type="submit" loading={busy} disabled={coreSelection.blocked || !!form.values.NewIngress && ingressBlocked}>{t('common.save')}</Button></Group>
       </Stack>
     </form>
   )

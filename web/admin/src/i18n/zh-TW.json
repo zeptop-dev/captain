@@ -1249,7 +1249,7 @@
     "noEntryHint": "這條線沒有公網入口：在能連通它的前置伺服器上加一條連接埠轉發到外部連線 IP，訂閱行寫前置的位址。",
     "deleteHint": "仍有入站或轉發使用時無法刪除。請先修改或移除相關設定。",
     "entryDomain": "入口網域（可選）",
-    "entryDomainHint": "給公網入口取個網域，訂閱裡寫它而不是 IP；網域已登記且開了自動 DNS 時會自動建 A 記錄指向公網入口。",
+    "entryDomainHint": "為此入口單獨設定網域。所選網域開啟自動 DNS 後，儲存會建立或更新 A / AAAA 記錄，指向此入口而非伺服器的直連位址。切換 IPv4/IPv6 後，請核對並清理不再使用的 DNS 記錄。",
     "reserved": "保留連接埠",
     "reservedHint": "業者占用的本機連接埠，例如 SSH；以逗號分隔。入站和轉發均不可使用。",
     "kind": "入口類型",
@@ -1267,7 +1267,16 @@
     "addMapping": "新增映射",
     "requireIngress": "本伺服器必須選擇入口",
     "requireIngressHint": "本伺服器所有入站和轉發都必須選擇入口。儲存前檢查現有設定；其他網卡仍需直連時請關閉。",
-    "providerHint": "此處登記業者既有映射，不會修改其 NAT 或防火牆。修改後請核對已建立的訂閱節點位址。"
+    "providerHint": "此處登記業者既有映射，不會修改其 NAT 或防火牆。修改後請核對已建立的訂閱節點位址。",
+    "addressSource": "公網入口位址來源",
+    "addressCustom": "自訂 IP 或網域",
+    "addressIPv4": "使用伺服器 IPv4 入口",
+    "addressIPv6": "使用伺服器 IPv6 入口",
+    "currentAddress": "目前繼承位址",
+    "addressMissing": "伺服器尚無對應位址，請先在伺服器資訊中設定。",
+    "addressFollowHint": "隨伺服器公網入口位址更新。僅在供應商的 NAT 入站確實使用此位址時選擇。",
+    "followEndpoint": "跟隨入口位址與連接埠",
+    "followEndpointHint": "入口位址、網域或連接埠映射變更時同步此訂閱節點。手動修改連線位址或連接埠會關閉跟隨。"
   },
   "external": {
     "probe": "立即探測",
