@@ -222,6 +222,8 @@ type Entry struct {
 	LineMemberID string
 	DisplayHost  string
 	DisplayPort  int
+	// FollowIngress binds this ordinary entry to its inbound ingress endpoint.
+	FollowIngress bool
 	// IPVersion controls client dialing only; empty preserves legacy client behavior.
 	IPVersion  string
 	Rate       float64

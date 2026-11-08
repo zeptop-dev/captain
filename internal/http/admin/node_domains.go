@@ -10,6 +10,10 @@ import (
 )
 
 func nodeSaveError(w http.ResponseWriter, err error) {
+	if errors.Is(err, store.ErrIngressAddress) || errors.Is(err, store.ErrEntryIngress) || errors.Is(err, store.ErrEntryIPVersion) {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	var conflict *store.NodeDomainConflict
 	switch {
 	case errors.As(err, &conflict):

@@ -33,11 +33,13 @@ func (h *handlers) listIngresses(w http.ResponseWriter, r *http.Request) {
 }
 
 type ingressInput struct {
-	Name, Kind, BindIP, LineIP, EntryHost, EntryDomain string
-	PortFrom, PortTo, PortOffset                       int
-	ReservedPorts                                      []int
-	PortMappings                                       *[]spec.PortMapping
-	RequireIngress                                     *bool
+	Name, Kind, BindIP, LineIP, EntryDomain string
+	EntryHost                               *string
+	PortFrom, PortTo, PortOffset            int
+	ReservedPorts                           []int
+	PortMappings                            *[]spec.PortMapping
+	RequireIngress                          *bool
+	EntryAddressSource                      *string
 }
 
 func (in *ingressInput) apply(g *store.Ingress) string {
@@ -68,18 +70,34 @@ func (in *ingressInput) apply(g *store.Ingress) string {
 	if g.LineIP != "" && net.ParseIP(g.LineIP) == nil {
 		return "line address must be an IP"
 	}
-	g.EntryHost = strings.ToLower(strings.TrimSpace(in.EntryHost))
-	if g.EntryHost != "" && net.ParseIP(g.EntryHost) == nil && strings.ContainsAny(g.EntryHost, " /:[]") {
+	if in.EntryAddressSource != nil {
+		g.EntryAddressSource = *in.EntryAddressSource
+	} else if in.EntryHost != nil && strings.ToLower(strings.TrimSpace(*in.EntryHost)) != g.EntryHost {
+		// A legacy editor changing the endpoint explicitly requests a fixed value.
+		g.EntryAddressSource = store.IngressAddressCustom
+	}
+	if g.EntryAddressSource == "" {
+		g.EntryAddressSource = store.IngressAddressCustom
+	}
+	inherited := g.EntryAddressSource != store.IngressAddressCustom
+	if in.EntryHost != nil {
+		g.EntryHost = strings.ToLower(strings.TrimSpace(*in.EntryHost))
+	}
+	if !inherited && g.EntryHost != "" && net.ParseIP(g.EntryHost) == nil && strings.ContainsAny(g.EntryHost, " /:[]") {
 		return "entry host must be a host name or IP without a port"
 	}
-	g.EntryDomain = strings.ToLower(strings.TrimSpace(in.EntryDomain))
-	if g.EntryDomain != "" && (strings.ContainsAny(g.EntryDomain, " /:") || net.ParseIP(g.EntryDomain) != nil || !strings.Contains(g.EntryDomain, ".")) {
-		return "entry domain must be a host name"
+	g.EntryDomain = strings.TrimSpace(in.EntryDomain)
+	if g.EntryDomain != "" {
+		name, err := domain.NormalizeNodeDomain(g.EntryDomain)
+		if err != nil {
+			return "entry domain must be a valid host name"
+		}
+		g.EntryDomain = name
 	}
-	if g.EntryDomain != "" && net.ParseIP(g.EntryHost) == nil {
+	if !inherited && g.EntryDomain != "" && net.ParseIP(g.EntryHost) == nil {
 		return "an entry domain needs the public entry to be an IP address to point at"
 	}
-	if g.LineIP == "" && g.EntryHost == "" {
+	if !inherited && g.LineIP == "" && g.EntryHost == "" {
 		return "give the line's far-end address, its public entry, or both"
 	}
 	g.PortFrom, g.PortTo, g.PortOffset = in.PortFrom, in.PortTo, in.PortOffset
@@ -87,7 +105,7 @@ func (in *ingressInput) apply(g *store.Ingress) string {
 	if err := g.Ports().Validate(); err != nil {
 		return err.Error()
 	}
-	if g.Kind == "nat" && g.EntryHost == "" {
+	if !inherited && g.Kind == "nat" && g.EntryHost == "" {
 		return "NAT ingress requires a public entry address"
 	}
 
@@ -108,6 +126,10 @@ func (h *handlers) createIngress(w http.ResponseWriter, r *http.Request) {
 	g := &store.Ingress{NodeID: idOf(r)}
 	if msg := in.apply(g); msg != "" {
 		fail(w, http.StatusBadRequest, msg)
+		return
+	}
+	if err := h.Store.ResolveIngressAddress(r.Context(), g); err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	if msg, err := h.checkIngressChange(r.Context(), g, false); err != nil {
@@ -138,6 +160,10 @@ func (h *handlers) updateIngress(w http.ResponseWriter, r *http.Request) {
 	}
 	if msg := in.apply(g); msg != "" {
 		fail(w, http.StatusBadRequest, msg)
+		return
+	}
+	if err := h.Store.ResolveIngressAddress(r.Context(), g); err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	if msg, err := h.checkIngressChange(r.Context(), g, false); err != nil {

@@ -80,6 +80,12 @@ func (h *handlers) entryTags(w http.ResponseWriter, r *http.Request) {
 // domain (it has to point at the node anyway), else the node's public
 // address; a blank port is the inbound's port.
 func (h *handlers) fillEntryDefaults(ctx context.Context, e *domain.Entry) error {
+	if e.FollowIngress {
+		if e.LineID != nil || e.ChainID != nil {
+			return store.ErrEntryIngress
+		}
+		e.DisplayHost, e.DisplayPort = "", 0
+	}
 	if e.LineID != nil {
 		return h.Store.ResolveLineEntry(ctx, e)
 	}
@@ -89,6 +95,9 @@ func (h *handlers) fillEntryDefaults(ctx context.Context, e *domain.Entry) error
 	ib, err := h.Store.InboundByID(ctx, e.InboundID)
 	if err != nil {
 		return err
+	}
+	if e.FollowIngress && ib.IngressID == nil {
+		return store.ErrEntryIngress
 	}
 	if ib.IngressID != nil {
 		// A line ingress: clients dial the provider's public entry (or a
@@ -138,10 +147,17 @@ func (h *handlers) createEntryVariants(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) createEntryWithVariants(w http.ResponseWriter, r *http.Request, variants bool) {
 	h.Store.Topology.Lock()
 	defer h.Store.Topology.Unlock()
-	var e domain.Entry
-	if !decode(r, &e) || e.Name == "" || (e.InboundID == 0 && e.LineID == nil) {
+	var input struct {
+		domain.Entry
+		FollowIngress *bool
+	}
+	if !decode(r, &input) || input.Name == "" || (input.InboundID == 0 && input.LineID == nil) {
 		fail(w, http.StatusBadRequest, "name and inbound_id are required")
 		return
+	}
+	e := input.Entry
+	if input.FollowIngress != nil {
+		e.FollowIngress = *input.FollowIngress
 	}
 	if !h.entryAccessAllowed(w, r, e.Access) {
 		return
@@ -154,6 +170,11 @@ func (h *handlers) createEntryWithVariants(w http.ResponseWriter, r *http.Reques
 		fail(w, 400, "tunnel receiver is not a subscription entry")
 		return
 	}
+	if input.FollowIngress == nil && e.LineID == nil && e.ChainID == nil && e.DisplayHost == "" && e.DisplayPort == 0 {
+		if ib, err := h.Store.InboundByID(r.Context(), e.InboundID); err == nil && ib.IngressID != nil {
+			e.FollowIngress = true
+		}
+	}
 	if err := h.fillEntryDefaults(r.Context(), &e); err != nil {
 		fail(w, http.StatusBadRequest, err.Error())
 		return
@@ -162,7 +183,7 @@ func (h *handlers) createEntryWithVariants(w http.ResponseWriter, r *http.Reques
 	if variants {
 		entries, err := h.Store.CreateEntryVariants(r.Context(), &e)
 		if err != nil {
-			if nodeAccessError(w, err) || entryClientChainError(w, err) || entryCategoryError(w, err) || entryIPVersionError(w, err) {
+			if nodeAccessError(w, err) || entryClientChainError(w, err) || entryCategoryError(w, err) || entryIPVersionError(w, err) || entryIngressError(w, err) {
 				return
 			}
 			serverErr(w, err)
@@ -172,7 +193,7 @@ func (h *handlers) createEntryWithVariants(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if err := h.Store.CreateEntry(r.Context(), &e); err != nil {
-		if nodeAccessError(w, err) || entryClientChainError(w, err) || entryCategoryError(w, err) || entryIPVersionError(w, err) {
+		if nodeAccessError(w, err) || entryClientChainError(w, err) || entryCategoryError(w, err) || entryIPVersionError(w, err) || entryIngressError(w, err) {
 			return
 		}
 		serverErr(w, err)
@@ -196,7 +217,8 @@ func (h *handlers) updateEntry(w http.ResponseWriter, r *http.Request) {
 	}
 	var input struct {
 		domain.Entry
-		ClientExtra json.RawMessage
+		ClientExtra   json.RawMessage
+		FollowIngress *bool
 	}
 	raw, _ := json.Marshal(cur)
 	_ = json.Unmarshal(raw, &input.Entry)
@@ -205,6 +227,11 @@ func (h *handlers) updateEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	e := input.Entry
+	if input.FollowIngress != nil {
+		e.FollowIngress = *input.FollowIngress
+	} else if e.DisplayHost != cur.DisplayHost || e.DisplayPort != cur.DisplayPort || e.InboundID != cur.InboundID || !reflect.DeepEqual(e.LineID, cur.LineID) {
+		e.FollowIngress = false
+	}
 	if !h.entryAccessAllowed(w, r, e.Access) {
 		return
 	}
@@ -237,7 +264,7 @@ func (h *handlers) updateEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.UpdateEntry(r.Context(), &e); err != nil {
-		if nodeAccessError(w, err) || entryClientChainError(w, err) || entryCategoryError(w, err) || entryIPVersionError(w, err) {
+		if nodeAccessError(w, err) || entryClientChainError(w, err) || entryCategoryError(w, err) || entryIPVersionError(w, err) || entryIngressError(w, err) {
 			return
 		}
 		serverErr(w, err)
@@ -283,6 +310,14 @@ func entryClientChainError(w http.ResponseWriter, err error) bool {
 func entryIPVersionError(w http.ResponseWriter, err error) bool {
 	if errors.Is(err, store.ErrEntryIPVersion) {
 		fail(w, 400, err.Error())
+		return true
+	}
+	return false
+}
+
+func entryIngressError(w http.ResponseWriter, err error) bool {
+	if errors.Is(err, store.ErrEntryIngress) {
+		fail(w, http.StatusBadRequest, err.Error())
 		return true
 	}
 	return false

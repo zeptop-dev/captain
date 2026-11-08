@@ -225,8 +225,9 @@ func prepareTopologyTx(ctx context.Context, tx *sql.Tx, d *TopologyChangeset) (*
 			e = domain.Entry{ID: id, Rate: 1, Enabled: true}
 		}
 		topologyAssign(&e.Name, in.Name)
-		topologyAssign(&e.InboundID, in.InboundID)
 		topologyAssign(&e.LineMemberID, in.LineMemberID)
+		oldInbound, oldLine := e.InboundID, e.LineID
+		topologyAssign(&e.InboundID, in.InboundID)
 		topologyAssign(&e.DisplayHost, in.DisplayHost)
 		topologyAssign(&e.DisplayPort, in.DisplayPort)
 		topologyAssign(&e.IPVersion, in.IPVersion)
@@ -264,6 +265,11 @@ func prepareTopologyTx(ctx context.Context, tx *sql.Tx, d *TopologyChangeset) (*
 		}
 		if e.LineID == nil {
 			e.LineMemberID = ""
+		}
+		if in.FollowIngress != nil {
+			e.FollowIngress = *in.FollowIngress
+		} else if e.InboundID != oldInbound || !reflect.DeepEqual(e.LineID, oldLine) || (in.DisplayHost != nil && op.ID > 0 && e.DisplayHost != base.entries[id].DisplayHost) || (in.DisplayPort != nil && op.ID > 0 && e.DisplayPort != base.entries[id].DisplayPort) {
+			e.FollowIngress = false
 		}
 		p.entries[id] = &e
 		p.view.entries[id] = &e
@@ -321,7 +327,7 @@ func prepareTopologyTx(ctx context.Context, tx *sql.Tx, d *TopologyChangeset) (*
 	// different operation moves them away from a first-group member being removed.
 	for _, id := range topologyKeys(p.view.entries) {
 		e := p.view.entries[id]
-		changed := p.entries[id] != nil || (e.LineID != nil && p.lines[*e.LineID] != nil)
+		changed := p.entries[id] != nil || (e.LineID != nil && p.lines[*e.LineID] != nil) || (e.FollowIngress && p.inbounds[e.InboundID] != nil)
 		if changed {
 			if err = p.resolveEntry(ctx, tx, e); err != nil {
 				return nil, err
@@ -460,6 +466,20 @@ func (p *topologyPlan) node(ctx context.Context, tx *sql.Tx, id, lineID int64) (
 	return base, nil
 }
 func (p *topologyPlan) resolveEntry(ctx context.Context, tx *sql.Tx, e *domain.Entry) error {
+	if e.FollowIngress {
+		if e.LineID != nil || e.ChainID != nil {
+			return ErrEntryIngress
+		}
+		ib := p.view.inbounds[e.InboundID]
+		if ib == nil || ib.IngressID == nil {
+			return ErrEntryIngress
+		}
+		g := p.view.ingresses[*ib.IngressID]
+		if g == nil || g.NodeID != ib.NodeID || !g.AllowsPort(ib.Port) {
+			return ErrEntryIngress
+		}
+		e.DisplayHost, e.DisplayPort = "", 0
+	}
 	if e.LineID != nil {
 		if p.view.unpublished[*e.LineID] {
 			return ErrLineRolloutConflict

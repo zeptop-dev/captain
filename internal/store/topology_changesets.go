@@ -34,20 +34,21 @@ type TopologyInboundPatch struct {
 	SettingsConfigured bool          `json:"settings_configured,omitempty"`
 }
 type TopologyEntryPatch struct {
-	Name         *string   `json:"name,omitempty"`
-	InboundID    *int64    `json:"inbound_id,omitempty"`
-	InboundRef   string    `json:"inbound_ref,omitempty"`
-	LineID       *int64    `json:"line_id,omitempty"`
-	LineRef      string    `json:"line_ref,omitempty"`
-	LineMemberID *string   `json:"line_member_id,omitempty"`
-	DisplayHost  *string   `json:"display_host,omitempty"`
-	DisplayPort  *int      `json:"display_port,omitempty"`
-	IPVersion    *string   `json:"ip_version,omitempty"`
-	Rate         *float64  `json:"rate,omitempty"`
-	Sort         *int      `json:"sort,omitempty"`
-	Enabled      *bool     `json:"enabled,omitempty"`
-	Tags         *[]string `json:"tags,omitempty"`
-	Region       *string   `json:"region,omitempty"`
+	Name          *string   `json:"name,omitempty"`
+	InboundID     *int64    `json:"inbound_id,omitempty"`
+	InboundRef    string    `json:"inbound_ref,omitempty"`
+	LineID        *int64    `json:"line_id,omitempty"`
+	LineRef       string    `json:"line_ref,omitempty"`
+	LineMemberID  *string   `json:"line_member_id,omitempty"`
+	DisplayHost   *string   `json:"display_host,omitempty"`
+	DisplayPort   *int      `json:"display_port,omitempty"`
+	IPVersion     *string   `json:"ip_version,omitempty"`
+	FollowIngress *bool     `json:"follow_ingress,omitempty"`
+	Rate          *float64  `json:"rate,omitempty"`
+	Sort          *int      `json:"sort,omitempty"`
+	Enabled       *bool     `json:"enabled,omitempty"`
+	Tags          *[]string `json:"tags,omitempty"`
+	Region        *string   `json:"region,omitempty"`
 }
 type TopologyOperation struct {
 	Key        string                `json:"key"`

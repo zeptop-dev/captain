@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"strconv"
 	"sync"
 	"time"
 
@@ -75,6 +76,7 @@ func (s *NodeAddresses) Tick(ctx context.Context, at time.Time) {
 	}
 }
 func (s *NodeAddresses) reconcile(ctx context.Context, id int64, at time.Time) {
+	defer s.reconcileIngressDNS(ctx, id, at)
 	// Re-read pairing and observations under Topology; never trust queued state.
 	// Reset/re-pair clears observations before queued work can apply them.
 	refresh := false
@@ -120,5 +122,35 @@ func (s *NodeAddresses) reconcile(ctx context.Context, id int64, at time.Time) {
 	// is released. The background worker, never the report handler, owns this I/O.
 	if refresh && s.Health != nil {
 		_, _ = s.Health.Check(ctx, id)
+	}
+}
+
+// Ingress DNS has its own durable retry state because manual node/ingress edits
+// and unpaired inventory can also change an inherited public endpoint.
+func (s *NodeAddresses) reconcileIngressDNS(ctx context.Context, id int64, at time.Time) {
+	ctx, cancelBatch := context.WithTimeout(ctx, 25*time.Second)
+	defer cancelBatch()
+	if s.DNS == nil {
+		return
+	}
+	s.Store.Topology.Lock()
+	defer s.Store.Topology.Unlock()
+	pending, err := s.Store.PendingIngressDNS(ctx, id, at)
+	if err != nil {
+		return
+	}
+	for _, g := range pending {
+		if ctx.Err() != nil {
+			return
+		}
+		if err = s.Store.BeginIngressDNS(ctx, g.ID, at); err != nil {
+			return
+		}
+		dnsctx, cancel := context.WithTimeout(ctx, 25*time.Second)
+		result := s.DNS.Ensure(WithDNSOrigin(dnsctx, DNSOrigin{NodeID: id, Source: "ingress:" + strconv.FormatInt(g.ID, 10), Actor: "address_follow"}), g.EntryDomain, g.EntryHost)
+		cancel()
+		if result.Error == "" && result.Reason == "" {
+			_ = s.Store.FinishIngressDNS(ctx, g.ID)
+		}
 	}
 }

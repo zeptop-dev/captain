@@ -15,15 +15,16 @@ import (
 // forward to, an optional provider-supplied public entry and a port range.
 // Inbounds pick one; entries and relays derive their addresses from it.
 type Ingress struct {
-	PortMappings   []spec.PortMapping `json:"port_mappings,omitempty"`
-	RequireIngress bool               `json:"require_ingress"`
-	ID             int64              `json:"id"`
-	NodeID         int64              `json:"node_id"`
-	Name           string             `json:"name"`
-	Kind           string             `json:"kind"`
-	BindIP         string             `json:"bind_ip"`
-	LineIP         string             `json:"line_ip"`
-	EntryHost      string             `json:"entry_host"`
+	PortMappings       []spec.PortMapping `json:"port_mappings,omitempty"`
+	RequireIngress     bool               `json:"require_ingress"`
+	ID                 int64              `json:"id"`
+	NodeID             int64              `json:"node_id"`
+	Name               string             `json:"name"`
+	Kind               string             `json:"kind"`
+	BindIP             string             `json:"bind_ip"`
+	LineIP             string             `json:"line_ip"`
+	EntryAddressSource string             `json:"entry_address_source"`
+	EntryHost          string             `json:"entry_host"`
 	// EntryDomain names the public entry; a DNS record points it at EntryHost.
 	EntryDomain string `json:"entry_domain"`
 	PortFrom    int    `json:"port_from"`
@@ -90,13 +91,13 @@ func joinPorts(ps []int) string {
 	return strings.Join(parts, ",")
 }
 
-const ingressCols = "id, node_id, name, kind, bind_ip, line_ip, entry_host, entry_domain, port_from, port_to, port_offset, reserved_ports, port_mappings_json, require_ingress, created_at, updated_at"
+const ingressCols = "id, node_id, name, kind, bind_ip, line_ip, entry_host, entry_domain, port_from, port_to, port_offset, reserved_ports, port_mappings_json, require_ingress, created_at, updated_at, entry_address_source"
 
 func scanIngress(row interface{ Scan(...any) error }) (*Ingress, error) {
 	var g Ingress
 	var cr, up int64
 	var reserved, mappings string
-	if err := row.Scan(&g.ID, &g.NodeID, &g.Name, &g.Kind, &g.BindIP, &g.LineIP, &g.EntryHost, &g.EntryDomain, &g.PortFrom, &g.PortTo, &g.PortOffset, &reserved, &mappings, &g.RequireIngress, &cr, &up); err != nil {
+	if err := row.Scan(&g.ID, &g.NodeID, &g.Name, &g.Kind, &g.BindIP, &g.LineIP, &g.EntryHost, &g.EntryDomain, &g.PortFrom, &g.PortTo, &g.PortOffset, &reserved, &mappings, &g.RequireIngress, &cr, &up, &g.EntryAddressSource); err != nil {
 		return nil, wrapNotFound(err)
 	}
 	g.ReservedPorts = parsePorts(reserved)
@@ -111,14 +112,24 @@ func (s *Store) CreateIngress(ctx context.Context, g *Ingress) error {
 	if g.Kind == "" {
 		g.Kind = "mapped"
 	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err = resolveIngressAddress(ctx, tx, g); err != nil {
+		return err
+	}
 	mappings, err := json.Marshal(g.PortMappings)
 	if err != nil {
 		return err
 	}
 	ts := now()
-	res, err := s.db.ExecContext(ctx, `INSERT INTO ingresses (node_id, name, kind, bind_ip, line_ip, entry_host, entry_domain, port_from, port_to, port_offset, reserved_ports, port_mappings_json, require_ingress, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		g.NodeID, g.Name, g.Kind, g.BindIP, g.LineIP, g.EntryHost, g.EntryDomain, g.PortFrom, g.PortTo, g.PortOffset, joinPorts(g.ReservedPorts), string(mappings), g.RequireIngress, ts, ts)
+	res, err := tx.ExecContext(ctx, `INSERT INTO ingresses (node_id,name,kind,bind_ip,line_ip,entry_host,entry_domain,port_from,port_to,port_offset,reserved_ports,port_mappings_json,require_ingress,created_at,updated_at,entry_address_source,address_dns_pending) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, g.NodeID, g.Name, g.Kind, g.BindIP, g.LineIP, g.EntryHost, g.EntryDomain, g.PortFrom, g.PortTo, g.PortOffset, joinPorts(g.ReservedPorts), string(mappings), g.RequireIngress, ts, ts, g.EntryAddressSource, boolInt(g.EntryDomain != "" && g.EntryAddressSource != IngressAddressCustom))
 	if err != nil {
+		return err
+	}
+	if err = tx.Commit(); err != nil {
 		return err
 	}
 	g.ID, _ = res.LastInsertId()
@@ -140,15 +151,21 @@ func (s *Store) UpdateIngress(ctx context.Context, g *Ingress) error {
 	if err = tx.QueryRowContext(ctx, `SELECT node_id FROM ingresses WHERE id=?`, g.ID).Scan(&nodeID); err != nil {
 		return wrapNotFound(err)
 	}
+	if err = resolveIngressAddress(ctx, tx, g); err != nil {
+		return err
+	}
 	if err = checkRolloutIngressMutationTx(ctx, tx, g); err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE ingresses SET name = ?, kind = ?, bind_ip = ?, line_ip = ?, entry_host = ?, entry_domain = ?, port_from = ?, port_to = ?, port_offset = ?, reserved_ports = ?, port_mappings_json = ?, require_ingress = ?, updated_at = ? WHERE id = ?`,
-		g.Name, g.Kind, g.BindIP, g.LineIP, g.EntryHost, g.EntryDomain, g.PortFrom, g.PortTo, g.PortOffset, joinPorts(g.ReservedPorts), string(mappings), g.RequireIngress, now(), g.ID)
+	_, err = tx.ExecContext(ctx, `UPDATE ingresses SET name = ?, kind = ?, bind_ip = ?, line_ip = ?, entry_host = ?, entry_domain = ?, port_from = ?, port_to = ?, port_offset = ?, reserved_ports = ?, port_mappings_json = ?, require_ingress = ?, entry_address_source = ?, address_dns_pending = CASE WHEN ? != '' THEN 1 ELSE 0 END, address_dns_attempt = 0, updated_at = ? WHERE id = ?`,
+		g.Name, g.Kind, g.BindIP, g.LineIP, g.EntryHost, g.EntryDomain, g.PortFrom, g.PortTo, g.PortOffset, joinPorts(g.ReservedPorts), string(mappings), g.RequireIngress, g.EntryAddressSource, g.EntryDomain, now(), g.ID)
 	if err != nil {
 		return err
 	}
 	if err = checkRolloutNodeReservationsTx(ctx, tx, nodeID); err != nil {
+		return err
+	}
+	if err = refreshFollowingEntriesTx(ctx, tx, nodeID); err != nil {
 		return err
 	}
 	if err = refreshLinesForNodeTx(ctx, tx, nodeID); err != nil {

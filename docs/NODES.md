@@ -609,6 +609,13 @@ addresses, ranges and optional direct listeners after migration.
 - the usable **local port range** and an optional public-port offset; or
   multiple explicit mappings, each with local start/end and public start.
 
+NAT public entries can explicitly inherit the server's configured IPv4 or IPv6
+entry address; custom provider addresses remain available. A subscription node
+can separately opt into following its inbound ingress's host and mapped port.
+Existing records remain custom/fixed. See [address inheritance](INGRESS_ADDRESS_SOURCE.md)
+for the API, automatic follow, DNS retry and pending-state contracts. Public IP
+detection does not prove the provider's inbound mapping or client reachability.
+
 For example, local `20001–20099` → public `30001–30099` and local `40000` →
 public `443` can coexist in one NAT ingress. A single port has equal local
 start/end. Local and public ranges must each be non-overlapping and stay within

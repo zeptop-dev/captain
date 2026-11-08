@@ -358,7 +358,11 @@ func (h *handlers) updateNode(w http.ResponseWriter, r *http.Request) {
 		nodeSaveError(w, err)
 		return
 	}
-	ok(w, map[string]any{"ok": true, "dns": h.DNS.EnsureMany(service.WithDNSOrigin(r.Context(), service.DNSOrigin{NodeID: n.ID, Source: "node", Actor: userFrom(r).Email}), [2]string{n.Domain, n.PublicAddr}, [2]string{n.Domain, n.V6Addr})})
+	response := map[string]any{"ok": true, "dns": h.DNS.EnsureMany(service.WithDNSOrigin(r.Context(), service.DNSOrigin{NodeID: n.ID, Source: "node", Actor: userFrom(r).Email}), [2]string{n.Domain, n.PublicAddr}, [2]string{n.Domain, n.V6Addr})}
+	if pending, err := h.Store.HasPendingIngressDNS(r.Context(), n.ID); err == nil {
+		response["ingress_dns_pending"] = pending
+	}
+	ok(w, response)
 }
 
 func (h *handlers) deleteNode(w http.ResponseWriter, r *http.Request) {

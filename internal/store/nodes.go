@@ -301,6 +301,11 @@ func (s *Store) UpdateNodeWithAgentSettings(ctx context.Context, n *domain.Node,
 	if err != nil {
 		return err
 	}
+	if n.PublicAddr != old.PublicAddr || n.V6Addr != old.V6Addr {
+		if err = refreshInheritedIngressesTx(ctx, tx, n.ID); err != nil {
+			return err
+		}
+	}
 	if n.PublicAddr != old.PublicAddr || n.V6Addr != old.V6Addr || n.Domain != old.Domain || n.DomainShared != old.DomainShared || n.InternalAddr != old.InternalAddr {
 		if err = refreshLinesForNodeTx(ctx, tx, n.ID); err != nil {
 			return err
@@ -445,6 +450,9 @@ func (s *Store) UpdateInbound(ctx context.Context, ib *domain.Inbound) error {
 	}
 	defer tx.Rollback()
 	if err = writeInboundTx(ctx, tx, ib, false); err != nil {
+		return err
+	}
+	if err = refreshFollowingEntriesTx(ctx, tx, ib.NodeID); err != nil {
 		return err
 	}
 	if err = refreshLinesForNodeTx(ctx, tx, ib.NodeID); err != nil {

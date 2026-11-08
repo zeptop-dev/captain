@@ -213,7 +213,8 @@ func (s *Store) ObserveNodeAddresses(ctx context.Context, id int64, token string
 }
 
 // ReconcileNodeAddresses requires Topology. Only confirmed, fresh observations
-// may change an opted-in family. Explicit entry/ingress/WG endpoints are untouched.
+// may change an opted-in family. Only explicitly inherited ingresses and their
+// bound subscription entries follow; custom entry/ingress/WG endpoints are untouched.
 func (s *Store) ReconcileNodeAddresses(ctx context.Context, id int64, at time.Time) (*domain.Node, bool, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -272,6 +273,9 @@ func (s *Store) ReconcileNodeAddresses(ctx context.Context, id int64, at time.Ti
 		}
 	}
 	if changed {
+		if err = refreshInheritedIngressesTx(ctx, tx, id); err != nil {
+			return nil, false, err
+		}
 		if err = refreshLinesForNodeTx(ctx, tx, id); err != nil {
 			return nil, false, err
 		}

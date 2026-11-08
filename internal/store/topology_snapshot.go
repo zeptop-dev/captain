@@ -57,21 +57,22 @@ type TopologyLineCatalog struct {
 	Revision string      `json:"revision"`
 }
 type TopologyEntryCatalog struct {
-	ID           int64    `json:"id"`
-	Name         string   `json:"name"`
-	InboundID    int64    `json:"inbound_id"`
-	LineID       *int64   `json:"line_id"`
-	LineMemberID string   `json:"line_member_id"`
-	DisplayHost  string   `json:"display_host"`
-	DisplayPort  int      `json:"display_port"`
-	IPVersion    string   `json:"ip_version"`
-	Rate         float64  `json:"rate"`
-	Sort         int      `json:"sort"`
-	Enabled      bool     `json:"enabled"`
-	Tags         []string `json:"tags"`
-	Region       string   `json:"region"`
-	Revision     string   `json:"revision"`
-	Editable     bool     `json:"editable"`
+	ID            int64    `json:"id"`
+	Name          string   `json:"name"`
+	InboundID     int64    `json:"inbound_id"`
+	LineID        *int64   `json:"line_id"`
+	LineMemberID  string   `json:"line_member_id"`
+	DisplayHost   string   `json:"display_host"`
+	DisplayPort   int      `json:"display_port"`
+	IPVersion     string   `json:"ip_version"`
+	FollowIngress bool     `json:"follow_ingress"`
+	Rate          float64  `json:"rate"`
+	Sort          int      `json:"sort"`
+	Enabled       bool     `json:"enabled"`
+	Tags          []string `json:"tags"`
+	Region        string   `json:"region"`
+	Revision      string   `json:"revision"`
+	Editable      bool     `json:"editable"`
 }
 type TopologyCatalog struct {
 	Nodes     []TopologyNodeCatalog    `json:"nodes"`
@@ -272,7 +273,7 @@ func loadTopologySnapshotTx(ctx context.Context, tx *sql.Tx) (*topologySnapshot,
 	var raw []any
 	for _, q := range []string{
 		`SELECT n.id,n.name,n.token_hash,p.uuid,n.public_addr,n.internal_addr,n.v6_addr,n.domain,n.domain_shared,n.version,n.node_mode,n.mode_managed,n.mode_revision,n.reported_mode,n.reported_mode_revision,n.mita_quotas,n.forwards_json,n.outbounds_json,n.routes_json,n.dns_json,n.overrides_json,n.default_outbound FROM nodes n LEFT JOIN probe_public_ids p ON p.node_id=n.id ORDER BY n.id`,
-		`SELECT * FROM inbounds ORDER BY id`, `SELECT * FROM forward_lines ORDER BY id`, `SELECT * FROM forward_line_members ORDER BY line_id,member_id`, `SELECT * FROM entries ORDER BY id`, `SELECT * FROM ingresses ORDER BY id`, `SELECT * FROM inbound_access ORDER BY inbound_id`, `SELECT * FROM inbound_access_groups ORDER BY inbound_id,group_id`, `SELECT id,node_id,kind,done_at,error FROM node_jobs WHERE kind='node_remove' ORDER BY id`, `SELECT id,line_id,version,status,stage FROM line_rollouts WHERE status IN ('running','paused') ORDER BY id`,
+		`SELECT * FROM inbounds ORDER BY id`, `SELECT * FROM forward_lines ORDER BY id`, `SELECT * FROM forward_line_members ORDER BY line_id,member_id`, `SELECT * FROM entries ORDER BY id`, "SELECT " + ingressCols + " FROM ingresses ORDER BY id", `SELECT * FROM inbound_access ORDER BY inbound_id`, `SELECT * FROM inbound_access_groups ORDER BY inbound_id,group_id`, `SELECT id,node_id,kind,done_at,error FROM node_jobs WHERE kind='node_remove' ORDER BY id`, `SELECT id,line_id,version,status,stage FROM line_rollouts WHERE status IN ('running','paused') ORDER BY id`,
 	} {
 		if e := topologyRows(ctx, tx, q, func(r *sql.Rows) error {
 			cols, e := r.Columns()
@@ -302,7 +303,7 @@ func (s *topologySnapshot) inboundView(v *domain.Inbound) TopologyInboundCatalog
 	return TopologyInboundCatalog{v.ID, v.NodeID, v.Tag, v.Protocol, v.Listen, v.Port, v.Enabled, v.Sort, v.IngressID, topologyDigest([]any{v, s.identities[v.NodeID], s.inboundIdentities[v.ID]}), !s.protectedInbound[v.ID] && v.Settings.Reverse == nil && v.Settings.WireGuardSlot == 0 && !v.Settings.PrivateAccess.Enabled(), protocol}
 }
 func (s *topologySnapshot) entryView(e *domain.Entry) TopologyEntryCatalog {
-	return TopologyEntryCatalog{e.ID, e.Name, e.InboundID, e.LineID, e.LineMemberID, e.DisplayHost, e.DisplayPort, e.IPVersion, e.Rate, e.Sort, e.Enabled, e.Tags, e.Region, topologyDigest([]any{e, s.entryIdentities[e.ID]}), !s.protectedEntry[e.ID]}
+	return TopologyEntryCatalog{e.ID, e.Name, e.InboundID, e.LineID, e.LineMemberID, e.DisplayHost, e.DisplayPort, e.IPVersion, e.FollowIngress, e.Rate, e.Sort, e.Enabled, e.Tags, e.Region, topologyDigest([]any{e, s.entryIdentities[e.ID]}), !s.protectedEntry[e.ID]}
 }
 func (s *topologySnapshot) lineRevision(l *ForwardLine) string {
 	return topologyDigest([]any{l, s.scopes[l.ID], s.lineIdentities[l.ID]})

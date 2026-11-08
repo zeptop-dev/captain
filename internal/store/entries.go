@@ -11,14 +11,14 @@ import (
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-const entryCols = "e.id, e.name, e.inbound_id, e.chain_id, e.display_host, e.display_port, e.rate, e.sort, e.enabled, e.tags, e.region, e.client_extra, e.line_id, e.line_member_id, e.client_dialer_entry_id, e.category_id, e.ip_version"
+const entryCols = "e.id, e.name, e.inbound_id, e.chain_id, e.display_host, e.display_port, e.rate, e.sort, e.enabled, e.tags, e.region, e.client_extra, e.line_id, e.line_member_id, e.client_dialer_entry_id, e.category_id, e.ip_version, e.follow_ingress"
 
 func scanEntry(row interface{ Scan(...any) error }) (*domain.Entry, error) {
 	var e domain.Entry
 	var chain, line, dialer, category sql.NullInt64
 	var enabled int
 	var tags, extra string
-	if err := row.Scan(&e.ID, &e.Name, &e.InboundID, &chain, &e.DisplayHost, &e.DisplayPort, &e.Rate, &e.Sort, &enabled, &tags, &e.Region, &extra, &line, &e.LineMemberID, &dialer, &category, &e.IPVersion); err != nil {
+	if err := row.Scan(&e.ID, &e.Name, &e.InboundID, &chain, &e.DisplayHost, &e.DisplayPort, &e.Rate, &e.Sort, &enabled, &tags, &e.Region, &extra, &line, &e.LineMemberID, &dialer, &category, &e.IPVersion, &e.FollowIngress); err != nil {
 		return nil, wrapNotFound(err)
 	}
 	e.ChainID = int64Ptr(chain)
@@ -124,7 +124,7 @@ func (s *Store) entriesForUser(ctx context.Context, u *domain.User, withBlocked 
 		var chain, group, ingress, line, dialer, category sql.NullInt64
 		var eEnabled, iEnabled int
 		var settings, tags, extra string
-		if err := rows.Scan(&l.Entry.ID, &l.Entry.Name, &l.Entry.InboundID, &chain, &l.Entry.DisplayHost, &l.Entry.DisplayPort, &l.Entry.Rate, &l.Entry.Sort, &eEnabled, &tags, &l.Entry.Region, &extra, &line, &l.Entry.LineMemberID, &dialer, &category, &l.Entry.IPVersion,
+		if err := rows.Scan(&l.Entry.ID, &l.Entry.Name, &l.Entry.InboundID, &chain, &l.Entry.DisplayHost, &l.Entry.DisplayPort, &l.Entry.Rate, &l.Entry.Sort, &eEnabled, &tags, &l.Entry.Region, &extra, &line, &l.Entry.LineMemberID, &dialer, &category, &l.Entry.IPVersion, &l.Entry.FollowIngress,
 			&l.Inbound.ID, &l.Inbound.NodeID, &l.Inbound.Tag, &l.Inbound.Protocol, &l.Inbound.Listen, &l.Inbound.Port, &l.Inbound.Core, &settings, &group, &iEnabled, &l.Inbound.Sort, &ingress); err != nil {
 			return nil, err
 		}
@@ -181,6 +181,9 @@ func (s *Store) UpdateEntry(ctx context.Context, e *domain.Entry) error {
 
 // writeEntryTx persists an already-resolved entry and preserves access checks.
 func writeEntryTx(ctx context.Context, tx *sql.Tx, e *domain.Entry, create bool) error {
+	if err := resolveFollowingEntryTx(ctx, tx, e); err != nil {
+		return err
+	}
 	if err := validateEntryIPVersionTx(ctx, tx, e); err != nil {
 		return err
 	}
@@ -204,14 +207,14 @@ func writeEntryTx(ctx context.Context, tx *sql.Tx, e *domain.Entry, create bool)
 	}
 	ts := now()
 	if create {
-		res, err := tx.ExecContext(ctx, `INSERT INTO entries (name, inbound_id, chain_id, display_host, display_port, rate, sort, enabled, tags, region, client_extra, line_id, line_member_id, client_dialer_entry_id, category_id, ip_version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, e.Name, e.InboundID, nullInt64(e.ChainID), e.DisplayHost, e.DisplayPort, e.Rate, e.Sort, boolInt(e.Enabled), joinTags(e.Tags), strings.ToUpper(e.Region), encodeExtra(e.ClientExtra), nullInt64(e.LineID), e.LineMemberID, nullInt64(e.ClientDialerEntryID), nullInt64(e.CategoryID), e.IPVersion, ts, ts)
+		res, err := tx.ExecContext(ctx, `INSERT INTO entries (name, inbound_id, chain_id, display_host, display_port, rate, sort, enabled, tags, region, client_extra, line_id, line_member_id, client_dialer_entry_id, category_id, ip_version, follow_ingress, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, e.Name, e.InboundID, nullInt64(e.ChainID), e.DisplayHost, e.DisplayPort, e.Rate, e.Sort, boolInt(e.Enabled), joinTags(e.Tags), strings.ToUpper(e.Region), encodeExtra(e.ClientExtra), nullInt64(e.LineID), e.LineMemberID, nullInt64(e.ClientDialerEntryID), nullInt64(e.CategoryID), e.IPVersion, boolInt(e.FollowIngress), ts, ts)
 		if err != nil {
 			return err
 		}
 		e.ID, err = res.LastInsertId()
 		return err
 	}
-	_, err := tx.ExecContext(ctx, `UPDATE entries SET name=?, inbound_id=?, chain_id=?, display_host=?, display_port=?, rate=?, sort=?, enabled=?, tags=?, region=?, client_extra=?, line_id=?, line_member_id=?, client_dialer_entry_id=?, category_id=?, ip_version=?, updated_at=? WHERE id=?`, e.Name, e.InboundID, nullInt64(e.ChainID), e.DisplayHost, e.DisplayPort, e.Rate, e.Sort, boolInt(e.Enabled), joinTags(e.Tags), strings.ToUpper(e.Region), encodeExtra(e.ClientExtra), nullInt64(e.LineID), e.LineMemberID, nullInt64(e.ClientDialerEntryID), nullInt64(e.CategoryID), e.IPVersion, ts, e.ID)
+	_, err := tx.ExecContext(ctx, `UPDATE entries SET name=?, inbound_id=?, chain_id=?, display_host=?, display_port=?, rate=?, sort=?, enabled=?, tags=?, region=?, client_extra=?, line_id=?, line_member_id=?, client_dialer_entry_id=?, category_id=?, ip_version=?, follow_ingress=?, updated_at=? WHERE id=?`, e.Name, e.InboundID, nullInt64(e.ChainID), e.DisplayHost, e.DisplayPort, e.Rate, e.Sort, boolInt(e.Enabled), joinTags(e.Tags), strings.ToUpper(e.Region), encodeExtra(e.ClientExtra), nullInt64(e.LineID), e.LineMemberID, nullInt64(e.ClientDialerEntryID), nullInt64(e.CategoryID), e.IPVersion, boolInt(e.FollowIngress), ts, e.ID)
 	return err
 }
 

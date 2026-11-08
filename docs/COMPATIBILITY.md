@@ -7,6 +7,18 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.59.0 to preserve strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
 
+## NAT address inheritance (unreleased, migration 117)
+
+Ingress `entry_address_source` and Entry `FollowIngress` are additive. Existing
+rows remain custom/fixed; server address inheritance and subscription binding
+are separate explicit choices. Old clients preserve unchanged bindings and
+explicit endpoint overrides detach them. Ingress DNS retry state is persisted
+but excluded from topology preview revisions. See
+[NAT address inheritance](INGRESS_ADDRESS_SOURCE.md) for API contracts and
+transaction boundaries. Before release, raise the rollback floor to the actual
+version containing this feature, since older panels ignore the new bindings.
+No new agent fields or bosun version gate are needed.
+
 ## Per-entry connection IP policy (Captain v1.59.0 / shared bosun v0.93.0)
 
 Migration 116 adds an optional `Entry.IPVersion`. Existing rows and omitted
