@@ -450,6 +450,9 @@ func (s *Store) UpdateInbound(ctx context.Context, ib *domain.Inbound) error {
 	if err = refreshLinesForNodeTx(ctx, tx, ib.NodeID); err != nil {
 		return err
 	}
+	if err = validateInboundEntryIPVersionsTx(ctx, tx, ib); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 

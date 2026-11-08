@@ -379,7 +379,7 @@ func saveLineTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, kind string) er
 	} else if err = checkLineRolloutWriteTx(ctx, tx, l.ID); err != nil {
 		return err
 	}
-	entryMembers, err := linePublishedMembersTx(ctx, tx, l.ID, endpoints)
+	entryMembers, err := linePublishedMembersTx(ctx, tx, l.ID, l.TargetInboundID, endpoints)
 	if err != nil {
 		return err
 	}
@@ -411,7 +411,11 @@ func saveLineTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, kind string) er
 }
 
 // Both preview and save enforce published-member protection from the same snapshot.
-func linePublishedMembersTx(ctx context.Context, tx *sql.Tx, id int64, endpoints map[string]LineEndpoint) (map[int64]string, error) {
+func linePublishedMembersTx(ctx context.Context, tx *sql.Tx, id, targetInboundID int64, endpoints map[string]LineEndpoint) (map[int64]string, error) {
+	var protocol spec.Protocol
+	if err := tx.QueryRowContext(ctx, `SELECT protocol FROM inbounds WHERE id=?`, targetInboundID).Scan(&protocol); err != nil {
+		return nil, wrapNotFound(err)
+	}
 	rows, err := tx.QueryContext(ctx, `SELECT `+entryCols+` FROM entries e WHERE e.line_id=?`, id)
 	if err != nil {
 		return nil, err
@@ -426,7 +430,7 @@ func linePublishedMembersTx(ctx context.Context, tx *sql.Tx, id int64, endpoints
 		}
 		if endpoint, ok := endpoints[entry.LineMemberID]; ok {
 			entry.DisplayHost = endpoint.Host
-			if err = validateEntryIPVersion(entry); err != nil {
+			if err = validateEntryIPVersionForProtocol(entry, protocol); err != nil {
 				rows.Close()
 				return nil, err
 			}

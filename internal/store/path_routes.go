@@ -517,7 +517,7 @@ func previewPathRouteTx(ctx context.Context, tx *sql.Tx, p *PathRoute) (*PathRou
 	if e != nil {
 		return nil, e
 	}
-	if _, e = linePublishedMembersTx(ctx, tx, l.ID, endpoints); e != nil {
+	if _, e = linePublishedMembersTx(ctx, tx, l.ID, l.TargetInboundID, endpoints); e != nil {
 		return nil, e
 	}
 	out := &PathRoutePreview{Draft: draft, Changes: []LineNodeChange{}, Dependencies: []LineDependency{}, Edges: []LineEdge{}, Uses: []LineUse{}, Endpoints: []LineEndpoint{}}

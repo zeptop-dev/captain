@@ -321,15 +321,22 @@ func prepareTopologyTx(ctx context.Context, tx *sql.Tx, d *TopologyChangeset) (*
 	// different operation moves them away from a first-group member being removed.
 	for _, id := range topologyKeys(p.view.entries) {
 		e := p.view.entries[id]
-		if p.entries[id] != nil || (e.LineID != nil && p.lines[*e.LineID] != nil) {
+		changed := p.entries[id] != nil || (e.LineID != nil && p.lines[*e.LineID] != nil)
+		if changed {
 			if err = p.resolveEntry(ctx, tx, e); err != nil {
-				return nil, err
-			}
-			if err = validateEntryIPVersion(e); err != nil {
 				return nil, err
 			}
 			if p.entries[id] == nil {
 				p.entries[id] = e
+			}
+		}
+		if changed || p.inbounds[e.InboundID] != nil {
+			ib := p.view.inbounds[e.InboundID]
+			if ib == nil {
+				return nil, ErrNotFound
+			}
+			if err = validateEntryIPVersionForProtocol(e, ib.Protocol); err != nil {
+				return nil, err
 			}
 		}
 	}

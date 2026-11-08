@@ -181,7 +181,7 @@ func (s *Store) UpdateEntry(ctx context.Context, e *domain.Entry) error {
 
 // writeEntryTx persists an already-resolved entry and preserves access checks.
 func writeEntryTx(ctx context.Context, tx *sql.Tx, e *domain.Entry, create bool) error {
-	if err := validateEntryIPVersion(e); err != nil {
+	if err := validateEntryIPVersionTx(ctx, tx, e); err != nil {
 		return err
 	}
 	if err := validateEntryCategory(ctx, tx, e); err != nil {

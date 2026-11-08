@@ -147,7 +147,7 @@ func previewLineTx(ctx context.Context, tx *sql.Tx, input *ForwardLine) (*LinePr
 	if err != nil {
 		return nil, err
 	}
-	if _, err = linePublishedMembersTx(ctx, tx, compiled.ID, endpoints); err != nil {
+	if _, err = linePublishedMembersTx(ctx, tx, compiled.ID, compiled.TargetInboundID, endpoints); err != nil {
 		return nil, err
 	}
 	p := emptyLinePreview()

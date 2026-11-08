@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/zeptop-dev/bosun/pkg/spec"
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
@@ -129,7 +130,7 @@ func TestEntryIPVersionLineAndTopologyPreservePolicy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = linePublishedMembersTx(ctx, tx, l.ID, map[string]LineEndpoint{e.LineMemberID: {Host: "2001:db8::10", Port: 18443}})
+	_, err = linePublishedMembersTx(ctx, tx, l.ID, l.TargetInboundID, map[string]LineEndpoint{e.LineMemberID: {Host: "2001:db8::10", Port: 18443}})
 	_ = tx.Rollback()
 	if !errors.Is(err, ErrEntryIPVersion) {
 		t.Fatal("incompatible generated endpoint accepted", err)
@@ -165,5 +166,101 @@ func TestEntryIPVersionLineAndTopologyPreservePolicy(t *testing.T) {
 	got, err = s.EntryByID(ctx, direct.ID)
 	if err != nil || got.IPVersion != "ipv6" || got.Name != "Renamed" {
 		t.Fatal(got, err)
+	}
+}
+
+func TestEntryIPVersionWireGuardHostnameIsRejected(t *testing.T) {
+	ctx := context.Background()
+	s, _, ib, _ := lineFixture(t)
+	ib.Protocol = spec.WireGuard
+	if err := s.UpdateInbound(ctx, ib); err != nil {
+		t.Fatal(err)
+	}
+	for _, mode := range []string{"ipv4", "ipv6"} {
+		e := &domain.Entry{Name: "WG", InboundID: ib.ID, DisplayHost: "wg.example.com", DisplayPort: 51820, IPVersion: mode, Enabled: true}
+		if err := s.CreateEntry(ctx, e); !errors.Is(err, ErrEntryIPVersion) {
+			t.Fatalf("unsupported WG hostname policy %s saved: %v", mode, err)
+		}
+	}
+	for _, tc := range []struct{ host, mode string }{{"wg.example.com", ""}, {"wg.example.com", "dual"}, {"192.0.2.20", "ipv4"}, {"[2001:db8::20]", "ipv6"}} {
+		e := &domain.Entry{Name: "WG", InboundID: ib.ID, DisplayHost: tc.host, DisplayPort: 51820, IPVersion: tc.mode, Enabled: true}
+		if err := s.CreateEntry(ctx, e); err != nil {
+			t.Fatalf("valid WG policy %+v: %v", tc, err)
+		}
+		if tc.mode == "ipv4" || tc.mode == "ipv6" {
+			e.DisplayHost = "wg.example.com"
+			if err := s.UpdateEntry(ctx, e); !errors.Is(err, ErrEntryIPVersion) {
+				t.Fatalf("endpoint edit bypassed protocol check: %v", err)
+			}
+			saved, err := s.EntryByID(ctx, e.ID)
+			if err != nil || saved.DisplayHost != tc.host {
+				t.Fatal("failed edit wrote host", saved, err)
+			}
+		}
+	}
+	cat, err := s.AccessCatalog(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := &domain.Entry{Name: "WG", InboundID: ib.ID, DisplayHost: "wg.example.com", DisplayPort: 51820, Enabled: true, Access: &domain.InboundAccessChange{InboundID: ib.ID, Policy: domain.AccessNone, Revision: cat.Revision, ConfirmShared: true}}
+	if _, err = s.CreateEntryVariants(ctx, base); !errors.Is(err, ErrEntryIPVersion) {
+		t.Fatalf("WG variants accepted: %v", err)
+	}
+	after, err := s.AccessCatalog(ctx)
+	if err != nil || after.Revision != cat.Revision {
+		t.Fatal("failed batch changed access", after, err)
+	}
+	entries, err := s.ListEntries(ctx)
+	if err != nil || len(entries) != 4 {
+		t.Fatal("failed batch created entries", len(entries), err)
+	}
+	// Draft preview uses the final inbound protocol, including referenced
+	// existing inbounds; commit cannot be used to bypass single-entry validation.
+	draft := &TopologyChangeset{Name: "WG family", Operations: []TopologyOperation{{Key: "entry", Kind: "entry", Entry: &TopologyEntryPatch{Name: topologyPtr("WG"), InboundID: &ib.ID, DisplayHost: topologyPtr("wg.example.com"), DisplayPort: topologyPtr(51820), IPVersion: topologyPtr("ipv4")}}}}
+	if err = s.SaveTopologyChangeset(ctx, draft); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.PreviewTopologyChangeset(ctx, draft.ID, draft.Version); !errors.Is(err, ErrEntryIPVersion) {
+		t.Fatal("draft accepted unsupported WG policy", err)
+	}
+}
+
+func TestEntryIPVersionInboundProtocolAndLineTargetGuard(t *testing.T) {
+	ctx := context.Background()
+	s, _, ib, l := lineFixture(t)
+	e := &domain.Entry{Name: "IPv4", InboundID: ib.ID, DisplayHost: "node.example.com", DisplayPort: 443, IPVersion: "ipv4", Enabled: true}
+	if err := s.CreateEntry(ctx, e); err != nil {
+		t.Fatal(err)
+	}
+	ib.Protocol = spec.WireGuard
+	if err := s.UpdateInbound(ctx, ib); !errors.Is(err, ErrEntryIPVersion) {
+		t.Fatal("inbound protocol edit bypassed policy", err)
+	}
+	saved, err := s.InboundByID(ctx, ib.ID)
+	if err != nil || saved.Protocol != spec.VLESS {
+		t.Fatal("failed protocol edit persisted", saved, err)
+	}
+	if err = s.SaveLine(ctx, l); err != nil {
+		t.Fatal(err)
+	}
+	bound := &domain.Entry{Name: "Route IPv4", LineID: &l.ID, IPVersion: "ipv4", Enabled: true}
+	if err = s.CreateEntry(ctx, bound); err != nil {
+		t.Fatal(err)
+	}
+	wgInbound := *ib
+	wgInbound.ID, wgInbound.Tag, wgInbound.Port = 0, "wg", 51820
+	if err = s.CreateInbound(ctx, &wgInbound); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The existing entry still points at VLESS, but the proposed line points at
+	// WireGuard. Validation must use that new target rather than its stored one.
+	_, err = linePublishedMembersTx(ctx, tx, l.ID, wgInbound.ID, map[string]LineEndpoint{bound.LineMemberID: {Host: "relay.example.com", Port: 18443}})
+	_ = tx.Rollback()
+	if !errors.Is(err, ErrEntryIPVersion) {
+		t.Fatal("new line target protocol ignored", err)
 	}
 }

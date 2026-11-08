@@ -92,3 +92,19 @@ func TestEntryIPVariantsPermissionsAndAtomicAccess(t *testing.T) {
 	// Reusing an access snapshot cannot create another partial batch.
 	accessAuditCall(t, both, "POST", path, payload, 409)
 }
+
+func TestEntryIPVersionAPIRejectsWireGuardHostnamePolicy(t *testing.T) {
+	r, _, ib, e := nativeWGFixture(t)
+	for _, method := range []string{"POST", "PATCH"} {
+		path := "/api/admin/entries"
+		if method == "PATCH" {
+			path += "/" + itoa(e.ID)
+		}
+		accessAuditCall(t, r.c, method, path, map[string]any{"Name": "WG IPv4", "InboundID": ib.ID, "DisplayHost": "wg.example.com", "DisplayPort": 51820, "IPVersion": "ipv4"}, 400)
+	}
+	accessAuditCall(t, r.c, "POST", "/api/admin/entries/variants", map[string]any{"Name": "WG", "InboundID": ib.ID, "DisplayHost": "wg.example.com", "DisplayPort": 51820}, 400)
+	saved, err := r.st.EntryByID(context.Background(), e.ID)
+	if err != nil || saved.IPVersion != "" {
+		t.Fatal("failed request changed WG entry", saved, err)
+	}
+}

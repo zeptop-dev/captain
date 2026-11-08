@@ -319,7 +319,7 @@ func prepareLineRolloutTx(ctx context.Context, tx *sql.Tx, draft *ForwardLine, r
 			after[id] = lineChangeProjection(wire)
 		}
 		if before != nil {
-			if _, e = linePublishedMembersTx(ctx, tx, before.ID, endpoints); e != nil {
+			if _, e = linePublishedMembersTx(ctx, tx, before.ID, compiled.TargetInboundID, endpoints); e != nil {
 				return nil, nil, lineRolloutInputError(e)
 			}
 		}
