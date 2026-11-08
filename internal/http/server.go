@@ -676,12 +676,12 @@ func limitBodies(next http.Handler) http.Handler {
 
 func (s *Server) DNSHealth() *service.DNSHealth { return s.dnsHealth }
 
-// Older panels ignore per-server probe plans and can restart disabled probes or
-// replace custom targets with the global defaults. Retain interface bindings
-// and the earlier topology/access protections as well.
+// Older panels ignore typed entry IP policies and can publish unrestricted
+// connections after a downgrade. Retain per-server probe plans, interface
+// bindings and the earlier topology/access protections as well.
 func captainUpdateFloor(configured string) string {
-	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.56.0", configured) {
-		return "v1.56.0"
+	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.59.0", configured) {
+		return "v1.59.0"
 	}
 	return configured
 }

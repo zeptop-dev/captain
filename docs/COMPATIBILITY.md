@@ -5,16 +5,19 @@ with, what the database is good for, and what is deliberately not there.
 
 For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
-time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.56.0 to preserve independent server plans and interface-bound probes.
+time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.59.0 to preserve strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
 
-## Per-entry connection IP policy (unreleased)
+## Per-entry connection IP policy (Captain v1.59.0 / shared bosun v0.93.0)
 
 Migration 116 adds an optional `Entry.IPVersion`. Existing rows and omitted
 create fields retain the empty legacy value; update omission preserves the
 saved policy. No agent protocol or listener changes are required. Unsupported
 client formats do not receive forced-family hostname entries. See
 [connection IP version](ENTRY_IP_VERSION.md) for template conflicts, client
-chains, atomic variant creation, and downgrade restrictions.
+chains, atomic variant creation, and downgrade restrictions. Captain pins the
+formal bosun v0.93.0 library; installed agents require no new state fields or
+runtime behavior. Captain's built-in rollback floor is v1.59.0 because older
+panels silently ignore this connection policy.
 
 ## Standard sing-box security packages (Captain v1.57.1 / bosun v0.91.3)
 
@@ -407,9 +410,10 @@ hidden display modes remain independent. Public location projections exclude
 the selected IP, policy and evidence metadata. No agent protocol, published entry,
 DNS or billing change is implied by choosing a location input.
 
-The new policy requires an additive migration. Older panels ignore this
-display-only preference, so their automatic location may differ; existing
-rollback floors are unchanged. Confirmed fallback selection uses the existing
+Captain v1.59.0 adds the location policy in migration 115. Older panels ignore
+this display-only preference, so their automatic location may differ. The
+location feature alone does not require a higher rollback floor; the entry IP
+policy shipped alongside it raises Captain's built-in floor to v1.59.0. Confirmed fallback selection uses the existing
 bosun v0.92.0 evidence, while manual/entry lookup needs no agent upgrade.
 
 Migration 91 adds independent subscription-node map metadata and a foreign-key
@@ -779,6 +783,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
+| 1.59.0 | Formal shared library 0.93.0; no installed-agent upgrade needed for entry IP policy or location settings | Per-entry connection-family policies and independent location IP selection; migrations 115–116. Existing observation capability gates remain, and Captain rollback floor becomes v1.59.0. |
 | 1.58.0 | ≥ 0.92.0 for optional fallback following; older agents remain compatible and observation-only | Per-family opt-in with conflict/continuity evidence and sustained confirmation. Migration 114; existing rollback floors remain unchanged. |
 | 1.57.0 | 0.91.2 for new native dependency recovery/Doctor behavior; older agents remain compatible | Formal v0.91.2 shared module and separate install-time OS-package choice; no schema or rollback-floor change. |
 | 1.56.0 | ≥ 0.90.0 for high-port IP observations and complete rolling-window evidence; existing compatible agents can run independent plans | Default/per-server carrier plans and advisory IP fallback, bilingual groups/categories, Agent access/firewall diagnostics and preceding-day traffic resets. Migrations 112–113; Captain rollback floor v1.56.0 protects per-server probe intent. |
@@ -829,7 +834,7 @@ features it has never heard of, which the node page shows as an orange
 
 `min_version` in both `config.yaml` files is the floor a self-update or
 rollback may not go below; set it to the version you have tested. Captain's
-built-in floor is v1.56.0 to preserve independent server probe plans, interface bindings, complete-route transports, backend intent and health policies;
+built-in floor is v1.59.0 to preserve strict entry IP-family policies, independent server probe plans, interface bindings, complete-route transports, backend intent and health policies;
 this also preserves shared infrastructure dates, payment actions, the homepage switch and inbound access policies, and
 retains device credentials, exit attribution and the earlier protections for line ownership, client chains, internal
 forwarding and public storage selection. A higher configured floor still wins.

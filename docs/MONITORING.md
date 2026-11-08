@@ -319,7 +319,7 @@ Server details → Information → Region offers, in order:
 choices. Names follow the admin UI language. Manual country and map choices are
 independent and remain fixed; hidden settings stay hidden.
 
-The separate **Location IP** settings determine the address used by automatic
+Since Captain v1.59.0 (migration 115), the separate **Location IP** settings determine the address used by automatic
 country and map lookups. Choose automatic selection, reuse the registered public
 entry addresses, or provide one public IPv4/IPv6 address explicitly for location.
 Manual location input does not change the server's published address, DNS records

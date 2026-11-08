@@ -389,4 +389,4 @@ or failed tables remain unknown. These observations belong to the running
 process and start unknown after restart. A successful pass can still have
 backlog, and no full-table COUNT is needed to display this status.
 
-See [subscription node connection IP version](docs/ENTRY_IP_VERSION.md) for per-node IPv4, IPv6 and dual-stack selection (unreleased).
+See [subscription node connection IP version](docs/ENTRY_IP_VERSION.md) for per-node IPv4, IPv6 and dual-stack selection in Captain v1.59.0 (shared bosun v0.93.0; no agent upgrade required).

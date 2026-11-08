@@ -1,5 +1,8 @@
 # Subscription node connection IP version
 
+Available in Captain v1.59.0 using the formal shared bosun v0.93.0 library.
+No installed-agent upgrade is needed for this subscription-generation policy.
+
 The node editor places **Connection IP version** next to the published host
 and port. It controls the client connection to that endpoint. It does not
 change the server listener, server egress, DNS records, geolocation policy,
@@ -83,6 +86,7 @@ Template summaries require the original template-read permission too.
 This is panel-side subscription generation using the updated shared bosun
 module. Existing agents require no new state fields or runtime behavior.
 Older panels do not understand this policy and can generate unrestricted
-connections after a downgrade. Before release, set the supported rollback
-boundary to the first release containing this feature; do not promise that
-an older panel preserves a forced-family selection.
+connections after a downgrade. Captain's built-in rollback boundary is
+v1.59.0, the first release containing this feature. Manual replacement of the
+executable bypasses this updater protection and cannot preserve the policy on
+older panels.
