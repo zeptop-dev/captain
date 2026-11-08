@@ -23,7 +23,7 @@ export interface WireGuardDevice {
   id: number; name: string; created_at: string; last_used_at: string | null; subscription_url?: string
 }
 export interface WireGuardDevicesResponse {
-  available: boolean; reason: '' | 'no_wireguard' | 'upgrade_required' | 'unavailable' | 'client_chain_unsupported'
+  available: boolean; reason: '' | 'no_wireguard' | 'upgrade_required' | 'unavailable' | 'client_chain_unsupported' | 'ip_policy_unsupported'
   limit: number; remaining?: number; shared_limit?: number; shared_used?: number
   devices: WireGuardDevice[]; legacy_enabled: boolean
   entries: { id: number; name: string }[]

@@ -395,3 +395,22 @@ func TestNativeWireGuardDeviceMixedUnavailableDoesNotClearEntries(t *testing.T) 
 		t.Fatal("unrelated capability blocked explicit working entry", code, string(b))
 	}
 }
+
+func TestNativeWireGuardDeviceIncompatibleIPPolicyDoesNotEmptySubscription(t *testing.T) {
+	r, u, _, e := nativeWGFixture(t)
+	_, path := createNativeDevice(t, r, u.ID, "Phone")
+	// Model an existing entry that becomes incompatible after an inbound change.
+	if _, err := r.st.DB().Exec(`UPDATE entries SET ip_version='ipv4' WHERE id=?`, e.ID); err != nil {
+		t.Fatal(err)
+	}
+	for _, format := range []string{"wireguard", "clash", "singbox"} {
+		if code, body, _ := r.c.do("GET", path+"?client="+format, nil, nil); code != 503 {
+			t.Fatalf("%s incompatible policy must be unavailable, got %d %s", format, code, body)
+		}
+	}
+	code, body, _ := r.c.do("GET", "/api/admin/users/"+itoa(u.ID)+"/wireguard-devices", nil, nil)
+	view := mustJSON[service.WireGuardDevicesView](t, body)
+	if code != 200 || view.Available || view.Reason != "ip_policy_unsupported" {
+		t.Fatal(code, view)
+	}
+}

@@ -103,12 +103,25 @@ func TestEntryIPPolicyReachesSubscriptionAndShareLinks(t *testing.T) {
 			t.Fatal("share link lost family", link)
 		}
 	}
+}
+
+func TestEntryIPPolicyTemplateConflict(t *testing.T) {
+	r := newRig(t)
+	ctx := context.Background()
+	_, path, _ := profileSetup(t, r)
+	entries, _ := r.st.ListEntries(ctx)
+	e := entries[0]
+	e.IPVersion = "ipv6"
+	if err := r.st.UpdateEntry(ctx, e); err != nil {
+		t.Fatal(err)
+	}
+	// Set before the first fetch: production caches global templates for 15s.
 	// A saved global template may deny IPv6; do not quietly rewrite it or
 	// return a document that falsely labels these entries IPv6-capable.
 	if err := r.st.SetSetting(ctx, store.SettingSubTemplates, store.SubTemplates{"clash": "ipv6: false\nproxies: []\n"}); err != nil {
 		t.Fatal(err)
 	}
-	code, body, _ = r.c.do("GET", path+"?client=clash", nil, nil)
+	code, body, _ := r.c.do("GET", path+"?client=clash", nil, nil)
 	if code != 422 || !strings.Contains(string(body), "disables IPv6") {
 		t.Fatal(code, string(body))
 	}

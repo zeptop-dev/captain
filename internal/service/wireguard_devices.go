@@ -81,6 +81,11 @@ func (s *Subscription) eligibleWireGuardLines(ctx context.Context, u *domain.Use
 		// client overlays could replace the protocol, key or dialer, so do not
 		// inherit them into an independently revocable WG credential.
 		line.Extra = nil
+		if subscription.IPVersionSupport("wireguard", line.Line) != "" {
+			reason = "ip_policy_unsupported"
+			unavailable = true
+			continue
+		}
 		out = append(out, line)
 	}
 	// Do not let a transiently unconfirmed server silently remove only part

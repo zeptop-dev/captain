@@ -36,10 +36,14 @@ The policy is a typed `Entry.IPVersion` field, not an unconverted JSON extra.
 | Surge | Per-proxy `ip-version=v4-only` / `v6-only` | `dual`; IPv6 admission enabled when not explicitly set |
 | Other formats and share URIs | Omitted when no verified family setting is available | Hostname retained; depends on client settings |
 
-The ordinary protocol support matrix still applies. The legacy sing-box
-WireGuard outbound uses separate endpoint resolution, so forced hostname
-family is not published through that format. A matching literal IP can be
-published without a family selector, subject to ordinary protocol support.
+The ordinary protocol support matrix still applies. WireGuard does not have
+an independently verified endpoint-only family selector in these formats:
+Mihomo's field also changes tunneled target DNS, while legacy sing-box uses
+separate endpoint resolution. For WG hostnames, choose automatic behavior;
+strict hostname choices and batch creation are rejected. A matching fixed IP
+can be published without a family selector, subject to protocol support.
+If an existing device entry becomes incompatible, its subscription returns
+503 instead of an empty document that could remove installed devices.
 
 Unsupported forced-family entries are omitted rather than exported as
 automatic connections. Their portal cards show the selected family and

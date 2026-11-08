@@ -303,7 +303,8 @@
       "no_wireguard": "このアカウントには利用可能な WireGuard ノードがありません。",
       "upgrade_required": "WireGuard デバイスサブスクリプションにはサーバーとプロキシコアの更新が必要です。管理者に連絡してください。既存のデバイス記録は保持されます。",
       "unavailable": "現在、WireGuard サービスの準備状態を確認できません。後でもう一度お試しください。既存のデバイス記録は保持されます。",
-      "client_chain_unsupported": "クライアント側の前段チェーンを持つ WireGuard ノードは、デバイスサブスクリプションにまだ対応していません。"
+      "client_chain_unsupported": "クライアント側の前段チェーンを持つ WireGuard ノードは、デバイスサブスクリプションにまだ対応していません。",
+      "ip_policy_unsupported": "WireGuard ノードの接続 IP 設定に互換性がありません。管理者に自動選択または固定 IP アドレスへの変更を依頼してください。"
     },
     "remaining": "あと {{count}} 台追加可能",
     "sharedHint": "デバイス枠は他の登録済みクライアントと共有します。",

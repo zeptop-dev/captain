@@ -303,7 +303,8 @@
       "no_wireguard": "当前账号没有可用的 WireGuard 节点。",
       "upgrade_required": "服务器和代理内核需要升级后才能提供 WireGuard 设备订阅，请联系管理员。已有设备记录会保留。",
       "unavailable": "当前无法确认 WireGuard 服务是否就绪，请稍后重试。已有设备记录会保留。",
-      "client_chain_unsupported": "带有客户端前置链的 WireGuard 节点暂不支持设备订阅。"
+      "client_chain_unsupported": "带有客户端前置链的 WireGuard 节点暂不支持设备订阅。",
+      "ip_policy_unsupported": "WireGuard 节点的连接 IP 设置不兼容，请联系管理员改用自动选择或固定 IP 地址。"
     },
     "remaining": "可新增 {{count}} 台",
     "sharedHint": "与其他已登记客户端共用设备名额。",

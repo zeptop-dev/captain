@@ -303,7 +303,8 @@
       "no_wireguard": "No WireGuard nodes are available to this account.",
       "upgrade_required": "The server and proxy core need an upgrade to provide WireGuard device subscriptions. Contact your administrator. Existing device records are retained.",
       "unavailable": "WireGuard service readiness cannot currently be confirmed. Try again later. Existing device records are retained.",
-      "client_chain_unsupported": "WireGuard nodes with a client-side dialer chain do not support device subscriptions yet."
+      "client_chain_unsupported": "WireGuard nodes with a client-side dialer chain do not support device subscriptions yet.",
+      "ip_policy_unsupported": "The WireGuard endpoint IP setting is incompatible. Ask the administrator to use automatic selection or a fixed IP address."
     },
     "remaining": "{{count}} more can be added",
     "sharedHint": "Device slots are shared with other registered clients.",
