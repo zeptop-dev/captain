@@ -363,7 +363,7 @@ func (h *handlers) servers(w http.ResponseWriter, r *http.Request) {
 		if l.DialerEntryID != 0 {
 			uri = ""
 		}
-		out = append(out, map[string]any{"name": l.Name, "host": l.Host, "port": l.Port, "protocol": l.Inbound.Protocol, "uri": uri, "tags": tags, "client_chain": l.DialerEntryID != 0, "category": categories[l.CategoryID]})
+		out = append(out, map[string]any{"name": l.Name, "host": l.Host, "port": l.Port, "protocol": l.Inbound.Protocol, "uri": uri, "tags": tags, "client_chain": l.DialerEntryID != 0, "category": categories[l.CategoryID], "ip_version": l.IPVersion})
 	}
 	ok(w, out)
 }

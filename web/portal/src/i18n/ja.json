@@ -151,7 +151,13 @@
     "clientChain": "クライアント側のプロキシチェーンです。mihomo、Stash、sing-box の完全な購読設定を読み込んでください。単独の共有リンクはありません。",
     "category": "カテゴリー",
     "allCategories": "すべてのカテゴリー",
-    "uncategorized": "未分類"
+    "uncategorized": "未分類",
+    "ipVersion": {
+      "ipv4": "IPv4",
+      "ipv6": "IPv6",
+      "dual": "デュアルスタック"
+    },
+    "ipVersionShareHint": "このノードは接続する IP バージョンを制限します。対応クライアントの完全なサブスクリプションを使用してください。"
   },
   "invite": {
     "title": "友達を招待",

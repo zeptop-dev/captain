@@ -151,7 +151,13 @@
     "clientChain": "Client proxy chain. Import the complete mihomo, Stash or sing-box subscription; this node has no standalone share link.",
     "category": "Category",
     "allCategories": "All categories",
-    "uncategorized": "Uncategorized"
+    "uncategorized": "Uncategorized",
+    "ipVersion": {
+      "ipv4": "IPv4",
+      "ipv6": "IPv6",
+      "dual": "Dual stack"
+    },
+    "ipVersionShareHint": "This node restricts the connection IP version. Use a full subscription in a compatible client."
   },
   "invite": {
     "title": "Invite friends",

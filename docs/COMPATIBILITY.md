@@ -7,6 +7,15 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.56.0 to preserve independent server plans and interface-bound probes.
 
+## Per-entry connection IP policy (unreleased)
+
+Migration 116 adds an optional `Entry.IPVersion`. Existing rows and omitted
+create fields retain the empty legacy value; update omission preserves the
+saved policy. No agent protocol or listener changes are required. Unsupported
+client formats do not receive forced-family hostname entries. See
+[connection IP version](ENTRY_IP_VERSION.md) for template conflicts, client
+chains, atomic variant creation, and downgrade restrictions.
+
 ## Standard sing-box security packages (Captain v1.57.1 / bosun v0.91.3)
 
 The shared catalog includes a compatible `1.14.1-r3` rebuild using Go 1.26.10

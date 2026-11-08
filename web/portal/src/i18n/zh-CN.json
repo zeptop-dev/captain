@@ -151,7 +151,13 @@
     "clientChain": "客户端链式节点：请导入完整的 mihomo、Stash 或 sing-box 订阅，不提供单独分享链接。",
     "category": "节点分类",
     "allCategories": "全部分类",
-    "uncategorized": "未分类"
+    "uncategorized": "未分类",
+    "ipVersion": {
+      "ipv4": "IPv4",
+      "ipv6": "IPv6",
+      "dual": "双栈"
+    },
+    "ipVersionShareHint": "此节点限制连接 IP 协议，请使用支持该设置的完整订阅。"
   },
   "invite": {
     "title": "邀请好友",

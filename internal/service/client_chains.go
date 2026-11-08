@@ -58,6 +58,16 @@ func AvailablePublications(lines []PublishedLine) []PublishedLine {
 // Missing, hidden, unsupported or ambiguous dependencies remove the dependent
 // node; they never turn it into an ordinary direct node.
 func ClientLines(lines []PublishedLine, format string, templates ...string) ([]subscription.Line, error) {
+	// Keep the address-family policy when resolving dependencies. An unsupported
+	// front must remove dependent chains rather than silently dial another family.
+	filtered := make([]PublishedLine, 0, len(lines))
+	for _, l := range lines {
+		if subscription.IPVersionSupport(format, l.Line) != "" || l.DialerEntryID != 0 && l.IPVersion != "" {
+			continue
+		}
+		filtered = append(filtered, l)
+	}
+	lines = filtered
 	supportedFormat := format == "clash" || format == "stash" || format == "singbox"
 	hasChain := false
 	for _, l := range lines {

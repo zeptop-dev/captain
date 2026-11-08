@@ -91,7 +91,7 @@ func (s *Subscription) PublishedLinesWithProfile(ctx context.Context, u *domain.
 	for _, r := range rows {
 		line := PublishedLine{EntryID: r.Entry.ID, Line: subscription.Line{
 			Name: vars.Expand(prefix + subscription.WithFlag(r.Entry.Name, r.Entry.DisplayHost, r.Entry.Region, ss.AutoFlags)), Host: r.Entry.DisplayHost, Port: r.Entry.DisplayPort,
-			Region: r.Entry.Region, RegionName: r.Entry.Name,
+			Region: r.Entry.Region, RegionName: r.Entry.Name, IPVersion: r.Entry.IPVersion,
 			Inbound: r.Inbound.Spec(), UUID: u.UUID, UserID: u.AgentID, Password: u.UUID, Tags: r.Entry.Tags, Extra: r.Entry.ClientExtra,
 		}}
 		if r.Entry.ClientDialerEntryID != nil {
@@ -161,6 +161,7 @@ type EntryLink struct {
 	URI         string `json:"uri"`
 	Blocked     bool   `json:"blocked"`
 	ClientChain bool   `json:"client_chain,omitempty"`
+	IPVersion   string `json:"ip_version,omitempty"`
 }
 
 // EntryLinks lists every entry the user's group allows, blacklist included
@@ -197,13 +198,14 @@ func (s *Subscription) EntryLinks(ctx context.Context, u *domain.User) ([]EntryL
 	for _, r := range rows {
 		l := subscription.Line{
 			Name: vars.Expand(prefix + subscription.WithFlag(r.Entry.Name, r.Entry.DisplayHost, r.Entry.Region, ss.AutoFlags)), Host: r.Entry.DisplayHost, Port: r.Entry.DisplayPort,
-			Inbound: r.Inbound.Spec(), UUID: u.UUID, UserID: u.AgentID, Password: u.UUID, Tags: r.Entry.Tags,
+			IPVersion: r.Entry.IPVersion,
+			Inbound:   r.Inbound.Spec(), UUID: u.UUID, UserID: u.AgentID, Password: u.UUID, Tags: r.Entry.Tags,
 		}
 		uri := subscription.ShareURI(l)
 		if r.Entry.ClientDialerEntryID != nil {
 			uri = ""
 		}
-		out = append(out, EntryLink{EntryID: r.Entry.ID, Name: l.Name, Protocol: string(r.Inbound.Protocol), Host: l.Host, Port: l.Port, URI: uri, Blocked: hidden[r.Entry.ID], ClientChain: r.Entry.ClientDialerEntryID != nil})
+		out = append(out, EntryLink{EntryID: r.Entry.ID, Name: l.Name, Protocol: string(r.Inbound.Protocol), Host: l.Host, Port: l.Port, URI: uri, Blocked: hidden[r.Entry.ID], ClientChain: r.Entry.ClientDialerEntryID != nil, IPVersion: l.IPVersion})
 	}
 	return out, nil
 }

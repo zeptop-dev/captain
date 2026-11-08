@@ -151,7 +151,13 @@
     "clientChain": "用戶端鏈式節點：請匯入完整的 mihomo、Stash 或 sing-box 訂閱，不提供單獨分享連結。",
     "category": "節點分類",
     "allCategories": "全部分類",
-    "uncategorized": "未分類"
+    "uncategorized": "未分類",
+    "ipVersion": {
+      "ipv4": "IPv4",
+      "ipv6": "IPv6",
+      "dual": "雙棧"
+    },
+    "ipVersionShareHint": "此節點限制連線 IP 協定，請使用支援此設定的完整訂閱。"
   },
   "invite": {
     "title": "邀請好友",

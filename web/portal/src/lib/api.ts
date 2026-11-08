@@ -42,4 +42,4 @@ export interface Invite { code: string; url: string; enabled: boolean; percent: 
 export interface Withdrawal { id: number; amount_cents: number; method: string; account: string; status: string; note: string; created_at: string }
 export interface Order { ID: number; No: string; PlanID: number; AmountCents: number; Gateway: string; Status: string; CreatedAt: string; PaidAt: string | null }
 export interface ServerCategory { id: number; name: string; name_zh?: string; name_en?: string; description: string; sort: number }
-export interface Server { name: string; host: string; port: number; protocol: string; uri: string; tags?: string[]; client_chain?: boolean; category?: ServerCategory | null }
+export interface Server { name: string; host: string; port: number; protocol: string; uri: string; tags?: string[]; client_chain?: boolean; ip_version?: '' | 'ipv4' | 'ipv6' | 'dual'; category?: ServerCategory | null }

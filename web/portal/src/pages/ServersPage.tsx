@@ -52,10 +52,11 @@ export function ServerList() {
       {visible.map((server, index) => <Card key={`${server.name}-${server.host}-${server.port}-${index}`} className={classes.server}>
         <Group justify="space-between" align="flex-start" wrap="nowrap">
           <Group gap="sm" wrap="nowrap" style={{ minWidth: 0 }}><IconServer size={18} className={classes.serverIcon} aria-hidden /><Text fw={600} style={{ overflowWrap: 'anywhere' }}>{server.name}</Text></Group>
-          <Group gap={6} wrap="nowrap"><Badge variant="light" size="sm">{server.protocol}</Badge>{server.uri && <Tooltip label={t('servers.copyLink')}><ActionIcon variant="subtle" aria-label={t('servers.copyLink')} onClick={async () => { if (await copyText(server.uri)) toast.ok(t('home.copied')) }}><IconCopy size={17} /></ActionIcon></Tooltip>}</Group>
+          <Group gap={6} wrap="nowrap"><Badge variant="light" size="sm">{server.protocol}</Badge>{server.ip_version && <Badge variant="outline" size="sm">{t(`servers.ipVersion.${server.ip_version}`)}</Badge>}{server.uri && <Tooltip label={t('servers.copyLink')}><ActionIcon variant="subtle" aria-label={t('servers.copyLink')} onClick={async () => { if (await copyText(server.uri)) toast.ok(t('home.copied')) }}><IconCopy size={17} /></ActionIcon></Tooltip>}</Group>
         </Group>
         {(server.category || (server.tags ?? []).length > 0) && <Group gap={5} mt="sm">{server.category && <Badge size="xs" variant="outline" style={{ maxWidth: '100%' }}>{localizedName(i18n.language, server.category.name_zh, server.category.name_en, server.category.name)}</Badge>}{(server.tags ?? []).map(value => <Badge key={value} size="xs" color="gray" variant="light">{value}</Badge>)}</Group>}
         <Text size="xs" c="dimmed" ff="monospace" mt="sm" style={{ overflowWrap: 'anywhere' }}>{server.host}:{server.port}</Text>
+        {!server.uri && !server.client_chain && (server.ip_version === 'ipv4' || server.ip_version === 'ipv6') && <Text size="xs" c="dimmed" mt="xs">{t('servers.ipVersionShareHint')}</Text>}
         {server.client_chain && <Text size="xs" c="dimmed" mt="xs">{t('servers.clientChain')}</Text>}
         {server.protocol === 'wireguard' && <Text size="xs" c="dimmed" mt="xs">{t('wgDevices.serverHint')} <Anchor component={Link} to="/connect#wireguard" size="xs">{t('connection.manageWG')}</Anchor></Text>}
       </Card>)}

@@ -267,6 +267,10 @@ func Register(mux *http.ServeMux, d Deps) {
 				body, err = rd.RenderWith(lines, acct, template)
 			}
 		}
+		if errors.Is(err, subscription.ErrIPVersionTemplateConflict) {
+			http.Error(w, "subscription template disables IPv6 required by a node; contact the administrator", http.StatusUnprocessableEntity)
+			return
+		}
 		if errors.Is(err, subscription.ErrSurgeDNSHostname) {
 			http.Error(w, "Surge DNS protection requires IP-address proxy endpoints", http.StatusUnprocessableEntity)
 			return

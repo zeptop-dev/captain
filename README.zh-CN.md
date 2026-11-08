@@ -362,3 +362,5 @@ Captain v1.28 / bosun v0.75 增加 WG 两端依赖检查与管理员确认后的
 节点探针可记录服务器标称带宽，支持 Mbps／Gbps、双向一致或分别填写 RX／TX，并可选择在两套公开探针主题中展示。仅用于资料展示，不修改限速，也不代表测速结果。详见[标称带宽](docs/MONITORING.md#advertised-server-bandwidth)。
 
 Captain 可通过已登记的 OAuth 应用向 New API 提供普通用户登录。使用 New API 自定义 OAuth，Scopes 配置为 `profile email`；详见[接入步骤与边界](docs/CAPTAIN_LOGIN.md)。
+
+订阅节点的 IPv4、IPv6 与双栈选择见[连接 IP 协议说明](docs/ENTRY_IP_VERSION.md)（尚未发布）。

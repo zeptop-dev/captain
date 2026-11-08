@@ -240,11 +240,19 @@ func (h *handlers) previewSubscriptionProfile(w http.ResponseWriter, r *http.Req
 		}
 	}
 	lines, err := service.ClientLines(published, rd.Name(), body)
+	if errors.Is(err, subscription.ErrIPVersionTemplateConflict) {
+		fail(w, 422, "subscription template disables IPv6 required by a node")
+		return
+	}
 	if err != nil {
 		serverErr(w, err)
 		return
 	}
 	rendered, err := rd.RenderWith(lines, acct, body)
+	if errors.Is(err, subscription.ErrIPVersionTemplateConflict) {
+		fail(w, 422, "subscription template disables IPv6 required by a node")
+		return
+	}
 	if errors.Is(err, subscription.ErrSurgeDNSHostname) {
 		fail(w, 422, "Surge DNS protection requires IP-address proxy endpoints")
 		return
