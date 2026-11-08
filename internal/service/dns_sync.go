@@ -113,14 +113,15 @@ func (d *DNS) nodeSyncConfig(ctx context.Context, id int64) (dnsNodeSyncConfig, 
 			continue
 		}
 		if ip := net.ParseIP(g.EntryHost); ip != nil {
-			found := false
 			for _, address := range c.Addresses {
-				found = found || ip.Equal(net.ParseIP(address))
+				if !ip.Equal(net.ParseIP(address)) {
+					c.Reason = "domain_address_conflict"
+					return c, nil
+				}
 			}
-			if !found {
-				c.Reason = "domain_address_conflict"
-				return c, nil
-			}
+		} else if g.EntryDomain != "" {
+			c.Reason = "domain_address_conflict"
+			return c, nil
 		}
 	}
 	dom, err := d.Store.DomainFor(ctx, c.Host)

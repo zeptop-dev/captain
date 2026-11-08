@@ -53,7 +53,7 @@ func TokenAllowsRequest(policy, method, path, pattern string) bool {
 	if base != "full" && base != ScopeRead {
 		return false
 	}
-	domainSuggestion := method == "POST" && path == "/api/admin/nodes/domain-suggestion"
+	domainSuggestion := method == "POST" && (path == "/api/admin/nodes/domain-suggestion" || path == "/api/admin/ingresses/domain-suggestion")
 	if base == ScopeRead && method != "GET" && !domainSuggestion {
 		return false
 	}

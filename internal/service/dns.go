@@ -75,6 +75,27 @@ func (d *DNS) Ensure(ctx context.Context, fqdn, ip string) Result {
 			return res
 		}
 	}
+	// An ingress is also an owner of its DNS target. Multiple ingress saves or
+	// inherited-address updates must not take turns overwriting the same record.
+	// Each ingress has one target, so adding another family may also bypass its
+	// mapped path. Shared multi-address names require external DNS management.
+	ingresses, err := d.Store.AllIngresses(ctx)
+	if err != nil {
+		res.Error = "could not check ingress domain ownership"
+		return res
+	}
+	targetIP := net.ParseIP(res.IP)
+	for _, ingress := range ingresses {
+		host, err := domain.NormalizeNodeDomain(ingress.EntryDomain)
+		if err != nil || host != name {
+			continue
+		}
+		other := net.ParseIP(ingress.EntryHost)
+		if other == nil || !other.Equal(targetIP) {
+			res.Reason = "domain_address_conflict"
+			return res
+		}
+	}
 	dom, err := d.Store.DomainFor(ctx, res.Name)
 	if err != nil || dom == nil || dom.Provider != "cloudflare" || !dom.AutoDNS {
 		return res

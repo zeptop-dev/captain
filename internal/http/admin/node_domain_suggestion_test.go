@@ -55,6 +55,35 @@ func requestSuggestion(h *handlers, body string) *httptest.ResponseRecorder {
 	h.suggestNodeDomain(w, r)
 	return w
 }
+
+func TestIngressDomainSuggestionRoute(t *testing.T) {
+	for _, role := range []string{domain.RoleAdmin, domain.RoleOperator, domain.RoleSupport} {
+		t.Run(role, func(t *testing.T) {
+			h, _, _ := suggestionRig(t, "manual", "")
+			user := &domain.User{Email: "operator@example.com", Role: role, Status: "active"}
+			if err := h.Store.CreateStaff(context.Background(), user); err != nil {
+				t.Fatal(err)
+			}
+			h.Sessions = suggestionSession{h.Store, user.ID}
+			mux := http.NewServeMux()
+			Register(mux, h.Deps)
+			r := httptest.NewRequest(http.MethodPost, "https://panel.example.com/api/admin/ingresses/domain-suggestion", strings.NewReader(`{"zone":"example.com"}`))
+			r.AddCookie(&http.Cookie{Name: cookieName, Value: "fixture"})
+			w := httptest.NewRecorder()
+			mux.ServeHTTP(w, r)
+			if role != domain.RoleAdmin {
+				if w.Code != http.StatusForbidden {
+					t.Fatalf("non-admin could inspect managed domains: %d %s", w.Code, w.Body.String())
+				}
+				return
+			}
+			var result nodeDomainSuggestion
+			if w.Code != http.StatusOK || json.Unmarshal(w.Body.Bytes(), &result) != nil || result.Domain != result.Prefix+".example.com" || result.DNSCheck != "unverified" {
+				t.Fatalf("wrong ingress suggestion response: %d %s", w.Code, w.Body.String())
+			}
+		})
+	}
+}
 func TestNodeDomainSuggestionDNSReadOnly(t *testing.T) {
 	for _, tc := range []struct {
 		name, provider, token, status, reason string
