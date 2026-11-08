@@ -37,6 +37,7 @@ import (
 
 	"github.com/zeptop-dev/captain/internal/config"
 	"github.com/zeptop-dev/captain/internal/db"
+	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/http/admin"
 	"github.com/zeptop-dev/captain/internal/jobs"
 	"github.com/zeptop-dev/captain/internal/mail"
@@ -2620,7 +2621,7 @@ func TestLineIngresses(t *testing.T) {
 
 	// Entries: the line inbound advertises the carrier entry, the direct
 	// inbound the node domain.
-	_, b, _ = ac.do("POST", "/api/admin/entries", map[string]any{"Name": "沪日", "InboundID": mieru["ID"]}, nil)
+	_, b, _ = ac.do("POST", "/api/admin/entries", map[string]any{"Name": "沪日", "InboundID": mieru["ID"], "FollowIngress": false}, nil)
 	if !strings.Contains(string(b), `"DisplayHost":"203.0.113.30"`) || !strings.Contains(string(b), `"DisplayPort":17710`) {
 		t.Fatalf("line entry: %s", b)
 	}
@@ -2630,12 +2631,45 @@ func TestLineIngresses(t *testing.T) {
 	}
 	// A port offset shifts the advertised port; no public entry means a
 	// relay is needed and the entry says so.
-	ac.do("PATCH", "/api/admin/ingresses/"+itoa(gid), map[string]any{"Name": "IPLC", "BindIP": "10.10.0.2", "LineIP": "198.51.100.20", "EntryHost": "203.0.113.30", "PortFrom": 17701, "PortTo": 17799, "PortOffset": 1000}, nil)
-	_, b, _ = ac.do("POST", "/api/admin/entries", map[string]any{"Name": "沪日2", "InboundID": mieru["ID"]}, nil)
+	if code, b, _ := ac.do("PATCH", "/api/admin/ingresses/"+itoa(gid), map[string]any{"Name": "IPLC", "BindIP": "10.10.0.2", "LineIP": "198.51.100.20", "EntryHost": "203.0.113.30", "PortFrom": 17701, "PortTo": 17799, "PortOffset": 1000}, nil); code != 200 {
+		t.Fatalf("offset update: %d %s", code, b)
+	}
+	_, b, _ = ac.do("POST", "/api/admin/entries", map[string]any{"Name": "沪日2", "InboundID": mieru["ID"], "FollowIngress": false}, nil)
 	if !strings.Contains(string(b), `"DisplayPort":18710`) {
 		t.Fatalf("offset entry: %s", b)
 	}
-	ac.do("PATCH", "/api/admin/ingresses/"+itoa(gid), map[string]any{"Name": "IPLC", "BindIP": "10.10.0.2", "LineIP": "198.51.100.20", "PortFrom": 17701, "PortTo": 17799}, nil)
+	// Omitted addresses are preserved. Clearing requires an explicit empty value
+	// and cannot leave a following subscription with a stale public endpoint.
+	code, b, _ = ac.do("POST", "/api/admin/entries", map[string]any{"Name": "Following", "InboundID": mieru["ID"]}, nil)
+	if code != 200 {
+		t.Fatalf("following entry: %d %s", code, b)
+	}
+	following := mustJSON[domain.Entry](t, b)
+	if !following.FollowIngress {
+		t.Fatal("default entry did not bind to ingress")
+	}
+	clear := map[string]any{"Name": "IPLC", "BindIP": "10.10.0.2", "LineIP": "198.51.100.20", "PortFrom": 17701, "PortTo": 17799, "PortOffset": 1000}
+	if code, b, _ := ac.do("PATCH", "/api/admin/ingresses/"+itoa(gid), clear, nil); code != 200 {
+		t.Fatalf("omitted address update: %d %s", code, b)
+	}
+	clear["EntryHost"] = ""
+	if code, b, _ := ac.do("PATCH", "/api/admin/ingresses/"+itoa(gid), clear, nil); code != 400 {
+		t.Fatalf("cleared a bound public endpoint: %d %s", code, b)
+	}
+	savedIngress, err := st.IngressByID(context.Background(), gid)
+	if err != nil || savedIngress.EntryHost != "203.0.113.30" {
+		t.Fatalf("failed clear changed ingress: %+v %v", savedIngress, err)
+	}
+	savedEntry, err := st.EntryByID(context.Background(), following.ID)
+	if err != nil || !savedEntry.FollowIngress || savedEntry.DisplayHost != following.DisplayHost || savedEntry.DisplayPort != following.DisplayPort {
+		t.Fatalf("failed clear changed following entry: %+v %v", savedEntry, err)
+	}
+	if code, b, _ := ac.do("PATCH", "/api/admin/entries/"+itoa(following.ID), map[string]any{"FollowIngress": false}, nil); code != 200 {
+		t.Fatalf("detach following entry: %d %s", code, b)
+	}
+	if code, b, _ := ac.do("PATCH", "/api/admin/ingresses/"+itoa(gid), clear, nil); code != 200 {
+		t.Fatalf("clear unused public endpoint: %d %s", code, b)
+	}
 	if code, b, _ := ac.do("POST", "/api/admin/entries", map[string]any{"Name": "沪日3", "InboundID": mieru["ID"]}, nil); code != 400 || !strings.Contains(string(b), "relay") {
 		t.Fatalf("entry without public entry: %d %s", code, b)
 	}
