@@ -64,6 +64,7 @@ type TopologyEntryCatalog struct {
 	LineMemberID string   `json:"line_member_id"`
 	DisplayHost  string   `json:"display_host"`
 	DisplayPort  int      `json:"display_port"`
+	IPVersion    string   `json:"ip_version"`
 	Rate         float64  `json:"rate"`
 	Sort         int      `json:"sort"`
 	Enabled      bool     `json:"enabled"`
@@ -301,7 +302,7 @@ func (s *topologySnapshot) inboundView(v *domain.Inbound) TopologyInboundCatalog
 	return TopologyInboundCatalog{v.ID, v.NodeID, v.Tag, v.Protocol, v.Listen, v.Port, v.Enabled, v.Sort, v.IngressID, topologyDigest([]any{v, s.identities[v.NodeID], s.inboundIdentities[v.ID]}), !s.protectedInbound[v.ID] && v.Settings.Reverse == nil && v.Settings.WireGuardSlot == 0 && !v.Settings.PrivateAccess.Enabled(), protocol}
 }
 func (s *topologySnapshot) entryView(e *domain.Entry) TopologyEntryCatalog {
-	return TopologyEntryCatalog{e.ID, e.Name, e.InboundID, e.LineID, e.LineMemberID, e.DisplayHost, e.DisplayPort, e.Rate, e.Sort, e.Enabled, e.Tags, e.Region, topologyDigest([]any{e, s.entryIdentities[e.ID]}), !s.protectedEntry[e.ID]}
+	return TopologyEntryCatalog{e.ID, e.Name, e.InboundID, e.LineID, e.LineMemberID, e.DisplayHost, e.DisplayPort, e.IPVersion, e.Rate, e.Sort, e.Enabled, e.Tags, e.Region, topologyDigest([]any{e, s.entryIdentities[e.ID]}), !s.protectedEntry[e.ID]}
 }
 func (s *topologySnapshot) lineRevision(l *ForwardLine) string {
 	return topologyDigest([]any{l, s.scopes[l.ID], s.lineIdentities[l.ID]})

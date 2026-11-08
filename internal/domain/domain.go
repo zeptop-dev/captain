@@ -222,12 +222,14 @@ type Entry struct {
 	LineMemberID string
 	DisplayHost  string
 	DisplayPort  int
-	Rate         float64
-	Sort         int
-	Enabled      bool
-	Tags         []string // free-form labels shown to users and used for filtering
-	Region       string   // ISO 3166-1 alpha-2; "" = detect from the name when auto flags are on
-	CategoryID   *int64   // optional display category; independent of access, tags and billing
+	// IPVersion controls client dialing only; empty preserves legacy client behavior.
+	IPVersion  string
+	Rate       float64
+	Sort       int
+	Enabled    bool
+	Tags       []string // free-form labels shown to users and used for filtering
+	Region     string   // ISO 3166-1 alpha-2; "" = detect from the name when auto flags are on
+	CategoryID *int64   // optional display category; independent of access, tags and billing
 	// ClientExtra is merged into this entry's proxy in the map-shaped
 	// client formats (mihomo/Clash, Stash, sing-box): tfo, smux, dialer-proxy…
 	ClientExtra map[string]any

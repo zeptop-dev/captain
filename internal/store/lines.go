@@ -412,19 +412,26 @@ func saveLineTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, kind string) er
 
 // Both preview and save enforce published-member protection from the same snapshot.
 func linePublishedMembersTx(ctx context.Context, tx *sql.Tx, id int64, endpoints map[string]LineEndpoint) (map[int64]string, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT id,line_member_id FROM entries WHERE line_id=?`, id)
+	rows, err := tx.QueryContext(ctx, `SELECT `+entryCols+` FROM entries e WHERE e.line_id=?`, id)
 	if err != nil {
 		return nil, err
 	}
 	entryMembers := map[int64]string{}
 	for rows.Next() {
-		var id int64
-		var m string
-		if err = rows.Scan(&id, &m); err != nil {
+		entry, scanErr := scanEntry(rows)
+		if scanErr != nil {
+			err = scanErr
 			rows.Close()
 			return nil, err
 		}
-		entryMembers[id] = m
+		if endpoint, ok := endpoints[entry.LineMemberID]; ok {
+			entry.DisplayHost = endpoint.Host
+			if err = validateEntryIPVersion(entry); err != nil {
+				rows.Close()
+				return nil, err
+			}
+		}
+		entryMembers[entry.ID] = entry.LineMemberID
 	}
 	err = rows.Err()
 	rows.Close()

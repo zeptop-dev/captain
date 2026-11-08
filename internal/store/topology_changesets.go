@@ -42,6 +42,7 @@ type TopologyEntryPatch struct {
 	LineMemberID *string   `json:"line_member_id,omitempty"`
 	DisplayHost  *string   `json:"display_host,omitempty"`
 	DisplayPort  *int      `json:"display_port,omitempty"`
+	IPVersion    *string   `json:"ip_version,omitempty"`
 	Rate         *float64  `json:"rate,omitempty"`
 	Sort         *int      `json:"sort,omitempty"`
 	Enabled      *bool     `json:"enabled,omitempty"`

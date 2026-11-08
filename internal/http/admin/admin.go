@@ -283,6 +283,7 @@ func Register(mux *http.ServeMux, d Deps) {
 
 	mux.HandleFunc("GET /api/admin/entries", h.requireAdmin(h.listEntries))
 	mux.HandleFunc("POST /api/admin/entries", h.requireAdmin(h.createEntry))
+	mux.HandleFunc("POST /api/admin/entries/variants", h.requireAdmin(h.createEntryVariants))
 	mux.HandleFunc("PATCH /api/admin/entries/{id}", h.requireAdmin(h.updateEntry))
 	mux.HandleFunc("DELETE /api/admin/entries/{id}", h.requireAdmin(h.deleteEntry))
 	mux.HandleFunc("PUT /api/admin/entries/order", h.requireAdmin(h.reorderEntries))

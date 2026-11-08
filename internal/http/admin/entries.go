@@ -128,6 +128,14 @@ func (h *handlers) fillEntryDefaults(ctx context.Context, e *domain.Entry) error
 }
 
 func (h *handlers) createEntry(w http.ResponseWriter, r *http.Request) {
+	h.createEntryWithVariants(w, r, false)
+}
+
+func (h *handlers) createEntryVariants(w http.ResponseWriter, r *http.Request) {
+	h.createEntryWithVariants(w, r, true)
+}
+
+func (h *handlers) createEntryWithVariants(w http.ResponseWriter, r *http.Request, variants bool) {
 	h.Store.Topology.Lock()
 	defer h.Store.Topology.Unlock()
 	var e domain.Entry
@@ -151,8 +159,20 @@ func (h *handlers) createEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	e.Enabled = true
+	if variants {
+		entries, err := h.Store.CreateEntryVariants(r.Context(), &e)
+		if err != nil {
+			if nodeAccessError(w, err) || entryClientChainError(w, err) || entryCategoryError(w, err) || entryIPVersionError(w, err) {
+				return
+			}
+			serverErr(w, err)
+			return
+		}
+		ok(w, map[string]any{"entries": entries})
+		return
+	}
 	if err := h.Store.CreateEntry(r.Context(), &e); err != nil {
-		if nodeAccessError(w, err) || entryClientChainError(w, err) || entryCategoryError(w, err) {
+		if nodeAccessError(w, err) || entryClientChainError(w, err) || entryCategoryError(w, err) || entryIPVersionError(w, err) {
 			return
 		}
 		serverErr(w, err)
@@ -200,7 +220,7 @@ func (h *handlers) updateEntry(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if !userFrom(r).IsAdmin() && (cur.LineID != nil || e.LineID != nil) && (!reflect.DeepEqual(cur.LineID, e.LineID) || cur.LineMemberID != e.LineMemberID || cur.InboundID != e.InboundID || cur.DisplayHost != e.DisplayHost || cur.DisplayPort != e.DisplayPort || !reflect.DeepEqual(cur.ClientExtra, e.ClientExtra)) {
+	if !userFrom(r).IsAdmin() && (cur.LineID != nil || e.LineID != nil) && (!reflect.DeepEqual(cur.LineID, e.LineID) || cur.LineMemberID != e.LineMemberID || cur.InboundID != e.InboundID || cur.DisplayHost != e.DisplayHost || cur.DisplayPort != e.DisplayPort || !reflect.DeepEqual(cur.ClientExtra, e.ClientExtra) || cur.IPVersion != e.IPVersion) {
 		fail(w, 403, "admin only: line binding")
 		return
 	}
@@ -217,7 +237,7 @@ func (h *handlers) updateEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.UpdateEntry(r.Context(), &e); err != nil {
-		if nodeAccessError(w, err) || entryClientChainError(w, err) || entryCategoryError(w, err) {
+		if nodeAccessError(w, err) || entryClientChainError(w, err) || entryCategoryError(w, err) || entryIPVersionError(w, err) {
 			return
 		}
 		serverErr(w, err)
@@ -255,6 +275,14 @@ func entryClientChainError(w http.ResponseWriter, err error) bool {
 	}
 	if errors.Is(err, store.ErrEntryClientChainInUse) {
 		fail(w, 409, err.Error())
+		return true
+	}
+	return false
+}
+
+func entryIPVersionError(w http.ResponseWriter, err error) bool {
+	if errors.Is(err, store.ErrEntryIPVersion) {
+		fail(w, 400, err.Error())
 		return true
 	}
 	return false

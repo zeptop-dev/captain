@@ -229,6 +229,7 @@ func prepareTopologyTx(ctx context.Context, tx *sql.Tx, d *TopologyChangeset) (*
 		topologyAssign(&e.LineMemberID, in.LineMemberID)
 		topologyAssign(&e.DisplayHost, in.DisplayHost)
 		topologyAssign(&e.DisplayPort, in.DisplayPort)
+		topologyAssign(&e.IPVersion, in.IPVersion)
 		topologyAssign(&e.Rate, in.Rate)
 		topologyAssign(&e.Sort, in.Sort)
 		topologyAssign(&e.Enabled, in.Enabled)
@@ -322,6 +323,9 @@ func prepareTopologyTx(ctx context.Context, tx *sql.Tx, d *TopologyChangeset) (*
 		e := p.view.entries[id]
 		if p.entries[id] != nil || (e.LineID != nil && p.lines[*e.LineID] != nil) {
 			if err = p.resolveEntry(ctx, tx, e); err != nil {
+				return nil, err
+			}
+			if err = validateEntryIPVersion(e); err != nil {
 				return nil, err
 			}
 			if p.entries[id] == nil {
