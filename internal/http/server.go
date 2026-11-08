@@ -427,7 +427,7 @@ func (s *Server) Handler() http.Handler {
 		// lock, fetches without it, then re-authenticates before committing.
 		presetSync := r.Method == http.MethodPost && (r.URL.Path == "/api/admin/settings/sub-design/presets/sync" || r.URL.Path == "/api/admin/settings/sub-design/claude-rules/sync")
 		catalogIO := r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/admin/settings/client-catalog/") && (strings.HasSuffix(r.URL.Path, "/check") || strings.HasSuffix(r.URL.Path, "/download"))
-		domainSuggestionIO := r.Method == http.MethodPost && r.URL.Path == "/api/admin/nodes/domain-suggestion"
+		domainSuggestionIO := r.Method == http.MethodPost && (r.URL.Path == "/api/admin/nodes/domain-suggestion" || r.URL.Path == "/api/admin/ingresses/domain-suggestion")
 		agentCheckIO := r.Method == http.MethodPost && r.URL.Path == "/api/admin/settings/agent-https/check"
 		clientDownload := (r.Method == http.MethodGet || r.Method == http.MethodHead) && strings.HasPrefix(r.URL.Path, "/downloads/clients/")
 		dnsSyncIO := (r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodPost) && strings.HasPrefix(r.URL.Path, "/api/admin/nodes/") && strings.HasSuffix(r.URL.Path, "/dns-sync")

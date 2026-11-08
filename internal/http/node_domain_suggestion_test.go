@@ -12,6 +12,12 @@ import (
 )
 
 func TestNodeDomainSuggestionHTTPAccessAndLocks(t *testing.T) {
+	testDomainSuggestionHTTPAccessAndLocks(t, "/api/admin/nodes/domain-suggestion")
+}
+func TestIngressDomainSuggestionHTTPAccessAndLocks(t *testing.T) {
+	testDomainSuggestionHTTPAccessAndLocks(t, "/api/admin/ingresses/domain-suggestion")
+}
+func testDomainSuggestionHTTPAccessAndLocks(t *testing.T, path string) {
 	var st *store.Store
 	var blocked, writes atomic.Int32
 	cf := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +43,6 @@ func TestNodeDomainSuggestionHTTPAccessAndLocks(t *testing.T) {
 	if err := st.CreateDomain(ctx, &store.Domain{Name: "example.com", Provider: "cloudflare", CFToken: "fixture-token"}); err != nil {
 		t.Fatal(err)
 	}
-	const path = "/api/admin/nodes/domain-suggestion"
 	body := map[string]string{"zone": "example.com"}
 	for _, scopes := range [][]string{{"nodes:*"}, {"domains:read"}, {"POST " + path}} {
 		tok, _, err := st.CreateAPIToken(ctx, 1, "suggestion", "read", nil, scopes)
