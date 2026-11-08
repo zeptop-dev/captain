@@ -12,6 +12,7 @@ import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { api, type Entry, type EntryCategory, type Line, type Node } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { type EntryNodeDetail, isSubscriberInbound } from '../lib/entry-flow'
+import { entryIPLabelKey } from '../lib/entry-ip-policy'
 import { hostPort } from '../lib/ingress'
 import { toast } from '../lib/notify'
 import { flag } from '../lib/regions'
@@ -244,7 +245,7 @@ function EntryRow({ entry, accessRow, accessDirectory, onAccess, categoryName, c
     <Table.Td><Stack gap={4}><Text fw={600}>{entry.Region ? `${flag(entry.Region)} ` : ''}{entry.Name}</Text><>{onAccess && <AccessSummary row={accessRow} directory={accessDirectory} />}</><Group gap={4}>{entry.Tags?.map(tag => <Badge key={tag} size="xs" variant="light" color="grape">{tag}</Badge>)}</Group></Stack></Table.Td>
     <Table.Td><Text size="sm" c={categoryName ? undefined : 'dimmed'}>{categoryName ?? (entry.CategoryID ? `#${entry.CategoryID}` : categoryKnown ? t('entryCategories.unclassified') : '—')}</Text></Table.Td>
     <Table.Td><Stack gap={4}><Badge size="xs" variant="light" color={managed || entry.LineID ? 'indigo' : entry.ClientDialerEntryID ? 'grape' : 'gray'}>{managed ? t(`lines.sections.${managed}`) : entry.ClientDialerEntryID ? t('entryFlow.clientChain') : entry.LineID ? t('entryFlow.viaLine') : inboundKnown ? t('entryFlow.direct') : t('entryFlow.pathUnknown')}</Badge><Text size="xs">{entry.ClientDialerEntryID ? `${dialerName ?? `#${entry.ClientDialerEntryID}`} → ` : entry.LineID ? `${lineName ?? `#${entry.LineID}`} → ` : ''}{inboundLabel}</Text></Stack></Table.Td>
-    <Table.Td><Code>{hostPort(entry.DisplayHost, entry.DisplayPort)}</Code></Table.Td><Table.Td>×{entry.Rate}</Table.Td>
+    <Table.Td><Stack gap={4}><Code>{hostPort(entry.DisplayHost, entry.DisplayPort)}</Code>{entry.IPVersion && <Badge size="xs" w="fit-content" variant="light">{t(entryIPLabelKey(entry.IPVersion))}</Badge>}</Stack></Table.Td><Table.Td>×{entry.Rate}</Table.Td>
     <Table.Td><Badge color={entry.Enabled ? 'teal' : 'gray'}>{t(entry.Enabled ? 'common.enabled' : 'common.disabled')}</Badge></Table.Td>
     <Table.Td><Group gap={4} justify="flex-end" wrap="nowrap">{onAccess && <ActionIcon variant="subtle" aria-label={t('nodeAccess.manage')} title={t('nodeAccess.manage')} disabled={busy} onClick={onAccess}><IconKey size={16} /></ActionIcon>}{canEditLocation && <ActionIcon variant="subtle" aria-label={t('mapLocation.title')} title={t('mapLocation.title')} disabled={busy} onClick={onLocation}><IconMapPin size={16} /></ActionIcon>}{canWrite && <><ActionIcon variant="subtle" aria-label={t('common.edit')} disabled={busy} onClick={onEdit}><IconPencil size={16} /></ActionIcon>{!managed && <ActionIcon variant="subtle" color="red" aria-label={t('common.delete')} disabled={busy} onClick={onDelete}><IconTrash size={16} /></ActionIcon>}</>}</Group></Table.Td>
   </Table.Tr>

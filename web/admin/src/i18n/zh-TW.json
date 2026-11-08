@@ -4468,5 +4468,39 @@
       "entry_fallback": "公網入口備援",
       "unknown": "未提供"
     }
+  },
+  "entryIP": {
+    "label": "連線 IP 協定",
+    "options": {
+      "inherit": "跟隨用戶端／範本",
+      "ipv4": "僅 IPv4",
+      "ipv6": "僅 IPv6",
+      "dual": "雙棧（自動）"
+    },
+    "hint": "選擇用戶端連線此節點使用的 IP 協定。網域保持不變，不修改伺服器的出站 IP 或監聽位址。",
+    "lineHint": "僅作用於用戶端連線線路的發布入口；伺服器之間各跳連線保持原設定。",
+    "chainHint": "用戶端鏈式代理請在前置節點選擇 IP 協定；落地網域由前置代理決定如何解析。",
+    "extraHint": "用戶端附加欄位已包含 {{keys}}。可保持跟隨原設定，或移除這些欄位後選擇明確的 IP 協定。",
+    "compatibility": "不支援強制選擇位址族的訂閱格式會略過「僅 IPv4／IPv6」的網域節點。雙棧允許兩種位址，是否競速由用戶端和協定決定；IPv6 還需要訂閱範本相容。",
+    "variants": "同時建立 IPv4、IPv6、雙棧三個版本",
+    "variantsHint": "需要網域，且使用直連或伺服器線路。三個訂閱節點共用同一個入站，各自選擇 IP 協定，不會新增監聽。",
+    "createVariants": "建立三個版本",
+    "uncertain": "暫時無法確認建立結果。請關閉編輯框並重新整理節點清單，確認後再建立，以免重複。",
+    "errors": {
+      "invalid": "請選擇有效的 IP 協定。",
+      "chain": "請在用戶端鏈式代理的前置節點選擇 IP 協定。",
+      "extraConflict": "請移除衝突的用戶端附加欄位，或選擇跟隨用戶端／範本。",
+      "dualDomain": "雙棧需要填寫網域，固定 IP 只有一種位址族。",
+      "familyMismatch": "所選 IP 協定與連線位址不一致。"
+    },
+    "checking": "正在檢查訂閱相容性…",
+    "checkFailed": "暫時無法檢查相容性，請在發布前重新檢查。",
+    "supported": "支援此 IP 選項：{{formats}}",
+    "excluded": "不支援此 IP 選項：{{formats}}",
+    "templateConflict": "已儲存的範本與所選協定衝突：{{formats}}。請先調整範本中的 IPv6 設定，再讓用戶更新訂閱。",
+    "templatesChecked": "已檢查儲存的全域範本；命名設定和回應規則覆寫會在實際產生訂閱時驗證。",
+    "templatesUnchecked": "目前帳號未檢查全域範本，請聯絡管理員確認 IPv6 相容性。",
+    "supportTitle": "IP 選項的用戶端相容性",
+    "protocolSupport": "用戶端還需要支援此節點使用的代理協定。"
   }
 }

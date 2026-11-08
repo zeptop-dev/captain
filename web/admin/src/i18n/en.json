@@ -4468,5 +4468,39 @@
       "entry_fallback": "Public entry fallback",
       "unknown": "Not provided"
     }
+  },
+  "entryIP": {
+    "label": "Connection IP version",
+    "options": {
+      "inherit": "Follow client / template",
+      "ipv4": "IPv4 only",
+      "ipv6": "IPv6 only",
+      "dual": "Dual stack (automatic)"
+    },
+    "hint": "Select how the client connects to this node. The domain stays unchanged; this does not change the server’s outbound IP or listening address.",
+    "lineHint": "Applies to the client connection to the published line endpoint. Connections between servers keep their own settings.",
+    "chainHint": "For client chains, select the IP version on the front node. Resolution of the landing domain is controlled by the front proxy.",
+    "extraHint": "Client extra fields already include {{keys}}. Keep the inherited behavior, or remove these fields before choosing an explicit IP version.",
+    "compatibility": "Only IPv4/IPv6 domain nodes are excluded from formats that cannot enforce the selection. Dual stack allows either family; racing depends on the client and protocol. IPv6 also needs a compatible subscription template.",
+    "variants": "Create IPv4, IPv6 and dual-stack versions together",
+    "variantsHint": "Requires a domain and a direct or server-line connection. Creates three subscription nodes sharing the same inbound, with separate IP choices; no extra listener is created.",
+    "createVariants": "Create three versions",
+    "uncertain": "The creation result could not be confirmed. Close this editor and reload the node list before creating again to avoid duplicates.",
+    "errors": {
+      "invalid": "Select a supported IP version.",
+      "chain": "Select the IP version on the front node of a client chain.",
+      "extraConflict": "Remove conflicting client extra fields, or follow the client/template.",
+      "dualDomain": "Dual stack requires a domain. A fixed IP has only one address family.",
+      "familyMismatch": "The selected IP version does not match the connection address."
+    },
+    "checking": "Checking subscription compatibility…",
+    "checkFailed": "Compatibility could not be checked. Refresh the check before publishing.",
+    "supported": "IP option supported: {{formats}}",
+    "excluded": "IP option unsupported: {{formats}}",
+    "templateConflict": "Saved templates conflict with this choice: {{formats}}. Update their IPv6 settings before users refresh subscriptions.",
+    "templatesChecked": "Checked the saved global templates. Named profiles and response overrides are checked when generating each subscription.",
+    "templatesUnchecked": "Global templates were not checked with this account. Ask an administrator to confirm IPv6 compatibility.",
+    "supportTitle": "IP option compatibility",
+    "protocolSupport": "The client must also support the node protocol."
   }
 }

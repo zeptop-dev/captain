@@ -4468,5 +4468,39 @@
       "entry_fallback": "公网入口兜底",
       "unknown": "未提供"
     }
+  },
+  "entryIP": {
+    "label": "连接 IP 协议",
+    "options": {
+      "inherit": "跟随客户端／模板",
+      "ipv4": "仅 IPv4",
+      "ipv6": "仅 IPv6",
+      "dual": "双栈（自动）"
+    },
+    "hint": "选择客户端连接此节点使用的 IP 协议。域名保持不变，不修改服务器的出站 IP 或监听地址。",
+    "lineHint": "仅作用于客户端连接线路的发布入口；服务器之间各跳连接保持原设置。",
+    "chainHint": "客户端链式代理请在前置节点选择 IP 协议；落地域名由前置代理决定如何解析。",
+    "extraHint": "客户端附加字段已包含 {{keys}}。可保持跟随原设置，或移除这些字段后选择明确的 IP 协议。",
+    "compatibility": "不支持强制选族的订阅格式会跳过“仅 IPv4／IPv6”的域名节点。双栈允许两种地址，是否竞速由客户端和协议决定；IPv6 还需要订阅模板兼容。",
+    "variants": "同时创建 IPv4、IPv6、双栈三个版本",
+    "variantsHint": "需要域名，且使用直连或服务器线路。三个订阅节点共用同一个入站，各自选择 IP 协议，不会新增监听。",
+    "createVariants": "创建三个版本",
+    "uncertain": "暂时无法确认创建结果。请关闭编辑框并刷新节点列表，确认后再创建，以免重复。",
+    "errors": {
+      "invalid": "请选择有效的 IP 协议。",
+      "chain": "请在客户端链式代理的前置节点选择 IP 协议。",
+      "extraConflict": "请移除冲突的客户端附加字段，或选择跟随客户端／模板。",
+      "dualDomain": "双栈需要填写域名，固定 IP 只有一种地址族。",
+      "familyMismatch": "所选 IP 协议与连接地址不一致。"
+    },
+    "checking": "正在检查订阅兼容性…",
+    "checkFailed": "暂时无法检查兼容性，请在发布前重新检查。",
+    "supported": "支持此 IP 选项：{{formats}}",
+    "excluded": "不支持此 IP 选项：{{formats}}",
+    "templateConflict": "已保存的模板与所选协议冲突：{{formats}}。请先调整模板中的 IPv6 设置，再让用户更新订阅。",
+    "templatesChecked": "已检查保存的全局模板；命名配置和响应规则覆写会在实际生成订阅时校验。",
+    "templatesUnchecked": "当前账号未检查全局模板，请联系管理员确认 IPv6 兼容性。",
+    "supportTitle": "IP 选项的客户端兼容性",
+    "protocolSupport": "客户端还需要支持此节点使用的代理协议。"
   }
 }

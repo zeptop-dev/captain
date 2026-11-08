@@ -138,6 +138,7 @@ export interface SubRequest { id: number; at: string; request_ip: string; user_a
 export interface EntryCategory { ID: number; Name: string; NameZH?: string; NameEN?: string; Description: string; Sort: number }
 
 export interface Entry {
+  IPVersion?: '' | 'ipv4' | 'ipv6' | 'dual'
   LocationSettings?: LocationSettings; Location?: GeoLocation | null
   ID: number; Name: string; InboundID: number; ChainID: number | null; DisplayHost: string; DisplayPort: number
   LineID?: number | null; LineMemberID?: string; ClientDialerEntryID?: number | null; CategoryID?: number | null
