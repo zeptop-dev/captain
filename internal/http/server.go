@@ -676,12 +676,12 @@ func limitBodies(next http.Handler) http.Handler {
 
 func (s *Server) DNSHealth() *service.DNSHealth { return s.dnsHealth }
 
-// Older panels ignore typed entry IP policies and can publish unrestricted
-// connections after a downgrade. Retain per-server probe plans, interface
-// bindings and the earlier topology/access protections as well.
+// Older panels ignore ingress address sources and subscription bindings,
+// leaving stale endpoints after address changes. Retain typed entry IP policies,
+// per-server probe plans and earlier topology/access protections as well.
 func captainUpdateFloor(configured string) string {
-	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.59.0", configured) {
-		return "v1.59.0"
+	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.60.0", configured) {
+		return "v1.60.0"
 	}
 	return configured
 }

@@ -1,4 +1,4 @@
-# NAT public address inheritance (unreleased)
+# NAT public address inheritance (Captain v1.60.0)
 
 Migration 117 adds an explicit source for a NAT ingress's public entry address.
 Existing ingresses keep `custom`; saving a node's observed or location IP never
@@ -101,7 +101,6 @@ DNS records when the domain or address family changes.
 Migration 117 is forward-only. SQLite backups include the source, entry binding
 and pending DNS state; site reset deletes them with their parent objects. No
 existing endpoint or same-looking manual entry is reclassified by migration.
-Before releasing this feature, raise Captain's built-in rollback floor to the
-actual release containing it: an older panel ignores these bindings and can
-leave stale subscription addresses after node updates. This development change
-does not itself declare a new version or an installed-agent requirement.
+Captain's built-in rollback floor is v1.60.0: an older panel ignores these
+bindings and can leave stale subscription addresses after node updates. No new
+installed-agent requirement is introduced.

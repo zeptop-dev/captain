@@ -5,9 +5,9 @@ with, what the database is good for, and what is deliberately not there.
 
 For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
-time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.59.0 to preserve strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
+time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.60.0 to preserve ingress address sources, subscription bindings and strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
 
-## NAT address inheritance (unreleased, migration 117)
+## NAT address inheritance (Captain v1.60.0, migration 117)
 
 Ingress `entry_address_source` and Entry `FollowIngress` are additive. Existing
 rows remain custom/fixed; server address inheritance and subscription binding
@@ -15,8 +15,8 @@ are separate explicit choices. Old clients preserve unchanged bindings and
 explicit endpoint overrides detach them. Ingress DNS retry state is persisted
 but excluded from topology preview revisions. See
 [NAT address inheritance](INGRESS_ADDRESS_SOURCE.md) for API contracts and
-transaction boundaries. Before release, raise the rollback floor to the actual
-version containing this feature, since older panels ignore the new bindings.
+transaction boundaries. The built-in rollback floor is v1.60.0, since older
+panels ignore the new bindings.
 No new agent fields or bosun version gate are needed.
 
 ## Per-entry connection IP policy (Captain v1.59.0 / shared bosun v0.93.0)
@@ -795,6 +795,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
+| 1.60.0 | Formal shared library 0.93.0; no new installed-agent requirement | Managed entry-domain composition, explicit NAT address inheritance and subscription endpoint binding; migration 117. Captain rollback floor becomes v1.60.0. |
 | 1.59.0 | Formal shared library 0.93.0; no installed-agent upgrade needed for entry IP policy or location settings | Per-entry connection-family policies and independent location IP selection; migrations 115–116. Existing observation capability gates remain, and Captain rollback floor becomes v1.59.0. |
 | 1.58.0 | ≥ 0.92.0 for optional fallback following; older agents remain compatible and observation-only | Per-family opt-in with conflict/continuity evidence and sustained confirmation. Migration 114; existing rollback floors remain unchanged. |
 | 1.57.0 | 0.91.2 for new native dependency recovery/Doctor behavior; older agents remain compatible | Formal v0.91.2 shared module and separate install-time OS-package choice; no schema or rollback-floor change. |
@@ -846,7 +847,7 @@ features it has never heard of, which the node page shows as an orange
 
 `min_version` in both `config.yaml` files is the floor a self-update or
 rollback may not go below; set it to the version you have tested. Captain's
-built-in floor is v1.59.0 to preserve strict entry IP-family policies, independent server probe plans, interface bindings, complete-route transports, backend intent and health policies;
+built-in floor is v1.60.0 to preserve ingress address inheritance, subscription bindings, strict entry IP-family policies, independent server probe plans, interface bindings, complete-route transports, backend intent and health policies;
 this also preserves shared infrastructure dates, payment actions, the homepage switch and inbound access policies, and
 retains device credentials, exit attribution and the earlier protections for line ownership, client chains, internal
 forwarding and public storage selection. A higher configured floor still wins.
