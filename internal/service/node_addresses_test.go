@@ -39,6 +39,10 @@ func TestNodeAddressesDNSOnlyFollowsOptedInFamily(t *testing.T) {
 			result = []map[string]string{{"id": "zone"}}
 		} else if r.Method == "GET" {
 			result = []dns.Record{{ID: "record", Name: n.Domain, Type: "A", Content: n.PublicAddr, TTL: 600}}
+			if r.URL.Query().Get("name") == ingress.EntryDomain {
+				// The fixed ingress was already synchronized at creation.
+				result = []dns.Record{{ID: "nat-record", Name: ingress.EntryDomain, Type: "A", Content: ingress.EntryHost, TTL: 600}}
+			}
 		} else {
 			writes.Add(1)
 			var rec dns.Record

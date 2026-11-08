@@ -14,6 +14,11 @@ import (
 )
 
 func TestIngressAddressDNSRetriesPersistedCurrentIntentForUnpairedNode(t *testing.T) {
+	for _, source := range []string{store.IngressAddressIPv4, "custom_nat", "custom_iplc"} {
+		t.Run(source, func(t *testing.T) { testIngressDNSRetry(t, source) })
+	}
+}
+func testIngressDNSRetry(t *testing.T, source string) {
 	ctx := context.Background()
 	st, n := dnsTestStore(t)
 	dom := &store.Domain{Name: "example.com", Provider: "cloudflare", CFToken: "test-token", AutoDNS: true}
@@ -21,6 +26,12 @@ func TestIngressAddressDNSRetriesPersistedCurrentIntentForUnpairedNode(t *testin
 		t.Fatal(err)
 	}
 	g := &store.Ingress{NodeID: n.ID, Name: "NAT", Kind: "nat", EntryAddressSource: store.IngressAddressIPv4, EntryDomain: "nat.example.com"}
+	if source != store.IngressAddressIPv4 {
+		g.EntryAddressSource, g.EntryHost = store.IngressAddressCustom, n.PublicAddr
+		if source == "custom_iplc" {
+			g.Kind = "iplc"
+		}
+	}
 	if err := st.CreateIngress(ctx, g); err != nil {
 		t.Fatal(err)
 	}
@@ -68,6 +79,16 @@ func TestIngressAddressDNSRetriesPersistedCurrentIntentForUnpairedNode(t *testin
 	n.PublicAddr = "203.0.113.30"
 	if err := st.UpdateNode(ctx, n); err != nil {
 		t.Fatal(err)
+	}
+	if source != store.IngressAddressIPv4 {
+		unchanged, err := st.IngressByID(ctx, g.ID)
+		if err != nil || unchanged.EntryHost != g.EntryHost {
+			t.Fatal("server edit changed a custom ingress", unchanged, err)
+		}
+		g.EntryHost = "203.0.113.30"
+		if err := st.UpdateIngress(ctx, g); err != nil {
+			t.Fatal(err)
+		}
 	}
 	// A new process must pick up the latest desired address, not an old queued IP.
 	worker = &NodeAddresses{Store: st, DNS: &DNS{Store: st, Base: cf.URL}}

@@ -125,7 +125,7 @@ func (s *Store) CreateIngress(ctx context.Context, g *Ingress) error {
 		return err
 	}
 	ts := now()
-	res, err := tx.ExecContext(ctx, `INSERT INTO ingresses (node_id,name,kind,bind_ip,line_ip,entry_host,entry_domain,port_from,port_to,port_offset,reserved_ports,port_mappings_json,require_ingress,created_at,updated_at,entry_address_source,address_dns_pending) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, g.NodeID, g.Name, g.Kind, g.BindIP, g.LineIP, g.EntryHost, g.EntryDomain, g.PortFrom, g.PortTo, g.PortOffset, joinPorts(g.ReservedPorts), string(mappings), g.RequireIngress, ts, ts, g.EntryAddressSource, boolInt(g.EntryDomain != "" && g.EntryAddressSource != IngressAddressCustom))
+	res, err := tx.ExecContext(ctx, `INSERT INTO ingresses (node_id,name,kind,bind_ip,line_ip,entry_host,entry_domain,port_from,port_to,port_offset,reserved_ports,port_mappings_json,require_ingress,created_at,updated_at,entry_address_source,address_dns_pending) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, g.NodeID, g.Name, g.Kind, g.BindIP, g.LineIP, g.EntryHost, g.EntryDomain, g.PortFrom, g.PortTo, g.PortOffset, joinPorts(g.ReservedPorts), string(mappings), g.RequireIngress, ts, ts, g.EntryAddressSource, boolInt(g.EntryDomain != ""))
 	if err != nil {
 		return err
 	}

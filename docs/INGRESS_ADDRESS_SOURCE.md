@@ -34,6 +34,28 @@ does not establish its inbound NAT address, port mapping, supported protocols
 or client reachability. Choose inheritance only when that address is also the
 provider's actual inbound address.
 
+## Managed entry domain editor
+
+The NAT/IPLC editor uses the same registered-domain catalog, prefix composer,
+random suggestion and full-name input as server domains. The selected domain's
+existing automatic-DNS setting controls creation of DNS-only A or AAAA records
+for the effective public entry IP. Selecting a domain or requesting a suggestion
+does not write DNS; saving the ingress uses the existing DNS service. An
+unregistered domain, disabled automatic DNS or a hostname target remains subject
+to that service's existing skip behavior.
+
+Server and entry domains remain separate. Reusing one hostname for different
+addresses is rejected by automatic DNS ownership checks rather than overwriting
+the other endpoint. Ingress domains do not expose the server shared-domain mode.
+The optional suggestion alias is `POST /api/admin/ingresses/domain-suggestion`;
+it has the same administrator and `domains:read` checks as the server-domain
+suggestion endpoint. Both routes keep external lookup I/O outside Accounts locks.
+
+Incomplete domain drafts disable saving, and every new or reopened ingress editor
+starts from its own saved values. The nested ingress editor in inbound creation
+uses the same checks. Existing public entry addresses and domains are preserved
+until the administrator explicitly changes them.
+
 ## Subscription endpoint binding
 
 Ordinary subscription entries add `FollowIngress` (default `false` for migrated
@@ -64,7 +86,8 @@ checks. Address changes invalidate old previews; DNS retry bookkeeping does not.
 
 ## DNS and downgrade behavior
 
-Ingress DNS intent is persisted with the endpoint. The address worker retries
+Ingress DNS intent is persisted with the endpoint for inherited NAT, custom NAT
+and IPLC addresses alike. The address worker retries
 current pending intent, including manually edited unpaired servers, with a
 five-minute failure backoff and a bounded 25-second batch. A later address edit
 replaces the pending target. The worker rereads under the topology lock, so a
