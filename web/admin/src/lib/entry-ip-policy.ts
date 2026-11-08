@@ -1,9 +1,10 @@
 export type EntryIPVersion = '' | 'ipv4' | 'ipv6' | 'dual'
 export const ENTRY_IP_VERSIONS: EntryIPVersion[] = ['', 'ipv4', 'ipv6', 'dual']
-export const IP_POLICY_EXTRA_KEYS = ['ip-version', 'ip_version', 'domain_strategy', 'domain_resolver', 'inet4_bind_address', 'inet6_bind_address', 'dialer-proxy', 'detour', 'server', 'server_port', 'port', 'peers']
+export const IP_POLICY_EXTRA_KEYS = ['ip-version', 'ip_version', 'domain_strategy', 'domain_resolver', 'inet4_bind_address', 'inet6_bind_address', 'dialer-proxy', 'detour', 'server', 'server_port', 'port', 'peers', 'underlying-proxy', 'type', 'plugin', 'plugin-opts', 'transport', 'realm', 'name', 'tag']
 
 export function entryHostFamily(value: string): 'ipv4' | 'ipv6' | 'domain' | 'empty' {
-  const host = value.trim()
+  const input = value.trim()
+  const host = input.startsWith('[') && input.endsWith(']') ? input.slice(1, -1) : input
   if (!host) return 'empty'
   if (/^(?:0|[1-9]\d{0,2})(?:\.(?:0|[1-9]\d{0,2})){3}$/.test(host) && host.split('.').every(part => Number(part) <= 255)) return 'ipv4'
   if (host.includes(':')) {
@@ -23,8 +24,8 @@ export function defaultEntryIPVersion(host: string): EntryIPVersion {
 export function entryIPExtraConflicts(raw: string): string[] {
   try {
     const extra = JSON.parse(raw || '{}')
-    const reserved = new Set(IP_POLICY_EXTRA_KEYS.map(key => key.toLowerCase().replaceAll('-', '_')))
-    return extra && typeof extra === 'object' && !Array.isArray(extra) ? Object.keys(extra).filter(key => reserved.has(key.toLowerCase().replaceAll('-', '_'))) : []
+    const reserved = new Set(IP_POLICY_EXTRA_KEYS.map(key => key.trim().toLowerCase().replaceAll('-', '_')))
+    return extra && typeof extra === 'object' && !Array.isArray(extra) ? Object.keys(extra).filter(key => reserved.has(key.trim().toLowerCase().replaceAll('-', '_'))) : []
   } catch { return [] }
 }
 

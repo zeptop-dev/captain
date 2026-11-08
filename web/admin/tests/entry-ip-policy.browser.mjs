@@ -65,6 +65,8 @@ try {
   for (const locale of ['en','zh-CN','zh-TW','ja','ko','ru']) {
     const s=await setup({locale,mobile:locale!=='en'}),{dialog,page,choose,state,t}=s
     assert.equal(await dialog.getByRole('textbox',{name:t('entryIP.label'),exact:true}).inputValue(),t('entryIP.options.dual'))
+    await dialog.getByRole('button',{name:t('entryIP.supportTitle'),exact:true}).click()
+    await dialog.getByText(t('entryIP.clientNative').replace('{{formats}}','uri'),{exact:true}).waitFor()
     await choose('entryIP.label','entryIP.options.ipv6')
     await dialog.getByText(t('entryIP.templateConflict').replace('{{formats}}','clash')).waitFor()
     await dialog.getByRole('textbox',{name:t('entryIP.label'),exact:true}).scrollIntoViewIfNeeded()
@@ -83,7 +85,7 @@ try {
   }
   {
     const s=await setup(),{dialog,page,choose,state,t}=s
-    await dialog.getByRole('textbox',{name:t('entryFlow.connectHost'),exact:true}).fill('2001:db8::20')
+    await dialog.getByRole('textbox',{name:t('entryFlow.connectHost'),exact:true}).fill('[2001:db8::20]')
     assert.equal(await dialog.getByRole('textbox',{name:t('entryIP.label'),exact:true}).inputValue(),t('entryIP.options.ipv6'))
     assert.equal(await dialog.getByRole('checkbox',{name:t('entryIP.variants')}).isDisabled(),true)
     await dialog.getByRole('textbox',{name:t('entryFlow.connectHost'),exact:true}).fill('node.example.com')

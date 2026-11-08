@@ -29,7 +29,8 @@ export function EntryIPSupport({ host, protocol, policy, variants, disabled }: {
       <Text size="xs" c="dimmed">{t('entryIP.compatibility')}</Text>
       {queries.map((query, index) => query.data && <Stack key={policies[index]} gap={2}>
         {variants && <Text size="xs" fw={600}>{t(entryIPLabelKey(policies[index]))}</Text>}
-        <Text size="xs" c="dimmed">{t('entryIP.supported', { formats: query.data.formats.filter(f => f.supported).map(f => f.format).join(', ') || '—' })}</Text>
+        <Text size="xs" c="dimmed">{t('entryIP.supported', { formats: query.data.formats.filter(f => f.supported && f.reason !== 'client_native').map(f => f.format).join(', ') || '—' })}</Text>
+        {query.data.formats.some(f => f.supported && f.reason === 'client_native') && <Text size="xs" c="dimmed">{t('entryIP.clientNative', { formats: query.data.formats.filter(f => f.supported && f.reason === 'client_native').map(f => f.format).join(', ') })}</Text>}
         {query.data.formats.some(f => !f.supported) && <Text size="xs" c="orange">{t('entryIP.excluded', { formats: query.data.formats.filter(f => !f.supported).map(f => f.format).join(', ') })}</Text>}
       </Stack>)}
       <Text size="xs" c="dimmed">{t('entryIP.protocolSupport')}</Text>

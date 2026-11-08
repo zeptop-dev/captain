@@ -7,6 +7,9 @@ test('new node defaults follow actual literal family while domains allow dual st
   assert.equal(entryHostFamily(' 192.0.2.10 '), 'ipv4')
   assert.equal(entryHostFamily('::ffff:192.0.2.10'), 'ipv4')
   assert.equal(entryHostFamily('::ffff:0:0:1'), 'ipv6')
+  assert.equal(entryHostFamily('[2001:db8::20]'), 'ipv6')
+  assert.equal(entryHostFamily('[::ffff:192.0.2.10]'), 'ipv4')
+  assert.equal(defaultEntryIPVersion('[2001:db8::20]'), 'ipv6')
 })
 test('legacy inherited behavior remains valid even with existing custom client fields', () => {
   assert.equal(entryIPPolicyError('', 'node.example.com', true, '{"ip-version":"ipv4","detour":"front"}'), null)
@@ -21,12 +24,15 @@ test('explicit policies reject opposite literals, dual literals and client-chain
 test('typed policies cannot be silently replaced by extra endpoint or resolver overrides', () => {
   for (const key of IP_POLICY_EXTRA_KEYS) assert.equal(entryIPPolicyError('dual', 'node.example.com', false, JSON.stringify({ [key]: null })), 'extraConflict', key)
   assert.equal(entryIPPolicyError('dual', 'node.example.com', false, '{"IP-Version":"ipv4"}'), 'extraConflict')
+  assert.equal(entryIPPolicyError('dual', 'node.example.com', false, '{" Underlying_Proxy ":"front"}'), 'extraConflict')
+  assert.equal(entryIPPolicyError('dual', 'node.example.com', false, '{" Plugin_Opts ":{}}'), 'extraConflict')
   assert.equal(entryIPPolicyError('dual', 'node.example.com', false, '{"tfo":true}'), null)
 })
 test('variant batches require a domain, direct dialing and no endpoint overrides', () => {
   assert.equal(canCreateIPVariants('node.example.com', false, ''), true)
   assert.equal(canCreateIPVariants('192.0.2.10', false, ''), false)
   assert.equal(canCreateIPVariants('2001:db8::20', false, ''), false)
+  assert.equal(canCreateIPVariants('[2001:db8::20]', false, ''), false)
   assert.equal(canCreateIPVariants('', false, ''), false)
   assert.equal(canCreateIPVariants('node.example.com', true, ''), false)
   assert.equal(canCreateIPVariants('node.example.com', false, '{"server":"other.example.com"}'), false)

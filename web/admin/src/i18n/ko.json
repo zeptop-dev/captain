@@ -4501,6 +4501,7 @@
     "templatesChecked": "저장된 전역 템플릿을 확인했습니다. 별도 프로필과 응답 재정의는 구독 생성 시 확인합니다.",
     "templatesUnchecked": "이 계정으로 전역 템플릿을 확인하지 않았습니다. 관리자에게 IPv6 호환성을 확인하세요.",
     "supportTitle": "IP 옵션 호환성",
-    "protocolSupport": "클라이언트가 노드의 프록시 프로토콜도 지원해야 합니다."
+    "protocolSupport": "클라이언트가 노드의 프록시 프로토콜도 지원해야 합니다.",
+    "clientNative": "클라이언트가 주소 선택: {{formats}}. 이 형식은 도메인을 유지하며 별도의 IP 옵션을 추가하지 않습니다."
   }
 }

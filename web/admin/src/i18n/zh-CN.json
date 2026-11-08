@@ -4501,6 +4501,7 @@
     "templatesChecked": "已检查保存的全局模板；命名配置和响应规则覆写会在实际生成订阅时校验。",
     "templatesUnchecked": "当前账号未检查全局模板，请联系管理员确认 IPv6 兼容性。",
     "supportTitle": "IP 选项的客户端兼容性",
-    "protocolSupport": "客户端还需要支持此节点使用的代理协议。"
+    "protocolSupport": "客户端还需要支持此节点使用的代理协议。",
+    "clientNative": "由客户端自行选址：{{formats}}。这些格式保留域名，不附加明确的 IP 选项。"
   }
 }

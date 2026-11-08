@@ -4501,6 +4501,7 @@
     "templatesChecked": "Checked the saved global templates. Named profiles and response overrides are checked when generating each subscription.",
     "templatesUnchecked": "Global templates were not checked with this account. Ask an administrator to confirm IPv6 compatibility.",
     "supportTitle": "IP option compatibility",
-    "protocolSupport": "The client must also support the node protocol."
+    "protocolSupport": "The client must also support the node protocol.",
+    "clientNative": "Client-controlled address selection: {{formats}}. These formats retain the domain without an explicit IP option."
   }
 }
