@@ -1,3 +1,4 @@
+import { AccountInfoCard } from './AccountInfoCard'
 import { SettingsFields } from '../SettingsFields'
 import { SettingsLoadState } from '../SettingsLoadState'
 import { Button, Card, Divider, Group, Stack, Text, TextInput, Title, JsonInput, NumberInput, Select, Switch, PasswordInput, Textarea } from '@mantine/core'
@@ -22,7 +23,7 @@ export function SubscriptionCard() {
   useSettingsDirty(subText !== null || shortLinks !== null || autoFlags !== null || infoText !== null || hwid !== null)
   if (subs.data === undefined) return <SettingsLoadState query={subs} />
   return (
-        <Card>
+        <Stack><Card>
           <Title order={5} mb="xs">{t('settings.subUrls')}</Title>
           <Text size="xs" c="dimmed" mb="sm">{t('settings.subUrlsHint')}</Text>
           <Textarea autosize minRows={2} placeholder={'https://sub.example.com\nhttps://s[1-9].example.com'} value={subText ?? (subs.data?.urls ?? []).join('\n')} onChange={(e) => setSubText(e.currentTarget.value)} />
@@ -40,7 +41,7 @@ export function SubscriptionCard() {
             </Group>
           </>}
           <Group justify="flex-end" mt="sm"><Button size="xs" loading={saveSubs.isPending} disabled={subText === null && shortLinks === null && autoFlags === null && hwid === null && infoText === null} onClick={() => saveSubs.mutate((subText ?? (subs.data?.urls ?? []).join('\n')).split('\n').map((l) => l.trim()).filter(Boolean))}>{t('settingsLayout.saveSection', { section: t('settings.subUrls') })}</Button></Group>
-        </Card>
+        </Card><AccountInfoCard /></Stack>
   )
 }
 

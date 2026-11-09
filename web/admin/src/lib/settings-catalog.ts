@@ -10,7 +10,7 @@ export const settingsCatalog: SettingsEntry[] = [
   { id: 'trial', category: 'account', titleKey: 'trial.title', hintKey: 'trial.hint', keywords: 'trial 试用' },
   { id: 'oidc', category: 'account', titleKey: 'settings.oidc', hintKey: 'settings.oidcHint', keywords: 'OIDC SSO password 登录 身份' },
   { id: 'access', category: 'account', titleKey: 'security.title', hintKey: 'security.hint', keywords: 'CIDR whitelist access 白名单' },
-  { id: 'subscription', category: 'subscription', titleKey: 'settings.subUrls', hintKey: 'settings.subUrlsHint', keywords: 'HWID devices URLs short links 设备 短链接' },
+  { id: 'subscription', category: 'subscription', titleKey: 'settings.subUrls', hintKey: 'settings.subUrlsHint', keywords: 'HWID devices URLs short links traffic expiry reset account info 设备 短链接 流量 重置 到期 账户信息' },
   { id: 'clients', category: 'subscription', titleKey: 'clients.title', hintKey: 'clients.hint', keywords: 'client import 客户端' },
   { id: 'purchase', category: 'business', titleKey: 'settings.singlePlan', hintKey: 'settings.singlePlanHint', keywords: 'single plan purchase 套餐 购买 单套餐' },
   { id: 'surplus', category: 'business', titleKey: 'settings.surplus', hintKey: 'settings.surplusHint', keywords: 'plan purchase credit 折抵 套餐' },

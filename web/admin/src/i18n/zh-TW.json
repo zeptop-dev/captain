@@ -4514,5 +4514,14 @@
     "protocolSupport": "用戶端還需要支援此節點使用的代理協定。",
     "clientNative": "由用戶端自行選址：{{formats}}。這些格式保留網域，不附加明確的 IP 選項。",
     "wireguardHint": "WireGuard 如需限定端點的 IP 協定，請填寫固定 IPv4 或 IPv6 位址。網域由用戶端自動選址，此設定不改變隧道內存取目標的 DNS 解析。"
+  },
+  "accountInfo": {
+    "title": "訂閱帳戶資訊顯示",
+    "traffic": "顯示流量用量與額度",
+    "reset": "顯示下次流量重設時間",
+    "expiry": "顯示到期時間",
+    "hint": "適用於 Clash/Mihomo 與 Stash：新增獨立的 Subscription info（訂閱資訊）群組。資訊項目只拒絕連線，不參與自動選線。各有效方案分別顯示；其他格式保留現有訂閱資訊回應標頭。",
+    "refreshHint": "用戶端更新訂閱後重新整理，並非即時資料。時間使用 UTC，用戶端標籤使用英文。既有自訂資訊行獨立保留。",
+    "override": "覆寫帳戶資訊顯示設定"
   }
 }

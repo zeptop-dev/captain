@@ -4514,5 +4514,14 @@
     "protocolSupport": "The client must also support the node protocol.",
     "clientNative": "Client-controlled address selection: {{formats}}. These formats retain the domain without an explicit IP option.",
     "wireguardHint": "To select an IP family for the WireGuard endpoint, enter a fixed IPv4 or IPv6 address. A domain keeps client-controlled address selection; this setting does not change DNS for traffic inside the tunnel."
+  },
+  "accountInfo": {
+    "title": "Account information in subscriptions",
+    "traffic": "Show traffic usage and quota",
+    "reset": "Show next traffic reset",
+    "expiry": "Show expiry",
+    "hint": "Clash/Mihomo and Stash: add a separate Subscription info group. Information items only reject connections and are excluded from automatic proxy selection. Each active plan is listed separately; other formats keep the existing subscription information header.",
+    "refreshHint": "Updated when the client refreshes its subscription, not in real time. Times use UTC; labels in the client use English. Existing custom information lines remain independent.",
+    "override": "Override account information display"
   }
 }

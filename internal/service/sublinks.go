@@ -31,6 +31,8 @@ type SubscriptionSettings struct {
 	// whose names carry the account state through {{DAYS_LEFT}},
 	// {{TRAFFIC_LEFT}} and the other RemarkVars placeholders.
 	InfoLines []string `json:"info_lines"`
+	// AccountInfo adds isolated information groups to supported client documents.
+	AccountInfo store.AccountInfoSettings `json:"account_info"`
 	// HWID counts devices by the x-hwid header Happ-class clients send
 	// (the standard Remnawave and Happ share) instead of by online IP.
 	HWID HWIDSettings `json:"hwid"`

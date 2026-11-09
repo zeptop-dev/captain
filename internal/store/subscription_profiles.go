@@ -57,14 +57,25 @@ type ProfilePage struct {
 	Description string `json:"description,omitempty"`
 	Accent      string `json:"accent,omitempty"`
 }
+
+// AccountInfoSettings controls subscription presentation only, never access or billing.
+type AccountInfoSettings struct {
+	Traffic bool `json:"traffic"`
+	Reset   bool `json:"reset"`
+	Expiry  bool `json:"expiry"`
+}
+
+func (v AccountInfoSettings) Enabled() bool { return v.Traffic || v.Reset || v.Expiry }
+
 type SubProfileSettings struct {
-	Title        string            `json:"title,omitempty"`
-	Headers      map[string]string `json:"headers,omitempty"`
-	HWID         *ProfileHWID      `json:"hwid,omitempty"`
-	InfoLines    *[]string         `json:"info_lines,omitempty"`
-	AutoFlags    *bool             `json:"auto_flags,omitempty"`
-	RemarkPrefix string            `json:"remark_prefix,omitempty"`
-	Page         *ProfilePage      `json:"page,omitempty"`
+	Title        string               `json:"title,omitempty"`
+	Headers      map[string]string    `json:"headers,omitempty"`
+	HWID         *ProfileHWID         `json:"hwid,omitempty"`
+	AccountInfo  *AccountInfoSettings `json:"account_info,omitempty"`
+	InfoLines    *[]string            `json:"info_lines,omitempty"`
+	AutoFlags    *bool                `json:"auto_flags,omitempty"`
+	RemarkPrefix string               `json:"remark_prefix,omitempty"`
+	Page         *ProfilePage         `json:"page,omitempty"`
 }
 type SubscriptionProfile struct {
 	ID            int64              `json:"id"`

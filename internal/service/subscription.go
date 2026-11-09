@@ -262,6 +262,9 @@ func ApplySubscriptionProfile(ss *SubscriptionSettings, p *store.SubscriptionPro
 		return
 	}
 	v := p.Settings
+	if v.AccountInfo != nil {
+		ss.AccountInfo = *v.AccountInfo
+	}
 	if v.AutoFlags != nil {
 		ss.AutoFlags = *v.AutoFlags
 	}

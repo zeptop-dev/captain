@@ -266,6 +266,9 @@ func Register(mux *http.ServeMux, d Deps) {
 			if err == nil {
 				body, err = rd.RenderWith(lines, acct, template)
 			}
+			if err == nil && device == nil && req.Response != "hwid-denied" {
+				body, err = d.Service.WithAccountInfo(r.Context(), u, time.Now(), rd.Name(), body, subs.AccountInfo)
+			}
 		}
 		if errors.Is(err, subscription.ErrIPVersionTemplateConflict) {
 			http.Error(w, "subscription template disables IPv6 required by a node; contact the administrator", http.StatusUnprocessableEntity)

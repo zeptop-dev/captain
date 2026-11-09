@@ -5,10 +5,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError } from '../lib/api'
+import { AccountInfoFields } from './settings/AccountInfoCard'
+import type { AccountInfoSettings } from '../lib/api'
 import { toast } from '../lib/notify'
 import type { SubLibrary } from './SubTemplateLibrary'
 
-type Settings = { title?: string; headers?: Record<string, string>; auto_flags?: boolean; info_lines?: string[]; remark_prefix?: string; hwid?: { enabled?: boolean; require?: boolean; device_limit?: number; announce?: string }; page?: { enabled: boolean; title?: string; description?: string; accent?: string } }
+type Settings = { account_info?: AccountInfoSettings; title?: string; headers?: Record<string, string>; auto_flags?: boolean; info_lines?: string[]; remark_prefix?: string; hwid?: { enabled?: boolean; require?: boolean; device_limit?: number; announce?: string }; page?: { enabled: boolean; title?: string; description?: string; accent?: string } }
 type Profile = { id: number; name: string; default: boolean; settings: Settings; templates: Record<string, number>; assigned_users?: number }
 export function SubscriptionProfiles() {
  const { t } = useTranslation()
@@ -47,6 +49,8 @@ export function SubscriptionProfiles() {
      <Select label={t('subProfiles.flags')} allowDeselect={false} value={draft.settings.auto_flags?.toString() ?? ''} data={boolOptions} onChange={v => set({ auto_flags: boolean(v) })} />
      <TextInput label={t('subProfiles.prefix')} value={draft.settings.remark_prefix ?? ''} maxLength={200} onChange={e => set({ remark_prefix: e.currentTarget.value })} />
     </SimpleGrid>
+    <Checkbox label={t('accountInfo.override')} checked={draft.settings.account_info !== undefined} onChange={e => set({ account_info: e.currentTarget.checked ? { traffic: false, reset: false, expiry: false } : undefined })} />
+    {draft.settings.account_info !== undefined && <AccountInfoFields value={draft.settings.account_info} onChange={v => set({ account_info: v })} />}
     <Checkbox label={t('subProfiles.overrideInfo')} checked={draft.settings.info_lines !== undefined} onChange={e => set({ info_lines: e.currentTarget.checked ? [] : undefined })} />
     {draft.settings.info_lines !== undefined && <Textarea label={t('subProfiles.infoLines')} description={t('subProfiles.infoHint')} autosize minRows={2} value={draft.settings.info_lines.join('\n')} onChange={e => set({ info_lines: e.currentTarget.value ? e.currentTarget.value.split('\n') : [] })} />}
     <Text fw={600}>HWID</Text>

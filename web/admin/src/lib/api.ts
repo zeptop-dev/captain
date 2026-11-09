@@ -106,7 +106,8 @@ export interface MailSettings {
   verify_registration: boolean; reminders: boolean; traffic_thresholds?: number[]
   language?: string
 }
-export interface SubscriptionSettings { urls: string[]; short_links?: boolean; auto_flags?: boolean; single_plan?: boolean; info_lines?: string[]; hwid?: { enabled: boolean; require: boolean; fallback_limit: number; announce: string } }
+export interface AccountInfoSettings { traffic: boolean; reset: boolean; expiry: boolean }
+export interface SubscriptionSettings { account_info?: AccountInfoSettings; urls: string[]; short_links?: boolean; auto_flags?: boolean; single_plan?: boolean; info_lines?: string[]; hwid?: { enabled: boolean; require: boolean; fallback_limit: number; announce: string } }
 export interface ACMESettings { email: string; has_cloudflare_token: boolean }
 export interface Inbound {
   ID: number; NodeID: number; Tag: string; Protocol: string; Listen: string; Port: number; Core: string

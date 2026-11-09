@@ -249,6 +249,14 @@ func (h *handlers) previewSubscriptionProfile(w http.ResponseWriter, r *http.Req
 		return
 	}
 	rendered, err := rd.RenderWith(lines, acct, body)
+	if err == nil {
+		var settings service.SubscriptionSettings
+		err = h.Store.GetSetting(r.Context(), service.SettingSubscription, &settings)
+		service.ApplySubscriptionProfile(&settings, &in.Profile)
+		if err == nil {
+			rendered, err = svc.WithAccountInfo(r.Context(), u, time.Now(), rd.Name(), rendered, settings.AccountInfo)
+		}
+	}
 	if errors.Is(err, subscription.ErrIPVersionTemplateConflict) {
 		fail(w, 422, "subscription template disables IPv6 required by a node")
 		return
