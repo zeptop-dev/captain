@@ -533,7 +533,7 @@
     "subtitle": "価格、期間、データ量、ユーザーグループ。",
     "create": "プランを追加",
     "name": "名前",
-    "price": "価格（セント）",
+    "price": "価格（元・CNY）",
     "period": "期間（日）",
     "periodHint": "0 は無期限",
     "resetDays": "データ量リセット（日）",
@@ -551,7 +551,12 @@
     "resetMonthly": "毎月 1 日",
     "resetYearly": "毎年 1 月 1 日",
     "prices": "追加の期間",
-    "pricesHint": "1 行に 1 つ：日数:価格（セント）。例：90:2700 は 3 か月 27 元。上の価格が既定の期間です。"
+    "pricesHint": "追加の購入期間と元（CNY）単位の価格を設定します。上の価格は既定の期間に適用されます。",
+    "addPeriod": "期間を追加",
+    "removePeriod": "期間 {{index}} を削除",
+    "invalidPrice": "小数点以下2桁までの有効な金額を入力してください。",
+    "invalidPeriod": "0より大きい整数の日数を入力してください。",
+    "duplicatePeriod": "既定の期間や他の期間と重複しない日数を入力してください。"
   },
   "orders": {
     "title": "注文",

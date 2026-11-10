@@ -533,7 +533,7 @@
     "subtitle": "价格、周期、流量和用户组。",
     "create": "添加套餐",
     "name": "名称",
-    "price": "价格（分）",
+    "price": "价格（元）",
     "period": "周期（天）",
     "periodHint": "0 表示永不过期",
     "resetDays": "流量重置（天）",
@@ -551,7 +551,12 @@
     "resetMonthly": "每月 1 号",
     "resetYearly": "每年 1 月 1 日",
     "prices": "更多周期",
-    "pricesHint": "每行一个：天数:价格（分），例如 90:2700 表示季付 27 元。上面的价格是默认周期。"
+    "pricesHint": "添加其他购买周期，价格单位为元。上方价格对应默认周期。",
+    "addPeriod": "添加周期",
+    "removePeriod": "删除第 {{index}} 个周期",
+    "invalidPrice": "请填写有效金额，最多两位小数。",
+    "invalidPeriod": "请填写大于 0 的整数天数。",
+    "duplicatePeriod": "周期不能与默认周期或其他周期重复。"
   },
   "orders": {
     "title": "订单",

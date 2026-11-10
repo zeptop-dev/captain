@@ -1,4 +1,4 @@
-import { ActionIcon, Badge, Button, Card, Group, Modal, NumberInput, Select, Stack, Switch, Table, Text, TextInput, Textarea } from '@mantine/core'
+import { ActionIcon, Badge, Button, Card, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Switch, Table, Text, TextInput } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -11,12 +11,10 @@ import { toast } from '../lib/notify'
 import { PlanNodeAccess } from '../components/NodeAccess'
 import { SettingsDraftBoundary } from '../lib/settings-draft'
 import { PageHeader } from '../components/PageHeader'
+import { centsToYuan, periodDays, periodPricesPayload, yuanToCents, type PeriodPriceDraft, type PriceInput } from '../lib/plan-prices'
 
-type Values = { Name: string; PriceCents: number; PeriodDays: number; ResetDays: number; ResetMode: string; Prices: string; QuotaGiB: number; DeviceLimit: number; SpeedLimitMbps: number; GroupID: string; Enabled: boolean }
-const empty: Values = { Name: '', PriceCents: 1000, PeriodDays: 30, ResetDays: 0, ResetMode: '', Prices: '', QuotaGiB: 100, DeviceLimit: 0, SpeedLimitMbps: 0, GroupID: '', Enabled: true }
-// Extra periods are typed as "days:cents" lines, e.g. "90:2700".
-const parsePrices = (s: string) => s.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => { const [d, c] = l.split(':'); return { period_days: Number(d), price_cents: Number(c) } }).filter((p) => p.period_days > 0 && p.price_cents >= 0)
-const formatPrices = (p: { period_days: number; price_cents: number }[] | null) => (p ?? []).map((x) => `${x.period_days}:${x.price_cents}`).join('\n')
+type Values = { Name: string; PriceYuan: PriceInput; PeriodDays: number; ResetDays: number; ResetMode: string; Prices: PeriodPriceDraft[]; QuotaGiB: number; DeviceLimit: number; SpeedLimitMbps: number; GroupID: string; Enabled: boolean }
+const empty: Values = { Name: '', PriceYuan: '10.00', PeriodDays: 30, ResetDays: 0, ResetMode: '', Prices: [], QuotaGiB: 100, DeviceLimit: 0, SpeedLimitMbps: 0, GroupID: '', Enabled: true }
 
 export default function PlansPage() {
   const { t } = useTranslation()
@@ -24,11 +22,23 @@ export default function PlansPage() {
   const q = useQuery({ queryKey: ['plans'], queryFn: () => api.get<Plan[]>('/api/admin/plans') })
   const groups = useQuery({ queryKey: ['groups'], queryFn: () => api.get<UGroup[]>('/api/admin/groups') })
   const [editing, setEditing] = useState<Plan | 'new' | null>(null)
-  const form = useForm<Values>({ initialValues: empty })
-  const payload = (v: Values) => ({ Name: v.Name, PriceCents: v.PriceCents, PeriodDays: v.PeriodDays, ResetDays: v.ResetMode === 'days' ? v.ResetDays : 0, ResetMode: v.ResetMode, Prices: parsePrices(v.Prices), QuotaBytes: Math.round(v.QuotaGiB * 2 ** 30), DeviceLimit: v.DeviceLimit, SpeedLimitMbps: v.SpeedLimitMbps, GroupID: v.GroupID ? Number(v.GroupID) : null, Enabled: v.Enabled })
+  const form = useForm<Values>({ initialValues: empty, validate: values => {
+    const errors: Record<string, string> = {}
+    if (yuanToCents(values.PriceYuan) === null) errors.PriceYuan = t('plans.invalidPrice')
+    const seen = new Set([Number(values.PeriodDays)])
+    values.Prices.forEach((price, index) => {
+      const days = periodDays(price.days)
+      if (days === null) errors[`Prices.${index}.days`] = t('plans.invalidPeriod')
+      else if (seen.has(days)) errors[`Prices.${index}.days`] = t('plans.duplicatePeriod')
+      else seen.add(days)
+      if (yuanToCents(price.yuan) === null) errors[`Prices.${index}.yuan`] = t('plans.invalidPrice')
+    })
+    return errors
+  } })
+  const payload = (v: Values) => ({ Name: v.Name, PriceCents: yuanToCents(v.PriceYuan)!, PeriodDays: v.PeriodDays, ResetDays: v.ResetMode === 'days' ? v.ResetDays : 0, ResetMode: v.ResetMode, Prices: periodPricesPayload(v.Prices), QuotaBytes: Math.round(v.QuotaGiB * 2 ** 30), DeviceLimit: v.DeviceLimit, SpeedLimitMbps: v.SpeedLimitMbps, GroupID: v.GroupID ? Number(v.GroupID) : null, Enabled: v.Enabled })
   const save = useMutation({ mutationFn: (v: Values) => editing === 'new' ? api.post('/api/admin/plans', payload(v)) : api.patch(`/api/admin/plans/${(editing as Plan).ID}`, payload(v)), onSuccess: () => { toast.ok(t('common.saved')); setEditing(null); qc.invalidateQueries({ queryKey: ['plans'] }); qc.invalidateQueries({ queryKey: ['node-access'] }) }, onError: toast.err })
   const del = useMutation({ mutationFn: (id: number) => api.del(`/api/admin/plans/${id}`), onSuccess: () => { toast.ok(t('common.deleted')); qc.invalidateQueries({ queryKey: ['plans'] }); qc.invalidateQueries({ queryKey: ['node-access'] }) }, onError: toast.err })
-  const openEdit = (p: Plan | 'new') => { form.setValues(p === 'new' ? empty : { Name: p.Name, PriceCents: p.PriceCents, PeriodDays: p.PeriodDays, ResetDays: p.ResetDays ?? 0, ResetMode: p.ResetMode || (p.ResetDays ? 'days' : ''), Prices: formatPrices(p.Prices), QuotaGiB: p.QuotaBytes / 2 ** 30, DeviceLimit: p.DeviceLimit, SpeedLimitMbps: p.SpeedLimitMbps, GroupID: p.GroupID ? String(p.GroupID) : '', Enabled: p.Enabled }); setEditing(p) }
+  const openEdit = (p: Plan | 'new') => { form.clearErrors(); form.setValues(p === 'new' ? empty : { Name: p.Name, PriceYuan: centsToYuan(p.PriceCents), PeriodDays: p.PeriodDays, ResetDays: p.ResetDays ?? 0, ResetMode: p.ResetMode || (p.ResetDays ? 'days' : ''), Prices: (p.Prices ?? []).map(price => ({ days: price.period_days, yuan: centsToYuan(price.price_cents) })), QuotaGiB: p.QuotaBytes / 2 ** 30, DeviceLimit: p.DeviceLimit, SpeedLimitMbps: p.SpeedLimitMbps, GroupID: p.GroupID ? String(p.GroupID) : '', Enabled: p.Enabled }); setEditing(p) }
   return (
     <>
       <PageHeader title={t('plans.title')} subtitle={t('plans.subtitle')} actions={<Button leftSection={<IconPlus size={16} />} onClick={() => openEdit('new')}>{t('plans.create')}</Button>} />
@@ -52,12 +62,23 @@ export default function PlansPage() {
       <Modal opened={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? t('plans.create') : t('common.edit')} size="lg">
         <form onSubmit={form.onSubmit((v) => save.mutate(v))}><Stack>
           <TextInput label={t('plans.name')} required {...form.getInputProps('Name')} />
-          <Group grow><NumberInput label={t('plans.price')} min={0} {...form.getInputProps('PriceCents')} /><NumberInput label={t('plans.period')} description={t('plans.periodHint')} min={0} {...form.getInputProps('PeriodDays')} /></Group>
+          <Group grow align="flex-start"><NumberInput label={t('plans.price')} min={0} decimalScale={2} fixedDecimalScale allowNegative={false} clampBehavior="none" {...form.getInputProps('PriceYuan')} /><NumberInput label={t('plans.period')} description={t('plans.periodHint')} min={0} {...form.getInputProps('PeriodDays')} /></Group>
           <Group grow align="flex-start">
             <Select label={t('plans.resetMode')} data={[{ value: '', label: t('plans.resetNever') }, { value: 'days', label: t('plans.resetDaysMode') }, { value: 'monthly', label: t('plans.resetMonthly') }, { value: 'yearly', label: t('plans.resetYearly') }]} allowDeselect={false} {...form.getInputProps('ResetMode')} />
             {form.values.ResetMode === 'days' && <NumberInput label={t('plans.resetDays')} description={t('plans.resetHint')} min={1} {...form.getInputProps('ResetDays')} />}
           </Group>
-          <Textarea label={t('plans.prices')} description={t('plans.pricesHint')} placeholder={'90:2700\n365:9900'} autosize minRows={2} {...form.getInputProps('Prices')} />
+          <Stack gap="xs">
+            <Text size="sm" fw={500}>{t('plans.prices')}</Text>
+            <Text size="xs" c="dimmed">{t('plans.pricesHint')}</Text>
+            {form.values.Prices.map((_, index) => <Group key={index} align="flex-start" wrap="nowrap" gap="xs">
+              <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="xs" style={{ flex: 1, minWidth: 0 }}>
+                <NumberInput label={t('plans.period')} min={1} allowDecimal={false} allowNegative={false} clampBehavior="none" {...form.getInputProps(`Prices.${index}.days`)} />
+                <NumberInput label={t('plans.price')} min={0} decimalScale={2} fixedDecimalScale allowNegative={false} clampBehavior="none" {...form.getInputProps(`Prices.${index}.yuan`)} />
+              </SimpleGrid>
+              <ActionIcon mt={26} variant="subtle" color="red" aria-label={t('plans.removePeriod', { index: index + 1 })} onClick={() => form.removeListItem('Prices', index)}><IconTrash size={16} /></ActionIcon>
+            </Group>)}
+            <Button variant="light" size="xs" leftSection={<IconPlus size={14} />} style={{ alignSelf: 'flex-start' }} onClick={() => form.insertListItem('Prices', { days: '', yuan: '' })}>{t('plans.addPeriod')}</Button>
+          </Stack>
           <Group grow><NumberInput label={t('plans.quota')} description={t('plans.quotaHint')} min={0} decimalScale={2} {...form.getInputProps('QuotaGiB')} /><NumberInput label={t('plans.deviceLimit')} description={t('plans.deviceHint')} min={0} {...form.getInputProps('DeviceLimit')} /><NumberInput label={t('plans.speedLimit')} min={0} {...form.getInputProps('SpeedLimitMbps')} /></Group>
           <Select label={t('plans.group')} data={[{ value: '', label: t('common.none') }, ...(groups.data ?? []).map((g) => ({ value: String(g.ID), label: g.Name }))]} allowDeselect={false} {...form.getInputProps('GroupID')} />
           {editing !== null && <SettingsDraftBoundary><PlanNodeAccess key={form.values.GroupID} groupID={Number(form.values.GroupID)} /></SettingsDraftBoundary>}

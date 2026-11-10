@@ -533,7 +533,7 @@
     "subtitle": "Price, period, quota and group.",
     "create": "Add plan",
     "name": "Name",
-    "price": "Price (cents)",
+    "price": "Price (CNY)",
     "period": "Period (days)",
     "periodHint": "0 = never expires",
     "resetDays": "Quota reset (days)",
@@ -551,7 +551,12 @@
     "resetMonthly": "1st of each month",
     "resetYearly": "January 1st",
     "prices": "More periods",
-    "pricesHint": "One per line: days:cents, e.g. 90:2700 for a quarter at ¥27. The price above is the default period."
+    "pricesHint": "Add other purchase periods with prices in yuan (CNY). The price above applies to the default period.",
+    "addPeriod": "Add period",
+    "removePeriod": "Remove period {{index}}",
+    "invalidPrice": "Enter a valid amount with up to two decimal places.",
+    "invalidPeriod": "Enter a whole number of days greater than 0.",
+    "duplicatePeriod": "The period must differ from the default and other periods."
   },
   "orders": {
     "title": "Orders",

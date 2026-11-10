@@ -533,7 +533,7 @@
     "subtitle": "價格、週期、流量和使用者群組。",
     "create": "新增方案",
     "name": "名稱",
-    "price": "價格（分）",
+    "price": "價格（元）",
     "period": "週期（天）",
     "periodHint": "0 表示永不過期",
     "resetDays": "流量重設（天）",
@@ -551,7 +551,12 @@
     "resetMonthly": "每月 1 號",
     "resetYearly": "每年 1 月 1 日",
     "prices": "更多週期",
-    "pricesHint": "每行一個：天數:價格（分），例如 90:2700 表示季付 27 元。上面的價格是預設週期。"
+    "pricesHint": "新增其他購買週期，價格單位為元。上方價格對應預設週期。",
+    "addPeriod": "新增週期",
+    "removePeriod": "刪除第 {{index}} 個週期",
+    "invalidPrice": "請填寫有效金額，最多兩位小數。",
+    "invalidPeriod": "請填寫大於 0 的整數天數。",
+    "duplicatePeriod": "週期不能與預設週期或其他週期重複。"
   },
   "orders": {
     "title": "訂單",

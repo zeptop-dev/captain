@@ -533,7 +533,7 @@
     "subtitle": "가격, 기간, 데이터, 사용자 그룹.",
     "create": "요금제 추가",
     "name": "이름",
-    "price": "가격(센트)",
+    "price": "가격 (위안·CNY)",
     "period": "기간(일)",
     "periodHint": "0은 무기한",
     "resetDays": "데이터 초기화(일)",
@@ -551,7 +551,12 @@
     "resetMonthly": "매월 1일",
     "resetYearly": "매년 1월 1일",
     "prices": "추가 기간",
-    "pricesHint": "한 줄에 하나: 일수:가격(센트). 예: 90:2700은 분기 결제 27. 위의 가격이 기본 기간입니다."
+    "pricesHint": "추가 구매 기간과 위안(CNY) 단위 가격을 설정합니다. 위 가격은 기본 기간에 적용됩니다.",
+    "addPeriod": "기간 추가",
+    "removePeriod": "기간 {{index}} 삭제",
+    "invalidPrice": "소수점 이하 두 자리까지 유효한 금액을 입력하세요.",
+    "invalidPeriod": "0보다 큰 정수 일수를 입력하세요.",
+    "duplicatePeriod": "기본 기간이나 다른 기간과 중복될 수 없습니다."
   },
   "orders": {
     "title": "주문",
