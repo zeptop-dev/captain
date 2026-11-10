@@ -25,7 +25,7 @@ export function EntryLocationEditor({ entry, onClose }: { entry: Entry; onClose:
   }
   return <Modal opened onClose={close} title={`${t('mapLocation.title')} · ${entry.Name}`} size="lg" closeOnClickOutside={false} closeOnEscape={!save.isPending} withCloseButton={!save.isPending}>
     <form onSubmit={event => { event.preventDefault(); if (!save.isPending && !locationDraftError(form.values.location)) save.mutate() }}><Stack>
-      <LocationFields value={form.values.location} onChange={value => form.setFieldValue('location', value)} effective={entry.Location} inherited disabled={save.isPending} />
+      <LocationFields value={form.values.location} onChange={value => form.setFieldValue('location', value)} effective={entry.Location} effectiveMode={entry.LocationSettings?.mode ?? 'auto'} inherited disabled={save.isPending} />
       <Group justify="flex-end"><Button variant="default" disabled={save.isPending} onClick={close}>{t('common.cancel')}</Button><Button type="submit" loading={save.isPending} disabled={!!locationDraftError(form.values.location)}>{t('common.save')}</Button></Group>
     </Stack></form>
   </Modal>

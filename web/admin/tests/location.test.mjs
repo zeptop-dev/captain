@@ -59,3 +59,29 @@ test('saving an older server preserves an explicit map opt-out without changing 
   assert.equal(nodeLocationDraft({ mode: 'auto' }, 'off').mode, 'auto')
   assert.equal(nodeLocationDraft({ mode: 'off' }, 'auto').mode, 'off')
 })
+
+const { cityLocationDraft, automaticLocation, locationsDiffer } = await import('../src/lib/location.ts')
+const { locationCities } = await import('../src/lib/location-cities.ts')
+test('city reference points generate complete manual drafts without network evidence', () => {
+  assert.equal(new Set(locationCities.map(city => city.id)).size, locationCities.length)
+  for (const city of locationCities) {
+    const result = cityLocationDraft(city)
+    assert.equal(result.mode, 'manual')
+    assert.equal(result.subdivision, '')
+    assert.equal(locationDraftError(result), null)
+    assert.equal(locationSettings(result).manual.precision, 'city')
+  }
+  const london = locationCities.find(city => city.city === 'London')
+  assert.equal(london.country, 'GB')
+  assert.equal(cityLocationDraft(london).country, 'GB')
+})
+test('automatic evidence remains separate from a manual correction and missing data', () => {
+  assert.equal(automaticLocation(), null)
+  const auto = automaticLocation({ country: 'US' })
+  assert.deepEqual(auto, { country: 'US', precision: 'country' })
+  assert.equal(locationsDiffer(auto, { country: 'GB', city: 'London', precision: 'city' }), true)
+  assert.equal(locationsDiffer(null, { country: 'GB', precision: 'country' }), false)
+  assert.equal(locationsDiffer({ country: 'GB', precision: 'country' }, { country: 'GB', city: 'London', precision: 'city' }), false)
+  assert.equal(locationsDiffer({ country: 'GB', city: 'London', precision: 'city' }, { country: 'GB', city: 'Manchester', precision: 'city' }), true)
+  assert.equal(auto.country, 'US')
+})

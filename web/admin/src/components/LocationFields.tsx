@@ -1,15 +1,20 @@
 import { Autocomplete, Alert, Button, Collapse, Group, NumberInput, Select, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { type GeoLocation, type LocationDraft, locationDraftError, locationName } from '../lib/location'
+import { type GeoLocation, type LocationDraft, locationDraftError, cityLocationDraft } from '../lib/location'
+import { LocationComparison } from './LocationComparison'
+import { locationCities } from '../lib/location-cities'
 import { REGIONS } from '../lib/regions'
 
-export function LocationFields({ value, onChange, effective, countries, inherited = false, disabled = false }: {
+export function LocationFields({ value, onChange, effective, countries, inherited = false, disabled = false, automatic, automaticStale, effectiveMode, onCity }: {
   value: LocationDraft; onChange: (value: LocationDraft) => void; effective?: GeoLocation | null
   countries?: string[]; inherited?: boolean; disabled?: boolean
+  automatic?: GeoLocation | null; automaticStale?: boolean; effectiveMode?: LocationDraft['mode']; onCity?: (city: LocationDraft) => void
 }) {
   const { t, i18n } = useTranslation()
   const [coordinatesOpen, setCoordinatesOpen] = useState<boolean | null>(null)
+  const [cityQuery, setCityQuery] = useState('')
+  const cityOptions = locationCities.map(city => ({ value: city.id, label: `${city.city} · ${city.country} · ${city.zh}` }))
   const error = locationDraftError(value)
   const needsCoordinates = !!value.city.trim() || value.lat !== '' || value.lng !== ''
   const expanded = coordinatesOpen ?? needsCoordinates
@@ -23,7 +28,12 @@ export function LocationFields({ value, onChange, effective, countries, inherite
       { value: 'auto', label: inherited ? t('mapLocation.inherit') : t('mapLocation.auto') },
       { value: 'manual', label: t('mapLocation.manual') }, { value: 'off', label: t('mapLocation.off') },
     ]} />
-    <Text size="sm" c="dimmed">{t('mapLocation.savedPosition')}: {effective ? `${locationName(effective)} · ${effective.precision === 'city' ? t('mapLocation.cityPrecision') : t('mapLocation.countryPrecision')}` : t('mapLocation.unknown')}</Text>
+    <LocationComparison automatic={automatic} effective={effective} mode={effectiveMode ?? value.mode} stale={automaticStale} inherited={inherited} />
+    <Select label={t('locationCorrection.city')} description={t(inherited ? 'locationCorrection.entryHint' : 'locationCorrection.cityHint')} searchable clearable searchValue={cityQuery} onSearchChange={setCityQuery} value={null} data={cityOptions} disabled={disabled} placeholder={t('locationCorrection.search')} onChange={id => {
+      const city = locationCities.find(item => item.id === id)
+      if (city) { const draft = cityLocationDraft(city); if (onCity) onCity(draft); else onChange(draft); setCoordinatesOpen(true); setCityQuery('') }
+    }} />
+    <Text size="xs" c="dimmed">{t('locationCorrection.cityReference')}</Text>
     {value.mode === 'manual' && <>
       <SimpleGrid cols={{ base: 1, sm: 3 }}>
         {countries ? <Select label={t('mapLocation.country')} required searchable allowDeselect={false} value={value.country || null} disabled={disabled} onChange={country => change('country', country || '')} data={codes.map(code => ({ value: code, label: `${code} · ${names.of(code) ?? code}` }))} /> : <Autocomplete label={t('mapLocation.country')} required maxLength={2} value={value.country} disabled={disabled} onChange={country => change('country', country.toUpperCase())} data={codes} description={/^[A-Z]{2}$/.test(value.country) ? names.of(value.country) : undefined} />}

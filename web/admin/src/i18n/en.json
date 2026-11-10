@@ -4554,5 +4554,17 @@
       "notice": "Ticket / withdrawal notification",
       "test": "Connection test"
     }
+  },
+  "locationCorrection": {
+    "automatic": "Automatic detection (Country.is)",
+    "effective": "Currently used map position",
+    "manual": "Manual correction",
+    "cached": "Cached / not currently confirmed",
+    "difference": "The manual location differs from IP detection. The correction takes priority; the detection result is retained for comparison.",
+    "city": "Choose a city to correct the location",
+    "search": "Search city / country / Chinese name",
+    "cityHint": "Selecting a city fills the manual map position and server region code together. Save to apply. Other addresses and DNS are unchanged.",
+    "entryHint": "Selecting a city fills this node’s manual map position. Save to apply; the server location is unchanged.",
+    "cityReference": "City reference points from GeoNames (CC BY 4.0), for display only. These are not datacenter coordinates. Cities outside the list can be entered manually."
   }
 }

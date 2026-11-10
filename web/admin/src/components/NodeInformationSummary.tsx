@@ -2,8 +2,9 @@ import { Anchor, Divider, Group, Progress, SimpleGrid, Stack, Text, Title } from
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { bytes } from '../lib/format'
+import { LocationComparison } from './LocationComparison'
 import { NodeLocationIPEvidence } from './NodeLocationIPFields'
-import { locationName, nodeLocationDraft } from '../lib/location'
+import { automaticLocation, nodeLocationDraft } from '../lib/location'
 import { supplierURL } from '../lib/node-infrastructure'
 import type { NodeProbe } from '../lib/node-probe'
 import { renewalAnchorDay } from '../lib/node-renewal'
@@ -90,8 +91,9 @@ export function NodeInformationSummary({ data, host }: { data: NodeProbe; host?:
     <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
       <Fact label={t('nodeProbe.region')}>{p.region_mode === 'off' ? t('nodeRegion.off') : p.region_mode === 'auto' ? t('nodeRegion.auto', { country: region }) : region}</Fact>
       <Fact label={t('mapLocation.mode')}>{t(`mapLocation.${mode}`)}</Fact>
-      <Fact label={t('mapLocation.savedPosition')}>{locationName(info.location) || t('mapLocation.unknown')}</Fact>
+
       {info.location?.lat != null && info.location.lng != null && <Fact label={t('mapLocation.coordinates')}>{info.location.lat}, {info.location.lng}</Fact>}
     </SimpleGrid>
+    <LocationComparison automatic={automaticLocation(p.region_detection)} effective={info.location} mode={mode} stale={!p.region_detection.fresh || p.region_detection.stale} />
   </Stack>
 }

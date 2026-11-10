@@ -1,6 +1,6 @@
 import { latestResourceHost } from '../lib/resource-host'
 import { LocationFields } from './LocationFields'
-import { locationDraft, nodeLocationDraft, locationDraftError, locationSettings } from '../lib/location'
+import { automaticLocation, locationDraft, nodeLocationDraft, locationDraftError, locationSettings } from '../lib/location'
 import { NodeStorageFields } from './NodeStorageFields'
 import { storageDraft } from '../lib/probe-storage'
 import { NodeBandwidthFields, emptyBandwidth } from './NodeBandwidthFields'
@@ -159,7 +159,7 @@ export function NodeInformationCard({ nodeID, reportedHost }: { nodeID: number; 
         <Title order={5}>{t('nodeInformation.location')}</Title>
         <NodeLocationIPFields value={form.values.LocationIP} onChange={v => form.setFieldValue('LocationIP', v)} detection={p?.region_detection} disabled={editingDisabled} unsaved={locationIPUnsaved} />
         <NodeRegionSelect value={form.values.region || 'off'} onChange={v => form.setFieldValue('region', v)} countries={q.data?.region_countries ?? []} detection={p?.region_detection} detect={() => detect.mutate()} pending={detect.isPending} disabled={editingDisabled} detectionDisabled={locationIPUnsaved} />
-        <LocationFields value={form.values.Location} onChange={v => form.setFieldValue('Location', v)} effective={p?.info.location} countries={q.data?.region_countries} disabled={!p || q.isError || save.isPending} />
+        <LocationFields value={form.values.Location} onChange={v => form.setFieldValue('Location', v)} onCity={v => form.setValues({ Location: v, region: v.country })} automatic={automaticLocation(p?.region_detection)} automaticStale={!p?.region_detection.fresh || p?.region_detection.stale} effectiveMode={nodeLocationDraft(p?.info.location_settings, p?.region_mode ?? 'auto').mode} effective={p?.info.location} countries={q.data?.region_countries} disabled={!p || q.isError || save.isPending} />
         {form.values.Location.mode === 'auto' && <Stack gap={4}>{p?.region_detection.last_success_at ? <Text size="xs" c="dimmed">{t('mapLocation.lastSuccess', { time: new Date(p.region_detection.last_success_at * 1000).toLocaleString() })}</Text> : null}{p?.region_detection.stale && <Text size="xs" c="orange">{t('mapLocation.stale')}</Text>}</Stack>}
         <Divider my="xs" />
         <Title order={5}>{t('nodeInformation.billing')}</Title>

@@ -58,3 +58,17 @@ export function locationSettings(draft: LocationDraft): LocationSettings {
 export function locationName(location?: GeoLocation | null): string {
   return location ? [location.city, location.subdivision, location.country].filter(Boolean).join(' · ') : ''
 }
+
+// A preset is an explicit display correction, never new IP/provider evidence.
+export function cityLocationDraft(city: { country: string; city: string; lat: number; lng: number }): LocationDraft {
+  return { mode: 'manual', country: city.country, subdivision: '', city: city.city, lat: city.lat, lng: city.lng }
+}
+
+export function automaticLocation(detection?: { country?: string; location?: GeoLocation | null }): GeoLocation | null {
+  return detection?.location ?? (/^[A-Z]{2}$/.test(detection?.country ?? '') ? { country: detection!.country!, precision: 'country' } : null)
+}
+
+export function locationsDiffer(automatic?: GeoLocation | null, effective?: GeoLocation | null): boolean {
+  if (!automatic || !effective) return false
+  return automatic.country !== effective.country || !!(automatic.city && effective.city && automatic.city.trim().toLowerCase() !== effective.city.trim().toLowerCase())
+}
