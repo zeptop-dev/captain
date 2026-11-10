@@ -7,6 +7,16 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.60.0 to preserve ingress address sources, subscription bindings and strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
 
+## Account presentation and mail tools (Captain v1.61.0)
+
+Optional account information adds isolated select/REJECT groups only to supported
+Clash/Mihomo and Stash documents. Existing legacy info lines and other formats are
+preserved. Mail templates use a separate settings document; older mail-setting
+writes cannot remove them. Plan prices retain the cents API, while city shortcuts
+only populate explicit display drafts. No schema, agent protocol, proxy core or
+installed-agent change is required. Schema stays 117, formal bosun stays v0.93.0,
+and the built-in Captain rollback floor stays v1.60.0.
+
 ## NAT address inheritance (Captain v1.60.0, migration 117)
 
 Ingress `entry_address_source` and Entry `FollowIngress` are additive. Existing
@@ -795,6 +805,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
+| 1.61.0 | Formal shared library 0.93.0; no installed-agent upgrade | Subscription account presentation, mail templates/previews, yuan price editor and city corrections; schema 117 and rollback floor v1.60.0 unchanged. |
 | 1.60.0 | Formal shared library 0.93.0; no new installed-agent requirement | Managed entry-domain composition, explicit NAT address inheritance and subscription endpoint binding; migration 117. Captain rollback floor becomes v1.60.0. |
 | 1.59.0 | Formal shared library 0.93.0; no installed-agent upgrade needed for entry IP policy or location settings | Per-entry connection-family policies and independent location IP selection; migrations 115–116. Existing observation capability gates remain, and Captain rollback floor becomes v1.59.0. |
 | 1.58.0 | ≥ 0.92.0 for optional fallback following; older agents remain compatible and observation-only | Per-family opt-in with conflict/continuity evidence and sustained confirmation. Migration 114; existing rollback floors remain unchanged. |

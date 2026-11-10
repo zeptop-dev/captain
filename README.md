@@ -391,3 +391,9 @@ process and start unknown after restart. A successful pass can still have
 backlog, and no full-table COUNT is needed to display this status.
 
 See [subscription node connection IP version](docs/ENTRY_IP_VERSION.md) for per-node IPv4, IPv6 and dual-stack selection in Captain v1.59.0 (shared bosun v0.93.0; no agent upgrade required).
+
+Captain v1.61.0 adds [optional subscription account information](docs/SUBSCRIPTION_ACCOUNT_INFO.md),
+[mail branding, templates and sample previews](docs/MAIL_TEMPLATES.md), and
+[city display corrections](docs/LOCATION_CORRECTIONS.md). Plan prices are edited
+as yuan amounts with structured billing-period rows; the cents API is unchanged.
+These panel-only additions keep bosun v0.93.0 and schema 117.

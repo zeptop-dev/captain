@@ -365,3 +365,7 @@ Captain v1.28 / bosun v0.75 增加 WG 两端依赖检查与管理员确认后的
 Captain 可通过已登记的 OAuth 应用向 New API 提供普通用户登录。使用 New API 自定义 OAuth，Scopes 配置为 `profile email`；详见[接入步骤与边界](docs/CAPTAIN_LOGIN.md)。
 
 订阅节点的 IPv4、IPv6 与双栈选择见[连接 IP 协议说明](docs/ENTRY_IP_VERSION.md)（Captain v1.59.0，使用 bosun v0.93.0 共享库，无需升级已安装的节点 agent）。
+
+Captain v1.61.0 新增[订阅账户信息展示](docs/SUBSCRIPTION_ACCOUNT_INFO.md)、
+[邮件品牌、模板与示例预览](docs/MAIL_TEMPLATES.md)，以及[城市快捷修正与自动定位对照](docs/LOCATION_CORRECTIONS.md)。
+套餐价格以元和结构化账期填写，原分单位 API 保持兼容。以上均为面板侧功能，继续使用 bosun v0.93.0 和 schema 117。

@@ -1,5 +1,10 @@
 # Changelog
 
+- **v1.61.0** (2026-11-10) — Add optional per-plan traffic, reset and expiry information groups for Clash/Mihomo and Stash subscriptions. Keep information out of automatic proxy selection, preserve other formats and headers, and refresh values on subscription download.
+  - Add independently saved mail branding and six-language templates, with draft previews and clearly marked sample messages. Reuse the same renderer for real verification/reset codes, reminders and generic notifications; keep system-generated codes and portal button destinations intact.
+  - Edit plan prices as yuan amounts and structured period rows while preserving the existing cents API. Add 16 common-city display shortcuts, explicit manual-location corrections and side-by-side automatic/effective evidence; keep public addresses, DNS and routing unchanged.
+  - Retain schema 117, the Captain v1.60.0 rollback floor and formal bosun v0.93.0 dependency. No installed-agent or proxy-core upgrade is required.
+
 - **v1.60.0** (2026-11-08) — Compose NAT/IPLC entry domains from registered domains and prefixes, with random suggestions and full-name input. Reuse automatic DNS policy for DNS-only A/AAAA records pointing to the entry, while keeping server and ingress domain ownership separate.
   - Let NAT ingresses explicitly inherit the server's configured IPv4 or IPv6 entry address. Add optional subscription endpoint binding so address, domain and mapped-port changes update following entries atomically with affected lines; preserve existing fixed entries and detach manual overrides.
   - Persist current ingress DNS intent and retry failures without replaying obsolete addresses or changing topology-preview revisions. Protect conflicting DNS ownership and active line releases. Migration 117 retains custom addresses and fixed subscriptions for existing records; old DNS records are not automatically removed when switching domains or address families.
