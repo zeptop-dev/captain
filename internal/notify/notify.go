@@ -49,7 +49,7 @@ func (n *Notifier) User(ctx context.Context, userID int64, email, subject, body 
 	if !sent && n.Mail != nil && email != "" {
 		ms := n.Mail.Settings(ctx)
 		if ms.Enabled() {
-			if err := mail.Send(ctx, ms, mail.Message{To: email, Subject: subject, HTML: mail.Layout(n.SiteName, "<p>"+html(body)+"</p>")}); err != nil && n.Log != nil {
+			if err := mail.Send(ctx, ms, mail.Configured(ms, ms.Language).Notice(n.SiteName, email, subject, body)); err != nil && n.Log != nil {
 				n.Log.Warn("mail notify", "to", email, "err", err)
 			}
 		}

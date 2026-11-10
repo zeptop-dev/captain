@@ -350,7 +350,11 @@ func (h *handlers) putMail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) testMail(w http.ResponseWriter, r *http.Request) {
-	var in struct{ To string }
+	var in struct {
+		To string
+		mailSampleInput
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 128<<10)
 	if !decode(r, &in) || !strings.Contains(in.To, "@") {
 		fail(w, http.StatusBadRequest, "recipient required")
 		return
@@ -362,7 +366,16 @@ func (h *handlers) testMail(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 40*time.Second)
 	defer cancel()
 	ms := h.Mail.Settings(ctx)
-	if err := mail.Send(ctx, ms, mail.For(ms.Language).Test(h.SiteName, in.To)); err != nil {
+	message := mail.Configured(ms, ms.Language).Test(h.SiteName, in.To)
+	if in.Kind != "" {
+		var err error
+		message, err = h.sampleMail(r, in.mailSampleInput, in.To)
+		if err != nil {
+			fail(w, 400, err.Error())
+			return
+		}
+	}
+	if err := mail.Send(ctx, ms, message); err != nil {
 		fail(w, http.StatusBadGateway, err.Error())
 		return
 	}

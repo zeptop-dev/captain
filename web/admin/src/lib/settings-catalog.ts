@@ -24,7 +24,7 @@ export const settingsCatalog: SettingsEntry[] = [
   { id: 'service-status', category: 'monitoring', titleKey: 'settingsLayout.statusTitle', hintKey: 'serviceStatus.hint', keywords: 'service status public maintenance node health 服务状态 维护 节点健康' },
   { id: 'ping-tasks', category: 'monitoring', titleKey: 'probe.tasks', hintKey: 'probe.tasksHint', keywords: 'ping tcp http network 网络 探测' },
   { id: 'heartbeat', category: 'monitoring', titleKey: 'heartbeat.title', hintKey: 'heartbeat.hint', keywords: 'heartbeat uptime watchdog 心跳' },
-  { id: 'mail', category: 'integrations', titleKey: 'mail.title', hintKey: 'mail.hint', keywords: 'SMTP Resend email 邮件' },
+  { id: 'mail', category: 'integrations', titleKey: 'mail.title', hintKey: 'mail.hint', keywords: 'SMTP Resend email template preview brand 邮件 模板 预览 品牌' },
   { id: 'telegram', category: 'integrations', titleKey: 'telegram.title', hintKey: 'telegram.hint', keywords: 'telegram bot 通知 机器人' },
   { id: 'webhooks', category: 'integrations', titleKey: 'webhooks.title', hintKey: 'webhooks.hint', keywords: 'webhook events 通知 事件' },
   { id: 'login-clients', category: 'integrations', titleKey: 'loginClients.title', hintKey: 'loginClients.hint', keywords: 'New API OAuth Captain login 应用 登录' },

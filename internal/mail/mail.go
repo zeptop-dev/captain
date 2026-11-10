@@ -26,6 +26,7 @@ import (
 
 // Settings is the admin-edited mail configuration.
 type Settings struct {
+	Design      Design `json:"-"`        // Loaded separately; legacy SMTP saves cannot overwrite templates.
 	Provider    string `json:"provider"` // "" (off), "smtp", "resend"
 	FromName    string `json:"from_name"`
 	FromAddress string `json:"from_address"`
@@ -91,6 +92,7 @@ func (l *Loader) Settings(ctx context.Context) Settings {
 	}
 	var s Settings
 	_ = l.Store.GetSetting(ctx, SettingKey, &s)
+	_ = l.Store.GetSetting(ctx, DesignKey, &s.Design)
 	l.cached, l.fetched = s, time.Now()
 	return s
 }
@@ -283,10 +285,19 @@ func Layout(site, body string) string {
 // Builder writes the user-facing messages in one language. Take one with
 // For(settings.Language); every message is short by design — a code, a
 // date or a percentage, and at most one button.
-type Builder struct{ t texts }
+type Builder struct {
+	t      texts
+	design Design
+	lang   string
+}
 
 // For returns a Builder in that language (English when unset or unknown).
-func For(lang string) Builder { return Builder{t: textsFor(lang)} }
+func For(lang string) Builder {
+	if !Supported(lang) {
+		lang = "en"
+	}
+	return Builder{t: textsFor(lang), lang: lang}
+}
 
 // Code is the verification / reset code email.
 func (b Builder) Code(site, to, purpose, code string) Message {
@@ -295,28 +306,32 @@ func (b Builder) Code(site, to, purpose, code string) Message {
 		intro, subject = b.t.resetIntro, b.t.resetSubject
 	}
 	body := fmt.Sprintf(`<p>%s</p><p style="font-size:32px;letter-spacing:8px;font-weight:700;margin:16px 0">%s</p>`, intro, html.EscapeString(code))
-	return Message{To: to, Subject: fmt.Sprintf(subject, site, code), HTML: Layout(site, body)}
+	kind := "register"
+	if purpose == "reset" {
+		kind = "reset"
+	}
+	return b.decorate(Message{To: to, Subject: fmt.Sprintf(subject, site, code), HTML: Layout(site, body)}, kind, site, map[string]string{"code": code})
 }
 
 // Expiry reminds about an expiring subscription.
-func (b Builder) Expiry(site, to, portalURL string, expires time.Time) Message {
+func (b Builder) Expiry(site, to, portalURL string, expires time.Time, extra ...map[string]string) Message {
 	body := fmt.Sprintf("<p>%s</p>%s",
 		fmt.Sprintf(b.t.expiryBody, expires.Format("2006-01-02 15:04")),
 		button(portalURL, b.t.expiryButton))
-	return Message{To: to, Subject: fmt.Sprintf(b.t.expirySubject, site, expires.Format("01-02")), HTML: Layout(site, body)}
+	return b.decorate(Message{To: to, Subject: fmt.Sprintf(b.t.expirySubject, site, expires.Format("01-02")), HTML: Layout(site, body)}, "expiry", site, map[string]string{"expires_at": expires.Format("2006-01-02 15:04"), "expires_date": expires.Format("01-02"), "portal_url": portalURL}, extra...)
 }
 
 // Traffic warns that most of the quota is used.
-func (b Builder) Traffic(site, to, portalURL string, usedPct int) Message {
+func (b Builder) Traffic(site, to, portalURL string, usedPct int, extra ...map[string]string) Message {
 	body := fmt.Sprintf("<p>%s</p>%s",
 		fmt.Sprintf(b.t.trafficBody, usedPct),
 		button(portalURL, b.t.trafficButton))
-	return Message{To: to, Subject: fmt.Sprintf(b.t.trafficSubject, site, usedPct), HTML: Layout(site, body)}
+	return b.decorate(Message{To: to, Subject: fmt.Sprintf(b.t.trafficSubject, site, usedPct), HTML: Layout(site, body)}, "traffic", site, map[string]string{"used_percent": fmt.Sprint(usedPct), "portal_url": portalURL}, extra...)
 }
 
 // Test is what the admin's "send test" button mails.
 func (b Builder) Test(site, to string) Message {
-	return Message{To: to, Subject: fmt.Sprintf(b.t.testSubject, site), HTML: Layout(site, "<p>"+b.t.testBody+"</p>")}
+	return b.decorate(Message{To: to, Subject: fmt.Sprintf(b.t.testSubject, site), HTML: Layout(site, "<p>"+b.t.testBody+"</p>")}, "test", site, nil)
 }
 
 // button renders the one call to action a message carries.

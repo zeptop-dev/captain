@@ -4528,5 +4528,31 @@
     "hint": "Clash/Mihomo and Stash: add a separate Subscription info group. Information items only reject connections and are excluded from automatic proxy selection. Each active plan is listed separately; other formats keep the existing subscription information header.",
     "refreshHint": "Updated when the client refreshes its subscription, not in real time. Times use UTC; labels in the client use English. Existing custom information lines remain independent.",
     "override": "Override account information display"
+  },
+  "mailTemplates": {
+    "title": "Mail branding and templates",
+    "hint": "Saved separately from delivery settings. Unedited languages use built-in text.",
+    "name": "Brand name (blank: site name)",
+    "logo": "Logo URL (HTTPS; loaded by the mail client)",
+    "color": "Button color (#RRGGBB)",
+    "footer": "Footer (blank: brand name)",
+    "kind": "Email type",
+    "variables": "Available variables",
+    "subject": "Subject",
+    "body": "Message",
+    "bodyHint": "Plain text only. The system always adds the verification code separately. Blank fields use defaults.",
+    "button": "Button label",
+    "restore": "Restore this template",
+    "previewHint": "Preview and test use the current draft and sample data without saving or changing customer records. Test subjects start with [TEST].",
+    "preview": "Preview sample",
+    "send": "Send sample",
+    "kinds": {
+      "register": "Registration code",
+      "reset": "Password reset",
+      "expiry": "Subscription expiry",
+      "traffic": "Traffic usage",
+      "notice": "Ticket / withdrawal notification",
+      "test": "Connection test"
+    }
   }
 }

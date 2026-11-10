@@ -533,7 +533,7 @@ func (h *handlers) sendCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.codes.Fail(ip) // counts a mail sent to this address, not a failure
-	if err := mail.Send(r.Context(), ms, mail.For(ms.Language).Code(h.SiteName, email, in.Purpose, code)); err != nil {
+	if err := mail.Send(r.Context(), ms, mail.Configured(ms, ms.Language).Code(h.SiteName, email, in.Purpose, code)); err != nil {
 		h.Log.Error("send code", "to", email, "err", err)
 		fail(w, http.StatusBadGateway, "could not send the email; contact the administrator")
 		return

@@ -1,3 +1,4 @@
+import { MailTemplatesCard } from './MailTemplatesCard'
 import { SettingsFields } from './SettingsFields'
 import { SettingsLoadState } from './SettingsLoadState'
 import { Button, Card, Group, NumberInput, PasswordInput, Select, Stack, Switch, Text, TextInput, Title } from '@mantine/core'
@@ -39,7 +40,7 @@ export function MailCard() {
   const v = form.values
   if (q.data === undefined) return <SettingsLoadState query={q} />
   return (
-    <Card>
+    <Stack><Card>
       <Title order={5} mb="xs">{t('mail.title')}</Title>
       <Text size="xs" c="dimmed" mb="sm">{t('mail.hint')}</Text>
       <form onSubmit={form.onSubmit((vals) => save.mutate(vals))}><Stack gap="sm">
@@ -71,6 +72,6 @@ export function MailCard() {
           <Button type="submit" size="sm" loading={save.isPending}>{t('settingsLayout.saveSection', { section: t('mail.title') })}</Button>
         </Group>
       </Stack></form>
-    </Card>
+    </Card><MailTemplatesCard /></Stack>
   )
 }
