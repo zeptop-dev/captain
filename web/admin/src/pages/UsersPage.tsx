@@ -1,4 +1,4 @@
-import { ActionIcon, Badge, Button, Code, Drawer, Group, Modal, NumberInput, PasswordInput, Select, Stack, Text, TextInput, Title, Divider } from '@mantine/core'
+import { ActionIcon, Accordion, Badge, Button, Code, Drawer, Group, Modal, NumberInput, PasswordInput, Select, Stack, Text, TextInput, Title, Divider } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -20,7 +20,6 @@ import { HwidDevices } from '../components/HwidDevices'
 import { WireGuardDevices } from '../components/WireGuardDevices'
 import { UserConnections } from '../components/UserConnections'
 import { UserAudit } from '../components/UserAudit'
-import { UserGroupsPanel } from '../components/UserGroupsPanel'
 import { UserDirectory } from '../components/UserDirectory'
 import { UserSubscriptionProfile } from '../components/UserSubscriptionProfile'
 import { MetadataEditor } from '../components/MetadataEditor'
@@ -36,7 +35,7 @@ export default function UsersPage() {
   const [sel, setSel] = useState<UserRow | null>(null)
   const [creating, setCreating] = useState(false)
   const [wireGuardModalOpen, setWireGuardModalOpen] = useState(false)
-  const [view] = useURLChoice('tab', canManageGroups ? ['list', 'groups', 'renewals'] : ['list'], 'list')
+  const [view] = useURLChoice('tab', canManageGroups ? ['list', 'renewals'] : ['list'], 'list')
   const invalidate = () => qc.invalidateQueries({ queryKey: ['users'] })
 
   const createForm = useForm({
@@ -71,8 +70,8 @@ export default function UsersPage() {
 
   return (
     <>
-      <PageHeader title={t('users.title')} subtitle={t('users.subtitle')} actions={view !== 'groups' && canManageGroups && <Button leftSection={<IconPlus size={16} />} onClick={() => setCreating(true)}>{t('users.create')}</Button>} />
-      {view === 'groups' && canManageGroups ? <UserGroupsPanel /> : view === 'renewals' ? <RenewalsPanel /> : <UserDirectory onOpen={open} canManage={canManageGroups} plans={plans.data ?? []} groups={groups.data ?? []} />}
+      <PageHeader title={t('users.title')} subtitle={t('users.subtitle')} actions={canManageGroups && <Button leftSection={<IconPlus size={16} />} onClick={() => setCreating(true)}>{t('users.create')}</Button>} />
+      {view === 'renewals' ? <RenewalsPanel /> : <UserDirectory onOpen={open} canManage={canManageGroups} plans={plans.data ?? []} groups={groups.data ?? []} />}
 
       <Modal opened={creating} onClose={() => setCreating(false)} title={t('users.create')}>
         <form onSubmit={createForm.onSubmit((v) => create.mutate(v))}><Stack>
@@ -119,7 +118,7 @@ export default function UsersPage() {
               <Title order={6}>{t('common.edit')}</Title>
               <Group grow>
                 <Select label={t('users.status')} data={[{ value: 'active', label: t('users.active') }, { value: 'banned', label: t('users.banned') }]} allowDeselect={false} {...editForm.getInputProps('Status')} />
-                <Select label={t('users.group')} data={[{ value: '', label: t('common.none') }, ...(groups.data ?? []).map((g) => ({ value: String(g.ID), label: g.Name }))]} allowDeselect={false} {...editForm.getInputProps('GroupID')} />
+                <Accordion variant="contained"><Accordion.Item value="legacy-grant"><Accordion.Control>{t('planAccess.extraGrant')}</Accordion.Control><Accordion.Panel><Select label={t('users.group')} data={[{ value: '', label: t('common.none') }, ...(groups.data ?? []).map((g) => ({ value: String(g.ID), label: g.Name }))]} allowDeselect={false} {...editForm.getInputProps('GroupID')} /><Text size="xs" c="dimmed">{t('planAccess.extraHint')}</Text></Accordion.Panel></Accordion.Item></Accordion>
               </Group>
               <PasswordInput label={t('users.newPassword')} {...editForm.getInputProps('Password')} />
               <Group justify="flex-end"><Button type="submit" size="xs" loading={update.isPending}>{t('common.save')}</Button></Group>

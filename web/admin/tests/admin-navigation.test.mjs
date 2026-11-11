@@ -19,7 +19,7 @@ test('workspace visibility preserves existing staff access boundaries', () => {
 
 test('query-selected workspace pages have one active destination, with editor modes sharing one tab', () => {
   for (const [id, path, search, expected] of [
-    ['users', '/users', '?tab=groups&filter=active', '/users?tab=groups'],
+    ['users', '/users', '?tab=groups&filter=active', '/users'],
     ['users', '/users', '?tab=renewals', '/users?tab=renewals'],
     ['users', '/users', '?tab=unknown', '/users'],
     ['entries', '/entries', '?tab=lines&server=2', '/entries?tab=lines'],
@@ -41,7 +41,7 @@ test('switching a workspace selector preserves filters and removes only obsolete
 })
 
 test('reselecting the active editor preserves its URL, format, and fragment exactly', () => {
-  for (const path of ['/sub-templates?mode=text&format=surge#saved', '/sub-templates?mode=design&format=clash', '/users?tab=groups&filter=active#row']) {
+  for (const path of ['/sub-templates?mode=text&format=surge#saved', '/sub-templates?mode=design&format=clash', '/users?filter=active#row']) {
     const loc = current(path)
     const items = group(path.startsWith('/users') ? 'users' : 'subscription').items
     assert.equal(workspaceDestination(activeNavigationItem(items, loc.pathname, loc.search), loc), path)

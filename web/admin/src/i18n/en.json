@@ -4566,5 +4566,20 @@
     "cityHint": "Selecting a city fills the manual map position and server region code together. Save to apply. Other addresses and DNS are unchanged.",
     "entryHint": "Selecting a city fills this node’s manual map position. Save to apply; the server location is unchanged.",
     "cityReference": "City reference points from GeoNames (CC BY 4.0), for display only. These are not datacenter coordinates. Cities outside the list can be entered manually."
+  },
+  "planAccess": {
+    "mode": "Node access",
+    "independent": "Independent permissions",
+    "shared": "Shared access scheme",
+    "legacy": "Keep legacy authorization",
+    "hint": "Saved permissions apply to existing subscribers too. All-users listeners stay included. External nodes retain their existing source-group grant. Account-specific extra grants remain additive.",
+    "scheme": "Access scheme",
+    "newScheme": "Create shared scheme",
+    "schemeName": "Scheme name",
+    "impact": "Affected plans",
+    "confirm": "I confirm the node and plan access changes, including shared listeners and plans.",
+    "reload": "Access catalogue unavailable or changed. Close and reopen after reloading.",
+    "extraGrant": "Advanced: existing account grant",
+    "extraHint": "Existing account grants are preserved and added to plan access. This is not a membership level."
   }
 }

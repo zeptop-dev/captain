@@ -169,7 +169,20 @@ func (s *Store) SetExternalProbe(ctx context.Context, id int64, ms float64, errT
 // ExternalNodesForGroup returns enabled nodes visible to a user group
 // (NULL group = everyone).
 func (s *Store) ExternalNodesForGroup(ctx context.Context, groups []int64) ([]ExternalNode, error) {
-	clause, args := groupClause("group_id", groups)
+	// A detached plan retains only its original external-node grant, never the
+	// original group's managed-inbound rights. External sources keep their own lifecycle.
+	expanded := append([]int64{}, groups...)
+	for _, g := range groups {
+		var external sql.NullInt64
+		err := s.db.QueryRowContext(ctx, `SELECT o.external_group_id FROM plan_access_ownership o JOIN plans p ON p.id=o.plan_id AND p.group_id=o.group_id WHERE o.group_id=?`, g).Scan(&external)
+		if err != nil && err != sql.ErrNoRows {
+			return nil, err
+		}
+		if external.Valid {
+			expanded = append(expanded, external.Int64)
+		}
+	}
+	clause, args := groupClause("group_id", expanded)
 	// A source with hide_dead drops nodes whose last probe failed.
 	rows, err := s.db.QueryContext(ctx, `SELECT n.id, n.source_id, n.name, n.uri, n.group_id, n.rate, n.sort, n.enabled, n.probed_at, n.probe_ms, n.probe_error FROM external_nodes n
 		LEFT JOIN external_sources src ON src.id = n.source_id

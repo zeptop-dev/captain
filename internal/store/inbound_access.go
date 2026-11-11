@@ -33,10 +33,11 @@ type AccessReference struct {
 }
 
 type AccessPlan struct {
-	ID      int64  `json:"id"`
-	Name    string `json:"name"`
-	GroupID *int64 `json:"group_id"`
-	Enabled bool   `json:"enabled"`
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	GroupID     *int64 `json:"group_id"`
+	Enabled     bool   `json:"enabled"`
+	Independent bool   `json:"independent"`
 }
 
 type AccessInbound struct {
@@ -136,14 +137,14 @@ func accessCatalog(ctx context.Context, q accessQuerier) (*InboundAccessCatalog,
 	if err != nil {
 		return nil, err
 	}
-	rows, err = q.QueryContext(ctx, `SELECT id,name,group_id,enabled FROM plans ORDER BY id`)
+	rows, err = q.QueryContext(ctx, `SELECT id,name,group_id,enabled,EXISTS(SELECT 1 FROM plan_access_ownership o WHERE o.plan_id=plans.id AND o.group_id=plans.group_id) FROM plans ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
 		var p AccessPlan
 		var g sql.NullInt64
-		if err = rows.Scan(&p.ID, &p.Name, &g, &p.Enabled); err != nil {
+		if err = rows.Scan(&p.ID, &p.Name, &g, &p.Enabled, &p.Independent); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -352,6 +353,12 @@ func (s *Store) UpdateGroupAccess(ctx context.Context, groupID int64, change Gro
 		return err
 	}
 	defer tx.Rollback()
+	if err = updateGroupAccessTx(ctx, tx, groupID, change); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+func updateGroupAccessTx(ctx context.Context, tx *sql.Tx, groupID int64, change GroupAccessChange) error {
 	c, err := accessCatalog(ctx, tx)
 	if err != nil {
 		return err
@@ -422,7 +429,7 @@ func (s *Store) UpdateGroupAccess(ctx context.Context, groupID int64, change Gro
 	if len(selected) > 0 {
 		return ErrInvalidAccess
 	}
-	return tx.Commit()
+	return nil
 }
 
 // A legacy editor may round-trip the old field, but must not replace a newer

@@ -7,7 +7,7 @@ export interface NavigationGroup { id: string; labelKey: string; items: Navigati
 export const navigation: NavigationGroup[] = [
   { id: 'overview', labelKey: 'nav.dashboard', items: [{ to: '/', labelKey: 'nav.dashboard' }] },
   { id: 'users', labelKey: 'workspace.userManagement', items: [
-    { to: '/users', labelKey: 'users.viewList' }, { to: '/users?tab=groups', labelKey: 'users.groups' }, { to: '/users?tab=renewals', labelKey: 'users.viewRenewals' },
+    { to: '/users', labelKey: 'users.viewList' }, { to: '/users?tab=renewals', labelKey: 'users.viewRenewals' },
   ] },
   { id: 'nodes', labelKey: 'nav.nodes', items: [
     { to: '/nodes', labelKey: 'workspace.serverList' }, { to: '/infrastructure', labelKey: 'nav.infrastructure' }, { to: '/domains', labelKey: 'nav.domains' },

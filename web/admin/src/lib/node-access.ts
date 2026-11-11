@@ -1,6 +1,6 @@
 export type AccessPolicy = 'all' | 'groups' | 'none'
 export interface AccessGroup { id: number; name: string }
-export interface AccessPlan { id: number; name: string; group_id: number | null }
+export interface AccessPlan { id: number; name: string; group_id: number | null; independent?: boolean }
 export interface InboundAccess {
   inbound_id: number; node_id: number; node_name: string; tag: string; protocol: string; port: number
   policy: AccessPolicy; group_ids: number[]; legacy: boolean; editable: boolean; revision: string

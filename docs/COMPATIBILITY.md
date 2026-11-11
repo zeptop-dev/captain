@@ -7,6 +7,15 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.60.0 to preserve ingress address sources, subscription bindings and strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
 
+## Plan-first access (development; intended Captain v1.62.0)
+
+Migration 118 adds plan-owned independent permissions while retaining legacy groups
+as explicit reusable schemes. Existing plan, subscription and account grants are not
+rewritten. Plan POST/PATCH has optional Access drafts with node-access authorization
+and an atomic revision check. The development rollback floor becomes v1.62.0 to
+protect ownership and retained external-node provenance; no agent changes are
+needed. See [plan access](PLAN_ACCESS.md). v1.62.0 has not yet been released.
+
 ## Account presentation and mail tools (Captain v1.61.0)
 
 Optional account information adds isolated select/REJECT groups only to supported
