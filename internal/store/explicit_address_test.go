@@ -36,6 +36,11 @@ func TestExplicitIngressPathsCompileAndPreservePublicSubscription(t *testing.T) 
 				if e != nil || len(fs) != 1 || fs[0].Target != want {
 					t.Fatalf("%+v %v want %s", fs, e, want)
 				}
+				if mode != "default" {
+					if e := s.DeleteIngress(ctx, g.ID); e == nil {
+						t.Fatal("deleted selected landing ingress")
+					}
+				}
 				// Explicit route does not change the first group's public subscription.
 				got, e := s.LineByID(ctx, l.ID)
 				if e != nil || got.Endpoints[0].Host != ns[0].PublicAddr || got.Endpoints[0].Port != 18443 {

@@ -221,13 +221,13 @@ func (s *Store) DeleteIngress(ctx context.Context, id int64) error {
 		return err
 	}
 	for _, f := range forwards {
-		if f.IngressID == strconv.FormatInt(id, 10) && f.TargetAddressMode == AddressModeInternal {
+		if f.IngressID == strconv.FormatInt(id, 10) && explicitAddressMode(f.TargetAddressMode) {
 			return ErrLineInUse
 		}
 	}
 	for _, inbound := range ids {
 		var lineCount int
-		if err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM forward_lines WHERE target_inbound_id=? AND target_address_mode='internal'", inbound).Scan(&lineCount); err != nil {
+		if err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM forward_lines WHERE target_inbound_id=? AND target_address_mode IN ('internal','line','public')", inbound).Scan(&lineCount); err != nil {
 			return err
 		}
 		if lineCount > 0 {
