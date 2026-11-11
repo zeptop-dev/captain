@@ -15,6 +15,9 @@ import (
 func TestAccessCheckTLSIdentityAndResponseBounds(t *testing.T) {
 	c := NewChecker()
 	other := NewChecker()
+	// Do not return an implicit empty HTTP 200 when the server sees cancellation
+	// before the client reports its own deadline. Release only after Check returns.
+	releaseTimeout := make(chan struct{})
 	mode := "ok"
 	var previous string
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -39,13 +42,14 @@ func TestAccessCheckTLSIdentityAndResponseBounds(t *testing.T) {
 		case "trailing":
 			defer w.Write([]byte("garbage"))
 		case "timeout":
-			<-r.Context().Done()
+			<-releaseTimeout
 			return
 		}
 		previous = proof
 		json.NewEncoder(w).Encode(map[string]any{"ok": true, "service": "captain-agent", "proof": proof})
 	}))
 	defer srv.Close()
+	defer close(releaseTimeout)
 	if got := c.Check(context.Background(), srv.URL); got.Status != "tls_error" {
 		t.Fatalf("untrusted certificate: %+v", got)
 	}
