@@ -16,7 +16,7 @@ var profilePage = template.Must(template.New("subscription").Parse(`<!doctype ht
 func renderProfilePage(r *http.Request, p *store.ProfilePage, acct subscription.Account) ([]byte, error) {
 	type link struct{ Name, URL string }
 	links := []link{}
-	for _, f := range []struct{ name, format string }{{"mihomo / Clash Meta", "clash"}, {"sing-box", "singbox"}, {"Surge", "surge"}, {"Stash", "stash"}, {"Loon", "loon"}, {"Quantumult X", "qx"}, {"URI", "uri"}} {
+	for _, f := range []struct{ name, format string }{{"mihomo / Clash Meta", "clash"}, {"sing-box", "singbox"}, {"Surge", "surge"}, {"Surge VLESS (iOS 6+ / Mac 6.12+)", "surge-vless"}, {"Stash", "stash"}, {"Loon", "loon"}, {"Quantumult X", "qx"}, {"URI", "uri"}} {
 		u := url.URL{Path: r.URL.Path}
 		q := r.URL.Query()
 		q.Set("client", f.format)

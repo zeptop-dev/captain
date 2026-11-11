@@ -1,5 +1,5 @@
 export type DevicePlatform = 'windows' | 'macos' | 'ios' | 'android' | 'linux' | 'other'
-export type ImportClient = 'clash' | 'singbox' | 'shadowrocket' | 'surge' | 'manual'
+export type ImportClient = 'clash' | 'singbox' | 'shadowrocket' | 'surge' | 'surge-vless' | 'manual'
 
 export interface ClientDownload { name: string; platform: string; url: string; note: string }
 
@@ -7,6 +7,7 @@ export const importClients: { value: ImportClient; label: string; platforms: Dev
   { value: 'clash', label: 'Clash / mihomo', platforms: ['windows', 'macos', 'android', 'linux', 'other'] },
   { value: 'singbox', label: 'sing-box', platforms: ['windows', 'macos', 'ios', 'android', 'linux', 'other'] },
   { value: 'shadowrocket', label: 'Shadowrocket', platforms: ['ios', 'other'] },
+  { value: 'surge-vless', label: 'Surge VLESS (iOS 6+ / Mac 6.12+)', platforms: ['macos', 'ios', 'other'] },
   { value: 'surge', label: 'Surge', platforms: ['macos', 'ios', 'other'] },
 ]
 
@@ -25,11 +26,12 @@ export function detectDevicePlatform(userAgent: string, maxTouchPoints = 0): Dev
 // A download title alone does not establish import compatibility.
 export function subscriptionImportURL(url: string, client: ImportClient, brand = 'Captain'): string | undefined {
   if (!url) return undefined
-  const encoded = encodeURIComponent(url)
+  const encoded = encodeURIComponent(subscriptionURLForClient(url, client))
   switch (client) {
     case 'clash': return `clash://install-config?url=${encoded}`
     case 'singbox': return `sing-box://import-remote-profile?url=${encoded}`
     case 'shadowrocket': return `shadowrocket://add/sub://${btoa(Array.from(new TextEncoder().encode(url), byte => String.fromCharCode(byte)).join(''))}?remark=${encodeURIComponent(brand || 'Captain')}`
+    case 'surge-vless':
     case 'surge': return `surge:///install-config?url=${encoded}`
     case 'manual': return undefined
   }
@@ -42,4 +44,13 @@ export function downloadURL(url: string): string | undefined {
   } catch {
     return undefined
   }
+}
+
+
+// Persist the explicit capability for imports, copied links and QR codes.
+export function subscriptionURLForClient(url: string, client: ImportClient): string {
+  if (!url || client !== 'surge-vless') return url
+  const target = new URL(url)
+  target.searchParams.set('client', 'surge-vless')
+  return target.href
 }

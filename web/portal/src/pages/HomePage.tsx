@@ -8,7 +8,7 @@ import { api, type Sub } from '../lib/api'
 import { copyText } from '../lib/clipboard'
 import { useAuth } from '../lib/auth'
 import { useSite } from '../lib/theme'
-import { detectDevicePlatform, importClients, subscriptionImportURL, type ImportClient } from '../lib/connection'
+import { detectDevicePlatform, importClients, subscriptionImportURL, subscriptionURLForClient, type ImportClient } from '../lib/connection'
 import { bytes, money } from '../lib/format'
 import { toast } from '../lib/notify'
 import classes from './HomePage.module.css'
@@ -82,7 +82,8 @@ export default function HomePage() {
   const anyUsable = active.some((s) => s.usable && (!s.expires_at || new Date(s.expires_at).getTime() > now) && (s.quota_bytes <= 0 || s.used_bytes < s.quota_bytes))
   const showNotice = notice.isPending || notice.isError || notice.data?.enabled
   const selectedClient = importClients.find(choice => choice.value === client)
-  const importURL = subscriptionImportURL(me.subscription_url, client, site.data?.name)
+  const subscriptionURL = subscriptionURLForClient(me.subscription_url, client)
+  const importURL = subscriptionImportURL(subscriptionURL, client, site.data?.name)
   return (
     <Stack gap={24}>
       <Group justify="space-between" align="center" gap="md" className={classes.welcome}>
@@ -101,7 +102,7 @@ export default function HomePage() {
           <Stack gap={12} mt={24}>
             <Select label={t('connection.installedClient')} value={client} onChange={value => value && setClient(value as ImportClient)} data={[...importClients.map(choice => ({ value: choice.value, label: choice.label })), { value: 'manual', label: t('connection.otherClient') }]} allowDeselect={false} />
             {importURL ? <Button component="a" href={importURL} fullWidth rightSection={<IconArrowUpRight size={17} />}>{t('connection.importInto', { name: selectedClient?.label })}</Button> : <Button component={Link} to="/connect" fullWidth rightSection={<IconArrowRight size={17} />}>{t('overview.configure')}</Button>}
-            <Button variant="default" fullWidth disabled={!me.subscription_url} leftSection={copied ? <IconCheck size={17} /> : <IconCopy size={17} />} onClick={async () => { if (await copyText(me.subscription_url)) setCopied(true) }}>{copied ? t('home.copied') : t('overview.copySubscription')}</Button>
+            <Button variant="default" fullWidth disabled={!me.subscription_url} leftSection={copied ? <IconCheck size={17} /> : <IconCopy size={17} />} onClick={async () => { if (await copyText(subscriptionURL)) setCopied(true) }}>{copied ? t('home.copied') : t('overview.copySubscription')}</Button>
           </Stack>
           {!anyUsable && <Text size="xs" c="dimmed" mt="sm">{t('overview.connectInactive')}</Text>}
           <div className={classes.connectLinks}><Anchor component={Link} to="/connect" className={classes.connectLink} underline="never"><Group gap={8}><IconDownload size={16} stroke={1.5} /><Text span size="xs">{t('overview.clientDownloads')}</Text></Group><IconArrowUpRight size={15} /></Anchor><Anchor component={Link} to="/connect#nodes" className={classes.connectLink} underline="never"><Group gap={8}><IconWorld size={16} stroke={1.5} /><Text span size="xs">{t('overview.browseNodes')}</Text></Group><IconArrowUpRight size={15} /></Anchor></div>

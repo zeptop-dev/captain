@@ -9,7 +9,7 @@ import { api, type Server, type WireGuardDevicesResponse } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { useSite } from '../lib/theme'
 import { copyText } from '../lib/clipboard'
-import { detectDevicePlatform, importClients, subscriptionImportURL, type ClientDownload, type DevicePlatform, type ImportClient } from '../lib/connection'
+import { detectDevicePlatform, importClients, subscriptionImportURL, subscriptionURLForClient, type ClientDownload, type DevicePlatform, type ImportClient } from '../lib/connection'
 import { toast } from '../lib/notify'
 import { WireGuardDevices } from '../components/WireGuardDevices'
 import { ClientCatalog, LegacyDownloads } from '../components/ClientCatalog'
@@ -42,7 +42,7 @@ export default function ConnectionPage() {
   const selectedCatalog = (catalog.data ?? []).filter(item => item.platform === platform)
   const clients = importClients.filter(choice => choice.platforms.includes(platform))
   const selectedClient = importClients.find(choice => choice.value === client)
-  const subscriptionURL = me?.subscription_url ?? ''
+  const subscriptionURL = subscriptionURLForClient(me?.subscription_url ?? '', client)
   const importURL = subscriptionImportURL(subscriptionURL, client, site.data?.name)
   const changePlatform = (value: DevicePlatform) => {
     setPlatform(value)

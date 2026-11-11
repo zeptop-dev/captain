@@ -1,5 +1,7 @@
 # Changelog
 
+- **Unreleased (requires the matching bosun Surge VLESS shared library)** — Add a version-labelled Surge VLESS import choice to the portal and subscription landing page. The explicit client capability survives subscription refreshes and reuses existing Surge templates. Keep ordinary legacy links unchanged. No migration, server listener or installed-agent change. Cross-repository validation uses the isolated task workspace; pin the published bosun dependency before release.
+
 - **v1.61.0** (2026-11-10) — Add optional per-plan traffic, reset and expiry information groups for Clash/Mihomo and Stash subscriptions. Keep information out of automatic proxy selection, preserve other formats and headers, and refresh values on subscription download.
   - Add independently saved mail branding and six-language templates, with draft previews and clearly marked sample messages. Reuse the same renderer for real verification/reset codes, reminders and generic notifications; keep system-generated codes and portal button destinations intact.
   - Edit plan prices as yuan amounts and structured period rows while preserving the existing cents API. Add 16 common-city display shortcuts, explicit manual-location corrections and side-by-side automatic/effective evidence; keep public addresses, DNS and routing unchanged.
