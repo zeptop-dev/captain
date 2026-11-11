@@ -146,7 +146,7 @@ export interface Entry { FollowIngress?: boolean;
   LineID?: number | null; LineMemberID?: string; ClientDialerEntryID?: number | null; CategoryID?: number | null
   ManagedConnection?: { type: 'wireguard' | 'reverse'; exit_node_id: number }
   Rate: number; Sort: number; Enabled: boolean; Tags?: string[]; Region?: string; ClientExtra?: Record<string, unknown> | null }
-export type ForwardAddressMode = 'default' | 'internal'
+export type ForwardAddressMode = 'default' | 'internal' | 'public' | 'line'
 export interface InternalAddressUsage { uses: { kind: 'line' | 'forward'; id: number; name: string; source_node_id: number; tag?: string }[] }
 export interface LineMember { address_mode?: ForwardAddressMode; id: string; node_id: number; port: number; ingress_id?: number | null; weight: number }
 export interface LineGroup { strategy: 'failover' | 'roundrobin'; members: LineMember[] }

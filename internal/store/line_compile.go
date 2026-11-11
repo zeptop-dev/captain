@@ -232,7 +232,10 @@ func compileLineModel(l *ForwardLine, ib *domain.Inbound, loadNode func(int64) (
 			return nil, nil, errors.New("landing ingress is missing")
 		}
 	}
-	targetHost, targetPort := lineAddress(targetNode.node, targetIngress, ib.Port, true)
+	targetHost, targetPort, err := connectionAddress(targetNode.node, targetIngress, ib.Port, l.TargetAddressMode)
+	if err != nil {
+		return nil, nil, err
+	}
 	if l.TargetAddressMode == AddressModeInternal {
 		targetHost, err = internalInboundHost(targetNode.node, ib, targetIngress, l.Protocol)
 		if err != nil {
@@ -273,7 +276,10 @@ func compileLineModel(l *ForwardLine, ib *domain.Inbound, loadNode func(int64) (
 					}
 				}
 			}
-			host, port := lineAddress(n.node, ing, m.Port, true)
+			host, port, err := connectionAddress(n.node, ing, m.Port, m.AddressMode)
+			if err != nil {
+				return nil, nil, err
+			}
 			if m.AddressMode == AddressModeInternal {
 				host, err = internalAddress(n.node.InternalAddr)
 				if err != nil {
@@ -341,7 +347,7 @@ func compileLineModel(l *ForwardLine, ib *domain.Inbound, loadNode func(int64) (
 					}
 				}
 			}
-			if backend == "realm" && l.Protocol != "tcp" && destinationMode != AddressModeInternal {
+			if backend == "realm" && l.Protocol != "tcp" && !explicitAddressMode(destinationMode) {
 				destination, destinationIngress, port := targetNode.node, targetIngress, ib.Port
 				if i+1 < len(l.Groups) {
 					// Realm lines have one next-hop member. Unlike its TCP dialer,
@@ -362,7 +368,7 @@ func compileLineModel(l *ForwardLine, ib *domain.Inbound, loadNode func(int64) (
 			if f.ProxyProtocol && !lineVersionOK(n.node, "v0.49.0") {
 				return nil, nil, errors.New("PROXY protocol lines require a recent bosun relay")
 			}
-			if err = setLineBackendListen(&f, n.node, ingress, i == 0); err != nil {
+			if err = setLineBackendListen(&f, n.node, ingress, i == 0 || m.AddressMode == AddressModePublic); err != nil {
 				return nil, nil, err
 			}
 			// nft creates a single-family packet rule rather than a dual-stack

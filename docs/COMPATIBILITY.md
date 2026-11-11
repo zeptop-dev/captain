@@ -1230,3 +1230,20 @@ Built-in rollback floors are Captain v1.50.0 and bosun v0.85.0. Older software
 can lose active route intent or ignore health filtering. Manual recovery needs
 a compatible database backup and an explicitly verified service configuration;
 replacing the binary alone does not preserve these guarantees.
+
+
+## Explicit forwarding endpoint selection (next Captain release)
+
+Forward/line address modes add `line` (the selected ingress external IP and
+local port) and `public` (the ingress public endpoint and mapped port). Empty
+and `default` retain their previous automatic behavior; `internal` retains its
+server-internal address meaning. Existing API paths and payload fields stay
+unchanged, and no migration or installed-agent update is required. Explicit
+choices reject missing addresses instead of falling back. First published line
+members remain automatic/public; these choices control connections from a
+preceding server, not subscription publication or local bind addresses.
+
+The built-in Captain rollback floor advances to v1.62.0 for the next release:
+older compilers can ignore an explicit public selection and use the external
+line address during recompilation. This version is a development release target,
+not a claim that v1.62.0 has been published. The bosun floor stays unchanged.

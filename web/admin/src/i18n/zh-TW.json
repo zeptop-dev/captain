@@ -3120,6 +3120,14 @@
     "udpHint": "UDP 連通性需用用戶端實測，TCP 檢查不能驗證這個監聽。"
   },
   "forwardAddress": {
+    "lineValue": "專線外部位址：{{address}}",
+    "lineMissing": "專線外部位址（所選入口未填寫）",
+    "publicValue": "公網入口：{{address}}",
+    "lineHint": "使用所選專線的外部連線 IP 和本地監聽連接埠；不會回退至公網。",
+    "publicHint": "使用公網入口及映射後的連接埠；不會使用專線外部位址。",
+    "defaultHint": "保留原有規則：優先使用專線外部位址，否則使用公網入口。",
+    "inboundHint": "入站綁定本地監聽位址；前置連線使用專線外部位址，訂閱使用公網入口。",
+    "anyBind": "所有本地位址",
     "mode": "連接目標的方式",
     "default": "預設位址（公網／專線）",
     "internalValue": "伺服器內網位址：{{address}}",

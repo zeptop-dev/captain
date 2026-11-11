@@ -676,12 +676,12 @@ func limitBodies(next http.Handler) http.Handler {
 
 func (s *Server) DNSHealth() *service.DNSHealth { return s.dnsHealth }
 
-// Older panels ignore ingress address sources and subscription bindings,
+// Older panels ignore explicit upstream paths, ingress sources and subscription bindings,
 // leaving stale endpoints after address changes. Retain typed entry IP policies,
 // per-server probe plans and earlier topology/access protections as well.
 func captainUpdateFloor(configured string) string {
-	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.60.0", configured) {
-		return "v1.60.0"
+	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.62.0", configured) {
+		return "v1.62.0"
 	}
 	return configured
 }

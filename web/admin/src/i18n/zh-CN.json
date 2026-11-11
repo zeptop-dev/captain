@@ -3120,6 +3120,14 @@
     "udpHint": "UDP 连通性需用客户端实测，TCP 检查不能验证这个监听。"
   },
   "forwardAddress": {
+    "lineValue": "专线外部地址：{{address}}",
+    "lineMissing": "专线外部地址（所选入口未填写）",
+    "publicValue": "公网入口：{{address}}",
+    "lineHint": "使用所选专线的外部连接 IP 和本地监听端口；不会回落到公网。",
+    "publicHint": "使用公网入口及映射后的端口；不会使用专线外部地址。",
+    "defaultHint": "保持原有规则：优先使用专线外部地址，否则使用公网入口。",
+    "inboundHint": "入站绑定本地监听地址；前置连接专线外部地址，订阅使用公网入口。",
+    "anyBind": "全部本地地址",
     "mode": "连接目标的方式",
     "default": "默认地址（公网／专线）",
     "internalValue": "服务器内网地址：{{address}}",

@@ -20,6 +20,12 @@ export const hostPort = (host: string, port: number) => `${host.includes(':') ? 
 // falls back to a public or provider address when inventory is incomplete.
 export function forwardingAddress(node: Pick<Node, 'domain' | 'public_addr'> & Partial<Pick<Node, 'internal_addr' | 'v6_addr'>>, port: number, ingress?: Ingress, mode: ForwardAddressMode = 'default'): string {
   if (mode === 'internal') return node.internal_addr?.trim() && port > 0 ? hostPort(node.internal_addr.trim(), port) : ''
+  if (mode === 'line') return ingress?.line_ip && port > 0 ? hostPort(ingress.line_ip, port) : ''
+  if (mode === 'public') {
+    const host = ingress ? ingress.entry_domain || ingress.entry_host : node.domain || node.public_addr || node.v6_addr || ''
+    const mapped = ingress ? ingressPort(ingress, port) : port
+    return host && mapped > 0 ? hostPort(host, mapped) : ''
+  }
   const host = ingress ? ingress.line_ip || ingress.entry_domain || ingress.entry_host : node.domain || node.public_addr || node.v6_addr || ''
   const targetPort = ingress && !ingress.line_ip ? ingressPort(ingress, port) : port
   return host && targetPort > 0 ? hostPort(host, targetPort) : ''

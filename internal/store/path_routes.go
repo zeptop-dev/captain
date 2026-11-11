@@ -142,7 +142,7 @@ func normalizePathRoute(p *PathRoute) error {
 	if len(p.Entry.ID) > 24 || !spec.ValidTag(p.Entry.ID) {
 		return errors.New("invalid entry member ID")
 	}
-	if p.Entry.NodeID <= 0 || p.Entry.Port < 1 || p.Entry.Port > 65535 || p.Entry.AddressMode == AddressModeInternal {
+	if p.Entry.NodeID <= 0 || p.Entry.Port < 1 || p.Entry.Port > 65535 || explicitAddressMode(p.Entry.AddressMode) {
 		return errors.New("the route entry needs a public listener and explicit port")
 	}
 	if e = validateAddressMode(p.Entry.AddressMode); e != nil {
