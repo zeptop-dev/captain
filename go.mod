@@ -2,18 +2,18 @@ module github.com/zeptop-dev/captain
 
 go 1.26.0
 
-toolchain go1.26.10
+toolchain go1.26.11
 
 require (
 	filippo.io/age v1.3.2
 	github.com/caddyserver/certmagic v0.25.6
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/fxamacker/cbor/v2 v2.10.0
-	github.com/go-jose/go-jose/v4 v4.1.6
+	github.com/go-jose/go-jose/v4 v4.1.8
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/libdns/cloudflare v0.2.2
 	github.com/pressly/goose/v3 v3.29.0
-	github.com/zeptop-dev/bosun v0.93.1-0.20261111162143-b2a7de524051
+	github.com/zeptop-dev/bosun v0.93.1-0.20261111165331-6ce6473900b7
 	go.uber.org/zap v1.28.0
 	golang.org/x/crypto v0.58.0
 	golang.org/x/image v0.47.0
@@ -21,7 +21,7 @@ require (
 	golang.org/x/oauth2 v0.37.0
 	golang.org/x/text v0.43.0
 	gopkg.in/yaml.v3 v3.0.1
-	modernc.org/sqlite v1.61.0
+	modernc.org/sqlite v1.61.1
 )
 
 require (

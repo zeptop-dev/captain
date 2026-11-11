@@ -1,5 +1,7 @@
 # Changelog
 
+- **Unreleased security maintenance** — Use Go 1.26.11 in native and Docker builds to address GO-2026-6859. Update go-jose, SQLite, frontend dependencies and pnpm/action-setup from the reviewed Dependabot groups using maintainer-authored commits. No schema or deployed service change.
+
 - **Unreleased** — Add a version-labelled Surge VLESS import choice to the portal and subscription landing page. The explicit client capability survives subscription refreshes and reuses existing Surge templates. Keep ordinary legacy links unchanged. No migration, server listener or installed-agent change. Pin bosun v0.93.1-0.20261111162143-b2a7de524051 for the shared renderer; the pseudo-version identifies the integrated source commit and is not a product release.
 
 - **v1.61.0** (2026-11-10) — Add optional per-plan traffic, reset and expiry information groups for Clash/Mihomo and Stash subscriptions. Keep information out of automatic proxy selection, preserve other formats and headers, and refresh values on subscription download.
