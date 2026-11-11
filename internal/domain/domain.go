@@ -68,6 +68,7 @@ type Session struct {
 }
 
 type Plan struct {
+	Access         *PlanAccess `json:"Access,omitempty"`
 	ID             int64
 	Name           string
 	PriceCents     int64
@@ -387,4 +388,14 @@ type Article struct {
 	Published bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+// PlanAccess is an optional atomic administration draft; absent keeps legacy APIs.
+type PlanAccess struct {
+	Name          string  `json:"name,omitempty"`
+	Mode          string  `json:"mode"`
+	GroupID       int64   `json:"group_id"`
+	InboundIDs    []int64 `json:"inbound_ids"`
+	Revision      string  `json:"revision"`
+	ConfirmShared bool    `json:"confirm_shared"`
 }

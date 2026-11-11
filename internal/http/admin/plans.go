@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -27,7 +28,21 @@ func (h *handlers) createPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p.Enabled = true
-	if err := h.Store.CreatePlan(r.Context(), &p); err != nil {
+	var err error
+	if p.Access != nil {
+		if !h.planAccessAllowed(w, r) {
+			return
+		}
+		h.Store.Topology.Lock()
+		defer h.Store.Topology.Unlock()
+		err = h.Store.SavePlanAccess(r.Context(), &p, true)
+	} else {
+		err = h.Store.CreatePlan(r.Context(), &p)
+	}
+	if err != nil {
+		if nodeAccessError(w, err) {
+			return
+		}
 		serverErr(w, err)
 		return
 	}
@@ -36,19 +51,45 @@ func (h *handlers) createPlan(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) updatePlan(w http.ResponseWriter, r *http.Request) {
 	id, okID := pathID(r)
+	if !okID {
+		fail(w, 400, "bad id")
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	var patch json.RawMessage
+	if !readJSON(w, r, &patch) {
+		return
+	}
+	var requested domain.Plan
+	if json.Unmarshal(patch, &requested) != nil {
+		fail(w, 400, "bad json")
+		return
+	}
+	if requested.Access != nil && !h.planAccessAllowed(w, r) {
+		return
+	}
+	h.Store.Topology.Lock()
+	defer h.Store.Topology.Unlock()
 	cur, err := h.Store.PlanByID(r.Context(), id)
-	if !okID || err != nil {
-		fail(w, http.StatusNotFound, "plan not found")
+	if err != nil {
+		fail(w, 404, "plan not found")
 		return
 	}
 	p := *cur
-	if !decode(r, &p) || p.Name == "" {
-		fail(w, http.StatusBadRequest, "name is required")
+	if json.Unmarshal(patch, &p) != nil || p.Name == "" {
+		fail(w, 400, "name is required")
 		return
 	}
 	p.ID = cur.ID
-	if err := h.Store.UpdatePlan(r.Context(), &p); err != nil {
-		serverErr(w, err)
+	if p.Access != nil {
+		err = h.Store.SavePlanAccess(r.Context(), &p, false)
+	} else {
+		err = h.Store.UpdatePlan(r.Context(), &p)
+	}
+	if err != nil {
+		if !nodeAccessError(w, err) {
+			serverErr(w, err)
+		}
 		return
 	}
 	ok(w, p)
@@ -146,4 +187,20 @@ func (h *handlers) deleteCoupon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, map[string]bool{"ok": true})
+}
+
+func (h *handlers) planAccessAllowed(w http.ResponseWriter, r *http.Request) bool {
+	if !userFrom(r).IsAdmin() {
+		fail(w, 403, "only administrators can change plan access")
+		return false
+	}
+	tok := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer"))
+	if strings.HasPrefix(tok, "cap_") {
+		_, scope, err := h.Store.UserByAPIToken(r.Context(), tok)
+		if err != nil || !store.TokenAllowsRequest(scope, http.MethodPut, "/api/admin/node-access/groups/1", "PUT /api/admin/node-access/groups/{id}") || !store.TokenAllowsRequest(scope, http.MethodGet, "/api/admin/node-access", "GET /api/admin/node-access") {
+			fail(w, 403, "this token does not permit changing plan access")
+			return false
+		}
+	}
+	return true
 }

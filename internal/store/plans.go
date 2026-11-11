@@ -10,6 +10,10 @@ import (
 )
 
 func (s *Store) CreatePlan(ctx context.Context, p *domain.Plan) error {
+	p.ID = 0
+	if err := s.guardPlanGroup(ctx, p); err != nil {
+		return err
+	}
 	ts := now()
 	res, err := s.db.ExecContext(ctx, `INSERT INTO plans (name, price_cents, period_days, quota_bytes, device_limit, speed_limit_mbps, reset_days, reset_mode, prices_json, group_id, sort, enabled, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -232,6 +236,9 @@ func (s *Store) CreateGroup(ctx context.Context, name string) (int64, error) {
 }
 
 func (s *Store) UpdatePlan(ctx context.Context, p *domain.Plan) error {
+	if err := s.guardPlanGroup(ctx, p); err != nil {
+		return err
+	}
 	_, err := s.db.ExecContext(ctx, `UPDATE plans SET name = ?, price_cents = ?, period_days = ?, quota_bytes = ?, device_limit = ?, speed_limit_mbps = ?, reset_days = ?, reset_mode = ?, prices_json = ?, group_id = ?, sort = ?, enabled = ?, updated_at = ? WHERE id = ?`,
 		p.Name, p.PriceCents, p.PeriodDays, p.QuotaBytes, p.DeviceLimit, p.SpeedLimitMbps, p.ResetDays, p.ResetMode, encodePrices(p.Prices), nullInt64(p.GroupID), p.Sort, boolInt(p.Enabled), now(), p.ID)
 	return err
@@ -266,4 +273,19 @@ func (s *Store) ApplyTrial(ctx context.Context, userID int64, at time.Time) erro
 		return err
 	}
 	return tx.Commit()
+}
+
+func (s *Store) guardPlanGroup(ctx context.Context, p *domain.Plan) error {
+	if p.GroupID == nil {
+		return nil
+	}
+	var owner int64
+	err := s.db.QueryRowContext(ctx, `SELECT plan_id FROM plan_access_ownership WHERE group_id=?`, *p.GroupID).Scan(&owner)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+	if err == nil && owner != p.ID {
+		return ErrInvalidAccess
+	}
+	return nil
 }
