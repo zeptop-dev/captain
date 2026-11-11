@@ -369,3 +369,5 @@ Captain 可通过已登记的 OAuth 应用向 New API 提供普通用户登录�
 Captain v1.61.0 新增[订阅账户信息展示](docs/SUBSCRIPTION_ACCOUNT_INFO.md)、
 [邮件品牌、模板与示例预览](docs/MAIL_TEMPLATES.md)，以及[城市快捷修正与自动定位对照](docs/LOCATION_CORRECTIONS.md)。
 套餐价格以元和结构化账期填写，原分单位 API 保持兼容。以上均为面板侧功能，继续使用 bosun v0.93.0 和 schema 117。
+
+Captain v1.62.0 以[套餐权限](docs/PLAN_ACCESS.md)作为入口，新套餐默认独立配置，共享方案显式选择并列出影响。保留原账号授权，收起用户组独立入口；同时包含 Surge VLESS 与 Go 1.26.11 安全维护。迁移118与回滚下限1.62.0保护权限归属，使用正式 bosun v0.94.0共享库，套餐授权不需要新Agent字段。

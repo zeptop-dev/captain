@@ -55,7 +55,6 @@ Access preserve the legacy API behavior. The node-access catalogue adds an
 
 Migration 118 adds `plan_access_ownership`; existing plan/group/subscription rows
 are not rewritten. Owned metadata and external-source provenance are not new user
-levels. The development rollback floor is raised to Captain v1.62.0 so old panels
-cannot ignore backing-group ownership or external-node provenance. This is a future
-release gate, not a claim that v1.62.0 has been released. The formal shared bosun
-v0.93.0 module and installed agents remain unchanged.
+levels. The rollback floor is raised to Captain v1.62.0 so old panels
+cannot ignore backing-group ownership or external-node provenance. The formal shared bosun
+v0.94.0 module and installed agents remain unchanged.

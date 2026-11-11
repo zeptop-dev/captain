@@ -397,3 +397,5 @@ Captain v1.61.0 adds [optional subscription account information](docs/SUBSCRIPTI
 [city display corrections](docs/LOCATION_CORRECTIONS.md). Plan prices are edited
 as yuan amounts with structured billing-period rows; the cents API is unchanged.
 These panel-only additions keep bosun v0.93.0 and schema 117.
+
+Captain v1.62.0 makes [plan permissions](docs/PLAN_ACCESS.md) independent by default with explicit reusable schemes, retains legacy account grants, and includes the reviewed Surge VLESS and Go 1.26.11 security updates. Migration 118 and rollback floor v1.62.0 protect ownership; the formal bosun v0.94.0 library is used without new agent fields for plan access.

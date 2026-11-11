@@ -5,16 +5,16 @@ with, what the database is good for, and what is deliberately not there.
 
 For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
-time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.60.0 to preserve ingress address sources, subscription bindings and strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
+time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.62.0 to preserve ingress address sources, subscription bindings and strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
 
-## Plan-first access (development; intended Captain v1.62.0)
+## Plan-first access (Captain v1.62.0)
 
 Migration 118 adds plan-owned independent permissions while retaining legacy groups
 as explicit reusable schemes. Existing plan, subscription and account grants are not
 rewritten. Plan POST/PATCH has optional Access drafts with node-access authorization
-and an atomic revision check. The development rollback floor becomes v1.62.0 to
+and an atomic revision check. The rollback floor becomes v1.62.0 to
 protect ownership and retained external-node provenance; no agent changes are
-needed. See [plan access](PLAN_ACCESS.md). v1.62.0 has not yet been released.
+needed. See [plan access](PLAN_ACCESS.md).
 
 ## Account presentation and mail tools (Captain v1.61.0)
 
@@ -814,6 +814,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
+| 1.62.0 | Formal shared bosun 0.94.0; no installed-agent upgrade required for plan permissions | Independent/shared plan access, Surge VLESS and Go 1.26.11 security maintenance; migration118, rollback floor1.62.0. |
 | 1.61.0 | Formal shared library 0.93.0; no installed-agent upgrade | Subscription account presentation, mail templates/previews, yuan price editor and city corrections; schema 117 and rollback floor v1.60.0 unchanged. |
 | 1.60.0 | Formal shared library 0.93.0; no new installed-agent requirement | Managed entry-domain composition, explicit NAT address inheritance and subscription endpoint binding; migration 117. Captain rollback floor becomes v1.60.0. |
 | 1.59.0 | Formal shared library 0.93.0; no installed-agent upgrade needed for entry IP policy or location settings | Per-entry connection-family policies and independent location IP selection; migrations 115–116. Existing observation capability gates remain, and Captain rollback floor becomes v1.59.0. |
@@ -867,7 +868,7 @@ features it has never heard of, which the node page shows as an orange
 
 `min_version` in both `config.yaml` files is the floor a self-update or
 rollback may not go below; set it to the version you have tested. Captain's
-built-in floor is v1.60.0 to preserve ingress address inheritance, subscription bindings, strict entry IP-family policies, independent server probe plans, interface bindings, complete-route transports, backend intent and health policies;
+built-in floor is v1.62.0 to preserve ingress address inheritance, subscription bindings, strict entry IP-family policies, independent server probe plans, interface bindings, complete-route transports, backend intent and health policies;
 this also preserves shared infrastructure dates, payment actions, the homepage switch and inbound access policies, and
 retains device credentials, exit attribution and the earlier protections for line ownership, client chains, internal
 forwarding and public storage selection. A higher configured floor still wins.

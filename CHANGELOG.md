@@ -1,8 +1,9 @@
 # Changelog
 
-- **Unreleased security maintenance** — Use Go 1.26.11 in native and Docker builds to address GO-2026-6859. Update go-jose, SQLite, frontend dependencies and pnpm/action-setup from the reviewed Dependabot groups using maintainer-authored commits. No schema or deployed service change.
-
-- **Unreleased** — Add a version-labelled Surge VLESS import choice to the portal and subscription landing page. The explicit client capability survives subscription refreshes and reuses existing Surge templates. Keep ordinary legacy links unchanged. No migration, server listener or installed-agent change. Pin bosun v0.93.1-0.20261111162143-b2a7de524051 for the shared renderer; the pseudo-version identifies the integrated source commit and is not a product release.
+- **v1.62.0** (2026-11-11) — Make plans the primary node-access editor. New console plans default to independent permissions; shared schemes are explicit and list affected plans. Save plan details and grants atomically with catalogue revision checks and additional node-access authorization. Hide the standalone user-group navigation while retaining legacy APIs and account grants.
+  - Migration 118 preserves existing plans and adds plan-owned permission identities. Keep external-source grants separate when detaching a legacy scheme. Raise Captain's built-in rollback floor to v1.62.0 so older panels cannot ignore permission ownership.
+  - Add opt-in Surge VLESS imports and preserve legacy links and client templates. Pin the formal bosun v0.94.0 shared renderer and security catalog; existing agents remain compatible with plan authorization.
+  - Use Go 1.26.11 for GO-2026-6859 and incorporate the reviewed Go/frontend/Actions dependency maintenance. Security core packages have immutable identities; existing explicit selections retain their policy.
 
 - **v1.61.0** (2026-11-10) — Add optional per-plan traffic, reset and expiry information groups for Clash/Mihomo and Stash subscriptions. Keep information out of automatic proxy selection, preserve other formats and headers, and refresh values on subscription download.
   - Add independently saved mail branding and six-language templates, with draft previews and clearly marked sample messages. Reuse the same renderer for real verification/reset codes, reminders and generic notifications; keep system-generated codes and portal button destinations intact.
