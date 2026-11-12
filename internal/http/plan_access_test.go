@@ -89,3 +89,44 @@ func TestPlanCategoryHTTPGuardsAndNewInboundDefault(t *testing.T) {
 	}
 	accessAuditCall(t, r.c, "DELETE", "/api/admin/entry-categories/"+itoa(cat.ID), nil, 200)
 }
+
+func TestPlanNamesHTTPConflictAndAtomicRename(t *testing.T) {
+	r, _, _, _ := accessAuditFixture(t)
+	p := mustJSON[domain.Plan](t, accessAuditCall(t, r.c, "POST", "/api/admin/plans", map[string]any{"Name": "Existing", "PriceCents": 100}, 200))
+	accessAuditCall(t, r.c, "PATCH", "/api/admin/plans/"+itoa(p.ID), map[string]any{"Enabled": false}, 200)
+	accessAuditCall(t, r.c, "POST", "/api/admin/plans", map[string]any{"Name": " existing "}, 409)
+	cat := accessAuditGet(t, r)
+	var globals []int64
+	for _, row := range cat.Inbounds {
+		if row.Policy == "all" {
+			globals = append(globals, row.InboundID)
+		}
+	}
+	draft := map[string]any{"Name": "  Independent  ", "Access": map[string]any{"mode": "independent", "inbound_ids": globals, "revision": cat.Revision, "confirm_shared": true}}
+	own := mustJSON[domain.Plan](t, accessAuditCall(t, r.c, "POST", "/api/admin/plans", draft, 200))
+	if own.Name != "Independent" {
+		t.Fatal(own.Name)
+	}
+	accessAuditCall(t, r.c, "PATCH", "/api/admin/plans/"+itoa(own.ID), map[string]any{"Name": "EXISTING", "PriceCents": 999}, 409)
+	saved, err := r.st.PlanByID(context.Background(), own.ID)
+	if err != nil || saved.Name != "Independent" || saved.PriceCents != 0 {
+		t.Fatal(saved, err)
+	}
+	accessAuditCall(t, r.c, "PATCH", "/api/admin/plans/"+itoa(own.ID), map[string]any{"Name": "New name"}, 200)
+	groups, err := r.st.ListGroups(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, g := range groups {
+		if g.ID == *own.GroupID {
+			found = g.Name == "New name"
+		}
+	}
+	if !found {
+		t.Fatal("owned group rename missing")
+	}
+	accessAuditCall(t, r.c, "POST", "/api/admin/groups", map[string]any{"Name": "Taken scheme"}, 200)
+	accessAuditCall(t, r.c, "PATCH", "/api/admin/plans/"+itoa(own.ID), map[string]any{"Name": "Taken scheme"}, 409)
+	accessAuditCall(t, r.c, "POST", "/api/admin/plans", map[string]any{"Name": "  "}, 400)
+}

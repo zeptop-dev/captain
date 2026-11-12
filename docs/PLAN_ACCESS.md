@@ -92,3 +92,28 @@ rather than silently pinning or overriding derived grants. Existing metadata
 writes without Access preserve permissions, and omitted new
 fields never clear category-follow rules. Historical all-users inbounds created
 through legacy APIs still cannot be excluded from just one plan.
+
+
+## Names (unreleased, migration 120)
+
+New independent permission groups use the plan name directly, without a random
+suffix. Renaming a plan renames its currently owned group in the same transaction;
+IDs, grants, subscribers and category-follow rules are unchanged. Shared schemes
+keep their administrator-supplied names and are not renamed with an individual plan.
+A different existing scheme is never reused or merged just because its name matches:
+new independent ownership or a rename returns a readable409 conflict instead.
+
+New and renamed plan names are trimmed, required, limited to200 characters and
+checked case-insensitively against every plan, including disabled ones. The UI
+checks its current list and the store checks and writes in a single transaction;
+SQL triggers also reject ASCII-case/space duplicate writes. Application checks
+support Unicode case folding. History containing duplicate plan names stays intact;
+unchanged-name metadata edits remain allowed, and the UI warns to rename affected
+plans individually. This does not merge plans or change existing billing records.
+
+Migration120 renames only currently owned groups whose plan names and destination
+names are unambiguous and available. It preserves all IDs, grants and conversion
+receipts. A conflicting historic shared name is retained, with a warning in the
+plan editor; normal price/enable edits still work. Resolve that occupied name
+explicitly before renaming the plan. Old inactive ownership and legacy shared
+schemes are not silently deleted. No agent change is required.

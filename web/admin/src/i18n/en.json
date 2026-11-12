@@ -530,7 +530,7 @@
   },
   "plans": {
     "title": "Plans",
-    "subtitle": "Price, period, quota and group.",
+    "subtitle": "Prices, periods, traffic and node permissions.",
     "create": "Add plan",
     "name": "Name",
     "price": "Price (CNY)",
@@ -4597,5 +4597,13 @@
     "fromCategory": "Granted by category",
     "converted": "Legacy access converted: {{nodes}} global inbounds assigned to the {{plans}} existing plans, including disabled items. New plans and nodes need explicit access.",
     "categoryHint": "Used for display and plan bulk selection. Category changes affect permissions only when a plan explicitly follows it."
+  },
+  "planNames": {
+    "required": "Enter a name of 1–200 characters without control characters.",
+    "duplicate": "A plan with this name already exists, including disabled plans.",
+    "schemeConflict": "This name belongs to another permission scheme. Rename that scheme or choose a different plan name; permissions will not be merged.",
+    "hint": "Names must be unique, including disabled plans. Leading/trailing spaces and letter case do not distinguish names.",
+    "legacyDuplicates": "Some existing plans share a name. Rename them individually; existing access and unrelated edits are preserved.",
+    "legacyGroup": "The internal permission name has a historical conflict. Existing access is preserved; resolve the occupied name before renaming the plan."
   }
 }

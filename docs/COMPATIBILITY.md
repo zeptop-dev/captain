@@ -7,6 +7,16 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.63.0 to preserve ingress address sources, subscription bindings and strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
 
+## Plan names (unreleased, migration 120)
+
+New or renamed plans require unique names, including disabled plans; existing
+historical duplicates can still receive unrelated edits. Independent owned groups
+use plan names without random suffixes and rename transactionally with their plan.
+Migration120 normalizes only unambiguous names; conflicting shared names, all IDs,
+grants, subscriptions and migration receipts remain intact. Existing API paths
+and payloads remain stable; name conflicts return409. No agent change is needed.
+See [name handling](PLAN_ACCESS.md#names-unreleased-migration-120).
+
 ## Plan node selection (Captain v1.63.0, migration 119)
 
 Node editors show read-only authorization. Plans select individual inbounds,

@@ -2,6 +2,7 @@ package admin
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -40,7 +41,7 @@ func (h *handlers) createPlan(w http.ResponseWriter, r *http.Request) {
 		err = h.Store.CreatePlan(r.Context(), &p)
 	}
 	if err != nil {
-		if nodeAccessError(w, err) {
+		if planNameError(w, err) || nodeAccessError(w, err) {
 			return
 		}
 		serverErr(w, err)
@@ -87,7 +88,7 @@ func (h *handlers) updatePlan(w http.ResponseWriter, r *http.Request) {
 		err = h.Store.UpdatePlan(r.Context(), &p)
 	}
 	if err != nil {
-		if !nodeAccessError(w, err) {
+		if !planNameError(w, err) && !nodeAccessError(w, err) {
 			serverErr(w, err)
 		}
 		return
@@ -201,6 +202,18 @@ func (h *handlers) planAccessAllowed(w http.ResponseWriter, r *http.Request) boo
 			fail(w, 403, "this token does not permit changing plan access")
 			return false
 		}
+	}
+	return true
+}
+
+func planNameError(w http.ResponseWriter, err error) bool {
+	switch {
+	case errors.Is(err, store.ErrPlanNameConflict), errors.Is(err, store.ErrPlanGroupNameConflict):
+		fail(w, http.StatusConflict, err.Error())
+	case errors.Is(err, store.ErrPlanNameInvalid):
+		fail(w, http.StatusBadRequest, err.Error())
+	default:
+		return false
 	}
 	return true
 }

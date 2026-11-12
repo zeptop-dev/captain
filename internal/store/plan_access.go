@@ -17,6 +17,12 @@ func (s *Store) SavePlanAccess(ctx context.Context, p *domain.Plan, creating boo
 		return err
 	}
 	defer tx.Rollback()
+	if creating {
+		p.ID = 0
+	}
+	if err = validatePlanNameTx(ctx, tx, p, creating); err != nil {
+		return err
+	}
 	draft := p.Access
 	if draft == nil || draft.InboundIDs == nil || (draft.Mode != "independent" && draft.Mode != "shared") {
 		return ErrInvalidAccess
@@ -72,7 +78,10 @@ func (s *Store) SavePlanAccess(ctx context.Context, p *domain.Plan, creating boo
 	} else if old != nil && old.GroupID != nil && owned.Valid && owned.Int64 == *old.GroupID {
 		group = owned.Int64
 	} else {
-		res, e := tx.ExecContext(ctx, `INSERT INTO user_groups(name) VALUES(?)`, p.Name+" · "+GenerateCouponCode())
+		if err = permissionNameAvailableTx(ctx, tx, p.Name, 0); err != nil {
+			return err
+		}
+		res, e := tx.ExecContext(ctx, `INSERT INTO user_groups(name) VALUES(?)`, p.Name)
 		if e != nil {
 			return e
 		}
@@ -102,6 +111,9 @@ func (s *Store) SavePlanAccess(ctx context.Context, p *domain.Plan, creating boo
 				return err
 			}
 		}
+	}
+	if err = syncOwnedPlanNameTx(ctx, tx, p, creating || old == nil || old.Name != p.Name); err != nil {
+		return err
 	}
 	// Rebind the revision only after verifying the caller's immutable snapshot.
 	updated, err := accessCatalog(ctx, tx)
