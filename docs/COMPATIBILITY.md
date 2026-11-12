@@ -7,7 +7,7 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.63.0 to preserve ingress address sources, subscription bindings and strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
 
-## Plan names (unreleased, migration 120)
+## Plan names (Captain v1.64.0, migration 120)
 
 New or renamed plans require unique names, including disabled plans; existing
 historical duplicates can still receive unrelated edits. Independent owned groups
@@ -15,7 +15,7 @@ use plan names without random suffixes and rename transactionally with their pla
 Migration120 normalizes only unambiguous names; conflicting shared names, all IDs,
 grants, subscriptions and migration receipts remain intact. Existing API paths
 and payloads remain stable; name conflicts return409. No agent change is needed.
-See [name handling](PLAN_ACCESS.md#names-unreleased-migration-120).
+See [name handling](PLAN_ACCESS.md#names-captain-v1640-migration-120).
 
 ## Plan node selection (Captain v1.63.0, migration 119)
 
@@ -835,6 +835,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
+| 1.64.0 | Shared bosun 0.95.0 retained; no agent upgrade required | Unique new/renamed plan names and synchronized owned-group names, migration120. Historical duplicates and permission IDs preserved. Rollback floor1.63.0 retained. |
 | 1.63.0 | Formal shared bosun 0.95.0; plan/category permissions do not require an agent upgrade | Migration119 converts legacy global grants; explicit category-follow rules and unassigned console creation. Matching agents add non-fatal core preparation and native candidate preflight. Rollback floor1.63.0. |
 | 1.62.0 | Formal shared bosun 0.94.0; no installed-agent upgrade required for plan permissions | Independent/shared plan access, Surge VLESS and Go 1.26.11 security maintenance; migration118, rollback floor1.62.0. |
 | 1.61.0 | Formal shared library 0.93.0; no installed-agent upgrade | Subscription account presentation, mail templates/previews, yuan price editor and city corrections; schema 117 and rollback floor v1.60.0 unchanged. |

@@ -94,7 +94,7 @@ fields never clear category-follow rules. Historical all-users inbounds created
 through legacy APIs still cannot be excluded from just one plan.
 
 
-## Names (unreleased, migration 120)
+## Names (Captain v1.64.0, migration 120)
 
 New independent permission groups use the plan name directly, without a random
 suffix. Renaming a plan renames its currently owned group in the same transaction;
