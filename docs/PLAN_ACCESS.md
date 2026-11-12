@@ -51,9 +51,7 @@ created independent plans do not inherit these captured grants; selecting a
 shared scheme deliberately reuses its permissions.
 
 Migration 118 introduced plan-owned backing groups; migration 119 adds the
-conversion receipt, category-follow rules and a catalogue revision fence. The
-first release containing migration 119 reserves rollback floor v1.63.0; release
-integration must keep the floor aligned with the version actually containing it.
+conversion receipt, category-follow rules and a catalogue revision fence. Captain v1.63.0 contains migration 119 and sets rollback floor v1.63.0.
 An older panel would ignore the category rules when editing memberships.
 
 ## Compatible API

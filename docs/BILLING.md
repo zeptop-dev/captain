@@ -27,18 +27,21 @@ user group it unlocks.
 
 ### Choosing which nodes a plan includes
 
-In **Nodes & lines**, open a node's access control and choose **All users**,
-**Selected user groups**, or **No users**. For example, ordinary nodes can include
-both Standard and Premium, while premium nodes include Premium only. These names
-do not imply a hierarchy. Display categories are labels, not permission grants.
+In **Plans**, select managed nodes individually, use a category's **Select current
+nodes** action, or explicitly enable **Follow changes to this category**. Category
+snapshots do not include future additions. Following includes future additions
+and moves; removing category membership revokes only derived grants. Node and
+inbound editors show their authorization read-only and link to plan management.
 
-In **Plans**, choose the plan's user group, inspect its available nodes, and open
-**Manage node access** to change that same group's membership. Plans sharing the
-group share its nodes. The permission change is saved separately from the plan
-form and immediately affects the group, including existing subscribers. Inbounds
-available to all users remain selected in this editor; restrict them from the node
-editor first. Connections without a published Entry can also appear in this
-inbound-backed catalogue so their authentication is not silently ignored.
+New plans default to independent permissions. An explicit shared scheme lets
+monthly, annual or promotional prices reuse one access list. The form stages
+plan details, individual selections and category rules together and saves them
+atomically after revision and shared-impact confirmation. Changes affect existing
+subscribers too. Migration119 converts historical global access into grants for
+plans already present at upgrade, including disabled items, and records counts.
+New console-created inbounds start unassigned. Listener-backed catalogue entries
+without published subscription nodes remain selectable. See [permission and API
+compatibility boundaries](PLAN_ACCESS.md).
 
 Entries sharing one real inbound must share its access policy. Review the listed
 shared nodes and plans before confirming. To sell two different permission sets

@@ -221,10 +221,11 @@ Independent WireGuard device subscriptions continue to ignore custom templates.
 ## Entries: what each user sees
 
 An entry is a server as users see it: a display host and port on top of a
-landing inbound's settings. Its access policy can allow all eligible users,
-several selected user groups, or nobody. Entries sharing an inbound share this
-policy. Node editing and a plan's **Manage available nodes** edit the same
-relationship; see [plan access](BILLING.md#choosing-which-nodes-a-plan-includes).
+landing inbound's settings. Entries sharing an inbound share authentication.
+Edit node permissions in **Plans**; node editing shows the authorized plans
+read-only. New console-created inbounds are initially unassigned. Plans select
+inbounds individually, snapshot category members, or explicitly follow category
+changes; see [plan access](PLAN_ACCESS.md).
 Admin → Nodes can drag subscription nodes into the order
 clients see, give them free-form tags (shown in the portal, usable as a
 filter and in the designer) and a region.
@@ -248,8 +249,10 @@ English name. An English translation may repeat when those compatibility names
 differ; filters always distinguish categories by ID.
 
 Categories are separate from tags, regions, server monitoring groups and access
-groups. They do not grant access, change billing or routing, add subscription
-tags, or reorder the subscription. Category ordering controls category selectors;
+groups. A category grants access only when a permission scheme explicitly follows
+it; moving nodes out or deleting that category removes derived grants, while
+individual selections remain. This does not change billing rates or routing,
+add subscription tags, or reorder the subscription. Category ordering controls category selectors;
 nodes keep their existing order. Clear all list filters before dragging nodes
 to change that global order. The customer portal shows category labels and a
 category filter derived only from nodes the customer can access; empty or

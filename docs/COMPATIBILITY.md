@@ -7,15 +7,14 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.63.0 to preserve ingress address sources, subscription bindings and strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
 
-## Plan node selection (unreleased, migration 119)
+## Plan node selection (Captain v1.63.0, migration 119)
 
 Node editors show read-only authorization. Plans select individual inbounds,
 snapshot a category or explicitly follow its future membership. Migration 119
 atomically expands old all-users grants to existing plans, including disabled
 items, with an immutable conversion receipt. Existing subscriptions, account
 extra grants, explicit restrictions and external-node provenance remain intact.
-The release floor is reserved as v1.63.0; release integration must align it with
-the first containing release. New admin UI creation opts into unassigned
+The built-in rollback floor is v1.63.0. New admin UI creation opts into unassigned
 inbounds while legacy APIs retain their 1.x semantics. No agent protocol change
 is needed. See [plan access](PLAN_ACCESS.md) for scope and shared-inbound boundaries.
 
@@ -826,6 +825,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
+| 1.63.0 | Formal shared bosun 0.95.0; plan/category permissions do not require an agent upgrade | Migration119 converts legacy global grants; explicit category-follow rules and unassigned console creation. Matching agents add non-fatal core preparation and native candidate preflight. Rollback floor1.63.0. |
 | 1.62.0 | Formal shared bosun 0.94.0; no installed-agent upgrade required for plan permissions | Independent/shared plan access, Surge VLESS and Go 1.26.11 security maintenance; migration118, rollback floor1.62.0. |
 | 1.61.0 | Formal shared library 0.93.0; no installed-agent upgrade | Subscription account presentation, mail templates/previews, yuan price editor and city corrections; schema 117 and rollback floor v1.60.0 unchanged. |
 | 1.60.0 | Formal shared library 0.93.0; no new installed-agent requirement | Managed entry-domain composition, explicit NAT address inheritance and subscription endpoint binding; migration 117. Captain rollback floor becomes v1.60.0. |
