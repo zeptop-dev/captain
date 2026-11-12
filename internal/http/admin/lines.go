@@ -9,6 +9,10 @@ import (
 )
 
 func lineError(w http.ResponseWriter, err error) {
+	if errors.Is(err, store.ErrCategoryAccessPermission) {
+		fail(w, 403, err.Error())
+		return
+	}
 	if errors.Is(err, store.ErrNotFound) {
 		fail(w, 404, "line or referenced resource not found")
 		return

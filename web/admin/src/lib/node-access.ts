@@ -1,12 +1,12 @@
 export type AccessPolicy = 'all' | 'groups' | 'none'
-export interface AccessGroup { id: number; name: string }
+export interface AccessGroup { id: number; name: string; category_ids?: number[] }
 export interface AccessPlan { id: number; name: string; group_id: number | null; independent?: boolean }
 export interface InboundAccess {
   inbound_id: number; node_id: number; node_name: string; tag: string; protocol: string; port: number
   policy: AccessPolicy; group_ids: number[]; legacy: boolean; editable: boolean; revision: string
-  entries: { id: number; name: string }[]; plan_ids: number[]
+  static_group_ids?: number[]; entries: { id: number; name: string; category_id?: number }[]; plan_ids: number[]
 }
-export interface NodeAccessDirectory { revision: string; inbounds: InboundAccess[]; groups: AccessGroup[]; plans: AccessPlan[] }
+export interface NodeAccessDirectory { revision: string; inbounds: InboundAccess[]; groups: AccessGroup[]; plans: AccessPlan[]; categories?: {id:number;name:string}[]; conversion?: {at:number;inbounds:number;plans:number} }
 export interface AccessDraft { source: InboundAccess; policy: AccessPolicy; group_ids: number[]; confirm_shared: boolean }
 export interface AccessPayload { inbound_id: number; revision: string; policy: AccessPolicy; group_ids: number[]; confirm_shared: boolean }
 const sorted = (ids: number[]) => [...new Set(ids)].sort((a, b) => a - b)
@@ -28,6 +28,7 @@ export function groupSelection(directory: NodeAccessDirectory, selected: number[
 export function accessMatches(row: InboundAccess | undefined, filter: string | null): boolean {
   if (!filter) return true
   if (!row) return false
+  if (filter.startsWith('plan:')) return row.plan_ids.includes(Number(filter.slice(5)))
   if (filter.startsWith('group:')) return availableToGroup(row, Number(filter.slice(6)))
   return row.policy === filter
 }

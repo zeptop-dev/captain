@@ -286,7 +286,7 @@ func (h *handlers) deleteEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Store.DeleteEntry(r.Context(), id); err != nil {
-		if entryClientChainError(w, err) {
+		if entryClientChainError(w, err) || nodeAccessError(w, err) {
 			return
 		}
 		serverErr(w, err)

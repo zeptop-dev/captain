@@ -101,10 +101,10 @@ function stripIdentity(s: Record<string, unknown>) {
 
 export function toPayload(v: InboundValues) {
   const settings = JSON.parse(v.Settings || '{}')
-  return { Tag: v.Tag, Protocol: v.Protocol, Listen: v.Listen, Port: v.Port, Core: v.Core, ...(!v.ExistingInboundID ? { GroupID: v.GroupID ? Number(v.GroupID) : null } : {}), Enabled: v.Enabled, Settings: settings, IngressID: v.IngressID ? Number(v.IngressID) : null }
+  return { Tag: v.Tag, Protocol: v.Protocol, Listen: v.Listen, Port: v.Port, Core: v.Core, ...(!v.ExistingInboundID ? { AccessPolicy: 'none' as const } : {}), Enabled: v.Enabled, Settings: settings, IngressID: v.IngressID ? Number(v.IngressID) : null }
 }
 
-export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain, ingresses = [], usedPorts = [], lineOnly, nodeID, node, decoyDomain, fixedCore, onDirtyChange }: { initial: InboundValues; groups: UGroup[]; onSubmit: (v: InboundValues) => void; busy: boolean; onCancel: () => void; domain?: string; ingresses?: Ingress[]; usedPorts?: number[]; lineOnly?: boolean; nodeID?: number; node?: Pick<Node, 'public_addr' | 'v6_addr'>; decoyDomain?: string; fixedCore?: string; onDirtyChange?: (dirty: boolean) => void }) {
+export function InboundForm({ initial, groups: _groups, onSubmit, busy, onCancel, domain, ingresses = [], usedPorts = [], lineOnly, nodeID, node, decoyDomain, fixedCore, onDirtyChange }: { initial: InboundValues; groups: UGroup[]; onSubmit: (v: InboundValues) => void; busy: boolean; onCancel: () => void; domain?: string; ingresses?: Ingress[]; usedPorts?: number[]; lineOnly?: boolean; nodeID?: number; node?: Pick<Node, 'public_addr' | 'v6_addr'>; decoyDomain?: string; fixedCore?: string; onDirtyChange?: (dirty: boolean) => void }) {
   const { t } = useTranslation()
   const { me } = useAuth()
   const form = useForm<InboundValues>({
@@ -173,7 +173,7 @@ export function InboundForm({ initial, groups, onSubmit, busy, onCancel, domain,
         {form.values.Protocol === 'ssh' && <Text size="sm" c="dimmed">{t('coreManager.sshHint')}</Text>}
         {form.values.Protocol === 'mieru' && form.values.Core === 'singbox-extended' && <Text size="sm" c="orange">{t('coreManager.extendedHint')}</Text>}
         <Group grow align="flex-end">
-          {initial.ExistingInboundID ? <InboundAccessControl inboundID={initial.ExistingInboundID} /> : <Select label={t('inbounds.group')} description={t('nodeAccess.newInboundHint')} data={[{ value: '', label: t('nodeAccess.all') }, ...groups.map((g) => ({ value: String(g.ID), label: g.Name }))]} allowDeselect={false} {...form.getInputProps('GroupID')} />}
+          {initial.ExistingInboundID ? <InboundAccessControl inboundID={initial.ExistingInboundID} /> : <Text size="xs" c="dimmed">{t('planSelection.newNode')}</Text>}
           {form.values.Protocol === 'mieru' && (
             <Group grow align="flex-start">
               <Select label={t('inbounds.mieruStrategy')} description={t('inbounds.mieruStrategyHint')} allowDeselect={false}

@@ -402,6 +402,13 @@ func saveLineTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, kind string) er
 		return err
 	}
 	for id, m := range entryMembers {
+		var category sql.NullInt64
+		if err = tx.QueryRowContext(ctx, `SELECT category_id FROM entries WHERE id=?`, id).Scan(&category); err != nil {
+			return err
+		}
+		if err = guardEntryCategoryAccess(ctx, tx, &domain.Entry{ID: id, InboundID: l.TargetInboundID, CategoryID: int64Ptr(category)}, false); err != nil {
+			return err
+		}
 		e := endpoints[m]
 		if _, err = tx.ExecContext(ctx, `UPDATE entries SET inbound_id=?,display_host=?,display_port=?,updated_at=? WHERE id=?`, l.TargetInboundID, e.Host, e.Port, now(), id); err != nil {
 			return err

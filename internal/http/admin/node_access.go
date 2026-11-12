@@ -108,10 +108,14 @@ func (h *handlers) entryAccessAllowed(w http.ResponseWriter, r *http.Request, ch
 
 func nodeAccessError(w http.ResponseWriter, err error) bool {
 	switch {
+	case errors.Is(err, store.ErrCategoryAccessPermission):
+		fail(w, http.StatusForbidden, err.Error())
 	case errors.Is(err, store.ErrAccessConflict):
 		fail(w, http.StatusConflict, "node access changed; reload before saving")
 	case errors.Is(err, store.ErrAccessConfirmationRequired):
 		fail(w, http.StatusConflict, "confirm the shared node or plan impact before saving")
+	case errors.Is(err, store.ErrAccessCategoryManaged):
+		fail(w, http.StatusConflict, err.Error())
 	case errors.Is(err, store.ErrAccessManaged):
 		fail(w, http.StatusConflict, "this inbound uses explicit node access; edit its access policy instead of the legacy group")
 	case errors.Is(err, store.ErrInvalidAccess):

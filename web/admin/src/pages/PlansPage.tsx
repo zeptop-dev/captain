@@ -1,4 +1,4 @@
-import { ActionIcon, Badge, Button, Card, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Switch, Table, Text, TextInput } from '@mantine/core'
+import { ActionIcon, Alert, Badge, Button, Card, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Switch, Table, Text, TextInput } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -51,6 +51,7 @@ export default function PlansPage() {
   return (
     <>
       <PageHeader title={t('plans.title')} subtitle={t('plans.subtitle')} actions={<Button disabled={!admin||!access.data||access.isError} leftSection={<IconPlus size={16} />} onClick={() => openEdit('new')}>{t('plans.create')}</Button>} />
+      {!!access.data?.conversion?.inbounds && <Alert mb="md" color="blue">{t('planSelection.converted', {nodes:access.data.conversion.inbounds,plans:access.data.conversion.plans})}</Alert>}
       <Card p={0}><Table>
         <Table.Thead><Table.Tr><Table.Th>{t('plans.name')}</Table.Th><Table.Th>{t('plans.price')}</Table.Th><Table.Th>{t('plans.period')}</Table.Th><Table.Th>{t('plans.quota')}</Table.Th><Table.Th>{t('planAccess.mode')}</Table.Th><Table.Th>{t('plans.enabled')}</Table.Th><Table.Th /></Table.Tr></Table.Thead>
         <Table.Tbody>

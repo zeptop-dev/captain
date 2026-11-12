@@ -5,7 +5,19 @@ with, what the database is good for, and what is deliberately not there.
 
 For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
-time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.62.0 to preserve ingress address sources, subscription bindings and strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
+time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.63.0 to preserve ingress address sources, subscription bindings and strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
+
+## Plan node selection (unreleased, migration 119)
+
+Node editors show read-only authorization. Plans select individual inbounds,
+snapshot a category or explicitly follow its future membership. Migration 119
+atomically expands old all-users grants to existing plans, including disabled
+items, with an immutable conversion receipt. Existing subscriptions, account
+extra grants, explicit restrictions and external-node provenance remain intact.
+The release floor is reserved as v1.63.0; release integration must align it with
+the first containing release. New admin UI creation opts into unassigned
+inbounds while legacy APIs retain their 1.x semantics. No agent protocol change
+is needed. See [plan access](PLAN_ACCESS.md) for scope and shared-inbound boundaries.
 
 ## Plan-first access (Captain v1.62.0)
 
@@ -868,7 +880,7 @@ features it has never heard of, which the node page shows as an orange
 
 `min_version` in both `config.yaml` files is the floor a self-update or
 rollback may not go below; set it to the version you have tested. Captain's
-built-in floor is v1.62.0 to preserve ingress address inheritance, subscription bindings, strict entry IP-family policies, independent server probe plans, interface bindings, complete-route transports, backend intent and health policies;
+built-in floor is v1.63.0 to preserve ingress address inheritance, subscription bindings, strict entry IP-family policies, independent server probe plans, interface bindings, complete-route transports, backend intent and health policies;
 this also preserves shared infrastructure dates, payment actions, the homepage switch and inbound access policies, and
 retains device credentials, exit attribution and the earlier protections for line ownership, client chains, internal
 forwarding and public storage selection. A higher configured floor still wins.

@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/zeptop-dev/captain/internal/domain"
 	"strings"
+
+	"github.com/zeptop-dev/captain/internal/domain"
 )
 
 // SavePlanAccess changes the plan and listener grants in one transaction. Legacy
@@ -109,6 +110,35 @@ func (s *Store) SavePlanAccess(ctx context.Context, p *domain.Plan, creating boo
 	}
 	if err = updateGroupAccessTx(ctx, tx, group, GroupAccessChange{InboundIDs: draft.InboundIDs, Revision: updated.Revision, ConfirmShared: draft.ConfirmShared}); err != nil {
 		return err
+	}
+	if draft.CategoryIDs != nil {
+		seen := map[int64]bool{}
+		for _, id := range draft.CategoryIDs {
+			if id <= 0 || seen[id] {
+				return ErrInvalidAccess
+			}
+			seen[id] = true
+			var count int
+			if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM entry_categories WHERE id=?`, id).Scan(&count); err != nil {
+				return err
+			}
+			if count != 1 {
+				return ErrInvalidAccess
+			}
+		}
+		if _, err = tx.ExecContext(ctx, `DELETE FROM group_access_categories WHERE group_id=?`, group); err != nil {
+			return err
+		}
+		for _, id := range draft.CategoryIDs {
+			if _, err = tx.ExecContext(ctx, `INSERT INTO group_access_categories(group_id,category_id) VALUES(?,?)`, group, id); err != nil {
+				return err
+			}
+		}
+	} else if old != nil && old.GroupID != nil && group != *old.GroupID && draft.Mode == "independent" {
+		// Old clients omit the new field: detaching a scheme retains its rules.
+		if _, err = tx.ExecContext(ctx, `INSERT INTO group_access_categories(group_id,category_id) SELECT ?,category_id FROM group_access_categories WHERE group_id=?`, group, *old.GroupID); err != nil {
+			return err
+		}
 	}
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("save plan access: %w", err)

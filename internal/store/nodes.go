@@ -221,6 +221,12 @@ func writeInboundTx(ctx context.Context, tx *sql.Tx, ib *domain.Inbound, create 
 			return err
 		}
 		ib.ID, err = res.LastInsertId()
+		if err == nil && (ib.AccessPolicy != "" || planAccessCreation(ctx)) {
+			if ib.AccessPolicy != "" && ib.AccessPolicy != "none" {
+				return ErrInvalidAccess
+			}
+			return writeAccess(ctx, tx, ib.ID, domain.AccessNone, nil)
+		}
 		return err
 	}
 	_, err = tx.ExecContext(ctx, `UPDATE inbounds SET tag=?, protocol=?, listen=?, port=?, core=?, settings_json=?, group_id=?, enabled=?, sort=?, ingress_id=?, updated_at=? WHERE id=?`, ib.Tag, ib.Protocol, ib.Listen, ib.Port, ib.Core, string(settings), nullInt64(ib.GroupID), boolInt(ib.Enabled), ib.Sort, nullInt64(ib.IngressID), ts, ib.ID)

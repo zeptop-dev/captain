@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { api, type Node, type Group as UserGroup } from '../lib/api'
+import { api, type Node } from '../lib/api'
 import { InboundAccessControl } from './NodeAccess'
 import { preserveExistingGroup } from '../lib/node-access'
 import { hostPort } from '../lib/ingress'
@@ -50,7 +50,6 @@ function Connections({ node, readOnly = false, editRequest = 0, onEditRequestHan
   const url = `/api/admin/settings/nodes/${node.id}/wireguard-connections`
   const q = useQuery({ queryKey: ['wireguard', node.id], queryFn: () => api.get<Connection[]>(url), refetchInterval: 10000 })
   const nodes = useQuery({ queryKey: ['nodes'], queryFn: () => api.get<Node[]>('/api/admin/nodes') })
-  const groups = useQuery({ queryKey: ['groups'], queryFn: () => api.get<UserGroup[]>('/api/admin/groups') })
   const [draft, setDraft] = useState<Connection | null>(null)
   const [dirty, setDirty] = useState(false)
   const exitReady = useWireGuardReadiness(node.id)
@@ -115,7 +114,7 @@ function Connections({ node, readOnly = false, editRequest = 0, onEditRequestHan
         <TextInput required label={t('wireguard.sni')} description={t('wireguard.sniHint')} value={draft.server_name} onChange={e => update({ server_name: e.currentTarget.value })} />
         <Text size="xs" c="dimmed">{draft.transit_id > 0 ? t('wireguard.scanFrom', { node: nodes.data?.find(n => n.id === draft.transit_id)?.name ?? String(draft.transit_id) }) : t('wireguard.selectTransitToScan')}</Text>
         <RealityScan key={draft.transit_id} disabled={!draft.transit_id} current={draft.server_name} scan={(hosts, signal) => scanRealityViaNode(draft.transit_id, hosts, signal)} onPick={server_name => update({ server_name })} />
-        {draft.id ? draft.user_inbound_id ? <InboundAccessControl inboundID={draft.user_inbound_id} /> : <Text size="sm" c="dimmed">{t('nodeAccess.connectionHint')}</Text> : <Select clearable label={t('inbounds.group')} description={t('nodeAccess.newInboundHint')} placeholder={t('nodeAccess.all')} value={draft.group_id ? String(draft.group_id) : null} data={(groups.data ?? []).map(g => ({ value: String(g.ID), label: g.Name }))} onChange={id => update({ group_id: id ? Number(id) : null })} />}
+        {draft.id ? draft.user_inbound_id ? <InboundAccessControl inboundID={draft.user_inbound_id} /> : <Text size="sm" c="dimmed">{t('nodeAccess.connectionHint')}</Text> : <Text size="xs" c="dimmed">{t('planSelection.newNode')}</Text>}
         <PrivateAccessFields explicitOnly json={JSON.stringify({ private_access: draft.private_access })} onChange={json => update({ private_access: JSON.parse(json).private_access })} />
         <Switch label={t('common.enabled')} checked={draft.enabled} onChange={e => update({ enabled: e.currentTarget.checked })} />
         <Group justify="flex-end"><Button variant="default" onClick={close}>{t('common.cancel')}</Button><Button loading={save.isPending} disabled={!editable || (draft.enabled && (!exitReady.data?.ready || !transitReady.data?.ready || exitReady.isError || transitReady.isError)) || !draft.transit_id || !draft.name.trim() || !draft.endpoint || !draft.server_name.trim()} onClick={() => save.mutate(draft)}>{t('common.save')}</Button></Group>

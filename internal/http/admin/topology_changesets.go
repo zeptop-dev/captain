@@ -38,6 +38,8 @@ func topologyDecode(w http.ResponseWriter, r *http.Request, v any) bool {
 }
 func topologyError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, store.ErrCategoryAccessPermission):
+		fail(w, 403, err.Error())
 	case errors.Is(err, store.ErrNotFound):
 		fail(w, 404, "draft or referenced resource not found")
 	case errors.Is(err, store.ErrTopologyConflict), errors.Is(err, store.ErrLineConflict), errors.Is(err, store.ErrLineRolloutConflict), errors.Is(err, store.ErrPathRouteOwned), errors.Is(err, store.ErrLineInUse):

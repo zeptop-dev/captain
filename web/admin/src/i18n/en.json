@@ -451,13 +451,13 @@
     "manage": "Manage categories",
     "unclassified": "Unclassified",
     "all": "All categories",
-    "hint": "For display only; does not change access, billing, tags or subscription order.",
-    "managerHint": "Give each subscription node one display category. Category order is separate from node order. Categories do not change permissions or billing.",
+    "hint": "Used for display and plan bulk selection. Category changes affect permissions only when a plan explicitly follows it.",
+    "managerHint": "Used for display and plan bulk selection. Category changes affect permissions only when a plan explicitly follows it.",
     "empty": "No categories yet. Existing nodes remain unclassified.",
     "create": "Create category",
     "edit": "Edit category",
     "description": "Description",
-    "deleteHint": "Delete “{{name}}”? Its nodes will remain and become unclassified.",
+    "deleteHint": "Delete “{{name}}”? Its nodes will remain and become unclassified. Category changes immediately affect all plans sharing this scheme and their subscribers. Moving out revokes category access; individually selected nodes remain.",
     "moveUp": "Move {{name}} up",
     "moveDown": "Move {{name}} down",
     "selected": "{{count}} nodes selected",
@@ -4582,5 +4582,20 @@
     "reload": "Access catalogue unavailable or changed. Close and reopen after reloading.",
     "extraGrant": "Advanced: existing account grant",
     "extraHint": "Existing account grants are preserved and added to plan access. This is not a membership level."
+  },
+  "planSelection": {
+    "newNode": "New inbounds are unassigned. Select their nodes in a plan.",
+    "authorized": "Authorized plans: {{plans}}",
+    "unassigned": "Unassigned to plans",
+    "manageHint": "Manage node permissions in plans.",
+    "scope": "Permissions apply to the actual inbound. Subscription nodes sharing it are authorized together.",
+    "categories": "Select by node category",
+    "snapshot": "Bulk selection includes current nodes only. Follow a category to include future additions and moves automatically.",
+    "selectCurrent": "Select current nodes",
+    "follow": "Follow changes to this category",
+    "followWarning": "Category changes immediately affect all plans sharing this scheme and their subscribers. Moving out revokes category access; individually selected nodes remain.",
+    "fromCategory": "Granted by category",
+    "converted": "Legacy access converted: {{nodes}} global inbounds assigned to the {{plans}} existing plans, including disabled items. New plans and nodes need explicit access.",
+    "categoryHint": "Used for display and plan bulk selection. Category changes affect permissions only when a plan explicitly follows it."
   }
 }

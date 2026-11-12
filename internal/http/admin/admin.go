@@ -387,6 +387,7 @@ func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 		}
 		var u *domain.User
 		via := "session"
+		categoryWriter := true
 		if tok := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer")); tok != "" && strings.HasPrefix(tok, "cap_") {
 			via = "token"
 			// Personal API token (scripts, MCP): the owner's role, narrowed
@@ -398,6 +399,7 @@ func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 			} else {
 				u, scope, _ = h.Store.UserByAPIToken(r.Context(), tok)
 			}
+			categoryWriter = store.TokenAllowsRequest(scope, http.MethodPut, "/api/admin/node-access/groups/1", "PUT /api/admin/node-access/groups/{id}")
 			if u != nil && !store.TokenAllowsRequest(scope, r.Method, r.URL.Path, r.Pattern) {
 				fail(w, http.StatusForbidden, "this token does not permit that operation")
 				return
@@ -466,7 +468,10 @@ func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 				}
 			}()
 		}
-		next(w, r.WithContext(store.WithLineChangeActor(context.WithValue(r.Context(), ctxKey{}, u), u.Email)))
+		if r.Header.Get("X-Captain-Access-Model") == "plan" {
+			r = r.WithContext(store.WithPlanAccessCreation(r.Context()))
+		}
+		next(w, r.WithContext(store.WithCategoryAccessWriter(store.WithLineChangeActor(context.WithValue(r.Context(), ctxKey{}, u), u.Email), u.IsAdmin() && categoryWriter)))
 	}
 }
 

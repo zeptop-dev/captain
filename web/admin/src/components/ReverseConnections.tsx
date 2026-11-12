@@ -4,7 +4,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/rea
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { api, type Group as UserGroup, type Inbound, type Ingress, type Node } from '../lib/api'
+import { api, type Inbound, type Ingress, type Node } from '../lib/api'
 import { InboundAccessControl } from './NodeAccess'
 import { preserveExistingGroup } from '../lib/node-access'
 import { firstFreeIngressPort, hostPort, ingressPort } from '../lib/ingress'
@@ -38,7 +38,6 @@ function Connections({ node, readOnly = false, editRequest = 0, onEditRequestHan
   const url = `/api/admin/nodes/${node.id}/reverse-connections`
   const q = useQuery({ queryKey: ['reverse', node.id], queryFn: () => api.get<Connection[]>(url), refetchInterval: 10000 })
   const nodes = useQuery({ queryKey: ['nodes'], queryFn: () => api.get<Node[]>('/api/admin/nodes') })
-  const groups = useQuery({ queryKey: ['groups'], queryFn: () => api.get<UserGroup[]>('/api/admin/groups') })
   const [opened, setOpened] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [draft, setDraft] = useState<Connection[]>([])
@@ -116,7 +115,7 @@ function Connections({ node, readOnly = false, editRequest = 0, onEditRequestHan
               <NumberInput label={t('reverse.userPort')} value={d.port} min={1} max={65535} onChange={v => update(i, { port: Number(v) })} />
               <NumberInput label={t('reverse.tunnelPort')} value={d.tunnel_port} min={1} max={65535} onChange={v => update(i, { tunnel_port: Number(v) })} />
               <Select label={t('inbounds.ingress')} value={d.ingress_id ? String(d.ingress_id) : ''} allowDeselect={false} data={[{ value: '', label: t('inbounds.ingressDirect'), disabled: gs.some(g => g.require_ingress) }, ...gs.map(g => ({ value: String(g.id), label: g.name }))]} onChange={v => update(i, { ingress_id: v ? Number(v) : null })} />
-              {d.id ? <InboundAccessControl inboundID={d.user_inbound_id} /> : <Select label={t('inbounds.group')} description={t('nodeAccess.newInboundHint')} placeholder={t('nodeAccess.all')} clearable value={d.group_id ? String(d.group_id) : null} data={(groups.data ?? []).map(g => ({ value: String(g.ID), label: g.Name }))} onChange={v => update(i, { group_id: v ? Number(v) : null })} />}
+              {d.id ? <InboundAccessControl inboundID={d.user_inbound_id} /> : <Text size="xs" c="dimmed">{t('planSelection.newNode')}</Text>}
             </SimpleGrid>
             <TextInput required label={t('reverse.sni')} value={d.server_name} onChange={e => updateTarget(d.transit_id, e.currentTarget.value)} />
             <Text size="xs" c="dimmed">{t('reverse.scanFrom', { node: name(d.transit_id) })}</Text>
@@ -130,10 +129,10 @@ function Connections({ node, readOnly = false, editRequest = 0, onEditRequestHan
       </Stack>
     </Modal>
     <Modal opened={!readOnly && opened && !!a} onClose={() => setAdvanced(null)} title={t('reverse.protocol')} size="xl" closeOnClickOutside={false}>
-      {opened && a && <InboundForm key={a.transit_id} fixedCore="xray" node={detail(a.transit_id)?.node} nodeID={a.transit_id} initial={toValues({ ID: a.user_inbound_id, NodeID: a.transit_id, Tag: a.id ? `rv-user-${a.id}` : 'reverse-user', Protocol: a.protocol, Listen: a.listen || '', Port: a.port, Core: 'xray', GroupID: a.group_id, Enabled: a.enabled, Sort: 0, IngressID: a.ingress_id, Settings: withReverseTarget(a, a.server_name).settings ?? { flow: 'xtls-rprx-vision', tls: { mode: 2, server_name: a.server_name, reality: { handshake_server: a.server_name, handshake_port: 443 } } } })} ingresses={detail(a.transit_id)?.ingresses} groups={groups.data ?? []} busy={false} onCancel={() => setAdvanced(null)} onSubmit={v => {
+      {opened && a && <InboundForm key={a.transit_id} fixedCore="xray" node={detail(a.transit_id)?.node} nodeID={a.transit_id} initial={toValues({ ID: a.user_inbound_id, NodeID: a.transit_id, Tag: a.id ? `rv-user-${a.id}` : 'reverse-user', Protocol: a.protocol, Listen: a.listen || '', Port: a.port, Core: 'xray', GroupID: a.group_id, Enabled: a.enabled, Sort: 0, IngressID: a.ingress_id, Settings: withReverseTarget(a, a.server_name).settings ?? { flow: 'xtls-rprx-vision', tls: { mode: 2, server_name: a.server_name, reality: { handshake_server: a.server_name, handshake_port: 443 } } } })} ingresses={detail(a.transit_id)?.ingresses} groups={[]} busy={false} onCancel={() => setAdvanced(null)} onSubmit={v => {
         if (v.NewIngress) { toast.err(new Error(t('reverse.existingIngress'))); return }
         const p = toPayload(v)
-        setDraft(ds => ds.map(d => d.transit_id === a.transit_id ? withReverseProtocol({ ...d, listen: p.Listen, protocol: p.Protocol, port: p.Port, ingress_id: p.IngressID, ...(p.GroupID !== undefined ? { group_id: p.GroupID } : {}) }, p.Settings) : d))
+        setDraft(ds => ds.map(d => d.transit_id === a.transit_id ? withReverseProtocol({ ...d, listen: p.Listen, protocol: p.Protocol, port: p.Port, ingress_id: p.IngressID }, p.Settings) : d))
         setDirty(true); setAdvanced(null)
       }} />}
     </Modal>

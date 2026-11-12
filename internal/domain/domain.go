@@ -190,6 +190,8 @@ type Node struct {
 // Inbound is a protocol server on a node. Settings carries the protocol
 // specific part of spec.Inbound; the identifying fields are columns.
 type Inbound struct {
+	AccessPolicy string `json:"AccessPolicy,omitempty"` // create-only; empty retains legacy API behavior
+
 	ID        int64
 	NodeID    int64
 	Tag       string
@@ -232,7 +234,7 @@ type Entry struct {
 	Enabled    bool
 	Tags       []string // free-form labels shown to users and used for filtering
 	Region     string   // ISO 3166-1 alpha-2; "" = detect from the name when auto flags are on
-	CategoryID *int64   // optional display category; independent of access, tags and billing
+	CategoryID *int64   // optional category; grants access only when a plan explicitly follows it
 	// ClientExtra is merged into this entry's proxy in the map-shaped
 	// client formats (mihomo/Clash, Stash, sing-box): tfo, smux, dialer-proxy…
 	ClientExtra map[string]any
@@ -392,6 +394,8 @@ type Article struct {
 
 // PlanAccess is an optional atomic administration draft; absent keeps legacy APIs.
 type PlanAccess struct {
+	CategoryIDs []int64 `json:"category_ids,omitempty"` // explicitly followed categories; nil preserves existing rules
+
 	Name          string  `json:"name,omitempty"`
 	Mode          string  `json:"mode"`
 	GroupID       int64   `json:"group_id"`

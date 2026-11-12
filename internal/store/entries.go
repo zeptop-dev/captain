@@ -190,6 +190,9 @@ func writeEntryTx(ctx context.Context, tx *sql.Tx, e *domain.Entry, create bool)
 	if err := validateEntryCategory(ctx, tx, e); err != nil {
 		return err
 	}
+	if err := guardEntryCategoryAccess(ctx, tx, e, create); err != nil {
+		return err
+	}
 	added := 1
 	if !create {
 		var existingInboundID int64
@@ -285,6 +288,22 @@ func (s *Store) DeleteEntry(ctx context.Context, id int64) error {
 	if err := s.CheckClientChainRemoval(ctx, "entry", id); err != nil {
 		return err
 	}
-	_, err := s.db.ExecContext(ctx, `DELETE FROM entries WHERE id = ?`, id)
-	return err
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var category sql.NullInt64
+	if err = tx.QueryRowContext(ctx, `SELECT category_id FROM entries WHERE id=?`, id).Scan(&category); err == sql.ErrNoRows {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	if err = guardCategoryAccess(ctx, tx, int64Ptr(category)); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM entries WHERE id=?`, id); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

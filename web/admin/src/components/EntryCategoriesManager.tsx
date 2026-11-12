@@ -20,7 +20,7 @@ export function EntryCategoriesManager({ onClose }: { onClose: () => void }) {
   const dirty = editing !== null && (name.zh !== initialName.zh || name.en !== initialName.en || description !== (editing === 'new' ? '' : editing.Description))
   const categoryName = (category: EntryCategory) => localizedName(i18n.resolvedLanguage || i18n.language, category.NameZH, category.NameEN, category.Name)
   const invalidate = () => Promise.all([
-    qc.invalidateQueries({ queryKey: ['entry-categories'] }), qc.invalidateQueries({ queryKey: ['entries'] }),
+    qc.invalidateQueries({ queryKey: ['entry-categories'] }), qc.invalidateQueries({queryKey:['node-access']}), qc.invalidateQueries({ queryKey: ['entries'] }),
   ])
   const save = useMutation({
     mutationFn: () => editing === 'new' ? api.post('/api/admin/entry-categories', { Name: name.zh.trim() || name.en.trim(), NameZH: name.zh.trim(), NameEN: name.en.trim(), Description: description.trim() }) : api.patch(`/api/admin/entry-categories/${editing?.ID}`, { Name: name.zh.trim() || name.en.trim(), NameZH: name.zh.trim(), NameEN: name.en.trim(), Description: description.trim() }),

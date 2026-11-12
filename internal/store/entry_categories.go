@@ -151,17 +151,26 @@ func (s *Store) UpdateEntryCategory(ctx context.Context, c *domain.EntryCategory
 }
 
 func (s *Store) DeleteEntryCategory(ctx context.Context, id int64) error {
-	// ON DELETE SET NULL leaves every entry (including managed reverse entries)
-	// intact, with their original subscription position and access rules.
-	res, err := s.db.ExecContext(ctx, `DELETE FROM entry_categories WHERE id=?`, id)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err = guardCategoryAccess(ctx, tx, &id); err != nil {
+		return err
+	}
+	res, err := tx.ExecContext(ctx, `DELETE FROM entry_categories WHERE id=?`, id)
 	if err != nil {
 		return err
 	}
 	n, err := res.RowsAffected()
-	if err == nil && n == 0 {
+	if err != nil {
+		return err
+	}
+	if n == 0 {
 		return ErrNotFound
 	}
-	return err
+	return tx.Commit()
 }
 
 func validCategoryIDs(ids []int64, allowEmpty bool) error {
@@ -231,8 +240,8 @@ func validateEntryCategory(ctx context.Context, tx *sql.Tx, e *domain.Entry) err
 	return nil
 }
 
-// AssignEntryCategory only updates display metadata. Managed entries can be
-// categorized without granting permission to edit their protected topology.
+// AssignEntryCategory preserves topology. Followed categories also change access,
+// so those membership changes require the separate node-access permission.
 func (s *Store) AssignEntryCategory(ctx context.Context, ids []int64, categoryID int64) error {
 	if err := validCategoryIDs(ids, false); err != nil {
 		return err
@@ -247,6 +256,16 @@ func (s *Store) AssignEntryCategory(ctx context.Context, ids []int64, categoryID
 		return err
 	}
 	for _, id := range ids {
+		var inbound int64
+		if err := tx.QueryRowContext(ctx, `SELECT inbound_id FROM entries WHERE id=?`, id).Scan(&inbound); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return fmt.Errorf("%w: subscription node does not exist", ErrEntryCategoryInvalid)
+			}
+			return err
+		}
+		if err := guardEntryCategoryAccess(ctx, tx, &domain.Entry{ID: id, InboundID: inbound, CategoryID: e.CategoryID}, false); err != nil {
+			return err
+		}
 		res, err := tx.ExecContext(ctx, `UPDATE entries SET category_id=?,updated_at=? WHERE id=?`, nullInt64(e.CategoryID), now(), id)
 		if err != nil {
 			return err

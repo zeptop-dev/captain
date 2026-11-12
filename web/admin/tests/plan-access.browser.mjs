@@ -8,7 +8,7 @@ async function setup(lang='en',width=1440) {
  const d=JSON.parse(await readFile(new URL('../src/i18n/'+lang+'.json',import.meta.url)));const t=k=>k.split('.').reduce((x,k)=>x[k],d)
  const context=await browser.newContext({viewport:{width,height:1000},serviceWorkers:'block'});await context.addInitScript(lang=>localStorage.setItem('i18nextLng',lang),lang)
  const plans=[{ID:1,Name:'Monthly',PriceCents:1000,PeriodDays:30,QuotaBytes:100<<20,ResetDays:0,DeviceLimit:0,SpeedLimitMbps:0,GroupID:1,Enabled:true},{ID:2,Name:'Annual',PriceCents:10000,PeriodDays:365,QuotaBytes:100<<20,ResetDays:0,DeviceLimit:0,SpeedLimitMbps:0,GroupID:1,Enabled:true}]
- const directory={revision:'r1',groups:[{id:1,name:'Ordinary'}],plans:[{id:1,name:'Monthly',group_id:1,independent:false},{id:2,name:'Annual',group_id:1,independent:false}],inbounds:[{inbound_id:1,node_id:1,node_name:'Server',tag:'Private',policy:'groups',group_ids:[1],editable:true,entries:[{id:1,name:'London'}],plan_ids:[1,2],revision:'r1'},{inbound_id:2,node_id:1,node_name:'Server',tag:'Public',policy:'all',group_ids:[],editable:true,entries:[{id:2,name:'Public'}],plan_ids:[1,2],revision:'r1'}]}
+ const directory={revision:'r1',conversion:{at:1,inbounds:2,plans:2},categories:[{id:1,name:'Premium'}],groups:[{id:1,name:'Ordinary',category_ids:[1]}],plans:[{id:1,name:'Monthly',group_id:1,independent:false},{id:2,name:'Annual',group_id:1,independent:false}],inbounds:[{inbound_id:1,node_id:1,node_name:'Server',tag:'Private',policy:'groups',group_ids:[1],static_group_ids:[],editable:true,entries:[{id:1,name:'London',category_id:1}],plan_ids:[1,2],revision:'r1'},{inbound_id:2,node_id:1,node_name:'Server',tag:'Public',policy:'none',group_ids:[],static_group_ids:[],editable:true,entries:[{id:2,name:'Public'}],plan_ids:[1,2],revision:'r1'}]}
  const state={writes:[],fail:false,errors:[]}
  await context.routeWebSocket('**/*',s=>s.close())
  await context.route('**/*',async route=>{
@@ -28,7 +28,14 @@ try{
  const modal=page.getByRole('dialog');await modal.getByRole('textbox',{name:t('planAccess.mode'),exact:true}).waitFor()
  assert.equal(await modal.getByRole('textbox',{name:t('planAccess.mode'),exact:true}).inputValue(),t('planAccess.independent'))
  await modal.getByRole('textbox',{name:t('plans.name'),exact:true}).fill('New plan')
- await modal.getByRole('checkbox',{name:/London/}).check()
+ const follow=modal.getByRole('checkbox',{name:t('planSelection.follow'),exact:true})
+ await follow.check()
+ assert.ok(await modal.getByRole('checkbox',{name:/London/}).isChecked())
+ assert.ok(await modal.getByRole('checkbox',{name:/London/}).isDisabled())
+ await follow.uncheck()
+ assert.equal(await modal.getByRole('checkbox',{name:/London/}).isChecked(),false)
+ await modal.getByRole('button',{name:t('planSelection.selectCurrent'),exact:true}).click()
+ assert.ok(await modal.getByRole('checkbox',{name:/London/}).isChecked())
  assert.equal(state.writes.length,0)
  const save=modal.getByRole('button',{name:t('common.save'),exact:true});assert.ok(await save.isDisabled())
  await modal.getByRole('checkbox',{name:t('planAccess.confirm'),exact:true}).check()
@@ -37,7 +44,7 @@ try{
  assert.equal(await modal.getByRole('textbox',{name:t('plans.name'),exact:true}).inputValue(),'New plan')
  state.fail=false
  await Promise.all([page.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith('/plans')),save.click()]);await modal.waitFor({state:'hidden'})
- const body=state.writes.at(-1).body;assert.equal(body.Access.mode,'independent');assert.deepEqual(body.Access.inbound_ids,[1,2]);assert.ok(!('GroupID'in body));assert.equal(body.PriceCents,1000)
+ const body=state.writes.at(-1).body;assert.equal(body.Access.mode,'independent');assert.deepEqual(body.Access.inbound_ids,[1]);assert.deepEqual(body.Access.category_ids,[]);assert.ok(!('GroupID'in body));assert.equal(body.PriceCents,1000)
  // Existing plans expose the shared scope and its other consumers.
  await page.locator('tr').filter({hasText:'Monthly'}).getByRole('button').first().click()
  await modal.getByText(t('planAccess.impact')+': Monthly / Annual',{exact:true}).waitFor()

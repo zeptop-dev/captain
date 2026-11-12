@@ -49,9 +49,17 @@ func TestSnapshotMatchesRealMigrations(t *testing.T) {
 	tables.Close()
 	for _, name := range names {
 		query := `SELECT * FROM "` + strings.ReplaceAll(name, `"`, `""`) + `"`
-		if name == "goose_db_version" {
+		switch name {
+		case "goose_db_version":
 			// The actual migration time is expected to differ between runs.
 			query = `SELECT id,version_id,is_applied FROM goose_db_version`
+		case "access_catalog_epoch":
+			// Independently migrated databases intentionally have different fences.
+			// Compare identity, length and valid hex shape, not random contents.
+			query = `SELECT id,length(nonce),nonce NOT GLOB '*[^0-9a-f]*' FROM access_catalog_epoch`
+		case "plan_access_conversion":
+			// The immutable receipt has the actual time of each independent upgrade.
+			query = `SELECT id,converted_at>0,inbound_count,plan_count FROM plan_access_conversion`
 		}
 		if got, want := rows(t, cloned, query), rows(t, fresh, query); !reflect.DeepEqual(got, want) {
 			t.Fatalf("cloned data in %s differs: got %v, want %v", name, got, want)

@@ -110,6 +110,8 @@ func TestResetSiteAtomicAndFreshIDs(t *testing.T) {
 		}
 		want := 0
 		switch table {
+		case "access_catalog_epoch":
+			want = 1 // a new fence; pre-reset permission drafts must remain stale
 		case "staff":
 			want = 1
 		case "settings":

@@ -11,6 +11,8 @@ import (
 
 func entryCategoryError(w http.ResponseWriter, err error) bool {
 	switch {
+	case errors.Is(err, store.ErrCategoryAccessPermission):
+		fail(w, http.StatusForbidden, err.Error())
 	case errors.Is(err, store.ErrEntryCategoryInvalid):
 		fail(w, 400, err.Error())
 	case errors.Is(err, store.ErrEntryCategoryConflict):

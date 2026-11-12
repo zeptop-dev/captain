@@ -1,5 +1,7 @@
 # Changelog
 
+- **Unreleased** — Move node authorization entirely into plans. Select individual nodes, snapshot current category members, or explicitly follow future category changes. Node/reverse-connection editors show authorization read-only; console-created listeners start unassigned. Migration 119 converts historical all-users inbounds to existing-plan grants with an immutable receipt, preserving disabled items, restrictions, subscriptions and billing. Shared schemes retain category rules; scoped metadata writers cannot change followed membership. Reserve rollback floor v1.63.0 for this migration.
+
 - **Unreleased** — Display core preparation failures separately from selected/active core versions. Pin bosun v0.94.1-0.20261112042801-10b3da8e0ebf for the additive report fields; old agents continue to omit them. This source pin is not a product release.
 
 - **v1.62.0** (2026-11-11) — Make plans the primary node-access editor. New console plans default to independent permissions; shared schemes are explicit and list affected plans. Save plan details and grants atomically with catalogue revision checks and additional node-access authorization. Hide the standalone user-group navigation while retaining legacy APIs and account grants.

@@ -3,7 +3,7 @@ import { modals } from '@mantine/modals'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { api, ApiError, type Group as UserGroup, type Inbound, type Ingress, type Node } from '../lib/api'
+import { api, ApiError, type Inbound, type Ingress, type Node } from '../lib/api'
 import { type EntryNodeDetail, type InboundChoice, proxyServer } from '../lib/entry-flow'
 import { dnsToast, type DNSResult } from '../lib/notify'
 import { useSettingsDirty } from '../lib/settings-draft'
@@ -23,7 +23,6 @@ export function EntryInboundCreator({ nodes, initialServerID, onCreated, onClose
   const [hasCreatedIngress, setHasCreatedIngress] = useState(false)
   const createdIngress = useRef<{ fingerprint: string; ingress: Ingress } | null>(null)
   const q = useQuery({ queryKey: ['node', serverID], queryFn: () => api.get<EntryNodeDetail>(`/api/admin/nodes/${serverID}`), enabled: !!serverID })
-  const groups = useQuery({ queryKey: ['groups'], queryFn: () => api.get<UserGroup[]>('/api/admin/groups') })
   const save = useMutation({
     mutationFn: async (values: InboundValues) => {
       const node = q.data?.node
@@ -70,13 +69,13 @@ export function EntryInboundCreator({ nodes, initialServerID, onCreated, onClose
     <Stack>
       <Alert color="blue">{t('entryFlow.newInboundHint')}</Alert>
       <Select label={t('entryFlow.server')} searchable required allowDeselect={false} value={serverID || null} onChange={selectServer} disabled={save.isPending || hasCreatedIngress || uncertain} data={nodes.filter(proxyServer).map(n => ({ value: String(n.id), label: n.name }))} />
-      {(q.isLoading || groups.isLoading) && <Loader size="sm" />}
-      {(q.isError || groups.isError) && <Alert color="red"><Text size="sm">{t('entryFlow.loadError')}</Text><Button variant="subtle" size="xs" onClick={() => { q.refetch(); groups.refetch() }}>{t('entryFlow.retry')}</Button></Alert>}
+      {q.isLoading && <Loader size="sm" />}
+      {q.isError && <Alert color="red"><Text size="sm">{t('entryFlow.loadError')}</Text><Button variant="subtle" size="xs" onClick={() => { q.refetch() }}>{t('entryFlow.retry')}</Button></Alert>}
       {save.isError && <Alert color="red">{save.error.message}</Alert>}
       {hasCreatedIngress && <Alert color="blue">{t('entryFlow.ingressSaved')}</Alert>}
       {uncertain && <Alert color="yellow">{t('entryFlow.uncertainCreate')}</Alert>}
-      {q.data && groups.data && <Box component="fieldset" disabled={save.isPending || uncertain} style={{ margin: 0, padding: 0, border: 0, minWidth: 0 }} onChangeCapture={() => setDirty(true)}>
-        <InboundForm key={serverID} initial={toValues()} node={q.data.node} nodeID={q.data.node.id} domain={q.data.node.domain} decoyDomain={q.data.node.decoy_enabled ? q.data.node.domain : undefined} lineOnly={!q.data.node.public_addr && !q.data.node.domain} ingresses={q.data.ingresses ?? []} usedPorts={q.data.inbounds.map(i => i.Port)} groups={groups.data} busy={save.isPending} onDirtyChange={setDirty} onSubmit={v => { setDirty(true); save.mutate(v) }} onCancel={close} />
+      {q.data && <Box component="fieldset" disabled={save.isPending || uncertain} style={{ margin: 0, padding: 0, border: 0, minWidth: 0 }} onChangeCapture={() => setDirty(true)}>
+        <InboundForm key={serverID} initial={toValues()} node={q.data.node} nodeID={q.data.node.id} domain={q.data.node.domain} decoyDomain={q.data.node.decoy_enabled ? q.data.node.domain : undefined} lineOnly={!q.data.node.public_addr && !q.data.node.domain} ingresses={q.data.ingresses ?? []} usedPorts={q.data.inbounds.map(i => i.Port)} groups={[]} busy={save.isPending} onDirtyChange={setDirty} onSubmit={v => { setDirty(true); save.mutate(v) }} onCancel={close} />
       </Box>}
       {uncertain && <Group justify="flex-end"><Button variant="default" onClick={close}>{t('common.cancel')}</Button></Group>}
     </Stack>

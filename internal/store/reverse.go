@@ -221,6 +221,9 @@ func saveReverseInbound(ctx context.Context, tx *sql.Tx, ib *domain.Inbound) err
 			return err
 		}
 		ib.ID, _ = res.LastInsertId()
+		if planAccessCreation(ctx) {
+			return writeAccess(ctx, tx, ib.ID, domain.AccessNone, nil)
+		}
 		return nil
 	}
 	if err := guardLegacyAccessTx(ctx, tx, ib); err != nil {

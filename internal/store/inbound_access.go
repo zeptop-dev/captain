@@ -19,6 +19,7 @@ var (
 	ErrAccessConflict             = errors.New("node access changed; reload before saving")
 	ErrAccessConfirmationRequired = errors.New("confirm the shared node or plan impact before saving")
 	ErrInvalidAccess              = errors.New("invalid node access policy or membership")
+	ErrAccessCategoryManaged      = errors.New("this permission scheme follows categories; manage it from plans")
 	ErrAccessManaged              = errors.New("this inbound uses explicit node access; edit its access policy instead of the legacy group")
 )
 
@@ -28,6 +29,9 @@ type accessQuerier interface {
 }
 
 type AccessReference struct {
+	CategoryID  *int64  `json:"category_id,omitempty"`
+	CategoryIDs []int64 `json:"category_ids,omitempty"`
+
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
@@ -42,23 +46,32 @@ type AccessPlan struct {
 
 type AccessInbound struct {
 	domain.InboundAccess
-	NodeID   int64             `json:"node_id"`
-	NodeName string            `json:"node_name"`
-	Tag      string            `json:"tag"`
-	Protocol spec.Protocol     `json:"protocol"`
-	Port     int               `json:"port"`
-	Enabled  bool              `json:"enabled"`
-	Editable bool              `json:"editable"`
-	Entries  []AccessReference `json:"entries"`
-	PlanIDs  []int64           `json:"plan_ids"`
-	Revision string            `json:"revision"`
+	StaticGroupIDs []int64           `json:"static_group_ids"`
+	NodeID         int64             `json:"node_id"`
+	NodeName       string            `json:"node_name"`
+	Tag            string            `json:"tag"`
+	Protocol       spec.Protocol     `json:"protocol"`
+	Port           int               `json:"port"`
+	Enabled        bool              `json:"enabled"`
+	Editable       bool              `json:"editable"`
+	Entries        []AccessReference `json:"entries"`
+	PlanIDs        []int64           `json:"plan_ids"`
+	Revision       string            `json:"revision"`
 }
 
 type InboundAccessCatalog struct {
-	Revision string            `json:"revision"`
-	Inbounds []AccessInbound   `json:"inbounds"`
-	Groups   []AccessReference `json:"groups"`
-	Plans    []AccessPlan      `json:"plans"`
+	Revision   string            `json:"revision"`
+	Categories []AccessReference `json:"categories"`
+	Conversion *AccessConversion `json:"conversion,omitempty"`
+	Inbounds   []AccessInbound   `json:"inbounds"`
+	Groups     []AccessReference `json:"groups"`
+	Plans      []AccessPlan      `json:"plans"`
+}
+
+type AccessConversion struct {
+	At       int64 `json:"at"`
+	Inbounds int   `json:"inbounds"`
+	Plans    int   `json:"plans"`
 }
 
 type GroupAccessChange struct {
@@ -174,6 +187,7 @@ func accessCatalog(ctx context.Context, q accessQuerier) (*InboundAccessCatalog,
 			return nil, err
 		}
 		a.Editable = !receiver && (cfg.Reverse == nil || !cfg.Reverse.Receiver)
+		a.StaticGroupIDs = []int64{}
 		a.GroupIDs = []int64{}
 		a.Entries = []AccessReference{}
 		a.PlanIDs = []int64{}
@@ -207,14 +221,14 @@ func accessCatalog(ctx context.Context, q accessQuerier) (*InboundAccessCatalog,
 	if err != nil {
 		return nil, err
 	}
-	rows, err = q.QueryContext(ctx, `SELECT inbound_id,id,name FROM entries ORDER BY id`)
+	rows, err = q.QueryContext(ctx, `SELECT inbound_id,id,name,category_id FROM entries ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
 		var id int64
 		var e AccessReference
-		if err = rows.Scan(&id, &e.ID, &e.Name); err != nil {
+		if err = rows.Scan(&id, &e.ID, &e.Name, &e.CategoryID); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -225,6 +239,9 @@ func accessCatalog(ctx context.Context, q accessQuerier) (*InboundAccessCatalog,
 	err = rows.Err()
 	rows.Close()
 	if err != nil {
+		return nil, err
+	}
+	if err = accessCatalogSelections(ctx, q, c); err != nil {
 		return nil, err
 	}
 	for i := range c.Inbounds {
@@ -239,7 +256,11 @@ func accessCatalog(ctx context.Context, q accessQuerier) (*InboundAccessCatalog,
 	if err != nil {
 		return nil, err
 	}
-	hash := sha256.Sum256(b)
+	var epoch string
+	if err = q.QueryRowContext(ctx, `SELECT nonce FROM access_catalog_epoch WHERE id=1`).Scan(&epoch); err != nil {
+		return nil, err
+	}
+	hash := sha256.Sum256(append([]byte(epoch), b...))
 	c.Revision = hex.EncodeToString(hash[:])
 	for i := range c.Inbounds {
 		c.Inbounds[i].Revision = c.Revision
@@ -328,6 +349,13 @@ func updateInboundAccessTx(ctx context.Context, tx *sql.Tx, id int64, change dom
 		if changed && shared > 1 && !change.ConfirmShared {
 			return ErrAccessConfirmationRequired
 		}
+		var followed int
+		if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM entries e JOIN group_access_categories g ON g.category_id=e.category_id WHERE e.inbound_id=?`, id).Scan(&followed); err != nil {
+			return err
+		}
+		if followed > 0 {
+			return ErrAccessCategoryManaged
+		}
 		return writeAccess(ctx, tx, id, change.Policy, groups)
 	}
 	return ErrNotFound
@@ -353,6 +381,13 @@ func (s *Store) UpdateGroupAccess(ctx context.Context, groupID int64, change Gro
 		return err
 	}
 	defer tx.Rollback()
+	var followed int
+	if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM group_access_categories WHERE group_id=?`, groupID).Scan(&followed); err != nil {
+		return err
+	}
+	if followed > 0 {
+		return ErrAccessCategoryManaged
+	}
 	if err = updateGroupAccessTx(ctx, tx, groupID, change); err != nil {
 		return err
 	}
@@ -404,14 +439,14 @@ func updateGroupAccessTx(ctx context.Context, tx *sql.Tx, groupID int64, change 
 			}
 			continue
 		}
-		has := slices.Contains(a.GroupIDs, groupID)
+		has := slices.Contains(a.StaticGroupIDs, groupID)
 		if has == want {
 			continue
 		}
 		if (plans > 1 || len(a.Entries) > 1) && !change.ConfirmShared {
 			return ErrAccessConfirmationRequired
 		}
-		groups := append([]int64{}, a.GroupIDs...)
+		groups := append([]int64{}, a.StaticGroupIDs...)
 		if want {
 			groups = append(groups, groupID)
 		} else {
@@ -437,7 +472,7 @@ func updateGroupAccessTx(ctx context.Context, tx *sql.Tx, groupID int64, change 
 func guardLegacyAccessTx(ctx context.Context, tx *sql.Tx, ib *domain.Inbound) error {
 	var old sql.NullInt64
 	var explicit bool
-	if err := tx.QueryRowContext(ctx, `SELECT group_id,EXISTS(SELECT 1 FROM inbound_access a WHERE a.inbound_id=i.id) FROM inbounds i WHERE id=?`, ib.ID).Scan(&old, &explicit); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT group_id,(EXISTS(SELECT 1 FROM inbound_access a WHERE a.inbound_id=i.id) OR EXISTS(SELECT 1 FROM entries e JOIN group_access_categories g ON g.category_id=e.category_id WHERE e.inbound_id=i.id)) FROM inbounds i WHERE id=?`, ib.ID).Scan(&old, &explicit); err != nil {
 		return wrapNotFound(err)
 	}
 	if explicit && old != nullInt64(ib.GroupID) {
