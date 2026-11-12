@@ -6,7 +6,7 @@ export interface InboundAccess {
   policy: AccessPolicy; group_ids: number[]; legacy: boolean; editable: boolean; revision: string
   static_group_ids?: number[]; entries: { id: number; name: string; category_id?: number }[]; plan_ids: number[]
 }
-export interface NodeAccessDirectory { revision: string; inbounds: InboundAccess[]; groups: AccessGroup[]; plans: AccessPlan[]; categories?: {id:number;name:string}[]; conversion?: {at:number;inbounds:number;plans:number} }
+export interface NodeAccessDirectory { revision: string; inbounds: InboundAccess[]; groups: AccessGroup[]; plans: AccessPlan[]; categories?: {id:number;name:string}[]; conversion?: {at:number;inbounds:number;plans:number;dismissed?:boolean} }
 export interface AccessDraft { source: InboundAccess; policy: AccessPolicy; group_ids: number[]; confirm_shared: boolean }
 export interface AccessPayload { inbound_id: number; revision: string; policy: AccessPolicy; group_ids: number[]; confirm_shared: boolean }
 const sorted = (ids: number[]) => [...new Set(ids)].sort((a, b) => a - b)

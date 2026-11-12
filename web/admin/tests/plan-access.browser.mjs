@@ -9,13 +9,19 @@ async function setup(lang='en',width=1440) {
  const context=await browser.newContext({viewport:{width,height:1000},serviceWorkers:'block'});await context.addInitScript(lang=>localStorage.setItem('i18nextLng',lang),lang)
  const plans=[{ID:1,Name:'Monthly',PriceCents:1000,PeriodDays:30,QuotaBytes:100<<20,ResetDays:0,DeviceLimit:0,SpeedLimitMbps:0,GroupID:1,Enabled:true},{ID:2,Name:'Annual',PriceCents:10000,PeriodDays:365,QuotaBytes:100<<20,ResetDays:0,DeviceLimit:0,SpeedLimitMbps:0,GroupID:1,Enabled:true}]
  const directory={revision:'r1',conversion:{at:1,inbounds:2,plans:2},categories:[{id:1,name:'Premium'}],groups:[{id:1,name:'Ordinary',category_ids:[1]}],plans:[{id:1,name:'Monthly',group_id:1,independent:false},{id:2,name:'Annual',group_id:1,independent:false}],inbounds:[{inbound_id:1,node_id:1,node_name:'Server',tag:'Private',policy:'groups',group_ids:[1],static_group_ids:[],editable:true,entries:[{id:1,name:'London',category_id:1}],plan_ids:[1,2],revision:'r1'},{inbound_id:2,node_id:1,node_name:'Server',tag:'Public',policy:'none',group_ids:[],static_group_ids:[],editable:true,entries:[{id:2,name:'Public'}],plan_ids:[1,2],revision:'r1'}]}
- const state={writes:[],fail:false,nameConflict:false,errors:[]}
+ const state={writes:[],fail:false,nameConflict:false,dismissFail:false,noticeWrites:0,errors:[]}
  await context.routeWebSocket('**/*',s=>s.close())
  await context.route('**/*',async route=>{
   const req=route.request(),u=new URL(req.url()),p=u.pathname
   if(u.origin!==new URL(base).origin)return route.abort()
   if(!p.startsWith('/api/'))return route.continue()
   const send=(body,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)})
+  if(req.method()==='POST' && p==='/api/admin/node-access/conversion/dismiss'){
+   state.noticeWrites++
+   assert.deepEqual(req.postDataJSON(),{at:1,inbounds:2,plans:2})
+   if(state.dismissFail)return send({error:'Save failed'},503)
+   directory.conversion.dismissed=true;return send({ok:true})
+  }
   if(req.method()!=='GET'){state.writes.push({path:p,body:req.postDataJSON()});return state.nameConflict?send({error:'plan name is already in use'},409):state.fail?send({error:'Save failed'},503):send({...req.postDataJSON(),ID:3})}
   switch(p){case '/api/admin/me':return send({id:1,role:'admin',email:'admin@example.com'});case '/api/site':return send({name:'Captain',branding:{},theme:{}});case '/api/admin/plans':return send(plans);case '/api/admin/groups':return send([{ID:1,Name:'Ordinary'}]);case '/api/admin/node-access':return send(directory);default:return send({})}
  })
@@ -66,5 +72,16 @@ try{
   const m=await setup(lang,390);await m.page.getByRole('button',{name:m.t('plans.create'),exact:true}).click();const dialog=m.page.getByRole('dialog');await dialog.getByRole('textbox',{name:m.t('planAccess.mode'),exact:true}).waitFor()
   assert.ok(await m.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await dialog.screenshot({path:'/tmp/captain-plan-access-browser/'+lang+'.png'});assert.deepEqual(m.state.errors,[]);await m.context.close()
  }
- console.log('Plan access browser checks passed: default independent, one atomic save, confirmation, failed draft, sharing impact, six mobile locales')
+ const notice=await setup('en');const dismiss=notice.page.getByRole('button',{name:notice.t('planSelection.dismissNotice'),exact:true})
+ await dismiss.waitFor();await notice.page.screenshot({path:'/tmp/captain-plan-access-browser/conversion-notice.png',fullPage:true});notice.state.dismissFail=true
+ await Promise.all([notice.page.waitForResponse(r=>r.url().endsWith('/conversion/dismiss')),dismiss.click()])
+ await dismiss.waitFor({state:'visible'})
+ notice.state.dismissFail=false
+ await Promise.all([notice.page.waitForResponse(r=>r.url().endsWith('/conversion/dismiss')),dismiss.click()])
+ await dismiss.waitFor({state:'hidden'})
+ assert.equal(notice.state.noticeWrites,2);assert.equal(notice.state.writes.length,0)
+ await notice.page.reload();await notice.page.getByText('Monthly',{exact:true}).waitFor()
+ assert.equal(await notice.page.getByRole('button',{name:notice.t('planSelection.dismissNotice'),exact:true}).count(),0)
+ assert.deepEqual(notice.state.errors,[]);await notice.context.close()
+ console.log('Plan access browser checks passed: default independent, one atomic save, confirmation, failed draft, sharing impact, six mobile locales, persistent conversion notice dismissal and failure retry')
 }finally{await browser.close()}

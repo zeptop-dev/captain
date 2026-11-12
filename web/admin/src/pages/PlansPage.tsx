@@ -27,6 +27,12 @@ export default function PlansPage() {
   const q = useQuery({ queryKey: ['plans'], queryFn: () => api.get<Plan[]>('/api/admin/plans') })
   const groups = useQuery({ queryKey: ['groups'], queryFn: () => api.get<UGroup[]>('/api/admin/groups') })
   const access=useNodeAccess()
+  const dismissNotice=useMutation({mutationFn:async()=>{
+   const receipt=access.data?.conversion
+   if(!receipt)throw new Error(t('nodeAccess.reloadHint'))
+   await qc.cancelQueries({queryKey:['node-access']})
+   return api.post('/api/admin/node-access/conversion/dismiss',{at:receipt.at,inbounds:receipt.inbounds,plans:receipt.plans})
+  },onSuccess:async()=>{await qc.cancelQueries({queryKey:['node-access']});await qc.invalidateQueries({queryKey:['node-access']})},onError:toast.err})
   const [originalGrant,setOriginalGrant]=useState<PlanAccessDraft|null>(null)
   const [grant,setGrant]=useState<PlanAccessDraft|null>(null)
   const [editing, setEditing] = useState<Plan | 'new' | null>(null)
@@ -58,7 +64,7 @@ export default function PlansPage() {
   return (
     <>
       <PageHeader title={t('plans.title')} subtitle={t('plans.subtitle')} actions={<Button disabled={!admin||!access.data||access.isError} leftSection={<IconPlus size={16} />} onClick={() => openEdit('new')}>{t('plans.create')}</Button>} />
-      {!!access.data?.conversion?.inbounds && <Alert mb="md" color="blue">{t('planSelection.converted', {nodes:access.data.conversion.inbounds,plans:access.data.conversion.plans})}</Alert>}
+      {admin && !!access.data?.conversion?.inbounds && !access.data.conversion.dismissed && <Alert mb="md" color="blue" withCloseButton={!dismissNotice.isPending} closeButtonLabel={t('planSelection.dismissNotice')} onClose={()=>dismissNotice.mutate()}>{t('planSelection.converted', {nodes:access.data.conversion.inbounds,plans:access.data.conversion.plans})}</Alert>}
       {q.data?.some((p,i,all)=>all.some((v,j)=>i!==j && planNameKey(v.Name)===planNameKey(p.Name))) && <Alert mb="md" color="yellow">{t('planNames.legacyDuplicates')}</Alert>}
       <Card p={0}><Table>
         <Table.Thead><Table.Tr><Table.Th>{t('plans.name')}</Table.Th><Table.Th>{t('plans.price')}</Table.Th><Table.Th>{t('plans.period')}</Table.Th><Table.Th>{t('plans.quota')}</Table.Th><Table.Th>{t('planAccess.mode')}</Table.Th><Table.Th>{t('plans.enabled')}</Table.Th><Table.Th /></Table.Tr></Table.Thead>

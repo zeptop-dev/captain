@@ -69,9 +69,10 @@ type InboundAccessCatalog struct {
 }
 
 type AccessConversion struct {
-	At       int64 `json:"at"`
-	Inbounds int   `json:"inbounds"`
-	Plans    int   `json:"plans"`
+	Dismissed bool  `json:"dismissed,omitempty"`
+	At        int64 `json:"at"`
+	Inbounds  int   `json:"inbounds"`
+	Plans     int   `json:"plans"`
 }
 
 type GroupAccessChange struct {
@@ -252,7 +253,14 @@ func accessCatalog(ctx context.Context, q accessQuerier) (*InboundAccessCatalog,
 			}
 		}
 	}
-	b, err := json.Marshal(c)
+	// Presentation-only dismissal must not stale an authorization draft.
+	revisionCatalog := *c
+	if c.Conversion != nil {
+		receipt := *c.Conversion
+		receipt.Dismissed = false
+		revisionCatalog.Conversion = &receipt
+	}
+	b, err := json.Marshal(&revisionCatalog)
 	if err != nil {
 		return nil, err
 	}

@@ -1,5 +1,7 @@
 # Changelog
 
+- **Unreleased** — Add an administrator close button to the completed plan-access migration notice. Persist dismissal across browsers while retaining the original audit receipt and affected-ID history. Check the exact receipt and node-access write scope, preserve failed drafts/retry behavior, and keep presentation changes out of permission revisions. No schema or agent change.
+
 - **v1.64.0** (2026-11-12) — Use plan names directly for independent permission groups, without random suffixes, and synchronize owned-group renames atomically. Reject duplicate new/renamed plan names including disabled plans, trim outer spaces and ignore letter case; preserve historical duplicates for unrelated edits. Migration120 normalizes only unambiguous owned names and retains conflicting shared names and all permission identities. Add six-language conflict feedback and remove the obsolete user-group subtitle.
 
 - **v1.63.0** (2026-11-11) — Manage node authorization from plans. Select individual nodes, snapshot current category members, or explicitly follow future category changes. Node and reverse-connection editors show authorization read-only; new console-created listeners start unassigned. Keep independent permissions and explicit shared schemes for differently priced plans.

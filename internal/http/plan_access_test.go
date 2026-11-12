@@ -130,3 +130,44 @@ func TestPlanNamesHTTPConflictAndAtomicRename(t *testing.T) {
 	accessAuditCall(t, r.c, "PATCH", "/api/admin/plans/"+itoa(own.ID), map[string]any{"Name": "Taken scheme"}, 409)
 	accessAuditCall(t, r.c, "POST", "/api/admin/plans", map[string]any{"Name": "  "}, 400)
 }
+
+func TestConversionNoticeDismissHTTPAuthorization(t *testing.T) {
+	r, _, _, _ := accessAuditFixture(t)
+	path := "/api/admin/node-access/conversion/dismiss"
+	empty := map[string]any{"at": 0, "inbounds": 0, "plans": 0}
+	_, operator := accessAuditStaff(t, r, "operator")
+	accessAuditCall(t, operator, "POST", path, empty, 403)
+	_, support := accessAuditStaff(t, r, "support")
+	accessAuditCall(t, support, "POST", path, empty, 403)
+	readonly := accessAuditToken(t, r, 1, "read", []string{"node-access:read"})
+	accessAuditCall(t, readonly, "POST", path, empty, 403)
+	narrow := accessAuditToken(t, r, 1, "full", []string{"plans:write"})
+	accessAuditCall(t, narrow, "POST", path, empty, 403)
+	writer := accessAuditToken(t, r, 1, "full", []string{"node-access:write"})
+	accessAuditCall(t, writer, "POST", path, empty, 400)
+	// This fresh-install receipt has no conversions: a fabricated nonempty count
+	// cannot dismiss it. A stale browser must refresh the real receipt.
+	accessAuditCall(t, writer, "POST", path, map[string]any{"at": 1, "inbounds": 1, "plans": 1}, 409)
+	if _, err := r.st.DB().Exec(`UPDATE plan_access_conversion SET converted_at=123,inbound_count=13,plan_count=1 WHERE id=1`); err != nil {
+		t.Fatal(err)
+	}
+	before := mustJSON[store.InboundAccessCatalog](t, accessAuditCall(t, r.c, "GET", "/api/admin/node-access", nil, 200))
+	receipt := map[string]any{"at": 123, "inbounds": 13, "plans": 1}
+	accessAuditCall(t, writer, "POST", path, receipt, 200)
+	after := mustJSON[store.InboundAccessCatalog](t, accessAuditCall(t, r.c, "GET", "/api/admin/node-access", nil, 200))
+	if after.Conversion == nil || !after.Conversion.Dismissed || before.Revision != after.Revision {
+		t.Fatal("dismissal missing or permission revision changed")
+	}
+	accessAuditCall(t, writer, "POST", path, receipt, 200)
+	anonymous := &client{t: t, srv: r.srv}
+	accessAuditCall(t, anonymous, "POST", path, receipt, 401)
+	code, _, _ := r.c.do("POST", path, receipt, map[string]string{"Origin": "https://example.com"})
+	if code != 403 {
+		t.Fatal("cross origin dismissal allowed", code)
+	}
+	if _, err := r.st.DB().Exec(`DELETE FROM plan_access_conversion`); err != nil {
+		t.Fatal(err)
+	}
+	accessAuditCall(t, writer, "POST", path, receipt, 404)
+
+}

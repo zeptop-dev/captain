@@ -4596,7 +4596,8 @@
     "followWarning": "Category changes immediately affect all plans sharing this scheme and their subscribers. Moving out revokes category access; individually selected nodes remain.",
     "fromCategory": "Granted by category",
     "converted": "Legacy access converted: {{nodes}} global inbounds assigned to the {{plans}} existing plans, including disabled items. New plans and nodes need explicit access.",
-    "categoryHint": "Used for display and plan bulk selection. Category changes affect permissions only when a plan explicitly follows it."
+    "categoryHint": "Used for display and plan bulk selection. Category changes affect permissions only when a plan explicitly follows it.",
+    "dismissNotice": "Dismiss this migration notice permanently"
   },
   "planNames": {
     "required": "Enter a name of 1–200 characters without control characters.",

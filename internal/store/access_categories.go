@@ -69,12 +69,7 @@ func accessCatalogSelections(ctx context.Context, q accessQuerier, c *InboundAcc
 	if err != nil {
 		return err
 	}
-	c.Conversion = &AccessConversion{}
-	err = q.QueryRowContext(ctx, `SELECT converted_at,inbound_count,plan_count FROM plan_access_conversion WHERE id=1`).Scan(&c.Conversion.At, &c.Conversion.Inbounds, &c.Conversion.Plans)
-	if err == sql.ErrNoRows {
-		c.Conversion = nil
-		return nil
-	}
+	c.Conversion, err = conversionReceipt(ctx, q)
 	return err
 }
 

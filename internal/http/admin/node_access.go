@@ -11,6 +11,7 @@ import (
 )
 
 func (h *handlers) registerNodeAccess(mux *http.ServeMux) {
+	mux.HandleFunc("POST /api/admin/node-access/conversion/dismiss", h.requireAdmin(h.dismissConversionNotice))
 	mux.HandleFunc("GET /api/admin/node-access", h.requireAdmin(h.nodeAccessCatalog))
 	mux.HandleFunc("PUT /api/admin/node-access/inbounds/{id}", h.requireAdmin(h.putInboundAccess))
 	mux.HandleFunc("PUT /api/admin/node-access/groups/{id}", h.requireAdmin(h.putGroupAccess))
@@ -126,4 +127,18 @@ func nodeAccessError(w http.ResponseWriter, err error) bool {
 		return false
 	}
 	return true
+}
+
+func (h *handlers) dismissConversionNotice(w http.ResponseWriter, r *http.Request) {
+	var receipt store.AccessConversion
+	if !readJSON(w, r, &receipt) {
+		return
+	}
+	if err := h.Store.DismissConversionNotice(r.Context(), receipt); err != nil {
+		if !nodeAccessError(w, err) {
+			serverErr(w, err)
+		}
+		return
+	}
+	ok(w, map[string]bool{"ok": true})
 }

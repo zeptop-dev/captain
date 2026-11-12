@@ -117,3 +117,19 @@ receipts. A conflicting historic shared name is retained, with a warning in the
 plan editor; normal price/enable edits still work. Resolve that occupied name
 explicitly before renaming the plan. Old inactive ownership and legacy shared
 schemes are not silently deleted. No agent change is required.
+
+
+## Dismissing the conversion notice
+
+The migration-completed notice has an administrator-only close button. Closing
+persists a site-wide dismissal for the exact receipt in panel settings; it stays
+hidden across refreshes, browsers and administrator accounts. The conversion
+summary and affected-ID history remain intact. Failed saves leave the notice
+available to retry. Dismissal does not alter authorization catalogue revisions,
+plan grants, subscriptions or billing, and needs no schema/agent change.
+
+POST `/api/admin/node-access/conversion/dismiss` accepts the currently displayed
+`at`, `inbounds` and `plans` tuple. An administrator with node-access write
+permission may dismiss it; stale receipts return409 and a missing receipt404.
+The additive `conversion.dismissed` field in the access catalogue reports the
+saved visibility state. Resetting the site clears both history and dismissal.
