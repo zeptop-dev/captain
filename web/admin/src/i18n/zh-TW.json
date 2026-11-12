@@ -2490,7 +2490,8 @@
     "inbounds": "現有入站",
     "sshHint": "SSH 代理提供 TCP 轉送，使用訂閱用戶密碼和自動產生的主機公鑰固定值。請使用支援 SSH 的用戶端核心，透過 Mihomo（Clash Meta）或 sing-box 訂閱匯入；舊核心可能不支援。不提供 shell、SFTP 或 UDP。",
     "timeout": "操作等待逾時，請先重新整理查看伺服器狀態再重試。",
-    "listenAddress": "此 Mieru 建置不能綁定指定監聽 IP，請使用 mita。"
+    "listenAddress": "此 Mieru 建置不能綁定指定監聽 IP，請使用 mita。",
+    "preparing": "核心尚未就緒，正在重試準備"
   },
   "dnsHealth": {
     "title": "DNS 解析健康",

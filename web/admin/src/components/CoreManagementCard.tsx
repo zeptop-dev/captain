@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { coreName } from '../lib/coreSelection'
 
 export interface CorePackage { distribution: string; family: string; version: string; status: string; note?: string; installed: boolean; available: boolean }
-export interface CoreInventory { revision: number; packages: CorePackage[]; instances: { distribution: string; version: string; external?: boolean }[] }
+export interface CoreInventory { revision: number; packages: CorePackage[]; instances: { distribution: string; version: string; external?: boolean; preparation_error?: string }[] }
 export interface CoreRequest { action: 'download' | 'activate'; distribution: string; version: string; revision: number }
 
 export function CoreManagementCard({ inventory, online, canWrite, onAction, inbounds = [] }: {
@@ -39,13 +39,14 @@ export function CoreManagementCard({ inventory, online, canWrite, onAction, inbo
                 const current = inventory.instances.find(i => i.distribution === name)
                 const version = selected[name] ?? current?.version ?? packages[0]?.version
                 const pkg = packages.find(p => p.version === version)
-                const active = !!current && current.version === version
+                const active = !!current && !current.preparation_error && current.version === version
                 const disabled = !online || !canWrite || !!busy || !pkg?.available || pkg.status === 'broken'
                 return <Card key={name} withBorder p="md">
                   <Group justify="space-between" wrap="wrap" mb="sm">
                     <Text fw={600}>{coreName(name)}</Text>
-                    <Badge color={current ? 'teal' : 'gray'}>{current ? `${t('coreManager.active')}: ${current.external ? t('coreManager.external') : current.version}` : t('coreManager.notEnabled')}</Badge>
+                    <Badge color={current?.preparation_error ? 'orange' : current ? 'teal' : 'gray'}>{current?.preparation_error ? t('coreManager.preparing') : current ? `${t('coreManager.active')}: ${current.external ? t('coreManager.external') : current.version}` : t('coreManager.notEnabled')}</Badge>
                   </Group>
+                  {current?.preparation_error && <Alert color="orange" role="status" mb="sm">{current.preparation_error}</Alert>}
                   <Select label={t('coreManager.version')} value={version} allowDeselect={false} searchable
                     data={packages.map(p => ({ value: p.version, label: `${p.version} · ${t(`coreManager.${p.status}`)}${p.installed ? ` · ${t('coreManager.installed')}` : ''}`, disabled: p.status === 'broken' || !p.available }))}
                     onChange={v => v && setSelected(old => ({ ...old, [name]: v }))} />

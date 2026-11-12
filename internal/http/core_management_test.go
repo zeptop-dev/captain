@@ -125,3 +125,35 @@ func TestSSHInboundRequiresCapabilityAndKeepsHostIdentity(t *testing.T) {
 		t.Fatal("ordinary edit rotated host identity", err)
 	}
 }
+
+func TestCorePreparationFailureRoundTripsWithoutGoingOffline(t *testing.T) {
+	r := newRig(t)
+	const reason = "Captain does not support core singbox 1.14.1-r4 (linux/amd64); update Captain first (HTTP 404)"
+	inventory := &spec.CoreInventory{Revision: 1, Instances: []spec.CoreInstance{{Distribution: "singbox", Version: "1.14.1-r4", PreparationError: reason}}}
+	report := agentproto.Report{Version: "dev", CoreInventory: inventory, Cores: map[string]agentproto.CoreStatus{"singbox": {Running: false, PreparationError: reason}}}
+	if code, b, _ := r.agent.do("POST", "/api/agent/report", report, nil); code != 200 {
+		t.Fatal(code, string(b))
+	}
+	_, b, _ := r.c.do("GET", "/api/admin/nodes/"+itoa(r.nodeID), nil, nil)
+	d := mustJSON[struct {
+		Node struct {
+			Online bool `json:"online"`
+		} `json:"node"`
+		Status struct {
+			Cores         map[string]agentproto.CoreStatus `json:"cores"`
+			CoreInventory *spec.CoreInventory              `json:"core_inventory"`
+		} `json:"status"`
+	}](t, b)
+	if !d.Node.Online || d.Status.Cores["singbox"].Running || d.Status.Cores["singbox"].PreparationError != reason {
+		t.Fatalf("lost managed degraded state: %s", b)
+	}
+	// Persisted inventory must retain the optional field for the management UI.
+	var raw string
+	if err := r.st.DB().QueryRow("SELECT core_inventory_json FROM nodes WHERE id=?", r.nodeID).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	var stored spec.CoreInventory
+	if err := json.Unmarshal([]byte(raw), &stored); err != nil || len(stored.Instances) != 1 || stored.Instances[0].PreparationError != reason {
+		t.Fatal("preparation evidence dropped", raw, err)
+	}
+}

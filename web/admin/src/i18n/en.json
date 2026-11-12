@@ -2490,7 +2490,8 @@
     "inbounds": "Current inbounds",
     "sshHint": "SSH proxy provides TCP forwarding with subscriber passwords and a generated host-key pin. Use Mihomo (Clash Meta) or sing-box subscriptions with an SSH-capable client core; older cores may not support it. No shell, SFTP or UDP.",
     "timeout": "Operation timed out. Refresh to check the server before retrying.",
-    "listenAddress": "This Mieru build cannot bind a specific listening IP. Use mita."
+    "listenAddress": "This Mieru build cannot bind a specific listening IP. Use mita.",
+    "preparing": "Core not ready; retrying preparation"
   },
   "dnsHealth": {
     "title": "DNS health",

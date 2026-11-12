@@ -1,5 +1,7 @@
 # Changelog
 
+- **Unreleased** — Display core preparation failures separately from selected/active core versions. Requires the matching shared bosun protocol dependency at integration; old agents continue to omit the optional status field.
+
 - **v1.62.0** (2026-11-11) — Make plans the primary node-access editor. New console plans default to independent permissions; shared schemes are explicit and list affected plans. Save plan details and grants atomically with catalogue revision checks and additional node-access authorization. Hide the standalone user-group navigation while retaining legacy APIs and account grants.
   - Migration 118 preserves existing plans and adds plan-owned permission identities. Keep external-source grants separate when detaching a legacy scheme. Raise Captain's built-in rollback floor to v1.62.0 so older panels cannot ignore permission ownership.
   - Add opt-in Surge VLESS imports and preserve legacy links and client templates. Pin the formal bosun v0.94.0 shared renderer and security catalog; existing agents remain compatible with plan authorization.
