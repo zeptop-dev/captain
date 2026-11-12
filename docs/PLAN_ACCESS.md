@@ -121,7 +121,7 @@ schemes are not silently deleted. No agent change is required.
 
 ## Dismissing the conversion notice
 
-The migration-completed notice has an administrator-only close button. Closing
+Since Captain v1.65.0, the migration-completed notice has an administrator-only close button. Closing
 persists a site-wide dismissal for the exact receipt in panel settings; it stays
 hidden across refreshes, browsers and administrator accounts. The conversion
 summary and affected-ID history remain intact. Failed saves leave the notice

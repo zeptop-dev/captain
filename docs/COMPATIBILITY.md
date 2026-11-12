@@ -7,6 +7,15 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.63.0 to preserve ingress address sources, subscription bindings and strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
 
+## Migration notice dismissal (Captain v1.65.0)
+
+An additive administrator POST endpoint saves a site-wide dismissal for the exact
+plan-access conversion receipt. The optional conversion.dismissed field reports
+visibility; history and permission revisions remain unchanged. No schema or agent
+change is needed; schema120, shared bosun0.95.0 and rollback floor1.63.0 remain.
+An older panel may show the notice again but cannot lose grants through dismissal.
+See [conversion notice](PLAN_ACCESS.md#dismissing-the-conversion-notice).
+
 ## Plan names (Captain v1.64.0, migration 120)
 
 New or renamed plans require unique names, including disabled plans; existing
@@ -835,6 +844,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
+| 1.65.0 | Shared bosun0.95.0 retained; no agent upgrade | Persistent administrator migration-notice dismissal; schema120/floor1.63.0 unchanged. |
 | 1.64.0 | Shared bosun 0.95.0 retained; no agent upgrade required | Unique new/renamed plan names and synchronized owned-group names, migration120. Historical duplicates and permission IDs preserved. Rollback floor1.63.0 retained. |
 | 1.63.0 | Formal shared bosun 0.95.0; plan/category permissions do not require an agent upgrade | Migration119 converts legacy global grants; explicit category-follow rules and unassigned console creation. Matching agents add non-fatal core preparation and native candidate preflight. Rollback floor1.63.0. |
 | 1.62.0 | Formal shared bosun 0.94.0; no installed-agent upgrade required for plan permissions | Independent/shared plan access, Surge VLESS and Go 1.26.11 security maintenance; migration118, rollback floor1.62.0. |

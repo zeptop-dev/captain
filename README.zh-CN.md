@@ -370,6 +370,8 @@ Captain v1.61.0 新增[订阅账户信息展示](docs/SUBSCRIPTION_ACCOUNT_INFO.
 [邮件品牌、模板与示例预览](docs/MAIL_TEMPLATES.md)，以及[城市快捷修正与自动定位对照](docs/LOCATION_CORRECTIONS.md)。
 套餐价格以元和结构化账期填写，原分单位 API 保持兼容。以上均为面板侧功能，继续使用 bosun v0.93.0 和 schema 117。
 
+Captain v1.65.0 为权限迁移完成提示添加关闭按钮，关闭状态跨浏览器及管理员保存，同时保留审计历史，不影响正在编辑的权限草稿。无需数据库迁移或节点升级。[迁移提示](docs/PLAN_ACCESS.md#dismissing-the-conversion-notice)。
+
 Captain v1.64.0 让独立权限组直接使用套餐名，取消随机后缀，套餐改名时同事务同步组名。新建或改名时禁止与现有套餐重名（含停用项），保留历史重名和冲突共享名称，迁移120不改变权限ID；不要求升级节点。[名称与兼容边界](docs/PLAN_ACCESS.md#names-captain-v1640-migration-120)。
 
 Captain v1.63.0 将节点授权统一放在套餐中，支持单独选择、按分类选择当前节点及明确开启分类跟随；节点编辑只读显示授权。迁移119保留升级前套餐的全局开放权限并记录转换，新界面创建的独立入站默认不授权；共享方案仍可显式复用。正式共享库固定 bosun v0.95.0，包含内核准备失败时保持管理在线及原生升级候选预检。首次采用应先升级 Captain。[授权与兼容边界](docs/PLAN_ACCESS.md)。

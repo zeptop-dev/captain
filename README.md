@@ -398,6 +398,8 @@ Captain v1.61.0 adds [optional subscription account information](docs/SUBSCRIPTI
 as yuan amounts with structured billing-period rows; the cents API is unchanged.
 These panel-only additions keep bosun v0.93.0 and schema 117.
 
+Captain v1.65.0 adds an administrator close button for the completed plan-access migration notice. Dismissal persists across browsers and administrators, retains audit history and does not invalidate permission drafts. No schema or agent upgrade is required. [Conversion notice](docs/PLAN_ACCESS.md#dismissing-the-conversion-notice).
+
 Captain v1.64.0 uses plan names directly for independent permission groups, synchronizes renames atomically and rejects duplicate new/renamed plan names including disabled plans. Migration 120 preserves historical duplicate plans and conflicting shared names without changing permission IDs. No installed-agent upgrade is required. [Names and compatibility](docs/PLAN_ACCESS.md#names-captain-v1640-migration-120).
 
 Captain v1.63.0 moves node authorization into plans, with individual selection, category snapshots and explicit category following. Migration 119 preserves existing-plan grants and records conversion of historical global access; node editors show authorization read-only and console-created listeners start unassigned. Shared schemes remain optional. Formal bosun v0.95.0 adds non-fatal core preparation diagnostics and native upgrade preflight; update Captain before adopting it. [Permission and compatibility boundaries](docs/PLAN_ACCESS.md).
