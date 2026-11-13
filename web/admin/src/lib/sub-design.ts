@@ -47,6 +47,7 @@ export interface DesignEnhancements {
   quic?: boolean
   claude_policy?: string
   claude_rules?: ClaudeRuleSnapshot
+  dns_mode?: 'follow' | 'dedicated' | 'custom'
   dns_policy?: string
   [field: string]: unknown
 }
@@ -189,4 +190,14 @@ export function moveDesignItem<T>(items: T[], index: number, direction: -1 | 1):
   const result = [...items]
   ;[result[index], result[target]] = [result[target], result[index]]
   return result
+}
+
+export function designMainDNSPolicy(design: SubDesign): string {
+  return design.groups.find(g => g.type === 'select' && g.members.includes('@all'))?.name || design.groups.find(g => g.name === design.final)?.name || ''
+}
+export function designDNSAutoDirect(design: SubDesign, policy: string, seen = new Set<string>()): boolean {
+  if (seen.has(policy)) return false
+  seen.add(policy)
+  const group = design.groups.find(g => g.name === policy)
+  return !!group && ((group.type !== 'select' && designPolicyCanDirect(design, policy)) || group.members.some(m => designDNSAutoDirect(design, m, seen)))
 }
