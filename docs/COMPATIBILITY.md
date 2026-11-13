@@ -1294,6 +1294,7 @@ caches/connection reuse can outlive a selection change.
 
 Captain's next-release rollback floor is prepared as v1.66.0: older shared
 renderers ignore the new mode and can generate independent or direct DNS paths.
-Captain integration must pin the exact bosun module containing this renderer;
-task-local go.work validation is not a formal module release. No installed
+Captain pins bosun `v0.96.1-0.20261113061455-371d59e3f784`, an immutable
+source revision containing this renderer. This is a module pin, not a new bosun
+product release; task-local go.work is not needed by the integrated mainline. No installed
 agent protocol or proxy-core changes are required by this feature.
