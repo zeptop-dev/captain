@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
 	"github.com/zeptop-dev/captain/internal/auth"
-	"github.com/zeptop-dev/captain/internal/store"
 	"io"
 	"net/http"
 	"strings"
@@ -50,7 +49,10 @@ func (h *handlers) connectionResult(w http.ResponseWriter, r *http.Request) {
 }
 func observeConnection(h *handlers, r *http.Request, nodeID int64, hash string) {
 	u := r.Header.Get(agentproto.ConnectionURLHeader)
-	if !store.AgentOriginHost(u, r.Host) {
+	// This is an authenticated node statement, not independent path proof.
+	// Reverse proxies may rewrite Host/port; target approval remains strictly
+	// bound to the actual end-to-end TLS session in connectionProof.
+	if u == "" {
 		return
 	}
 	_ = h.Store.ObserveAgentConnection(r.Context(), nodeID, hash, u, r.Header.Get(agentproto.ConnectionVersionHeader) == agentproto.ConnectionVersion)

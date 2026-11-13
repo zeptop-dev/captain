@@ -160,3 +160,27 @@ func TestLegacyAgentEntryWriteCannotReplaceNonDefaultReference(t *testing.T) {
 		t.Fatal(entries, err)
 	}
 }
+
+func TestProxiedAgentConnectionObservationRemainsNodeScoped(t *testing.T) {
+	r := newRig(t)
+	reported := "https://public-agent.example.com:2096"
+	headers := map[string]string{agentproto.ConnectionVersionHeader: agentproto.ConnectionVersion, agentproto.ConnectionURLHeader: reported}
+	// The backend Host is the local test server, unlike the public origin a
+	// TLS-terminating proxy exposes to the node. It must not hide the report.
+	if code, _, _ := r.agent.do("GET", "/api/agent/state", nil, headers); code != 200 {
+		t.Fatal(code)
+	}
+	observed, err := r.st.AgentConnection(context.Background(), r.nodeID)
+	if err != nil || observed.URL != reported || !observed.Capable {
+		t.Fatal(observed, err)
+	}
+	anonymous := &client{t: t, srv: r.srv}
+	headers[agentproto.ConnectionURLHeader] = "https://untrusted.example.com"
+	if code, _, _ := anonymous.do("GET", "/api/agent/state", nil, headers); code != 401 {
+		t.Fatal(code)
+	}
+	after, err := r.st.AgentConnection(context.Background(), r.nodeID)
+	if err != nil || after.URL != reported {
+		t.Fatal("anonymous observation changed a node", after, err)
+	}
+}
