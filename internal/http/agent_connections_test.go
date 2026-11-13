@@ -51,9 +51,17 @@ func TestAgentConnectionsPermissionsAndMetadata(t *testing.T) {
 	}
 	before := mustJSON[agentproto.State](t, body)
 	req := map[string]any{"node_ids": []int64{r.nodeID}, "mode": "custom", "url": "https://agent.example.com:2096"}
+	beforeLog, err := r.st.AdminLog(ctx, 0, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
 	code, body, _ = r.c.do("POST", "/api/admin/agent-connections/preview", req, nil)
 	if code != 200 {
 		t.Fatal(code, string(body))
+	}
+	afterLog, err := r.st.AdminLog(ctx, 0, 100)
+	if err != nil || len(afterLog) != len(beforeLog) {
+		t.Fatal("read-only preview wrote an audit mutation", err)
 	}
 	preview := mustJSON[map[string]any](t, body)
 	req["revision"] = preview["revision"]

@@ -448,7 +448,7 @@ func (h *handlers) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 		authOnly, _ := r.Context().Value(subPresetAuthOnlyKey{}).(bool)
 		// Preview carries a draft in its body but performs no mutation. Keep
 		// authentication, role, token and origin checks; skip write side effects.
-		linePreview := r.Method == http.MethodPost && (r.Pattern == "POST /api/admin/topology-changesets/{id}/preview" || r.Pattern == "POST /api/admin/lines/preview" || r.Pattern == "POST /api/admin/lines/{id}/preview" || r.Pattern == "POST /api/admin/line-rollouts/preview" || r.Pattern == "POST /api/admin/path-rollouts/preview" || r.Pattern == "POST /api/admin/path-routes/preview" || r.Pattern == "POST /api/admin/path-routes/{id}/preview")
+		linePreview := r.Method == http.MethodPost && (r.Pattern == "POST /api/admin/agent-connections/preview" || r.Pattern == "POST /api/admin/topology-changesets/{id}/preview" || r.Pattern == "POST /api/admin/lines/preview" || r.Pattern == "POST /api/admin/lines/{id}/preview" || r.Pattern == "POST /api/admin/line-rollouts/preview" || r.Pattern == "POST /api/admin/path-rollouts/preview" || r.Pattern == "POST /api/admin/path-routes/preview" || r.Pattern == "POST /api/admin/path-routes/{id}/preview")
 		authOnly = authOnly || linePreview || strings.HasPrefix(r.URL.Path, "/api/admin/node-diagnostics/")
 		draftOnly := strings.HasPrefix(r.URL.Path, "/api/admin/topology-changesets") && r.Pattern != "POST /api/admin/topology-changesets/{id}/commit"
 		if !authOnly && !draftOnly && h.State != nil && r.Method != http.MethodGet {
