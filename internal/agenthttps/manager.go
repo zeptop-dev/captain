@@ -421,6 +421,10 @@ func (m *Manager) Close(ctx context.Context) error {
 	failures := make(chan error, len(endpoints))
 	for _, e := range endpoints {
 		wg.Go(func() {
+			// Permanent stop has already cancelled request contexts. Closing the
+			// connections also avoids HTTP/2's graceful GOAWAY timer consuming an
+			// otherwise idle short shutdown deadline. Retirement still drains separately.
+			_ = e.server.Close()
 			if err := e.server.Shutdown(ctx); err != nil {
 				failures <- err
 				_ = e.server.Close()

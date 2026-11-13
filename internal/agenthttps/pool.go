@@ -19,6 +19,7 @@ type EntryMaterial struct {
 }
 type routeSet struct{ hosts map[string]*material }
 type routeListener struct {
+	cancel  context.CancelFunc
 	routes  atomic.Pointer[routeSet]
 	server  *http.Server
 	closing atomic.Bool
@@ -82,13 +83,15 @@ func (p *Pool) Apply(ctx context.Context, entries []EntryMaterial) error {
 		if err != nil {
 			for _, l := range created {
 				l.server.Close()
+				l.cancel()
 			}
 			p.lastError = "Agent HTTPS could not bind a requested socket"
 			return errors.New(p.lastError)
 		}
-		l := &routeListener{}
+		base, cancel := context.WithCancel(context.Background())
+		l := &routeListener{cancel: cancel}
 		l.routes.Store(routes)
-		l.server = &http.Server{ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 90 * time.Second, MaxHeaderBytes: 16 << 10, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12, GetConfigForClient: func(h *tls.ClientHelloInfo) (*tls.Config, error) {
+		l.server = &http.Server{BaseContext: func(net.Listener) context.Context { return base }, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 90 * time.Second, MaxHeaderBytes: 16 << 10, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12, GetConfigForClient: func(h *tls.ClientHelloInfo) (*tls.Config, error) {
 			if l.closing.Load() {
 				return nil, errors.New("entry closing")
 			}
@@ -135,6 +138,8 @@ func (p *Pool) Apply(ctx context.Context, entries []EntryMaterial) error {
 			if err == nil || errors.Is(err, http.ErrServerClosed) {
 				return
 			}
+			l.cancel()
+			_ = l.server.Close()
 			p.mu.Lock()
 			defer p.mu.Unlock()
 			if p.listeners[addr] == l {
@@ -162,6 +167,7 @@ func (p *Pool) Apply(ctx context.Context, entries []EntryMaterial) error {
 			defer cancel()
 			_ = l.server.Shutdown(c)
 			_ = l.server.Close()
+			l.cancel()
 		}()
 	}
 	p.statuses, p.lastError = statuses, ""
@@ -203,8 +209,9 @@ func (p *Pool) Close(ctx context.Context) error {
 	p.mu.Unlock()
 	for _, l := range ls {
 		l.closing.Store(true)
-		_ = l.server.Shutdown(ctx)
+		l.cancel()
 		_ = l.server.Close()
+		_ = l.server.Shutdown(ctx)
 	}
 	return nil
 }

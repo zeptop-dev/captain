@@ -65,3 +65,44 @@ func TestPoolNamedOriginsSharePortAndRetireIndependently(t *testing.T) {
 		t.Fatal("new origin stopped")
 	}
 }
+
+func TestPoolPermanentCloseCancelsLongPolls(t *testing.T) {
+	configs, release := configurations(t, 1)
+	cfg := configs[0]
+	release()
+	now := time.Now()
+	cert := certificate(t, "agent.example.com", 1, now.Add(-time.Hour), now.Add(time.Hour))
+	entered, exited, done := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	p := NewPool(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { close(entered); <-r.Context().Done(); close(exited) }))
+	if err := p.Apply(context.Background(), []EntryMaterial{{Config: cfg, Certificate: cert.cert, Key: cert.key}}); err != nil {
+		t.Fatal(err)
+	}
+	tr := transport(cfg, cert)
+	defer tr.CloseIdleConnections()
+	go func() {
+		defer close(done)
+		response, err := (&http.Client{Transport: tr, Timeout: 3 * time.Second}).Get(cfg.URL)
+		if err == nil {
+			response.Body.Close()
+		}
+	}()
+	select {
+	case <-entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("long poll did not start")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := p.Close(ctx); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-exited:
+	case <-time.After(time.Second):
+		t.Fatal("long poll context not cancelled")
+	}
+	<-done
+	if err := p.Apply(context.Background(), nil); err == nil {
+		t.Fatal("closed pool reopened")
+	}
+}
