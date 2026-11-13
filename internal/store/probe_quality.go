@@ -222,6 +222,50 @@ func recordPingHistory(ctx context.Context, tx *sql.Tx, nodeID int64, h spec.Sys
 	if err != nil {
 		return err
 	}
+	var policy NetworkAlertPolicy
+	policy.Mode = "off"
+	var policyRaw string
+	var policyAt int64
+	e := tx.QueryRowContext(ctx, "SELECT policy_json,updated_at FROM node_network_alerts WHERE node_id=?", nodeID).Scan(&policyRaw, &policyAt)
+	if e != nil && !errors.Is(e, sql.ErrNoRows) {
+		return e
+	}
+	if e == nil {
+		if e = json.Unmarshal([]byte(policyRaw), &policy); e != nil {
+			return e
+		}
+	}
+	taskAlertChanges := map[int64]int64{}
+	var plan EffectiveProbePlan
+	if policy.Mode != "off" {
+		global, e := readProbeSettings(ctx, tx)
+		if e != nil {
+			return e
+		}
+		local, e := readNodeProbePlan(ctx, tx, nodeID)
+		if e != nil {
+			return e
+		}
+		plan = ResolveNodeProbePlan(global, local)
+		rows, e := tx.QueryContext(ctx, "SELECT id,alert_changed_at FROM ping_tasks")
+		if e != nil {
+			return e
+		}
+		for rows.Next() {
+			var id, changed int64
+			if e = rows.Scan(&id, &changed); e != nil {
+				rows.Close()
+				return e
+			}
+			taskAlertChanges[id] = changed
+		}
+		e = rows.Err()
+		rows.Close()
+		if e != nil {
+			return e
+		}
+
+	}
 	h = FilterTaskSamples(h, tasks, nodeID)
 	for _, p := range h.Pings {
 		if len(p.Name) > 128 || !validPingSeries(p) {
@@ -327,6 +371,9 @@ func recordPingHistory(ctx context.Context, tx *sql.Tx, nodeID int64, h spec.Sys
 				if _, err := tx.ExecContext(ctx, `INSERT INTO `+statsTable+`(`+keyColumns+`,res,ts,samples,lost,sum_ms,sum_mbps,quality_json) VALUES(`+keyValues+`,?,?,1,?,?,?,?) ON CONFLICT(`+keyColumns+`,res,ts) DO UPDATE SET samples=samples+1,lost=lost+excluded.lost,sum_ms=sum_ms+excluded.sum_ms,sum_mbps=sum_mbps+excluded.sum_mbps,quality_json=CASE WHEN ? THEN excluded.quality_json ELSE quality_json END`, args(b.res, ts, lost, sum, mbps, qualityJSON, q != nil)...); err != nil {
 					return err
 				}
+			}
+			if e := recordNetworkSampleTx(ctx, tx, nodeID, p, m, sampleAt, at, plan, policy, policyAt, taskAlertChanges[p.TaskID]); e != nil {
+				return e
 			}
 			sequence, previous = m.Sequence, m.LatencyMs
 		}

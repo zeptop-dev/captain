@@ -53,8 +53,32 @@ func (s *Store) SetRouteSchedule(ctx context.Context, id int64, p RouteSchedule)
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, `INSERT INTO node_route_schedules(node_id,config_json,next_at) VALUES(?,?,?) ON CONFLICT(node_id) DO UPDATE SET config_json=excluded.config_json,next_at=excluded.next_at`, id, string(raw), time.Now().Add(time.Duration(p.IntervalHours)*time.Hour).Unix())
-	return err
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var rawOld string
+	e := tx.QueryRowContext(ctx, "SELECT config_json FROM node_route_schedules WHERE node_id=?", id).Scan(&rawOld)
+	if e != nil && !errors.Is(e, sql.ErrNoRows) {
+		return e
+	}
+	var old RouteSchedule
+	if e == nil && json.Unmarshal([]byte(rawOld), &old) == nil && (old.City != p.City || old.Family != p.Family) {
+		if _, err = tx.ExecContext(ctx, "DELETE FROM node_route_states WHERE node_id=?", id); err != nil {
+			return err
+		}
+		if _, err = tx.ExecContext(ctx, `UPDATE node_jobs SET done_at=?,error='route schedule changed' WHERE node_id=? AND route_check=1 AND done_at IS NULL`, now(), id); err != nil {
+			return err
+		}
+		if _, err = tx.ExecContext(ctx, `UPDATE monitor_incidents SET ended_at=?,updated_at=?,resolution='disabled' WHERE node_id=? AND kind LIKE 'route_%' AND ended_at IS NULL`, now(), now(), id); err != nil {
+			return err
+		}
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO node_route_schedules(node_id,config_json,next_at) VALUES(?,?,?) ON CONFLICT(node_id) DO UPDATE SET config_json=excluded.config_json,next_at=excluded.next_at`, id, string(raw), time.Now().Add(time.Duration(p.IntervalHours)*time.Hour).Unix()); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 func (s *Store) ReturnRoutes(ctx context.Context, id int64) ([]NodeJob, error) {
 	if err := s.expireNetworkDiagnostics(ctx, id); err != nil {

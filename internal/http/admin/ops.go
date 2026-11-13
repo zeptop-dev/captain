@@ -15,6 +15,7 @@ import (
 )
 
 func (h *handlers) registerOps(mux *http.ServeMux) {
+	h.registerInsights(mux)
 	mux.HandleFunc("GET /api/admin/monitoring/incidents", h.requireAdmin(h.monitorIncidents))
 	mux.HandleFunc("POST /api/admin/monitoring/incidents/{id}/ack", h.requireAdmin(h.acknowledgeIncident))
 	mux.HandleFunc("GET /api/admin/monitoring/windows", h.requireAdmin(h.monitorWindows))

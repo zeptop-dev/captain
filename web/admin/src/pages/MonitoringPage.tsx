@@ -1,3 +1,5 @@
+import { MonitorStorageCard } from '../components/MonitorStorageCard'
+import { useAuth } from '../lib/auth'
 import { localizedName } from '../lib/localized-name'
 import { nodeLayoutQuery } from '../lib/node-layout'
 import { DNSHealthCard } from '../components/DNSHealthCard'
@@ -17,6 +19,7 @@ import { useURLChoice } from '../lib/use-url-choice'
 export default function MonitoringPage() {
   const { t, i18n } = useTranslation()
   const qc = useQueryClient()
+  const admin = useAuth().me?.role === 'admin'
   const [tab] = useURLChoice('tab', ['nodes', 'alerts', 'dns'], 'nodes')
   const q = useQuery({ queryKey: ['monitoring'], queryFn: () => api.get<MonitorNode[]>('/api/admin/monitoring'), refetchInterval: 10_000 })
   const layout = useQuery(nodeLayoutQuery)
@@ -71,5 +74,6 @@ export default function MonitoringPage() {
   </Stack>}
     {tab === 'alerts' && <MonitoringAlerts nodes={nodes} />}
     {tab === 'dns' && <DNSHealthCard />}
+    {admin && <MonitorStorageCard />}
   </Stack>
 }

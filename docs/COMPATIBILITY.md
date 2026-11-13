@@ -7,6 +7,16 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.63.0 to preserve ingress address sources, subscription bindings and strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
 
+## Operations insights (unreleased, migration 121)
+
+Additive private route events, opt-in anomaly policies, exact-type silences,
+infrastructure term snapshots and additional-expense history preserve existing
+node, payment and subscription data. New storage, route-watch, network-alerts
+and infrastructure analytics capabilities have explicit narrow-token scopes.
+The line guide uses the existing preview/save APIs. Shared bosun v0.95.0,
+installed-agent behavior and the v1.63.0 rollback floor remain unchanged.
+See [operator behavior and limits](OPERATIONS_INSIGHTS.md).
+
 ## Migration notice dismissal (Captain v1.65.0)
 
 An additive administrator POST endpoint saves a site-wide dismissal for the exact

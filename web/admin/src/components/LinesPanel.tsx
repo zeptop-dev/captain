@@ -1,3 +1,4 @@
+import type { QuickLineDraft } from '../lib/quick-line'
 import { ActionIcon, Alert, Badge, Box, Button, Card, Code, Group, Loader, Modal, NumberInput, Select, SimpleGrid, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -80,12 +81,12 @@ export function LinesPanel({ lines, nodes, inbounds, loading, error, observedAt,
   </Stack>
 }
 
-export function LineEditor({ line, nodes, details, inbounds, loading, loadError, onReload, onClose, onSaved, onPlanned }: {
-  line?: Line; nodes: Node[]; details: EntryNodeDetail[]; inbounds: InboundChoice[]; loading: boolean; loadError: boolean; onReload: () => void; onClose: () => void; onSaved: (selection: LineHistorySelection) => void; onPlanned: (id: string) => void
+export function LineEditor({ line, nodes, details, inbounds, loading, loadError, onReload, onClose, onSaved, onPlanned, quickDraft }: {
+  quickDraft?: QuickLineDraft; line?: Line; nodes: Node[]; details: EntryNodeDetail[]; inbounds: InboundChoice[]; loading: boolean; loadError: boolean; onReload: () => void; onClose: () => void; onSaved: (selection: LineHistorySelection) => void; onPlanned: (id: string) => void
 }) {
   const { t } = useTranslation()
   const qc = useQueryClient()
-  const [initial] = useState<Draft>(() => line ? { name: line.name, backend: line.backend, protocol: line.protocol, target_inbound_id: line.target_inbound_id, target_address_mode: line.target_address_mode || 'default', groups: line.groups.map(group => ({ ...group, key: crypto.randomUUID(), members: group.members.map(member => ({ ...member, key: crypto.randomUUID() })) })) } : { name: '', backend: 'relay', protocol: 'both', target_inbound_id: 0, target_address_mode: 'default', groups: [newGroup()] })
+  const [initial] = useState<Draft>(() => line ? { name: line.name, backend: line.backend, protocol: line.protocol, target_inbound_id: line.target_inbound_id, target_address_mode: line.target_address_mode || 'default', groups: line.groups.map(group => ({ ...group, key: crypto.randomUUID(), members: group.members.map(member => ({ ...member, key: crypto.randomUUID() })) })) } : { name: quickDraft?.name ?? '', backend: 'relay', protocol: 'both', target_inbound_id: quickDraft?.target_inbound_id ?? 0, target_address_mode: 'default', groups: quickDraft ? quickDraft.groups.map(g => ({ ...g, key: crypto.randomUUID(), members: g.members.map(m => ({ ...m, key: crypto.randomUUID() })) })) : [newGroup()] })
   const [draft, setDraft] = useState(initial)
   const [planning, setPlanning] = useState(false)
   const [creatingInbound, setCreatingInbound] = useState(false)

@@ -1,3 +1,5 @@
+import { LineQuickWizard } from '../components/LineQuickWizard'
+import type { QuickLineDraft } from '../lib/quick-line'
 import { localizedName } from '../lib/localized-name'
 import { ActionIcon, Alert, Badge, Button, Card, Checkbox, Code, Group, Loader, Menu, Select, Stack, Table, Tabs, Text } from '@mantine/core'
 import { modals } from '@mantine/modals'
@@ -112,6 +114,8 @@ function EntriesWorkspace() {
     }, { replace: true }))
     return () => cancelAnimationFrame(frame)
   }, [createRequest, editing, setParams])
+  const [wizard, setWizard] = useState(false)
+  const [quickDraft, setQuickDraft] = useState<QuickLineDraft | undefined>()
   const [editingLine, setEditingLine] = useState<Line | 'new' | null>(null)
   const [rollouts, setRollouts] = useState<{ id?: string; lineID?: number } | null>(null)
   const [lineHistory, setLineHistory] = useState<LineHistorySelection | null>(null)
@@ -165,8 +169,8 @@ function EntriesWorkspace() {
       {admin && <Button variant={tab === 'changesets' ? 'filled' : 'default'} onClick={() => updateParams({ tab: tab === 'changesets' ? 'entries' : 'changesets', section: null })}>{tab === 'changesets' ? t('entryFlow.backToNodes') : t('topologyChangesets.title')}</Button>}
       {admin && <Button component={Link} to="/settings/category/monitoring#service-status" variant="default">{t('serviceStatus.title')}</Button>}
       {canWrite && <Button leftSection={<IconPlus size={16} />} onClick={() => createNode()} disabled={q.isLoading || q.isError || sourcesLoading}>{t('entryFlow.createNode')}</Button>}
-      {admin && <Menu position="bottom-end"><Menu.Target><Button variant="light" rightSection={<IconChevronDown size={16} />}>{t('lines.create')}</Button></Menu.Target><Menu.Dropdown>
-        <Menu.Item onClick={() => { updateParams({ tab: 'lines', section: 'forward', mode: null }); setEditingLine('new') }}>{t('lines.normal')}</Menu.Item>
+      {admin && <Menu position="bottom-end"><Menu.Target><Button variant="light" rightSection={<IconChevronDown size={16} />}>{t('lines.create')}</Button></Menu.Target><Menu.Dropdown><Menu.Item onClick={() => setWizard(true)}>{t('insights.lineWizard')}</Menu.Item>
+        <Menu.Item onClick={() => { updateParams({ tab: 'lines', section: 'forward', mode: null }); setQuickDraft(undefined); setEditingLine('new') }}>{t('lines.normal')}</Menu.Item>
         <Menu.Item onClick={() => createConnection('wireguard')}>{t('lines.sections.wireguard')}</Menu.Item>
         <Menu.Item onClick={() => createConnection('reverse')}>{t('lines.sections.reverse')}</Menu.Item>
       </Menu.Dropdown></Menu>}
@@ -228,7 +232,8 @@ function EntriesWorkspace() {
     {admin && operationRollout && operationResource && <LineRolloutHistory key={`${operationResource}-${operationRollout}`} initialID={operationRollout} resource={operationResource} onClose={closeOperationRollout} />}
     {admin && !operationRollout && rollouts && <LineRolloutHistory key={`${rollouts.id ?? 'all'}-${rollouts.lineID ?? 'all'}`} initialID={rollouts.id} lineID={rollouts.lineID} onClose={() => setRollouts(null)} />}
     {admin && lineHistory && <LineChangesModal key={`line-history-${lineHistory.lineID ?? 'all'}-${lineHistory.changeID ?? 'latest'}`} selection={lineHistory} onClose={() => setLineHistory(null)} />}
-    {editingLine !== null && <SettingsDraftBoundary><LineEditor key={editingLine === 'new' ? 'line-new' : `line-${editingLine.id}`} line={editingLine === 'new' ? undefined : editingLine} nodes={nodes.data ?? []} details={details} inbounds={inbounds} loading={sourcesLoading} loadError={sourcesError} onReload={reloadSources} onClose={() => setEditingLine(null)} onSaved={setLineHistory} onPlanned={id => setRollouts({ id })} /></SettingsDraftBoundary>}
+    {wizard && <SettingsDraftBoundary><LineQuickWizard nodes={nodes.data ?? []} details={details} inbounds={inbounds} onClose={() => setWizard(false)} onContinue={draft => { setQuickDraft(draft); setWizard(false); setEditingLine('new'); updateParams({ tab: 'lines', section: 'forward', mode: null }) }} /></SettingsDraftBoundary>}
+    {editingLine !== null && <SettingsDraftBoundary><LineEditor quickDraft={editingLine === 'new' ? quickDraft : undefined} key={editingLine === 'new' ? 'line-new' : `line-${editingLine.id}`} line={editingLine === 'new' ? undefined : editingLine} nodes={nodes.data ?? []} details={details} inbounds={inbounds} loading={sourcesLoading} loadError={sourcesError} onReload={reloadSources} onClose={() => setEditingLine(null)} onSaved={setLineHistory} onPlanned={id => setRollouts({ id })} /></SettingsDraftBoundary>}
   </>
 }
 

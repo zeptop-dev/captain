@@ -177,8 +177,8 @@ func (s *Store) SavePingTask(ctx context.Context, t *PingTask) error {
 		t.ID, _ = res.LastInsertId()
 		return nil
 	}
-	_, err := s.db.ExecContext(ctx, `UPDATE ping_tasks SET name = ?, type = ?, target = ?, interval_seconds = ?, node_ids_json = ?, enabled = ?, source_interface = ? WHERE id = ?`,
-		t.Name, t.Type, t.Target, t.IntervalSeconds, string(ids), boolInt(t.Enabled), t.SourceInterface, t.ID)
+	_, err := s.db.ExecContext(ctx, `UPDATE ping_tasks SET alert_changed_at=CASE WHEN name<>? OR type<>? OR target<>? OR interval_seconds<>? OR node_ids_json<>? OR enabled<>? OR source_interface<>? THEN MAX(alert_changed_at+1,CAST(unixepoch('subsec')*1000 AS INTEGER)) ELSE alert_changed_at END,name = ?, type = ?, target = ?, interval_seconds = ?, node_ids_json = ?, enabled = ?, source_interface = ? WHERE id = ?`,
+		t.Name, t.Type, t.Target, t.IntervalSeconds, string(ids), boolInt(t.Enabled), t.SourceInterface, t.Name, t.Type, t.Target, t.IntervalSeconds, string(ids), boolInt(t.Enabled), t.SourceInterface, t.ID)
 	return err
 }
 

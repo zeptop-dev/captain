@@ -8,6 +8,8 @@ import (
 )
 
 type MonitorIncident struct {
+	Silenced       bool    `json:"silenced"`
+	SilenceUntil   *int64  `json:"silence_until"`
 	ID             int64   `json:"id"`
 	NodeID         int64   `json:"node_id"`
 	Node           string  `json:"node"`
@@ -24,6 +26,9 @@ type MonitorIncident struct {
 }
 
 type IncidentCheck struct {
+	SourceKind       string
+	SourceKey        string
+	SourceAt         int64
 	Kind             string
 	Active           bool
 	Value, Threshold float64
@@ -44,6 +49,13 @@ func (s *Store) CheckIncident(ctx context.Context, nodeID int64, c IncidentCheck
 		return nil, err
 	}
 	defer tx.Rollback()
+	current, err := insightCurrentTx(ctx, tx, nodeID, c)
+	if err != nil {
+		return nil, err
+	}
+	if !current {
+		return nil, nil
+	}
 	var id, updated, notified int64
 	var ended sql.NullInt64
 	err = tx.QueryRowContext(ctx, `SELECT id,updated_at,notified_at,ended_at FROM monitor_incidents WHERE node_id=? AND kind=? ORDER BY id DESC LIMIT 1`, nodeID, c.Kind).Scan(&id, &updated, &notified, &ended)
@@ -80,6 +92,11 @@ func (s *Store) CheckIncident(ctx context.Context, nodeID int64, c IncidentCheck
 	if err != nil {
 		return nil, err
 	}
+	var kindMuted int
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM monitor_kind_silences WHERE node_id=? AND kind=? AND (until_at=0 OR until_at>?)`, nodeID, c.Kind, at.Unix()).Scan(&kindMuted); err != nil {
+		return nil, err
+	}
+	muted = muted || kindMuted > 0
 	var notice *IncidentNotice
 	if c.Active {
 		if notified == 0 && !muted {
@@ -117,6 +134,9 @@ func (s *Store) DisableMonitoring(ctx context.Context, at time.Time) error {
 	if _, err = tx.ExecContext(ctx, `UPDATE monitor_incidents SET ended_at=?,updated_at=?,resolution='disabled' WHERE ended_at IS NULL`, at.Unix(), at.Unix()); err != nil {
 		return err
 	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM node_network_baselines`); err != nil {
+		return err
+	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM monitor_observations`); err != nil {
 		return err
 	}
@@ -136,7 +156,7 @@ func (s *Store) AcknowledgeIncident(ctx context.Context, id int64, actor string,
 }
 
 func (s *Store) MonitorIncidents(ctx context.Context, nodeID, before int64, state string) ([]MonitorIncident, error) {
-	query := `SELECT i.id,i.node_id,n.name,i.kind,i.started_at,i.updated_at,i.ended_at,i.resolution,i.value,i.threshold,i.notified_at,i.acknowledged_at,i.acknowledged_by FROM monitor_incidents i JOIN nodes n ON n.id=i.node_id WHERE 1=1`
+	query := `SELECT i.id,i.node_id,n.name,i.kind,i.started_at,i.updated_at,i.ended_at,i.resolution,i.value,i.threshold,i.notified_at,i.acknowledged_at,i.acknowledged_by,COALESCE((SELECT 1 FROM monitor_kind_silences s WHERE s.node_id=i.node_id AND s.kind=i.kind AND (s.until_at=0 OR s.until_at>unixepoch())),0),(SELECT NULLIF(s.until_at,0) FROM monitor_kind_silences s WHERE s.node_id=i.node_id AND s.kind=i.kind AND s.until_at>unixepoch()) FROM monitor_incidents i JOIN nodes n ON n.id=i.node_id WHERE 1=1`
 	args := []any{}
 	if nodeID > 0 {
 		query += ` AND i.node_id=?`
@@ -162,7 +182,7 @@ func (s *Store) MonitorIncidents(ctx context.Context, nodeID, before int64, stat
 	out := []MonitorIncident{}
 	for rows.Next() {
 		var v MonitorIncident
-		if err = rows.Scan(&v.ID, &v.NodeID, &v.Node, &v.Kind, &v.StartedAt, &v.UpdatedAt, &v.EndedAt, &v.Resolution, &v.Value, &v.Threshold, &v.NotifiedAt, &v.AcknowledgedAt, &v.AcknowledgedBy); err != nil {
+		if err = rows.Scan(&v.ID, &v.NodeID, &v.Node, &v.Kind, &v.StartedAt, &v.UpdatedAt, &v.EndedAt, &v.Resolution, &v.Value, &v.Threshold, &v.NotifiedAt, &v.AcknowledgedAt, &v.AcknowledgedBy, &v.Silenced, &v.SilenceUntil); err != nil {
 			return nil, err
 		}
 		out = append(out, v)

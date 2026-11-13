@@ -20,13 +20,15 @@ type Store struct {
 	// Topology serializes node/domain, ingress, inbound and forward edits with
 	// their validation. DNS-writing handlers keep it through the DNS update so
 	// an older save cannot overwrite a newly shared name.
-	Topology  sync.Mutex
-	db        *sql.DB
-	retention retentionState
+	Topology     sync.Mutex
+	db           *sql.DB
+	retention    retentionState
+	maintenance  sync.Mutex
+	monitorReads chan struct{}
 }
 
 // New returns a store over db.
-func New(db *sql.DB) *Store { return &Store{db: db} }
+func New(db *sql.DB) *Store { return &Store{db: db, monitorReads: make(chan struct{}, 1)} }
 
 // DB exposes the handle for transactions in service code.
 func (s *Store) DB() *sql.DB { return s.db }

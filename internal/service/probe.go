@@ -254,6 +254,7 @@ func (p *Probe) Record(ctx context.Context, n *domain.Node, version string, host
 	}
 	p.incident(ctx, n, store.IncidentCheck{Kind: "offline", Threshold: float64(s.Alerts.OfflineSeconds)}, at, "")
 	p.thresholds(ctx, n, s, &host, at)
+	p.insightAlerts(ctx, n, at)
 	return nil
 }
 
@@ -283,7 +284,7 @@ func (p *Probe) incident(ctx context.Context, n *domain.Node, c store.IncidentCh
 		if c.Kind != "offline" {
 			kind = c.Kind + "_recovered"
 		}
-		text = fmt.Sprintf("✅ %s: %s recovered", notify.Escape(n.Name), c.Kind)
+		text = fmt.Sprintf("✅ %s: %s recovered", notify.Escape(n.Name), notify.Escape(c.Kind))
 	} else if strings.HasPrefix(kind, "traffic") {
 		kind = "traffic"
 	}
@@ -383,6 +384,7 @@ func (p *Probe) CheckOffline(ctx context.Context, at time.Time) {
 			host = &live.Host
 		}
 		p.thresholds(ctx, n, s, host, at)
+		p.insightAlerts(ctx, n, at)
 	}
 }
 
@@ -409,7 +411,15 @@ func (p *Probe) notify(ctx context.Context, n *domain.Node, kind, text string, i
 		data["recovered"] = incidents[0].Recovered
 	}
 	p.Notify.Event(ctx, webhook.NodeAlert, data)
-	p.queueAdmin(text, n.ID)
+	kindForMute := kind
+	if len(incidents) > 0 {
+		kindForMute = incidents[0].Kind
+	}
+	if len(incidents) > 0 {
+		p.queueAdminKind(text, n.ID, kindForMute, incidents[0].ID)
+	} else {
+		p.queueAdminKind(text, n.ID, kindForMute)
+	}
 }
 
 func (p *Probe) discardPendingAlerts() {
@@ -425,11 +435,14 @@ func (p *Probe) discardPendingAlerts() {
 // queueAdmin collects operator notices for AlertWindow and sends them as
 // one message.
 type probeNotice struct {
-	Text   string
-	NodeID int64
+	Text       string
+	NodeID     int64
+	Kind       string
+	IncidentID int64
 }
 
-func (p *Probe) queueAdmin(text string, nodeID int64) {
+func (p *Probe) queueAdmin(text string, nodeID int64) { p.queueAdminKind(text, nodeID, "") }
+func (p *Probe) queueAdminKind(text string, nodeID int64, kind string, ids ...int64) {
 	send := p.adminSend
 	if send == nil {
 		send = p.Notify.Admin
@@ -444,7 +457,11 @@ func (p *Probe) queueAdmin(text string, nodeID int64) {
 	}
 	p.alertMu.Lock()
 	defer p.alertMu.Unlock()
-	p.pending = append(p.pending, probeNotice{Text: text, NodeID: nodeID})
+	notice := probeNotice{Text: text, NodeID: nodeID, Kind: kind}
+	if len(ids) > 0 {
+		notice.IncidentID = ids[0]
+	}
+	p.pending = append(p.pending, notice)
 	if p.alertTimer == nil {
 		p.alertTimer = time.AfterFunc(window, func() {
 			p.alertMu.Lock()
@@ -459,6 +476,18 @@ func (p *Probe) queueAdmin(text string, nodeID int64) {
 				if p.Store != nil {
 					muted, err := p.Store.MonitorMuted(context.Background(), n.NodeID, time.Now())
 					if err != nil || muted {
+						continue
+					}
+				}
+				if p.Store != nil && n.Kind != "" {
+					muted, e := p.Store.MonitorKindMuted(context.Background(), n.NodeID, n.Kind, time.Now())
+					if e != nil || muted {
+						continue
+					}
+				}
+				if p.Store != nil && n.IncidentID > 0 {
+					allowed, e := p.Store.IncidentNoticeAllowed(context.Background(), n.IncidentID)
+					if e != nil || !allowed {
 						continue
 					}
 				}

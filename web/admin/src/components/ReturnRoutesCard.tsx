@@ -1,3 +1,4 @@
+import { RouteWatchPanel, type RouteWatch, type RouteEvent } from './RouteWatchPanel'
 import { useSettingsDirty } from '../lib/settings-draft'
 import { Accordion, Alert, Badge, Button, Card, Group, Select, Stack, Switch, Table, Text, Title } from '@mantine/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -14,7 +15,7 @@ interface Report { city: string; family: string; protocol: string; engine: strin
 interface Tool { engine?: string; version?: string; state: string; installable: boolean; managed: boolean; ipv4: string; ipv6: string }
 interface Result { tool?: Tool; started_at: number; outcome: string; route?: Report }
 type Job = Omit<NodeJob, 'params' | 'result'> & { params: { route?: { city: string; family: string } }; result?: Result }
-interface Data { schedule: Schedule; history: Job[]; tool_job?: Job; tool_supported: boolean; tool_online: boolean }
+interface Data { watch: RouteWatch; events: RouteEvent[]; schedule: Schedule; history: Job[]; tool_job?: Job; tool_supported: boolean; tool_online: boolean }
 const defaults: Schedule = { enabled: false, interval_hours: 6, city: 'beijing', family: 'ipv4' }
 const signature = (p: Path) => [...new Set(p.evidence.map(e => e.code))].sort().join(',') || 'unknown'
 
@@ -110,6 +111,7 @@ export function ReturnRoutesCard({ nodeID }: { nodeID: number }) {
         </Stack>
       </Card>
     })}
+    {q.data?.watch && <RouteWatchPanel nodeID={nodeID} policy={q.data.watch} events={q.data.events ?? []} />}
     <Text size="xs" c="dimmed">{t('returnRoutes.limits')}</Text>
   </Stack></Card>
 }

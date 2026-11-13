@@ -1,3 +1,4 @@
+import { NetworkAlertCard } from './NetworkAlertCard'
 import { Alert, Button, Card, Group, Modal, Stack, Text } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -26,7 +27,7 @@ export function NodeSettings({ detail: d, section }: { detail: NodeDetail; secti
   const current = !allowed && section !== 'monitoring' ? 'runtime' : section
   return <>
     <Group component="nav" aria-label={t('serverDetail.tabs.settings')} mb="lg" gap="xs">{serverSettings.filter(s => (allowed || s === 'runtime' || s === 'monitoring') && (s !== 'monitoring' || me?.role === 'admin')).map(s => <Button key={s} component={Link} to={`/nodes/${n.id}/settings/${s}`} variant={current === s ? 'light' : 'subtle'} aria-current={current === s ? 'page' : undefined} onClick={e => { if (current === s) e.preventDefault() }}>{t(`serverDetail.settings.${s}`)}</Button>)}</Group>
-    {current === 'monitoring' ? (me?.role === 'admin' ? <NodeProbePlanCard nodeID={n.id} /> : <Alert>{t('nodeProbePlan.adminOnly')}</Alert>) : current === 'runtime' ? <>
+    {current === 'monitoring' ? (me?.role === 'admin' ? <Stack><NodeProbePlanCard nodeID={n.id} /><NetworkAlertCard key={n.id} nodeID={n.id} /></Stack> : <Alert>{t('nodeProbePlan.adminOnly')}</Alert>) : current === 'runtime' ? <>
       <NodeModeCard node={n} canWrite={me?.role === 'admin'} />
       {allowed && n.paired && me?.role === 'admin' && <CoreManagementCard inventory={d.status?.core_inventory} online={n.online} canWrite inbounds={d.inbounds.filter(ib => ib.Enabled).map(ib => ib.Tag)} onAction={async request => {
         const result = await runNodeJob<CoreInventory>(n.id, 'core_manage', request, 920_000)

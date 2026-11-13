@@ -49,8 +49,18 @@ func (h *handlers) returnRoutes(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
+	watch, err := h.Store.RouteWatch(r.Context(), id)
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
+	events, err := h.Store.RouteEvents(r.Context(), id)
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
 	supported := n.Version == spec.RouteToolMinimumVersion || selfupdate.Newer(n.Version, spec.RouteToolMinimumVersion)
-	ok(w, map[string]any{"schedule": p, "history": history, "tool_job": tool, "tool_supported": supported, "tool_online": n.Paired && n.LastSeenAt != nil && time.Since(*n.LastSeenAt) < 3*time.Minute})
+	ok(w, map[string]any{"watch": watch, "events": events, "schedule": p, "history": history, "tool_job": tool, "tool_supported": supported, "tool_online": n.Paired && n.LastSeenAt != nil && time.Since(*n.LastSeenAt) < 3*time.Minute})
 }
 func (h *handlers) setReturnRoutes(w http.ResponseWriter, r *http.Request) {
 	if !userFrom(r).IsAdmin() {

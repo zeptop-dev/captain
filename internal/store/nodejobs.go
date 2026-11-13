@@ -85,15 +85,39 @@ func (s *Store) NodeJob(ctx context.Context, nodeID int64, id string) (*NodeJob,
 
 // CompleteNodeJob stores a node's answer.
 func (s *Store) CompleteNodeJob(ctx context.Context, nodeID int64, id string, result json.RawMessage, errText string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE node_jobs SET result_json = ?, error = ?, done_at = ? WHERE node_id = ? AND id = ? AND done_at IS NULL`, string(result), errText, time.Now().Unix(), nodeID, id)
-	return err
+	return s.completeJob(ctx, nodeID, id, result, errText, false)
 }
 
-// CompleteReportedNodeJob accepts removal launch failures only before a worker
-// claims the request. A late agent report cannot overwrite the worker outcome.
+// CompleteReportedNodeJob preserves the removal-worker claim boundary.
 func (s *Store) CompleteReportedNodeJob(ctx context.Context, nodeID int64, id string, result json.RawMessage, errText string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE node_jobs SET result_json = ?, error = ?, done_at = ? WHERE node_id = ? AND id = ? AND done_at IS NULL AND (kind <> 'node_remove' OR (? <> '' AND result_json = ''))`, string(result), errText, time.Now().Unix(), nodeID, id, errText)
-	return err
+	return s.completeJob(ctx, nodeID, id, result, errText, true)
+}
+func (s *Store) completeJob(ctx context.Context, nodeID int64, id string, result json.RawMessage, errText string, reported bool) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	query := `UPDATE node_jobs SET result_json=?,error=?,done_at=? WHERE node_id=? AND id=? AND done_at IS NULL`
+	args := []any{string(result), errText, time.Now().Unix(), nodeID, id}
+	if reported {
+		query += ` AND (kind <> 'node_remove' OR (? <> '' AND result_json = ''))`
+		args = append(args, errText)
+	}
+	res, err := tx.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n > 0 {
+		if err = recordRouteWatchTx(ctx, tx, nodeID, id, result, errText, time.Now()); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 type rowScanner interface{ Scan(dest ...any) error }

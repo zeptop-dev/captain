@@ -10,7 +10,7 @@ import (
 
 // These identifiers are also the first resource segment of the admin API.
 // Scopes only narrow an employee's existing role; they cannot grant a role.
-var TokenResources = []string{"admin-log", "agent-https", "articles", "audit-log", "audit-rules", "certificates", "coupons", "config-presets", "dashboard", "domains", "entries", "entry-categories", "external", "forward-paths", "gifts", "groups", "inbounds", "infrastructure", "ingresses", "keys", "line-changes", "line-rollouts", "me", "metrics", "monitoring", "node-access", "node-diagnostics", "node-dns-sync", "node-probe-plan", "node-service-control", "nodes", "operations", "orders", "path-health", "path-routes", "path-rollouts", "ping-tasks", "plans", "renewals", "rendered-config", "settings", "speedtest", "system", "tickets", "tokens", "topology-changesets", "traffic-history", "users", "withdrawals"}
+var TokenResources = []string{"monitor-storage", "network-alerts", "route-watch", "infra-analytics", "admin-log", "agent-https", "articles", "audit-log", "audit-rules", "certificates", "coupons", "config-presets", "dashboard", "domains", "entries", "entry-categories", "external", "forward-paths", "gifts", "groups", "inbounds", "infrastructure", "ingresses", "keys", "line-changes", "line-rollouts", "me", "metrics", "monitoring", "node-access", "node-diagnostics", "node-dns-sync", "node-probe-plan", "node-service-control", "nodes", "operations", "orders", "path-health", "path-routes", "path-rollouts", "ping-tasks", "plans", "renewals", "rendered-config", "settings", "speedtest", "system", "tickets", "tokens", "topology-changesets", "traffic-history", "users", "withdrawals"}
 
 var endpointGrant = regexp.MustCompile(`^(GET|POST|PUT|PATCH|DELETE) /api/admin/[A-Za-z0-9_{}/-]+$`)
 
@@ -88,6 +88,18 @@ func TokenAllowsRequest(policy, method, path, pattern string) bool {
 	}
 	if strings.HasSuffix(path, "/probe-plan") && (resource == "nodes" || strings.HasPrefix(path, "/api/admin/settings/nodes/")) {
 		resource = "node-probe-plan"
+	}
+	if strings.HasPrefix(path, "/api/admin/settings/monitor-storage") {
+		resource = "monitor-storage"
+	}
+	if strings.HasPrefix(path, "/api/admin/settings/nodes/") && strings.HasSuffix(path, "/network-alerts") {
+		resource = "network-alerts"
+	}
+	if strings.HasPrefix(path, "/api/admin/settings/nodes/") && strings.HasSuffix(path, "/route-watch") {
+		resource = "route-watch"
+	}
+	if path == "/api/admin/settings/infrastructure/analytics" || strings.HasPrefix(path, "/api/admin/settings/infrastructure/expenses") {
+		resource = "infra-analytics"
 	}
 	// A narrowed token cannot mint an unrestricted successor or enroll login
 	// credentials. Interactive sessions retain their existing management APIs.

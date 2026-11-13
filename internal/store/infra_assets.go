@@ -161,7 +161,7 @@ func (s *Store) DeleteInfraSupplier(ctx context.Context, id int64) error {
 	}
 	defer tx.Rollback()
 	var n int
-	if e = tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM infra_assets WHERE supplier_id=?)+(SELECT COUNT(*) FROM node_infrastructure WHERE supplier_id=?)`, id, id).Scan(&n); e != nil {
+	if e = tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM infra_assets WHERE supplier_id=?)+(SELECT COUNT(*) FROM node_infrastructure WHERE supplier_id=?)`, id, id, id).Scan(&n); e != nil {
 		return e
 	}
 	if n > 0 {
@@ -302,7 +302,7 @@ func (s *Store) DeleteInfraAsset(ctx context.Context, id int64, revision int64) 
 	if n > 0 {
 		return ErrInfrastructureLinked
 	}
-	if e = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM infra_payments WHERE asset_id=?`, id).Scan(&n); e != nil {
+	if e = tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM infra_payments WHERE asset_id=?) + (SELECT COUNT(*) FROM infra_extra_expenses WHERE asset_id=?)`, id, id).Scan(&n); e != nil {
 		return e
 	}
 	if n > 0 {

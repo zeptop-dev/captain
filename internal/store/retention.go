@@ -71,6 +71,8 @@ func monitoringRetentionTasks(at time.Time) []retentionTask {
 	add("monitor_incidents", "ended_at<?", at.Add(-180*24*time.Hour).Unix())
 	add("monitor_windows", "ends_at<? OR canceled_at<?", at.Add(-180*24*time.Hour).Unix(), at.Add(-180*24*time.Hour).Unix())
 	add("node_traffic_history", "received_at<?", at.Add(-trafficHistoryDays*24*time.Hour).UnixMilli())
+	add("node_route_events", "at<?", at.AddDate(0, 0, -180).Unix())
+	add("monitor_kind_silences", "until_at>0 AND until_at<?", at.AddDate(0, 0, -180).Unix())
 	return tasks
 }
 

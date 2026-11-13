@@ -34,6 +34,14 @@ func (h *handlers) monitoring(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) resourceHistory(w http.ResponseWriter, r *http.Request) {
+	ctx, release, err := h.Store.AcquireMonitorRead(r.Context())
+	if err != nil {
+		fail(w, 503, "monitoring history is busy; retry later")
+		return
+	}
+	defer release()
+	r = r.WithContext(ctx)
+
 	if _, err := h.Store.NodeByID(r.Context(), idOf(r)); err != nil {
 		fail(w, 404, "node not found")
 		return
@@ -80,6 +88,14 @@ func (h *handlers) setMonitorGroup(w http.ResponseWriter, r *http.Request) {
 // Network history is separate from the public-page gate, so private collection
 // remains useful with public visibility disabled.
 func (h *handlers) networkQuality(w http.ResponseWriter, r *http.Request) {
+	ctx, release, err := h.Store.AcquireMonitorRead(r.Context())
+	if err != nil {
+		fail(w, 503, "monitoring history is busy; retry later")
+		return
+	}
+	defer release()
+	r = r.WithContext(ctx)
+
 	span := r.URL.Query().Get("range")
 	res, step, window, valid := store.ResourceRange(span)
 	if !valid {
