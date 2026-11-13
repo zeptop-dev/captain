@@ -136,8 +136,8 @@ func (s *Store) SaveAgentHTTPS(ctx context.Context, in AgentHTTPSSettings) (Agen
 	} else if e != nil && !errors.Is(e, ErrNotFound) {
 		return in, e
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO agent_endpoints(id,name,url,listen,enabled,certificate_id,revision,is_default,was_default) VALUES(?,'Existing Agent HTTPS',?,?,?,?,?,1,1)
- ON CONFLICT(id) DO UPDATE SET url=excluded.url,listen=excluded.listen,enabled=excluded.enabled,certificate_id=excluded.certificate_id,revision=excluded.revision,is_default=1,was_default=1`, legacyID, in.URL, in.Listen, in.Enabled, in.CertificateID, in.Revision)
+	_, err = tx.ExecContext(ctx, `INSERT INTO agent_endpoints(id,name,url,listen,enabled,certificate_id,revision,is_default,was_default) VALUES(?,'Existing Agent HTTPS',?,?,?,?,?,?,?)
+ ON CONFLICT(id) DO UPDATE SET url=excluded.url,listen=excluded.listen,enabled=excluded.enabled,certificate_id=excluded.certificate_id,revision=excluded.revision,is_default=excluded.is_default,was_default=max(agent_endpoints.was_default,excluded.was_default)`, legacyID, in.URL, in.Listen, in.Enabled, in.CertificateID, in.Revision, in.Enabled, in.Enabled)
 	if err != nil {
 		return in, err
 	}
