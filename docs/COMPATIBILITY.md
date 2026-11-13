@@ -1283,3 +1283,28 @@ Built-in rollback floors are Captain v1.50.0 and bosun v0.85.0. Older software
 can lose active route intent or ignore health filtering. Manual recovery needs
 a compatible database backup and an explicitly verified service configuration;
 replacing the binary alone does not preserve these guarantees.
+
+## DNS following modes (development)
+
+The optional designer enhancement `dns_mode` accepts `follow`, `dedicated` and
+`custom`. Missing mode retains the existing independent-policy or automatic
+Claude/dedicated behavior. New UI opt-in defaults to following the main group;
+loading or saving an existing draft does not change its mode. Main selection
+uses a base select group containing `@all`, then the final base group, or requires
+an explicit administrator choice. Dedicated mode creates a manual DNS group
+independently of Claude; custom mode retains proxy-only validation.
+
+Follow mode permits an explicitly selected manual DIRECT path and explains this
+in the editor, but rejects automatic groups that can reach DIRECT. Ordinary DNS
+uses the same named group as the main connection; Claude DNS still follows its
+own policy. Domestic/direct and proxy-hostname bootstrap queries remain separate.
+No arbitrary service-group inference is performed. A shared load-balancing group
+does not guarantee the same individual node for different connections, and DNS
+caches/connection reuse can outlive a selection change.
+
+Captain's next-release rollback floor is prepared as v1.66.0: older shared
+renderers ignore the new mode and can generate independent or direct DNS paths.
+Captain pins bosun `v0.96.1-0.20261113061455-371d59e3f784`, an immutable
+source revision containing this renderer. This is a module pin, not a new bosun
+product release; task-local go.work is not needed by the integrated mainline. No installed
+agent protocol or proxy-core changes are required by this feature.

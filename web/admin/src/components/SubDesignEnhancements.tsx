@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import type { ClaudeRulesData, SubDesign } from '../lib/sub-design'
-import { claudeRulesEndpoint, claudeRulesQueryKey, designPolicyCanDirect, setClaudeEnabled } from '../lib/sub-design'
+import { claudeRulesEndpoint, claudeRulesQueryKey, designPolicyCanDirect, designDNSAutoDirect, designMainDNSPolicy, setClaudeEnabled } from '../lib/sub-design'
 import { SubDesignClaudeRules } from './SubDesignClaudeRules'
 
 export function SubDesignEnhancements({ design, onChange }: { design: SubDesign; onChange: (next: SubDesign) => void }) {
@@ -15,6 +15,9 @@ export function SubDesignEnhancements({ design, onChange }: { design: SubDesign;
     const direct = designPolicyCanDirect(design, name)
     return { value: name, label: direct ? `${name} · ${t('subDesign.directPolicy')}` : name, disabled: direct }
   })
+  const dnsMode = options.dns_mode || (options.dns_policy ? 'custom' : 'legacy')
+  const mainPolicy = options.dns_policy || designMainDNSPolicy(design)
+  const changeDNSMode = (mode: string) => onChange({ ...design, enhancements: { ...options, dns_mode: mode === 'legacy' ? undefined : mode as 'follow' | 'custom' | 'dedicated', dns_policy: undefined } })
   const hasRegions = design.groups.some(group => !!group.region)
   return <Stack gap="sm">
     <Title order={6}>{t('subDesign.enhancements')}</Title>
@@ -25,9 +28,15 @@ export function SubDesignEnhancements({ design, onChange }: { design: SubDesign;
         {hasRegions && <Badge variant="light" size="sm" w="fit-content">{t('subDesign.regionsIncluded')}</Badge>}
       </Stack>
       <Stack gap={4}>
-        <Checkbox label={t('subDesign.dnsOption')} checked={!!options.dns_protection} onChange={event => set('dns_protection', event.currentTarget.checked)} />
+        <Checkbox label={t('subDesign.dnsOption')} checked={!!options.dns_protection} onChange={event => onChange({ ...design, enhancements: { ...options, dns_protection: event.currentTarget.checked, ...(!options.dns_mode && !options.dns_policy && !options.dns_protection && event.currentTarget.checked ? { dns_mode: 'follow' as const } : {}) } })} />
         <Text size="xs" c="dimmed">{t('subDesign.dnsHint')}</Text>
-        {options.dns_protection && <Select size="xs" label={t('subDesign.dnsPolicy')} placeholder={t('subDesign.autoDNSPolicy')} data={policies} value={options.dns_policy || null} onChange={value => set('dns_policy', value || undefined)} clearable searchable />}
+        {options.dns_protection && <>
+          <Select size="xs" label={t('subDesign.dnsMode')} value={dnsMode} allowDeselect={false} data={['follow', 'dedicated', 'custom', ...(dnsMode === 'legacy' ? ['legacy'] : [])].map(value => ({ value, label: t(`subDesign.dnsModes.${value}`) }))} onChange={value => value && changeDNSMode(value)} />
+          {dnsMode === 'follow' && <><Select size="xs" label={t('subDesign.dnsMainGroup')} placeholder={designMainDNSPolicy(design) || t('subDesign.dnsChooseMain')} data={design.groups.filter(g => g.name).map(g => ({ value: g.name, label: g.name, disabled: designDNSAutoDirect(design, g.name) }))} value={options.dns_policy || null} onChange={value => set('dns_policy', value || undefined)} searchable clearable /><Text size="xs" c="dimmed">{t('subDesign.dnsFollowHint', { group: mainPolicy || '—' })}</Text></>}
+          {dnsMode === 'dedicated' && <Text size="xs" c="dimmed">{t('subDesign.dnsDedicatedHint')}</Text>}
+          {(dnsMode === 'custom' || dnsMode === 'legacy') && <Select size="xs" label={t('subDesign.dnsPolicy')} placeholder={t('subDesign.autoDNSPolicy')} data={policies} value={options.dns_policy || null} onChange={value => set('dns_policy', value || undefined)} clearable searchable />}
+          {dnsMode === 'legacy' && <Text size="xs" c="dimmed">{t('subDesign.dnsLegacyHint')}</Text>}
+        </>}
       </Stack>
       <Stack gap={4}>
         <Checkbox label={t('subDesign.claudeOption')} checked={!!options.claude} onChange={event => onChange(setClaudeEnabled(design, event.currentTarget.checked))} />
