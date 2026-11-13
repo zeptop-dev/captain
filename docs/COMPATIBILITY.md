@@ -13,8 +13,11 @@ Additive private route events, opt-in anomaly policies, exact-type silences,
 infrastructure term snapshots and additional-expense history preserve existing
 node, payment and subscription data. New storage, route-watch, network-alerts
 and infrastructure analytics capabilities have explicit narrow-token scopes.
-The line guide uses the existing preview/save APIs. Shared bosun v0.95.0,
-installed-agent behavior and the v1.63.0 rollback floor remain unchanged.
+The line guide uses the existing preview/save APIs. These insights introduce
+no installed-agent protocol requirement or additional rollback-floor change.
+The integrated shared bosun pin and next-release rollback floor follow the DNS
+following modes section below (v1.66.0); existing installed-agent behavior is
+unchanged by the insights themselves.
 See [operator behavior and limits](OPERATIONS_INSIGHTS.md).
 
 ## Migration notice dismissal (Captain v1.65.0)
