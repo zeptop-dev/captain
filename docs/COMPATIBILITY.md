@@ -7,7 +7,7 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.63.0 to preserve ingress address sources, subscription bindings and strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
 
-## Operations insights (unreleased, migration 121)
+## Operations insights (Captain v1.66.0, migration 121)
 
 Additive private route events, opt-in anomaly policies, exact-type silences,
 infrastructure term snapshots and additional-expense history preserve existing
@@ -15,7 +15,7 @@ node, payment and subscription data. New storage, route-watch, network-alerts
 and infrastructure analytics capabilities have explicit narrow-token scopes.
 The line guide uses the existing preview/save APIs. These insights introduce
 no installed-agent protocol requirement or additional rollback-floor change.
-The integrated shared bosun pin and next-release rollback floor follow the DNS
+The integrated shared bosun pin and rollback floor follow the DNS
 following modes section below (v1.66.0); existing installed-agent behavior is
 unchanged by the insights themselves.
 See [operator behavior and limits](OPERATIONS_INSIGHTS.md).
@@ -1287,7 +1287,7 @@ can lose active route intent or ignore health filtering. Manual recovery needs
 a compatible database backup and an explicitly verified service configuration;
 replacing the binary alone does not preserve these guarantees.
 
-## DNS following modes (development)
+## DNS following modes (Captain v1.66.0 / shared bosun v0.97.0)
 
 The optional designer enhancement `dns_mode` accepts `follow`, `dedicated` and
 `custom`. Missing mode retains the existing independent-policy or automatic
@@ -1305,9 +1305,8 @@ No arbitrary service-group inference is performed. A shared load-balancing group
 does not guarantee the same individual node for different connections, and DNS
 caches/connection reuse can outlive a selection change.
 
-Captain's next-release rollback floor is prepared as v1.66.0: older shared
+Captain's rollback floor is v1.66.0: older shared
 renderers ignore the new mode and can generate independent or direct DNS paths.
-Captain pins bosun `v0.96.1-0.20261113061455-371d59e3f784`, an immutable
-source revision containing this renderer. This is a module pin, not a new bosun
-product release; task-local go.work is not needed by the integrated mainline. No installed
-agent protocol or proxy-core changes are required by this feature.
+Captain pins formal bosun v0.97.0 for this renderer; task-local go.work is not
+needed. No installed-agent protocol or proxy-core changes are required by this
+feature.

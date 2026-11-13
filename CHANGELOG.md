@@ -1,6 +1,7 @@
 # Changelog
 
-- **Unreleased** — Add monitoring storage and bounded maintenance status, persistent return-route change timelines and optional expectation alerts, opt-in network anomaly baselines and exact-type silence, infrastructure price history/additional-expense reversals and cost estimates, and guided line creation through the existing preview/save flow. Migration 121 preserves existing settings, permissions and payment semantics; no agent upgrade required.
+- **v1.66.0** (2026-11-13) — Add monitoring storage and bounded maintenance status, persistent return-route change timelines and optional expectation alerts, opt-in network anomaly baselines and exact-type silence, infrastructure price history/additional-expense reversals and cost estimates, and guided line creation through the existing preview/save flow. Migration 121 preserves existing settings, permissions and payment semantics; no installed-agent upgrade is required for these panel features.
+  - Add explicit subscription DNS following, dedicated-group and custom-policy modes, using formal bosun v0.97.0. Preserve legacy saved behavior, separate Claude and bootstrap DNS, and reject automatic DIRECT fallback. Raise Captain's rollback floor to v1.66.0 because older renderers ignore the new DNS mode.
 
 - **v1.65.0** (2026-11-12) — Add an administrator close button to the completed plan-access migration notice. Persist dismissal across browsers while retaining the original audit receipt and affected-ID history. Check the exact receipt and node-access write scope, preserve failed drafts/retry behavior, and keep presentation changes out of permission revisions. No schema or agent change.
 

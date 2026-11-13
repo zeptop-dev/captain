@@ -1,6 +1,6 @@
 # Monitoring and infrastructure insights
 
-These additive Captain features reuse existing bosun measurements, proxy-line
+These additive Captain v1.66.0 features reuse existing bosun measurements, proxy-line
 compilation and the shared SQLite file. No agent or core change is required.
 Migration 121 preserves old settings and permissions; new anomaly alerts and
 return-route notification policies default to disabled.

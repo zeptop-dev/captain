@@ -398,6 +398,15 @@ Captain v1.61.0 adds [optional subscription account information](docs/SUBSCRIPTI
 as yuan amounts with structured billing-period rows; the cents API is unchanged.
 These panel-only additions keep bosun v0.93.0 and schema 117.
 
+Captain v1.66.0 adds [monitoring storage/maintenance, confirmed return-route changes,
+network anomaly baselines and exact-type silence, infrastructure cost analysis
+and expense reversals, and guided line creation](docs/OPERATIONS_INSIGHTS.md).
+Migration 121 preserves existing configuration and payments; new alerts are opt-in.
+Subscription DNS can explicitly follow the main group, use a dedicated group or
+retain a custom policy. The shared library is formal bosun v0.97.0; installed
+agents and cores need no change for these panel features. The rollback floor is
+v1.66.0 to preserve DNS mode semantics. [Compatibility](docs/COMPATIBILITY.md).
+
 Captain v1.65.0 adds an administrator close button for the completed plan-access migration notice. Dismissal persists across browsers and administrators, retains audit history and does not invalidate permission drafts. No schema or agent upgrade is required. [Conversion notice](docs/PLAN_ACCESS.md#dismissing-the-conversion-notice).
 
 Captain v1.64.0 uses plan names directly for independent permission groups, synchronizes renames atomically and rejects duplicate new/renamed plan names including disabled plans. Migration 120 preserves historical duplicate plans and conflicting shared names without changing permission IDs. No installed-agent upgrade is required. [Names and compatibility](docs/PLAN_ACCESS.md#names-captain-v1640-migration-120).
