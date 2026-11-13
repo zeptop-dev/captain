@@ -143,6 +143,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("GET /api/admin/dashboard", h.requireAdmin(h.dashboard))
 
 	mux.HandleFunc("GET /api/admin/nodes/layout", h.requireAdmin(h.nodeLayout))
+	registerAgentConnections(mux, h)
 	mux.HandleFunc("GET /api/admin/nodes/agent-https", h.requireAdmin(h.nodeAgentHTTPS))
 	mux.HandleFunc("GET /api/admin/settings/agent-https", h.requireAdmin(h.getAgentHTTPS))
 	mux.HandleFunc("PUT /api/admin/settings/agent-https", h.requireAdmin(h.putAgentHTTPS))
@@ -654,6 +655,9 @@ func allowed(role, method, path string) bool {
 		return false
 	}
 	if (path == "/api/admin/lines" || strings.HasPrefix(path, "/api/admin/lines/")) && role != domain.RoleAdmin && !(role == domain.RoleOperator && method == http.MethodGet && path == "/api/admin/lines/options") {
+		return false
+	}
+	if strings.HasPrefix(path, "/api/admin/agent-connections") && role != domain.RoleAdmin {
 		return false
 	}
 	switch role {

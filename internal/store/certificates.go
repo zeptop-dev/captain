@@ -200,6 +200,13 @@ func (s *Store) DeleteCertificate(ctx context.Context, id int64) error {
 	if err != nil {
 		return err
 	}
+	var selected int
+	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM agent_endpoints WHERE certificate_id=?", id).Scan(&selected); err != nil {
+		return err
+	}
+	if selected > 0 && id > 0 {
+		return ErrCertificateInUse
+	}
 	if entry.CertificateID == id && id > 0 {
 		return ErrCertificateInUse
 	}

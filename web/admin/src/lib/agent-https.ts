@@ -17,7 +17,7 @@ export function agentHTTPSCheckFresh(observation: AgentHTTPSObservation, setting
   return observation.result.perspective === 'panel' && observation.result.revision === settings.revision && observation.result.url === settings.url && settings.enabled && agentHTTPSFresh(observation.start.wall, observation.start.mono, wallNow, monoNow)
 }
 
-export interface AgentHTTPSChoice { enabled: boolean; url: string; ready: boolean }
+export interface AgentHTTPSChoice { enabled: boolean; url: string; ready: boolean; entries?: Array<{ id: string; name: string; url: string; ready: boolean; default: boolean }> }
 
 export function agentHTTPSOrigin(value: string): URL | null {
   try {

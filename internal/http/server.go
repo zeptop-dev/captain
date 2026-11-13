@@ -428,7 +428,7 @@ func (s *Server) Handler() http.Handler {
 		presetSync := r.Method == http.MethodPost && (r.URL.Path == "/api/admin/settings/sub-design/presets/sync" || r.URL.Path == "/api/admin/settings/sub-design/claude-rules/sync")
 		catalogIO := r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/admin/settings/client-catalog/") && (strings.HasSuffix(r.URL.Path, "/check") || strings.HasSuffix(r.URL.Path, "/download"))
 		domainSuggestionIO := r.Method == http.MethodPost && (r.URL.Path == "/api/admin/nodes/domain-suggestion" || r.URL.Path == "/api/admin/ingresses/domain-suggestion")
-		agentCheckIO := r.Method == http.MethodPost && r.URL.Path == "/api/admin/settings/agent-https/check"
+		agentCheckIO := r.Method == http.MethodPost && (r.URL.Path == "/api/admin/settings/agent-https/check" || (strings.HasPrefix(r.URL.Path, "/api/admin/settings/agent-endpoints/") && strings.HasSuffix(r.URL.Path, "/check")))
 		clientDownload := (r.Method == http.MethodGet || r.Method == http.MethodHead) && strings.HasPrefix(r.URL.Path, "/downloads/clients/")
 		dnsSyncIO := (r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodPost) && strings.HasPrefix(r.URL.Path, "/api/admin/nodes/") && strings.HasSuffix(r.URL.Path, "/dns-sync")
 		if r.URL.Path != "/api/agent/state" && r.URL.Path != probeaccess.MainPath && !s.probe.Dedicated(r) && !presetSync && !catalogIO && !clientDownload && !dnsSyncIO && !agentCheckIO && !domainSuggestionIO && !strings.HasPrefix(r.URL.Path, "/api/agent/downloads/") {
@@ -680,8 +680,8 @@ func (s *Server) DNSHealth() *service.DNSHealth { return s.dnsHealth }
 // leaving stale endpoints after address changes. Retain typed entry IP policies,
 // per-server probe plans and earlier topology/access protections as well.
 func captainUpdateFloor(configured string) string {
-	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.66.0", configured) {
-		return "v1.66.0"
+	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.67.0", configured) {
+		return "v1.67.0"
 	}
 	return configured
 }

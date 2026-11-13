@@ -17,16 +17,19 @@ import (
 // AgentHTTPS connects the existing certificate store to one dedicated listener.
 // Certificate parsing and TLS handshakes never query SQLite.
 type AgentHTTPS struct {
-	Store    *store.Store
-	manager  *agenthttps.Manager
-	mu       sync.Mutex
-	running  bool
-	closed   bool
-	reserved []string
+	Store      *store.Store
+	manager    *agenthttps.Manager
+	pool       *agenthttps.Pool
+	multi      bool
+	defaultURL string
+	mu         sync.Mutex
+	running    bool
+	closed     bool
+	reserved   []string
 }
 
 func NewAgentHTTPS(st *store.Store, handler http.Handler, log *slog.Logger, reserved ...string) *AgentHTTPS {
-	return &AgentHTTPS{Store: st, manager: agenthttps.New(handler, log), reserved: reserved}
+	return &AgentHTTPS{Store: st, manager: agenthttps.New(handler, log), pool: agenthttps.NewPool(handler), reserved: reserved}
 }
 
 // ValidateConfig reserves the website and HTTP challenge ports even if those
@@ -85,6 +88,35 @@ func (s *AgentHTTPS) Refresh(ctx context.Context) {
 	if !s.running || s.closed {
 		return
 	}
+	entries, certs, loadErr := s.Store.AgentEndpointCertificates(ctx)
+	if loadErr != nil {
+		s.manager.Fail(loadErr)
+		return
+	}
+	if len(entries) > 0 || s.multi {
+		candidateDefault := ""
+		materials := []agenthttps.EntryMaterial{}
+		for _, e := range entries {
+			if err := s.ValidateConfig(e.Config); err != nil {
+				s.manager.Fail(err)
+				return
+			}
+			if e.Default {
+				candidateDefault = e.URL
+			}
+			if e.Enabled {
+				c := certs[e.CertificateID]
+				materials = append(materials, agenthttps.EntryMaterial{Config: e.Config, Certificate: []byte(c.CertPEM), Key: []byte(c.KeyPEM)})
+			}
+		}
+		if err := s.pool.Apply(ctx, materials); err != nil {
+			s.manager.Fail(err)
+			return
+		}
+		s.multi = true
+		s.defaultURL = candidateDefault
+		return
+	}
 	v, cert, err := s.Store.AgentHTTPSnapshot(ctx)
 	if err != nil {
 		s.manager.Fail(err)
@@ -101,7 +133,22 @@ func (s *AgentHTTPS) Refresh(ctx context.Context) {
 	_ = s.manager.Apply(ctx, v.Config, chain, key)
 }
 
-func (s *AgentHTTPS) Status() agenthttps.Status { return s.manager.Status() }
+func (s *AgentHTTPS) Status() agenthttps.Status {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.multi {
+		return s.pool.Status(s.defaultURL)
+	}
+	return s.manager.Status()
+}
+func (s *AgentHTTPS) EntryStatus(url string) agenthttps.Status {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.multi {
+		return s.pool.Status(url)
+	}
+	return s.manager.Status()
+}
 
 // DeleteCertificate protects both desired intent and a retained old listener
 // after a failed switch. Sharing Refresh's mutex prevents a loaded old snapshot
@@ -109,7 +156,7 @@ func (s *AgentHTTPS) Status() agenthttps.Status { return s.manager.Status() }
 func (s *AgentHTTPS) DeleteCertificate(ctx context.Context, id int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if id > 0 && s.manager.Status().CertificateID == id {
+	if id > 0 && (s.manager.Status().CertificateID == id || s.pool.CertificateInUse(id)) {
 		return store.ErrCertificateInUse
 	}
 	return s.Store.DeleteCertificate(ctx, id)
@@ -127,5 +174,6 @@ func (s *AgentHTTPS) Close(ctx context.Context) error {
 	s.mu.Lock()
 	s.closed, s.running = true, false
 	s.mu.Unlock()
+	_ = s.pool.Close(ctx)
 	return s.manager.Close(ctx)
 }

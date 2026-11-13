@@ -78,7 +78,7 @@ func toNodeView(n *domain.Node, at time.Time) nodeView {
 
 func (h *handlers) nodeView(n *domain.Node, at time.Time) nodeView {
 	v := toNodeView(n, at)
-	v.EffectiveAgentURL = agentendpoint.EffectiveURL(n.AgentURL, h.AgentURL, h.BaseURL)
+	v.EffectiveAgentURL = agentendpoint.EffectiveURL(n.AgentURL, h.Store.DefaultAgentURL(context.Background(), h.AgentURL), h.BaseURL)
 	return v
 }
 
@@ -206,7 +206,7 @@ func (h *handlers) createNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if n.DownloadSource == agentendpoint.DownloadCaptain {
-		if effective, err := agentendpoint.NormalizeURL(agentendpoint.EffectiveURL(n.AgentURL, h.AgentURL, h.BaseURL)); err != nil || effective == "" {
+		if effective, err := agentendpoint.NormalizeURL(agentendpoint.EffectiveURL(n.AgentURL, h.Store.DefaultAgentURL(context.Background(), h.AgentURL), h.BaseURL)); err != nil || effective == "" {
 			fail(w, 400, "Captain downloads require an HTTPS agent communication URL")
 			return
 		}
@@ -419,7 +419,7 @@ func (h *handlers) repairNode(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
-	ok(w, map[string]string{"pair_code": code, "agent_url": n.AgentURL, "effective_agent_url": agentendpoint.EffectiveURL(n.AgentURL, h.AgentURL, h.BaseURL), "download_source": n.DownloadSource})
+	ok(w, map[string]string{"pair_code": code, "agent_url": n.AgentURL, "effective_agent_url": agentendpoint.EffectiveURL(n.AgentURL, h.Store.DefaultAgentURL(context.Background(), h.AgentURL), h.BaseURL), "download_source": n.DownloadSource})
 }
 
 // checkInboundFields rejects values the node could not embed safely: the

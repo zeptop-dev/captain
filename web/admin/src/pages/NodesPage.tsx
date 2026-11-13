@@ -1,9 +1,11 @@
+import { AgentMigrationDialog } from '../components/AgentMigrationDialog'
+import { AgentMigrationProgress } from '../components/AgentMigrationProgress'
 import { localizedName } from '../lib/localized-name'
 import { NodeLayoutEditor } from '../components/NodeLayoutEditor'
 import { HostTrafficSummary } from '../components/HostTrafficSummary'
 import { ProxyTrafficSummary } from '../components/ProxyTrafficSummary'
 import { nodeLayoutQuery } from '../lib/node-layout'
-import { Badge, Button, Card, Code, Group, Modal, Stack, Table, Text, TextInput, Anchor, ActionIcon, Tooltip, Select, Switch } from '@mantine/core'
+import { Badge, Button, Card, Checkbox, Code, Group, Modal, Stack, Table, Text, TextInput, Anchor, ActionIcon, Tooltip, Select, Switch } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { useDisclosure } from '@mantine/hooks'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -62,6 +64,8 @@ export default function NodesPage() {
   const q = useQuery({ queryKey: ['nodes'], queryFn: () => api.get<Node[]>('/api/admin/nodes'), refetchInterval: 15_000 })
   const layout = useQuery(nodeLayoutQuery)
   const [organizing, setOrganizing] = useState(false)
+ const [selected, setSelected] = useState<number[]>([])
+ const [migrateOpened,setMigrateOpened]=useState(false)
   const [nodeGroup, setNodeGroup] = useState<string | null>(null)
   const [status, setStatus] = useURLChoice('status', ['all', 'offline', 'unpaired', 'doctor', 'monitor'], 'all')
   const filtered = (q.data ?? []).filter(n => nodeGroup === null || (n.monitor_group ?? '') === nodeGroup).filter(n => status === 'all' || (status === 'offline' && n.paired && !n.online) || (status === 'unpaired' && !n.paired) || (status === 'doctor' && n.paired && n.doctor_fail) || (status === 'monitor' && n.mode === 'monitor'))
@@ -83,6 +87,7 @@ export default function NodesPage() {
   return (
     <>
       <PageHeader title={t('nodes.title')} subtitle={t('nodes.subtitle')} actions={<>
+        {isAdmin && <Button variant="light" disabled={!selected.length} onClick={()=>setMigrateOpened(true)}>{t('agentEntries.migrate')} ({selected.length})</Button>}
         {isAdmin && outdated > 0 && <Button variant="light" color="orange" leftSection={<IconArrowUp size={16} />} loading={upgradeAll.isPending} onClick={() => modals.openConfirmModal({ title: t('nodes.upgradeAll', { count: outdated }), children: <Text size="sm">{t('nodes.upgradeAllConfirm', { count: outdated, version: sys.data?.bosun_latest ?? '' })}</Text>, labels: { confirm: t('nodes.upgradeAll', { count: outdated }), cancel: t('common.cancel') }, confirmProps: { color: 'orange' }, onConfirm: () => upgradeAll.mutate() })}>{t('nodes.upgradeAll', { count: outdated })}</Button>}
         <Button variant="light" disabled={!layout.data || !q.data || layout.isError || q.isError} loading={layout.isFetching} onClick={() => { void layout.refetch().then(r => { if (r.data && !r.isError) setOrganizing(true); else toast.err(r.error) }) }}>{t('nodeLayout.title')}</Button>
         <Button leftSection={<IconPlus size={16} />} onClick={open}>{t('nodes.create')}</Button>
@@ -93,12 +98,13 @@ export default function NodesPage() {
         <Table.ScrollContainer minWidth={1450}>
           <Table>
             <Table.Thead style={{ whiteSpace: 'nowrap' }}><Table.Tr>
-              <Table.Th>{t('nodes.name')}</Table.Th><Table.Th>{t('monitoring.group')}</Table.Th><Table.Th>{t('nodes.status')}</Table.Th><Table.Th>{t('nodes.publicAddr')}</Table.Th>
+              {isAdmin && <Table.Th><Checkbox aria-label={t('agentEntries.selectAll')} checked={filtered.length>0&&filtered.every(n=>selected.includes(n.id))} indeterminate={filtered.some(n=>selected.includes(n.id))&&!filtered.every(n=>selected.includes(n.id))} onChange={e=>setSelected(e.currentTarget.checked?filtered.map(n=>n.id):[])} /></Table.Th>}<Table.Th>{t('nodes.name')}</Table.Th><Table.Th>{t('monitoring.group')}</Table.Th><Table.Th>{t('nodes.status')}</Table.Th><Table.Th>{t('nodes.publicAddr')}</Table.Th>
               <Table.Th>{t('nodes.inbounds')}</Table.Th><Table.Th>{t('nodes.hostTraffic')}</Table.Th><Table.Th>{t('nodes.trafficToday')}</Table.Th><Table.Th>{t('nodes.version')}</Table.Th><Table.Th>{t('nodes.lastSeen')}</Table.Th>
             </Table.Tr></Table.Thead>
             <Table.Tbody>
               {filtered.map((n) => (
                 <Table.Tr key={n.id}>
+                  {isAdmin && <Table.Td><Checkbox aria-label={`${t('agentEntries.select')} ${n.name}`} checked={selected.includes(n.id)} onChange={e=>setSelected(e.currentTarget.checked?[...selected,n.id]:selected.filter(id=>id!==n.id))} /></Table.Td>}
                   <Table.Td miw={220}><Anchor component={Link} to={`/nodes/${n.id}`} fw={600}>{n.name}</Anchor>{n.mode === 'monitor' && <Badge ml="xs" size="xs" color="cyan" style={{ maxWidth: 'none' }}>{t('nodeMode.monitor')}</Badge>}<Text size="xs" c="dimmed">{n.hostname}</Text></Table.Td>
                   <Table.Td><Text size="sm">{localizedName(i18n.resolvedLanguage || i18n.language, n.monitor_group_zh, n.monitor_group_en, n.monitor_group) || t('nodeLayout.ungrouped')}</Text></Table.Td>
                   <Table.Td miw={140}><Group gap={4} style={{ minWidth: 'max-content' }}><NodeStatus n={n} />{n.cert_problem && <Badge color="red" size="xs" title={t('nodes.certProblem')}>TLS</Badge>}{n.doctor_fail && <Badge color="red" size="xs" variant="light" title={t('nodes.doctorFailHint')}>{t('nodes.doctor')}</Badge>}</Group></Table.Td>
@@ -119,13 +125,15 @@ export default function NodesPage() {
                   <Table.Td style={{ whiteSpace: 'nowrap' }}>{ago(n.last_seen_at)}</Table.Td>
                 </Table.Tr>
               ))}
-              {q.data && filtered.length === 0 && <Table.Tr><Table.Td colSpan={9}><Text c="dimmed" ta="center" py="lg">{t('common.empty')}</Text></Table.Td></Table.Tr>}
+              {q.data && filtered.length === 0 && <Table.Tr><Table.Td colSpan={isAdmin ? 10 : 9}><Text c="dimmed" ta="center" py="lg">{t('common.empty')}</Text></Table.Td></Table.Tr>}
             </Table.Tbody>
           </Table>
         </Table.ScrollContainer>
       </Card>
       <Text size="xs" c="dimmed" mt="xs">{t('nodes.hostTrafficHint')}</Text>
       <Text size="xs" c="dimmed" mt={4}>{t('nodes.proxyTrafficHint')}</Text>
+      {isAdmin && <AgentMigrationProgress />}
+      <AgentMigrationDialog ids={selected} opened={migrateOpened} close={()=>setMigrateOpened(false)} />
       {organizing && layout.data && <NodeLayoutEditor initial={layout.data} nodes={q.data ?? []} onSaved={() => setNodeGroup(null)} close={() => setOrganizing(false)} />}
       <Modal keepMounted opened={opened} onClose={() => { close(); setCreated(null) }} title={created ? t('nodes.pairTitle') : t('nodes.create')} size="lg">
         {created ? <PairCodeBox code={created.pair_code ?? ''} mode={created.mode} agentURL={created.effective_agent_url} downloadSource={created.download_source} /> : (

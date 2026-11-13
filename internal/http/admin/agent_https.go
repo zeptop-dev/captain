@@ -78,7 +78,23 @@ func (h *handlers) nodeAgentHTTPS(w http.ResponseWriter, r *http.Request) {
 	if v.Enabled {
 		u = v.URL
 	}
-	ok(w, map[string]any{"enabled": v.Enabled, "url": u, "ready": ready})
+	entries, err := h.Store.AgentEndpoints(r.Context())
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
+	choices := []map[string]any{}
+	for _, e := range entries {
+		if !e.Enabled {
+			continue
+		}
+		status := agenthttps.Status{State: "disabled"}
+		if h.AgentHTTPS != nil {
+			status = h.AgentHTTPS.EntryStatus(e.URL)
+		}
+		choices = append(choices, map[string]any{"id": e.ID, "name": e.Name, "url": e.URL, "ready": status.State == "listening", "default": e.Default})
+	}
+	ok(w, map[string]any{"enabled": v.Enabled, "url": u, "ready": ready, "entries": choices})
 }
 
 // checkAgentHTTPS probes only the saved origin, outside the account lock. Both

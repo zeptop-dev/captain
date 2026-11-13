@@ -10,7 +10,7 @@ import (
 
 // These identifiers are also the first resource segment of the admin API.
 // Scopes only narrow an employee's existing role; they cannot grant a role.
-var TokenResources = []string{"monitor-storage", "network-alerts", "route-watch", "infra-analytics", "admin-log", "agent-https", "articles", "audit-log", "audit-rules", "certificates", "coupons", "config-presets", "dashboard", "domains", "entries", "entry-categories", "external", "forward-paths", "gifts", "groups", "inbounds", "infrastructure", "ingresses", "keys", "line-changes", "line-rollouts", "me", "metrics", "monitoring", "node-access", "node-diagnostics", "node-dns-sync", "node-probe-plan", "node-service-control", "nodes", "operations", "orders", "path-health", "path-routes", "path-rollouts", "ping-tasks", "plans", "renewals", "rendered-config", "settings", "speedtest", "system", "tickets", "tokens", "topology-changesets", "traffic-history", "users", "withdrawals"}
+var TokenResources = []string{"agent-connections", "monitor-storage", "network-alerts", "route-watch", "infra-analytics", "admin-log", "agent-https", "articles", "audit-log", "audit-rules", "certificates", "coupons", "config-presets", "dashboard", "domains", "entries", "entry-categories", "external", "forward-paths", "gifts", "groups", "inbounds", "infrastructure", "ingresses", "keys", "line-changes", "line-rollouts", "me", "metrics", "monitoring", "node-access", "node-diagnostics", "node-dns-sync", "node-probe-plan", "node-service-control", "nodes", "operations", "orders", "path-health", "path-routes", "path-rollouts", "ping-tasks", "plans", "renewals", "rendered-config", "settings", "speedtest", "system", "tickets", "tokens", "topology-changesets", "traffic-history", "users", "withdrawals"}
 
 var endpointGrant = regexp.MustCompile(`^(GET|POST|PUT|PATCH|DELETE) /api/admin/[A-Za-z0-9_{}/-]+$`)
 
@@ -67,6 +67,12 @@ func TokenAllowsRequest(policy, method, path, pattern string) bool {
 	resource := strings.Split(strings.TrimPrefix(path, "/api/admin/"), "/")[0]
 	if domainSuggestion {
 		resource = "domains"
+	}
+	if strings.HasPrefix(path, "/api/admin/settings/agent-endpoints") {
+		resource = "agent-https"
+	}
+	if resource == "nodes" && strings.HasSuffix(path, "/agent-connection") {
+		resource = "agent-connections"
 	}
 	if path == "/api/admin/settings/agent-https" || path == "/api/admin/settings/agent-https/check" {
 		resource = "agent-https"

@@ -1,213 +1,117 @@
-// Local Vite + mocked API regression; no production backend or external calls.
-// ADMIN_TEST_URL, PLAYWRIGHT_MODULE and CHROME_EXECUTABLE may be supplied.
+// Browser workflow against local production UI with bounded mocked APIs.
+// Real Captain/bosun TLS and journal migration are tested separately.
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
-const base = process.env.ADMIN_TEST_URL || 'http://127.0.0.1:5668/admin/'
+import { readFile, mkdir } from 'node:fs/promises'
+const base = process.env.ADMIN_TEST_URL || 'http://127.0.0.1:5669/admin/'
 assert.ok(['127.0.0.1', 'localhost', '[::1]'].includes(new URL(base).hostname))
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
 const browser = await chromium.launch({ headless: true, ...(process.env.CHROME_EXECUTABLE ? { executablePath: process.env.CHROME_EXECUTABLE } : {}) })
 const en = JSON.parse(await readFile(new URL('../src/i18n/en.json', import.meta.url)))
-const tr = key => key.split('.').reduce((v, k) => v[k], en)
-const localeTexts = Object.fromEntries(await Promise.all(['en', 'zh-CN', 'zh-TW', 'ja', 'ru', 'ko'].map(async locale => [locale, JSON.parse(await readFile(new URL(`../src/i18n/${locale}.json`, import.meta.url)))])))
-const messagesCheck = locale => localeTexts[locale].agentHTTPS.access.check
-const messagesResult = locale => localeTexts[locale].agentHTTPS.access.results.ok
-const defaults = { enabled: true, url: 'https://panel.example.com:2096', listen: ':2096', certificate_id: 1, revision: 'revision-1' }
-async function setup(locale = 'en', width = 1440, role = 'admin') {
-  const context = await browser.newContext({ viewport: { width, height: 1100 }, serviceWorkers: 'block' })
-  await context.addInitScript(language => { localStorage.setItem('i18nextLng', language) }, locale)
-  await context.routeWebSocket('**/*', socket => socket.close())
-  const state = { settings: { ...defaults }, reads: 0, puts: [], failRead: false, conflict: false, checks: [], checkStatus: 'ok', checkHTTPStatus: undefined, checkConflict: false, checkGate: null, errors: [], unexpected: [] }
-  const view = () => ({ settings: state.settings, ready: true, base_url: 'https://panel.example.com', in_container: true, status: { state: 'listening', active_url: state.settings.url, active_listen: state.settings.listen, certificate_id: 1, certificate_not_after: '2030-01-01T00:00:00Z' } })
-  await context.route('**/*', async route => {
-    const r = route.request(), u = new URL(r.url())
-    if (u.origin !== new URL(base).origin) return route.abort()
-    if (!u.pathname.startsWith('/api/')) return route.continue()
-    const send = (data, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) })
-    if (u.pathname === '/api/admin/settings/agent-https/check') {
-      assert.equal(r.method(), 'POST')
-      const body = r.postDataJSON(); state.checks.push(body)
-      const response = { revision: state.settings.revision, url: state.settings.url, checked_at: new Date().toISOString(), perspective: 'panel', status: state.checkStatus, http_status: state.checkHTTPStatus, elapsed_ms: 20 }
-      if (state.checkGate) await state.checkGate
-      return state.checkConflict ? send({ error: 'Check unavailable' }, typeof state.checkConflict === 'number' ? state.checkConflict : 409) : send(response)
-    }
-    if (u.pathname === '/api/admin/settings/agent-https') {
-      if (r.method() === 'GET') { state.reads++; return state.failRead ? send({ error: 'Fixture read failure' }, 503) : send(view()) }
-      if (r.method() === 'PUT') {
-        const body = r.postDataJSON(); state.puts.push(body)
-        if (state.conflict) return send({ error: 'Fixture conflict' }, 409)
-        state.settings = { ...body, revision: 'revision-2' }; return send(view())
-      }
-    }
-    if (r.method() !== 'GET') { state.unexpected.push(`${r.method()} ${u.pathname}`); return send({}, 500) }
-    switch (u.pathname) {
-      case '/api/admin/dashboard': return send({})
-      case '/api/admin/me': return send({ id: 1, email: 'admin@example.com', role, version: 'v1.54.0' })
-      case '/api/site': return send({ name: 'Captain', branding: {}, theme: {} })
-      case '/api/admin/system/update': return send({ captain: { current: 'v1.54.0' } })
-      case '/api/admin/certificates': return send({ certificates: [{ id: 1, name: 'Panel certificate', names: ['panel.example.com'], not_after: '2030-01-01T00:00:00Z' }] })
-      case '/api/admin/settings/acme': return send({ email: '', has_cloudflare_token: true })
-      case '/api/admin/settings/connlog': return send({ enabled: false, retention_days: 7, max_per_user: 100 })
-      case '/api/admin/settings/audit': return send({ enabled: false })
-      case '/api/admin/settings/dynlimit': return send({ enabled: false, rules: [] })
-      case '/api/admin/audit-rules': case '/api/admin/audit-log': case '/api/admin/nodes': return send([])
-      case '/api/admin/nodes/domain-check': return send({ domain: '', valid: true, unchanged: true, conflicts: [] })
-      case '/api/admin/nodes/layout': return send({ revision: 'layout-1', groups: [], nodes: [] })
-      case '/api/admin/nodes/agent-https': return send({ enabled: true, url: state.settings.url, ready: true })
-      case '/api/admin/domains': return send({ domains: [], can_issue: true, global_token: true })
-      default: state.unexpected.push(`${r.method()} ${u.pathname}`); return send({ error: 'Unexpected fixture request' }, 500)
-    }
-  })
-  const page = await context.newPage(); page.setDefaultTimeout(10000)
-  page.on('pageerror', error => state.errors.push(error.message))
-  return { context, page, state }
-}
-async function finish(run) { assert.deepEqual(run.state.errors, []); assert.deepEqual(run.state.unexpected, []); await run.context.close() }
+const original = { id: 'old', name: 'Old entry', enabled: true, url: 'https://old.example.com:2096', listen: ':2096', certificate_id: 1, revision: 'r1', default: true, users: 2, configured_users: 2, unknown_users: 0, pending: 0 }
+const nodes = [1, 2].map(id => ({ id, name: `node-${id}`, mode: 'monitor', reported_mode: 'monitor', paired: true, online: true, hostname: `host-${id}`, public_addr: '198.51.100.20', domain: '', version: 'v0.98.0', platform: 'linux/amd64', inbounds: 0, traffic_today_bytes: 0, agent_url: original.url, effective_agent_url: original.url, download_source: 'github', monitor_group: '', last_seen_at: new Date().toISOString() }))
+const state = { entries: [{ ...original }], checks: [], previews: [], migrations: [], tasks: [], writes: [], errors: [], unexpected: [], failReads: false, conflict: false }
+const context = await browser.newContext({ viewport: { width: 1440, height: 1100 }, serviceWorkers: 'block' })
+await context.addInitScript(() => { localStorage.setItem('i18nextLng', 'en') })
+await context.routeWebSocket('**/*', socket => socket.close())
+await context.route('**/*', async route => {
+ const r = route.request(), u = new URL(r.url())
+ if (u.origin !== new URL(base).origin) return route.abort()
+ if (!u.pathname.startsWith('/api/')) return route.continue()
+ const send = (data, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) })
+ const path = u.pathname
+ if (path === '/api/admin/settings/agent-endpoints' && r.method() === 'GET') return state.failReads ? send({ error: 'Read failed' }, 503) : send({ entries: state.entries, statuses: Object.fromEntries(state.entries.map(e => [e.id, { state: 'listening', active_url: e.url }])) })
+ if (path === '/api/admin/settings/agent-endpoints' && r.method() === 'POST') { const input = r.postDataJSON(); state.writes.push(input); state.entries.push({ ...input, id: 'new', revision: 'r2', users: 0, configured_users: 0, unknown_users: 0, pending: 0 }); return send(state.entries.at(-1)) }
+ if (path.match(/^\/api\/admin\/settings\/agent-endpoints\/[^/]+\/check$/)) { const input = r.postDataJSON(), id = path.split('/').at(-2), entry = state.entries.find(e => e.id === id); assert.equal(input.revision, entry.revision); state.checks.push(input); return send({ status: 'ok', revision: entry.revision, url: entry.url }) }
+ if (path.match(/^\/api\/admin\/settings\/agent-endpoints\/[^/]+$/) && r.method() === 'PUT') { const input = r.postDataJSON(); state.writes.push(input); if (state.conflict) return send({ error: 'Entry changed' }, 409); return send(input) }
+ if (path.match(/^\/api\/admin\/settings\/agent-endpoints\/[^/]+$/) && r.method() === 'DELETE') return send({ error: 'Still referenced; migrate nodes first' }, 400)
+ if (path === '/api/admin/nodes/agent-https') return send({ enabled: true, url: original.url, ready: true, entries: state.entries.map(e => ({ ...e, ready: true })) })
+ if (path === '/api/admin/agent-connections/preview') { const input = r.postDataJSON(); state.previews.push(input); return send({ revision: `preview-${state.previews.length}`, target_url: 'https://agent.example.com:2096', nodes: input.node_ids.map(id => ({ node_id: id, name: `node-${id}`, url: original.url, target_url: 'https://agent.example.com:2096', capable: true, paired: true })) }) }
+ if (path === '/api/admin/agent-connections/migrate') { const input = r.postDataJSON(); state.migrations.push(input); assert.equal(input.revision, `preview-${state.previews.length}`); state.tasks = input.node_ids.map(id => ({ id: `migration-${id}`, batch_id: 'batch', node_id: id, name: `node-${id}`, source_url: original.url, target_url: 'https://agent.example.com:2096', status: 'queued' })); return send({ batch_id: 'batch' }) }
+ if (path === '/api/admin/agent-connections') return send({ migrations: state.tasks })
+ if (path.startsWith('/api/admin/agent-connections/entries/')) return send({ nodes: nodes.map(n => ({ node_id: n.id, name: n.name, url: original.url, target_url: original.url, capable: true, paired: true })), truncated: false })
+ if (r.method() !== 'GET') { state.unexpected.push(`${r.method()} ${path}`); return send({}, 500) }
+ switch (path) {
+ case '/api/admin/me': return send({ id: 1, email: 'admin@example.com', role: 'admin', version: 'v1.67.0' })
+ case '/api/site': return send({ name: 'Captain', branding: {}, theme: {} })
+ case '/api/admin/system/update': return send({ captain: { current: 'v1.67.0' } })
+ case '/api/admin/dashboard': return send({})
+ case '/api/admin/certificates': return send({ certificates: [{ id: 1, name: 'Fixture certificate', names: ['*.example.com'], not_after: '2030-01-01T00:00:00Z' }] })
+ case '/api/admin/nodes': return send(nodes)
+ case '/api/admin/nodes/layout': return send({ revision: 'layout', groups: [], nodes: [] })
+ case '/api/admin/nodes/domain-check': return send({ domain: '', valid: true, unchanged: true, conflicts: [] })
+ case '/api/admin/settings/acme': return send({ email: '', has_cloudflare_token: true })
+ case '/api/admin/settings/connlog': return send({ enabled: false, retention_days: 7, max_per_user: 100 })
+ case '/api/admin/settings/audit': return send({ enabled: false })
+ case '/api/admin/settings/dynlimit': return send({ enabled: false, rules: [] })
+ case '/api/admin/audit-rules': case '/api/admin/audit-log': return send([])
+ case '/api/admin/domains': return send({ domains: [], can_issue: true, global_token: true })
+ default: state.unexpected.push(`${r.method()} ${path}`); return send({ error: 'Unexpected fixture request' }, 500)
+ }
+})
+const page = await context.newPage(); page.setDefaultTimeout(10000); page.on('pageerror', e => state.errors.push(e.message))
 try {
-  const run = await setup(), { page, state } = run
-  await page.goto(`${base}settings/category/proxy#agent-https`)
-  const card = page.locator('#agent-https'), address = card.getByLabel(tr('agentHTTPS.url'), { exact: true })
-  await address.waitFor(); assert.equal(await address.inputValue(), defaults.url)
-  await card.getByText(tr('agentHTTPS.status.listening'), { exact: true }).waitFor()
-  assert.ok((await card.textContent()).includes('--agent-https-port 2096'))
-  const diagnostic = card.getByTestId('agent-access-check'), check = diagnostic.getByRole('button', { name: tr('agentHTTPS.access.check'), exact: true })
-  assert.equal(state.checks.length, 0, 'GET polls must never run diagnostics')
-  await check.click()
-  await diagnostic.getByText(tr('agentHTTPS.access.results.ok'), { exact: true }).waitFor()
-  assert.deepEqual(state.checks, [{ revision: 'revision-1' }], 'only the saved revision is sent')
-  await diagnostic.getByText(tr('agentHTTPS.access.hostUnknown'), { exact: true }).waitFor()
-  await diagnostic.getByText(tr('agentHTTPS.access.nodeUnknown'), { exact: true }).waitFor()
-  await address.fill('https://draft.example.com:2087')
-  assert.equal(await check.isDisabled(), true)
-  await diagnostic.getByText(tr('agentHTTPS.access.results.ok'), { exact: true }).waitFor({ state: 'hidden' })
-  assert.ok((await card.textContent()).includes("--agent-https-url 'https://panel.example.com:2096' --agent-firewall auto"))
-  assert.equal((await card.locator('code').allTextContents()).some(text => text.includes('draft.example.com')), false)
-  await address.fill(defaults.url)
-  await diagnostic.getByText(tr('agentHTTPS.access.unchecked'), { exact: true }).waitFor()
-  await check.click()
-  await diagnostic.getByText(tr('agentHTTPS.access.results.ok'), { exact: true }).waitFor()
-  await run.context.setOffline(true)
-  await diagnostic.getByText(tr('agentHTTPS.access.results.ok'), { exact: true }).waitFor({ state: 'hidden' })
-  await run.context.setOffline(false)
-  await card.getByText(tr('agentHTTPS.status.listening'), { exact: true }).waitFor()
-  await diagnostic.getByText(tr('agentHTTPS.access.unchecked'), { exact: true }).waitFor()
-  await check.click()
-  await diagnostic.getByText(tr('agentHTTPS.access.results.ok'), { exact: true }).waitFor()
-  await page.evaluate(() => { window.fixtureOriginalNow = Date.now; Date.now = () => window.fixtureOriginalNow() + 31000 })
-  await diagnostic.getByText(tr('agentHTTPS.access.results.ok'), { exact: true }).waitFor({ state: 'hidden' })
-  await page.evaluate(() => { Date.now = window.fixtureOriginalNow })
-  await diagnostic.getByText(tr('agentHTTPS.access.unchecked'), { exact: true }).waitFor()
-  state.checkStatus = 'http_error'; state.checkHTTPStatus = 522
-  await check.click()
-  await diagnostic.getByText('HTTP 522', { exact: true }).waitFor()
-  await diagnostic.getByText(tr('agentHTTPS.access.originTimeout'), { exact: true }).waitFor()
-  state.checkHTTPStatus = undefined
-  for (const status of ['dns_error', 'connect_error', 'timeout', 'tls_error', 'redirect', 'unexpected_service', 'not_ready', 'disabled']) {
-    state.checkStatus = status
-    await check.click()
-    await diagnostic.getByText(tr(`agentHTTPS.access.results.${status}`), { exact: true }).waitFor()
-    assert.equal(await diagnostic.getByText(tr('agentHTTPS.access.results.ok'), { exact: true }).count(), 0)
-  }
-  state.checkStatus = 'ok'
-  state.checkConflict = true
-  await check.click()
-  await diagnostic.getByText(tr('agentHTTPS.access.conflict'), { exact: true }).waitFor()
-  state.checkConflict = 429
-  await check.click()
-  await diagnostic.getByText(tr('agentHTTPS.access.busy'), { exact: true }).waitFor()
-  state.checkConflict = false
-  let release
-  state.checkGate = new Promise(resolve => { release = resolve })
-  const pendingCount = state.checks.length
-  await check.click()
-  await page.waitForFunction(() => document.querySelector('[data-testid="agent-access-check"] button')?.getAttribute('data-loading') === 'true')
-  await address.fill('https://draft.example.com:2087')
-  release(); state.checkGate = null
-  await address.fill(defaults.url)
-  await diagnostic.getByText(tr('agentHTTPS.access.unchecked'), { exact: true }).waitFor()
-  assert.equal(state.checks.length, pendingCount + 1)
-  assert.equal(await diagnostic.getByText(tr('agentHTTPS.access.results.ok'), { exact: true }).count(), 0, 'late response cannot revive a draft-invalidated check')
-  await check.click()
-  await diagnostic.getByText(tr('agentHTTPS.access.results.ok'), { exact: true }).waitFor()
-  state.settings = { ...state.settings, revision: 'revision-other' }
-  await diagnostic.getByText(tr('agentHTTPS.access.results.ok'), { exact: true }).waitFor({ state: 'hidden' })
-  await diagnostic.getByText(tr('agentHTTPS.access.unchecked'), { exact: true }).waitFor()
-  state.settings = { ...state.settings, revision: 'revision-1' }
-  const revisionRead = state.reads
-  await page.waitForTimeout(5500)
-  assert.ok(state.reads > revisionRead)
-  await address.fill('https://panel.example.com:2087')
-  const reads = state.reads
-  await page.waitForFunction(() => !!document.querySelector('input'))
-  await new Promise(resolve => setTimeout(resolve, 5500))
-  assert.ok(state.reads > reads)
-  assert.equal(await address.inputValue(), 'https://panel.example.com:2087', 'poll must preserve draft')
-  assert.ok((await card.textContent()).includes('--agent-https-port 2096'), 'commands must use saved port')
-  state.conflict = true
-  await card.getByRole('button', { name: 'Save Agent HTTPS access', exact: true }).click()
-  await card.getByText(tr('agentHTTPS.conflict')).waitFor()
-  assert.equal(await address.inputValue(), 'https://panel.example.com:2087')
-  assert.equal(state.puts[0].revision, 'revision-1')
-  await card.getByRole('button', { name: tr('agentHTTPS.reload') }).click()
-  await page.waitForFunction(() => [...document.querySelectorAll('#agent-https input')].some(el => el.value === 'https://panel.example.com:2096'))
-  assert.equal(await address.inputValue(), defaults.url)
-  state.conflict = false
-  await address.fill('https://panel.example.com:2087')
-  await card.locator('summary').click()
-  await card.getByLabel(tr('agentHTTPS.listen'), { exact: true }).fill(':2087')
-  await card.getByRole('button', { name: 'Save Agent HTTPS access', exact: true }).click()
-  await page.waitForFunction(() => document.querySelector('#agent-https')?.textContent.includes('--agent-https-port 2087'))
-  assert.equal(state.settings.revision, 'revision-2')
-  assert.equal(state.settings.listen, ':2087')
-  state.failRead = true
-  await card.getByText(tr('agentHTTPS.status.unknown'), { exact: true }).waitFor()
-  state.failRead = false
-  await card.getByText(tr('agentHTTPS.status.listening'), { exact: true }).waitFor()
-  await run.context.setOffline(true)
-  await card.getByText(tr('agentHTTPS.status.unknown'), { exact: true }).waitFor()
-  await run.context.setOffline(false)
-  await finish(run)
-
-  const failed = await setup()
-  failed.state.failRead = true
-  await failed.page.goto(`${base}settings/category/proxy#agent-https`)
-  await failed.page.locator('#agent-https').getByText(tr('workspace.loadError')).waitFor()
-  assert.equal(await failed.page.locator('#agent-https input').count(), 0, 'Failed initial read must not render editable defaults')
-  await finish(failed)
-
-  for (const locale of ['en', 'zh-CN', 'zh-TW', 'ja', 'ru', 'ko']) {
-    const run = await setup(locale, locale === 'en' ? 1440 : 390)
-    await run.page.goto(`${base}settings/category/proxy#agent-https`)
-    const card = run.page.locator('#agent-https')
-    await card.locator('input').first().waitFor()
-    await run.page.waitForFunction(() => [...document.querySelectorAll('#agent-https input')].some(el => el.value.includes('example.com')))
-    const widths = await card.evaluate(el => ({ scroll: el.scrollWidth, client: el.clientWidth, inputs: [...el.querySelectorAll('input')].filter(x => x.type === 'text').map(x => x.getBoundingClientRect().width) }))
-    assert.ok(widths.scroll <= widths.client + 2, `${locale} horizontal overflow`)
-    assert.ok(widths.inputs.every(w => w > 180), `${locale} inputs too narrow`)
-    assert.equal(run.state.checks.length, 0)
-    const check = card.getByRole('button', { name: messagesCheck(locale), exact: true })
-    await check.click()
-    await card.getByTestId('agent-access-check').getByText(messagesResult(locale), { exact: true }).waitFor()
-    if (process.env.AGENT_HTTPS_SCREENSHOTS && ['en', 'zh-CN'].includes(locale)) await card.screenshot({ path: `${process.env.AGENT_HTTPS_SCREENSHOTS}/${locale}.png` })
-    await finish(run)
-  }
-
-  const node = await setup()
-  await node.page.goto(`${base}nodes`)
-  await node.page.getByRole('button', { name: tr('nodes.create'), exact: true }).click()
-  const dialog = node.page.getByRole('dialog')
-  await dialog.getByRole('button', { name: tr('agentHTTPS.useManaged') }).click()
-  assert.equal(await dialog.getByLabel(tr('agentConnection.url'), { exact: true }).inputValue(), defaults.url)
-  assert.equal(await dialog.getByLabel(tr('agentConnection.source'), { exact: true }).inputValue(), tr('agentConnection.captain'))
-  await dialog.getByLabel(tr('agentConnection.url'), { exact: true }).fill('https://other.example.com:2087')
-  node.state.settings.url = 'https://changed.example.com:2096'
-  await new Promise(resolve => setTimeout(resolve, 10500))
-  assert.equal(await dialog.getByLabel(tr('agentConnection.url'), { exact: true }).inputValue(), 'https://other.example.com:2087')
-  await finish(node)
-
-  const forbidden = await setup('en', 1440, 'operator')
-  await forbidden.page.goto(`${base}settings/category/proxy`)
-  await forbidden.page.waitForURL(url => url.pathname === '/admin' || url.pathname === '/admin/')
-  assert.equal(forbidden.state.reads, 0)
-  await finish(forbidden)
-  console.log('Agent HTTPS browser regression passed: explicit same-revision checks, 522 guidance, invalidation on draft/revision/offline/expiry, no late success, six locales, desktop/mobile, drafts, conflict, stale/offline, node choice, permissions')
-} finally { await browser.close() }
+ await page.goto(`${base}settings/category/proxy#agent-https`)
+ const card = page.locator('#agent-https')
+ await card.getByText('Old entry', { exact: false }).waitFor()
+ assert.equal(state.checks.length, 0, 'polling must not run diagnostics')
+ await card.getByRole('button', { name: en.agentEntries.add, exact: true }).click()
+ let dialog = page.getByRole('dialog')
+ await dialog.getByLabel(en.agentEntries.name, { exact: false }).fill('New direct')
+ await dialog.getByLabel(en.agentConnection.url, { exact: false }).fill('https://agent.example.com:2096')
+ await dialog.getByLabel(en.agentHTTPS.certificate, { exact: false }).click()
+ await page.getByRole('option', { name: /Fixture certificate/ }).click()
+ await dialog.getByRole('button', { name: en.common.save, exact: true }).click()
+ await card.getByText('New direct', { exact: true }).waitFor()
+ assert.equal(state.writes.at(-1).listen, ':2096')
+ assert.equal(state.writes.at(-1).default, false)
+ let row = card.getByRole('row').filter({ hasText: 'New direct' })
+ await row.getByRole('button', { name: en.agentHTTPS.access.check, exact: true }).click()
+ await row.getByText(en.agentHTTPS.access.results.ok, { exact: true }).waitFor()
+ await context.setOffline(true)
+ await row.getByText(en.agentHTTPS.access.results.ok, { exact: true }).waitFor({ state: 'hidden' })
+ await context.setOffline(false)
+ await page.waitForTimeout(1200)
+ assert.equal(await row.getByText(en.agentHTTPS.access.results.ok, { exact: true }).count(), 0, 'old diagnostic revived after reconnect')
+ await row.getByRole('button', { name: en.common.edit, exact: true }).click(); dialog = page.getByRole('dialog')
+ await dialog.getByLabel(en.agentEntries.name, { exact: false }).fill('Unsaved name')
+ state.conflict = true
+ await dialog.getByRole('button', { name: en.common.save, exact: true }).click()
+ await page.getByText('Entry changed', { exact: true }).waitFor()
+ assert.equal(await dialog.getByLabel(en.agentEntries.name, { exact: false }).inputValue(), 'Unsaved name', 'conflict erased draft')
+ await dialog.getByRole('button', { name: en.common.cancel, exact: true }).click()
+ await page.getByRole('button', { name: en.workspace.discard, exact: true }).click()
+ await page.waitForTimeout(400)
+ await page.goto(`${base}nodes`)
+ await page.getByRole('checkbox', { name: en.agentEntries.selectAll, exact: true }).check()
+ await page.getByRole('button', { name: `${en.agentEntries.migrate} (2)`, exact: true }).click(); dialog = page.getByRole('dialog')
+ await dialog.getByLabel(en.agentEntries.mode, { exact: true }).click(); await page.getByRole('option', { name: en.agentEntries.managed, exact: true }).click()
+ await dialog.getByLabel(en.agentEntries.entry, { exact: true }).click(); await page.waitForFunction(() => Array.from(document.querySelectorAll('[role=option]')).some(e => e.textContent.includes('New direct') && !e.hasAttribute('data-combobox-disabled')))
+ await page.getByRole('option', { name: /New direct/ }).click()
+ await dialog.getByRole('button', { name: en.agentEntries.preview, exact: true }).click()
+ await dialog.getByText('https://agent.example.com:2096', { exact: true }).waitFor()
+ assert.equal(await dialog.getByRole('button', { name: en.agentEntries.start, exact: true }).isDisabled(), false)
+ await dialog.getByLabel(en.agentEntries.mode, { exact: true }).click(); await page.getByRole('option', { name: en.agentEntries.custom, exact: true }).click()
+ assert.equal(await dialog.getByRole('button', { name: en.agentEntries.start, exact: true }).isDisabled(), true, 'changed selection retained old preview')
+ await dialog.getByLabel(en.agentEntries.mode, { exact: true }).click(); await page.getByRole('option', { name: en.agentEntries.managed, exact: true }).click()
+ await dialog.getByRole('button', { name: en.agentEntries.preview, exact: true }).click()
+ await dialog.getByRole('button', { name: en.agentEntries.start, exact: true }).click()
+ await page.getByText(en.agentEntries.progress, { exact: true }).waitFor()
+ assert.deepEqual(state.migrations[0].node_ids, [1, 2]); assert.equal(state.migrations[0].endpoint_id, 'new')
+ await page.goto(`${base}settings/category/proxy#agent-https`)
+ row = page.locator('#agent-https').getByRole('row').filter({ hasText: 'Old entry' })
+ await row.getByRole('button', { name: en.common.delete, exact: true }).click()
+ await page.getByRole('dialog').getByRole('button', { name: en.common.delete, exact: true }).click()
+ await page.getByText('Still referenced; migrate nodes first', { exact: true }).waitFor()
+ assert.equal(await row.count(), 1)
+ if (process.env.AGENT_HTTPS_SCREENSHOTS) {
+  await mkdir(process.env.AGENT_HTTPS_SCREENSHOTS, { recursive: true })
+  await page.locator('.mantine-Notification-closeButton').first().click().catch(()=>{}); await page.waitForTimeout(400)
+  await card.getByText(en.agentEntries.listening,{exact:true}).first().waitFor()
+  await card.screenshot({ path: `${process.env.AGENT_HTTPS_SCREENSHOTS}/desktop.png` })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.waitForTimeout(400)
+  await card.screenshot({ path: `${process.env.AGENT_HTTPS_SCREENSHOTS}/mobile.png` })
+ }
+ assert.deepEqual(state.errors, []); assert.deepEqual(state.unexpected, [])
+ console.log('PASS: entry create/check, stale-evidence withdrawal, draft retention, batch preview/migration and retirement refusal')
+} catch(error) { console.log(JSON.stringify({errors:state.errors,unexpected:state.unexpected}));console.log((await page.locator('body').innerText()).slice(-4000));throw error } finally { await context.close(); await browser.close() }

@@ -114,5 +114,32 @@ func (s *Store) SaveAgentHTTPS(ctx context.Context, in AgentHTTPSSettings) (Agen
 	if err != nil {
 		return in, err
 	}
+	// Keep the original 1.x single-entry API as the legacy row. Extra entries
+	// are never overwritten by a caller unaware of multi-entry support.
+	var legacyID string
+	e := tx.QueryRowContext(ctx, "SELECT id FROM agent_endpoints WHERE is_default=1").Scan(&legacyID)
+	if errors.Is(e, sql.ErrNoRows) {
+		legacyID = "legacy"
+	} else if e != nil {
+		return in, e
+	}
+
+	existing, e := scanAgentEndpoint(tx.QueryRowContext(ctx, "SELECT "+endpointCols+" FROM agent_endpoints WHERE id=?", legacyID))
+	if e == nil && existing.Enabled && (!in.Enabled || existing.URL != in.URL || existing.Listen != in.Listen) {
+		refs, e := endpointReferences(ctx, tx, existing)
+		if e != nil {
+			return in, e
+		}
+		if refs > 0 {
+			return in, fmt.Errorf("%w: migrate referenced nodes before replacing this entry", ErrAgentHTTPSInvalid)
+		}
+	} else if e != nil && !errors.Is(e, ErrNotFound) {
+		return in, e
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO agent_endpoints(id,name,url,listen,enabled,certificate_id,revision,is_default,was_default) VALUES(?,'Existing Agent HTTPS',?,?,?,?,?,1,1)
+ ON CONFLICT(id) DO UPDATE SET url=excluded.url,listen=excluded.listen,enabled=excluded.enabled,certificate_id=excluded.certificate_id,revision=excluded.revision,is_default=1,was_default=1`, legacyID, in.URL, in.Listen, in.Enabled, in.CertificateID, in.Revision)
+	if err != nil {
+		return in, err
+	}
 	return in, tx.Commit()
 }

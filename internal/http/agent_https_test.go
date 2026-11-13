@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/captain/internal/agenthttps"
+	"github.com/zeptop-dev/captain/internal/auth"
 	"github.com/zeptop-dev/captain/internal/http/admin"
 	"github.com/zeptop-dev/captain/internal/store"
 )
@@ -40,6 +41,11 @@ func waitAgentHTTPS(t *testing.T, check func() bool) {
 
 func TestAgentHTTPSSettingsLifecycleAndIsolation(t *testing.T) {
 	r := newRig(t)
+	// This fixture's paired client uses the main API, not the dedicated entry
+	// whose replacement lifecycle is exercised below. Record that separately.
+	if err := r.st.ObserveAgentConnection(context.Background(), r.nodeID, auth.SHA256Hex(r.agent.token), "https://main.example.com", true); err != nil {
+		t.Fatal(err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(func() { cancel(); _ = r.web.AgentHTTPS().Close(context.Background()) })
 	call := func(method, path string, body any, want int) []byte {

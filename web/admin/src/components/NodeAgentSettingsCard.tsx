@@ -1,53 +1,28 @@
-import { Button, Card, Group, Modal, Stack, Text } from '@mantine/core'
-import { useForm } from '@mantine/form'
-import { modals } from '@mantine/modals'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Alert, Badge, Button, Card, Group, Modal, Select, Stack, Text } from '@mantine/core'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useAuth } from '../lib/auth'
 import { api, type Node } from '../lib/api'
+import { type AgentConnection } from '../lib/agent-connections'
 import { nodeEditValues } from '../lib/node-edit'
 import { toast } from '../lib/notify'
-import { useSettingsDirty } from '../lib/settings-draft'
-import { AgentConnectionFields } from './AgentConnectionFields'
-
+import { AgentMigrationDialog } from './AgentMigrationDialog'
 export function NodeAgentSettingsCard({ node }: { node: Node }) {
-  const { t } = useTranslation()
-  const qc = useQueryClient()
-  const [editing, setEditing] = useState(false)
-  const [baseline, setBaseline] = useState({ AgentURL: node.agent_url ?? '', DownloadSource: node.download_source ?? 'github' })
-  const form = useForm({ initialValues: baseline })
-  useSettingsDirty(editing && form.isDirty())
-  const save = useMutation({
-    mutationFn: async (values: typeof baseline) => {
-      const latest = await api.get<{ node: Node }>(`/api/admin/nodes/${node.id}`)
-      const changed = Object.fromEntries(Object.entries(values).filter(([key, value]) => value !== baseline[key as keyof typeof baseline]))
-      return api.patch(`/api/admin/nodes/${node.id}`, { ...nodeEditValues(latest.node), ...changed })
-    },
-    onSuccess: () => { setEditing(false); qc.invalidateQueries({ queryKey: ['node'] }); qc.invalidateQueries({ queryKey: ['nodes'] }); toast.ok(t('common.saved')) },
-    onError: toast.err,
-  })
-  const open = () => {
-    const values = { AgentURL: node.agent_url ?? '', DownloadSource: node.download_source ?? 'github' }
-    setBaseline(values); form.setValues(values); form.resetDirty(values); setEditing(true)
-  }
-  const close = () => {
-    if (save.isPending) return
-    if (!form.isDirty()) { setEditing(false); return }
-    modals.openConfirmModal({ title: t('workspace.unsaved'), children: <Text size="sm">{t('workspace.leaveHint')}</Text>, labels: { confirm: t('workspace.discard'), cancel: t('workspace.stay') }, onConfirm: () => setEditing(false) })
-  }
-  return <>
-    <Card mb="lg"><Stack gap="xs">
-      <Group justify="space-between"><Text fw={600}>{t('agentConnection.title')}</Text><Button size="xs" variant="light" onClick={open}>{t('common.edit')}</Button></Group>
-      <Text size="sm" style={{ overflowWrap: 'anywhere' }}>{node.effective_agent_url || node.agent_url || t('agentConnection.default')}</Text>
-      <Text size="sm">{t('agentConnection.source')}: {t(node.download_source === 'captain' ? 'agentConnection.captain' : 'agentConnection.github')}</Text>
-      <Text size="sm" c="dimmed">{t('agentConnection.futureOnly')}</Text>
-    </Stack></Card>
-    <Modal opened={editing} onClose={close} title={t('agentConnection.title')} closeOnClickOutside={false} size="lg">
-      <form onSubmit={form.onSubmit(values => save.mutate(values))}><fieldset disabled={save.isPending} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}><Stack>
-        <AgentConnectionFields active={editing} agentURL={form.values.AgentURL} downloadSource={form.values.DownloadSource} onURLChange={value => form.setFieldValue('AgentURL', value)} onSourceChange={value => form.setFieldValue('DownloadSource', value)} />
-        <Text size="sm" c="dimmed">{t('agentConnection.futureOnly')}</Text>
-        <Group justify="flex-end"><Button variant="default" onClick={close}>{t('common.cancel')}</Button><Button type="submit" loading={save.isPending}>{t('common.save')}</Button></Group>
-      </Stack></fieldset></form>
-    </Modal>
-  </>
+ const { t } = useTranslation(); const isAdmin=useAuth().me?.role === 'admin'; const qc = useQueryClient(); const [migrating, setMigrating] = useState(false); const [downloads, setDownloads] = useState(false)
+ const [source, setSource] = useState(node.download_source || 'github')
+ const q = useQuery({ queryKey: ['node-connection', node.id], queryFn: ({ signal }) => api.get<AgentConnection>(`/api/admin/nodes/${node.id}/agent-connection`, signal), refetchInterval: 5000, retry: false })
+ const save = useMutation({ mutationFn: async () => { const latest = await api.get<{ node: Node }>(`/api/admin/nodes/${node.id}`); return api.patch(`/api/admin/nodes/${node.id}`, { ...nodeEditValues(latest.node), DownloadSource: source }) }, onSuccess: () => { setDownloads(false); void qc.invalidateQueries({ queryKey: ['node'] }); toast.ok(t('common.saved')) }, onError: toast.err })
+ return <><Card mb="lg"><Stack gap="xs">
+  <Group justify="space-between"><Text fw={600}>{t('agentConnection.title')}</Text><Group>{isAdmin && <Button size="xs" variant="light" onClick={() => setMigrating(true)}>{t('agentEntries.migrate')}</Button>}<Button size="xs" variant="subtle" onClick={() => { setSource(node.download_source || 'github'); setDownloads(true) }}>{t('agentConnection.source')}</Button></Group></Group>
+  <Text size="sm" style={{ overflowWrap: 'anywhere' }}>{t('agentEntries.actual')}: {q.data?.url || '—'}</Text>
+  <Text size="sm" style={{ overflowWrap: 'anywhere' }}>{t('agentEntries.target')}: {q.data?.target_url || node.effective_agent_url || '—'}</Text>
+  <Group><Badge color={q.isError ? 'gray' : q.data?.status === 'completed' || q.data?.status === 'connected' ? 'teal' : 'orange'}>{t(`agentEntries.${q.isError ? 'unknown' : q.data?.status || 'unknown'}`)}</Badge><Text size="xs" c="dimmed">{t('agentEntries.observedHint')}</Text></Group>
+  {q.data?.error && <Alert color="yellow">{q.data.error}</Alert>}
+  {q.isError && <Alert color="yellow">{t('agentEntries.loadError')} <Button variant="subtle" onClick={() => q.refetch()}>{t('workspace.retry')}</Button></Alert>}
+  <Text size="sm">{t('agentConnection.source')}: {t(node.download_source === 'captain' ? 'agentConnection.captain' : 'agentConnection.github')}</Text><Text size="xs" c="dimmed">{t('agentEntries.downloadHint')}</Text>
+ </Stack></Card>
+ <AgentMigrationDialog ids={[node.id]} opened={migrating} close={() => setMigrating(false)} />
+ <Modal opened={downloads} onClose={() => { if (!save.isPending) setDownloads(false) }} title={t('agentConnection.source')}><Stack><Text size="sm">{t('agentEntries.downloadHint')}</Text><Select value={source} allowDeselect={false} onChange={v => setSource(v === 'captain' ? 'captain' : 'github')} data={[{ value: 'github', label: t('agentConnection.github') }, { value: 'captain', label: t('agentConnection.captain') }]} /><Button loading={save.isPending} onClick={() => save.mutate()}>{t('common.save')}</Button></Stack></Modal>
+ </>
 }

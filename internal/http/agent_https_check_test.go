@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/zeptop-dev/captain/internal/agenthttps"
+	"github.com/zeptop-dev/captain/internal/auth"
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
@@ -31,6 +32,13 @@ func TestAgentHTTPSCheckAuthorizationAndConcurrentChanges(t *testing.T) {
 		return agenthttps.AccessCheck{URL: url, Status: "ok", Perspective: "panel", CheckedAt: time.Now().UTC()}
 	})
 	r := newRigAt(t, "http://test", Options{AgentCheck: check})
+	// The fixture agent is connected to the main API, not the replaceable TLS entry.
+	if err := r.st.ObserveAgentConnection(context.Background(), r.nodeID, auth.SHA256Hex(r.agent.token), "https://main.example.com", true); err != nil {
+		t.Fatal(err)
+	}
+	var releaseOnce sync.Once
+	releaseAll := func() { releaseOnce.Do(func() { close(release) }) }
+	t.Cleanup(releaseAll)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(func() { cancel(); r.web.AgentHTTPS().Close(context.Background()) })
 	get := func() store.AgentHTTPSSettings {
@@ -134,7 +142,7 @@ func TestAgentHTTPSCheckAuthorizationAndConcurrentChanges(t *testing.T) {
 	select {
 	case <-locked:
 	case <-time.After(3 * time.Second):
-		close(release)
+		releaseAll()
 		t.Fatal("network held account lock")
 	}
 	release <- struct{}{}

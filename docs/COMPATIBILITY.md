@@ -7,6 +7,16 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.63.0 to preserve ingress address sources, subscription bindings and strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
 
+## Agent endpoint coexistence and migration (Captain v1.67.0 / bosun v0.98.0)
+
+Migration 122 imports the prior Agent HTTPS setting as an existing default entry without changing its URL, certificate, enabled state or installed-node preferences. Multiple managed origins can share a listener by explicit SNI/Host routing. Legacy settings/node APIs retain their paths and fields; additive entry, connection, migration and observation APIs use agent-https and agent-connections permissions. Old agents ignore the optional migration metadata and remain online; remote migration requires bosun v0.98.0.
+
+A default entry is an installation preference, not an automatic fleet migration. Actual URLs are authenticated node observations, separate from targets. Unknown legacy/offline references prevent unsafe retirement, even if somebody changed only installation preferences. Active/queued tasks also protect both endpoints. Account reset, re-pair and deleted/recreated identities cannot inherit a migration.
+
+The anonymous target proof is bound to its end-to-end TLS session. Thus automatic migration targets require direct Captain TLS; TLS-terminating CDN/proxy targets do not pass. An old source may still use a CDN, and custom installation addresses remain valid. Successful migration keeps the node token and accounting/offline/mode identity and does not restart proxy cores. Persisted local selection works with read-only config mounts. Source failures, permission errors and unconfirmed targets are not success. See [operation and recovery](AGENT_CONNECTIONS.md).
+
+Captain's built-in rollback floor becomes v1.67.0 because older single-entry managers ignore additional origins and retirement protection. Bosun's floor becomes v0.98.0 because older clients ignore the persisted connection selection. Migrations remain forward-only; no existing wire field is renamed or removed.
+
 ## Operations insights (Captain v1.66.0, migration 121)
 
 Additive private route events, opt-in anomaly policies, exact-type silences,
@@ -857,6 +867,7 @@ features it has never heard of, which the node page shows as an orange
 
 | Captain | needs bosun | for |
 |---|---|---|
+| 1.67.0 | 0.98.0 for automatic migration; old agents remain supported | Multi-entry HTTPS, explicit connection migration and retirement protection; schema122, panel/agent floors1.67.0/0.98.0. |
 | 1.65.0 | Shared bosun0.95.0 retained; no agent upgrade | Persistent administrator migration-notice dismissal; schema120/floor1.63.0 unchanged. |
 | 1.64.0 | Shared bosun 0.95.0 retained; no agent upgrade required | Unique new/renamed plan names and synchronized owned-group names, migration120. Historical duplicates and permission IDs preserved. Rollback floor1.63.0 retained. |
 | 1.63.0 | Formal shared bosun 0.95.0; plan/category permissions do not require an agent upgrade | Migration119 converts legacy global grants; explicit category-follow rules and unassigned console creation. Matching agents add non-fatal core preparation and native candidate preflight. Rollback floor1.63.0. |
