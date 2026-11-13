@@ -171,10 +171,11 @@ type Status struct {
 }
 
 type endpoint struct {
-	current atomic.Pointer[material]
-	closing atomic.Bool
-	server  *http.Server
-	cancel  context.CancelFunc
+	requests requestGate
+	current  atomic.Pointer[material]
+	closing  atomic.Bool
+	server   *http.Server
+	cancel   context.CancelFunc
 }
 
 // Manager serializes local reconfiguration while handshakes use an immutable
@@ -311,6 +312,11 @@ func (m *Manager) Apply(ctx context.Context, c Config, certPEM, keyPEM []byte) e
 				http.Error(w, "agent HTTPS host does not match", http.StatusMisdirectedRequest)
 				return
 			}
+			if !e.requests.begin() {
+				http.Error(w, "agent HTTPS entry is closing", http.StatusServiceUnavailable)
+				return
+			}
+			defer e.requests.done()
 			m.handler.ServeHTTP(w, r)
 		}),
 	}
@@ -351,6 +357,7 @@ func (m *Manager) retireLocked(e *endpoint) {
 	if e == nil {
 		return
 	}
+	e.requests.close()
 	e.closing.Store(true)
 	m.drains[e] = struct{}{}
 	go func() {
@@ -404,6 +411,7 @@ func (m *Manager) Close(ctx context.Context) error {
 	m.mu.Lock()
 	m.closed = true
 	if m.active != nil {
+		m.active.requests.close()
 		m.active.closing.Store(true)
 		m.active.cancel()
 		m.drains[m.active] = struct{}{}
@@ -411,6 +419,7 @@ func (m *Manager) Close(ctx context.Context) error {
 	}
 	endpoints := make([]*endpoint, 0, len(m.drains))
 	for e := range m.drains {
+		e.requests.close()
 		e.cancel()
 		endpoints = append(endpoints, e)
 	}
@@ -421,14 +430,10 @@ func (m *Manager) Close(ctx context.Context) error {
 	failures := make(chan error, len(endpoints))
 	for _, e := range endpoints {
 		wg.Go(func() {
-			// Permanent stop has already cancelled request contexts. Closing the
-			// connections also avoids HTTP/2's graceful GOAWAY timer consuming an
-			// otherwise idle short shutdown deadline. Retirement still drains separately.
-			_ = e.server.Close()
-			if err := e.server.Shutdown(ctx); err != nil {
+			if err := e.requests.wait(ctx); err != nil {
 				failures <- err
-				_ = e.server.Close()
 			}
+			_ = e.server.Close()
 			m.mu.Lock()
 			e.cancel()
 			delete(m.drains, e)

@@ -19,10 +19,11 @@ type EntryMaterial struct {
 }
 type routeSet struct{ hosts map[string]*material }
 type routeListener struct {
-	cancel  context.CancelFunc
-	routes  atomic.Pointer[routeSet]
-	server  *http.Server
-	closing atomic.Bool
+	requests requestGate
+	cancel   context.CancelFunc
+	routes   atomic.Pointer[routeSet]
+	server   *http.Server
+	closing  atomic.Bool
 }
 
 // Pool shares a socket between named HTTPS origins. All routes are validated
@@ -130,6 +131,11 @@ func (p *Pool) Apply(ctx context.Context, entries []EntryMaterial) error {
 				http.Error(w, "Agent HTTPS entry unavailable", http.StatusMisdirectedRequest)
 				return
 			}
+			if !l.requests.begin() {
+				http.Error(w, "Agent HTTPS entry closing", http.StatusServiceUnavailable)
+				return
+			}
+			defer l.requests.done()
 			p.handler.ServeHTTP(w, r)
 		})}
 		created[addr] = l
@@ -161,6 +167,7 @@ func (p *Pool) Apply(ctx context.Context, entries []EntryMaterial) error {
 			continue
 		}
 		delete(p.listeners, addr)
+		l.requests.close()
 		l.closing.Store(true)
 		go func() {
 			c, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -203,15 +210,21 @@ func (p *Pool) CertificateInUse(id int64) bool {
 func (p *Pool) Close(ctx context.Context) error {
 	p.mu.Lock()
 	p.closed = true
-	ls := p.listeners
+	listeners := p.listeners
 	p.listeners = map[string]*routeListener{}
 	p.statuses = map[string]Status{}
-	p.mu.Unlock()
-	for _, l := range ls {
+	for _, l := range listeners {
+		l.requests.close()
 		l.closing.Store(true)
 		l.cancel()
-		_ = l.server.Close()
-		_ = l.server.Shutdown(ctx)
 	}
-	return nil
+	p.mu.Unlock()
+	var failures []error
+	for _, l := range listeners {
+		if err := l.requests.wait(ctx); err != nil {
+			failures = append(failures, err)
+		}
+		_ = l.server.Close()
+	}
+	return errors.Join(failures...)
 }
