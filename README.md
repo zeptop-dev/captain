@@ -62,7 +62,7 @@ in lockstep with the panel.
 
 Monitor-only nodes can be installed without proxy cores and later switched to full nodes. Monitoring, alerts and agent updates remain available; proxy configuration is blocked on both panel and agent. See [node modes](docs/NODES.md#monitor-only-nodes-captain-118--bosun-066).
 
-- **Agent connection entries (Captain v1.67 / bosun v0.98):** retain multiple HTTPS origins on shared or separate ports, choose node-specific connections and explicitly migrate batches with same-panel verification, runtime confirmation and retirement protection. [Configuration and limits](docs/AGENT_CONNECTIONS.md).
+- **Agent connection entries (Captain v1.67 / bosun v0.98.1):** retain multiple HTTPS origins on shared or separate ports, choose node-specific connections and explicitly migrate batches with same-panel verification, runtime confirmation and retirement protection. [Configuration and limits](docs/AGENT_CONNECTIONS.md).
 
 ## Features
 

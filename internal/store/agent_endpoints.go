@@ -66,7 +66,7 @@ func (s *Store) AgentEndpoints(ctx context.Context) ([]AgentEndpoint, error) {
 		if err = s.db.QueryRowContext(ctx, `SELECT count(*) FROM nodes n LEFT JOIN agent_node_connections c ON c.node_id=n.id WHERE n.agent_url=? OR c.endpoint_id=?`, v.URL, v.ID).Scan(&v.ConfiguredUsers); err != nil {
 			return nil, err
 		}
-		err = s.db.QueryRowContext(ctx, `SELECT count(*) FROM agent_connection_migrations WHERE (target_url=? OR source_url=?) AND status IN ('queued','issued','verified')`, v.URL, v.URL).Scan(&v.Pending)
+		err = s.db.QueryRowContext(ctx, `SELECT count(*) FROM agent_connection_migrations m JOIN nodes owner ON owner.id=m.node_id AND owner.token_hash=m.token_hash WHERE (m.target_url=? OR m.source_url=?) AND `+unresolvedConnectionMigration, v.URL, v.URL).Scan(&v.Pending)
 		if err != nil {
 			return nil, err
 		}
@@ -77,9 +77,9 @@ func endpointReferences(ctx context.Context, tx *sql.Tx, v AgentEndpoint) (int, 
 	var n int
 	err := tx.QueryRowContext(ctx, `SELECT
  (SELECT count(*) FROM nodes x LEFT JOIN agent_node_connections c ON c.node_id=x.id WHERE
- x.agent_url=? OR c.endpoint_id=? OR (c.token_hash=x.token_hash AND c.current_url=?) OR
+ x.agent_url=? OR (c.endpoint_id=? AND c.token_hash=x.token_hash) OR (c.token_hash=x.token_hash AND c.current_url=?) OR
  (x.token_hash<>'' AND (coalesce(c.current_url,'')='' OR coalesce(c.token_hash,'')<>coalesce(x.token_hash,'')) AND ?=1))+
- (SELECT count(*) FROM agent_connection_migrations WHERE (source_url=? OR target_url=?) AND status IN ('queued','issued','verified'))`, v.URL, v.ID, v.URL, v.EverDefault, v.URL, v.URL).Scan(&n)
+ (SELECT count(*) FROM agent_connection_migrations m JOIN nodes owner ON owner.id=m.node_id AND owner.token_hash=m.token_hash WHERE (m.source_url=? OR m.target_url=?) AND `+unresolvedConnectionMigration+`)`, v.URL, v.ID, v.URL, v.EverDefault, v.URL, v.URL).Scan(&n)
 	return n, err
 }
 func (s *Store) SaveAgentEndpoint(ctx context.Context, v AgentEndpoint) (AgentEndpoint, error) {

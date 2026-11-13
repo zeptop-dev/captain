@@ -77,6 +77,9 @@ func TestAgentConnectionsPermissionsAndMetadata(t *testing.T) {
 	if after.ConnectionMigration == nil {
 		t.Fatal("missing command")
 	}
+	if code, _, _ := r.agent.do("POST", "/api/agent/connection-result", agentproto.ConnectionResult{ID: after.ConnectionMigration.ID, Status: "completed"}, map[string]string{agentproto.ConnectionVersionHeader: "1"}); code != 409 {
+		t.Fatal("unsafe old confirmation capability accepted", code)
+	}
 	if before.ConfigRevision != after.ConfigRevision || before.Revision != after.Revision {
 		t.Fatal("migration changed proxy configuration identity")
 	}

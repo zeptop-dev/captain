@@ -4732,7 +4732,7 @@
     "target": "대상 주소",
     "state": "상태",
     "ready": "온라인 이전 지원",
-    "upgradeNeeded": "미확인: 재연결하거나 bosun v0.98 이상으로 업데이트 필요",
+    "upgradeNeeded": "미확인: 재연결하거나 bosun v0.98.1 이상으로 업데이트 필요",
     "installOnly": "설치 시 적용",
     "preview": "영향 미리 보기",
     "start": "저장 및 이전",

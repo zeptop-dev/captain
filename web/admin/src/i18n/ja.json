@@ -4732,7 +4732,7 @@
     "target": "移行先",
     "state": "状態",
     "ready": "オンライン移行に対応",
-    "upgradeNeeded": "未確認：再接続または bosun v0.98 以降への更新が必要",
+    "upgradeNeeded": "未確認：再接続または bosun v0.98.1 以降への更新が必要",
     "installOnly": "インストール時に適用",
     "preview": "影響を確認",
     "start": "保存して移行",

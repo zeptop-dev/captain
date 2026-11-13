@@ -57,7 +57,7 @@ mita（mieru）、Hysteria、snell-server 和 realm 作为子进程拉起来。
 
 下一版支持添加“仅监控”节点，不下载和运行代理内核，保留监控、告警和节点升级；可在节点详情切换为完整节点。面板与节点两端都阻止代理配置，已有节点保持原行为。详见[节点模式](docs/NODES.md#monitor-only-nodes-captain-118--bosun-066)。
 
-- **Agent 多入口与迁移（Captain v1.67 / bosun v0.98）：** 新旧 HTTPS 入口可共用或分别使用端口，支持节点入口选择、批量迁移、同面板验证、实际连接确认和旧入口删除保护。[配置与限制](docs/AGENT_CONNECTIONS.md)。
+- **Agent 多入口与迁移（Captain v1.67 / bosun v0.98.1）：** 新旧 HTTPS 入口可共用或分别使用端口，支持节点入口选择、批量迁移、同面板验证、实际连接确认和旧入口删除保护。[配置与限制](docs/AGENT_CONNECTIONS.md)。
 
 ## 功能特性
 

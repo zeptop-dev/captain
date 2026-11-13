@@ -155,6 +155,7 @@ func (h *handlers) pair(w http.ResponseWriter, r *http.Request) {
 // once without a persistent connection.
 func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set(agentproto.ConnectionVersionHeader, agentproto.ConnectionVersion)
 	w.Header().Set("Vary", agentproto.ConfigSessionHeader+", "+agentproto.ConfigDeliveryHeader+", "+agentproto.DiagnosticsVersionHeader+", "+agentproto.DiagnosticsNonceHeader+", "+agentproto.DiagnosticsChallengeHeader+", "+agentproto.DiagnosticsCursorHeader+", "+agentproto.ConnectionVersionHeader+", "+agentproto.ConnectionCursorHeader)
 	n := nodeFrom(r)
 	session := r.Header.Get(agentproto.ConfigSessionHeader)

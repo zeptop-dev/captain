@@ -145,3 +145,47 @@ func TestUnusedAgentEntryDoesNotTrapUnconfirmedInstallations(t *testing.T) {
 		t.Fatal("former default lost unconfirmed-node protection")
 	}
 }
+
+func TestUnconfirmedFailureRetainsOriginsUntilDurableReconciliation(t *testing.T) {
+	ctx := context.Background()
+	s := New(testdb.Open(t))
+	id, hash := connectionNode(t, s, 1)
+	oldURL := "https://old.example.com:2096"
+	target := "https://agent.example.com:2096"
+	entry, err := s.SaveAgentEndpoint(ctx, AgentEndpoint{Name: "Old", Config: agentHTTPSDisabledConfig(oldURL)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.ObserveAgentConnection(ctx, id, hash, oldURL, true)
+	if _, err = s.StartAgentConnectionBatch(ctx, []int64{id}, AgentConnectionChoice{Mode: "custom", URL: target}, ""); err != nil {
+		t.Fatal(err)
+	}
+	m, err := s.AgentConnectionControl(ctx, id, hash)
+	if err != nil || m == nil {
+		t.Fatal(m, err)
+	}
+	if err = s.CompleteAgentConnection(ctx, id, hash, "old.example.com:2096", m.ID, "failed"); err != nil {
+		t.Fatal(err)
+	}
+	// A runtime observation alone cannot prove an ambiguous local write is durable.
+	s.ObserveAgentConnection(ctx, id, hash, target, true)
+	if err = s.DeleteAgentEndpoint(ctx, entry.ID, entry.Revision); err == nil {
+		t.Fatal("unconfirmed failure released the old origin")
+	}
+	if _, err = s.StartAgentConnectionBatch(ctx, []int64{id}, AgentConnectionChoice{Mode: "custom", URL: target}, ""); err != nil {
+		t.Fatal(err)
+	}
+	next, err := s.AgentConnectionControl(ctx, id, hash)
+	if err != nil || next == nil {
+		t.Fatal("same-origin reconciliation was silently completed without node persistence", next, err)
+	}
+	if err = s.CompleteAgentConnection(ctx, id, hash, "agent.example.com:2096", next.ID, "completed"); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.CompleteAgentConnection(ctx, id, hash, "agent.example.com:2096", next.ID, "failed"); err == nil {
+		t.Fatal("terminal completion was rewritten")
+	}
+	if err = s.DeleteAgentEndpoint(ctx, entry.ID, entry.Revision); err != nil {
+		t.Fatal("durable reconciliation did not release the old origin", err)
+	}
+}

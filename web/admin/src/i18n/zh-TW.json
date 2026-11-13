@@ -4732,7 +4732,7 @@
     "target": "目標連線位址",
     "state": "狀態",
     "ready": "支援線上遷移",
-    "upgradeNeeded": "尚未確認支援／需連線或升級至 bosun v0.98+",
+    "upgradeNeeded": "尚未確認支援／需連線或升級至 bosun v0.98.1+",
     "installOnly": "安装時生效",
     "preview": "预览影响",
     "start": "儲存並遷移",

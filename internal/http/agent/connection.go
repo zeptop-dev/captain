@@ -31,6 +31,10 @@ func (h *handlers) connectionProof(w http.ResponseWriter, r *http.Request) {
 	ok(w, v)
 }
 func (h *handlers) connectionResult(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get(agentproto.ConnectionVersionHeader) != agentproto.ConnectionVersion {
+		fail(w, 409, "upgrade bosun before confirming migration")
+		return
+	}
 	var in agentproto.ConnectionResult
 	if err := decodeConnectionResult(r, &in); err != nil {
 		fail(w, 400, "invalid migration result")
@@ -38,12 +42,9 @@ func (h *handlers) connectionResult(w http.ResponseWriter, r *http.Request) {
 	}
 	n := nodeFrom(r)
 	hash := auth.SHA256Hex(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
-	if err := h.Store.CompleteAgentConnection(r.Context(), n.ID, hash, r.Host, in.ID, in.Status); err != nil {
+	if err := h.Store.CompleteAgentConnection(r.Context(), n.ID, hash, r.Host, in.ID, in.Status, r.Header.Get(agentproto.ConnectionURLHeader)); err != nil {
 		fail(w, 409, "migration is no longer active")
 		return
-	}
-	if in.Status == "completed" {
-		_ = h.Store.ObserveAgentConnection(r.Context(), n.ID, hash, r.Header.Get(agentproto.ConnectionURLHeader), true)
 	}
 	ok(w, map[string]bool{"accepted": true})
 }

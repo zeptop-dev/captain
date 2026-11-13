@@ -15,6 +15,10 @@ import (
 	"github.com/zeptop-dev/captain/internal/auth"
 )
 
+// A failed or expired attempt can have an ambiguous local persistence outcome.
+// Protect its origins until a later durable completion for this same identity.
+const unresolvedConnectionMigration = `(m.status IN ('queued','issued','verified') OR (m.status='failed' AND NOT EXISTS(SELECT 1 FROM agent_connection_migrations later WHERE later.node_id=m.node_id AND later.token_hash=m.token_hash AND later.status='completed' AND later.rowid>m.rowid)))`
+
 type AgentConnection struct {
 	Name        string `json:"name,omitempty"`
 	Paired      bool   `json:"paired"`
@@ -108,7 +112,7 @@ func (s *Store) ObserveAgentConnection(ctx context.Context, id int64, tokenHash,
 	}
 	_, err = s.db.ExecContext(ctx, `INSERT INTO agent_node_connections(node_id,token_hash,current_url,seen_at,capable)
  SELECT id,token_hash,?,?,? FROM nodes WHERE id=? AND token_hash=?
- ON CONFLICT(node_id) DO UPDATE SET token_hash=excluded.token_hash,current_url=excluded.current_url,seen_at=excluded.seen_at,capable=excluded.capable`, u, time.Now().Unix(), capable, id, tokenHash)
+ ON CONFLICT(node_id) DO UPDATE SET mode=CASE WHEN agent_node_connections.token_hash<>excluded.token_hash THEN 'default' ELSE agent_node_connections.mode END,endpoint_id=CASE WHEN agent_node_connections.token_hash<>excluded.token_hash THEN '' ELSE agent_node_connections.endpoint_id END,token_hash=excluded.token_hash,current_url=excluded.current_url,seen_at=excluded.seen_at,capable=excluded.capable`, u, time.Now().Unix(), capable, id, tokenHash)
 	return err
 }
 
@@ -195,9 +199,6 @@ func (s *Store) StartAgentConnectionBatch(ctx context.Context, ids []int64, choi
 			return "", fmt.Errorf("%w: node already has an active migration", ErrAgentHTTPSInvalid)
 		}
 		status := "queued"
-		if source == target && observed == target {
-			status = "completed"
-		}
 		_, err = tx.ExecContext(ctx, `INSERT INTO agent_connection_migrations(id,batch_id,node_id,token_hash,source_url,target_url,endpoint_id,proof_key,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, auth.Token(24), batch, id, tokenHash, source, target, endpoint, auth.Token(32), status, at, at)
 		if err != nil {
 			return "", err
@@ -293,7 +294,7 @@ func (s *Store) AgentConnectionProof(ctx context.Context, id, challenge, host st
 	out.Signature = agentproto.ConnectionSignature(key, id, target, challenge, binding...)
 	return out, nil
 }
-func (s *Store) CompleteAgentConnection(ctx context.Context, nodeID int64, tokenHash, host, id, status string) error {
+func (s *Store) CompleteAgentConnection(ctx context.Context, nodeID int64, tokenHash, host, id, status string, reported ...string) error {
 	if status != "verified" && status != "completed" && status != "failed" {
 		return ErrAgentHTTPSInvalid
 	}
@@ -308,23 +309,18 @@ func (s *Store) CompleteAgentConnection(ctx context.Context, nodeID int64, token
 	if err != nil {
 		return wrapNotFound(err)
 	}
-	if old == "completed" && status == "failed" {
-		var newer int
-		if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM agent_connection_migrations WHERE node_id=? AND rowid>(SELECT rowid FROM agent_connection_migrations WHERE id=?)", nodeID, id).Scan(&newer); err != nil {
-			return err
-		}
-		if newer > 0 || !AgentOriginHost(source, host) {
-			return ErrAgentHTTPSRevision
-		}
-		old = "verified"
-	}
 	if old == "completed" && status == "completed" {
 		return tx.Commit()
 	}
 	if (old != "issued" && old != "verified") || expires < time.Now().Unix() {
 		return ErrAgentHTTPSRevision
 	}
-	if status != "failed" && !AgentOriginHost(target, host) {
+	sameCurrent := false
+	if source == target && len(reported) > 0 {
+		normalized, e := agentendpoint.NormalizeURL(reported[0])
+		sameCurrent = e == nil && normalized == target
+	}
+	if status != "failed" && !AgentOriginHost(target, host) && !sameCurrent {
 		return ErrAgentHTTPSInvalid
 	}
 	message := ""
@@ -476,8 +472,8 @@ func (s *Store) AgentEndpointNodes(ctx context.Context, id string) ([]AgentConne
 	}
 	rows, err := s.db.QueryContext(ctx, `SELECT DISTINCT n.id,n.name,coalesce(c.current_url,''),coalesce(c.seen_at,0),coalesce(c.capable,0),n.agent_url,n.token_hash IS NOT NULL
  FROM nodes n LEFT JOIN agent_node_connections c ON c.node_id=n.id AND c.token_hash=n.token_hash
- LEFT JOIN agent_connection_migrations m ON m.node_id=n.id AND m.status IN ('queued','issued','verified')
- WHERE n.agent_url=? OR c.endpoint_id=? OR c.current_url=? OR (?=1 AND n.token_hash IS NOT NULL AND coalesce(c.current_url,'')='') OR m.source_url=? OR m.target_url=?
+ LEFT JOIN agent_connection_migrations m ON m.node_id=n.id AND m.token_hash=n.token_hash AND `+unresolvedConnectionMigration+`
+ WHERE n.agent_url=? OR (c.endpoint_id=? AND c.token_hash=n.token_hash) OR c.current_url=? OR (?=1 AND n.token_hash IS NOT NULL AND coalesce(c.current_url,'')='') OR m.source_url=? OR m.target_url=?
  ORDER BY n.id LIMIT 501`, target, id, target, wasDefault, target, target)
 	if err != nil {
 		return nil, false, err
