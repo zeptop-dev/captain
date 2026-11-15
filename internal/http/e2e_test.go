@@ -20,6 +20,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/webhook"
 	"io"
 	"log/slog"
+	"math"
 	"math/big"
 	"net"
 	"net/http"
@@ -1695,7 +1696,7 @@ func TestProbePageAndBeats(t *testing.T) {
 	}
 	// History and pings.
 	_, b, _ = anon.do("GET", "/api/probe/nodes/"+nodeID+"/history?range=24h", nil, nil)
-	if !strings.Contains(string(b), `"res":"m"`) || !strings.Contains(string(b), `"n":3`) {
+	if !validThreeBeatMinuteHistory(b) {
 		t.Fatalf("history: %s", b)
 	}
 	_, b, _ = anon.do("GET", "/api/probe/nodes/"+nodeID+"/history?range=1h", nil, nil)
@@ -2878,5 +2879,54 @@ func TestDeviceLimitRelay(t *testing.T) {
 	_, b, _ = agent.do("GET", "/api/agent/state", nil, nil)
 	if stt := mustJSON[agentproto.State](t, b); len(stt.Users) != 0 {
 		t.Fatalf("over-limit user still provisioned: %+v", stt.Users)
+	}
+}
+
+// A real HTTP beat uses the receive time and may cross a minute boundary.
+func validThreeBeatMinuteHistory(body []byte) bool {
+	var history struct {
+		Resolution string `json:"res"`
+		Points     []struct {
+			N   int     `json:"n"`
+			CPU float64 `json:"cpu"`
+		} `json:"points"`
+	}
+	if json.Unmarshal(body, &history) != nil || history.Resolution != "m" {
+		return false
+	}
+	samples := 0
+	weightedCPU := 0.0
+	for _, point := range history.Points {
+		if point.N <= 0 || math.IsNaN(point.CPU) || math.IsInf(point.CPU, 0) {
+			return false
+		}
+		samples += point.N
+		weightedCPU += float64(point.N) * point.CPU
+	}
+	return samples == 3 && math.Abs(weightedCPU-270) < 0.000001
+}
+
+func TestProbeMinuteHistoryAllowsCalendarBucketBoundaries(t *testing.T) {
+	for _, body := range []string{
+		`{"res":"m","points":[{"n":3,"cpu":90}]}`,
+		`{"res":"m","points":[{"n":1,"cpu":85},{"n":2,"cpu":92.5}]}`,
+		`{"res":"m","points":[{"n":1,"cpu":85},{"n":1,"cpu":90},{"n":1,"cpu":95}]}`,
+	} {
+		if !validThreeBeatMinuteHistory([]byte(body)) {
+			t.Fatal("all three beat samples should survive calendar bucketing", body)
+		}
+	}
+}
+
+func TestProbeMinuteHistoryRejectsLostOrChangedSamples(t *testing.T) {
+	for _, body := range []string{
+		`{"res":"m","points":[]}`,
+		`{"res":"m","points":[{"n":2,"cpu":90}]}`,
+		`{"res":"m","points":[{"n":3,"cpu":89}]}`,
+		`{"res":"raw","points":[{"n":3,"cpu":90}]}`,
+	} {
+		if validThreeBeatMinuteHistory([]byte(body)) {
+			t.Fatal("lost or changed samples should fail", body)
+		}
 	}
 }
