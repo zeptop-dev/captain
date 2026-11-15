@@ -171,7 +171,7 @@ export function InboundForm({ initial, groups: _groups, onSubmit, busy, onCancel
   return (
     <form onSubmit={form.onSubmit(submit)}>
       <Stack>
-        <ConfigPresets kind="inbound" current={() => ({ ...JSON.parse(form.values.Settings || '{}'), tag: form.values.Tag, protocol: form.values.Protocol, listen: form.values.Listen, port: form.values.Port, core: form.values.Core })} onLoad={value => { const v = value as Record<string, unknown>; form.setValues({ Tag: String(v.tag), Protocol: String(v.protocol), Core: fixedCore || String(v.core ?? ''), Settings: JSON.stringify(stripIdentity(v), null, 2) }) }} affected={form.values.Tag ? [form.values.Tag] : []} />
+        <ConfigPresets kind="inbound" current={() => ({ ...JSON.parse(form.values.Settings || '{}'), tag: form.values.Tag, protocol: form.values.Protocol, listen: form.values.Listen, port: form.values.Port, core: form.values.Core })} onLoad={value => { setProtocolDraft(null); const v = value as Record<string, unknown>; form.setValues({ Tag: String(v.tag), Protocol: String(v.protocol), Core: fixedCore || String(v.core ?? ''), Settings: JSON.stringify(stripIdentity(v), null, 2) }) }} affected={form.values.Tag ? [form.values.Tag] : []} />
         <div>
           <Text size="sm" fw={600}>{t('inbounds.recipe')}</Text>
           <Text size="xs" c="dimmed" mb="xs">{t('inbounds.recipeHint')}</Text>
@@ -200,7 +200,7 @@ export function InboundForm({ initial, groups: _groups, onSubmit, busy, onCancel
           </Group>}
           {form.values.Protocol === 'socks' && <Button variant="light" size="xs" w="fit-content" onClick={()=>patchAuth({password:standaloneKey('2022-blake3-aes-256-gcm')})}>{t('standalone.generatePassword')}</Button>}
           {form.values.Protocol === 'shadowsocks' && <>
-            <Select label={t('standalone.cipher')} allowDeselect={false} value={String(settingOf(form.values.Settings,'cipher')??'2022-blake3-aes-128-gcm')} data={['2022-blake3-aes-128-gcm','2022-blake3-aes-256-gcm','2022-blake3-chacha20-poly1305']} onChange={v=>v&&form.setFieldValue('Settings',patchSettings(form.values.Settings,{cipher:v,server_key:standaloneKey(v)}))}/>
+            <Select label={t('standalone.cipher')} allowDeselect={false} value={String(settingOf(form.values.Settings,'cipher')??'2022-blake3-aes-128-gcm')} data={['2022-blake3-aes-128-gcm','2022-blake3-aes-256-gcm','2022-blake3-chacha20-poly1305']} onChange={v=>{if(v){setProtocolDraft(null);form.setFieldValue('Settings',patchSettings(form.values.Settings,{cipher:v,server_key:standaloneKey(v)}))}}}/>
             <PasswordInput label={t('standalone.key')} description={t('standalone.keyHint')} required value={String(settingOf(form.values.Settings,'server_key')??'')} onChange={e=>form.setFieldValue('Settings',patchSettings(form.values.Settings,{server_key:e.currentTarget.value}))}/>
             <Button variant="light" size="xs" w="fit-content" onClick={()=>form.setFieldValue('Settings',patchSettings(form.values.Settings,{server_key:standaloneKey(String(settingOf(form.values.Settings,'cipher')??''))}))}>{t('inbounds.generate')}</Button>
           </>}
@@ -230,8 +230,8 @@ export function InboundForm({ initial, groups: _groups, onSubmit, busy, onCancel
           )}
           <Switch label={t('inbounds.enabled')} {...form.getInputProps('Enabled', { type: 'checkbox' })} />
         </Group>
-        <Switch label={t('inbounds.noSniff')} description={t('inbounds.noSniffHint')} checked={!!settingOf(form.values.Settings, 'no_sniff')} onChange={(e) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { no_sniff: e.currentTarget.checked ? true : '' }))} />
-        <Switch label={t('inbounds.acceptProxy')} description={t('inbounds.acceptProxyHint')} checked={!!settingOf(form.values.Settings, 'accept_proxy_protocol')} onChange={(e) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { accept_proxy_protocol: e.currentTarget.checked ? true : '' }))} />
+        <Switch label={t('inbounds.noSniff')} description={t('inbounds.noSniffHint')} checked={!!settingOf(form.values.Settings, 'no_sniff')} onChange={(e) => { setProtocolDraft(null); form.setFieldValue('Settings', patchSettings(form.values.Settings, { no_sniff: e.currentTarget.checked ? true : '' })) }} />
+        <Switch label={t('inbounds.acceptProxy')} description={t('inbounds.acceptProxyHint')} checked={!!settingOf(form.values.Settings, 'accept_proxy_protocol')} onChange={(e) => { setProtocolDraft(null); form.setFieldValue('Settings', patchSettings(form.values.Settings, { accept_proxy_protocol: e.currentTarget.checked ? true : '' })) }} />
         {form.values.Protocol === 'mieru' && (
           <Group grow align="flex-start">
             <NumberInput label={t('inbounds.mieruMTU')} description={t('inbounds.mieruMTUHint')} min={1280} max={1500} placeholder="1400" value={(settingOf(form.values.Settings, 'mieru_mtu') as number | undefined) || ''} onChange={(v) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { mieru_mtu: Number(v) || 0 }))} />

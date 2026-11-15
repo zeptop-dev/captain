@@ -13,6 +13,7 @@ import (
 )
 
 var ErrStandaloneAccess = errors.New("standalone inbound cannot be assigned to plans or subscription nodes")
+var ErrStandaloneKeyRotation = errors.New("generate a new SS2022 key when switching from subscriber to standalone use")
 var ErrStandaloneReferences = errors.New("remove subscription nodes, lines and existing access grants before switching to standalone use")
 
 // All save paths, including topology changesets, share this transaction guard.
@@ -45,6 +46,11 @@ func guardStandaloneInboundTx(ctx context.Context, tx *sql.Tx, ib *domain.Inboun
 		return ErrStandaloneReferences
 	}
 	if previous.Standalone == nil {
+		// Subscriber configurations publish the shared server key. Making it
+		// sufficient on its own would otherwise authorize former subscribers.
+		if ib.Protocol == spec.Shadowsocks && previous.ServerKey != "" && previous.ServerKey == ib.Settings.ServerKey {
+			return ErrStandaloneKeyRotation
+		}
 		var policy string
 		if err := tx.QueryRowContext(ctx, `SELECT policy FROM effective_inbound_access WHERE inbound_id=?`, ib.ID).Scan(&policy); err != nil {
 			return err
