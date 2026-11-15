@@ -7,6 +7,15 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.63.0 to preserve ingress address sources, subscription bindings and strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
 
+## Standalone inbounds (development)
+
+Optional inbound `standalone` credentials support SOCKS5 and single-key SS2022,
+with no plan or subscription publication. Recent adapter support and a request-side
+capability fence protect old/downgraded agents. Empty/omitted settings retain legacy
+behavior. No schema migration is needed. The planned containing-release floors are
+Captain v1.68.0 / bosun v0.99.0; neither release has been made for this work yet.
+See [standalone credentials](STANDALONE_INBOUNDS.md) for transitions and boundaries.
+
 ## Agent endpoint coexistence and migration (Captain v1.67.0 / bosun v0.98.1)
 
 Migration 122 imports an active prior Agent HTTPS setting as the existing default entry. Disabled selections remain disabled and non-default; an empty placeholder is not materialized. The old URL, certificate, enabled state and installed-node preferences are preserved. Multiple managed origins can share a listener by explicit SNI/Host routing. Legacy settings/node APIs retain their paths and fields; additive entry, connection, migration and observation APIs use agent-https and agent-connections permissions. Old agents remain online but are not issued migration commands; online migration requires bosun v0.98.1 and capability version 2.

@@ -9,6 +9,7 @@ import { api, type Group as UserGroup, type Inbound, type Ingress } from '../lib
 import { useAuth } from '../lib/auth'
 import { dnsToast, toast, type DNSResult } from '../lib/notify'
 import { SettingsDraftBoundary, useSettingsDirty } from '../lib/settings-draft'
+import { standaloneConnection } from '../lib/standalone'
 import { InboundForm, toPayload, toValues, type InboundValues } from './InboundForm'
 import { ingressPayload } from './IngressesCard'
 import { ServerSelector, type ServerProxyDetail, type ServerSelectionProps } from './LinesConnections'
@@ -84,19 +85,21 @@ function Manager({ serverID, onServerChange, canWrite = true, editInboundID, onE
       {data.node.proxy_allowed === false && <Alert color="orange">{t('nodeMode.monitorHint')}</Alert>}
       <Group justify="space-between"><Text fw={600}>{t('inbounds.title')}</Text>{canWrite && <Button size="xs" disabled={!editable || groups.isPending} leftSection={<IconPlus size={14} />} onClick={() => { setEditing('new'); setDirty(false) }}>{t('inbounds.create')}</Button>}</Group>
       <Table.ScrollContainer minWidth={550}><Table>
-        <Table.Thead><Table.Tr><Table.Th>{t('inbounds.tag')}</Table.Th><Table.Th>{t('inbounds.protocol')}</Table.Th><Table.Th>{t('inbounds.port')}</Table.Th><Table.Th>{t('inbounds.enabled')}</Table.Th><Table.Th /></Table.Tr></Table.Thead>
+        <Table.Thead><Table.Tr><Table.Th>{t('inbounds.tag')}</Table.Th><Table.Th>{t('inbounds.protocol')}</Table.Th><Table.Th>{t('inbounds.port')}</Table.Th><Table.Th>{t('standalone.mode')}</Table.Th><Table.Th>{t('inbounds.enabled')}</Table.Th><Table.Th /></Table.Tr></Table.Thead>
         <Table.Tbody>{data.inbounds.map(ib => <Table.Tr key={ib.ID}>
           <Table.Td>{ib.Tag}</Table.Td><Table.Td><Badge>{ib.Protocol}</Badge></Table.Td><Table.Td><Code>{ib.Listen || '::'}:{ib.Port}</Code></Table.Td>
+          <Table.Td><Badge variant="light" color={ib.Settings.standalone?'grape':'blue'}>{t(ib.Settings.standalone?'standalone.independent':'standalone.plan')}</Badge></Table.Td>
           <Table.Td><Badge color={ib.Enabled ? 'teal' : 'gray'}>{t(ib.Enabled ? 'common.enabled' : 'common.disabled')}</Badge></Table.Td>
           <Table.Td>{ib.Settings.reverse || ib.Settings.wireguard_slot ? <Button component={Link} variant="subtle" size="compact-xs" to={`/entries?node=${data.node.id}`}>{t('reverse.managed')}</Button> : <Group gap={4} justify="flex-end">
-            {canWrite && <Button component={Link} to={`/entries?node=${data.node.id}&inbound=${ib.ID}&create=node`} size="compact-xs" variant="subtle">{t('entries.create')}</Button>}
+            {canWrite && !ib.Settings.standalone && <Button component={Link} to={`/entries?node=${data.node.id}&inbound=${ib.ID}&create=node`} size="compact-xs" variant="subtle">{t('entries.create')}</Button>}
+            {!!ib.Settings.standalone && <Button size="compact-xs" variant="subtle" disabled={!standaloneConnection({ib,node:data.node,ingress:data.ingresses?.find(g=>g.id===ib.IngressID)})} onClick={async()=>{try {const value=standaloneConnection({ib,node:data.node,ingress:data.ingresses?.find(g=>g.id===ib.IngressID)});if(value){await navigator.clipboard.writeText(value);toast.ok(t('standalone.copied'))}} catch(error){toast.err(error)}}}>{t('standalone.copy')}</Button>}
             {editable && <><ActionIcon aria-label={t('common.edit')} variant="subtle" onClick={() => { setEditing(ib); setDirty(false) }}><IconPencil size={16} /></ActionIcon><ActionIcon aria-label={t('common.delete')} variant="subtle" color="red" disabled={remove.isPending} onClick={() => modals.openConfirmModal({ title: t('common.delete'), children: <Text>{t('common.confirmDelete')}</Text>, labels: { confirm: t('common.delete'), cancel: t('common.cancel') }, confirmProps: { color: 'red' }, onConfirm: () => remove.mutate(ib) })}><IconTrash size={16} /></ActionIcon></>}
           </Group>}</Table.Td>
         </Table.Tr>)}</Table.Tbody>
       </Table></Table.ScrollContainer>
       {data.inbounds.length === 0 && <Text size="sm" c="dimmed">{t('common.empty')}</Text>}
       <Modal opened={editing !== null} onClose={close} title={editing === 'new' ? t('inbounds.create') : t('common.edit')} size="xl" closeOnClickOutside={false}>
-        {editing !== null && <InboundForm key={editing === 'new' ? 'new' : editing.ID} node={data.node} nodeID={data.node.id} domain={data.node.domain} decoyDomain={data.node.decoy_enabled ? data.node.domain : undefined} lineOnly={!data.node.public_addr && !data.node.domain} ingresses={data.ingresses ?? []} usedPorts={data.inbounds.filter(ib => editing === 'new' || ib.ID !== editing.ID).map(ib => ib.Port)} initial={toValues(editing === 'new' ? undefined : editing)} groups={groups.data ?? []} busy={save.isPending || !editable} onDirtyChange={setDirty} onSubmit={v => save.mutate(v)} onCancel={close} />}
+        {editing !== null && <InboundForm allowStandalone={me?.role === 'admin'} key={editing === 'new' ? 'new' : editing.ID} node={data.node} nodeID={data.node.id} domain={data.node.domain} decoyDomain={data.node.decoy_enabled ? data.node.domain : undefined} lineOnly={!data.node.public_addr && !data.node.domain} ingresses={data.ingresses ?? []} usedPorts={data.inbounds.filter(ib => editing === 'new' || ib.ID !== editing.ID).map(ib => ib.Port)} initial={toValues(editing === 'new' ? undefined : editing)} groups={groups.data ?? []} busy={save.isPending || !editable} onDirtyChange={setDirty} onSubmit={v => save.mutate(v)} onCancel={close} />}
       </Modal>
     </>}
   </Stack>

@@ -300,7 +300,7 @@
   },
   "inbounds": {
     "title": "入站",
-    "subtitle": "服务器上的协议服务。绑定用户组后只对该组用户开放。",
+    "subtitle": "管理实际监听与认证方式，选择套餐用户或独立凭据。",
     "create": "添加入站",
     "tag": "标签",
     "protocol": "协议",
@@ -442,7 +442,8 @@
         "privateAccessCoreOnly": "仅内核策略需要支持的 sing-box 服务器、已关闭的出站防护及新鲜上报；暂不支持 Xray 或托管反向隧道。",
         "privateAccessPolicyUnknown": "自动策略需要服务器上报独立的内核能力及新鲜运行状态，请升级服务器后重新检查。",
         "privateAccessRuntime": "运行前提尚未满足，请查看服务器就绪检查中的具体原因。",
-        "privateAccessConfirmation": "请先确认同意在仅内核防护下授权此入站，再保存。"
+        "privateAccessConfirmation": "请先确认同意在仅内核防护下授权此入站，再保存。",
+        "standaloneAuth": "请升级 bosun 并获取近期能力报告，再使用独立凭据。"
       }
     }
   },
@@ -4770,5 +4771,22 @@
     "truncated": "当前显示前 500 台，请先迁移这些节点，再刷新处理剩余节点。",
     "different": "实际连接已偏离确认的目标",
     "downloadHint": "下载来源属于后续安装配置；入口迁移不会改变现有节点的下载来源。"
+  },
+  "standalone": {
+    "mode": "使用方式",
+    "plan": "套餐用户",
+    "independent": "独立使用",
+    "modeHint": "选择凭据来源。独立入站不参与套餐授权，也不发布到用户订阅。",
+    "hint": "仅使用下面设置的凭据，不扣套餐用户额度；服务器网卡流量仍正常统计。",
+    "switchHint": "切换前请移除所有订阅节点、转发线路和访问授权。现有关联：",
+    "username": "用户名",
+    "password": "密码",
+    "generatePassword": "生成密码",
+    "cipher": "加密方式",
+    "key": "密钥",
+    "keyHint": "AES-128 使用 16 字节的 Base64 密钥，AES-256／ChaCha20 使用 32 字节。更换加密方式会生成新密钥。",
+    "copy": "复制连接信息",
+    "copied": "连接信息已复制",
+    "invalidJSON": "协议设置必须是有效的 JSON 对象。"
   }
 }

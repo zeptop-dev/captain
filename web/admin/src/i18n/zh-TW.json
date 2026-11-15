@@ -300,7 +300,7 @@
   },
   "inbounds": {
     "title": "入站",
-    "subtitle": "伺服器上的協定服務。綁定使用者群組後只對該群組使用者開放。",
+    "subtitle": "管理實際監聽與驗證方式，選擇方案使用者或獨立憑證。",
     "create": "新增入站",
     "tag": "標籤",
     "protocol": "協定",
@@ -442,7 +442,8 @@
         "privateAccessCoreOnly": "需要支援的 sing-box 伺服器、已關閉的出站防護及近期報告；不支援 Xray 或託管反向隧道。",
         "privateAccessPolicyUnknown": "自動策略需要獨立能力與近期狀態報告，請升級伺服器後重新檢查。",
         "privateAccessRuntime": "執行前提未滿足，請查看伺服器就緒檢查。",
-        "privateAccessConfirmation": "請先確認同意僅由核心策略授權此入站，再儲存。"
+        "privateAccessConfirmation": "請先確認同意僅由核心策略授權此入站，再儲存。",
+        "standaloneAuth": "請升級 bosun 並取得近期能力報告，再使用獨立憑證。"
       }
     }
   },
@@ -4770,5 +4771,22 @@
     "truncated": "目前顯示前 500 台，請先遷移這些節點，再重新整理處理剩餘節點。",
     "different": "實際連線已偏離確認目標",
     "downloadHint": "下載來源屬於後續安裝設定；入口遷移不會變更現有節點的下載來源。"
+  },
+  "standalone": {
+    "mode": "使用方式",
+    "plan": "方案使用者",
+    "independent": "獨立使用",
+    "modeHint": "選擇憑證來源。獨立入站不參與方案授權，也不發布到使用者訂閱。",
+    "hint": "僅使用下方設定的憑證，不扣方案使用者額度；伺服器網卡流量仍正常統計。",
+    "switchHint": "切換前請移除所有訂閱節點、轉發線路及存取授權。現有關聯：",
+    "username": "使用者名稱",
+    "password": "密碼",
+    "generatePassword": "產生密碼",
+    "cipher": "加密方式",
+    "key": "金鑰",
+    "keyHint": "AES-128 使用 16 位元組的 Base64 金鑰，AES-256／ChaCha20 使用 32 位元組。更換加密方式會產生新金鑰。",
+    "copy": "複製連線資訊",
+    "copied": "已複製連線資訊",
+    "invalidJSON": "協定設定必須是有效的 JSON 物件。"
   }
 }

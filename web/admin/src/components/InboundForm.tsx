@@ -1,6 +1,6 @@
 import { normalizePrivateAccess } from '../lib/privateAccess'
 import { PrivateAccessReadiness } from './PrivateAccessReadiness'
-import { Button, Card, Group, JsonInput, NumberInput, Select, SimpleGrid, Stack, Switch, Text, TextInput, UnstyledButton } from '@mantine/core'
+import { Alert, Button, Card, Group, JsonInput, NumberInput, PasswordInput, Select, SimpleGrid, Stack, Switch, Text, TextInput, UnstyledButton } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -15,6 +15,8 @@ import { PrivateAccessFields } from './PrivateAccessFields'
 import { useAuth } from '../lib/auth'
 import { InboundAccessControl } from './NodeAccess'
 import { useCoreSelection } from '../lib/coreSelection'
+import { mergeStandaloneProtocolJSON, standaloneProtocolJSON, standaloneKey, type StandaloneAuth } from '../lib/standalone'
+import { useNodeAccess } from '../lib/node-access-query'
 
 // REALITY helpers over the settings JSON.
 type TLSSettings = { mode?: number; server_name?: string; reality?: { handshake_server?: string; handshake_port?: number; fallback_limit?: { off?: boolean; after_bytes?: number; bytes_per_sec?: number } } }
@@ -101,10 +103,11 @@ function stripIdentity(s: Record<string, unknown>) {
 
 export function toPayload(v: InboundValues) {
   const settings = JSON.parse(v.Settings || '{}')
+  settings.standalone ??= null
   return { Tag: v.Tag, Protocol: v.Protocol, Listen: v.Listen, Port: v.Port, Core: v.Core, ...(!v.ExistingInboundID ? { AccessPolicy: 'none' as const } : {}), Enabled: v.Enabled, Settings: settings, IngressID: v.IngressID ? Number(v.IngressID) : null }
 }
 
-export function InboundForm({ initial, groups: _groups, onSubmit, busy, onCancel, domain, ingresses = [], usedPorts = [], lineOnly, nodeID, node, decoyDomain, fixedCore, onDirtyChange }: { initial: InboundValues; groups: UGroup[]; onSubmit: (v: InboundValues) => void; busy: boolean; onCancel: () => void; domain?: string; ingresses?: Ingress[]; usedPorts?: number[]; lineOnly?: boolean; nodeID?: number; node?: Pick<Node, 'public_addr' | 'v6_addr'>; decoyDomain?: string; fixedCore?: string; onDirtyChange?: (dirty: boolean) => void }) {
+export function InboundForm({ initial, groups: _groups, onSubmit, busy, onCancel, domain, ingresses = [], usedPorts = [], lineOnly, nodeID, node, decoyDomain, fixedCore, onDirtyChange, allowStandalone = true }: { allowStandalone?: boolean; initial: InboundValues; groups: UGroup[]; onSubmit: (v: InboundValues) => void; busy: boolean; onCancel: () => void; domain?: string; ingresses?: Ingress[]; usedPorts?: number[]; lineOnly?: boolean; nodeID?: number; node?: Pick<Node, 'public_addr' | 'v6_addr'>; decoyDomain?: string; fixedCore?: string; onDirtyChange?: (dirty: boolean) => void }) {
   const { t } = useTranslation()
   const { me } = useAuth()
   const form = useForm<InboundValues>({
@@ -114,11 +117,38 @@ export function InboundForm({ initial, groups: _groups, onSubmit, busy, onCancel
   let coreInbound: Record<string, unknown> | undefined
   try { const settings = JSON.parse(form.values.Settings || '{}'); if (settings && typeof settings === 'object' && !Array.isArray(settings)) coreInbound = { ...settings, protocol: form.values.Protocol, listen: ingresses.find(g => String(g.id) === form.values.IngressID)?.bind_ip || form.values.Listen, ...(fixedCore ? { reverse: true } : {}) } } catch { /* JSON validation explains the error */ }
   const coreSelection = useCoreSelection(nodeID ? `/api/admin/nodes/${nodeID}/core-options` : '', coreInbound, form.values.Core)
+  const access = useNodeAccess()
+  const [protocolDraft, setProtocolDraft] = useState<string | null>(null)
+  const auth = settingOf(form.values.Settings, 'standalone') as StandaloneAuth | undefined
+  const protocolInvalid = (() => {
+    if (!auth || protocolDraft === null) return false
+    try { const v = JSON.parse(protocolDraft || '{}'); return !v || typeof v !== 'object' || Array.isArray(v) } catch { return true }
+  })()
+  const supportsStandalone = form.values.Protocol === 'socks' || form.values.Protocol === 'shadowsocks'
+  const accessRow = access.data?.inbounds.find(row => row.inbound_id === initial.ExistingInboundID)
+  const switchingToStandalone = !!auth && !settingOf(initial.Settings, 'standalone') && !!initial.ExistingInboundID
+  const impactBlocked = switchingToStandalone && (!accessRow || accessRow.policy !== 'none' || accessRow.entries.length > 0)
+  const patchAuth = (patch: Partial<StandaloneAuth>) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { standalone: { ...auth, ...patch } }))
+  const setMode = (mode: string | null) => {
+    setProtocolDraft(null)
+    if (mode === 'standalone') form.setFieldValue('Settings', patchSettings(form.values.Settings, { standalone: form.values.Protocol === 'socks' ? { username: '', password: '' } : {}, ...(form.values.Protocol === 'shadowsocks' ? { cipher: '2022-blake3-aes-128-gcm', server_key: standaloneKey('2022-blake3-aes-128-gcm'), shadow_tls: null } : {}) }))
+    else form.setFieldValue('Settings', patchSettings(form.values.Settings, { standalone: null }))
+  }
+  const changeProtocol = (value: string | null) => {
+    if (!value) return
+    setProtocolDraft(null)
+    form.setFieldValue('Protocol', value)
+    if (auth) form.setFieldValue('Settings', patchSettings(form.values.Settings, {
+      standalone: value === 'socks' ? { username: '', password: '' } : value === 'shadowsocks' ? {} : null,
+      ...(value === 'shadowsocks' ? { cipher: '2022-blake3-aes-128-gcm', server_key: standaloneKey('2022-blake3-aes-128-gcm') } : {}),
+    }))
+  }
   const [recipe, setRecipe] = useState<string | null>(null) // highlighted quick-setup card
   // Recipes name node.example.com; a node with a registered host name gets it instead.
   const firstFree = (g: Ingress) => firstFreeIngressPort(g, usedPorts)
   const selectedIngress = ingresses.find((g) => String(g.id) === form.values.IngressID)
   const apply = async (r: (typeof recipes)[number]) => {
+    setProtocolDraft(null)
     // A recipe keeps the chosen line ingress and takes a port from its range; any protocol may ride a line.
     const port = selectedIngress ? (firstFree(selectedIngress) || r.port) : r.port
     let settings: Record<string, unknown> = r.key === 'snell' ? { ...r.settings, snell_psk: randomPSK() } : r.settings
@@ -137,7 +167,7 @@ export function InboundForm({ initial, groups: _groups, onSubmit, busy, onCancel
     const g = ingresses.find((x) => String(x.id) === v)
     form.setValues({ IngressID: v ?? '', NewIngress: undefined, Port: g ? firstFree(g) || form.values.Port : form.values.Port })
   }
-  const submit = (v: InboundValues) => { if (!busy && !coreSelection.blocked && !(v.NewIngress && ingressBlocked)) onSubmit(v.NewIngress ? { ...v, NewIngress: ingressForm.values } : v) }
+  const submit = (v: InboundValues) => { if (!busy && !protocolInvalid && !impactBlocked && !coreSelection.blocked && !(v.NewIngress && ingressBlocked)) onSubmit(v.NewIngress ? { ...v, NewIngress: ingressForm.values } : v) }
   return (
     <form onSubmit={form.onSubmit(submit)}>
       <Stack>
@@ -158,8 +188,23 @@ export function InboundForm({ initial, groups: _groups, onSubmit, busy, onCancel
         </div>
         <Group grow>
           <TextInput label={t('inbounds.tag')} required {...form.getInputProps('Tag')} disabled={!!fixedCore} />
-          <Select label={t('inbounds.protocol')} data={protocols} required allowDeselect={false} {...form.getInputProps('Protocol')} />
+          <Select label={t('inbounds.protocol')} data={protocols} required allowDeselect={false} {...form.getInputProps('Protocol')} onChange={changeProtocol} />
         </Group>
+        {(allowStandalone || auth) && supportsStandalone && !fixedCore && <Select label={t('standalone.mode')} description={t('standalone.modeHint')} allowDeselect={false} value={auth ? 'standalone' : 'plan'} data={[{value:'plan',label:t('standalone.plan')},{value:'standalone',label:t('standalone.independent')}]} onChange={setMode} />}
+        {auth && <Stack gap="xs">
+          <Alert color="blue">{t('standalone.hint')}</Alert>
+          {switchingToStandalone && <Alert color={impactBlocked?'orange':'blue'}>{t('standalone.switchHint')}{accessRow && <Text size="xs">{[...accessRow.entries.map(e=>e.name),...(access.data?.plans.filter(p=>accessRow.plan_ids.includes(p.id)).map(p=>p.name)??[])].join(' / ')}</Text>}</Alert>}
+          {form.values.Protocol === 'socks' && <Group grow align="flex-start">
+            <TextInput label={t('standalone.username')} required maxLength={255} value={auth.username??''} onChange={e=>patchAuth({username:e.currentTarget.value})}/>
+            <PasswordInput label={t('standalone.password')} required maxLength={255} value={auth.password??''} onChange={e=>patchAuth({password:e.currentTarget.value})}/>
+          </Group>}
+          {form.values.Protocol === 'socks' && <Button variant="light" size="xs" w="fit-content" onClick={()=>patchAuth({password:standaloneKey('2022-blake3-aes-256-gcm')})}>{t('standalone.generatePassword')}</Button>}
+          {form.values.Protocol === 'shadowsocks' && <>
+            <Select label={t('standalone.cipher')} allowDeselect={false} value={String(settingOf(form.values.Settings,'cipher')??'2022-blake3-aes-128-gcm')} data={['2022-blake3-aes-128-gcm','2022-blake3-aes-256-gcm','2022-blake3-chacha20-poly1305']} onChange={v=>v&&form.setFieldValue('Settings',patchSettings(form.values.Settings,{cipher:v,server_key:standaloneKey(v)}))}/>
+            <PasswordInput label={t('standalone.key')} description={t('standalone.keyHint')} required value={String(settingOf(form.values.Settings,'server_key')??'')} onChange={e=>form.setFieldValue('Settings',patchSettings(form.values.Settings,{server_key:e.currentTarget.value}))}/>
+            <Button variant="light" size="xs" w="fit-content" onClick={()=>form.setFieldValue('Settings',patchSettings(form.values.Settings,{server_key:standaloneKey(String(settingOf(form.values.Settings,'cipher')??''))}))}>{t('inbounds.generate')}</Button>
+          </>}
+        </Stack>}
         <Select label={t('inbounds.ingress')} description={form.values.NewIngress ? t('inbounds.ingressNewHint') : selectedIngress ? (t('inbounds.ingressHint', { host: selectedIngress.entry_host || t('ingress.noEntry'), ports: ingressPortLabel(selectedIngress) || t('ingress.anyPort') }) + (selectedIngress.bind_ip ? ' ' + t('inbounds.ingressBindHint', { ip: selectedIngress.bind_ip }) : '')) : t('inbounds.ingressDirectHint')} allowDeselect={false}
           data={[{ value: '', label: t('inbounds.ingressDirect'), disabled: ingresses.some(g => g.require_ingress) }, ...ingresses.map((g) => ({ value: String(g.id), label: `${g.name} → ${g.entry_domain || g.entry_host || t('ingress.noEntry')}` })), { value: 'new', label: t('inbounds.ingressNew'), disabled: !!fixedCore }]}
           value={form.values.NewIngress ? 'new' : form.values.IngressID} onChange={onIngress} />
@@ -173,7 +218,7 @@ export function InboundForm({ initial, groups: _groups, onSubmit, busy, onCancel
         {form.values.Protocol === 'ssh' && <Text size="sm" c="dimmed">{t('coreManager.sshHint')}</Text>}
         {form.values.Protocol === 'mieru' && form.values.Core === 'singbox-extended' && <Text size="sm" c="orange">{t('coreManager.extendedHint')}</Text>}
         <Group grow align="flex-end">
-          {initial.ExistingInboundID ? <InboundAccessControl inboundID={initial.ExistingInboundID} /> : <Text size="xs" c="dimmed">{t('planSelection.newNode')}</Text>}
+          {auth ? <Text size="xs" c="dimmed">{t('standalone.independent')}</Text> : initial.ExistingInboundID ? <InboundAccessControl inboundID={initial.ExistingInboundID} /> : <Text size="xs" c="dimmed">{t('planSelection.newNode')}</Text>}
           {form.values.Protocol === 'mieru' && (
             <Group grow align="flex-start">
               <Select label={t('inbounds.mieruStrategy')} description={t('inbounds.mieruStrategyHint')} allowDeselect={false}
@@ -204,7 +249,7 @@ export function InboundForm({ initial, groups: _groups, onSubmit, busy, onCancel
             <TextInput label={t('inbounds.wgAddress')} description={t('inbounds.wgAddressHint')} value={String(settingOf(form.values.Settings, 'wg_address') ?? '10.66.0.1/16')} onChange={(e) => form.setFieldValue('Settings', patchSettings(form.values.Settings, { wg_address: e.currentTarget.value }))} />
           </Group>
         )}
-        {form.values.Protocol === 'shadowsocks' && (
+        {form.values.Protocol === 'shadowsocks' && !auth && (
           <Stack gap="xs">
             <Switch
               label={t('inbounds.shadowTLS')} description={t('inbounds.shadowTLSHint')}
@@ -255,9 +300,9 @@ export function InboundForm({ initial, groups: _groups, onSubmit, busy, onCancel
           )
         })()}
         {nodeID && coreInbound?.private_access && (coreInbound.private_access as { mode?: string }).mode !== 'off' ? <PrivateAccessReadiness key={nodeID} nodeID={nodeID} compact /> : null}
-        <PrivateAccessFields allowCoreOnly runtimeMode={coreSelection.runtimeMode} json={form.values.Settings} onChange={(s) => form.setFieldValue('Settings', s)} disabled={me?.role !== 'admin'} />
-        <JsonInput label={t('inbounds.settings')} description={t('inbounds.settingsHint')} autosize minRows={4} maxRows={16} formatOnBlur {...form.getInputProps('Settings')} />
-        <Group justify="flex-end"><Button variant="default" onClick={onCancel}>{t('common.cancel')}</Button><Button type="submit" loading={busy} disabled={coreSelection.blocked || !!form.values.NewIngress && ingressBlocked}>{t('common.save')}</Button></Group>
+        {!auth && <PrivateAccessFields allowCoreOnly runtimeMode={coreSelection.runtimeMode} json={form.values.Settings} onChange={(s) => form.setFieldValue('Settings', s)} disabled={me?.role !== 'admin'} />}
+        <JsonInput label={t('inbounds.settings')} description={t('inbounds.settingsHint')} autosize minRows={4} maxRows={16} formatOnBlur {...form.getInputProps('Settings')} {...(auth ? {value: protocolDraft ?? (()=>{try{return standaloneProtocolJSON(form.values.Settings)}catch{return form.values.Settings}})(), error: protocolInvalid?t('standalone.invalidJSON'):form.errors.Settings, onChange:(v:string)=>{setProtocolDraft(v);try{form.setFieldValue('Settings',mergeStandaloneProtocolJSON(form.values.Settings,v))}catch{/* Keep invalid JSON visible until corrected. */}}} : {})} />
+        <Group justify="flex-end"><Button variant="default" onClick={onCancel}>{t('common.cancel')}</Button><Button type="submit" loading={busy} disabled={protocolInvalid || impactBlocked || coreSelection.blocked || !!form.values.NewIngress && ingressBlocked}>{t('common.save')}</Button></Group>
       </Stack>
     </form>
   )

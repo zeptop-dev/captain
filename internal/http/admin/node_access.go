@@ -109,6 +109,8 @@ func (h *handlers) entryAccessAllowed(w http.ResponseWriter, r *http.Request, ch
 
 func nodeAccessError(w http.ResponseWriter, err error) bool {
 	switch {
+	case errors.Is(err, store.ErrStandaloneAccess), errors.Is(err, store.ErrStandaloneReferences):
+		fail(w, http.StatusConflict, err.Error())
 	case errors.Is(err, store.ErrCategoryAccessPermission):
 		fail(w, http.StatusForbidden, err.Error())
 	case errors.Is(err, store.ErrAccessConflict):

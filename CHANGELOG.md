@@ -1,5 +1,7 @@
 # Changelog
 
+- **Unreleased** — Add independent SOCKS5 and single-key Shadowsocks 2022 listeners, excluded from customer plan grants and subscriptions; require current adapter/request capabilities and preserve existing subscriber listeners.
+
 - **v1.67.0** (2026-11-13) — Manage multiple Agent HTTPS origins with independent certificates, a default installation choice and shared-port SNI routing. Preserve the existing entry during migration and refuse retirement of referenced or unconfirmed origins, including legacy API writes. Add node connection selection, read-only actual/target observations, bounded impact previews and explicit five-at-a-time batch migration, queued cancellation and new-attempt retry. With bosun v0.98.1, verify direct-TLS same-panel targets before reusing credentials and retain journal/offline/mode identities without restarting proxy cores. Migration 122 retains legacy settings and existing node choices; changing the default never silently migrates installed agents. Raise rollback floor to v1.67.0.
 
 - **v1.66.0** (2026-11-13) — Add monitoring storage and bounded maintenance status, persistent return-route change timelines and optional expectation alerts, opt-in network anomaly baselines and exact-type silence, infrastructure price history/additional-expense reversals and cost estimates, and guided line creation through the existing preview/save flow. Migration 121 preserves existing settings, permissions and payment semantics; no installed-agent upgrade is required for these panel features.

@@ -181,6 +181,9 @@ func (s *Store) UpdateEntry(ctx context.Context, e *domain.Entry) error {
 
 // writeEntryTx persists an already-resolved entry and preserves access checks.
 func writeEntryTx(ctx context.Context, tx *sql.Tx, e *domain.Entry, create bool) error {
+	if err := guardStandaloneEntryTx(ctx, tx, e.InboundID); err != nil {
+		return err
+	}
 	if err := resolveFollowingEntryTx(ctx, tx, e); err != nil {
 		return err
 	}

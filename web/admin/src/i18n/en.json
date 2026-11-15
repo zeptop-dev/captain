@@ -300,7 +300,7 @@
   },
   "inbounds": {
     "title": "Inbounds",
-    "subtitle": "Protocol servers on the server. Bind a group to restrict who may use it.",
+    "subtitle": "Manage protocol listeners and choose subscriber or standalone authentication.",
     "create": "Add inbound",
     "tag": "Tag",
     "protocol": "Protocol",
@@ -442,7 +442,8 @@
         "privateAccessCoreOnly": "Core-only needs a supported sing-box server, disabled egress guard and a fresh capability report; Xray and managed reverse tunnels are unsupported.",
         "privateAccessPolicyUnknown": "Automatic policy requires a fresh server report with separate policy capabilities.",
         "privateAccessRuntime": "The runtime prerequisites are not satisfied. Check the server readiness details.",
-        "privateAccessConfirmation": "Confirm authorization under core-only protection before saving."
+        "privateAccessConfirmation": "Confirm authorization under core-only protection before saving.",
+        "standaloneAuth": "Update bosun and obtain a recent capability report to use standalone credentials."
       }
     }
   },
@@ -4770,5 +4771,22 @@
     "truncated": "Showing the first 500 nodes. Migrate these, then reload for the remaining nodes.",
     "different": "Actual connection differs from confirmed target",
     "downloadHint": "Download source is an installation preference; connection migration keeps the node's existing download source."
+  },
+  "standalone": {
+    "mode": "Usage",
+    "plan": "Plan users",
+    "independent": "Standalone use",
+    "modeHint": "Choose where credentials come from. Standalone listeners are excluded from plans and subscriptions.",
+    "hint": "Uses only the credentials below. Does not deduct subscriber quotas; server interface traffic remains counted.",
+    "switchHint": "Before switching, remove all subscription nodes, forwarding lines and access grants. Existing references:",
+    "username": "Username",
+    "password": "Password",
+    "generatePassword": "Generate password",
+    "cipher": "Cipher",
+    "key": "Key",
+    "keyHint": "Use a base64 key of 16 bytes for AES-128 or 32 bytes for AES-256 / ChaCha20. Changing the cipher generates a new key.",
+    "copy": "Copy connection details",
+    "copied": "Connection details copied",
+    "invalidJSON": "Protocol settings must be a valid JSON object."
   }
 }

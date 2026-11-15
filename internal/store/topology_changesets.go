@@ -258,7 +258,7 @@ func (s *Store) SaveTopologyChangeset(ctx context.Context, d *TopologyChangeset)
 					if p.Settings == nil {
 						p.Settings = &spec.Inbound{}
 					}
-					if p.Settings.Reverse != nil || p.Settings.WireGuardSlot != 0 || p.Settings.PrivateAccess != nil || p.Settings.ScopedUsers || len(p.Settings.Users) > 0 {
+					if p.Settings.Standalone != nil || p.Settings.Reverse != nil || p.Settings.WireGuardSlot != 0 || p.Settings.PrivateAccess != nil || p.Settings.ScopedUsers || len(p.Settings.Users) > 0 {
 						return ErrTopologyUnsupported
 					}
 					p.Settings.Protocol = p.Protocol

@@ -125,7 +125,7 @@ func prepareTopologyTx(ctx context.Context, tx *sql.Tx, d *TopologyChangeset) (*
 		}
 		ib.Tag = strings.TrimSpace(ib.Tag)
 		ib.Listen = strings.TrimSpace(ib.Listen)
-		if ib.Settings.Reverse != nil || ib.Settings.WireGuardSlot != 0 || ib.Settings.PrivateAccess.Enabled() || (op.ID == 0 && (ib.Settings.ScopedUsers || len(ib.Settings.Users) > 0)) {
+		if ib.Settings.Standalone != nil || ib.Settings.Reverse != nil || ib.Settings.WireGuardSlot != 0 || ib.Settings.PrivateAccess.Enabled() || (op.ID == 0 && (ib.Settings.ScopedUsers || len(ib.Settings.Users) > 0)) {
 			return nil, ErrTopologyUnsupported
 		}
 		p.inbounds[id] = &ib
@@ -661,6 +661,9 @@ func (p *topologyPlan) checkTopologyPrivateAccess(ctx context.Context, tx *sql.T
 	return n.ValidatePrivateAccessRouting(p.view.candidates[id])
 }
 func (p *topologyPlan) validateInbound(ctx context.Context, tx *sql.Tx, ib *domain.Inbound) error {
+	if err := guardStandaloneInboundTx(ctx, tx, ib, ib.ID <= 0); err != nil {
+		return err
+	}
 	if _, e := p.node(ctx, tx, ib.NodeID, 0); e != nil {
 		return e
 	}

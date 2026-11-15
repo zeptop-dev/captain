@@ -58,7 +58,7 @@ func ValidateInboundCore(ib *domain.Inbound, n *domain.Node, candidates []spec.C
 	if ib.Protocol == spec.Mieru && ib.Core == "singbox-extended" && n.MitaQuotas {
 		return errors.New("extended Mieru does not support mita native quotas; disable native quotas or select mita")
 	}
-	if (ib.Protocol == spec.SSH || ib.Core == "singbox-extended") && candidates == nil {
+	if (ib.Settings.Standalone != nil || ib.Protocol == spec.SSH || ib.Core == "singbox-extended") && candidates == nil {
 		return errors.New("this core or protocol requires a recent supported node capability report")
 	}
 	if ib.Settings.PrivateAccess.Enabled() && candidates == nil {

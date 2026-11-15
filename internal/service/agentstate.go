@@ -291,6 +291,9 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 	}
 	for _, ib := range inbounds {
 		si := ib.Spec()
+		if !a.Store.StandaloneCapable(ctx, n, si, at) {
+			continue
+		}
 		if si.WireGuardSlot != 0 && !wgInbounds[ib.ID] {
 			continue
 		}
@@ -315,6 +318,9 @@ func (a *AgentState) Build(ctx context.Context, n *domain.Node, at time.Time) (*
 		// would turn a closed listener into one available to every customer.
 		si.ScopedUsers = true
 		si.Users = toSpecUsers(members, over, limits, speeds, quotas)
+		if si.Standalone != nil {
+			si.Users = nil
+		}
 		if si.Protocol == spec.WireGuard && len(wgPeers) > 0 {
 			// Add credentials only to WG inbounds; parent names/IDs retain accounting.
 			selected := si.EffectiveUsers(users)

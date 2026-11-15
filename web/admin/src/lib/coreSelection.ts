@@ -13,6 +13,7 @@ const object = (v: unknown): Record<string, unknown> => v !== null && typeof v =
 // private keys, which must never enter URLs or TanStack Query's cache keys.
 function probe(ib: Record<string, unknown>): string {
   return new URLSearchParams({
+    standalone: String(!!ib.standalone),
     bound_listen: String(!!ib.listen && !['::', '0.0.0.0'].includes(String(ib.listen))),
     private_enforcement: String(object(ib.private_access).enforcement || 'dual'),
     allow_core_only: String(object(ib.private_access).allow_core_only === true),
@@ -33,7 +34,7 @@ export function useCoreSelection(endpoint: string, inbound: Record<string, unkno
   const unavailable = chosen?.available === false
   const noAuto = !selected && result?.inventory_known && !result.auto_core
   const privateUnknown = !!inbound?.private_access && object(inbound.private_access).mode !== 'off' && !result?.inventory_known
-  const extensionUnknown = (selected === 'singbox-extended' || inbound?.protocol === 'ssh') && !result?.inventory_known
+  const extensionUnknown = (!!inbound?.standalone || selected === 'singbox-extended' || inbound?.protocol === 'ssh') && !result?.inventory_known
   const runtimeMode = result?.private_access_readiness?.effective_mode
   const coreOnly = runtimeMode === 'core_only' || object(inbound?.private_access).enforcement === 'core_only'
   const reason = chosen?.reason || result?.options.find(c => c.available && c.reason === 'privateAccessConfirmation')?.reason || result?.options.find(c => c.available)?.reason

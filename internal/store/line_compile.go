@@ -460,6 +460,9 @@ func lineLiteralFamily(host string) int {
 
 // LineProtocol is the wire transport, not the proxy payload's TCP/UDP support.
 func LineProtocol(ib *domain.Inbound) (string, error) {
+	if ib.Settings.Standalone != nil {
+		return "", ErrStandaloneAccess
+	}
 	if ib.Protocol == spec.Mieru && strings.EqualFold(ib.Settings.MieruTransport, "BOTH") {
 		return "", errors.New("mieru BOTH needs two adjacent mapped listeners and is not supported by lines")
 	}

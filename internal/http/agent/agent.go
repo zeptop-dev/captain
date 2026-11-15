@@ -156,7 +156,7 @@ func (h *handlers) pair(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set(agentproto.ConnectionVersionHeader, agentproto.ConnectionVersion)
-	w.Header().Set("Vary", agentproto.ConfigSessionHeader+", "+agentproto.ConfigDeliveryHeader+", "+agentproto.DiagnosticsVersionHeader+", "+agentproto.DiagnosticsNonceHeader+", "+agentproto.DiagnosticsChallengeHeader+", "+agentproto.DiagnosticsCursorHeader+", "+agentproto.ConnectionVersionHeader+", "+agentproto.ConnectionCursorHeader)
+	w.Header().Set("Vary", agentproto.ConfigSessionHeader+", "+agentproto.ConfigDeliveryHeader+", "+agentproto.DiagnosticsVersionHeader+", "+agentproto.DiagnosticsNonceHeader+", "+agentproto.DiagnosticsChallengeHeader+", "+agentproto.DiagnosticsCursorHeader+", "+agentproto.ConnectionVersionHeader+", "+agentproto.ConnectionCursorHeader+", "+agentproto.StandaloneAuthHeader)
 	n := nodeFrom(r)
 	session := r.Header.Get(agentproto.ConfigSessionHeader)
 	if session != "" && !validConfigSession(session) {
@@ -202,6 +202,16 @@ func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 			h.Log.Error("build state", "node", n.ID, "err", err)
 			fail(w, http.StatusInternalServerError, "internal error")
 			return
+		}
+		// Never deliver standalone credentials to an old/downgraded process:
+		// persisted reports alone cannot identify the process making this pull.
+		if r.Header.Get(agentproto.StandaloneAuthHeader) != agentproto.StandaloneAuthVersion {
+			for _, ib := range st.Node.Inbounds {
+				if ib.Standalone != nil {
+					fail(w, 409, "upgrade bosun to use standalone inbounds")
+					return
+				}
+			}
 		}
 		// Cached state is shared across concurrent requests. Delivery metadata is
 		// private to this process session and must never mutate the cache.

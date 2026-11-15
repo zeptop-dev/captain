@@ -48,7 +48,7 @@ export function freshLineStatus(at: string | undefined, now: number): boolean {
 
 export function isSubscriberInbound(ib: Inbound): boolean {
   const reverse = ib.Settings?.reverse as { receiver?: boolean } | undefined
-  return !reverse?.receiver
+  return !ib.Settings?.standalone && !reverse?.receiver
 }
 
 export const proxyServer = (node: Node) => node.mode !== 'monitor' && node.proxy_allowed !== false

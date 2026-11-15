@@ -187,7 +187,7 @@ func accessCatalog(ctx context.Context, q accessQuerier) (*InboundAccessCatalog,
 			rows.Close()
 			return nil, err
 		}
-		a.Editable = !receiver && (cfg.Reverse == nil || !cfg.Reverse.Receiver)
+		a.Editable = cfg.Standalone == nil && !receiver && (cfg.Reverse == nil || !cfg.Reverse.Receiver)
 		a.StaticGroupIDs = []int64{}
 		a.GroupIDs = []int64{}
 		a.Entries = []AccessReference{}

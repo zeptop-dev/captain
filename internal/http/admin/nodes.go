@@ -450,6 +450,9 @@ func (h *handlers) createInbound(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ib.NodeID = nodeID
+	if ib.Settings.Standalone != nil && !h.entryAccessAllowed(w, r, &domain.InboundAccessChange{InboundID: nodeID}) {
+		return
+	}
 	if ib.Settings.PrivateAccess.Enabled() && !userFrom(r).IsAdmin() {
 		fail(w, 403, "only administrators can grant private access")
 		return
@@ -515,6 +518,9 @@ func (h *handlers) updateInbound(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ib.ID, ib.NodeID = cur.ID, cur.NodeID
+	if (ib.Settings.Standalone != nil || cur.Settings.Standalone != nil) && !h.entryAccessAllowed(w, r, &domain.InboundAccessChange{InboundID: cur.ID}) {
+		return
+	}
 	if ib.Settings.PrivateAccess == nil {
 		ib.Settings.PrivateAccess = cur.Settings.PrivateAccess
 	}

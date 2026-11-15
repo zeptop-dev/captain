@@ -202,6 +202,9 @@ func (s *Store) CreateInbound(ctx context.Context, ib *domain.Inbound) error {
 // writeInboundTx is shared by individual writes and atomic topology changesets.
 // Callers must refresh affected line intent in the same transaction after edits.
 func writeInboundTx(ctx context.Context, tx *sql.Tx, ib *domain.Inbound, create bool) error {
+	if err := guardStandaloneInboundTx(ctx, tx, ib, create); err != nil {
+		return err
+	}
 	settings, err := json.Marshal(ib.Settings)
 	if err != nil {
 		return err
@@ -214,6 +217,11 @@ func writeInboundTx(ctx context.Context, tx *sql.Tx, ib *domain.Inbound, create 
 			return err
 		}
 	}
+	if !create && ib.Settings.Standalone != nil {
+		if err := writeAccess(ctx, tx, ib.ID, domain.AccessNone, nil); err != nil {
+			return err
+		}
+	}
 	ts := now()
 	if create {
 		res, err := tx.ExecContext(ctx, `INSERT INTO inbounds (node_id, tag, protocol, listen, port, core, settings_json, group_id, enabled, sort, ingress_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, ib.NodeID, ib.Tag, ib.Protocol, ib.Listen, ib.Port, ib.Core, string(settings), nullInt64(ib.GroupID), boolInt(ib.Enabled), ib.Sort, nullInt64(ib.IngressID), ts, ts)
@@ -221,7 +229,7 @@ func writeInboundTx(ctx context.Context, tx *sql.Tx, ib *domain.Inbound, create 
 			return err
 		}
 		ib.ID, err = res.LastInsertId()
-		if err == nil && (ib.AccessPolicy != "" || planAccessCreation(ctx)) {
+		if err == nil && (ib.AccessPolicy != "" || planAccessCreation(ctx) || ib.Settings.Standalone != nil) {
 			if ib.AccessPolicy != "" && ib.AccessPolicy != "none" {
 				return ErrInvalidAccess
 			}
