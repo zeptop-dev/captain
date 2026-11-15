@@ -4788,5 +4788,14 @@
     "copy": "Copy connection details",
     "copied": "Connection details copied",
     "invalidJSON": "Protocol settings must be a valid JSON object."
+  },
+  "inboundDirectory": {
+    "allProtocols": "All protocols",
+    "allUsage": "All usage modes",
+    "linkedNodes": "Subscription nodes",
+    "chooseServer": "Choose a server to create the inbound.",
+    "managed": "Managed connection",
+    "manageConnection": "Manage connection",
+    "count": "Showing {{count}} inbounds"
   }
 }

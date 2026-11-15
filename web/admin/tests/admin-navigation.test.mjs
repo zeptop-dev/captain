@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { navigation, visibleNavigation, activeNavigationItem, workspaceDestination, navigationGroup } from '../src/lib/navigation.ts'
+import { navigation, visibleNavigation, activeNavigationItem, workspaceDestination, navigationGroup, entryWorkspaceTab } from '../src/lib/navigation.ts'
 
 const group = id => navigation.find(group => group.id === id)
 const item = path => navigation.flatMap(group => group.items).find(item => item.to === path)
@@ -23,6 +23,8 @@ test('query-selected workspace pages have one active destination, with editor mo
     ['users', '/users', '?tab=renewals', '/users?tab=renewals'],
     ['users', '/users', '?tab=unknown', '/users'],
     ['entries', '/entries', '?tab=lines&server=2', '/entries?tab=lines'],
+    ['entries', '/entries', '?tab=inbounds&server=2&inbound=3', '/entries?tab=inbounds'],
+    ['entries', '/entries', '?section=inbounds&server=2&inbound=3', '/entries?tab=inbounds'],
     ['subscription', '/sub-templates', '?mode=text&format=surge', '/sub-templates'],
     ['subscription', '/sub-templates', '?mode=design', '/sub-templates'],
     ['subscription', '/sub-templates', '?mode=library&format=surge', '/sub-templates?mode=library'],
@@ -46,4 +48,12 @@ test('reselecting the active editor preserves its URL, format, and fragment exac
     const items = group(path.startsWith('/users') ? 'users' : 'subscription').items
     assert.equal(workspaceDestination(activeNavigationItem(items, loc.pathname, loc.search), loc), path)
   }
+})
+
+test('inbounds have one workspace destination and keep legacy owner/editor bookmarks',()=>{
+ assert.deepEqual(group('entries').items.map(item=>item.to),['/entries','/entries?tab=inbounds','/entries?tab=lines','/external'])
+ assert.equal(entryWorkspaceTab(new URLSearchParams('section=inbounds&server=2&inbound=new')),'inbounds')
+ assert.equal(workspaceDestination(item('/entries?tab=inbounds'),current('/entries?node=3&server=2&section=inbounds&inbound=7#saved')),'/entries?node=3&server=2&section=inbounds&inbound=7#saved')
+ assert.equal(workspaceDestination(item('/entries'),current('/entries?tab=inbounds&server=2&section=inbounds&inbound=7')),'/entries?server=2')
+ assert.equal(visibleNavigation('support').some(group=>group.items.some(item=>item.to.includes('inbounds'))),false)
 })

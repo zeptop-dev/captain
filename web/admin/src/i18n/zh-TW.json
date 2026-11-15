@@ -4788,5 +4788,14 @@
     "copy": "複製連線資訊",
     "copied": "已複製連線資訊",
     "invalidJSON": "協定設定必須是有效的 JSON 物件。"
+  },
+  "inboundDirectory": {
+    "allProtocols": "全部協定",
+    "allUsage": "全部使用方式",
+    "linkedNodes": "關聯訂閱節點",
+    "chooseServer": "請選擇要建立入站的伺服器。",
+    "managed": "託管連線",
+    "manageConnection": "管理連線",
+    "count": "目前顯示 {{count}} 個入站"
   }
 }

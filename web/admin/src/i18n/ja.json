@@ -4788,5 +4788,14 @@
     "copy": "接続情報をコピー",
     "copied": "接続情報をコピーしました",
     "invalidJSON": "プロトコル設定には有効な JSON オブジェクトを入力してください。"
+  },
+  "inboundDirectory": {
+    "allProtocols": "すべてのプロトコル",
+    "allUsage": "すべての使用方法",
+    "linkedNodes": "購読ノード",
+    "chooseServer": "インバウンドを作成するサーバーを選択してください。",
+    "managed": "管理接続",
+    "manageConnection": "接続を管理",
+    "count": "{{count}} 件のインバウンドを表示"
   }
 }

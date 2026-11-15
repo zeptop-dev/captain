@@ -32,7 +32,7 @@ import { TopologyChangesetsPanel } from '../components/TopologyChangesetsPanel'
 import { PathRoutesPanel } from '../components/PathRoutesPanel'
 import type { LineHistorySelection } from '../lib/line-change-evidence'
 import { LinesConnections, ServerSelector } from '../components/LinesConnections'
-import { isServerSettingsSection } from '../lib/navigation'
+import { entryWorkspaceTab, isServerSettingsSection } from '../lib/navigation'
 import { useNodeAccess } from '../lib/node-access-query'
 import { AccessSummary } from '../components/NodeAccess'
 import { accessMatches, type InboundAccess, type NodeAccessDirectory } from '../lib/node-access'
@@ -64,7 +64,7 @@ function EntriesWorkspace() {
   const qc = useQueryClient()
   const [params, setParams] = useSearchParams()
   const location = useLocation()
-  const tab = params.get('tab') === 'changesets' ? 'changesets' : params.get('tab') === 'lines' ? 'lines' : 'entries'
+  const tab = entryWorkspaceTab(params)
   const section = params.get('section') ?? 'forward'
   const connectionSection = section === 'wireguard' || section === 'reverse' ? section : null
   const singleForward = section === 'legacy' || params.get('mode') === 'single'
@@ -165,28 +165,25 @@ function EntriesWorkspace() {
   const selectedSet = new Set(selectedVisible)
   const assignable = assignCategory !== null && categoryOptions.some(option => option.value === assignCategory)
   return <>
-    <PageHeader title={t('entryFlow.title')} subtitle={t('entryFlow.subtitle')} actions={<Group gap="xs">
+    <PageHeader title={t(tab === 'inbounds' ? 'inbounds.title' : 'entryFlow.title')} subtitle={t(tab === 'inbounds' ? 'inbounds.subtitle' : 'entryFlow.subtitle')} actions={<Group gap="xs">
       {admin && <Button variant={tab === 'changesets' ? 'filled' : 'default'} onClick={() => updateParams({ tab: tab === 'changesets' ? 'entries' : 'changesets', section: null })}>{tab === 'changesets' ? t('entryFlow.backToNodes') : t('topologyChangesets.title')}</Button>}
       {admin && <Button component={Link} to="/settings/category/monitoring#service-status" variant="default">{t('serviceStatus.title')}</Button>}
-      {canWrite && <Button leftSection={<IconPlus size={16} />} onClick={() => createNode()} disabled={q.isLoading || q.isError || sourcesLoading}>{t('entryFlow.createNode')}</Button>}
-      {admin && <Menu position="bottom-end"><Menu.Target><Button variant="light" rightSection={<IconChevronDown size={16} />}>{t('lines.create')}</Button></Menu.Target><Menu.Dropdown><Menu.Item onClick={() => setWizard(true)}>{t('insights.lineWizard')}</Menu.Item>
+      {canWrite && tab !== 'inbounds' && <Button leftSection={<IconPlus size={16} />} onClick={() => createNode()} disabled={q.isLoading || q.isError || sourcesLoading}>{t('entryFlow.createNode')}</Button>}
+      {admin && tab !== 'inbounds' && <Menu position="bottom-end"><Menu.Target><Button variant="light" rightSection={<IconChevronDown size={16} />}>{t('lines.create')}</Button></Menu.Target><Menu.Dropdown><Menu.Item onClick={() => setWizard(true)}>{t('insights.lineWizard')}</Menu.Item>
         <Menu.Item onClick={() => { updateParams({ tab: 'lines', section: 'forward', mode: null }); setQuickDraft(undefined); setEditingLine('new') }}>{t('lines.normal')}</Menu.Item>
         <Menu.Item onClick={() => createConnection('wireguard')}>{t('lines.sections.wireguard')}</Menu.Item>
         <Menu.Item onClick={() => createConnection('reverse')}>{t('lines.sections.reverse')}</Menu.Item>
       </Menu.Dropdown></Menu>}
     </Group>} />
-    {tab === 'changesets' ? (admin ? <TopologyChangesetsPanel onCommitted={() => { q.refetch(); reloadSources() }} /> : <Alert color="blue">{t('lines.adminOnly')}</Alert>) : tab === 'entries' ? <div>
-        {section === 'inbounds' ? <Stack>
-          <Group justify="space-between"><Text fw={600}>{t('entryFlow.inbounds')}</Text><Button variant="subtle" onClick={() => updateParams({ section: null, inbound: null })}>{t('entryFlow.backToNodes')}</Button></Group>
-          <InboundsManager serverID={serverID} onServerChange={id => updateParams({ server: id ? String(id) : null, inbound: null })} canWrite={canWrite} editInboundID={params.get('inbound') === 'new' ? 'new' : Number(params.get('inbound')) || undefined} onEditorClose={() => updateParams({ inbound: null })} />
-        </Stack> : <>
+    {tab === 'changesets' ? (admin ? <TopologyChangesetsPanel onCommitted={() => { q.refetch(); reloadSources() }} /> : <Alert color="blue">{t('lines.adminOnly')}</Alert>) : tab === 'inbounds' ? <Stack>
+          <InboundsManager global serverID={serverID} onServerChange={id => updateParams({ server: id ? String(id) : null, inbound: null })} canWrite={canWrite} editInboundID={params.get('inbound') === 'new' ? 'new' : Number(params.get('inbound')) || undefined} onEditorClose={() => updateParams({ inbound: null })} />
+        </Stack> : tab === 'entries' ? <div>
           <Group mb="md" align="flex-end">
             <Select label={t('entryFlow.targetServer')} placeholder={t('entryFlow.allServers')} clearable searchable data={(nodes.data ?? []).map(n => ({ value: String(n.id), label: n.name }))} value={nodeFilter || null} onChange={value => { setSelected([]); updateParams({ node: value, inbound: null }) }} />
             {(tags.data?.length ?? 0) > 0 && <Select label={t('entries.tags')} clearable placeholder={t('entries.filterTag')} data={tags.data ?? []} value={filter} onChange={value => { setSelected([]); setFilter(value) }} />}
             <Select label={t('entryCategories.label')} placeholder={t('entryCategories.all')} clearable searchable data={categoryOptions} value={activeCategoryFilter} onChange={value => { setSelected([]); setCategoryFilter(value) }} disabled={categories.isLoading || categories.isError} />
             {admin && <Select label={t('nodeAccess.title')} clearable searchable disabled={!access.data || access.isError} value={accessFilter} onChange={value => { setAccessFilter(value); setSelected([]) }} data={[...(['none'] as const).map(value => ({ value, label: t('planSelection.unassigned') })), ...(access.data?.plans ?? []).filter(p=>p.group_id).map(p => ({ value: `plan:${p.id}`, label: p.name }))]} />}
             {canWrite && <Button variant="light" onClick={() => { setSelected([]); setManagingCategories(true) }}>{t('entryCategories.manage')}</Button>}
-            <Button variant="subtle" onClick={() => updateParams({ section: 'inbounds', server: nodeFilter || null, inbound: null })}>{t('entryFlow.manageInbounds')}</Button>
             {nodeFilter && <Button component={Link} variant="subtle" to={`/nodes/${nodeFilter}`}>{t('entryFlow.serverDetails')}</Button>}
           </Group>
           {q.isLoading && <Loader size="sm" mb="md" />}
@@ -214,7 +211,6 @@ function EntriesWorkspace() {
             </SortableContext></DndContext>
           </Card>
           {draggable && rows.length > 1 && <Text size="xs" c="dimmed" mt="xs">{t('entries.dragHint')}</Text>}
-        </>}
       </div> : <div>
         <Stack>
           <Select label={t('lines.section')} allowDeselect={false} value={connectionSection ?? 'forward'} data={['forward', 'wireguard', 'reverse'].map(value => ({ value, label: t(`lines.sections.${value}`) }))} onChange={value => { setConnectionRequest(0); updateParams({ section: value, mode: null, inbound: null }) }} maw={420} />

@@ -4788,5 +4788,14 @@
     "copy": "复制连接信息",
     "copied": "连接信息已复制",
     "invalidJSON": "协议设置必须是有效的 JSON 对象。"
+  },
+  "inboundDirectory": {
+    "allProtocols": "全部协议",
+    "allUsage": "全部使用方式",
+    "linkedNodes": "关联订阅节点",
+    "chooseServer": "请选择要创建入站的服务器。",
+    "managed": "托管连接",
+    "manageConnection": "管理连接",
+    "count": "当前显示 {{count}} 个入站"
   }
 }

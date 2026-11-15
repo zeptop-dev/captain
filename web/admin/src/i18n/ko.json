@@ -4788,5 +4788,14 @@
     "copy": "연결 정보 복사",
     "copied": "연결 정보가 복사되었습니다",
     "invalidJSON": "프로토콜 설정은 유효한 JSON 객체여야 합니다."
+  },
+  "inboundDirectory": {
+    "allProtocols": "모든 프로토콜",
+    "allUsage": "모든 사용 방식",
+    "linkedNodes": "연결된 구독 노드",
+    "chooseServer": "인바운드를 만들 서버를 선택하세요.",
+    "managed": "관리형 연결",
+    "manageConnection": "연결 관리",
+    "count": "인바운드 {{count}}개 표시"
   }
 }

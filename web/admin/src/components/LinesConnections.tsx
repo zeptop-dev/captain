@@ -17,12 +17,12 @@ export interface ServerSelectionProps {
   canWrite?: boolean
 }
 
-export function ServerSelector({ serverID, onServerChange }: ServerSelectionProps) {
+export function ServerSelector({ serverID, onServerChange, placeholder }: ServerSelectionProps & { placeholder?: string }) {
   const { t } = useTranslation()
   const { me } = useAuth()
   const nodes = useQuery({ queryKey: ['nodes'], queryFn: () => api.get<Node[]>('/api/admin/nodes'), enabled: me?.role === 'admin' || me?.role === 'operator' })
   return <Stack gap="xs">
-    <Select searchable clearable label={t('nodes.title')} value={serverID ? String(serverID) : null}
+    <Select searchable clearable placeholder={placeholder} label={t('nodes.title')} value={serverID ? String(serverID) : null}
       data={(nodes.data ?? []).map(n => ({ value: String(n.id), label: n.name }))}
       onChange={value => onServerChange(value ? Number(value) : null)} disabled={nodes.isPending || nodes.isError} />
     {nodes.isError && <Alert color="red">{t('workspace.loadError')} <Button variant="subtle" onClick={() => nodes.refetch()}>{t('workspace.retry')}</Button></Alert>}

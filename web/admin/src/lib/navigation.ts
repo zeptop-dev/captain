@@ -13,7 +13,7 @@ export const navigation: NavigationGroup[] = [
     { to: '/nodes', labelKey: 'workspace.serverList' }, { to: '/infrastructure', labelKey: 'nav.infrastructure' }, { to: '/domains', labelKey: 'nav.domains' },
   ] },
   { id: 'entries', labelKey: 'entryFlow.title', items: [
-    { to: '/entries', labelKey: 'entryFlow.nodesTab' }, { to: '/entries?tab=lines', labelKey: 'lines.tab' }, { to: '/external', labelKey: 'nav.external' },
+    { to: '/entries', labelKey: 'entryFlow.nodesTab' }, { to: '/entries?tab=inbounds', labelKey: 'entryFlow.inbounds' }, { to: '/entries?tab=lines', labelKey: 'lines.tab' }, { to: '/external', labelKey: 'nav.external' },
   ] },
   { id: 'subscription', labelKey: 'workspace.subscriptionManagement', items: [
     { to: '/sub-templates', labelKey: 'workspace.templateEditor' }, { to: '/sub-templates?mode=library', labelKey: 'subProfiles.library' }, { to: '/sub-templates?mode=profiles', labelKey: 'subProfiles.profiles' }, { to: '/sub-templates?mode=rules', labelKey: 'subTemplates.modeRules' },
@@ -53,6 +53,7 @@ export function navigationGroup(path: string) {
 
 export function activeNavigationItem(items: NavigationItem[], pathname: string, search: string) {
   const params = new URLSearchParams(search)
+  if (pathname === '/entries' && entryWorkspaceTab(params) === 'inbounds') return items.find(item => item.to === '/entries?tab=inbounds')
   return items.find(item => {
     const [path, query] = item.to.split('?')
     return path === pathname && !!query && [...new URLSearchParams(query)].every(([key, value]) => params.get(key) === value)
@@ -77,4 +78,12 @@ export function workspaceDestination(item: NavigationItem, current: { pathname: 
 
 export function isServerSettingsSection(section: string | null): section is 'routing' | 'ingresses' | 'overrides' {
   return section === 'routing' || section === 'ingresses' || section === 'overrides'
+}
+
+// Legacy server-scoped bookmarks keep their owner/editor while selecting the
+// single canonical inbound destination in the workspace navigation.
+export function entryWorkspaceTab(params: URLSearchParams): 'entries' | 'inbounds' | 'lines' | 'changesets' {
+  const value = params.get('tab')
+  if (value === 'changesets' || value === 'lines') return value
+  return value === 'inbounds' || params.get('section') === 'inbounds' ? 'inbounds' : 'entries'
 }
