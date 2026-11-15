@@ -24,15 +24,22 @@ func guardStandaloneInboundTx(ctx context.Context, tx *sql.Tx, ib *domain.Inboun
 	if err := ib.Spec().Validate(); err != nil {
 		return err
 	}
-	if ib.GroupID != nil || (ib.AccessPolicy != "" && ib.AccessPolicy != domain.AccessNone) {
+	if ib.AccessPolicy != "" && ib.AccessPolicy != domain.AccessNone {
 		return ErrStandaloneAccess
 	}
 	if create {
+		if ib.GroupID != nil {
+			return ErrStandaloneAccess
+		}
 		return nil
 	}
 	var old string
-	if err := tx.QueryRowContext(ctx, `SELECT settings_json FROM inbounds WHERE id=?`, ib.ID).Scan(&old); err != nil {
+	var oldGroup sql.NullInt64
+	if err := tx.QueryRowContext(ctx, `SELECT settings_json,group_id FROM inbounds WHERE id=?`, ib.ID).Scan(&old, &oldGroup); err != nil {
 		return wrapNotFound(err)
+	}
+	if ib.GroupID != nil && (!oldGroup.Valid || *ib.GroupID != oldGroup.Int64) {
+		return ErrStandaloneAccess
 	}
 	var previous spec.Inbound
 	if err := json.Unmarshal([]byte(old), &previous); err != nil {
@@ -59,6 +66,9 @@ func guardStandaloneInboundTx(ctx context.Context, tx *sql.Tx, ib *domain.Inboun
 			return ErrStandaloneReferences
 		}
 	}
+	// An unchanged legacy column may remain after explicit revocation. Clear it
+	// only after proving there is no effective grant or dependent publication.
+	ib.GroupID = nil
 	return nil
 }
 

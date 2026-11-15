@@ -212,7 +212,7 @@ func writeInboundTx(ctx context.Context, tx *sql.Tx, ib *domain.Inbound, create 
 	if err = checkRolloutInboundTx(ctx, tx, ib); err != nil {
 		return err
 	}
-	if !create {
+	if !create && ib.Settings.Standalone == nil {
 		if err = guardLegacyAccessTx(ctx, tx, ib); err != nil {
 			return err
 		}

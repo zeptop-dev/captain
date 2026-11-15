@@ -21,7 +21,8 @@ switch. SS2022 conversion also requires a different key: the former shared serve
 may already have been distributed to subscribers and must not become sufficient on its
 own. The browser generates a replacement; API reuse is rejected. Rejected writes leave
 the previous listener intact. Switching back retains an
-explicit unassigned policy. Direct management requires inbound-write and node-access
+explicit unassigned policy. An unchanged legacy group column left after an
+explicit revocation is cleared transactionally; it cannot restore the previous grant. Direct management requires inbound-write and node-access
 write authority; the topology draft editor deliberately excludes these listeners and
 their credentials. Existing admin node-detail permissions still govern credential
 viewing. Connection-copy is a JSON description, using the saved external ingress and

@@ -96,3 +96,42 @@ func TestStandaloneSS2022ConversionRotatesPublishedServerKey(t *testing.T) {
 		t.Fatal("new independent key not saved", err)
 	}
 }
+
+func TestStandaloneConversionClearsRevokedLegacyGroupOnly(t *testing.T) {
+	f := newAccessFixture(t)
+	group := f.groups[0]
+	ib := &domain.Inbound{NodeID: f.n.ID, Tag: "legacy-socks", Protocol: spec.SOCKS, Port: 1080, Enabled: true, GroupID: &group}
+	if err := f.s.CreateInbound(f.ctx, ib); err != nil {
+		t.Fatal(err)
+	}
+	change := f.change(t, ib.ID, domain.AccessNone)
+	if err := f.s.UpdateInboundAccess(f.ctx, ib.ID, change); err != nil {
+		t.Fatal(err)
+	}
+	ib.Settings.Standalone = &spec.StandaloneAuth{Username: "operator", Password: "secret"}
+	wrong := f.groups[1]
+	ib.GroupID = &wrong
+	if err := f.s.UpdateInbound(f.ctx, ib); !errors.Is(err, ErrStandaloneAccess) {
+		t.Fatal("changed legacy group bypassed guard", err)
+	}
+	ib.GroupID = &group
+	if err := f.s.UpdateInbound(f.ctx, ib); err != nil {
+		t.Fatal("revoked legacy listener could not become independent", err)
+	}
+	saved, err := f.s.InboundByID(f.ctx, ib.ID)
+	if err != nil || saved.GroupID != nil || saved.Settings.Standalone == nil {
+		t.Fatal("legacy group not cleared", err)
+	}
+	a, err := f.s.InboundAccess(f.ctx, ib.ID)
+	if err != nil || a.Policy != domain.AccessNone {
+		t.Fatal("conversion restored grant", err)
+	}
+	saved.Settings.Standalone = nil
+	if err := f.s.UpdateInbound(f.ctx, saved); err != nil {
+		t.Fatal(err)
+	}
+	a, err = f.s.InboundAccess(f.ctx, ib.ID)
+	if err != nil || a.Policy != domain.AccessNone {
+		t.Fatal("switch back restored old group", err)
+	}
+}
