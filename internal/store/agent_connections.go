@@ -20,36 +20,44 @@ import (
 const unresolvedConnectionMigration = `(m.status IN ('queued','issued','verified') OR (m.status='failed' AND NOT EXISTS(SELECT 1 FROM agent_connection_migrations later WHERE later.node_id=m.node_id AND later.token_hash=m.token_hash AND later.status='completed' AND later.rowid>m.rowid)))`
 
 type AgentConnection struct {
-	Name        string `json:"name,omitempty"`
-	Paired      bool   `json:"paired"`
-	NodeID      int64  `json:"node_id"`
-	URL         string `json:"url"`
-	SeenAt      int64  `json:"seen_at"`
-	Capable     bool   `json:"capable"`
-	Mode        string `json:"mode"`
-	EndpointID  string `json:"endpoint_id"`
-	TargetURL   string `json:"target_url"`
-	MigrationID string `json:"migration_id,omitempty"`
-	Status      string `json:"status"`
-	Error       string `json:"error,omitempty"`
+	ProxyCapable     bool   `json:"proxy_capable"`
+	VerificationMode string `json:"verification_mode,omitempty"`
+	Name             string `json:"name,omitempty"`
+	Paired           bool   `json:"paired"`
+	NodeID           int64  `json:"node_id"`
+	URL              string `json:"url"`
+	SeenAt           int64  `json:"seen_at"`
+	Capable          bool   `json:"capable"`
+	Mode             string `json:"mode"`
+	EndpointID       string `json:"endpoint_id"`
+	TargetURL        string `json:"target_url"`
+	MigrationID      string `json:"migration_id,omitempty"`
+	Status           string `json:"status"`
+	Error            string `json:"error,omitempty"`
 }
 type AgentConnectionChoice struct {
-	Mode       string `json:"mode"`
-	EndpointID string `json:"endpoint_id"`
-	URL        string `json:"url"`
+	VerificationMode string `json:"verification_mode,omitempty"`
+	TrustProxy       bool   `json:"trust_proxy,omitempty"`
+	Mode             string `json:"mode"`
+	EndpointID       string `json:"endpoint_id"`
+	URL              string `json:"url"`
 }
 type AgentConnectionMigration struct {
-	Name      string `json:"name,omitempty"`
-	ID        string `json:"id"`
-	BatchID   string `json:"batch_id"`
-	NodeID    int64  `json:"node_id"`
-	SourceURL string `json:"source_url"`
-	TargetURL string `json:"target_url"`
-	Status    string `json:"status"`
-	Error     string `json:"error,omitempty"`
+	VerificationMode string `json:"verification_mode,omitempty"`
+	Name             string `json:"name,omitempty"`
+	ID               string `json:"id"`
+	BatchID          string `json:"batch_id"`
+	NodeID           int64  `json:"node_id"`
+	SourceURL        string `json:"source_url"`
+	TargetURL        string `json:"target_url"`
+	Status           string `json:"status"`
+	Error            string `json:"error,omitempty"`
 }
 
 func (s *Store) ResolveAgentConnection(ctx context.Context, c AgentConnectionChoice, fallback string) (string, string, error) {
+	if !agentproto.ValidConnectionVerification(c.VerificationMode) || (c.VerificationMode == agentproto.ConnectionVerificationProxy && !c.TrustProxy) {
+		return "", "", fmt.Errorf("%w: explicitly trust the proxy before migration", ErrAgentHTTPSInvalid)
+	}
 	switch c.Mode {
 	case "default":
 		return s.DefaultAgentURL(ctx, fallback), "", nil
@@ -79,12 +87,12 @@ func (s *Store) AgentConnection(ctx context.Context, id int64) (AgentConnection,
 	if out.TargetURL != "" {
 		out.Mode = "custom"
 	}
-	err = s.db.QueryRowContext(ctx, `SELECT current_url,seen_at,capable,mode,endpoint_id FROM agent_node_connections WHERE node_id=? AND token_hash=(SELECT token_hash FROM nodes WHERE id=?)`, id, id).Scan(&out.URL, &out.SeenAt, &out.Capable, &out.Mode, &out.EndpointID)
+	err = s.db.QueryRowContext(ctx, `SELECT current_url,seen_at,capable,mode,endpoint_id,proxy_capable FROM agent_node_connections WHERE node_id=? AND token_hash=(SELECT token_hash FROM nodes WHERE id=?)`, id, id).Scan(&out.URL, &out.SeenAt, &out.Capable, &out.Mode, &out.EndpointID, &out.ProxyCapable)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return out, err
 	}
 	var source string
-	err = s.db.QueryRowContext(ctx, `SELECT id,source_url,target_url,CASE WHEN status IN ('issued','verified') AND expires_at<unixepoch() THEN 'failed' ELSE status END,CASE WHEN status IN ('issued','verified') AND expires_at<unixepoch() THEN 'migration timed out' ELSE error END FROM agent_connection_migrations WHERE node_id=? AND token_hash=(SELECT token_hash FROM nodes WHERE id=?) ORDER BY created_at DESC,rowid DESC LIMIT 1`, id, id).Scan(&out.MigrationID, &source, &out.TargetURL, &out.Status, &out.Error)
+	err = s.db.QueryRowContext(ctx, `SELECT id,source_url,target_url,CASE WHEN status IN ('issued','verified') AND expires_at<unixepoch() THEN 'failed' ELSE status END,CASE WHEN status IN ('issued','verified') AND expires_at<unixepoch() THEN 'migration timed out' ELSE error END,verification_mode FROM agent_connection_migrations WHERE node_id=? AND token_hash=(SELECT token_hash FROM nodes WHERE id=?) ORDER BY created_at DESC,rowid DESC LIMIT 1`, id, id).Scan(&out.MigrationID, &source, &out.TargetURL, &out.Status, &out.Error, &out.VerificationMode)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return out, err
 	}
@@ -102,7 +110,7 @@ func (s *Store) AgentConnection(ctx context.Context, id int64) (AgentConnection,
 
 // ObserveAgentConnection records only an authenticated report of its own origin.
 // Freshness is evidence, not a perpetual guarantee of online reachability.
-func (s *Store) ObserveAgentConnection(ctx context.Context, id int64, tokenHash, url string, capable bool) error {
+func (s *Store) ObserveAgentConnection(ctx context.Context, id int64, tokenHash, url string, capable bool, proxy ...bool) error {
 	if url == "" {
 		return nil
 	}
@@ -110,9 +118,9 @@ func (s *Store) ObserveAgentConnection(ctx context.Context, id int64, tokenHash,
 	if err != nil || u == "" {
 		return nil
 	}
-	_, err = s.db.ExecContext(ctx, `INSERT INTO agent_node_connections(node_id,token_hash,current_url,seen_at,capable)
- SELECT id,token_hash,?,?,? FROM nodes WHERE id=? AND token_hash=?
- ON CONFLICT(node_id) DO UPDATE SET mode=CASE WHEN agent_node_connections.token_hash<>excluded.token_hash THEN 'default' ELSE agent_node_connections.mode END,endpoint_id=CASE WHEN agent_node_connections.token_hash<>excluded.token_hash THEN '' ELSE agent_node_connections.endpoint_id END,token_hash=excluded.token_hash,current_url=excluded.current_url,seen_at=excluded.seen_at,capable=excluded.capable`, u, time.Now().Unix(), capable, id, tokenHash)
+	_, err = s.db.ExecContext(ctx, `INSERT INTO agent_node_connections(node_id,token_hash,current_url,seen_at,capable,proxy_capable)
+ SELECT id,token_hash,?,?,?,? FROM nodes WHERE id=? AND token_hash=?
+ ON CONFLICT(node_id) DO UPDATE SET mode=CASE WHEN agent_node_connections.token_hash<>excluded.token_hash THEN 'default' ELSE agent_node_connections.mode END,endpoint_id=CASE WHEN agent_node_connections.token_hash<>excluded.token_hash THEN '' ELSE agent_node_connections.endpoint_id END,token_hash=excluded.token_hash,current_url=excluded.current_url,seen_at=excluded.seen_at,capable=excluded.capable,proxy_capable=excluded.proxy_capable`, u, time.Now().Unix(), capable, len(proxy) > 0 && proxy[0], id, tokenHash)
 	return err
 }
 
@@ -179,6 +187,12 @@ func (s *Store) StartAgentConnectionBatch(ctx context.Context, ids []int64, choi
 			}
 			continue
 		}
+		if choice.VerificationMode == agentproto.ConnectionVerificationProxy {
+			var capability bool
+			if e := tx.QueryRowContext(ctx, "SELECT proxy_capable FROM agent_node_connections WHERE node_id=? AND token_hash=?", id, tokenHash).Scan(&capability); e != nil || !capability {
+				return "", fmt.Errorf("%w: upgrade bosun before trusted-proxy migration", ErrAgentHTTPSInvalid)
+			}
+		}
 		source := installed
 		var observed string
 		e := tx.QueryRowContext(ctx, "SELECT current_url FROM agent_node_connections WHERE node_id=? AND token_hash=?", id, tokenHash).Scan(&observed)
@@ -199,7 +213,7 @@ func (s *Store) StartAgentConnectionBatch(ctx context.Context, ids []int64, choi
 			return "", fmt.Errorf("%w: node already has an active migration", ErrAgentHTTPSInvalid)
 		}
 		status := "queued"
-		_, err = tx.ExecContext(ctx, `INSERT INTO agent_connection_migrations(id,batch_id,node_id,token_hash,source_url,target_url,endpoint_id,proof_key,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, auth.Token(24), batch, id, tokenHash, source, target, endpoint, auth.Token(32), status, at, at)
+		_, err = tx.ExecContext(ctx, `INSERT INTO agent_connection_migrations(id,batch_id,node_id,token_hash,source_url,target_url,endpoint_id,proof_key,status,created_at,updated_at,verification_mode) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, auth.Token(24), batch, id, tokenHash, source, target, endpoint, auth.Token(32), status, at, at, normalizedVerification(choice.VerificationMode))
 		if err != nil {
 			return "", err
 		}
@@ -214,7 +228,7 @@ func (s *Store) StartAgentConnectionBatch(ctx context.Context, ids []int64, choi
 	return batch, tx.Commit()
 }
 func (s *Store) AgentConnectionMigrations(ctx context.Context) ([]AgentConnectionMigration, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT m.id,m.batch_id,m.node_id,n.name,m.source_url,m.target_url,CASE WHEN m.status IN ('issued','verified') AND m.expires_at<unixepoch() THEN 'failed' ELSE m.status END,CASE WHEN m.status IN ('issued','verified') AND m.expires_at<unixepoch() THEN 'migration timed out' ELSE m.error END FROM agent_connection_migrations m JOIN nodes n ON n.id=m.node_id ORDER BY m.created_at DESC,m.rowid DESC LIMIT 1000`)
+	rows, err := s.db.QueryContext(ctx, `SELECT m.id,m.batch_id,m.node_id,n.name,m.source_url,m.target_url,CASE WHEN m.status IN ('issued','verified') AND m.expires_at<unixepoch() THEN 'failed' ELSE m.status END,CASE WHEN m.status IN ('issued','verified') AND m.expires_at<unixepoch() THEN 'migration timed out' ELSE m.error END,m.verification_mode FROM agent_connection_migrations m JOIN nodes n ON n.id=m.node_id ORDER BY m.created_at DESC,m.rowid DESC LIMIT 1000`)
 	if err != nil {
 		return nil, err
 	}
@@ -222,14 +236,14 @@ func (s *Store) AgentConnectionMigrations(ctx context.Context) ([]AgentConnectio
 	out := []AgentConnectionMigration{}
 	for rows.Next() {
 		var v AgentConnectionMigration
-		if err = rows.Scan(&v.ID, &v.BatchID, &v.NodeID, &v.Name, &v.SourceURL, &v.TargetURL, &v.Status, &v.Error); err != nil {
+		if err = rows.Scan(&v.ID, &v.BatchID, &v.NodeID, &v.Name, &v.SourceURL, &v.TargetURL, &v.Status, &v.Error, &v.VerificationMode); err != nil {
 			return nil, err
 		}
 		out = append(out, v)
 	}
 	return out, rows.Err()
 }
-func (s *Store) AgentConnectionControl(ctx context.Context, id int64, tokenHash string) (*agentproto.ConnectionMigration, error) {
+func (s *Store) AgentConnectionControl(ctx context.Context, id int64, tokenHash string, proxy ...bool) (*agentproto.ConnectionMigration, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -243,12 +257,15 @@ func (s *Store) AgentConnectionControl(ctx context.Context, id int64, tokenHash 
 	}
 	var m agentproto.ConnectionMigration
 	var status string
-	err = tx.QueryRowContext(ctx, `SELECT id,source_url,target_url,proof_key,expires_at,status FROM agent_connection_migrations WHERE node_id=? AND token_hash=? AND status IN ('queued','issued','verified')`, id, tokenHash).Scan(&m.ID, &m.SourceURL, &m.TargetURL, &m.ProofKey, &m.ExpiresAt, &status)
+	err = tx.QueryRowContext(ctx, `SELECT id,source_url,target_url,proof_key,expires_at,status,verification_mode FROM agent_connection_migrations WHERE node_id=? AND token_hash=? AND status IN ('queued','issued','verified')`, id, tokenHash).Scan(&m.ID, &m.SourceURL, &m.TargetURL, &m.ProofKey, &m.ExpiresAt, &status, &m.VerificationMode)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, tx.Commit()
 	}
 	if err != nil {
 		return nil, err
+	}
+	if m.VerificationMode == agentproto.ConnectionVerificationProxy && !(len(proxy) > 0 && proxy[0]) {
+		return nil, tx.Commit()
 	}
 	if status == "queued" {
 		var actual string
@@ -288,8 +305,15 @@ func (s *Store) AgentConnectionProof(ctx context.Context, id, challenge, host st
 	if err != nil {
 		return out, wrapNotFound(err)
 	}
-	if expires < time.Now().Unix() || !AgentOriginHost(target, host) {
+	mode, e := s.AgentConnectionVerification(ctx, id)
+	if e != nil {
+		return out, e
+	}
+	if expires < time.Now().Unix() || (mode != agentproto.ConnectionVerificationProxy && !AgentOriginHost(target, host)) {
 		return out, ErrNotFound
+	}
+	if mode == agentproto.ConnectionVerificationProxy {
+		binding = []string{agentproto.ProxyConnectionBinding(expires)}
 	}
 	out.Signature = agentproto.ConnectionSignature(key, id, target, challenge, binding...)
 	return out, nil
@@ -303,9 +327,9 @@ func (s *Store) CompleteAgentConnection(ctx context.Context, nodeID int64, token
 		return err
 	}
 	defer tx.Rollback()
-	var target, source, old string
+	var target, source, old, verification string
 	var expires int64
-	err = tx.QueryRowContext(ctx, `SELECT m.target_url,m.source_url,m.status,m.expires_at FROM agent_connection_migrations m JOIN nodes n ON n.id=m.node_id AND n.token_hash=m.token_hash WHERE m.id=? AND m.node_id=? AND m.token_hash=?`, id, nodeID, tokenHash).Scan(&target, &source, &old, &expires)
+	err = tx.QueryRowContext(ctx, `SELECT m.target_url,m.source_url,m.status,m.expires_at,m.verification_mode FROM agent_connection_migrations m JOIN nodes n ON n.id=m.node_id AND n.token_hash=m.token_hash WHERE m.id=? AND m.node_id=? AND m.token_hash=?`, id, nodeID, tokenHash).Scan(&target, &source, &old, &expires, &verification)
 	if err != nil {
 		return wrapNotFound(err)
 	}
@@ -315,17 +339,26 @@ func (s *Store) CompleteAgentConnection(ctx context.Context, nodeID int64, token
 	if (old != "issued" && old != "verified") || expires < time.Now().Unix() {
 		return ErrAgentHTTPSRevision
 	}
+	if verification == agentproto.ConnectionVerificationProxy && status != "failed" && (len(reported) == 0 || reported[0] != target) {
+		return ErrAgentHTTPSInvalid
+	}
 	sameCurrent := false
 	if source == target && len(reported) > 0 {
 		normalized, e := agentendpoint.NormalizeURL(reported[0])
 		sameCurrent = e == nil && normalized == target
 	}
-	if status != "failed" && !AgentOriginHost(target, host) && !sameCurrent {
+	if status != "failed" && !AgentOriginHost(target, host) && !sameCurrent && verification != agentproto.ConnectionVerificationProxy {
 		return ErrAgentHTTPSInvalid
 	}
 	message := ""
 	if status == "failed" {
 		message = "node could not verify or persist the new connection"
+		if len(reported) > 1 {
+			switch reported[1] {
+			case "invalid_target", "proof_request", "proof_verification", "target_verification", "persistence":
+				message = reported[1]
+			}
+		}
 	}
 	if _, err = tx.ExecContext(ctx, "UPDATE agent_connection_migrations SET status=?,error=?,updated_at=? WHERE id=?", status, message, time.Now().Unix(), id); err != nil {
 		return err
@@ -342,7 +375,7 @@ func connectionPreview(ctx context.Context, tx *sql.Tx, ids []int64, choice Agen
 	if len(ids) == 0 || len(ids) > 500 {
 		return "", nil, ErrAgentHTTPSInvalid
 	}
-	values := []string{choice.Mode, endpoint, target, fallback}
+	values := []string{choice.Mode, endpoint, target, fallback, normalizedVerification(choice.VerificationMode), fmt.Sprint(choice.TrustProxy)}
 	nodes := []AgentConnection{}
 	seen := map[int64]bool{}
 	if endpoint != "" {
@@ -359,14 +392,14 @@ func connectionPreview(ctx context.Context, tx *sql.Tx, ids []int64, choice Agen
 		seen[id] = true
 		v := AgentConnection{NodeID: id, TargetURL: target}
 		var tokenHash, installed, version string
-		err := tx.QueryRowContext(ctx, `SELECT coalesce(n.token_hash,''),n.agent_url,n.version,n.name,coalesce(c.current_url,''),coalesce(c.seen_at,0),coalesce(c.capable,0)
-   FROM nodes n LEFT JOIN agent_node_connections c ON c.node_id=n.id AND c.token_hash=n.token_hash WHERE n.id=?`, id).Scan(&tokenHash, &installed, &version, &v.Name, &v.URL, &v.SeenAt, &v.Capable)
+		err := tx.QueryRowContext(ctx, `SELECT coalesce(n.token_hash,''),n.agent_url,n.version,n.name,coalesce(c.current_url,''),coalesce(c.seen_at,0),coalesce(c.capable,0),coalesce(c.proxy_capable,0)
+   FROM nodes n LEFT JOIN agent_node_connections c ON c.node_id=n.id AND c.token_hash=n.token_hash WHERE n.id=?`, id).Scan(&tokenHash, &installed, &version, &v.Name, &v.URL, &v.SeenAt, &v.Capable, &v.ProxyCapable)
 		if err != nil {
 			return "", nil, wrapNotFound(err)
 		}
 		v.Paired = tokenHash != ""
 		nodes = append(nodes, v)
-		values = append(values, fmt.Sprint(id), tokenHash, installed, version, v.URL)
+		values = append(values, fmt.Sprint(id), tokenHash, installed, version, v.URL, fmt.Sprint(v.ProxyCapable))
 	}
 	raw, _ := json.Marshal(values)
 	sum := sha256.Sum256(raw)
@@ -398,8 +431,8 @@ func (s *Store) AgentConnectionAction(ctx context.Context, id, action string) er
 	}
 	defer tx.Rollback()
 	var nodeID int64
-	var tokenHash, source, target, endpoint, status string
-	err = tx.QueryRowContext(ctx, `SELECT m.node_id,m.token_hash,m.source_url,m.target_url,m.endpoint_id,m.status FROM agent_connection_migrations m JOIN nodes n ON n.id=m.node_id AND n.token_hash=m.token_hash WHERE m.id=?`, id).Scan(&nodeID, &tokenHash, &source, &target, &endpoint, &status)
+	var tokenHash, source, target, endpoint, status, verification string
+	err = tx.QueryRowContext(ctx, `SELECT m.node_id,m.token_hash,m.source_url,m.target_url,m.endpoint_id,m.status,m.verification_mode FROM agent_connection_migrations m JOIN nodes n ON n.id=m.node_id AND n.token_hash=m.token_hash WHERE m.id=?`, id).Scan(&nodeID, &tokenHash, &source, &target, &endpoint, &status, &verification)
 	if err != nil {
 		return wrapNotFound(err)
 	}
@@ -454,7 +487,7 @@ func (s *Store) AgentConnectionAction(ctx context.Context, id, action string) er
 			source = actual
 		}
 		at := time.Now().Unix()
-		_, err = tx.ExecContext(ctx, `INSERT INTO agent_connection_migrations(id,batch_id,node_id,token_hash,source_url,target_url,endpoint_id,proof_key,status,created_at,updated_at)VALUES(?,?,?,?,?,?,?,?,'queued',?,?)`, auth.Token(24), auth.Token(24), nodeID, tokenHash, source, target, endpoint, auth.Token(32), at, at)
+		_, err = tx.ExecContext(ctx, `INSERT INTO agent_connection_migrations(id,batch_id,node_id,token_hash,source_url,target_url,endpoint_id,proof_key,status,created_at,updated_at,verification_mode)VALUES(?,?,?,?,?,?,?,?,'queued',?,?,?)`, auth.Token(24), auth.Token(24), nodeID, tokenHash, source, target, endpoint, auth.Token(32), at, at, verification)
 		if err != nil {
 			return err
 		}
@@ -495,4 +528,20 @@ func (s *Store) AgentEndpointNodes(ctx context.Context, id string) ([]AgentConne
 		out = out[:500]
 	}
 	return out, truncated, nil
+}
+
+func normalizedVerification(v string) string {
+	if v == "" {
+		return agentproto.ConnectionVerificationDirect
+	}
+	return v
+}
+
+// Request Host may be rewritten by an explicitly trusted reverse proxy. The
+// authorized target remains frozen in this row and signature; headers cannot
+// select proxy trust or another target.
+func (s *Store) AgentConnectionVerification(ctx context.Context, id string) (string, error) {
+	var mode string
+	err := s.db.QueryRowContext(ctx, `SELECT m.verification_mode FROM agent_connection_migrations m JOIN nodes n ON n.id=m.node_id AND n.token_hash=m.token_hash WHERE m.id=? AND m.status IN ('issued','verified') AND m.expires_at>=unixepoch()`, id).Scan(&mode)
+	return mode, wrapNotFound(err)
 }

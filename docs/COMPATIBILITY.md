@@ -13,7 +13,7 @@ Migration 122 imports an active prior Agent HTTPS setting as the existing defaul
 
 A default entry is an installation preference, not an automatic fleet migration. Actual URLs are authenticated node observations, separate from targets. Unknown legacy/offline references prevent unsafe retirement, even if somebody changed only installation preferences. Active/queued tasks also protect both endpoints. Account reset, re-pair and deleted/recreated identities cannot inherit a migration.
 
-The anonymous target proof is bound to its end-to-end TLS session. Thus automatic migration targets require direct Captain TLS; TLS-terminating CDN/proxy targets do not pass. An old source may still use a CDN, and custom installation addresses remain valid. Successful migration keeps the node token and accounting/offline/mode identity and does not restart proxy cores. Persisted local selection works with read-only config mounts. Pre-commit verification/persistence failures keep the source. After a durable commit, a lost completion response retains the selection and retries its receipt; it cannot silently revert behind the controller. Unresolved failed/expired attempts protect their origins until a later durable reconciliation. Same-origin reconciliation also requires a node checkpoint. See [operation and recovery](AGENT_CONNECTIONS.md).
+The anonymous target proof is bound to its end-to-end TLS session. Direct mode requires Captain TLS and does not downgrade. The next-release explicit trusted-proxy extension is described below; older versions reject TLS-terminating CDN/proxy targets. An old source may still use a CDN, and custom installation addresses remain valid. Successful migration keeps the node token and accounting/offline/mode identity and does not restart proxy cores. Persisted local selection works with read-only config mounts. Pre-commit verification/persistence failures keep the source. After a durable commit, a lost completion response retains the selection and retries its receipt; it cannot silently revert behind the controller. Unresolved failed/expired attempts protect their origins until a later durable reconciliation. Same-origin reconciliation also requires a node checkpoint. See [operation and recovery](AGENT_CONNECTIONS.md).
 
 Captain's built-in rollback floor becomes v1.67.0 because older single-entry managers ignore additional origins and retirement protection. Bosun's floor becomes v0.98.1 because older clients ignore the persisted connection selection. Migrations remain forward-only; no existing wire field is renamed or removed.
 
@@ -1321,3 +1321,37 @@ renderers ignore the new mode and can generate independent or direct DNS paths.
 Captain pins formal bosun v0.97.0 for this renderer; task-local go.work is not
 needed. No installed-agent protocol or proxy-core changes are required by this
 feature.
+
+
+## Explicit trusted CDN/proxy migration (development, Captain1.68 / bosun0.99)
+
+Migration123 defaults every existing attempt to `direct` and old observations to
+proxy-incapable. `verification_mode: trusted-proxy` additionally requires an
+explicit `trust_proxy: true` acknowledgement. Both are bound to the preview and
+frozen attempt; retries keep the same trust mode with a new key and attempt ID.
+Changes to target choice invalidate local acknowledgement and preview. This
+choice is per migration, not permission to downgrade every future connection.
+
+The proxy mode's anonymous HMAC proof binds attempt, authorized target, random
+challenge, explicit proxy domain separation and expiry. The attempt's key is
+issued through the existing authenticated connection, and database access is
+bound to the current node identity. It tolerates rewritten backend Host and
+separate origin TLS/HTTP without trusting arbitrary forwarding headers. Standard
+HTTPS certificate validation, no redirects and token-free first contact remain.
+It proves the original Captain answered through the trusted target; it does not
+prove a forwarding intermediary is benign. The administrator explicitly trusts
+the target intermediary to see normal Agent credentials and request contents.
+There is no application-wide end-to-end encryption claim.
+
+A separate `X-Bosun-Proxy-Migration: 1` capability is required in the current state
+request, not only a stored report. Old direct capability2 remains unchanged.
+Both UI metadata and server admission reject unsupported proxy migration; older
+agents remain compatible for normal communication and direct-capability tasks.
+After target persistence, lost completion responses retain the selected URL and
+retry normally. Rejection by an uncommitted target cannot revoke the healthy old
+connection; actual active-origin authorization failures retain normal revocation.
+
+The pending release floors are Captain1.68.0 / bosun0.99.0; older panels do not
+retain the per-attempt trust mode and older agents do not implement this handshake.
+Integration must pin the exact shared bosun revision; no development replace is
+committed. These are planned first-containing versions, not a release by this task.

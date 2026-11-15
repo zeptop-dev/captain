@@ -18,7 +18,7 @@ export function NodeAgentSettingsCard({ node }: { node: Node }) {
   <Text size="sm" style={{ overflowWrap: 'anywhere' }}>{t('agentEntries.actual')}: {q.data?.url || '—'}</Text>
   <Text size="sm" style={{ overflowWrap: 'anywhere' }}>{t('agentEntries.target')}: {q.data?.target_url || node.effective_agent_url || '—'}</Text>
   <Group><Badge color={q.isError ? 'gray' : q.data?.status === 'completed' || q.data?.status === 'connected' ? 'teal' : 'orange'}>{t(`agentEntries.${q.isError ? 'unknown' : q.data?.status || 'unknown'}`)}</Badge><Text size="xs" c="dimmed">{t('agentEntries.observedHint')}</Text></Group>
-  {q.data?.error && <Alert color="yellow">{q.data.error}</Alert>}
+  {q.data?.error && <Alert color="yellow">{t(`agentEntries.migrationErrors.${q.data.error}`, {defaultValue:q.data.error})}</Alert>}
   {q.isError && <Alert color="yellow">{t('agentEntries.loadError')} <Button variant="subtle" onClick={() => q.refetch()}>{t('workspace.retry')}</Button></Alert>}
   <Text size="sm">{t('agentConnection.source')}: {t(node.download_source === 'captain' ? 'agentConnection.captain' : 'agentConnection.github')}</Text><Text size="xs" c="dimmed">{t('agentEntries.downloadHint')}</Text>
  </Stack></Card>

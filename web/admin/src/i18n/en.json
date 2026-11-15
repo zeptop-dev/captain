@@ -4718,6 +4718,11 @@
     "packetLoss": "Packet loss"
   },
   "agentEntries": {
+    "verification": "Migration verification",
+    "verificationModes": {"direct": "Direct Captain TLS (default)", "trusted-proxy": "Trusted CDN / reverse proxy"},
+    "proxyTrustHint": "Trusts the CDN/proxy at this target, which can read node credentials and requests. HTTPS certificates and the panel challenge are still verified. Direct mode never downgrades automatically.",
+    "trustProxy": "I trust the CDN/proxy at this target endpoint",
+    "migrationErrors": {"invalid_target": "Invalid target or verification mode", "proof_request": "Cannot reach target: check DNS, certificates, networking or CDN blocking", "proof_verification": "Panel proof failed: check verification mode, caching or CDN blocking", "target_verification": "Target confirmation failed", "persistence": "Could not persist the new connection locally"},
     "title": "Agent entry points",
     "add": "Add entry point",
     "hint": "Keep old and new HTTPS entry points available during migration. Changing the default does not migrate running agents.",
@@ -4737,7 +4742,7 @@
     "preview": "Preview impact",
     "start": "Save and migrate",
     "migrate": "Migrate Agent connection",
-    "migrationHint": "The node verifies that the target belongs to this Captain before sending its token. Keep the old entry point until every node confirms. Pairing and proxy cores are retained. Automatic migration targets must terminate TLS directly in Captain; TLS-terminating CDN/proxy targets require manual configuration.",
+    "migrationHint": "Verify the new endpoint before sending credentials. Keep the old endpoint until all nodes complete. Direct TLS uses session binding; CDN/proxy mode requires explicit trust.",
     "queued": "Waiting for node",
     "issued": "Verifying target",
     "verified": "Saving connection",

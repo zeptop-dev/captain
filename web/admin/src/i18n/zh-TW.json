@@ -4718,6 +4718,11 @@
     "packetLoss": "丢包"
   },
   "agentEntries": {
+    "verification": "遷移驗證方式",
+    "verificationModes": {"direct": "直連 Captain（預設）", "trusted-proxy": "受信任 CDN／反向代理"},
+    "proxyTrustHint": "此模式信任目標的 CDN／反代，它能讀取節點憑據與請求。仍驗證 HTTPS 憑證與同面板挑戰；不會自動降級。",
+    "trustProxy": "我確認信任此目標入口的 CDN／反代",
+    "migrationErrors": {"invalid_target": "目標或驗證方式無效", "proof_request": "無法存取新入口：請檢查 DNS、憑證、網路或 CDN 攔截", "proof_verification": "同面板證明失敗：請檢查模式、快取或 CDN 攔截", "target_verification": "新入口確認失敗", "persistence": "無法將新連線寫入本地設定"},
     "title": "Agent 入口管理",
     "add": "新增入口",
     "hint": "遷移期间保留新舊 HTTPS 入口。修改預設入口不會自動遷移正在运行的節點。",
@@ -4737,7 +4742,7 @@
     "preview": "预览影响",
     "start": "儲存並遷移",
     "migrate": "遷移 Agent 入口",
-    "migrationHint": "節點驗證新入口属於同一個 Captain 後才發送凭據。所有節點確認前保留舊入口；保持原配對和代理內核。 自動遷移目標須由 Captain 直接提供 TLS；經 CDN 或終止 TLS 的反代目標需手動設定。",
+    "migrationHint": "驗證新入口後才傳送憑據；所有節點完成前保留舊入口。直連使用 TLS 會話證明，CDN／反代需要明確授權。",
     "queued": "等待節點",
     "issued": "驗證新入口",
     "verified": "儲存連線設定",
