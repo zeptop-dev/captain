@@ -1,7 +1,7 @@
 # Standalone inbound credentials
 
-Development feature, not released or deployed yet. Planned compatibility floors:
-Captain v1.68.0 and bosun v0.99.0; confirm the actual containing releases before tagging.
+First-containing releases: Captain v1.68.0 and bosun v0.99.0. Both binaries enforce
+these rollback floors to preserve independent credentials.
 
 Create/edit an inbound and choose **Standalone use** after selecting SOCKS5 or
 Shadowsocks 2022. SOCKS uses one explicit username/password. SS2022 uses one
@@ -41,3 +41,10 @@ The existing default destination guard is not relaxed. All state fields are addi
 settings are stored in the existing inbound JSON, with no schema migration. Configuration
 structure records only the independent-mode boolean; credentials remain outside the
 structural digest, while complete state revisions still change on credential rotation.
+
+The **Inbounds** workspace sits beside Subscription nodes, Lines and External nodes.
+It lists all servers by default and filters by server, protocol and usage. Each row
+shows its owner and linked subscription count. Editing uses that immutable owner;
+creating asks for a server first. Server detail shortcuts open the same workspace
+scoped to that server, and legacy section=inbounds bookmarks remain usable. A dirty
+new-listener draft requires confirmation before switching its selected server.

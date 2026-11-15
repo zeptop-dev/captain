@@ -7,13 +7,12 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.63.0 to preserve ingress address sources, subscription bindings and strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
 
-## Standalone inbounds (development)
+## Standalone inbounds (Captain v1.68.0 / bosun v0.99.0)
 
 Optional inbound `standalone` credentials support SOCKS5 and single-key SS2022,
 with no plan or subscription publication. Recent adapter support and a request-side
 capability fence protect old/downgraded agents. Empty/omitted settings retain legacy
-behavior. No schema migration is needed. The planned containing-release floors are
-Captain v1.68.0 / bosun v0.99.0; neither release has been made for this work yet.
+behavior. No schema migration is needed. The containing-release rollback floors are Captain v1.68.0 / bosun v0.99.0.
 See [standalone credentials](STANDALONE_INBOUNDS.md) for transitions and boundaries.
 
 ## Agent endpoint coexistence and migration (Captain v1.67.0 / bosun v0.98.1)
@@ -1332,7 +1331,7 @@ needed. No installed-agent protocol or proxy-core changes are required by this
 feature.
 
 
-## Explicit forwarding endpoint selection (next Captain release)
+## Explicit forwarding endpoint selection (Captain v1.68.0)
 
 Forward/line address modes add `line` (the selected ingress external IP and
 local port) and `public` (the ingress public endpoint and mapped port). Empty
@@ -1348,7 +1347,7 @@ rollback floor also protects standalone authentication and migration choices. Ol
 compilers can ignore explicit public selection during recompilation. The address
 feature itself adds no agent protocol requirement.
 
-## Explicit trusted CDN/proxy migration (development, Captain1.68 / bosun0.99)
+## Explicit trusted CDN/proxy migration (Captain v1.68.0 / bosun v0.99.0)
 
 Migration123 defaults every existing attempt to `direct` and old observations to
 proxy-incapable. `verification_mode: trusted-proxy` additionally requires an
@@ -1376,7 +1375,7 @@ After target persistence, lost completion responses retain the selected URL and
 retry normally. Rejection by an uncommitted target cannot revoke the healthy old
 connection; actual active-origin authorization failures retain normal revocation.
 
-The pending release floors are Captain1.68.0 / bosun0.99.0; older panels do not
+The release floors are Captain1.68.0 / bosun0.99.0; older panels do not
 retain the per-attempt trust mode and older agents do not implement this handshake.
 Integration must pin the exact shared bosun revision; no development replace is
-committed. These are planned first-containing versions, not a release by this task.
+committed. These are the first-containing versions for this feature.

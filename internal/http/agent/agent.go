@@ -240,7 +240,7 @@ func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 			deliveryID = response.ConfigDelivery.ID
 		}
 		metadataChanged := session != "" && r.Header.Get(agentproto.ConfigDeliveryHeader) != deliveryID
-		if response.ConnectionMigration != nil && r.Header.Get(agentproto.ConnectionCursorHeader+", "+agentproto.ConnectionProxyVersionHeader) != response.ConnectionMigration.ID {
+		if response.ConnectionMigration != nil && r.Header.Get(agentproto.ConnectionCursorHeader) != response.ConnectionMigration.ID {
 			metadataChanged = true
 		}
 		if control != nil && r.Header.Get(agentproto.DiagnosticsCursorHeader) != control.Epoch+":"+strconv.FormatUint(control.Generation, 10) {

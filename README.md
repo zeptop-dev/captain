@@ -416,3 +416,12 @@ Captain v1.64.0 uses plan names directly for independent permission groups, sync
 Captain v1.63.0 moves node authorization into plans, with individual selection, category snapshots and explicit category following. Migration 119 preserves existing-plan grants and records conversion of historical global access; node editors show authorization read-only and console-created listeners start unassigned. Shared schemes remain optional. Formal bosun v0.95.0 adds non-fatal core preparation diagnostics and native upgrade preflight; update Captain before adopting it. [Permission and compatibility boundaries](docs/PLAN_ACCESS.md).
 
 Captain v1.62.0 makes [plan permissions](docs/PLAN_ACCESS.md) independent by default with explicit reusable schemes, retains legacy account grants, and includes the reviewed Surge VLESS and Go 1.26.11 security updates. Migration 118 and rollback floor v1.62.0 protect ownership; the formal bosun v0.94.0 library is used without new agent fields for plan access.
+
+### Inbound workspace and independent credentials
+
+Use **Subscription nodes / Inbounds / Lines / External nodes** to manage publishing
+and actual listeners separately. The global inbound directory supports server,
+protocol and usage filters, linked subscription counts and owner-bound editing.
+Independent SOCKS5 and single-key SS2022 listeners use their own credentials and
+cannot be assigned to plans or subscriptions. See
+[standalone inbound operation](docs/STANDALONE_INBOUNDS.md).
