@@ -18,7 +18,15 @@ func (h *handlers) connectionProof(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "proof must be anonymous")
 		return
 	}
+	mode, err := h.Store.AgentConnectionVerification(r.Context(), r.URL.Query().Get("id"))
+	if err != nil {
+		fail(w, 404, "proof unavailable")
+		return
+	}
 	binding, err := agentproto.ConnectionBinding(r.TLS, r.URL.Query().Get("challenge"))
+	if mode == agentproto.ConnectionVerificationProxy {
+		err = nil
+	}
 	if err != nil {
 		fail(w, 412, "automatic migration target requires direct Captain TLS")
 		return
@@ -42,7 +50,7 @@ func (h *handlers) connectionResult(w http.ResponseWriter, r *http.Request) {
 	}
 	n := nodeFrom(r)
 	hash := auth.SHA256Hex(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
-	if err := h.Store.CompleteAgentConnection(r.Context(), n.ID, hash, r.Host, in.ID, in.Status, r.Header.Get(agentproto.ConnectionURLHeader)); err != nil {
+	if err := h.Store.CompleteAgentConnection(r.Context(), n.ID, hash, r.Host, in.ID, in.Status, r.Header.Get(agentproto.ConnectionURLHeader), in.Error); err != nil {
 		fail(w, 409, "migration is no longer active")
 		return
 	}
@@ -56,5 +64,5 @@ func observeConnection(h *handlers, r *http.Request, nodeID int64, hash string) 
 	if u == "" {
 		return
 	}
-	_ = h.Store.ObserveAgentConnection(r.Context(), nodeID, hash, u, r.Header.Get(agentproto.ConnectionVersionHeader) == agentproto.ConnectionVersion)
+	_ = h.Store.ObserveAgentConnection(r.Context(), nodeID, hash, u, r.Header.Get(agentproto.ConnectionVersionHeader) == agentproto.ConnectionVersion, r.Header.Get(agentproto.ConnectionProxyVersionHeader) == agentproto.ConnectionProxyVersion)
 }

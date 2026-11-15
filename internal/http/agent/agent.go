@@ -156,7 +156,7 @@ func (h *handlers) pair(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set(agentproto.ConnectionVersionHeader, agentproto.ConnectionVersion)
-	w.Header().Set("Vary", agentproto.ConfigSessionHeader+", "+agentproto.ConfigDeliveryHeader+", "+agentproto.DiagnosticsVersionHeader+", "+agentproto.DiagnosticsNonceHeader+", "+agentproto.DiagnosticsChallengeHeader+", "+agentproto.DiagnosticsCursorHeader+", "+agentproto.ConnectionVersionHeader+", "+agentproto.ConnectionCursorHeader+", "+agentproto.StandaloneAuthHeader)
+	w.Header().Set("Vary", agentproto.ConfigSessionHeader+", "+agentproto.ConfigDeliveryHeader+", "+agentproto.DiagnosticsVersionHeader+", "+agentproto.DiagnosticsNonceHeader+", "+agentproto.DiagnosticsChallengeHeader+", "+agentproto.DiagnosticsCursorHeader+", "+agentproto.ConnectionVersionHeader+", "+agentproto.ConnectionCursorHeader+", "+agentproto.StandaloneAuthHeader+", "+agentproto.ConnectionProxyVersionHeader)
 	n := nodeFrom(r)
 	session := r.Header.Get(agentproto.ConfigSessionHeader)
 	if session != "" && !validConfigSession(session) {
@@ -218,7 +218,7 @@ func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 		response := *st
 		response.Diagnostics = control
 		if r.Header.Get(agentproto.ConnectionVersionHeader) == agentproto.ConnectionVersion {
-			response.ConnectionMigration, err = h.Store.AgentConnectionControl(r.Context(), n.ID, tokenHash)
+			response.ConnectionMigration, err = h.Store.AgentConnectionControl(r.Context(), n.ID, tokenHash, r.Header.Get(agentproto.ConnectionProxyVersionHeader) == agentproto.ConnectionProxyVersion)
 			if err != nil {
 				fail(w, 500, "internal error")
 				return
@@ -240,7 +240,7 @@ func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 			deliveryID = response.ConfigDelivery.ID
 		}
 		metadataChanged := session != "" && r.Header.Get(agentproto.ConfigDeliveryHeader) != deliveryID
-		if response.ConnectionMigration != nil && r.Header.Get(agentproto.ConnectionCursorHeader) != response.ConnectionMigration.ID {
+		if response.ConnectionMigration != nil && r.Header.Get(agentproto.ConnectionCursorHeader+", "+agentproto.ConnectionProxyVersionHeader) != response.ConnectionMigration.ID {
 			metadataChanged = true
 		}
 		if control != nil && r.Header.Get(agentproto.DiagnosticsCursorHeader) != control.Epoch+":"+strconv.FormatUint(control.Generation, 10) {

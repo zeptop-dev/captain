@@ -4727,6 +4727,11 @@
     "packetLoss": "パケット損失"
   },
   "agentEntries": {
+    "verification": "移行の検証方式",
+    "verificationModes": {"direct": "Captain へ直接接続（既定）", "trusted-proxy": "信頼する CDN／リバースプロキシ"},
+    "proxyTrustHint": "この宛先の CDN／プロキシを信頼します。認証情報と要求を読み取れます。HTTPS 証明書と同一パネルの検証は維持し、自動で方式を緩和しません。",
+    "trustProxy": "この宛先の CDN／プロキシを信頼します",
+    "migrationErrors": {"invalid_target": "宛先または検証方式が無効", "proof_request": "新入口へ接続不可：DNS、証明書、ネットワーク、CDN を確認", "proof_verification": "パネルの証明が無効：方式、キャッシュ、CDN を確認", "target_verification": "新入口の確認に失敗", "persistence": "新接続をローカルに保存できません"},
     "title": "Agent 接続先管理",
     "add": "接続先を追加",
     "hint": "移行中は新旧の HTTPS 接続先を併用します。既定の変更だけでは稼働中の Agent は移行しません。",
@@ -4746,7 +4751,7 @@
     "preview": "影響を確認",
     "start": "保存して移行",
     "migrate": "Agent 接続先を移行",
-    "migrationHint": "ノードは同じ Captain であることを検証してから認証情報を送信します。全ノードの確認まで旧接続先を残してください。ペアリングとプロキシコアは維持されます。自動移行先の TLS は Captain で直接終端する必要があり、CDN 経由の移行先は手動設定が必要です。",
+    "migrationHint": "新入口を検証してから認証情報を送信します。全ノード完了まで旧入口を維持します。CDN モードには明示的な信頼が必要です。",
     "queued": "ノード待機中",
     "issued": "接続先を検証中",
     "verified": "設定を保存中",
