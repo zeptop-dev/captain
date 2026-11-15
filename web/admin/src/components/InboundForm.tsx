@@ -208,6 +208,12 @@ export function InboundForm({ initial, groups: _groups, onSubmit, busy, onCancel
         <Select label={t('inbounds.ingress')} description={form.values.NewIngress ? t('inbounds.ingressNewHint') : selectedIngress ? (t('inbounds.ingressHint', { host: selectedIngress.entry_host || t('ingress.noEntry'), ports: ingressPortLabel(selectedIngress) || t('ingress.anyPort') }) + (selectedIngress.bind_ip ? ' ' + t('inbounds.ingressBindHint', { ip: selectedIngress.bind_ip }) : '')) : t('inbounds.ingressDirectHint')} allowDeselect={false}
           data={[{ value: '', label: t('inbounds.ingressDirect'), disabled: ingresses.some(g => g.require_ingress) }, ...ingresses.map((g) => ({ value: String(g.id), label: `${g.name} → ${g.entry_domain || g.entry_host || t('ingress.noEntry')}` })), { value: 'new', label: t('inbounds.ingressNew'), disabled: !!fixedCore }]}
           value={form.values.NewIngress ? 'new' : form.values.IngressID} onChange={onIngress} />
+        {selectedIngress && <Stack gap={2}>
+          <Text size="xs">{t('ingress.bindIP')}: {selectedIngress.bind_ip || t('forwardAddress.anyBind')}</Text>
+          <Text size="xs">{t('ingress.lineIP')}: {selectedIngress.line_ip || '—'}</Text>
+          <Text size="xs">{t('ingress.entryHost')}: {selectedIngress.entry_domain || selectedIngress.entry_host || '—'}</Text>
+          <Text size="xs" c="dimmed">{t('forwardAddress.inboundHint')}</Text>
+        </Stack>}
         {lineOnly && !form.values.IngressID && !form.values.NewIngress && <Text size="xs" c="orange">{t('inbounds.lineOnlyHint')}</Text>}
         {form.values.NewIngress && <Stack gap="xs" p="sm" style={{ border: '1px dashed var(--mantine-color-default-border)', borderRadius: 8 }}><Text size="xs" c="dimmed">{t('inbounds.ingressNewFields')}</Text><IngressFields form={ingressForm} node={node} onBlockedChange={setIngressBlocked} /></Stack>}
         <Group grow align="flex-start">

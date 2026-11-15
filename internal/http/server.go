@@ -676,8 +676,8 @@ func limitBodies(next http.Handler) http.Handler {
 
 func (s *Server) DNSHealth() *service.DNSHealth { return s.dnsHealth }
 
-// Older panels do not preserve standalone credential isolation or its
-// subscription/access exclusion. Keep the listener mode on rollback.
+// Older panels ignore standalone credential isolation and explicit upstream
+// address choices. Preserve those, subscriptions and prior migration safeguards.
 func captainUpdateFloor(configured string) string {
 	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.68.0", configured) {
 		return "v1.68.0"

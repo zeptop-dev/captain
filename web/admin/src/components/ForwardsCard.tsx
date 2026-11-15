@@ -85,12 +85,12 @@ export function ForwardsCard({ node, ingresses = [], embedded, readOnly = false 
   const roundRobin = draft.balance === 'roundrobin' || editing?.backend === 'realm'
   const openTargets = (i: number) => {
     const f = list[i]
-    if (f.line_id || f.target_address_mode === 'internal') return
+    if (f.line_id || ['internal', 'line', 'public'].includes(f.target_address_mode || '')) return
     setDraft({ targets: (f.targets ?? []).map((x) => ({ target: x.target, weight: x.weight || 1 })), balance: f.balance || (f.backend === 'realm' ? 'roundrobin' : 'failover'), weight: f.weight || 1 })
     setEditIdx(i)
   }
   const applyTargets = () => {
-    if (editIdx === null || list[editIdx]?.line_id || list[editIdx]?.target_address_mode === 'internal') return
+    if (editIdx === null || list[editIdx]?.line_id || ['internal', 'line', 'public'].includes(list[editIdx]?.target_address_mode || '')) return
     const hops = draft.targets.filter((x) => x.target.trim() !== '').map((x) => ({ target: x.target.trim(), ...(roundRobin && x.weight !== 1 ? { weight: x.weight } : {}) }))
     setDirty(true)
     setList((cur) => cur.map((f, j) => {
@@ -130,7 +130,7 @@ export function ForwardsCard({ node, ingresses = [], embedded, readOnly = false 
               <Group gap="xs" style={{ minWidth: 0 }}>
                 <Select aria-label={t('inbounds.ingress')} w={180} value={f.ingress_id || ''} disabled={!!f.line_id} allowDeselect={false} data={[{ value: '', label: t('inbounds.ingressDirect'), disabled: ingresses.some(g => g.require_ingress) }, ...ingresses.map(g => ({ value: String(g.id), label: g.name }))]} onChange={v => { if (f.line_id) return; setDirty(true); setList(cur => cur.map((x, j) => j === i ? { ...x, ingress_id: v || undefined, listen: '' } : x)) }} />
                 <Code>{f.protocol === 'both' ? 'tcp+udp' : f.protocol} :{f.port}</Code><Text size="sm">→</Text><Code>{f.target}</Code>{(f.targets ?? []).length > 0 && <Tooltip label={(f.targets ?? []).map((x) => x.target).join(', ')}><Badge size="xs" variant="light">+{f.targets!.length} · {f.balance === 'roundrobin' ? t('forwards.roundRobinShort') : t('forwards.failoverShort')}</Badge></Tooltip>}{f.proxy_protocol && <Badge size="xs" variant="outline" color="teal">PROXY</Badge>}{f.backend === 'realm' && <Badge size="xs" variant="outline" color="indigo">realm</Badge>}{f.backend === 'nft' && <Badge size="xs" variant="outline" color="grape">nft{f.preserve_source ? ' · src' : ''}</Badge>}
-                {!f.line_id && f.inbound_id && <Box style={{ flex: '1 1 280px', maxWidth: 420 }}><ForwardAddressModeSelect node={pick?.node} disabled={option?.isPending} value={f.target_address_mode} internalDisabled={!!f.targets?.length || !!option?.isError || !!option?.data?.error} internalDisabledHint={f.targets?.length ? undefined : option?.data?.error || t('lines.protocolError')} onChange={target_address_mode => { if (!pick) return; setList(cur => cur.map((x, j) => j === i ? { ...x, target_address_mode, protocol: target_address_mode === 'internal' ? option?.data?.protocol || x.protocol : x.protocol, target: forwardTargetAddress(pick, target_address_mode) } : x)) }} /></Box>}
+                {!f.line_id && f.inbound_id && <Box style={{ flex: '1 1 280px', maxWidth: 420 }}><ForwardAddressModeSelect node={pick?.node} ingress={pick?.ingress} disabled={option?.isPending} value={f.target_address_mode} internalDisabled={!!f.targets?.length || !!option?.isError || !!option?.data?.error} internalDisabledHint={f.targets?.length ? undefined : option?.data?.error || t('lines.protocolError')} onChange={target_address_mode => { if (!pick) return; setList(cur => cur.map((x, j) => j === i ? { ...x, target_address_mode, protocol: target_address_mode === 'internal' ? option?.data?.protocol || x.protocol : x.protocol, target: forwardTargetAddress(pick, target_address_mode) } : x)) }} /></Box>}
                 {!f.line_id && f.target_address_mode === 'internal' && (option?.isError || option?.data?.error) && <Text size="xs" c="red">{option?.data?.error || t('lines.protocolError')}</Text>}
                 {!f.line_id && f.target_address_mode === 'internal' && <ForwardConnectivityCheck sourceNodeID={node.id} sourceNodeName={node.name} target={f.target} protocol={f.protocol} />}
                 {!f.line_id && f.target_address_mode === 'internal' && (f.backend === 'realm' || f.backend === 'nft') && <Alert color="yellow" style={{ flexBasis: '100%' }}>{t(`forwardAddress.${f.backend}Hint`)}</Alert>}
@@ -138,7 +138,7 @@ export function ForwardsCard({ node, ingresses = [], embedded, readOnly = false 
                 {s?.targets ? s.targets.map(h => <Box key={h.target} title={h.target}><ForwardHealth status={h} protocol={f.protocol} /></Box>) : s && <ForwardHealth status={s} protocol={f.protocol} />}
               </Group>
               {f.line_id ? owner(f) : <Group gap={4} wrap="nowrap">
-                {f.backend !== 'nft' && f.target_address_mode !== 'internal' && <Tooltip label={t('forwards.editTargets')}><ActionIcon variant="subtle" color="gray" onClick={() => openTargets(i)}><IconArrowsSplit size={16} /></ActionIcon></Tooltip>}
+                {f.backend !== 'nft' && !['internal', 'line', 'public'].includes(f.target_address_mode || '') && <Tooltip label={t('forwards.editTargets')}><ActionIcon variant="subtle" color="gray" onClick={() => openTargets(i)}><IconArrowsSplit size={16} /></ActionIcon></Tooltip>}
                 {f.inbound_id && !dirty && publicAddress(f).host && publicAddress(f).port > 0 && <Tooltip label={t('forwards.makeEntry')}><ActionIcon variant="subtle" onClick={() => mkEntry.mutate(f)}><IconLink size={16} /></ActionIcon></Tooltip>}
                 <ActionIcon variant="subtle" color="red" onClick={() => { setDirty(true); setList(cur => cur.filter((_, j) => j !== i)) }}><IconTrash size={16} /></ActionIcon>
               </Group>}
@@ -150,7 +150,7 @@ export function ForwardsCard({ node, ingresses = [], embedded, readOnly = false 
           <NumberInput label={t('forwards.port')} min={1} max={65535} value={port} onChange={setPort} />
           <Select label={t('forwards.protocol')} data={[{ value: 'both', label: 'tcp+udp' }, { value: 'tcp', label: 'tcp' }, { value: 'udp', label: 'udp' }]} disabled={!!target && targetMode === 'internal'} value={effectiveProtocol} onChange={(v) => setProto(v ?? 'both')} allowDeselect={false} />
           <Select label={t('forwards.target')} style={{ flex: 2 }} searchable clearable placeholder={t('forwards.pickInbound')} data={targets.map((x) => ({ value: String(x.ib.ID), label: `${x.node.name} / ${x.ib.Tag} (${x.ib.Protocol}:${x.ib.Port})${x.ingress ? ` · ${x.ingress.name} ${x.ingress.line_ip || ''}` : ''}` }))} value={target} onChange={v => { setTarget(v); const pick = targets.find(x => String(x.ib.ID) === v); if (pick) { const protocol = forwardTargetProtocol(pick.ib.Protocol); setProto(protocol); if (protocol === 'udp') setProxyProto(false) } }} />
-          {target && <ForwardAddressModeSelect node={pickedTarget?.node} disabled={pickedOptions?.isPending} internalDisabled={!!pickedOptions?.isError || !!pickedOptions?.data?.error} internalDisabledHint={pickedOptions?.data?.error || t('lines.protocolError')} value={targetMode} onChange={setTargetMode} />}
+          {target && <ForwardAddressModeSelect node={pickedTarget?.node} ingress={pickedTarget?.ingress} disabled={pickedOptions?.isPending} internalDisabled={!!pickedOptions?.isError || !!pickedOptions?.data?.error} internalDisabledHint={pickedOptions?.data?.error || t('lines.protocolError')} value={targetMode} onChange={setTargetMode} />}
           {!target && <TextInput label={t('forwards.manual')} placeholder="198.51.100.20:443" style={{ flex: 2 }} value={manual} onChange={(e) => setManual(e.currentTarget.value)} />}
           <Select label={t('forwards.backend')} data={[{ value: '', label: t('forwards.backendRelay') }, { value: 'nft', label: t('forwards.backendNft') }, { value: 'realm', label: t('forwards.backendRealm') }]} value={backend} onChange={(v) => setBackend(v ?? '')} allowDeselect={false} />
           {backend === 'realm' && <Text size="xs" c="dimmed" maw={320} mb={6}>{t('forwards.backendRealmHint')}</Text>}

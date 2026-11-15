@@ -252,7 +252,7 @@ func normalizeLine(l *ForwardLine) error {
 			if err := validateAddressMode(m.AddressMode); err != nil {
 				return err
 			}
-			if i == 0 && m.AddressMode == AddressModeInternal {
+			if i == 0 && explicitAddressMode(m.AddressMode) {
 				return errors.New("first-group members publish client endpoints; internal address mode applies to subsequent groups")
 			}
 			if m.ID == "" {

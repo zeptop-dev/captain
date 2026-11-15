@@ -1330,3 +1330,20 @@ renderers ignore the new mode and can generate independent or direct DNS paths.
 Captain pins formal bosun v0.97.0 for this renderer; task-local go.work is not
 needed. No installed-agent protocol or proxy-core changes are required by this
 feature.
+
+
+## Explicit forwarding endpoint selection (next Captain release)
+
+Forward/line address modes add `line` (the selected ingress external IP and
+local port) and `public` (the ingress public endpoint and mapped port). Empty
+and `default` retain their previous automatic behavior; `internal` retains its
+server-internal address meaning. Existing API paths and payload fields stay
+unchanged, and no migration or installed-agent update is required. Explicit
+choices reject missing addresses instead of falling back. First published line
+members remain automatic/public; these choices control connections from a
+preceding server, not subscription publication or local bind addresses.
+
+The explicit-address feature is first integrated with Captain v1.68.0, whose
+rollback floor also protects standalone authentication and migration choices. Older
+compilers can ignore explicit public selection during recompilation. The address
+feature itself adds no agent protocol requirement.

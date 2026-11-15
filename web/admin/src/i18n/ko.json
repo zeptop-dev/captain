@@ -3134,6 +3134,14 @@
     "udpHint": "UDP 연결은 실제 클라이언트로 테스트해야 합니다. TCP 검사로 이 리스너를 확인할 수 없습니다."
   },
   "forwardAddress": {
+    "lineValue": "전용선 외부 주소: {{address}}",
+    "lineMissing": "전용선 외부 주소 (선택한 진입점에 미설정)",
+    "publicValue": "공개 진입점: {{address}}",
+    "lineHint": "선택한 전용선 외부 IP와 로컬 수신 포트를 사용하며 공개 주소로 대체하지 않습니다.",
+    "publicHint": "공개 진입점과 매핑된 포트를 사용합니다.",
+    "defaultHint": "기존 동작: 전용선 외부 주소를 우선 사용하고 없으면 공개 진입점을 사용합니다.",
+    "inboundHint": "로컬에서 수신하며 앞단은 전용선 외부 주소, 구독은 공개 진입점을 사용합니다.",
+    "anyBind": "모든 로컬 주소",
     "mode": "대상 연결 주소",
     "default": "기본 주소 (공인 / 전용 회선)",
     "internalValue": "서버 내부 주소: {{address}}",

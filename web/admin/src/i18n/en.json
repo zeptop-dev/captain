@@ -3134,6 +3134,14 @@
     "udpHint": "UDP connectivity must be tested with a real client; a TCP check cannot verify this listener."
   },
   "forwardAddress": {
+    "lineValue": "External line address: {{address}}",
+    "lineMissing": "External line address (not configured for this ingress)",
+    "publicValue": "Public endpoint: {{address}}",
+    "lineHint": "Use the selected line’s external IP and local listener port, without public fallback.",
+    "publicHint": "Use the public endpoint and mapped port, without the external line address.",
+    "defaultHint": "Keep existing behavior: prefer the external line address, otherwise use the public endpoint.",
+    "inboundHint": "Bind locally; upstream relays use the external line address and subscriptions use the public endpoint.",
+    "anyBind": "All local addresses",
     "mode": "Connection address",
     "default": "Default address (public / dedicated link)",
     "internalValue": "Server internal address: {{address}}",

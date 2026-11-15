@@ -14,7 +14,38 @@ import (
 	"github.com/zeptop-dev/captain/internal/domain"
 )
 
-const AddressModeInternal = "internal"
+const (
+	AddressModeInternal = "internal"
+	AddressModePublic   = "public"
+	AddressModeLine     = "line"
+)
+
+func explicitAddressMode(mode string) bool {
+	return mode == AddressModeInternal || mode == AddressModePublic || mode == AddressModeLine
+}
+
+// Explicit paths fail closed when inventory is incomplete; client publication
+// still uses lineAddress(..., false), independently of upstream routing.
+func connectionAddress(n *domain.Node, g *Ingress, port int, mode string) (string, int, error) {
+	if err := validateAddressMode(mode); err != nil {
+		return "", 0, err
+	}
+	if mode == AddressModeLine {
+		if g == nil || strings.TrimSpace(g.LineIP) == "" {
+			return "", 0, fmt.Errorf("%w: selected ingress has no external connection IP", ErrInternalAddress)
+		}
+		return g.LineIP, port, nil
+	}
+	if mode == AddressModePublic {
+		host, mapped := lineAddress(n, g, port, false)
+		if host == "" || mapped < 1 {
+			return "", 0, fmt.Errorf("%w: public endpoint is unavailable", ErrInternalAddress)
+		}
+		return host, mapped, nil
+	}
+	host, mapped := lineAddress(n, g, port, true)
+	return host, mapped, nil
+}
 
 var ErrInternalAddress = errors.New("internal forwarding address")
 
@@ -25,10 +56,10 @@ type addressQuery interface {
 
 func validateAddressMode(mode string) error {
 	switch mode {
-	case "", "default", AddressModeInternal:
+	case "", "default", AddressModeInternal, AddressModePublic, AddressModeLine:
 		return nil
 	}
-	return fmt.Errorf("%w: address mode must be default or internal", ErrInternalAddress)
+	return fmt.Errorf("%w: address mode must be default, internal, public or line", ErrInternalAddress)
 }
 
 func internalAddress(raw string) (string, error) {
@@ -149,7 +180,7 @@ func preserveForwardAddressModes(list, old []NodeForward) error {
 		matches := 0
 		ambiguous := false
 		for _, prior := range old {
-			if prior.TargetAddressMode != AddressModeInternal || present[prior.Tag] || prior.InboundID != f.InboundID || f.InboundID <= 0 {
+			if !explicitAddressMode(prior.TargetAddressMode) || present[prior.Tag] || prior.InboundID != f.InboundID || f.InboundID <= 0 {
 				continue
 			}
 			if prior.Port == f.Port && prior.Listen == f.Listen && prior.IngressID == f.IngressID {
@@ -159,9 +190,13 @@ func preserveForwardAddressModes(list, old []NodeForward) error {
 			}
 		}
 		if matches == 1 {
-			f.TargetAddressMode = AddressModeInternal
+			for _, prior := range old {
+				if explicitAddressMode(prior.TargetAddressMode) && !present[prior.Tag] && prior.InboundID == f.InboundID && prior.Port == f.Port && prior.Listen == f.Listen && prior.IngressID == f.IngressID {
+					f.TargetAddressMode = prior.TargetAddressMode
+				}
+			}
 		} else if matches > 1 || ambiguous {
-			return fmt.Errorf("%w: a renamed or replaced internal forward needs an explicit target_address_mode", ErrInternalAddress)
+			return fmt.Errorf("%w: a renamed or replaced explicit-address forward needs an explicit target_address_mode", ErrInternalAddress)
 		}
 	}
 	return nil
@@ -204,7 +239,7 @@ func resolveInternalForwardTargetsTx(ctx context.Context, tx *sql.Tx, source int
 		if err := validateAddressMode(f.TargetAddressMode); err != nil {
 			return err
 		}
-		if f.TargetAddressMode != AddressModeInternal {
+		if !explicitAddressMode(f.TargetAddressMode) {
 			continue
 		}
 		if f.LineID != 0 {
@@ -214,11 +249,14 @@ func resolveInternalForwardTargetsTx(ctx context.Context, tx *sql.Tx, source int
 			return fmt.Errorf("%w: choose a managed target inbound", ErrInternalAddress)
 		}
 		if len(f.Targets) > 0 {
-			return fmt.Errorf("%w: standalone internal forwarding cannot have additional targets; use a managed candidate group to select each member's connection address", ErrInternalAddress)
+			return fmt.Errorf("%w: standalone explicit-address forwarding cannot have additional targets; use a managed candidate group to select each member's connection address", ErrInternalAddress)
 		}
 		ib, err := scanInbound(tx.QueryRowContext(ctx, "SELECT "+inboundCols+" FROM inbounds WHERE id=?", f.InboundID))
 		if err != nil {
 			return err
+		}
+		if !ib.Enabled || (ib.Settings.Reverse != nil && ib.Settings.Reverse.Receiver) {
+			return fmt.Errorf("%w: choose an enabled user inbound", ErrInternalAddress)
 		}
 		var removingExit int
 		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM node_jobs WHERE kind='node_remove' AND (done_at IS NULL OR error='') AND node_id IN (
@@ -246,11 +284,15 @@ func resolveInternalForwardTargetsTx(ctx context.Context, tx *sql.Tx, source int
 		if protocol == "" {
 			protocol = "both"
 		}
-		host, err := internalInboundHost(target.node, ib, ingress, protocol)
+		host, port, err := connectionAddress(target.node, ingress, ib.Port, f.TargetAddressMode)
+		if f.TargetAddressMode == AddressModeInternal {
+			host, err = internalInboundHost(target.node, ib, ingress, protocol)
+			port = ib.Port
+		}
 		if err != nil {
 			return err
 		}
-		f.Target, err = lineHostPort(host, ib.Port)
+		f.Target, err = lineHostPort(host, port)
 		if err != nil {
 			return err
 		}
@@ -346,14 +388,14 @@ func (s *Store) InternalAddressUses(ctx context.Context, node int64) ([]Internal
 			uses = append(uses, InternalAddressUse{Kind: "line", ID: l.ID, Name: l.Name})
 		}
 	}
-	forwards, err := internalForwardReferences(ctx, tx, node, 0, false)
+	forwards, err := internalForwardReferences(ctx, tx, node, 0, false, true)
 	if err != nil {
 		return nil, err
 	}
 	uses = append(uses, forwards...)
 	return uses, tx.Commit()
 }
-func internalForwardReferences(ctx context.Context, q addressQuery, node, inbound int64, includeReverse bool) ([]InternalAddressUse, error) {
+func internalForwardReferences(ctx context.Context, q addressQuery, node, inbound int64, includeReverse, onlyInternal bool) ([]InternalAddressUse, error) {
 	rows, err := q.QueryContext(ctx, "SELECT id,name,forwards_json FROM nodes ORDER BY id")
 	if err != nil {
 		return nil, err
@@ -385,7 +427,7 @@ func internalForwardReferences(ctx context.Context, q addressQuery, node, inboun
 	out := []InternalAddressUse{}
 	for _, s := range sources {
 		for _, f := range s.forwards {
-			if f.LineID != 0 || f.TargetAddressMode != AddressModeInternal {
+			if f.LineID != 0 || !explicitAddressMode(f.TargetAddressMode) || (onlyInternal && f.TargetAddressMode != AddressModeInternal) {
 				continue
 			}
 			matches := inbound != 0 && f.InboundID == inbound
@@ -411,7 +453,7 @@ func internalForwardReferences(ctx context.Context, q addressQuery, node, inboun
 	return out, nil
 }
 func hasInternalForwardReference(ctx context.Context, q addressQuery, node, inbound int64) (bool, error) {
-	refs, err := internalForwardReferences(ctx, q, node, inbound, true)
+	refs, err := internalForwardReferences(ctx, q, node, inbound, true, false)
 	return len(refs) > 0, err
 }
 
@@ -443,7 +485,7 @@ func refreshInternalForwardsForNodeTx(ctx context.Context, tx *sql.Tx, node int6
 	for source, list := range all {
 		affected := false
 		for _, f := range list {
-			if f.TargetAddressMode != AddressModeInternal || f.LineID != 0 {
+			if !explicitAddressMode(f.TargetAddressMode) || f.LineID != 0 {
 				continue
 			}
 			var target int64
