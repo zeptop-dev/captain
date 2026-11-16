@@ -29,7 +29,7 @@ await context.route('**/*', async route => {
  if (path.match(/^\/api\/admin\/settings\/agent-endpoints\/[^/]+$/) && r.method() === 'DELETE') return send({ error: 'Still referenced; migrate nodes first' }, 400)
  if (path === '/api/admin/nodes/agent-https') return send({ enabled: true, url: original.url, ready: true, entries: state.entries.map(e => ({ ...e, ready: true })) })
  if (path === '/api/admin/agent-connections/preview') { const input = r.postDataJSON(); state.previews.push(input); return send({ revision: `preview-${state.previews.length}`, target_url: 'https://agent.example.com:2096', nodes: input.node_ids.map(id => ({ node_id: id, name: `node-${id}`, url: original.url, target_url: 'https://agent.example.com:2096', capable: true, paired: true })) }) }
- if (path === '/api/admin/agent-connections/migrate') { const input = r.postDataJSON(); state.migrations.push(input); assert.equal(input.revision, 'detected-preview'); state.tasks = input.node_ids.map(id => ({ id: `migration-${id}`, batch_id: 'batch', node_id: id, name: `node-${id}`, source_url: original.url, target_url: 'https://agent.example.com:2096', status: 'queued' })); return send({ batch_id: 'batch' }) }
+ if (path === '/api/admin/agent-connections/migrate') { if(state.conflict)return send({error:'connection settings changed; reload and retry'},409); const input = r.postDataJSON(); state.migrations.push(input); assert.equal(input.revision, 'detected-preview'); state.tasks = input.node_ids.map(id => ({ id: `migration-${id}`, batch_id: 'batch', node_id: id, name: `node-${id}`, source_url: original.url, target_url: 'https://agent.example.com:2096', status: 'queued' })); return send({ batch_id: 'batch' }) }
  if (path === '/api/admin/agent-connections') return send({ migrations: state.tasks })
  if (path.startsWith('/api/admin/agent-connections/entries/')) return send({ nodes: nodes.map(n => ({ node_id: n.id, name: n.name, url: original.url, target_url: original.url, capable: true, paired: true })), truncated: false })
  if (r.method() !== 'GET') { state.unexpected.push(`${r.method()} ${path}`); return send({}, 500) }
@@ -39,7 +39,7 @@ await context.route('**/*', async route => {
  case '/api/admin/system/update': return send({ captain: { current: 'v1.67.0' } })
  case '/api/admin/dashboard': return send({})
  case '/api/admin/certificates': return send({ certificates: [{ id: 1, name: 'Fixture certificate', names: ['*.example.com'], not_after: '2030-01-01T00:00:00Z' }] })
- case '/api/admin/nodes': return send(nodes)
+ case '/api/admin/nodes': return send([...nodes].reverse())
  case '/api/admin/nodes/layout': return send({ revision: 'layout', groups: [], nodes: [] })
  case '/api/admin/nodes/domain-check': return send({ domain: '', valid: true, unchanged: true, conflicts: [] })
  case '/api/admin/settings/acme': return send({ email: '', has_cloudflare_token: true })
@@ -70,8 +70,15 @@ try{
  assert.equal(await d.getByRole('button',{name:en.agentEntries.confirmMigrate,exact:true}).isDisabled(),true,'changed target retained old detection')
  await d.getByRole('button',{name:en.agentEntries.detectPreview,exact:true}).click();await trust.waitFor()
  if(process.env.AGENT_HTTPS_SCREENSHOTS){await mkdir(process.env.AGENT_HTTPS_SCREENSHOTS,{recursive:true});await d.screenshot({path:process.env.AGENT_HTTPS_SCREENSHOTS+'/auto-dialog.png'});await page.setViewportSize({width:390,height:844});await page.waitForTimeout(350);await d.screenshot({path:process.env.AGENT_HTTPS_SCREENSHOTS+'/auto-dialog-mobile.png'});await page.setViewportSize({width:1440,height:1100});await page.waitForTimeout(350)}
+ state.conflict=true
+ await trust.click()
+ await page.getByText(en.agentEntries.previewChanged,{exact:true}).waitFor()
+ assert.equal(state.migrations.length,0,'conflict retried migration automatically')
+ assert.equal(await d.getByRole('button',{name:en.agentEntries.confirmMigrate,exact:true}).isDisabled(),true,'conflict retained stale confirmation')
+ state.conflict=false
+ await d.getByRole('button',{name:en.agentEntries.detectPreview,exact:true}).click();await trust.waitFor()
  await trust.click();await d.waitFor({state:'hidden'})
- assert.equal(state.migrations.length,1);assert.equal(state.migrations[0].verification_mode,'auto');assert.equal(state.migrations[0].detection_id,'probe-batch-0123456789012345');assert.equal(state.migrations[0].trust_proxy,true)
+ assert.equal(state.migrations.length,1);assert.deepEqual(state.migrations[0].node_ids,[2,1]);assert.equal(state.migrations[0].verification_mode,'auto');assert.equal(state.migrations[0].detection_id,'probe-batch-0123456789012345');assert.equal(state.migrations[0].trust_proxy,true)
  assert.deepEqual(state.errors,[]);assert.deepEqual(state.unexpected,[])
  console.log('PASS: anonymous detection preview, no auto migration/checkbox, final explicit trust, target change invalidation and desktop/mobile')
 }finally{await context.close();await browser.close()}

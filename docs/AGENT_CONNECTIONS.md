@@ -31,3 +31,18 @@ revalidate the frozen result and target in the write transaction. Source URL and
 node credentials are preserved until the distinct confirmed migration executes.
 Diagnostics allow up to five concurrent probes and expire in five minutes; offline
 nodes wait and unsupported agents show an upgrade/manual-mode instruction.
+
+## Viewing migration records
+
+The server directory does not keep migration history expanded. Open **Migration
+records** in Agent entry settings, the migration dialog, or a server's Agent
+settings (filtered to that server). The window loads and polls only while open;
+closing it keeps the daily server list clear. History remains stored for
+troubleshooting and reference protection; hiding it does not clear unresolved
+entry references. Completed rows show no error line. Failed rows retain their
+diagnostic reason and retry action, while queued rows retain cancellation.
+
+The migration preview binds the selected server set independently of checkbox or
+directory ordering. Changing that set, target or identity still invalidates it.
+If a genuine conflict is reported during confirmation, detect/preview again and
+review before confirming; the interface does not automatically retry a migration.

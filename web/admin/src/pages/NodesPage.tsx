@@ -1,5 +1,4 @@
 import { AgentMigrationDialog } from '../components/AgentMigrationDialog'
-import { AgentMigrationProgress } from '../components/AgentMigrationProgress'
 import { localizedName } from '../lib/localized-name'
 import { NodeLayoutEditor } from '../components/NodeLayoutEditor'
 import { HostTrafficSummary } from '../components/HostTrafficSummary'
@@ -132,7 +131,6 @@ export default function NodesPage() {
       </Card>
       <Text size="xs" c="dimmed" mt="xs">{t('nodes.hostTrafficHint')}</Text>
       <Text size="xs" c="dimmed" mt={4}>{t('nodes.proxyTrafficHint')}</Text>
-      {isAdmin && <AgentMigrationProgress />}
       <AgentMigrationDialog ids={selected} opened={migrateOpened} close={()=>setMigrateOpened(false)} />
       {organizing && layout.data && <NodeLayoutEditor initial={layout.data} nodes={q.data ?? []} onSaved={() => setNodeGroup(null)} close={() => setOrganizing(false)} />}
       <Modal keepMounted opened={opened} onClose={() => { close(); setCreated(null) }} title={created ? t('nodes.pairTitle') : t('nodes.create')} size="lg">

@@ -2,13 +2,15 @@ import { Accordion, Alert, Badge, Button, Group, Modal, Select, Stack, Table, Te
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { api } from '../lib/api'
+import { api, ApiError } from '../lib/api'
 import { connectionChoice, endpointChoices, type AgentConnection, type ConnectionChoice } from '../lib/agent-connections'
 import { evidenceFresh, useEvidenceClock } from '../lib/evidence-clock'
+import { AgentMigrationHistoryButton } from './AgentMigrationProgress'
 import { toast } from '../lib/notify'
 interface Preview { revision: string; target_url: string; nodes: AgentConnection[]; ready?: boolean; trust_proxy?: boolean; expires_at?: number }
 export function AgentMigrationDialog({ ids, opened, close }: { ids: number[]; opened: boolean; close: () => void }) {
  const { t } = useTranslation(), clock=useEvidenceClock(), qc=useQueryClient()
+ const [historyOpened,setHistoryOpened]=useState(false)
  const [choice,setChoice]=useState<ConnectionChoice>(connectionChoice)
  const [batch,setBatch]=useState<{id:string;signature:string}|null>(null)
  const [manual,setManual]=useState<{data:Preview;signature:string}|null>(null)
@@ -18,21 +20,22 @@ export function AgentMigrationDialog({ ids, opened, close }: { ids: number[]; op
  const entries=useQuery({queryKey:['agent-https-choice'],queryFn:({signal})=>endpointChoices(signal),enabled:opened,refetchInterval:opened?5000:false,retry:false})
  const detection=useQuery({queryKey:['agent-connection-detect',batch?.id],enabled:opened&&mode==='auto'&&!!batch&&batch.signature===signature,
   queryFn:async({signal})=>{const start={wall:Date.now(),mono:performance.now()};const data=await api.get<Preview>(`/api/admin/agent-connections/detect/${batch!.id}`,signal);return {...data,start}},refetchInterval:2000,retry:false,gcTime:0,refetchOnWindowFocus:true})
+ const showError=(error:unknown)=>toast.err(error instanceof ApiError&&error.status===409?t('agentEntries.previewChanged'):error)
  const check=useMutation({onMutate:()=>{setBatch(null);setManual(null)},mutationFn:async(input:{request:typeof request;signature:string})=>{
   if(input.request.verification_mode==='auto'){const data=await api.post<{batch_id:string}>('/api/admin/agent-connections/detect',input.request);return {batch:data.batch_id,signature:input.signature}}
   const data=await api.post<Preview>('/api/admin/agent-connections/preview',{...input.request,trust_proxy:input.request.verification_mode==='trusted-proxy'});return {data,signature:input.signature}
- },onSuccess:result=>{if(latest.current!==result.signature)return;if(result.batch)setBatch({id:result.batch,signature:result.signature});else if(result.data)setManual({data:result.data,signature:result.signature})},onError:toast.err})
+ },onSuccess:result=>{if(latest.current!==result.signature)return;if(result.batch)setBatch({id:result.batch,signature:result.signature});else if(result.data)setManual({data:result.data,signature:result.signature})},onError:showError})
  const autoData=mode==='auto'&&batch?.signature===signature&&!detection.isError&&evidenceFresh(detection.data?.start,clock)?detection.data:undefined
  const data=mode==='auto'?autoData:manual?.signature===signature?manual.data:undefined
  const needsTrust=mode==='trusted-proxy'||!!data?.trust_proxy
  const ready=!!data?.revision&&(mode!=='auto'||data.ready===true)
  const migrate=useMutation({mutationFn:()=>api.post('/api/admin/agent-connections/migrate',{...request,detection_id:mode==='auto'?batch?.id:undefined,trust_proxy:needsTrust,revision:data?.revision}),
-  onSuccess:()=>{toast.ok(t('agentEntries.queued'));for(const key of ['node-connection','connection-migrations','nodes'])void qc.invalidateQueries({queryKey:[key]});setBatch(null);setManual(null);close()},onError:error=>{setBatch(null);setManual(null);toast.err(error)}})
+  onSuccess:()=>{toast.ok(t('agentEntries.queued'));for(const key of ['node-connection','connection-migrations','nodes'])void qc.invalidateQueries({queryKey:[key]});setBatch(null);setManual(null);close()},onError:error=>{setBatch(null);setManual(null);showError(error)}})
  const pending=check.isPending||migrate.isPending
  const change=(v:ConnectionChoice)=>{setChoice(v);setBatch(null);setManual(null)}
  const stop=()=>{if(!pending){setBatch(null);setManual(null);close()}}
- return <Modal opened={opened} onClose={stop} title={t('agentEntries.migrate')} size="xl" closeOnClickOutside={false} closeOnEscape={!pending} withCloseButton={!pending}>
-  <Stack><Text size="sm">{t('agentEntries.detectHint')}</Text>
+ return <Modal opened={opened} onClose={stop} title={t('agentEntries.migrate')} size="xl" closeOnClickOutside={false} closeOnEscape={!pending&&!historyOpened} withCloseButton={!pending}>
+  <Stack><Group justify="space-between"><Text size="sm" flex={1}>{t('agentEntries.detectHint')}</Text><AgentMigrationHistoryButton onOpenedChange={setHistoryOpened} /></Group>
    <Select label={t('agentEntries.mode')} value={choice.mode} allowDeselect={false} disabled={pending} onChange={v=>change({...choice,mode:v as ConnectionChoice['mode']})} data={['default','managed','custom'].map(value=>({value,label:t(`agentEntries.${value}`)}))} />
    {choice.mode==='managed'&&<Select label={t('agentEntries.entry')} searchable disabled={pending||entries.isError} value={choice.endpoint_id||null} data={(entries.data?.entries??[]).map(e=>({value:e.id,label:`${e.name} · ${e.url}`,disabled:!e.ready||entries.isError||!evidenceFresh(entries.data?.start,clock)}))} onChange={v=>change({...choice,endpoint_id:v??''})} />}
    {choice.mode==='custom'&&<TextInput label={t('agentConnection.url')} placeholder="https://agent.example.com:2096" disabled={pending} value={choice.url} onChange={e=>change({...choice,url:e.currentTarget.value})} />}

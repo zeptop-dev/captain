@@ -9,6 +9,7 @@ import { type AgentEndpoint, type EndpointView } from '../../lib/agent-connectio
 import { agentHTTPSDockerCommand, agentHTTPSCheckCommand } from '../../lib/agent-https'
 import { evidenceFresh, useEvidenceClock } from '../../lib/evidence-clock'
 import { toast } from '../../lib/notify'
+import { AgentMigrationHistoryButton } from '../AgentMigrationProgress'
 import { AgentEndpointUsage } from '../AgentEndpointUsage'
 import { Copy } from '../Copy'
 import { useSettingsDirty } from '../../lib/settings-draft'
@@ -35,7 +36,7 @@ export default function AgentEndpointsCard() {
  const edit = (value: AgentEndpoint) => { form.setValues(value); form.resetDirty(value); setOpened(true) }
  const close = () => { if (save.isPending) return; if (form.isDirty()) { modals.openConfirmModal({ title: t('workspace.unsaved'), children: <Text>{t('workspace.leaveHint')}</Text>, labels: { confirm: t('workspace.discard'), cancel: t('common.cancel') }, onConfirm: () => setOpened(false) }) } else setOpened(false) }
  return <Card><Stack>
-  <Group justify="space-between"><Title order={5}>{t('agentEntries.title')}</Title><Button onClick={() => edit({ ...empty })}>{t('agentEntries.add')}</Button></Group>
+  <Group justify="space-between"><Title order={5}>{t('agentEntries.title')}</Title><Group><AgentMigrationHistoryButton /><Button onClick={() => edit({ ...empty })}>{t('agentEntries.add')}</Button></Group></Group>
   <Text size="sm" c="dimmed">{t('agentEntries.hint')}</Text>
   {q.isError && <Alert color="red">{t('agentEntries.loadError')} <Button variant="subtle" onClick={() => q.refetch()}>{t('workspace.retry')}</Button></Alert>}
   <Table.ScrollContainer minWidth={1060}><Table><Table.Thead><Table.Tr><Table.Th>{t('agentEntries.name')}</Table.Th><Table.Th>{t('agentConnection.url')}</Table.Th><Table.Th>{t('agentEntries.state')}</Table.Th><Table.Th>{t('agentEntries.references')}</Table.Th><Table.Th>{t('agentEntries.actions')}</Table.Th></Table.Tr></Table.Thead><Table.Tbody>

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
@@ -390,6 +391,10 @@ func connectionPreview(ctx context.Context, tx *sql.Tx, ids []int64, choice Agen
 		return "", nil, ErrAgentHTTPSInvalid
 	}
 	values := []string{choice.Mode, endpoint, target, fallback, normalizedVerification(choice.VerificationMode), fmt.Sprint(choice.TrustProxy), choice.DetectionID}
+	// Selection order is presentation state. Detection views are ordered by ID,
+	// while directory/checkbox order is arbitrary; bind the same set identically.
+	ids = slices.Clone(ids)
+	slices.Sort(ids)
 	nodes := []AgentConnection{}
 	seen := map[int64]bool{}
 	if endpoint != "" {

@@ -1,5 +1,7 @@
 # Changelog
 
+- **Unreleased** — Move Agent migration records from the server directory into an on-demand history window in entry settings and migration operations. Stop hidden-history polling; omit missing or stale error text on completed migrations while retaining failed-task diagnostics and reference protection. Canonicalize the selected server set in migration preview digests so checkbox order cannot cause false confirmation conflicts; translate genuine conflicts and require a new preview.
+
 - **v1.69.0** (2026-11-15) — Simplify Agent migration to target selection, node-side anonymous detection and final confirmation. Recommend direct verification or an explicitly trusted CDN/proxy path without automatic trust downgrades; keep manual overrides in advanced settings. Freeze node identity, source/target and short-lived results into the final transactional preview. Migration124 adds bounded diagnostic rows and a separate capability; existing connections, permissions, accounting and rollback floors remain unchanged.
 
 - **v1.68.0** (2026-11-15) — Add a top-level Inbounds workspace with a global server/protocol/usage directory, linked-node counts and owner-bound editing. Provision independent SOCKS5 accounts and single-key Shadowsocks 2022 without plans or subscriptions; reject grants/publication server-side, preserve old listener behavior and require new SS2022 keys when converting previously published credentials.

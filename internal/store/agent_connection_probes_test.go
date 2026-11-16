@@ -153,3 +153,49 @@ func TestAgentProbeFiveConcurrentLimitAndUnknownCapability(t *testing.T) {
 		t.Fatal(view, e)
 	}
 }
+
+func TestAgentProbeConfirmationTreatsNodeSelectionAsSet(t *testing.T) {
+	ctx := context.Background()
+	s := New(testdb.Open(t))
+	first, firstHash := connectionNode(t, s, 1)
+	second, secondHash := connectionNode(t, s, 2)
+	source := "https://old.example.com:2096"
+	for id, hash := range map[int64]string{first: firstHash, second: secondHash} {
+		if e := s.ObserveAgentConnection(ctx, id, hash, source, true, true, true); e != nil {
+			t.Fatal(e)
+		}
+	}
+	// The server directory/checkbox click order need not match database ID order.
+	ids := []int64{second, first}
+	choice := AgentConnectionChoice{Mode: "custom", URL: "https://target.example.com:2096", VerificationMode: "auto"}
+	batch, e := s.StartAgentConnectionProbe(ctx, ids, choice, "")
+	if e != nil {
+		t.Fatal(e)
+	}
+	for id, hash := range map[int64]string{first: firstHash, second: secondHash} {
+		probe, e := s.AgentConnectionProbeControl(ctx, id, hash)
+		if e != nil || probe == nil {
+			t.Fatal(e)
+		}
+		if e = s.SaveAgentProbeResult(ctx, id, hash, agentproto.ConnectionProbeResult{ID: probe.ID, Status: "direct"}); e != nil {
+			t.Fatal(e)
+		}
+	}
+	view, e := s.AgentConnectionProbeView(ctx, batch, "")
+	if e != nil || !view.Ready || view.Revision == "" {
+		t.Fatal(view, e)
+	}
+	choice.DetectionID = batch
+	if _, e = s.StartAgentConnectionBatch(ctx, []int64{first}, choice, "", view.Revision); e == nil {
+		t.Fatal("changed selection reused batch preview")
+	}
+	if _, e = s.StartAgentConnectionBatch(ctx, []int64{first, first}, choice, "", view.Revision); e == nil {
+		t.Fatal("duplicate selection accepted")
+	}
+	if _, e = s.StartAgentConnectionBatch(ctx, ids, choice, "", view.Revision); e != nil {
+		t.Fatal("unchanged selection in reverse ID order rejected:", e)
+	}
+	if ids[0] != second || ids[1] != first {
+		t.Fatal("caller selection mutated")
+	}
+}

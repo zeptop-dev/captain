@@ -100,7 +100,8 @@ try {
  await dialog.getByRole('button', { name: en.agentEntries.preview, exact: true }).click()
  if(process.env.AGENT_HTTPS_SCREENSHOTS){await mkdir(process.env.AGENT_HTTPS_SCREENSHOTS,{recursive:true});await dialog.screenshot({path:process.env.AGENT_HTTPS_SCREENSHOTS+'/proxy-dialog.png'});await page.setViewportSize({width:390,height:844});await page.waitForTimeout(350);await dialog.screenshot({path:process.env.AGENT_HTTPS_SCREENSHOTS+'/proxy-dialog-mobile.png'});await page.setViewportSize({width:1440,height:1100});await page.waitForTimeout(350)}
  await dialog.getByRole('button', { name: en.agentEntries.confirmTrustMigrate, exact: true }).click()
- await page.getByText(en.agentEntries.progress, { exact: true }).waitFor()
+ await dialog.waitFor({ state: 'hidden' })
+ assert.equal(await page.getByRole('table').count(), 1, 'migration history remained on the server list')
  assert.deepEqual(state.migrations[0].node_ids, [1, 2]); assert.equal(state.migrations[0].endpoint_id, 'new');assert.equal(state.migrations[0].verification_mode,'trusted-proxy');assert.equal(state.migrations[0].trust_proxy,true)
  await page.goto(`${base}settings/category/proxy#agent-https`)
  row = page.locator('#agent-https').getByRole('row').filter({ hasText: 'Old entry' })

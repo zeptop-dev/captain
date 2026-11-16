@@ -4785,7 +4785,6 @@
     "dockerHint": "Read-only Docker host check. Add new port mappings while retaining old ones before migrating; the legacy single-port enable command replaces its mapping.",
     "loadError": "Unable to load current connection settings. Retry before making changes.",
     "queuedToast": "Migration task saved",
-    "progress": "Agent connection migrations",
     "observedHint": "Last report only; a saved target does not prove the node switched.",
     "select": "Select node",
     "selectAll": "Select visible nodes",
@@ -4810,7 +4809,11 @@
       "issued": "Node is checking",
       "failed": "Detection failed",
       "install-only": "Installation preference only"
-    }
+    },
+    "history": "Migration records",
+    "historyHint": "Open migration records when needed. Records remain available for troubleshooting and protecting referenced entries.",
+    "noHistory": "No migration records.",
+    "previewChanged": "Connection settings or the selected servers changed. Detect or preview again before confirming."
   },
   "standalone": {
     "mode": "Usage",
