@@ -63,6 +63,7 @@ type handlers struct{ Deps }
 func Register(mux *http.ServeMux, d Deps) {
 	h := &handlers{d}
 	mux.HandleFunc("GET /api/agent/connection-proof", h.connectionProof)
+	mux.HandleFunc("POST /api/agent/connection-probe-result", h.requireNode(h.connectionProbeResult))
 	mux.HandleFunc("POST /api/agent/connection-result", h.requireNode(h.connectionResult))
 	mux.HandleFunc("POST /api/agent/pair", h.pair)
 	mux.HandleFunc("GET /api/agent/install.sh", h.installScript)
@@ -156,7 +157,7 @@ func (h *handlers) pair(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set(agentproto.ConnectionVersionHeader, agentproto.ConnectionVersion)
-	w.Header().Set("Vary", agentproto.ConfigSessionHeader+", "+agentproto.ConfigDeliveryHeader+", "+agentproto.DiagnosticsVersionHeader+", "+agentproto.DiagnosticsNonceHeader+", "+agentproto.DiagnosticsChallengeHeader+", "+agentproto.DiagnosticsCursorHeader+", "+agentproto.ConnectionVersionHeader+", "+agentproto.ConnectionCursorHeader+", "+agentproto.StandaloneAuthHeader+", "+agentproto.ConnectionProxyVersionHeader)
+	w.Header().Set("Vary", agentproto.ConfigSessionHeader+", "+agentproto.ConfigDeliveryHeader+", "+agentproto.DiagnosticsVersionHeader+", "+agentproto.DiagnosticsNonceHeader+", "+agentproto.DiagnosticsChallengeHeader+", "+agentproto.DiagnosticsCursorHeader+", "+agentproto.ConnectionVersionHeader+", "+agentproto.ConnectionCursorHeader+", "+agentproto.StandaloneAuthHeader+", "+agentproto.ConnectionProxyVersionHeader+", "+agentproto.ConnectionProbeVersionHeader+", "+agentproto.ConnectionProbeCursorHeader)
 	n := nodeFrom(r)
 	session := r.Header.Get(agentproto.ConfigSessionHeader)
 	if session != "" && !validConfigSession(session) {
@@ -217,6 +218,13 @@ func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 		// private to this process session and must never mutate the cache.
 		response := *st
 		response.Diagnostics = control
+		if r.Header.Get(agentproto.ConnectionProbeVersionHeader) == agentproto.ConnectionProbeVersion {
+			response.ConnectionProbe, err = h.Store.AgentConnectionProbeControl(r.Context(), n.ID, tokenHash)
+			if err != nil {
+				fail(w, 500, "detection unavailable")
+				return
+			}
+		}
 		if r.Header.Get(agentproto.ConnectionVersionHeader) == agentproto.ConnectionVersion {
 			response.ConnectionMigration, err = h.Store.AgentConnectionControl(r.Context(), n.ID, tokenHash, r.Header.Get(agentproto.ConnectionProxyVersionHeader) == agentproto.ConnectionProxyVersion)
 			if err != nil {
@@ -240,6 +248,9 @@ func (h *handlers) state(w http.ResponseWriter, r *http.Request) {
 			deliveryID = response.ConfigDelivery.ID
 		}
 		metadataChanged := session != "" && r.Header.Get(agentproto.ConfigDeliveryHeader) != deliveryID
+		if response.ConnectionProbe != nil && r.Header.Get(agentproto.ConnectionProbeCursorHeader) != response.ConnectionProbe.ID {
+			metadataChanged = true
+		}
 		if response.ConnectionMigration != nil && r.Header.Get(agentproto.ConnectionCursorHeader) != response.ConnectionMigration.ID {
 			metadataChanged = true
 		}

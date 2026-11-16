@@ -31,6 +31,11 @@ func TestAgentConnectionsPermissionsAndMetadata(t *testing.T) {
 		if code != want {
 			t.Fatal(scope, code, want)
 		}
+		if scope == "agent-connections:read" {
+			if status, _, _ := anonymous.do("POST", "/api/admin/agent-connections/detect", map[string]any{}, map[string]string{"Authorization": "Bearer " + tok}); status != 403 {
+				t.Fatal("read scope triggered node detection", status)
+			}
+		}
 	}
 	operator, _ := admin.NewUser("operator@example.com", "password123", "operator")
 	if err := r.st.CreateStaff(ctx, operator); err != nil {
@@ -38,6 +43,9 @@ func TestAgentConnectionsPermissionsAndMetadata(t *testing.T) {
 	}
 	op := &client{t: t, srv: r.srv}
 	op.do("POST", "/api/admin/login", map[string]string{"Email": operator.Email, "Password": "password123"}, nil)
+	if code, _, _ := op.do("POST", "/api/admin/agent-connections/detect", map[string]any{}, nil); code != 403 {
+		t.Fatal("operator triggered detection", code)
+	}
 	if code, _, _ := op.do("POST", "/api/admin/agent-connections/migrate", map[string]any{}, nil); code != 403 {
 		t.Fatal("operator migrated agents", code)
 	}

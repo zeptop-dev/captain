@@ -20,7 +20,13 @@ func (h *handlers) connectionProof(w http.ResponseWriter, r *http.Request) {
 	}
 	mode, err := h.Store.AgentConnectionVerification(r.Context(), r.URL.Query().Get("id"))
 	if err != nil {
-		fail(w, 404, "proof unavailable")
+		binding, _ := agentproto.ConnectionBinding(r.TLS, r.URL.Query().Get("challenge"))
+		v, e := h.Store.AgentConnectionProbeProof(r.Context(), r.URL.Query().Get("id"), r.URL.Query().Get("challenge"), binding)
+		if e != nil {
+			fail(w, 404, "proof unavailable")
+			return
+		}
+		ok(w, v)
 		return
 	}
 	binding, err := agentproto.ConnectionBinding(r.TLS, r.URL.Query().Get("challenge"))
@@ -64,5 +70,24 @@ func observeConnection(h *handlers, r *http.Request, nodeID int64, hash string) 
 	if u == "" {
 		return
 	}
-	_ = h.Store.ObserveAgentConnection(r.Context(), nodeID, hash, u, r.Header.Get(agentproto.ConnectionVersionHeader) == agentproto.ConnectionVersion, r.Header.Get(agentproto.ConnectionProxyVersionHeader) == agentproto.ConnectionProxyVersion)
+	_ = h.Store.ObserveAgentConnection(r.Context(), nodeID, hash, u, r.Header.Get(agentproto.ConnectionVersionHeader) == agentproto.ConnectionVersion, r.Header.Get(agentproto.ConnectionProxyVersionHeader) == agentproto.ConnectionProxyVersion, r.Header.Get(agentproto.ConnectionProbeVersionHeader) == agentproto.ConnectionProbeVersion)
+}
+
+func (h *handlers) connectionProbeResult(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get(agentproto.ConnectionProbeVersionHeader) != agentproto.ConnectionProbeVersion {
+		fail(w, 409, "upgrade bosun before detection")
+		return
+	}
+	var v agentproto.ConnectionProbeResult
+	if json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&v) != nil {
+		fail(w, 400, "invalid probe result")
+		return
+	}
+	n := nodeFrom(r)
+	hash := auth.SHA256Hex(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+	if e := h.Store.SaveAgentProbeResult(r.Context(), n.ID, hash, v); e != nil {
+		fail(w, 409, "detection expired or replaced")
+		return
+	}
+	ok(w, map[string]bool{"accepted": true})
 }

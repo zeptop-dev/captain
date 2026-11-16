@@ -1379,3 +1379,27 @@ The release floors are Captain1.68.0 / bosun0.99.0; older panels do not
 retain the per-attempt trust mode and older agents do not implement this handshake.
 Integration must pin the exact shared bosun revision; no development replace is
 committed. These are the first-containing versions for this feature.
+
+
+## Agent connection detection (Captain1.69 / bosun0.100, migration124)
+
+| Capability | Minimum Captain | Minimum bosun |
+|---|---|---|
+| Anonymous node-side detection and automatic mode recommendation | 1.69.0 | 0.100.0 |
+| Advanced manual direct / trusted-proxy migration | 1.68.0 | 0.99.1 (default HTTP transport fix) |
+
+Additive temporary State.ConnectionProbe metadata and proof ProxySignature carry
+an anonymous diagnostic, not migration authority. `X-Bosun-Migration-Probe:1` and
+its cursor are separate from existing migration capabilities and are required in
+the current request. Temporary metadata is removed before node snapshots/config
+revision processing. Migration124 defaults old observations to probe-incapable
+and preserves all old migration rows. Existing direct/trusted-proxy API fields
+and manual flows remain supported; new auto mode resolves to one of those modes
+per node only after final confirmation. No runtime migration uses mode auto.
+
+The server binds identity/source/target, selection and expiry to detected results
+and rechecks them with the preview inside the final write transaction. Probe keys
+and node token hashes never appear in administrator read views. Per-migration
+mode-specific challenge and persistence checks are still executed after detection.
+Old renderers/agents may lose only this read-only diagnostic facility, so existing
+Captain1.68/bosun0.99 rollback floors are retained.

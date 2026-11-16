@@ -12,3 +12,22 @@ The old `GET/PUT /api/admin/settings/agent-https` routes remain compatible with 
 Runtime selection is stored as a token-bound 0600 file under bosun data_dir, so a read-only Docker config bind mount need not be rewritten. `installer-download-config` returns the effective URL. Re-running an installer preserves config.yaml and is not the migration mechanism. See the bosun [connection guide](https://github.com/zeptop-dev/bosun/blob/master/docs/AGENT_CONNECTIONS.md) for local recovery. Do not delete pairing tokens to change the URL.
 
 The final panel requires bosun v0.98.1 (capability version 2). Version 0.98.0 remains compatible for normal communication but is not issued migration commands. A lost final response never undoes the node's durable selection; confirmation is retried. Failed/expired attempts continue to protect their origins until a later durable reconciliation. Selecting the current origin is an explicit persistence/confirmation operation, not a panel-side assumption. Completed history is terminal, and duplicate receipts cannot overwrite newer observations.
+
+
+## Automatic preview (Captain1.69 / bosun0.100)
+
+The default migration dialog now detects the target from each selected node. This
+creates a short-lived diagnostic request, not a migration: the target receives an
+anonymous random challenge only, while the result returns to the authenticated
+source. Valid direct TLS yields a direct recommendation; a valid same-panel proof
+without matching end-to-end TLS recommends trusted CDN/proxy mode. Failure never
+automatically grants trust. The final button states that trust explicitly when
+needed. Select manual direct/proxy in Advanced settings to use earlier capable
+agents or override the recommendation. No extra trust checkbox is required.
+
+Changing target or node identity, stale/offline browser evidence, failed reads,
+expiry or incomplete diagnostics disables confirmation. Server-side final checks
+revalidate the frozen result and target in the write transaction. Source URL and
+node credentials are preserved until the distinct confirmed migration executes.
+Diagnostics allow up to five concurrent probes and expire in five minutes; offline
+nodes wait and unsupported agents show an upgrade/manual-mode instruction.

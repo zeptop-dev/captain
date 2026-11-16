@@ -4728,10 +4728,22 @@
   },
   "agentEntries": {
     "verification": "移行の検証方式",
-    "verificationModes": {"direct": "Captain へ直接接続（既定）", "trusted-proxy": "信頼する CDN／リバースプロキシ"},
+    "verificationModes": {
+      "direct": "Captain へ直接接続（既定）",
+      "trusted-proxy": "信頼する CDN／リバースプロキシ",
+      "auto": "自動検出（推奨）"
+    },
     "proxyTrustHint": "この宛先の CDN／プロキシを信頼します。認証情報と要求を読み取れます。HTTPS 証明書と同一パネルの検証は維持し、自動で方式を緩和しません。",
     "trustProxy": "この宛先の CDN／プロキシを信頼します",
-    "migrationErrors": {"invalid_target": "宛先または検証方式が無効", "proof_request": "新入口へ接続不可：DNS、証明書、ネットワーク、CDN を確認", "proof_verification": "パネルの証明が無効：方式、キャッシュ、CDN を確認", "target_verification": "新入口の確認に失敗", "persistence": "新接続をローカルに保存できません"},
+    "migrationErrors": {
+      "invalid_target": "宛先または検証方式が無効",
+      "proof_request": "新入口へ接続不可：DNS、証明書、ネットワーク、CDN を確認",
+      "proof_verification": "パネルの証明が無効：方式、キャッシュ、CDN を確認",
+      "target_verification": "新入口の確認に失敗",
+      "persistence": "新接続をローカルに保存できません",
+      "upgrade_required": "bosun を更新して再検出するか、詳細設定で手動選択してください。",
+      "stale_detection": "結果の期限切れまたは設定が変更されました。再検出してください。"
+    },
     "title": "Agent 接続先管理",
     "add": "接続先を追加",
     "hint": "移行中は新旧の HTTPS 接続先を併用します。既定の変更だけでは稼働中の Agent は移行しません。",
@@ -4783,7 +4795,22 @@
     "usageNodes": "参照ノード",
     "truncated": "先頭の 500 台を表示しています。移行後に再読込して残りを処理してください。",
     "different": "実際の接続先が確認済みの目標と異なります",
-    "downloadHint": "ダウンロード元はインストール設定です。接続先の移行で既存ノードのダウンロード元は変わりません。"
+    "downloadHint": "ダウンロード元はインストール設定です。接続先の移行で既存ノードのダウンロード元は変わりません。",
+    "advanced": "詳細設定",
+    "detectHint": "宛先を選ぶとノードが匿名で検査します。検出では移行や認証情報の送信は行いません。結果を確認してから移行します。",
+    "detectPreview": "検出してプレビュー",
+    "detectWaiting": "検出待ちまたは結果が期限切れです。失敗しても自動で信頼を許可しません。",
+    "confirmMigrate": "移行を確認",
+    "confirmTrustMigrate": "信頼して移行",
+    "finalTrustHint": "「信頼して移行」を押すと上記宛先の CDN／プロキシを信頼します。",
+    "detectionStates": {
+      "direct": "直結の検証に成功",
+      "trusted-proxy": "CDN／プロキシの信頼が必要",
+      "queued": "ノードの検出待ち",
+      "issued": "検出中",
+      "failed": "検出失敗",
+      "install-only": "インストール先のみ更新"
+    }
   },
   "standalone": {
     "mode": "使用方法",

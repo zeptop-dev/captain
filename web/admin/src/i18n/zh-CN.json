@@ -4728,10 +4728,22 @@
   },
   "agentEntries": {
     "verification": "迁移验证方式",
-    "verificationModes": {"direct": "直连 Captain（默认）", "trusted-proxy": "受信任 CDN／反向代理"},
+    "verificationModes": {
+      "direct": "直连 Captain（默认）",
+      "trusted-proxy": "受信任 CDN／反向代理",
+      "auto": "自动检测（推荐）"
+    },
     "proxyTrustHint": "此模式信任目标地址上的 CDN／反代，它能够读取节点凭据和请求内容。仍验证 HTTPS 证书和同面板挑战；不会自动从直连模式降级。",
     "trustProxy": "我确认信任此目标入口上的 CDN／反代",
-    "migrationErrors": {"invalid_target": "目标地址或验证模式无效", "proof_request": "无法访问新入口：请检查 DNS、证书、网络或 CDN 拦截", "proof_verification": "同面板证明未通过：请检查验证模式、缓存或 CDN 拦截", "target_verification": "新入口确认失败", "persistence": "新连接写入本地配置失败"},
+    "migrationErrors": {
+      "invalid_target": "目标地址或验证模式无效",
+      "proof_request": "无法访问新入口：请检查 DNS、证书、网络或 CDN 拦截",
+      "proof_verification": "同面板证明未通过：请检查验证模式、缓存或 CDN 拦截",
+      "target_verification": "新入口确认失败",
+      "persistence": "新连接写入本地配置失败",
+      "upgrade_required": "请升级 bosun 后重新检测，或在高级设置手动选择验证方式。",
+      "stale_detection": "检测结果已过期或配置发生变化，请重新检测。"
+    },
     "title": "Agent 入口管理",
     "add": "新增入口",
     "hint": "迁移期间保留新旧 HTTPS 入口。修改默认入口不会自动迁移正在运行的节点。",
@@ -4783,7 +4795,22 @@
     "usageNodes": "引用节点",
     "truncated": "当前显示前 500 台，请先迁移这些节点，再刷新处理剩余节点。",
     "different": "实际连接已偏离确认的目标",
-    "downloadHint": "下载来源属于后续安装配置；入口迁移不会改变现有节点的下载来源。"
+    "downloadHint": "下载来源属于后续安装配置；入口迁移不会改变现有节点的下载来源。",
+    "advanced": "高级设置",
+    "detectHint": "选定目标后，由节点匿名检测连接路径；检测不会迁移或发送节点凭据。检查结果后再确认迁移。",
+    "detectPreview": "检测并预览",
+    "detectWaiting": "检测中或结果已失效，请等待或重新检测；失败不会自动降级为信任反代。",
+    "confirmMigrate": "确认迁移",
+    "confirmTrustMigrate": "确认信任并迁移",
+    "finalTrustHint": "点击“确认信任并迁移”，即授权信任上述目标的 CDN／反代。",
+    "detectionStates": {
+      "direct": "直连验证通过",
+      "trusted-proxy": "需信任 CDN／反代",
+      "queued": "等待节点检测",
+      "issued": "节点正在检测",
+      "failed": "检测失败",
+      "install-only": "仅更新安装地址"
+    }
   },
   "standalone": {
     "mode": "使用方式",

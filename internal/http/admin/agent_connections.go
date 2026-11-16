@@ -22,6 +22,8 @@ func registerAgentConnections(m *http.ServeMux, h *handlers) {
 	m.HandleFunc("DELETE /api/admin/settings/agent-endpoints/{entry}", h.requireAdmin(h.deleteAgentEndpoint))
 	m.HandleFunc("POST /api/admin/agent-connections/{migration}/{action}", h.requireAdmin(h.agentConnectionAction))
 	m.HandleFunc("GET /api/admin/agent-connections/entries/{entry}", h.requireAdmin(h.agentEndpointUsage))
+	m.HandleFunc("POST /api/admin/agent-connections/detect", h.requireAdmin(h.detectAgentConnections))
+	m.HandleFunc("GET /api/admin/agent-connections/detect/{batch}", h.requireAdmin(h.agentConnectionDetection))
 	m.HandleFunc("GET /api/admin/agent-connections", h.requireAdmin(h.agentConnections))
 	m.HandleFunc("POST /api/admin/agent-connections/preview", h.requireAdmin(h.previewAgentConnections))
 	m.HandleFunc("POST /api/admin/agent-connections/migrate", h.requireAdmin(h.migrateAgentConnections))
@@ -239,4 +241,25 @@ func (h *handlers) agentEndpointUsage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, map[string]any{"nodes": nodes, "truncated": truncated})
+}
+
+func (h *handlers) detectAgentConnections(w http.ResponseWriter, r *http.Request) {
+	var in connectionBatchRequest
+	if !readJSON(w, r, &in) {
+		return
+	}
+	batch, e := h.Store.StartAgentConnectionProbe(r.Context(), in.NodeIDs, in.AgentConnectionChoice, agentendpoint.EffectiveURL("", h.AgentURL, h.BaseURL))
+	if e != nil {
+		h.connectionError(w, e)
+		return
+	}
+	ok(w, map[string]string{"batch_id": batch})
+}
+func (h *handlers) agentConnectionDetection(w http.ResponseWriter, r *http.Request) {
+	v, e := h.Store.AgentConnectionProbeView(r.Context(), r.PathValue("batch"), agentendpoint.EffectiveURL("", h.AgentURL, h.BaseURL))
+	if e != nil {
+		h.connectionError(w, e)
+		return
+	}
+	ok(w, v)
 }
