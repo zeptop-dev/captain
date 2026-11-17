@@ -188,14 +188,15 @@ func (s *Store) ExchangeLoginCode(ctx context.Context, client, secret, code, red
 }
 func (s *Store) LoginUserInfo(ctx context.Context, token string) (map[string]any, error) {
 	var subject, email, scope string
-	e := s.db.QueryRowContext(ctx, `SELECT i.subject,u.email,r.scope FROM login_requests r JOIN login_clients c ON c.id=r.client_id JOIN sessions s ON s.id=r.session_id JOIN users u ON u.id=s.user_id JOIN login_subjects i ON i.user_id=u.id WHERE r.hash=? AND r.stage='token' AND r.expires_at>? AND c.enabled=1 AND c.redirect_uri=r.redirect_uri AND s.expires_at>? AND s.admin=0 AND u.status='active' AND u.role='user'`, LoginHash(token), now(), now()).Scan(&subject, &email, &scope)
+	var verified bool
+	e := s.db.QueryRowContext(ctx, `SELECT i.subject,u.email,r.scope,EXISTS(SELECT 1 FROM user_email_verifications v WHERE v.user_id=u.id AND v.email=u.email) FROM login_requests r JOIN login_clients c ON c.id=r.client_id JOIN sessions s ON s.id=r.session_id JOIN users u ON u.id=s.user_id JOIN login_subjects i ON i.user_id=u.id WHERE r.hash=? AND r.stage='token' AND r.expires_at>? AND c.enabled=1 AND c.redirect_uri=r.redirect_uri AND s.expires_at>? AND s.admin=0 AND u.status='active' AND u.role='user'`, LoginHash(token), now(), now()).Scan(&subject, &email, &scope, &verified)
 	if e != nil {
 		return nil, ErrLoginGrant
 	}
 	out := map[string]any{"sub": subject, "preferred_username": "cap_" + subject[:12], "name": "Captain user"}
 	if strings.Contains(" "+scope+" ", " email ") {
 		out["email"] = email
-		out["email_verified"] = false
+		out["email_verified"] = verified
 	}
 	return out, nil
 }

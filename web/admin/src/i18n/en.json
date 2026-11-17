@@ -770,7 +770,13 @@
     "passwordStatus": "Current password registration",
     "oidcStatus": "Current external account creation",
     "open": "Open",
-    "closed": "Closed"
+    "closed": "Closed",
+    "legalTitle": "Registration terms",
+    "legalHint": "Optional. New email and third-party accounts must accept configured documents. Existing sign-ins are unaffected.",
+    "termsURL": "Terms URL",
+    "privacyURL": "Privacy policy URL",
+    "documentVersion": "Document version",
+    "documentVersionHint": "Change this version whenever document content changes. Use HTTPS URLs or site-relative paths. Leave both links empty to disable."
   },
   "tickets": {
     "title": "Tickets",
@@ -4574,7 +4580,8 @@
       "expiry": "Subscription expiry",
       "traffic": "Traffic usage",
       "notice": "Ticket / withdrawal notification",
-      "test": "Connection test"
+      "test": "Connection test",
+      "email_verify": "Account email verification"
     }
   },
   "locationCorrection": {

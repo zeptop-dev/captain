@@ -6,6 +6,7 @@ import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { money, when } from '../lib/format'
 import { toast } from '../lib/notify'
+import { EmailVerificationCard } from '../components/EmailVerificationCard'
 import { RedeemCard } from '../components/RedeemCard'
 import { TelegramCard } from '../components/TelegramCard'
 import classes from './SecondaryPages.module.css'
@@ -22,7 +23,7 @@ export default function AccountPage() {
   return <Stack className={classes.page}>
     <header className={classes.header}><div><div className={classes.eyebrow}>05 / {t('accountUI.profile')}</div><Title order={1} className={classes.title}>{t('portalNav.account')}</Title><Text className={classes.description}>{t('accountUI.description')}</Text></div></header>
     <section className={classes.accountRows} aria-label={t('accountUI.profile')}>
-      <div className={classes.accountRow}><span className={classes.accountLabel}>{t('auth.email')}</span><div className={classes.accountValue}><strong>{me.email}</strong></div></div>
+      <div className={classes.accountRow}><span className={classes.accountLabel}>{t('auth.email')}</span><div className={classes.accountValue}><strong>{me.email}</strong><EmailVerificationCard key={me.email} /></div></div>
       <div className={classes.accountRow}><span className={classes.accountLabel}>{t('home.balance')}</span><div className={classes.accountValue}><strong>{money(me.balance_cents)}</strong><div><Anchor component={Link} to="/plans" size="sm">{t('home.browsePlans')} ↗</Anchor></div></div></div>
       <div className={classes.accountRow}><span className={classes.accountLabel}>{t('home.online')}</span><div className={classes.accountValue}><strong>{me.online_devices ?? me.subscription?.online_devices ?? 0}</strong><Text size="xs" c="dimmed" mt={4}>{t('accountUI.onlineHint')}</Text></div></div>
       <div className={classes.accountRow}><span className={classes.accountLabel}>{t('nav.invite')}</span><div className={classes.accountValue}><Anchor component={Link} to="/invite" size="sm">{t('invite.title')} ↗</Anchor><Text size="xs" c="dimmed" mt={4}>{t('accountUI.inviteHint')}</Text></div></div>

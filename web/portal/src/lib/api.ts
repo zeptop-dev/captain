@@ -1,13 +1,15 @@
 export class ApiError extends Error {
   status: number
-  constructor(status: number, message: string) { super(message); this.status = status }
+  code?: string
+  retryAfter?: number
+  constructor(status: number, message: string, code?: string, retryAfter?: number) { super(message); this.status = status; this.code = code; this.retryAfter = retryAfter }
 }
 
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(url, { method, headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined, body: body !== undefined ? JSON.stringify(body) : undefined, credentials: 'same-origin' })
   const text = await res.text()
   const data = text ? JSON.parse(text) : null
-  if (!res.ok) throw new ApiError(res.status, data?.error ?? res.statusText)
+  if (!res.ok) throw new ApiError(res.status, data?.error ?? res.statusText, data?.code, Number(res.headers.get('Retry-After')) || undefined)
   return data as T
 }
 
@@ -31,7 +33,7 @@ export interface WireGuardDevicesResponse {
 
 export interface Sub { id: number; plan_id: number; plan_name: string; status: 'active' | 'queued'; starts_at: string; expires_at: string | null; reset_at: string | null; quota_bytes: number; used_bytes: number; usable: boolean; period_days: number }
 export interface Me {
-  id: number; email: string; balance_cents: number; subscription_url: string; gateways: string[]
+  id: number; email: string; email_verification?: { verified: boolean; verified_at: string | null; source: string }; email_verification_available?: boolean; balance_cents: number; subscription_url: string; gateways: string[]
   subscription: { plan_id: number; starts_at: string; expires_at: string | null; reset_at: string | null; quota_bytes: number; used_bytes: number; usable: boolean; online_devices: number } | null
   subscriptions: Sub[]; online_devices: number; single_plan: boolean
   hwid_enabled: boolean; hwid_limit: number; hwid_devices: { hwid: string; platform?: string; os_version?: string; device_model?: string; user_agent?: string; last_seen_at: string }[]

@@ -676,11 +676,11 @@ func limitBodies(next http.Handler) http.Handler {
 
 func (s *Server) DNSHealth() *service.DNSHealth { return s.dnsHealth }
 
-// Older panels ignore standalone credential isolation and explicit upstream
-// address choices. Preserve those, subscriptions and prior migration safeguards.
+// Older panels ignore registration consent and persistent email proofs.
+// Preserve those and prior standalone/agent migration safeguards.
 func captainUpdateFloor(configured string) string {
-	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.68.0", configured) {
-		return "v1.68.0"
+	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.70.0", configured) {
+		return "v1.70.0"
 	}
 	return configured
 }

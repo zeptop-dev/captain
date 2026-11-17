@@ -11,7 +11,7 @@ import { SettingsFields } from './SettingsFields'
 type Template = { subject: string; body: string; button: string }
 type Design = { name: string; logo: string; color: string; footer: string; templates: Record<string, Record<string, Template>> | null }
 type Catalogue = { design: Design; defaults: Record<string, Record<string, Template>>; variables: string[] }
-const kinds = ['register', 'reset', 'expiry', 'traffic', 'notice', 'test']
+const kinds = ['register', 'reset', 'email_verify', 'expiry', 'traffic', 'notice', 'test']
 const languages = [{ value: 'en', label: 'English' }, { value: 'zh-CN', label: '简体中文' }, { value: 'zh-TW', label: '繁體中文' }, { value: 'ja', label: '日本語' }, { value: 'ru', label: 'Русский' }, { value: 'ko', label: '한국어' }]
 export function MailTemplatesCard() {
  const { t } = useTranslation()
@@ -35,7 +35,7 @@ export function MailTemplatesCard() {
  const set = (patch: Partial<Design>) => setDraft({ ...value, ...patch })
  const setTemplate = (patch: Partial<Template>) => set({ templates: { ...value.templates, [language]: { ...value.templates?.[language], [kind]: { ...template, ...patch } } } })
  const restore = () => { const templates = { ...value.templates, [language]: { ...value.templates?.[language] } }; delete templates[language][kind]; set({ templates }) }
- const variables = ['site', ...(kind === 'register' || kind === 'reset' ? ['code'] : kind === 'expiry' ? ['expires_at', 'expires_date', 'portal_url', 'plan', 'used', 'total', 'reset_at'] : kind === 'traffic' ? ['used_percent', 'portal_url', 'plan', 'used', 'total', 'reset_at'] : kind === 'notice' ? ['subject', 'body'] : [])]
+ const variables = ['site', ...(kind === 'register' || kind === 'reset' || kind === 'email_verify' ? ['code'] : kind === 'expiry' ? ['expires_at', 'expires_date', 'portal_url', 'plan', 'used', 'total', 'reset_at'] : kind === 'traffic' ? ['used_percent', 'portal_url', 'plan', 'used', 'total', 'reset_at'] : kind === 'notice' ? ['subject', 'body'] : [])]
  return <Card>
   <Title order={5} mb="xs">{t('mailTemplates.title')}</Title>
   <Text size="xs" c="dimmed" mb="sm">{t('mailTemplates.hint')}</Text>

@@ -64,6 +64,14 @@ func (s *Store) createUser(ctx context.Context, u *domain.User, id int64) error 
 		return err
 	}
 	defer tx.Rollback()
+	if err := createUserTx(ctx, tx, u, id, ts); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func createUserTx(ctx context.Context, tx *sql.Tx, u *domain.User, id, ts int64) error {
+	var err error
 	if id == 0 {
 		id, err = nextCustomerID(ctx, tx)
 	} else {
@@ -89,9 +97,6 @@ func (s *Store) createUser(ctx context.Context, u *domain.User, id int64) error 
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, u.Email, u.PasswordHash, u.Role, u.UUID, u.SubToken, nullInt64(u.GroupID), u.BalanceCents, u.Status, ts, ts, u.InviteCode, nullInt64(u.InvitedBy), u.RegisterIP, agentID)
 	if err != nil {
-		return err
-	}
-	if err := tx.Commit(); err != nil {
 		return err
 	}
 	u.ID, u.AgentID = id, agentID

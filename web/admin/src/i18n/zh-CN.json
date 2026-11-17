@@ -770,7 +770,13 @@
     "passwordStatus": "当前密码注册",
     "oidcStatus": "当前外部登录自动建号",
     "open": "开放",
-    "closed": "关闭"
+    "closed": "关闭",
+    "legalTitle": "注册条款",
+    "legalHint": "可选。配置后，邮箱及第三方首次注册都需同意；不影响已有账号登录。",
+    "termsURL": "服务条款链接",
+    "privacyURL": "隐私政策链接",
+    "documentVersion": "条款版本",
+    "documentVersionHint": "条款内容变化时请更新版本。支持 HTTPS 链接或站内路径；清空两个链接可关闭。"
   },
   "tickets": {
     "title": "工单",
@@ -4574,7 +4580,8 @@
       "expiry": "订阅到期提醒",
       "traffic": "流量提醒",
       "notice": "工单／提现通知",
-      "test": "发送连接测试"
+      "test": "发送连接测试",
+      "email_verify": "账号邮箱验证"
     }
   },
   "locationCorrection": {

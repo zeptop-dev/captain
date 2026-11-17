@@ -7,6 +7,18 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.63.0 to preserve ingress address sources, subscription bindings and strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
 
+## Registration identity and consent (next minor release)
+
+Migration 125 preserves historical accounts as having no email verification
+record; it does not block existing logins. Current-email proofs and registration
+consent receipts follow account renumbering and reset. New terms settings are
+optional and preserved when legacy registration writers omit them. Public error
+codes, policy fields and account verification endpoints are additive; configured
+registration CAPTCHA also protects code sending. SSO's existing email_verified
+claim uses persistent current-address proof. No bosun upgrade is needed.
+The reserved rollback floor is v1.70.0 because older panels ignore configured
+registration consent. See [registration behavior](REGISTRATION.md).
+
 ## Standalone inbounds (Captain v1.68.0 / bosun v0.99.0)
 
 Optional inbound `standalone` credentials support SOCKS5 and single-key SS2022,

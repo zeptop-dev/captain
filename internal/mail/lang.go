@@ -28,6 +28,7 @@ var Languages = []Language{
 // texts holds one language's strings. Subjects and bodies are format
 // strings; the placeholders are noted per field.
 type texts struct {
+	verifyIntro  string
 	codeSubject  string // site, code
 	codeTitle    string
 	codeIntro    string
@@ -49,6 +50,7 @@ type texts struct {
 
 var catalog = map[string]texts{
 	"en": {
+		verifyIntro:  "You are verifying the email address of your existing account. This code is valid for 10 minutes. If this was not you, ignore this email:",
 		codeSubject:  "[%s] Verification code %s",
 		codeTitle:    "Verification code",
 		codeIntro:    "You are creating an account. Your code is valid for 10 minutes:",
@@ -68,6 +70,7 @@ var catalog = map[string]texts{
 		testBody:    "Mail is configured correctly. This is a test.",
 	},
 	"zh-CN": {
+		verifyIntro:  "你正在验证现有账号的邮箱，验证码 10 分钟内有效。如果不是你本人操作，请忽略此邮件：",
 		codeSubject:  "[%s] 验证码 %s",
 		codeTitle:    "验证码",
 		codeIntro:    "你正在注册账号，验证码如下，10 分钟内有效：",
@@ -87,6 +90,7 @@ var catalog = map[string]texts{
 		testBody:    "邮件配置正常，这是一封测试邮件。",
 	},
 	"zh-TW": {
+		verifyIntro:  "你正在驗證現有帳號的電子信箱，驗證碼 10 分鐘內有效。如果不是你本人操作，請忽略此郵件：",
 		codeSubject:  "[%s] 驗證碼 %s",
 		codeTitle:    "驗證碼",
 		codeIntro:    "你正在註冊帳號，驗證碼如下，10 分鐘內有效：",
@@ -106,6 +110,7 @@ var catalog = map[string]texts{
 		testBody:    "郵件設定正常，這是一封測試郵件。",
 	},
 	"ja": {
+		verifyIntro:  "既存アカウントのメールアドレスを確認しています。このコードは10分間有効です。心当たりがない場合は無視してください：",
 		codeSubject:  "[%s] 認証コード %s",
 		codeTitle:    "認証コード",
 		codeIntro:    "アカウント登録の認証コードです。10 分間有効です：",
@@ -125,6 +130,7 @@ var catalog = map[string]texts{
 		testBody:    "メール設定は正常です。これはテストメールです。",
 	},
 	"ru": {
+		verifyIntro:  "Вы подтверждаете почту существующего аккаунта. Код действителен 10 минут. Если это не вы, проигнорируйте письмо:",
 		codeSubject:  "[%s] Код подтверждения %s",
 		codeTitle:    "Код подтверждения",
 		codeIntro:    "Вы создаёте аккаунт. Код действует 10 минут:",
@@ -144,6 +150,7 @@ var catalog = map[string]texts{
 		testBody:    "Почта настроена правильно. Это тестовое письмо.",
 	},
 	"ko": {
+		verifyIntro:  "기존 계정의 이메일 주소를 인증합니다. 코드는 10분간 유효합니다. 본인이 요청하지 않았다면 무시하세요:",
 		codeSubject:  "[%s] 인증 코드 %s",
 		codeTitle:    "인증 코드",
 		codeIntro:    "계정을 만들기 위한 인증 코드입니다. 10분간 유효합니다:",

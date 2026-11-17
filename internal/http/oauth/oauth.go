@@ -24,6 +24,7 @@ import (
 	"github.com/zeptop-dev/captain/internal/auth"
 	"github.com/zeptop-dev/captain/internal/domain"
 	"github.com/zeptop-dev/captain/internal/http/admin"
+	"github.com/zeptop-dev/captain/internal/http/origin"
 	"github.com/zeptop-dev/captain/internal/store"
 )
 
@@ -58,6 +59,7 @@ func Register(mux *http.ServeMux, d Deps) {
 	h := &handlers{Deps: d, providers: map[string]*oidc.Provider{}}
 	mux.HandleFunc("GET /api/oauth/providers", h.list)
 	mux.HandleFunc("GET /api/oauth/{id}/start", h.start)
+	mux.HandleFunc("POST /api/oauth/{id}/start", h.start)
 	mux.HandleFunc("GET /api/oauth/{id}/callback", h.callback)
 	mux.HandleFunc("GET /api/oauth/identities", h.identities)
 	mux.HandleFunc("DELETE /api/oauth/identities/{id}", h.unlink)
@@ -137,6 +139,21 @@ type flow struct {
 }
 
 func (h *handlers) start(w http.ResponseWriter, r *http.Request) {
+	var consent struct {
+		LegalAccepted bool
+		LegalVersion  string
+	}
+	if r.Method == http.MethodPost {
+		if !origin.Allowed(r, h.BaseURL) {
+			writeJSON(w, 403, map[string]string{"error": "cross-site request refused"})
+			return
+		}
+		if json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&consent) != nil {
+			writeJSON(w, 400, map[string]string{"error": "bad json"})
+			return
+		}
+	}
+
 	p, err := h.provider(r.Context(), r.PathValue("id"))
 	if err != nil {
 		h.fail(w, r, err)
@@ -153,10 +170,33 @@ func (h *handlers) start(w http.ResponseWriter, r *http.Request) {
 	}
 	f := flow{Provider: p.ID, State: auth.Token(16), Nonce: auth.Token(16), Verifier: oauth2.GenerateVerifier(), Next: next,
 		Link: r.URL.Query().Get("link") == "1" && h.Resolve(r) != nil}
+	// Only server-recorded consent can authorize a first-time account. Editing
+	// the browser's flow cookie cannot manufacture a legal receipt.
+	var reg store.RegistrationSettings
+	if err := h.Store.GetSetting(r.Context(), store.SettingRegistration, &reg); err != nil {
+		h.fail(w, r, errors.New("registration settings unavailable"))
+		return
+	}
+	if r.Method == http.MethodPost && reg.Legal.Version() != "" {
+		if !consent.LegalAccepted || consent.LegalVersion != reg.Legal.Version() {
+			writeJSON(w, 409, map[string]string{"error": "registration terms must be accepted at the current version", "code": "legal_changed"})
+			return
+		}
+		if err := h.Store.SaveOAuthRegistrationConsent(r.Context(), f.State, p.ID, reg.Legal.Version()); err != nil {
+			h.fail(w, r, errors.New("registration consent unavailable"))
+			return
+		}
+	}
 	raw, _ := json.Marshal(f)
 	http.SetCookie(w, &http.Cookie{Name: flowCookie, Value: base64.RawURLEncoding.EncodeToString(raw), Path: "/api/oauth/", HttpOnly: true, Secure: h.Secure, SameSite: http.SameSiteLaxMode, MaxAge: int(flowTTL.Seconds())})
 	cfg := oauth2.Config{ClientID: p.ClientID, ClientSecret: p.ClientSecret, Endpoint: prov.Endpoint(), RedirectURL: h.redirectURI(p.ID), Scopes: p.Scopes}
-	http.Redirect(w, r, cfg.AuthCodeURL(f.State, oidc.Nonce(f.Nonce), oauth2.S256ChallengeOption(f.Verifier)), http.StatusFound)
+	destination := cfg.AuthCodeURL(f.State, oidc.Nonce(f.Nonce), oauth2.S256ChallengeOption(f.Verifier))
+	if r.Method == http.MethodPost {
+		w.Header().Set("Cache-Control", "no-store")
+		writeJSON(w, 200, map[string]string{"url": destination})
+		return
+	}
+	http.Redirect(w, r, destination, http.StatusFound)
 }
 
 type claims struct {
@@ -237,10 +277,16 @@ func (h *handlers) callback(w http.ResponseWriter, r *http.Request) {
 	email := strings.ToLower(strings.TrimSpace(cl.Email))
 	verified := cl.EmailVerified || cl.CasdoorVerified || p.TrustEmail
 
-	user, err := h.resolveUser(ctx, r, p, cl.Subject, email, verified, f.Link, strings.HasPrefix(f.Next, "/admin"))
+	user, err := h.resolveUser(ctx, r, p, cl.Subject, email, verified, f.Link, strings.HasPrefix(f.Next, "/admin"), store.RegistrationProof{OAuthState: f.State, Method: "oidc:" + p.ID, VerifiedSource: "oidc:" + p.ID})
 	if err != nil {
 		h.fail(w, r, err)
 		return
+	}
+	if !user.IsStaff() && verified && email != "" && user.Email == email {
+		if err := h.Store.RecordVerifiedEmail(ctx, user.ID, email, "oidc:"+p.ID); err != nil {
+			h.fail(w, r, errors.New("email verification could not be saved"))
+			return
+		}
 	}
 	if user.Status != "active" {
 		h.fail(w, r, errors.New("account disabled"))
@@ -272,7 +318,7 @@ func (h *handlers) callback(w http.ResponseWriter, r *http.Request) {
 // resolveUser maps a provider subject to a Captain user: an existing link,
 // else the signed-in user when linking, else a verified-email match, else a
 // new account when registration allows it.
-func (h *handlers) resolveUser(ctx context.Context, r *http.Request, p *store.OIDCProvider, subject, email string, verified, link, staff bool) (*domain.User, error) {
+func (h *handlers) resolveUser(ctx context.Context, r *http.Request, p *store.OIDCProvider, subject, email string, verified, link, staff bool, proofs ...store.RegistrationProof) (*domain.User, error) {
 	byID, byEmail, updateEmail := h.Store.UserByID, h.Store.UserByEmail, h.Store.UpdateUserEmail
 	byIdentity, linkIdentity := h.Store.UserByIdentity, h.Store.LinkIdentity
 	if staff {
@@ -344,7 +390,11 @@ func (h *handlers) resolveUser(ctx context.Context, r *http.Request, p *store.OI
 			u.InvitedBy = &inviter.ID
 		}
 	}
-	if err := h.Store.CreateUser(ctx, u); err != nil {
+	proof := store.RegistrationProof{Method: "oidc:" + p.ID, VerifiedSource: "oidc:" + p.ID}
+	if len(proofs) > 0 {
+		proof = proofs[0]
+	}
+	if err := h.Store.CreateRegisteredUser(ctx, u, proof); err != nil {
 		return nil, err
 	}
 	if err := h.Store.ApplyTrial(ctx, u.ID, time.Now()); err != nil {

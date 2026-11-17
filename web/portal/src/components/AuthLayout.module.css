@@ -84,6 +84,7 @@
 .forgot { position: absolute; right: 0; top: 0; max-width: 58%; text-align: right; font-size: 12px; line-height: 1.6; }
 .forgot a { color: var(--auth-text); font-size: inherit; }
 .submit { margin-top: 3px; min-height: 46px; font-size: 13px; font-weight: 500; background: var(--auth-accent); color: var(--auth-accent-ink); border-color: var(--auth-accent); }
+.submit:disabled, .submit[data-disabled] { background: var(--mantine-color-disabled); color: var(--mantine-color-disabled-color); border-color: var(--mantine-color-disabled-border); }
 .submit:hover:not(:disabled) { background: color-mix(in srgb, var(--auth-accent) 90%, var(--auth-text)); }
 .submit :global(.mantine-Button-inner) { justify-content: space-between; }
 .providers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }

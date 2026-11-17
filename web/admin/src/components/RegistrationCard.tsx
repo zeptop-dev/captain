@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next'
 import { api, type RegistrationStatus } from '../lib/api'
 import { toast } from '../lib/notify'
 
-type Values = { enabled: boolean; suffixes: string; invite_only: boolean; ip_limit: number; ip_window_hours: number; provider: string; site_key: string; secret_key: string }
+type Values = { terms_url: string; privacy_url: string; document_version: string; enabled: boolean; suffixes: string; invite_only: boolean; ip_limit: number; ip_window_hours: number; provider: string; site_key: string; secret_key: string }
 
 export function RegistrationCard() {
   const { t } = useTranslation()
@@ -17,10 +17,10 @@ export function RegistrationCard() {
   const [enabledEdited, setEnabledEdited] = useState(false)
   useSettingsDirty(enabledEdited)
   const q = useQuery({ queryKey: ['registration-settings'], queryFn: () => api.get<RegistrationStatus>('/api/admin/settings/registration') })
-  const form = useForm<Values>({ initialValues: { enabled: false, suffixes: '', invite_only: false, ip_limit: 0, ip_window_hours: 24, provider: '', site_key: '', secret_key: '' } })
-  useEffect(() => { const s = q.data?.settings; if (s) form.hydrate({ enabled: q.data!.enabled, suffixes: s.email_suffixes.join('\n'), invite_only: s.invite_only, ip_limit: s.ip_limit, ip_window_hours: s.ip_window_hours || 24, provider: s.captcha.provider, site_key: s.captcha.site_key, secret_key: '' }) }, [q.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  const form = useForm<Values>({ initialValues: { terms_url: '', privacy_url: '', document_version: '', enabled: false, suffixes: '', invite_only: false, ip_limit: 0, ip_window_hours: 24, provider: '', site_key: '', secret_key: '' } })
+  useEffect(() => { const s = q.data?.settings; if (s) form.hydrate({ terms_url: s.legal?.terms_url ?? '', privacy_url: s.legal?.privacy_url ?? '', document_version: s.legal?.document_version ?? '', enabled: q.data!.enabled, suffixes: s.email_suffixes.join('\n'), invite_only: s.invite_only, ip_limit: s.ip_limit, ip_window_hours: s.ip_window_hours || 24, provider: s.captcha.provider, site_key: s.captcha.site_key, secret_key: '' }) }, [q.data]) // eslint-disable-line react-hooks/exhaustive-deps
   const save = useMutation({
-    mutationFn: (v: Values) => api.put('/api/admin/settings/registration', { ...(enabledEdited ? { enabled: v.enabled } : {}), email_suffixes: v.suffixes.split('\n').map((s) => s.trim()).filter(Boolean), invite_only: v.invite_only, ip_limit: v.ip_limit, ip_window_hours: v.ip_window_hours, captcha: { provider: v.provider, site_key: v.site_key, secret_key: v.secret_key } }),
+    mutationFn: (v: Values) => api.put('/api/admin/settings/registration', { legal: { terms_url: v.terms_url, privacy_url: v.privacy_url, document_version: v.document_version }, ...(enabledEdited ? { enabled: v.enabled } : {}), email_suffixes: v.suffixes.split('\n').map((s) => s.trim()).filter(Boolean), invite_only: v.invite_only, ip_limit: v.ip_limit, ip_window_hours: v.ip_window_hours, captcha: { provider: v.provider, site_key: v.site_key, secret_key: v.secret_key } }),
     onSuccess: () => { setEnabledEdited(false); form.resetDirty(); form.hydrate({ ...form.getValues(), secret_key: '' }); toast.ok(t('common.saved')); qc.invalidateQueries({ queryKey: ['registration-settings'] }) }, onError: toast.err,
   })
   if (q.data === undefined) return <SettingsLoadState query={q} />
@@ -46,6 +46,13 @@ export function RegistrationCard() {
           {form.values.provider && <TextInput label="Site key" {...form.getInputProps('site_key')} />}
           {form.values.provider && <PasswordInput label="Secret key" placeholder={q.data?.has_captcha_secret ? t('mail.keep') : ''} {...form.getInputProps('secret_key')} />}
         </SettingsFields>
+        <Text fw={600} size="sm">{t('registration.legalTitle')}</Text>
+        <Text size="xs" c="dimmed">{t('registration.legalHint')}</Text>
+        <SettingsFields>
+          <TextInput label={t('registration.termsURL')} placeholder="https://example.com/terms" {...form.getInputProps('terms_url')} />
+          <TextInput label={t('registration.privacyURL')} placeholder="https://example.com/privacy" {...form.getInputProps('privacy_url')} />
+        </SettingsFields>
+        <TextInput label={t('registration.documentVersion')} description={t('registration.documentVersionHint')} required={!!(form.values.terms_url || form.values.privacy_url)} maxLength={128} {...form.getInputProps('document_version')} />
         <Group justify="flex-end"><Button type="submit" size="xs" loading={save.isPending}>{t('settingsLayout.saveSection', { section: t('registration.title') })}</Button></Group>
       </Stack></form>
     </Card>

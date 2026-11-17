@@ -305,8 +305,14 @@ func (b Builder) Code(site, to, purpose, code string) Message {
 	if purpose == "reset" {
 		intro, subject = b.t.resetIntro, b.t.resetSubject
 	}
+	if purpose == "email_verify" {
+		intro = b.t.verifyIntro
+	}
 	body := fmt.Sprintf(`<p>%s</p><p style="font-size:32px;letter-spacing:8px;font-weight:700;margin:16px 0">%s</p>`, intro, html.EscapeString(code))
 	kind := "register"
+	if purpose == "email_verify" {
+		kind = purpose
+	}
 	if purpose == "reset" {
 		kind = "reset"
 	}

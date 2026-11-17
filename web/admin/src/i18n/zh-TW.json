@@ -770,7 +770,13 @@
     "passwordStatus": "目前密碼註冊",
     "oidcStatus": "目前外部登入自動建號",
     "open": "開放",
-    "closed": "關閉"
+    "closed": "關閉",
+    "legalTitle": "註冊條款",
+    "legalHint": "選填。設定後，電子信箱及第三方首次註冊都需同意；不影響既有帳號登入。",
+    "termsURL": "服務條款連結",
+    "privacyURL": "隱私政策連結",
+    "documentVersion": "條款版本",
+    "documentVersionHint": "條款內容變更時請更新版本。支援 HTTPS 連結或站內路徑；清空兩個連結可關閉。"
   },
   "tickets": {
     "title": "工單",
@@ -4574,7 +4580,8 @@
       "expiry": "訂閱到期提醒",
       "traffic": "流量提醒",
       "notice": "工單／提領通知",
-      "test": "傳送連線測試"
+      "test": "傳送連線測試",
+      "email_verify": "帳號電子信箱驗證"
     }
   },
   "locationCorrection": {

@@ -33,16 +33,20 @@ export function Captcha({ provider, siteKey, onToken, size = 'normal' }: { provi
     if (!ref.current || rendered.current || !scripts[provider]) return
     rendered.current = true
     const el = ref.current
+    let disposed = false
+    let timer: ReturnType<typeof setTimeout> | undefined
     load(scripts[provider]).then(() => {
       const poll = () => {
+        if (disposed) return
         const api = provider === 'turnstile' ? window.turnstile : provider === 'recaptcha' ? window.grecaptcha : window.hcaptcha
-        if (!api) { setTimeout(poll, 100); return }
+        if (!api) { timer = setTimeout(poll, 100); return }
         const opts = { sitekey: siteKey, callback: onToken, 'expired-callback': () => onToken(''), size }
-        if (provider === 'recaptcha' && window.grecaptcha?.ready) window.grecaptcha.ready(() => window.grecaptcha!.render(el, opts))
+        if (provider === 'recaptcha' && window.grecaptcha?.ready) window.grecaptcha.ready(() => { if (!disposed) window.grecaptcha!.render(el, opts) })
         else api.render(el, opts as never)
       }
       poll()
     }).catch(() => {})
+    return () => { disposed = true; clearTimeout(timer); rendered.current = false }
   }, [provider, siteKey, onToken, size])
   return <div ref={ref} />
 }

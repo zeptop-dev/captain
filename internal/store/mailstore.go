@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/zeptop-dev/captain/internal/auth"
@@ -14,46 +15,100 @@ import (
 // ErrCodeTooSoon is NewCode refusing a second code within a minute.
 var ErrCodeTooSoon = errors.New("a code was sent less than a minute ago")
 
+// CodeCooldownError preserves errors.Is while exposing the remaining window.
+type CodeCooldownError struct{ RetryAfter int }
+
+func (e *CodeCooldownError) Error() string { return ErrCodeTooSoon.Error() }
+func (e *CodeCooldownError) Unwrap() error { return ErrCodeTooSoon }
+
 // NewCode creates (or replaces) a six-digit code for email+purpose, valid
 // for ttl, and returns the plain code for mailing. A code issued less than
 // a minute ago is refused so the endpoint cannot be used to spam a mailbox.
 func (s *Store) NewCode(ctx context.Context, email, purpose string, ttl time.Duration) (string, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback()
 	var created int64
-	err := s.db.QueryRowContext(ctx, `SELECT created_at FROM verification_codes WHERE email = ? AND purpose = ?`, email, purpose).Scan(&created)
+	err = tx.QueryRowContext(ctx, `SELECT created_at FROM verification_codes WHERE email = ? AND purpose = ?`, email, purpose).Scan(&created)
 	if err == nil && time.Since(time.Unix(created, 0)) < time.Minute {
-		return "", ErrCodeTooSoon
+		return "", &CodeCooldownError{RetryAfter: max(1, int(math.Ceil(time.Until(time.Unix(created, 0).Add(time.Minute)).Seconds())))}
+	}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return "", err
 	}
 	b := make([]byte, 4)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
 	code := fmt.Sprintf("%06d", (int(b[0])<<24|int(b[1])<<16|int(b[2])<<8|int(b[3]))%1000000)
-	_, err = s.db.ExecContext(ctx, `INSERT INTO verification_codes (email, purpose, code_hash, expires_at, attempts, created_at) VALUES (?, ?, ?, ?, 0, ?)
+	_, err = tx.ExecContext(ctx, `INSERT INTO verification_codes (email, purpose, code_hash, expires_at, attempts, created_at) VALUES (?, ?, ?, ?, 0, ?)
 		ON CONFLICT(email, purpose) DO UPDATE SET code_hash = excluded.code_hash, expires_at = excluded.expires_at, attempts = 0, created_at = excluded.created_at`,
 		email, purpose, auth.SHA256Hex(code), time.Now().Add(ttl).Unix(), now())
-	return code, err
+	if err != nil {
+		return "", err
+	}
+	return code, tx.Commit()
 }
 
 // CheckCode verifies and consumes a code. Five wrong tries burn it.
 func (s *Store) CheckCode(ctx context.Context, email, purpose, code string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	err = checkCodeTx(ctx, tx, email, purpose, code, true)
+	if commitErr := tx.Commit(); commitErr != nil {
+		return commitErr
+	}
+	return err
+}
+
+// ValidateCode rejects invalid challenges before expensive password hashing.
+// Success does not consume it; account creation must still consume it atomically.
+func (s *Store) ValidateCode(ctx context.Context, email, purpose, code string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	err = checkCodeTx(ctx, tx, email, purpose, code, false)
+	if commitErr := tx.Commit(); commitErr != nil {
+		return commitErr
+	}
+	return err
+}
+
+var ErrCodeInvalid = errors.New("verification code is incorrect or expired")
+
+func checkCodeTx(ctx context.Context, tx *sql.Tx, email, purpose, code string, consume bool) error {
 	var hash string
 	var expires, attempts int64
-	err := s.db.QueryRowContext(ctx, `SELECT code_hash, expires_at, attempts FROM verification_codes WHERE email = ? AND purpose = ?`, email, purpose).Scan(&hash, &expires, &attempts)
+	err := tx.QueryRowContext(ctx, `SELECT code_hash, expires_at, attempts FROM verification_codes WHERE email = ? AND purpose = ?`, email, purpose).Scan(&hash, &expires, &attempts)
 	if errors.Is(err, sql.ErrNoRows) {
-		return errors.New("no code was sent to this address")
+		return ErrCodeInvalid
 	}
 	if err != nil {
 		return err
 	}
 	if time.Now().Unix() > expires || attempts >= 5 {
-		_, _ = s.db.ExecContext(ctx, `DELETE FROM verification_codes WHERE email = ? AND purpose = ?`, email, purpose)
-		return errors.New("code expired; request a new one")
+		if _, err := tx.ExecContext(ctx, `DELETE FROM verification_codes WHERE email = ? AND purpose = ?`, email, purpose); err != nil {
+			return err
+		}
+		return ErrCodeInvalid
 	}
 	if auth.SHA256Hex(code) != hash {
-		_, _ = s.db.ExecContext(ctx, `UPDATE verification_codes SET attempts = attempts + 1 WHERE email = ? AND purpose = ?`, email, purpose)
-		return errors.New("wrong code")
+		if _, err := tx.ExecContext(ctx, `UPDATE verification_codes SET attempts = attempts + 1 WHERE email = ? AND purpose = ?`, email, purpose); err != nil {
+			return err
+		}
+		return ErrCodeInvalid
 	}
-	_, err = s.db.ExecContext(ctx, `DELETE FROM verification_codes WHERE email = ? AND purpose = ?`, email, purpose)
+	if !consume {
+		return nil
+	}
+	_, err = tx.ExecContext(ctx, `DELETE FROM verification_codes WHERE email = ? AND purpose = ?`, email, purpose)
 	return err
 }
 

@@ -12,7 +12,7 @@ import (
 
 const DesignKey = "mail_templates"
 
-var Kinds = []string{"register", "reset", "expiry", "traffic", "notice", "test"}
+var Kinds = []string{"register", "reset", "email_verify", "expiry", "traffic", "notice", "test"}
 var Variables = []string{"site", "code", "expires_at", "expires_date", "used_percent", "portal_url", "subject", "body", "plan", "used", "total", "reset_at"}
 
 type Template struct {
@@ -65,7 +65,7 @@ func (d Design) Validate() error {
 			}
 			allowed := map[string]bool{"site": true}
 			switch kind {
-			case "register", "reset":
+			case "register", "reset", "email_verify":
 				allowed["code"] = true
 			case "expiry":
 				allowed["expires_at"] = true
@@ -115,12 +115,13 @@ func Configured(s Settings, lang string) Builder {
 func (b Builder) Defaults() map[string]Template {
 	t := b.t
 	return map[string]Template{
-		"register": {fmt.Sprintf(t.codeSubject, "{{site}}", "{{code}}"), t.codeIntro, ""},
-		"reset":    {fmt.Sprintf(t.resetSubject, "{{site}}", "{{code}}"), t.resetIntro, ""},
-		"expiry":   {fmt.Sprintf(t.expirySubject, "{{site}}", "{{expires_date}}"), stripTags(fmt.Sprintf(t.expiryBody, "{{expires_at}}")), t.expiryButton},
-		"traffic":  {strings.ReplaceAll(fmt.Sprintf(t.trafficSubject, "{{site}}", 98765), "98765", "{{used_percent}}"), strings.ReplaceAll(stripTags(fmt.Sprintf(t.trafficBody, 98765)), "98765", "{{used_percent}}"), t.trafficButton},
-		"notice":   {"{{subject}}", "{{body}}", ""},
-		"test":     {fmt.Sprintf(t.testSubject, "{{site}}"), t.testBody, ""},
+		"email_verify": {fmt.Sprintf(t.codeSubject, "{{site}}", "{{code}}"), t.verifyIntro, ""},
+		"register":     {fmt.Sprintf(t.codeSubject, "{{site}}", "{{code}}"), t.codeIntro, ""},
+		"reset":        {fmt.Sprintf(t.resetSubject, "{{site}}", "{{code}}"), t.resetIntro, ""},
+		"expiry":       {fmt.Sprintf(t.expirySubject, "{{site}}", "{{expires_date}}"), stripTags(fmt.Sprintf(t.expiryBody, "{{expires_at}}")), t.expiryButton},
+		"traffic":      {strings.ReplaceAll(fmt.Sprintf(t.trafficSubject, "{{site}}", 98765), "98765", "{{used_percent}}"), strings.ReplaceAll(stripTags(fmt.Sprintf(t.trafficBody, 98765)), "98765", "{{used_percent}}"), t.trafficButton},
+		"notice":       {"{{subject}}", "{{body}}", ""},
+		"test":         {fmt.Sprintf(t.testSubject, "{{site}}"), t.testBody, ""},
 	}
 }
 func replaceValues(s string, values map[string]string) string {
@@ -165,7 +166,7 @@ func (b Builder) decorate(old Message, kind, site string, values map[string]stri
 		}
 	}
 	body := "<p>" + strings.ReplaceAll(html.EscapeString(replaceValues(t.Body, values)), "\n", "<br>") + "</p>"
-	if kind == "register" || kind == "reset" {
+	if kind == "register" || kind == "reset" || kind == "email_verify" {
 		body += `<p style="font-size:32px;letter-spacing:8px;font-weight:700">` + html.EscapeString(values["code"]) + `</p>`
 	}
 	color := b.design.Color
@@ -202,7 +203,7 @@ func (b Builder) Notice(site, to, subject, body string) Message {
 func (b Builder) Sample(kind, site, to, portal string) (Message, error) {
 	var m Message
 	switch kind {
-	case "register", "reset":
+	case "register", "reset", "email_verify":
 		m = b.Code(site, to, kind, "123456")
 	case "expiry":
 		m = b.Expiry(site, to, portal, time.Date(2030, 1, 15, 12, 0, 0, 0, time.UTC), sampleDetails())

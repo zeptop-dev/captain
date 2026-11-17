@@ -259,3 +259,109 @@ func TestOIDCRegistrationMasterSwitch(t *testing.T) {
 	}
 	login("read-error", "read-error@example.com", false)
 }
+
+func TestOIDCRegistrationRequiresServerConsent(t *testing.T) {
+	ctx := context.Background()
+	idp := newFakeIdP(t)
+	st := store.New(testdb.Open(t))
+	cfg := config.Default()
+	cfg.Portal.Registration = true
+	st.SetSetting(ctx, store.SettingOIDC, store.OIDCSettings{Providers: []store.OIDCProvider{{ID: "idp", Name: "Example", Issuer: idp.srv.URL, ClientID: "captain-client"}}})
+	legal := &store.RegistrationLegal{TermsURL: "/terms", DocumentVersion: "v1"}
+	st.SetSetting(ctx, store.SettingRegistration, store.RegistrationSettings{Legal: legal})
+	srv := httptest.NewUnstartedServer(nil)
+	cfg.BaseURL = "http://" + srv.Listener.Addr().String()
+	srv.Config.Handler = chttp.New(cfg, st, slog.Default()).Handler()
+	srv.Start()
+	defer srv.Close()
+	login := func(accept bool) *http.Client {
+		t.Helper()
+		jar, _ := cookiejar.New(nil)
+		c := &http.Client{Jar: jar}
+		path := "/api/oauth/idp/start"
+		if accept {
+			body := strings.NewReader(`{"LegalAccepted":true,"LegalVersion":"` + legal.Version() + `"}`)
+			req, _ := http.NewRequest("POST", srv.URL+path, body)
+			req.Header.Set("Origin", srv.URL)
+			response, e := c.Do(req)
+			if e != nil {
+				t.Fatal(e)
+			}
+			var destination struct {
+				URL string `json:"url"`
+			}
+			json.NewDecoder(response.Body).Decode(&destination)
+			response.Body.Close()
+			if destination.URL == "" {
+				t.Fatal("missing OAuth destination")
+			}
+			path = destination.URL
+
+		}
+		destination := path
+		if !strings.HasPrefix(path, "http") {
+			destination = srv.URL + path
+		}
+		resp, e := c.Get(destination)
+		if e != nil {
+			t.Fatal(e)
+		}
+		resp.Body.Close()
+		return c
+	}
+	req, _ := http.NewRequest("POST", srv.URL+"/api/oauth/idp/start", strings.NewReader(`{"LegalAccepted":true,"LegalVersion":"`+legal.Version()+`"}`))
+	req.Header.Set("Origin", "https://evil.example.com")
+	response, e := http.DefaultClient.Do(req)
+	if e != nil {
+		t.Fatal(e)
+	}
+	response.Body.Close()
+	if response.StatusCode != 403 {
+		t.Fatal("cross-site consent", response.StatusCode)
+	}
+	forged, _ := cookiejar.New(nil)
+	forgedClient := &http.Client{Jar: forged}
+	response, e = forgedClient.Get(srv.URL + "/api/oauth/idp/start?legal_accepted=1&legal_version=" + legal.Version())
+	if e != nil {
+		t.Fatal(e)
+	}
+	response.Body.Close()
+	if _, e = st.UserByEmail(ctx, idp.email); e == nil {
+		t.Fatal("GET query manufactured consent")
+	}
+	login(false)
+	if _, e := st.UserByEmail(ctx, idp.email); e == nil {
+		t.Fatal("created without consent")
+	}
+	c := login(true)
+	u, e := st.UserByEmail(ctx, idp.email)
+	if e != nil {
+		t.Fatal(e)
+	}
+	v, e := st.EmailVerification(ctx, u.ID)
+	if e != nil || !v.Verified || v.Source != "oidc:idp" {
+		t.Fatal(v, e)
+	}
+	var n int
+	if e = st.DB().QueryRow(`SELECT COUNT(*) FROM registration_receipts WHERE user_id=? AND method='oidc:idp'`, u.ID).Scan(&n); e != nil || n != 1 {
+		t.Fatal(n, e)
+	}
+	// New terms do not prevent existing accounts from signing in normally.
+	legal.DocumentVersion = "v2"
+	st.SetSetting(ctx, store.SettingRegistration, store.RegistrationSettings{Legal: legal})
+	c = login(false)
+	resp, e := c.Get(srv.URL + "/api/portal/me")
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatal(resp.StatusCode)
+	}
+	// A new identity cannot use the existing user's consent.
+	idp.email, idp.sub = "another@example.com", "user-2"
+	login(false)
+	if _, e = st.UserByEmail(ctx, idp.email); e == nil {
+		t.Fatal("new identity bypassed consent")
+	}
+}

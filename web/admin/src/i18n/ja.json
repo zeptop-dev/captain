@@ -770,7 +770,13 @@
     "passwordStatus": "現在のパスワード登録",
     "oidcStatus": "現在の外部アカウント自動作成",
     "open": "許可",
-    "closed": "停止"
+    "closed": "停止",
+    "legalTitle": "登録規約",
+    "legalHint": "任意です。設定すると新規登録時に同意が必要です。既存のログインは変わりません。",
+    "termsURL": "利用規約URL",
+    "privacyURL": "プライバシーURL",
+    "documentVersion": "文書バージョン",
+    "documentVersionHint": "内容を変更したらバージョンも更新してください。HTTPSまたはサイト内パスに対応します。両方空欄で無効です。"
   },
   "tickets": {
     "title": "チケット",
@@ -4574,7 +4580,8 @@
       "expiry": "有効期限の通知",
       "traffic": "通信量の通知",
       "notice": "チケット／出金の通知",
-      "test": "接続テスト"
+      "test": "接続テスト",
+      "email_verify": "アカウントのメール確認"
     }
   },
   "locationCorrection": {

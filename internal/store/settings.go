@@ -68,7 +68,8 @@ type RegistrationSettings struct {
 	IPLimit       int `json:"ip_limit"`
 	IPWindowHours int `json:"ip_window_hours"`
 	// Captcha protects the password sign-up form.
-	Captcha captchaSettings `json:"captcha"`
+	Captcha captchaSettings    `json:"captcha"`
+	Legal   *RegistrationLegal `json:"legal,omitempty"`
 }
 
 type captchaSettings = struct {

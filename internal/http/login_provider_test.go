@@ -160,6 +160,21 @@ func TestLoginProviderNewAPIFlow(t *testing.T) {
 	if subject == "" || user["email"] != "alice@example.com" || user["email_verified"] != false {
 		t.Fatal(user)
 	}
+	if err := r.st.RecordVerifiedEmail(ctx, uid, "alice@example.com", "email_code"); err != nil {
+		t.Fatal(err)
+	}
+	if info(token, 200)["email_verified"] != true {
+		t.Fatal("verified email not exported")
+	}
+	if err := r.st.UpdateUserEmail(ctx, uid, "changed@example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if info(token, 200)["email_verified"] != false {
+		t.Fatal("stale verification exported")
+	}
+	if err := r.st.UpdateUserEmail(ctx, uid, "alice@example.com"); err != nil {
+		t.Fatal(err)
+	}
 	for _, field := range []string{"id", "uuid", "subscription_url", "balance_cents", "role", "password_hash"} {
 		if _, ok := user[field]; ok {
 			t.Fatalf("leaked %s", field)

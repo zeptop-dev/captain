@@ -75,6 +75,8 @@ func Register(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("POST /api/portal/login", h.sameOrigin(h.login))
 	mux.HandleFunc("POST /api/portal/logout", h.sameOrigin(h.logout))
 	mux.HandleFunc("GET /api/portal/me", h.requireUser(h.me))
+	mux.HandleFunc("POST /api/portal/me/email/verification/send", h.requireUser(h.sendEmailVerification))
+	mux.HandleFunc("POST /api/portal/me/email/verification", h.requireUser(h.verifyEmail))
 	mux.HandleFunc("DELETE /api/portal/me/hwid-devices/{hwid}", h.requireUser(h.deleteHwidDevice))
 	mux.HandleFunc("GET /api/portal/plans", h.plans)
 	mux.HandleFunc("GET /api/portal/servers", h.requireUser(h.servers))
@@ -154,10 +156,13 @@ func (h *handlers) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !reg.PasswordOpen(h.Registration) {
-		fail(w, http.StatusForbidden, "registration is closed")
+		authFail(w, http.StatusForbidden, "registration_closed", "registration is closed")
 		return
 	}
-	var in struct{ Email, Password, Code, Invite, Captcha string }
+	var in struct {
+		Email, Password, Code, Invite, Captcha, LegalVersion string
+		LegalAccepted                                        bool
+	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || !strings.Contains(in.Email, "@") || len(in.Password) < 8 {
 		fail(w, http.StatusBadRequest, "valid email and a password of 8+ chars are required")
 		return
@@ -166,15 +171,26 @@ func (h *handlers) register(w http.ResponseWriter, r *http.Request) {
 	ip := ratelimit.ClientIP(r)
 	inviter := h.inviterFrom(r, in.Invite)
 	if err := h.registrationAllowed(r, reg, email, ip, inviter, in.Captcha); err != nil {
-		fail(w, http.StatusForbidden, err.Error())
+		registrationError(w, err)
 		return
 	}
-	if ms := h.mailSettings(r); ms.Enabled() && ms.VerifyRegistration {
-		if err := h.Store.CheckCode(r.Context(), email, "register", strings.TrimSpace(in.Code)); err != nil {
-			fail(w, http.StatusBadRequest, err.Error())
+
+	ms := h.mailSettings(r)
+	if reg.Legal.Version() != "" && (!in.LegalAccepted || in.LegalVersion != reg.Legal.Version()) {
+		authFail(w, 409, "legal_changed", store.ErrRegistrationLegal.Error())
+		return
+	}
+	if ms.Enabled() && ms.VerifyRegistration {
+		if err := h.Store.ValidateCode(r.Context(), email, "register", strings.TrimSpace(in.Code)); err != nil {
+			if errors.Is(err, store.ErrCodeInvalid) {
+				authFail(w, 400, "code_invalid", err.Error())
+			} else {
+				h.serverErr(w, "validate registration code", err)
+			}
 			return
 		}
 	}
+
 	u, err := admin.NewUser(email, in.Password, "user")
 	if err != nil {
 		fail(w, http.StatusInternalServerError, "internal error")
@@ -182,8 +198,18 @@ func (h *handlers) register(w http.ResponseWriter, r *http.Request) {
 	}
 	u.InvitedBy = inviter
 	u.RegisterIP = ip
-	if err := h.Store.CreateUser(r.Context(), u); err != nil {
-		fail(w, http.StatusConflict, "email already registered")
+	proof := store.RegistrationProof{VerifyCode: ms.Enabled() && ms.VerifyRegistration, Code: strings.TrimSpace(in.Code), Accepted: in.LegalAccepted, LegalVersion: in.LegalVersion, Method: "password"}
+	if err := h.Store.CreateRegisteredUser(r.Context(), u, proof); err != nil {
+		switch {
+		case errors.Is(err, store.ErrRegistrationLegal):
+			authFail(w, 409, "legal_changed", err.Error())
+		case errors.Is(err, store.ErrCodeInvalid):
+			authFail(w, 400, "code_invalid", err.Error())
+		case errors.Is(err, store.ErrUserEmailInUse):
+			authFail(w, 409, "email_in_use", "email already registered")
+		default:
+			h.serverErr(w, "register user", err)
+		}
 		return
 	}
 	if err := h.Store.ApplyTrial(r.Context(), u.ID, time.Now()); err != nil {
@@ -252,6 +278,11 @@ func (h *handlers) logout(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) me(w http.ResponseWriter, r *http.Request) { h.writeMe(w, r, userFrom(r)) }
 
 func (h *handlers) writeMe(w http.ResponseWriter, r *http.Request, u *domain.User) {
+	verification, err := h.Store.EmailVerification(r.Context(), u.ID)
+	if err != nil {
+		h.serverErr(w, "email verification", err)
+		return
+	}
 	sub, err := h.Store.ActiveSubscription(r.Context(), u.ID)
 	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		fail(w, http.StatusInternalServerError, "internal error")
@@ -297,7 +328,7 @@ func (h *handlers) writeMe(w http.ResponseWriter, r *http.Request, u *domain.Use
 		hwids = []store.HwidDevice{}
 	}
 	ok(w, map[string]any{
-		"id": u.ID, "email": u.Email, "balance_cents": u.BalanceCents,
+		"id": u.ID, "email": u.Email, "balance_cents": u.BalanceCents, "email_verification": verification, "email_verification_available": h.mailSettings(r).Enabled(),
 		"hwid_enabled":     ss.HWID.Enabled,
 		"hwid_devices":     hwids,
 		"hwid_limit":       hwidLimit,
@@ -459,7 +490,7 @@ func (h *handlers) registerPolicy(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	out := map[string]any{"open": reg.PasswordOpen(h.Registration), "verify": ms.Enabled() && ms.VerifyRegistration, "reset": ms.Enabled(),
-		"invite_only": reg.InviteOnly, "email_suffixes": reg.EmailSuffixes}
+		"invite_only": reg.InviteOnly, "email_suffixes": reg.EmailSuffixes, "legal": reg.Legal, "legal_version": reg.Legal.Version()}
 	if cs := (captcha.Settings{Provider: reg.Captcha.Provider, SiteKey: reg.Captcha.SiteKey, SecretKey: reg.Captcha.SecretKey}); cs.Enabled() {
 		out["captcha"] = map[string]string{"provider": cs.Provider, "site_key": cs.SiteKey}
 	}
@@ -469,7 +500,7 @@ func (h *handlers) registerPolicy(w http.ResponseWriter, r *http.Request) {
 // sendCode mails a verification code for registration or password reset.
 // Replies are deliberately the same whether or not the address exists.
 func (h *handlers) sendCode(w http.ResponseWriter, r *http.Request) {
-	var in struct{ Email, Purpose string }
+	var in struct{ Email, Purpose, Captcha string }
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || !strings.Contains(in.Email, "@") {
 		fail(w, http.StatusBadRequest, "valid email required")
 		return
@@ -482,7 +513,17 @@ func (h *handlers) sendCode(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !reg.PasswordOpen(h.Registration) {
-			fail(w, http.StatusForbidden, "registration is closed")
+			authFail(w, http.StatusForbidden, "registration_closed", "registration is closed")
+			return
+		}
+	}
+	if in.Purpose == "register" {
+		if !reg.EmailAllowed(email) {
+			authFail(w, 403, "email_domain", "this email domain is not accepted")
+			return
+		}
+		if err := captcha.Verify(r.Context(), captcha.Settings{Provider: reg.Captcha.Provider, SiteKey: reg.Captcha.SiteKey, SecretKey: reg.Captcha.SecretKey}, in.Captcha, ratelimit.ClientIP(r)); err != nil {
+			authFail(w, 403, "captcha_failed", "captcha verification failed; try again")
 			return
 		}
 	}
@@ -525,7 +566,7 @@ func (h *handlers) sendCode(w http.ResponseWriter, r *http.Request) {
 	}
 	code, err := h.Store.NewCode(r.Context(), email, in.Purpose, 10*time.Minute)
 	if errors.Is(err, store.ErrCodeTooSoon) {
-		fail(w, http.StatusTooManyRequests, err.Error())
+		codeCooldown(w, err)
 		return
 	}
 	if err != nil {
@@ -538,7 +579,7 @@ func (h *handlers) sendCode(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadGateway, "could not send the email; contact the administrator")
 		return
 	}
-	ok(w, map[string]bool{"sent": true})
+	ok(w, map[string]any{"sent": true, "retry_after": 60})
 }
 
 // resetPassword sets a new password after a mailed code.

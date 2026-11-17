@@ -451,6 +451,13 @@ func (h *handlers) putRegistration(w http.ResponseWriter, r *http.Request) {
 	}
 	// Old clients do not send enabled. Neither omission nor null may erase a
 	// closed master switch and restore a permissive deployment/provider default.
+	if v.Legal == nil {
+		v.Legal = cur.Legal
+	}
+	if err := v.Legal.Validate(); err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if v.Enabled == nil {
 		v.Enabled = cur.Enabled
 	}
