@@ -58,7 +58,13 @@ func TestPlanSelectionUpgradePreservesAccessAndBilling(t *testing.T) {
 	}
 	users := []*domain.User{{Email: "a@example.com", UUID: "a", SubToken: "a", Status: "active", Role: domain.RoleUser}, {Email: "b@example.com", UUID: "b", SubToken: "b", Status: "active", Role: domain.RoleUser}}
 	for i, u := range users {
-		must(s.CreateUser(ctx, u))
+		// Seed the actual schema118 shape. The current allocator also checks
+		// references added by later migrations and must not prepare old rows.
+		u.ID, u.AgentID = int64(i+1), int64(i+1)
+		_, err = conn.Exec(`INSERT INTO users(id,email,password_hash,role,uuid,sub_token,status,created_at,updated_at,agent_id) VALUES(?,?,'',?,?,?,?,?,?,?)`, u.ID, u.Email, u.Role, u.UUID, u.SubToken, u.Status, now(), now(), u.AgentID)
+		must(err)
+		_, err = conn.Exec(`UPDATE account_sequences SET value=? WHERE name IN ('user','agent')`, u.ID)
+		must(err)
 		_, err = s.GrantSubscriptionMode(ctx, u.ID, plans[i], time.Now(), GrantStack)
 		must(err)
 	}
