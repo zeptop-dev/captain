@@ -11,6 +11,7 @@ import (
 )
 
 func (h *handlers) registerUserManagement(mux *http.ServeMux) {
+	h.registerLegacyUserGrant(mux)
 	mux.HandleFunc("POST /api/admin/users/bulk/preview", h.requireAdmin(h.previewUserBulk))
 	mux.HandleFunc("POST /api/admin/users/bulk/jobs/{job}", h.requireAdmin(h.executeUserBulk))
 	mux.HandleFunc("GET /api/admin/users/bulk/jobs/{job}", h.requireAdmin(h.getUserBulk))

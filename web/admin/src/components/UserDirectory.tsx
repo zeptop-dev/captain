@@ -3,7 +3,7 @@ import { useDebouncedValue, useLocalStorage } from '@mantine/hooks'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { api, type Group as UserGroup, type Page, type Plan, type UserRow } from '../lib/api'
+import { api, type Page, type Plan, type UserRow } from '../lib/api'
 import { bytes, money, when } from '../lib/format'
 import { toast } from '../lib/notify'
 
@@ -11,13 +11,13 @@ type Filters = { q: string; status: string; access: string; group_id: string; pl
 const defaults: Filters = { q: '', status: '', access: '', group_id: '', plan_id: '', sort: 'id', direction: 'desc', per_page: '50', from: '', to: '' }
 type BulkRow = { id: number; email: string; outcome: string; expires_at?: number }
 type BulkJob = { id: string; done: boolean; rows: BulkRow[]; expires_at: string }
-const actions = ['ban', 'unban', 'set_group', 'extend', 'reset_usage', 'rotate_subscription', 'delete'] as const
+const actions = ['ban', 'unban', 'extend', 'reset_usage', 'rotate_subscription', 'delete'] as const
 
-export function UserDirectory({ onOpen, canManage, plans, groups }: { onOpen: (u: UserRow) => void; canManage: boolean; plans: Plan[]; groups: UserGroup[] }) {
+export function UserDirectory({ onOpen, canManage, plans }: { onOpen: (u: UserRow) => void; canManage: boolean; plans: Plan[] }) {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const [saved, setSaved] = useLocalStorage<Filters>({ key: 'captain.user-filters.v1', defaultValue: defaults })
-  const filters = { ...defaults, ...saved }
+  const filters = { ...defaults, ...saved, group_id: '' } // Ignore the retired persisted group filter.
   const [columns, setColumns] = useLocalStorage<string[]>({ key: 'captain.user-columns.v1', defaultValue: ['plan', 'usage', 'expires', 'balance', 'status'] })
   const [search] = useDebouncedValue(filters.q, 300)
   const [page, setPage] = useState(1)
@@ -29,11 +29,10 @@ export function UserDirectory({ onOpen, canManage, plans, groups }: { onOpen: (u
   const q = useQuery({ queryKey: ['users', params.toString()], queryFn: () => api.get<Page<UserRow>>(`/api/admin/users?${params}`) })
   const [opened, setOpened] = useState(false)
   const [action, setAction] = useState<string>('ban')
-  const [group, setGroup] = useState<string | null>(null)
   const [plan, setPlan] = useState<string | null>(null)
   const [days, setDays] = useState<string | number>(30)
   const [job, setJob] = useState<BulkJob | null>(null)
-  const preview = useMutation({ mutationFn: () => api.post<BulkJob>('/api/admin/users/bulk/preview', { ids: selected, action, group_id: group ? Number(group) : null, plan_id: Number(plan), days: Number(days) }), onSuccess: setJob, onError: toast.err })
+  const preview = useMutation({ mutationFn: () => api.post<BulkJob>('/api/admin/users/bulk/preview', { ids: selected, action, plan_id: Number(plan), days: Number(days) }), onSuccess: setJob, onError: toast.err })
   const execute = useMutation({ mutationFn: () => api.post<BulkJob>(`/api/admin/users/bulk/jobs/${job!.id}`, { confirm: true }), onSuccess: (r) => { setJob(r); setSelected([]); qc.invalidateQueries({ queryKey: ['users'] }) }, onError: toast.err })
   const items = q.data?.items ?? []
   const pageSelected = items.length > 0 && items.every(u => selected.includes(u.id))
@@ -46,7 +45,7 @@ export function UserDirectory({ onOpen, canManage, plans, groups }: { onOpen: (u
         <TextInput label={t('users.email')} value={filters.q} onChange={e => set('q', e.currentTarget.value)} style={{ flex: '1 1 220px' }} />
         <Select label={t('users.status')} clearable data={labels(['active', 'banned'], 'users')} value={filters.status || null} onChange={v => set('status', v)} w={160} />
         <Select label={t('directory.access')} clearable data={['usable', 'expired', 'exhausted', 'none'].map(value => ({ value, label: t(`directory.${value}`) }))} value={filters.access || null} onChange={v => set('access', v)} w={190} />
-        <Select label={t('users.group')} clearable value={filters.group_id || null} onChange={v => set('group_id', v)} data={[{ value: '0', label: t('common.none') }, ...groups.map(g => ({ value: String(g.ID), label: g.Name }))]} w={180} />
+
         <Select label={t('users.plan')} clearable searchable value={filters.plan_id || null} onChange={v => set('plan_id', v)} data={plans.map(p => ({ value: String(p.ID), label: p.Name }))} w={190} />
       </Group>
       <Group align="flex-start">
@@ -88,7 +87,7 @@ export function UserDirectory({ onOpen, canManage, plans, groups }: { onOpen: (u
         {!job ? <>
           <Text size="sm" c="dimmed">{t('directory.previewHint')}</Text>
           <Select label={t('directory.action')} value={action} onChange={v => setAction(v!)} allowDeselect={false} data={labels([...actions], 'directory.actions')} />
-          {action === 'set_group' && <Select label={t('users.group')} clearable value={group} onChange={setGroup} placeholder={t('common.none')} data={groups.map(g => ({ value: String(g.ID), label: g.Name }))} />}
+
           {['extend', 'reset_usage'].includes(action) && <Select label={t('users.plan')} value={plan} onChange={setPlan} searchable data={plans.map(p => ({ value: String(p.ID), label: p.Name }))} />}
           {action === 'extend' && <NumberInput label={t('directory.days')} min={1} max={3650} value={days} onChange={setDays} />}
           {action === 'rotate_subscription' && <Text size="sm" c="orange">{t('directory.rotateHint')}</Text>}

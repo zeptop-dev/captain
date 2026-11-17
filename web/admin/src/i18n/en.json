@@ -4847,5 +4847,20 @@
     "managed": "Managed connection",
     "manageConnection": "Manage connection",
     "count": "Showing {{count}} inbounds"
+  },
+  "legacyGrant": {
+    "title": "Legacy account authorization",
+    "readOnly": "Read only",
+    "hint": "This existing permission scheme supplements the account’s plans. It is retained for compatibility and cannot be reassigned here.",
+    "migrate": "Move authorization to plans",
+    "migrationHint": "This removes only the account override after a current usable subscription covers the same permission scheme. It does not grant a new plan, change other customers, or adjust billing or traffic.",
+    "covered": "Already covered by: {{plans}}",
+    "needsPlan": "No usable subscription covers the same permission scheme yet. Configure or grant the appropriate plan first, then return and check again. The old authorization is retained.",
+    "expiryHint": "After migration, access follows the plan’s validity and remaining allowance. The account no longer has a separate, indefinite extra grant.",
+    "managePlans": "Manage plan permissions",
+    "confirm": "Confirm plan-based authorization",
+    "changed": "The account or subscription changed, or the plan no longer covers this scheme. Review the refreshed result before trying again.",
+    "failed": "Unable to load or migrate the old authorization. Please retry.",
+    "retry": "Retry"
   }
 }

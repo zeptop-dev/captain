@@ -1415,3 +1415,13 @@ and node token hashes never appear in administrator read views. Per-migration
 mode-specific challenge and persistence checks are still executed after detection.
 Old renderers/agents may lose only this read-only diagnostic facility, so existing
 Captain1.68/bosun0.99 rollback floors are retained.
+
+## Retired account group editor (next minor release)
+
+User-directory filters and bulk/edit forms no longer assign legacy permission
+groups. Existing explicit GroupID/null requests and bulk APIs remain available;
+omitting GroupID in a customer PATCH now preserves it atomically. A read-only
+legacy-grant projection and explicit checked cleanup endpoint are additive.
+Cleanup only removes a redundant override after revalidating the same permission
+scheme on a usable subscription. Financial records and node credentials stay
+unchanged. No schema or bosun change is required. See [legacy account grants](PLAN_ACCESS.md#legacy-account-grants-in-the-console).

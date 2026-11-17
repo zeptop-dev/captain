@@ -133,3 +133,38 @@ POST `/api/admin/node-access/conversion/dismiss` accepts the currently displayed
 permission may dismiss it; stale receipts return409 and a missing receipt404.
 The additive `conversion.dismissed` field in the access catalogue reports the
 saved visibility state. Resetting the site clears both history and dismissal.
+
+## Legacy account grants in the console
+
+The user editor no longer assigns permission groups. Normal edits submit status
+and an optional password, omitting `GroupID`. Omission preserves the existing
+account grant in SQL; it must not clear it or restore a stale drawer snapshot.
+Legacy API callers can still explicitly send a numeric `GroupID` or `null`.
+The directory's group selector and bulk set-group action are retired; a persisted
+old group filter is ignored so it cannot silently hide customers. Legacy filter
+and bulk APIs remain compatible for scripts.
+
+Only accounts with an old override show the read-only **Legacy account
+authorization** card. Admins/operators can open its migration dialog; it does not
+change the permission scheme or grant a subscription. The additive GET
+`/api/admin/users/{id}/legacy-grant` returns the actual group/name, an opaque
+identity-bound revision, and the customer's currently usable covering plans.
+It does not enumerate unowned plans or all permission groups.
+
+POST `/api/admin/users/{id}/legacy-grant/migrate` requires the displayed revision
+and `confirm: true`. In one transaction it rechecks immutable customer identity,
+the current override and current subscription validity/allowance. Removal is
+allowed only when a usable subscription has the same permission scheme identity,
+not merely an equal snapshot of today's nodes. This also preserves category and
+external-source changes belonging to that scheme. Disabled-for-sale plans still
+cover existing valid subscriptions; queued, expired and exhausted subscriptions
+cannot replace the override.
+
+If no such plan is present, the dialog links to plan management and keeps the old
+grant. Configure/assign the appropriate plan through existing plan/subscription
+controls, then return to check again. The existing grant operation may already
+remove a redundant matching override. Migration itself never modifies another
+customer, plan, balance, subscription row, expiry, traffic, UUID or token. After
+migration access follows usable plans; the separate indefinite account override
+is gone. Stale/replayed migrations return409, and support staff/read-only tokens
+cannot perform the mutation. No migration, agent change or extra group is created.
