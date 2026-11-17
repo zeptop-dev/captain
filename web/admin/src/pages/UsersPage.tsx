@@ -1,13 +1,14 @@
-import { ActionIcon, Accordion, Badge, Button, Code, Drawer, Group, Modal, NumberInput, PasswordInput, Select, Stack, Text, TextInput, Title, Divider } from '@mantine/core'
+import { ActionIcon, Badge, Button, Code, Drawer, Group, Modal, NumberInput, PasswordInput, Select, Stack, Text, TextInput, Title, Divider } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { IconPlus, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { LegacyUserGrant } from '../components/LegacyUserGrant'
 import { AccountIDEditor } from '../components/AccountIDEditor'
 import { useAuth } from '../lib/auth'
-import { api, ApiError, type Group as UGroup, type HwidDevice, type OnlineDevice, type Plan, type SubRequest, type UserRow } from '../lib/api'
+import { api, ApiError, type HwidDevice, type OnlineDevice, type Plan, type SubRequest, type UserRow } from '../lib/api'
 import { money, when } from '../lib/format'
 import { toast } from '../lib/notify'
 import { PageHeader } from '../components/PageHeader'
@@ -31,7 +32,6 @@ export default function UsersPage() {
   const qc = useQueryClient()
   const canManageGroups = me?.role === 'admin' || me?.role === 'operator'
   const plans = useQuery({ queryKey: ['plans'], queryFn: () => api.get<Plan[]>('/api/admin/plans') })
-  const groups = useQuery({ queryKey: ['groups'], queryFn: () => api.get<UGroup[]>('/api/admin/groups'), enabled: canManageGroups })
   const [sel, setSel] = useState<UserRow | null>(null)
   const [creating, setCreating] = useState(false)
   const [wireGuardModalOpen, setWireGuardModalOpen] = useState(false)
@@ -52,9 +52,9 @@ export default function UsersPage() {
     else toast.err(error)
   } })
 
-  const editForm = useForm({ initialValues: { Status: 'active', GroupID: '', Password: '' } })
-  const update = useMutation({ mutationFn: (v: typeof editForm.values) => api.patch(`/api/admin/users/${sel!.id}`, { Status: v.Status, GroupID: v.GroupID ? Number(v.GroupID) : null, Password: v.Password }), onSuccess: () => { toast.ok(t('common.saved')); invalidate() }, onError: toast.err })
-  const detail = useQuery({ queryKey: ['user', sel?.id], queryFn: () => api.get<{ devices: OnlineDevice[]; subscriptions: UserSub[]; hwid_devices: HwidDevice[]; hwid_limit: number | null; sub_requests: SubRequest[]; first_connected_at: string | null; dyn_limit: { mbps: number; until: string; rate_mbps: number } | null }>(`/api/admin/users/${sel!.id}`), enabled: sel !== null, refetchInterval: 15000 })
+  const editForm = useForm({ initialValues: { Status: 'active', Password: '' } })
+  const update = useMutation({ mutationFn: (v: typeof editForm.values) => api.patch(`/api/admin/users/${sel!.id}`, { Status: v.Status, Password: v.Password }), onSuccess: () => { toast.ok(t('common.saved')); invalidate() }, onError: toast.err })
+  const detail = useQuery({ queryKey: ['user', sel?.id], queryFn: () => api.get<{ group_id: number | null; devices: OnlineDevice[]; subscriptions: UserSub[]; hwid_devices: HwidDevice[]; hwid_limit: number | null; sub_requests: SubRequest[]; first_connected_at: string | null; dyn_limit: { mbps: number; until: string; rate_mbps: number } | null }>(`/api/admin/users/${sel!.id}`), enabled: sel !== null, refetchInterval: 15000 })
   const [grantPlan, setGrantPlan] = useState<string | null>(null)
   const [grantHow, setGrantHow] = useState<string>('')
   const grant = useMutation({ mutationFn: () => api.post(`/api/admin/users/${sel!.id}/grant`, { PlanID: Number(grantPlan), Activation: grantHow }), onSuccess: () => { toast.ok(t('common.saved')); invalidate(); qc.invalidateQueries({ queryKey: ['user', sel?.id] }); qc.invalidateQueries({ queryKey: ['user-entries', sel?.id] }); setGrantPlan(null) }, onError: toast.err })
@@ -65,13 +65,13 @@ export default function UsersPage() {
   const rotate = useMutation({ mutationFn: (userID: number) => api.post<{ sub_token: string; sub_url: string }>(`/api/admin/users/${userID}/rotate-token`), onSuccess: (r, userID) => { toast.ok(t('common.saved')); setSel(current => current?.id === userID ? { ...current, sub_token: r.sub_token, sub_url: r.sub_url } : current); invalidate(); qc.invalidateQueries({ queryKey: ['wireguard-devices', `/api/admin/users/${userID}/wireguard-devices`] }) }, onError: toast.err })
   const del = useMutation({ mutationFn: () => api.del(`/api/admin/users/${sel!.id}`), onSuccess: () => { toast.ok(t('common.deleted')); setSel(null); invalidate() }, onError: (e) => toast.err(e instanceof ApiError && e.status === 409 ? t('users.deleteBlocked') : e) })
 
-  const open = (u: UserRow) => { setSel(u); editForm.setValues({ Status: u.status, GroupID: u.group_id ? String(u.group_id) : '', Password: '' }); setGrantPlan(null); setDelta(0) }
+  const open = (u: UserRow) => { setSel(u); editForm.setValues({ Status: u.status, Password: '' }); setGrantPlan(null); setDelta(0) }
   const subURL = sel ? (sel.sub_url || `${window.location.origin}/sub/${sel.sub_token}`) : ''
 
   return (
     <>
       <PageHeader title={t('users.title')} subtitle={t('users.subtitle')} actions={canManageGroups && <Button leftSection={<IconPlus size={16} />} onClick={() => setCreating(true)}>{t('users.create')}</Button>} />
-      {view === 'renewals' ? <RenewalsPanel /> : <UserDirectory onOpen={open} canManage={canManageGroups} plans={plans.data ?? []} groups={groups.data ?? []} />}
+      {view === 'renewals' ? <RenewalsPanel /> : <UserDirectory onOpen={open} canManage={canManageGroups} plans={plans.data ?? []} />}
 
       <Modal opened={creating} onClose={() => setCreating(false)} title={t('users.create')}>
         <form onSubmit={createForm.onSubmit((v) => create.mutate(v))}><Stack>
@@ -114,11 +114,12 @@ export default function UsersPage() {
               {detail.data?.devices?.length ? <Group gap={6} mt={4}>{detail.data.devices.map((d) => <Badge key={d.ip} variant="light" color={d.via_relay ? 'gray' : 'teal'} title={d.via_relay ? t('users.viaRelay') + ' · ' + when(d.last_seen_at) : when(d.last_seen_at)}>{d.ip}{d.via_relay ? ' · ' + t('users.viaRelay') : ''}</Badge>)}</Group> : <Text size="sm" c="dimmed">{t('users.noDevices')}</Text>}
             </div>
             <Divider />
+            {canManageGroups && <LegacyUserGrant key={`legacy-grant-${sel.id}`} userID={sel.id} groupID={detail.data ? detail.data.group_id : sel.group_id} />}
             <form onSubmit={editForm.onSubmit((v) => update.mutate(v))}><Stack gap="sm">
               <Title order={6}>{t('common.edit')}</Title>
               <Group grow>
                 <Select label={t('users.status')} data={[{ value: 'active', label: t('users.active') }, { value: 'banned', label: t('users.banned') }]} allowDeselect={false} {...editForm.getInputProps('Status')} />
-                <Accordion variant="contained"><Accordion.Item value="legacy-grant"><Accordion.Control>{t('planAccess.extraGrant')}</Accordion.Control><Accordion.Panel><Select label={t('users.group')} data={[{ value: '', label: t('common.none') }, ...(groups.data ?? []).map((g) => ({ value: String(g.ID), label: g.Name }))]} allowDeselect={false} {...editForm.getInputProps('GroupID')} /><Text size="xs" c="dimmed">{t('planAccess.extraHint')}</Text></Accordion.Panel></Accordion.Item></Accordion>
+
               </Group>
               <PasswordInput label={t('users.newPassword')} {...editForm.getInputProps('Password')} />
               <Group justify="flex-end"><Button type="submit" size="xs" loading={update.isPending}>{t('common.save')}</Button></Group>

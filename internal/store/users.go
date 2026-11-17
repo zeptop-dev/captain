@@ -290,12 +290,18 @@ func (s *Store) ListUsersFiltered(ctx context.Context, f UserFilter, limit, offs
 // the admins API, so an operator cannot reset an admin's password or ban
 // the last admin through the user list.
 func (s *Store) UpdateUser(ctx context.Context, id int64, status string, groupID *int64, passwordHash string) error {
+	return s.UpdateUserFields(ctx, id, status, groupID, passwordHash, true)
+}
+
+// Omission in the modern editor preserves the current override in SQL, even if
+// an authorization migration finished while the status/password form was open.
+func (s *Store) UpdateUserFields(ctx context.Context, id int64, status string, groupID *int64, passwordHash string, updateGroup bool) error {
 	if passwordHash != "" {
 		if _, err := s.db.ExecContext(ctx, `UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ? AND role = 'user'`, passwordHash, now(), id); err != nil {
 			return err
 		}
 	}
-	res, err := s.db.ExecContext(ctx, `UPDATE users SET status = ?, group_id = ?, updated_at = ? WHERE id = ? AND role = 'user'`, status, nullInt64(groupID), now(), id)
+	res, err := s.db.ExecContext(ctx, `UPDATE users SET status = ?, group_id = CASE WHEN ? THEN ? ELSE group_id END, updated_at = ? WHERE id = ? AND role = 'user'`, status, updateGroup, nullInt64(groupID), now(), id)
 	if err != nil {
 		return err
 	}

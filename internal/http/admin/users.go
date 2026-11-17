@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -236,7 +237,7 @@ func (h *handlers) updateUser(w http.ResponseWriter, r *http.Request) {
 	u, okUser := h.customer(r)
 	var in struct {
 		Status   string
-		GroupID  *int64
+		GroupID  json.RawMessage
 		Password string
 	}
 	if !okUser {
@@ -251,6 +252,11 @@ func (h *handlers) updateUser(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "status must be active or banned")
 		return
 	}
+	var group *int64
+	if len(in.GroupID) > 0 && json.Unmarshal(in.GroupID, &group) != nil {
+		fail(w, 400, "GroupID must be an integer or null")
+		return
+	}
 	hash := ""
 	if in.Password != "" {
 		if len(in.Password) < 8 {
@@ -263,7 +269,7 @@ func (h *handlers) updateUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if err := h.Store.UpdateUser(r.Context(), id, in.Status, in.GroupID, hash); err != nil {
+	if err := h.Store.UpdateUserFields(r.Context(), id, in.Status, group, hash, len(in.GroupID) > 0); err != nil {
 		serverErr(w, err)
 		return
 	}
