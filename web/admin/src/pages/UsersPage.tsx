@@ -35,6 +35,8 @@ export default function UsersPage() {
   const [sel, setSel] = useState<UserRow | null>(null)
   const [creating, setCreating] = useState(false)
   const [wireGuardModalOpen, setWireGuardModalOpen] = useState(false)
+  const [legacyModalOpen, setLegacyModalOpen] = useState(false)
+  const childModalOpen = wireGuardModalOpen || legacyModalOpen
   const [view] = useURLChoice('tab', canManageGroups ? ['list', 'renewals'] : ['list'], 'list')
   const invalidate = () => qc.invalidateQueries({ queryKey: ['users'] })
 
@@ -82,7 +84,7 @@ export default function UsersPage() {
         </Stack></form>
       </Modal>
 
-      <Drawer opened={sel !== null} onClose={() => setSel(null)} closeOnEscape={!wireGuardModalOpen} closeOnClickOutside={!wireGuardModalOpen} trapFocus={!wireGuardModalOpen} position="right" size="lg" title={sel?.email}>
+      <Drawer opened={sel !== null} onClose={() => setSel(null)} closeOnEscape={!childModalOpen} closeOnClickOutside={!childModalOpen} trapFocus={!childModalOpen} position="right" size="lg" title={sel?.email}>
         {sel && (
           <Stack gap="lg">
             {me?.role === 'admin' && <AccountIDEditor key={`account-id-${sel.id}`} id={sel.id} endpoint={`/api/admin/users/${sel.id}/id`} onChanged={() => setSel(null)} />}
@@ -114,7 +116,7 @@ export default function UsersPage() {
               {detail.data?.devices?.length ? <Group gap={6} mt={4}>{detail.data.devices.map((d) => <Badge key={d.ip} variant="light" color={d.via_relay ? 'gray' : 'teal'} title={d.via_relay ? t('users.viaRelay') + ' · ' + when(d.last_seen_at) : when(d.last_seen_at)}>{d.ip}{d.via_relay ? ' · ' + t('users.viaRelay') : ''}</Badge>)}</Group> : <Text size="sm" c="dimmed">{t('users.noDevices')}</Text>}
             </div>
             <Divider />
-            {canManageGroups && <LegacyUserGrant key={`legacy-grant-${sel.id}`} userID={sel.id} groupID={detail.data ? detail.data.group_id : sel.group_id} />}
+            {canManageGroups && <LegacyUserGrant key={`legacy-grant-${sel.id}`} userID={sel.id} groupID={detail.data ? detail.data.group_id : sel.group_id} onModalChange={setLegacyModalOpen} />}
             <form onSubmit={editForm.onSubmit((v) => update.mutate(v))}><Stack gap="sm">
               <Title order={6}>{t('common.edit')}</Title>
               <Group grow>

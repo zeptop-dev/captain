@@ -41,7 +41,7 @@ try{
  await drawer.getByRole('button',{name:'Move authorization to plans',exact:true}).click();const modal=page.getByRole('dialog',{name:'Move authorization to plans',exact:true})
  assert.equal(await modal.getByRole('button',{name:'Confirm plan-based authorization',exact:true}).isDisabled(),true)
  assert.equal(await modal.getByRole('link',{name:'Manage plan permissions',exact:true}).getAttribute('href'),'/admin/plans')
- await modal.getByRole('button',{name:'Cancel',exact:true}).click();covered=true
+ await page.keyboard.press('Escape');await drawer.getByText('Old permission',{exact:true}).waitFor();covered=true
  await drawer.getByRole('button',{name:'Move authorization to plans',exact:true}).click();await modal.getByText('Already covered by: Example',{exact:true}).waitFor()
  await modal.getByRole('button',{name:'Confirm plan-based authorization',exact:true}).click();await page.getByText('Old permission',{exact:true}).waitFor({state:'hidden'})
  assert.equal(users[1].group_id,null);assert.ok(filters.every(v=>v===null||v===''));assert.deepEqual(errors,[])

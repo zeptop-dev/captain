@@ -1,6 +1,6 @@
 import { Alert, Anchor, Badge, Button, Card, Group, Modal, Stack, Text } from '@mantine/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError } from '../lib/api'
@@ -8,10 +8,11 @@ import { toast } from '../lib/notify'
 
 type LegacyGrant = { group_id: number | null; name: string; revision: string; can_migrate: boolean; covering_plans: { id: number; name: string }[] }
 
-export function LegacyUserGrant({ userID, groupID }: { userID: number; groupID: number | null }) {
+export function LegacyUserGrant({ userID, groupID, onModalChange }: { userID: number; groupID: number | null; onModalChange: (opened: boolean) => void }) {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const [opened, setOpened] = useState(false)
+  useEffect(() => { onModalChange(opened); return () => onModalChange(false) }, [opened, onModalChange])
   const [error, setError] = useState('')
   const q = useQuery({ queryKey: ['legacy-user-grant', userID, groupID], queryFn: () => api.get<LegacyGrant>(`/api/admin/users/${userID}/legacy-grant`), enabled: groupID !== null, refetchInterval: 15_000 })
   const migrate = useMutation({
