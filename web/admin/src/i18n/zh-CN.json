@@ -322,6 +322,8 @@
       "vlessTLSVisionDesc": "使用自有域名和 TLS 证书，适合直连，不适用于普通 HTTP CDN。",
       "hysteria2": "Hysteria2",
       "hysteria2Desc": "QUIC，高丢包线路吞吐最好，需要证书。",
+      "naive": "NaiveProxy · TLS",
+      "naiveDesc": "需可信 TLS 证书和支持 Naive 的客户端；订阅支持 sing-box 与 Naive 分享链接。",
       "anytls": "AnyTLS",
       "anytlsDesc": "基于 TLS 的 TCP 协议，需要域名和证书。",
       "mieru": "mieru",

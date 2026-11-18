@@ -322,6 +322,8 @@
       "vlessTLSVisionDesc": "使用自有網域和 TLS 憑證，適合直連，不適用於一般 HTTP CDN。",
       "hysteria2": "Hysteria2",
       "hysteria2Desc": "QUIC，高丟包線路吞吐最好，需要憑證。",
+      "naive": "NaiveProxy · TLS",
+      "naiveDesc": "需可信 TLS 憑證及支援 Naive 的用戶端；訂閱支援 sing-box 與 Naive 分享連結。",
       "anytls": "AnyTLS",
       "anytlsDesc": "基於 TLS 的 TCP 協定，需要網域和憑證。",
       "mieru": "mieru",

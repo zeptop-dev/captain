@@ -322,6 +322,8 @@
       "vlessTLSVisionDesc": "Direct connections with your own domain and TLS certificate; not for ordinary HTTP CDNs.",
       "hysteria2": "Hysteria2",
       "hysteria2Desc": "QUIC, best throughput on lossy lines; needs a certificate.",
+      "naive": "NaiveProxy · TLS",
+      "naiveDesc": "Requires a trusted TLS certificate and a Naive-capable client; sing-box and Naive share links supported.",
       "anytls": "AnyTLS",
       "anytlsDesc": "TCP with TLS; requires a domain and certificate.",
       "mieru": "mieru",

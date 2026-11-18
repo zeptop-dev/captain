@@ -322,6 +322,8 @@
       "vlessTLSVisionDesc": "Прямое подключение со своим доменом и TLS-сертификатом; не для обычных HTTP CDN.",
       "hysteria2": "Hysteria2",
       "hysteria2Desc": "QUIC, лучшая пропускная способность на линиях с потерями; нужен сертификат.",
+      "naive": "NaiveProxy · TLS",
+      "naiveDesc": "Нужны доверенный TLS-сертификат и клиент Naive; поддерживаются sing-box и ссылки Naive.",
       "anytls": "AnyTLS",
       "anytlsDesc": "TCP с TLS; необходимы домен и сертификат.",
       "mieru": "mieru",

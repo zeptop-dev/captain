@@ -44,6 +44,7 @@ const recipes: { key: string; protocol: string; port: number; settings: Record<s
   { key: 'vlessReality', protocol: 'vless', port: 443, settings: { flow: 'xtls-rprx-vision', tls: { mode: 2, server_name: 'www.apple.com', reality: { private_key: '', public_key: '', short_ids: ['0123abcd'], handshake_server: 'www.apple.com', handshake_port: 443 } } } },
   { key: 'vlessTLSVision', protocol: 'vless', port: 443, settings: { flow: 'xtls-rprx-vision', transport: { type: 'tcp' }, tls: { mode: 1, server_name: 'node.example.com', auto_cert: true, acme: 'http' } } },
   { key: 'hysteria2', protocol: 'hysteria2', port: 8443, settings: { tls: { mode: 1, server_name: 'node.example.com', auto_cert: true, acme: 'http' }, obfs: 'salamander', obfs_password: 'change-me', up_mbps: 100, down_mbps: 500 } },
+  { key: 'naive', protocol: 'naive', port: 8445, settings: { tls: { mode: 1, server_name: 'node.example.com', auto_cert: true, acme: 'http' } } },
   { key: 'anytls', protocol: 'anytls', port: 8444, settings: { tls: { mode: 1, server_name: 'node.example.com', auto_cert: true, acme: 'http' } } },
   { key: 'mieru', protocol: 'mieru', port: 24450, settings: { mieru_transport: 'TCP' } },
   { key: 'snell', protocol: 'snell', port: 6160, settings: { snell_psk: '', snell_version: 5 } },
