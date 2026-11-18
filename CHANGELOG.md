@@ -1,5 +1,7 @@
 # Changelog
 
+- **v1.71.0** (2026-11-18) — Add a NaiveProxy TLS inbound quick preset and publish authorized Naive nodes through sing-box JSON and naive+https links using bosun v0.101.0. Preserve SNI, IPv6 and escaped credentials, and omit unsupported formats. Require a compatible Naive client and trusted certificate; upgrade node agents to v0.101.0 for corrected user statistics registration. No database migration, proxy-core change or rollback-floor change.
+
 - **v1.70.0** (2026-11-17) — Add registration email verification and consent evidence, preserving transactional account creation and stable identity through account renumbering. Retire legacy account-group editing and provide a checked migration to current access grants, retaining credentials, plan rights, explicit overrides and financial history. Migration125 stores registration evidence; raise the rollback floor to v1.70.0. Add the ordinary TLS + TCP + Vision inbound quick preset with six-language guidance. Pin bosun v0.100.1 and use its graceful restart path for native updates and manual restarts.
 
 - **v1.69.1** (2026-11-16) — Move Agent migration records from the server directory into an on-demand history window in entry settings and migration operations. Stop hidden-history polling; omit missing or stale error text on completed migrations while retaining failed-task diagnostics and reference protection. Canonicalize the selected server set in migration preview digests so checkbox order cannot cause false confirmation conflicts; translate genuine conflicts and require a new preview.

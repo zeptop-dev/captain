@@ -425,3 +425,7 @@ protocol and usage filters, linked subscription counts and owner-bound editing.
 Independent SOCKS5 and single-key SS2022 listeners use their own credentials and
 cannot be assigned to plans or subscriptions. See
 [standalone inbound operation](docs/STANDALONE_INBOUNDS.md).
+
+NaiveProxy TLS has a quick preset and sing-box / naive+https subscription output
+in v1.71.0. Use a compatible client, trusted certificate, and bosun v0.101.0 or
+later for corrected user accounting. See [Naive subscriptions](docs/SUBSCRIPTIONS.md#naiveproxy-captain-v1710).

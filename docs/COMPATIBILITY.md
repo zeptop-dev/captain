@@ -7,6 +7,17 @@ For the v1.48 features, use v1.48.1 or later: the unchanged v1.48.0 tag has no
 official binaries or images because its release tests reached the previous
 time limit. The v1.48 application compatibility is unchanged; the current rollback floor is v1.63.0 to preserve ingress address sources, subscription bindings and strict subscription-node IP policies and the earlier server-plan/interface-binding protections.
 
+## Naive subscriptions (Captain v1.71.0 / bosun v0.101.0)
+
+The Naive TLS quick preset and shared subscription renderer support HTTP/2 through
+sing-box JSON and naive+https links. Client builds must support Naive (including
+Cronet where required), trusted TLS and the emitted SNI. Unsupported formats omit
+the entry. Native UDP and QUIC subscriptions are not part of this first release.
+Upgrade installed agents to bosun v0.101.0 for corrected Naive statistics and
+speed-rule identities. Existing usernames remain valid; a user's counter can
+aggregate several Naive inbounds, with independent inbound totals but no invented
+user-by-inbound attribution. Schema125 and existing rollback floors remain unchanged.
+
 ## Registration identity and consent (next minor release)
 
 Migration 125 preserves historical accounts as having no email verification

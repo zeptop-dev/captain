@@ -393,3 +393,5 @@ Captain v1.62.0 以[套餐权限](docs/PLAN_ACCESS.md)作为入口，新套餐�
 跨服务器查看、协议和使用方式筛选、关联订阅数量及按归属服务器编辑。独立 SOCKS5
 与单密钥 SS2022 入站不依赖用户套餐，也不发布到订阅。参见
 [独立入站操作说明](docs/STANDALONE_INBOUNDS.md)。
+
+NaiveProxy TLS 已提供快速模板及 sing-box / naive+https 订阅输出（v1.71.0）。需兼容客户端、可信证书，以及 bosun v0.101.0 或更新版本修正后的用户计量。[配置说明](docs/SUBSCRIPTIONS.md#naiveproxy-captain-v1710)。

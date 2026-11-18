@@ -464,3 +464,14 @@ slot and revokes its URL. Both individual and bulk token rotation revoke these
 devices. The agent removes revoked peers when it applies the updated state, so an
 offline server cannot be promised immediate disconnection. Tunnel address slots
 can be reused after deletion, but device IDs and random credentials never are.
+
+## NaiveProxy (Captain v1.71.0)
+
+Use the NaiveProxy TLS inbound preset with a trusted certificate and a reachable
+port (default 8445). HTTP ACME requires inbound port80; use configured DNS ACME or
+managed certificates where that is unavailable. Publish through sing-box JSON or
+naive+https URI subscriptions to a compatible client. The sing-box client needs
+Naive/Cronet support; a server-only build is insufficient. Other formats omit the
+node. This is HTTP/2 TLS, not generic HTTPS-proxy substitution or HTTP-CDN support.
+Upgrade bosun to v0.101.0 for corrected per-user statistics registration. Existing
+wire usernames stay unchanged; same-user totals across Naive inbounds are aggregate.
