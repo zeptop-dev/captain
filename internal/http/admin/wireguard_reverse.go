@@ -16,6 +16,10 @@ import (
 )
 
 type wireGuardInput struct {
+	Independent      bool                `json:"independent,omitempty"`
+	Protocol         spec.Protocol       `json:"protocol,omitempty"`
+	Settings         *spec.Inbound       `json:"settings,omitempty"`
+	Core             string              `json:"core,omitempty"`
 	Version          int64               `json:"version"`
 	TransitID        int64               `json:"transit_id"`
 	Name             string              `json:"name"`
@@ -39,6 +43,7 @@ func (h *handlers) registerWireGuard(mux *http.ServeMux) {
 	mux.HandleFunc("POST "+path, h.requireAdmin(h.saveWireGuard))
 	mux.HandleFunc("PUT "+path+"/{link}", h.requireAdmin(h.saveWireGuard))
 	mux.HandleFunc("DELETE "+path+"/{link}", h.requireAdmin(h.deleteWireGuard))
+	mux.HandleFunc("PUT "+path+"/{link}/bindings", h.requireAdmin(h.bindWireGuard))
 }
 func (h *handlers) listWireGuard(w http.ResponseWriter, r *http.Request) {
 	links, err := h.Store.WireGuardLinks(r.Context(), idOf(r))
@@ -48,17 +53,30 @@ func (h *handlers) listWireGuard(w http.ResponseWriter, r *http.Request) {
 	}
 	out := []any{}
 	for _, link := range links {
-		ib, err := h.Store.InboundByID(r.Context(), link.UserInboundID)
+		ib := &domain.Inbound{Enabled: link.Enabled, Settings: spec.Inbound{PrivateAccess: link.PrivateAccess}}
+		var err error
+		if link.UserInboundID != 0 {
+			ib, err = h.Store.InboundByID(r.Context(), link.UserInboundID)
+		}
 		if err != nil {
 			serverErr(w, err)
 			return
 		}
-		entry, err := h.Store.EntryByID(r.Context(), link.EntryID)
+		entry := &domain.Entry{Name: link.Name}
+		if link.EntryID != 0 {
+			entry, err = h.Store.EntryByID(r.Context(), link.EntryID)
+		}
 		if err != nil {
 			serverErr(w, err)
 			return
 		}
-		in := wireGuardInput{Version: link.Version, TransitID: link.TransitID, Name: entry.Name, Port: ib.Port, TunnelPort: link.ListenPort, Endpoint: link.Endpoint, MTU: link.MTU, GroupID: ib.GroupID, PrivateAccess: ib.Settings.PrivateAccess, Enabled: ib.Enabled, DomainPreference: &link.DomainPreference, AutoForwarding: &link.AutoForwarding}
+		settings := ib.Spec()
+		bindings, err := h.Store.WireGuardBindings(r.Context(), link.ID)
+		if err != nil {
+			serverErr(w, err)
+			return
+		}
+		in := wireGuardInput{Independent: link.UserInboundID == 0, Protocol: ib.Protocol, Settings: &settings, Core: ib.Core, Version: link.Version, TransitID: link.TransitID, Name: entry.Name, Port: ib.Port, TunnelPort: link.ListenPort, Endpoint: link.Endpoint, MTU: link.MTU, GroupID: ib.GroupID, PrivateAccess: ib.Settings.PrivateAccess, Enabled: ib.Enabled, DomainPreference: &link.DomainPreference, AutoForwarding: &link.AutoForwarding}
 		if ib.Settings.TLS != nil {
 			in.ServerName = ib.Settings.TLS.ServerName
 		}
@@ -66,7 +84,7 @@ func (h *handlers) listWireGuard(w http.ResponseWriter, r *http.Request) {
 		forwarding := h.wireGuardForwarding(r, link)
 		if !ib.Enabled {
 			state = "disabled"
-		} else if !h.Store.WireGuardCapable(r.Context(), link.TransitID, true) || !h.Store.WireGuardCapable(r.Context(), link.ExitID, false) || (link.DomainPreference != "" && !h.Store.WireGuardDomainPreferenceCapable(r.Context(), link.TransitID)) || (link.AutoForwarding && !h.Store.WireGuardForwardingCapable(r.Context(), link.ExitID)) {
+		} else if (link.UserInboundID != 0 && !h.Store.WireGuardInboundCapable(r.Context(), link.TransitID, ib.Spec())) || !h.Store.WireGuardCapable(r.Context(), link.TransitID, false) || !h.Store.WireGuardCapable(r.Context(), link.ExitID, false) || (link.DomainPreference != "" && !h.Store.WireGuardDomainPreferenceCapable(r.Context(), link.TransitID)) || (link.AutoForwarding && !h.Store.WireGuardForwardingCapable(r.Context(), link.ExitID)) {
 			state = "unavailable"
 		} else if forwarding != nil && (forwarding.State == "error" || forwarding.State == "unsupported") {
 			state = "blocked"
@@ -95,7 +113,8 @@ func (h *handlers) listWireGuard(w http.ResponseWriter, r *http.Request) {
 			UserInboundID int64                                 `json:"user_inbound_id"`
 			State         string                                `json:"state"`
 			Forwarding    *agentproto.WireGuardForwardingStatus `json:"forwarding,omitempty"`
-		}{in, link.ID, link.ExitID, link.Slot, ib.ID, state, forwarding})
+			Bindings      []domain.Inbound                      `json:"bindings"`
+		}{in, link.ID, link.ExitID, link.Slot, ib.ID, state, forwarding, bindings})
 	}
 	ok(w, out)
 }
@@ -113,6 +132,10 @@ func (h *handlers) saveWireGuard(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "invalid group_id")
 		return
 	}
+	if in.Independent {
+		h.saveWireGuardTransport(w, r, in.wireGuardInput)
+		return
+	}
 	exitID := idOf(r)
 	if !h.requireProxyNode(w, r, exitID) || !h.requireProxyNode(w, r, in.TransitID) {
 		return
@@ -123,8 +146,8 @@ func (h *handlers) saveWireGuard(w http.ResponseWriter, r *http.Request) {
 	}
 	in.Name = strings.TrimSpace(in.Name)
 	in.ServerName = strings.TrimSpace(in.ServerName)
-	if in.Name == "" || !validNodeName(in.Name) || in.ServerName == "" || strings.ContainsAny(in.ServerName, " /:\r\n") {
-		fail(w, 400, "name and valid REALITY server name are required")
+	if in.Name == "" || !validNodeName(in.Name) || strings.ContainsAny(in.ServerName, " /:\r\n") {
+		fail(w, 400, "name and valid server name are required")
 		return
 	}
 	ep, err := netip.ParseAddrPort(in.Endpoint)
@@ -165,10 +188,6 @@ func (h *handlers) saveWireGuard(w http.ResponseWriter, r *http.Request) {
 			serverErr(w, err)
 			return
 		}
-		if ib.Settings.TLS == nil || ib.Settings.TLS.Reality == nil {
-			fail(w, 409, "managed inbound is missing REALITY settings")
-			return
-		}
 		write.User = *ib
 		entry, err := h.Store.EntryByID(r.Context(), write.Link.EntryID)
 		if err != nil {
@@ -183,6 +202,43 @@ func (h *handlers) saveWireGuard(w http.ResponseWriter, r *http.Request) {
 		}
 		write.Link = store.WireGuardLink{ID: auth.UUID(), ExitID: exitID, TransitID: in.TransitID}
 		write.User = domain.Inbound{Tag: "wg-user-" + write.Link.ID, Protocol: spec.VLESS, Settings: spec.Inbound{Flow: "xtls-rprx-vision", TLS: &spec.TLS{Mode: spec.TLSReality, Reality: &spec.Reality{HandshakePort: 443}}}}
+	}
+	// Omitted new fields retain the legacy protocol and its saved settings.
+	// A supplied protocol change must also supply its complete settings.
+	if in.Protocol != "" && in.Protocol != write.User.Protocol && in.Settings == nil {
+		fail(w, 400, "protocol changes require settings")
+		return
+	}
+	if in.Protocol != "" {
+		write.User.Protocol = in.Protocol
+	}
+	if in.Settings != nil {
+		if in.Settings.Reverse != nil || in.Settings.ScopedUsers || len(in.Settings.Users) != 0 || in.Settings.Standalone != nil {
+			fail(w, 400, "managed WireGuard settings cannot supply authentication scope or reverse ownership")
+			return
+		}
+		write.User.Settings = *in.Settings
+	}
+	if in.Core != "" {
+		write.User.Core = in.Core
+	}
+	if write.User.Core == "" {
+		switch write.User.Protocol {
+		case spec.VLESS, spec.VMess, spec.Trojan, spec.Shadowsocks, spec.WireGuard:
+			write.User.Core = "xray"
+		case spec.SSH, spec.Mieru:
+			write.User.Core = "singbox-extended"
+		default:
+			write.User.Core = "singbox"
+		}
+	}
+	if write.User.Core != "xray" && spec.CoreFamily(write.User.Core) != "singbox" {
+		fail(w, 400, "unsupported WireGuard entry core")
+		return
+	}
+	if !spec.CapabilitiesForCore(write.User.Core).SupportsWireGuardProtocol(write.User.Protocol) {
+		fail(w, 400, "unsupported WireGuard entry protocol")
+		return
 	}
 	if in.DomainPreference != nil {
 		switch *in.DomainPreference {
@@ -242,6 +298,14 @@ func (h *handlers) saveWireGuard(w http.ResponseWriter, r *http.Request) {
 			serverErr(w, err)
 			return
 		}
+		patches := map[string]json.RawMessage{}
+		for name, raw := range ov {
+			patches[name] = json.RawMessage(raw)
+		}
+		if err := spec.CheckWireGuardOverrides(patches); err != nil {
+			fail(w, 409, err.Error())
+			return
+		}
 		var patch map[string]any
 		if raw := ov["xray"]; raw != "" {
 			if json.Unmarshal([]byte(raw), &patch) != nil {
@@ -269,15 +333,29 @@ func (h *handlers) saveWireGuard(w http.ResponseWriter, r *http.Request) {
 	}
 	ib := &write.User
 	ib.NodeID = in.TransitID
-	ib.Core = "xray"
+	ib.Core = write.User.Core
 	ib.Port = in.Port
 	ib.Enabled = in.Enabled
 	// Omission preserves legacy membership when editing a managed connection.
 	if len(in.GroupIDValue) > 0 || ib.ID == 0 {
 		ib.GroupID = in.GroupID
 	}
-	ib.Settings.TLS.ServerName = in.ServerName
-	ib.Settings.TLS.Reality.HandshakeServer = in.ServerName
+	if ib.Settings.TLS != nil && ib.Settings.TLS.Mode == spec.TLSReality {
+		if ib.Settings.TLS.Reality == nil {
+			fail(w, 400, "REALITY settings are required")
+			return
+		}
+		if in.Settings == nil || in.ServerName != "" {
+			ib.Settings.TLS.ServerName = in.ServerName
+			ib.Settings.TLS.Reality.HandshakeServer = in.ServerName
+		}
+		if ib.Settings.TLS.ServerName == "" {
+			fail(w, 400, "REALITY server name is required")
+			return
+		}
+	} else if ib.Settings.TLS != nil && in.ServerName != "" && in.Settings == nil {
+		ib.Settings.TLS.ServerName = in.ServerName
+	}
 	if in.PrivateAccess != nil {
 		ib.Settings.PrivateAccess = in.PrivateAccess
 	}
@@ -286,8 +364,16 @@ func (h *handlers) saveWireGuard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fillInboundSecrets(ib)
+	if msg := h.checkInboundCore(r.Context(), ib); msg != "" {
+		fail(w, 400, msg)
+		return
+	}
 	if msg := checkInboundFields(ib); msg != "" {
 		fail(w, 400, msg)
+		return
+	}
+	if in.Enabled && !h.Store.WireGuardInboundCapable(r.Context(), in.TransitID, ib.Spec()) {
+		fail(w, 409, "transit core does not support the selected WireGuard entry")
 		return
 	}
 	if msg := h.checkIngress(r, ib); msg != "" {

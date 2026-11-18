@@ -260,7 +260,7 @@ func resolveInternalForwardTargetsTx(ctx context.Context, tx *sql.Tx, source int
 		}
 		var removingExit int
 		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM node_jobs WHERE kind='node_remove' AND (done_at IS NULL OR error='') AND node_id IN (
-          SELECT exit_id FROM node_reverse_links WHERE user_inbound_id=? UNION SELECT exit_id FROM node_wireguard_links WHERE user_inbound_id=?)`, ib.ID, ib.ID).Scan(&removingExit); err != nil {
+          SELECT exit_id FROM node_reverse_links WHERE user_inbound_id=? UNION SELECT exit_id FROM wireguard_inbound_links WHERE inbound_id=?)`, ib.ID, ib.ID).Scan(&removingExit); err != nil {
 			return err
 		}
 		if removingExit > 0 {
@@ -439,7 +439,7 @@ func internalForwardReferences(ctx context.Context, q addressQuery, node, inboun
 				matches = n == node
 				if !matches && includeReverse {
 					var count int
-					if err = q.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM node_reverse_links WHERE user_inbound_id=? AND exit_id=?) + (SELECT COUNT(*) FROM node_wireguard_links WHERE user_inbound_id=? AND exit_id=?)`, f.InboundID, node, f.InboundID, node).Scan(&count); err != nil {
+					if err = q.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM node_reverse_links WHERE user_inbound_id=? AND exit_id=?) + (SELECT COUNT(*) FROM wireguard_inbound_links WHERE inbound_id=? AND exit_id=?)`, f.InboundID, node, f.InboundID, node).Scan(&count); err != nil {
 						return nil, err
 					}
 					matches = count > 0

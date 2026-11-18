@@ -108,7 +108,7 @@ func loadLineNode(ctx context.Context, tx *sql.Tx, id, lineID int64) (*lineNode,
 	if err != nil {
 		return nil, err
 	}
-	rows, err = tx.QueryContext(ctx, `SELECT w.listen_port FROM node_wireguard_links w JOIN inbounds i ON i.id=w.user_inbound_id WHERE w.transit_id=? AND i.enabled=1`, id)
+	rows, err = tx.QueryContext(ctx, `SELECT w.listen_port FROM node_wireguard_links w LEFT JOIN inbounds i ON i.id=w.user_inbound_id WHERE w.transit_id=? AND COALESCE(i.enabled,w.enabled)=1`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -179,12 +179,15 @@ func compileOrdinaryLine(ctx context.Context, tx *sql.Tx, l *ForwardLine) (map[i
 	if err != nil {
 		return nil, nil, err
 	}
+	if err := checkWireGuardLandingTx(ctx, tx, ib); err != nil {
+		return nil, nil, err
+	}
 	// A reverse subscriber listener lives on A, but still depends on its owned
 	// exit B. Check only this listener's connection, not unrelated links on A.
 	var removingExit int
 	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM node_jobs WHERE kind='node_remove' AND (done_at IS NULL OR error='') AND node_id IN (
 	SELECT exit_id FROM node_reverse_links WHERE user_inbound_id=?
-	 UNION SELECT exit_id FROM node_wireguard_links WHERE user_inbound_id=?)`, ib.ID, ib.ID).Scan(&removingExit); err != nil {
+	 UNION SELECT exit_id FROM wireguard_inbound_links WHERE inbound_id=?)`, ib.ID, ib.ID).Scan(&removingExit); err != nil {
 		return nil, nil, err
 	}
 	if removingExit > 0 {

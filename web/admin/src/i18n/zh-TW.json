@@ -442,7 +442,7 @@
         "reverse": "此協定或核心不支援具使用者計費的託管 VLESS Reverse。",
         "privateAccess": "私網存取需要支援此功能的伺服器、核心及最近的能力回報。",
         "listenAddress": "此 Mieru 建置不能綁定指定監聽 IP，請使用 mita。",
-        "wireguardReverse": "反向 WireGuard 需要支援此功能的 Linux 伺服器和 Xray 核心回報最新能力。",
+        "wireguardReverse": "此入口需要相容核心的最新 WireGuard 能力回報。",
         "privateAccessCoreOnly": "需要支援的 sing-box 伺服器、已關閉的出站防護及近期報告；不支援 Xray 或託管反向隧道。",
         "privateAccessPolicyUnknown": "自動策略需要獨立能力與近期狀態報告，請升級伺服器後重新檢查。",
         "privateAccessRuntime": "執行前提未滿足，請查看伺服器就緒檢查。",
@@ -2654,13 +2654,15 @@
     "openwrtHint": "OpenWrt 支援 amd64 / arm64 的僅監控安裝，需要 bosun 0.89.0 或更新版本。原生安裝指令稿透過 procd 管理開機啟動。"
   },
   "wireguard": {
+    "entrySecurity": "入口安全方式",
+    "entrySettingsHint": "使用者在轉發機驗證和計費，再經 WireGuard 出站。一般 TLS 需填寫網域並設定憑證；協定設定與隧道設定獨立。",
     "sni": "使用者入口 REALITY SNI",
     "sniHint": "用於使用者連接 A 的 VLESS REALITY 入站；WireGuard 隧道本身不使用 SNI。",
     "scanFrom": "從中轉伺服器 A（{{node}}）檢測並選用目標。",
     "selectTransitToScan": "請先選擇中轉伺服器 A，再自動優選或檢測目前的 SNI。",
     "title": "反向 WireGuard",
     "hint": "B 主動連線 A；A 負責使用者驗證與計費，B 提供公網出口及明確授權的內網存取。",
-    "requirements": "兩端須支援 Linux WireGuard 並有最新能力回報。使用者入口採用 VLESS REALITY。自動管理轉送需要 B 已啟用 UFW，其他防火牆須手動設定。強制選擇入口對映的伺服器不能用作 A。",
+    "requirements": "兩端需要 Linux WireGuard 支援與最新能力回報。入口可選擇支援的協定及核心。自動轉送需要 B 上已啟用 UFW；其他防火牆須手動設定。",
     "transit": "中轉伺服器 A",
     "endpoint": "A 的公網 UDP 端點",
     "endpointHint": "填入 B 可連線的 IP 與 UDP 連接埠。若 NAT 改寫連接埠，此處填公網映射連接埠，上方隧道連接埠仍為本機連接埠。",
@@ -2704,7 +2706,16 @@
       "inactive_backend_rules_retained": "舊防火牆設定中的規則已保留，請人工確認。",
       "automatic_forwarding_disabled": "B 伺服器的全域自動放行已關閉。請在伺服器開啟，或將此連線改為手動管理轉送。",
       "ufw_forward_runtime_verification_failed": "UFW 已儲存的規則與實際執行規則不一致，請檢查 B 的防火牆後重試。"
-    }
+    },
+    "independent": "僅建立獨立連線",
+    "independentHint": "先建立 WG 傳輸連線，再綁定既有入站。",
+    "bindings": "綁定的入站",
+    "bindingsHint": "各入站保留自己的驗證與計費；共用連線必須使用相同的私網權限。綁定前須明確選擇支援的核心。",
+    "ownedEntry": "連線自帶入站",
+    "attachEntry": "選擇既有入站",
+    "attach": "綁定",
+    "detach": "解除綁定",
+    "detachHint": "解除綁定會停用此入站，請檢查新出口後再啟用。"
   },
   "host": {
     "title": "主機管理",
@@ -2964,7 +2975,7 @@
     "root": "bosun 以 root 執行",
     "shaper": "流量整形可用",
     "runtime": "反向 WG 執行環境就緒",
-    "xray": "A：Xray 支援反向 WG",
+    "xray": "A：相容代理核心支援 WG",
     "path": "服務可執行檔 PATH",
     "loadError": "執行條件載入失敗，請重新整理後再儲存。",
     "loading": "正在檢查執行條件…",

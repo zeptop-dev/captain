@@ -270,7 +270,7 @@ func lineDependenciesTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, p *Line
 		return err
 	}
 	// The visible landing can be the transit side of an owned reverse tunnel.
-	rows, err := tx.QueryContext(ctx, `SELECT exit_id,'vless_reverse' FROM node_reverse_links WHERE user_inbound_id=? UNION SELECT exit_id,'wireguard' FROM node_wireguard_links WHERE user_inbound_id=? ORDER BY 1,2`, l.TargetInboundID, l.TargetInboundID)
+	rows, err := tx.QueryContext(ctx, `SELECT exit_id,'vless_reverse' FROM node_reverse_links WHERE user_inbound_id=? UNION SELECT exit_id,'wireguard' FROM wireguard_inbound_links WHERE inbound_id=? ORDER BY 1,2`, l.TargetInboundID, l.TargetInboundID)
 	if err != nil {
 		return err
 	}

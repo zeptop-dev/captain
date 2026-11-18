@@ -225,7 +225,7 @@ func loadTopologySnapshotTx(ctx context.Context, tx *sql.Tx) (*topologySnapshot,
 			}
 			return e
 		}},
-		{`SELECT user_inbound_id,receiver_inbound_id,entry_id FROM node_reverse_links UNION ALL SELECT user_inbound_id,NULL,entry_id FROM node_wireguard_links`, func(r *sql.Rows) error {
+		{`SELECT user_inbound_id,receiver_inbound_id,entry_id FROM node_reverse_links UNION ALL SELECT inbound_id,NULL,entry_id FROM wireguard_inbound_links`, func(r *sql.Rows) error {
 			var user, receiver, entry sql.NullInt64
 			e := r.Scan(&user, &receiver, &entry)
 			s.protectedInbound[user.Int64] = true

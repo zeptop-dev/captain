@@ -16,29 +16,37 @@ func (a *AgentState) wireGuardState(ctx context.Context, nodeID int64) ([]spec.W
 	configs := []spec.WireGuardLink{}
 	permitted := map[int64]bool{}
 	for _, link := range links {
-		ib, err := a.Store.InboundByID(ctx, link.UserInboundID)
+		bindings, err := a.Store.WireGuardBindings(ctx, link.ID)
 		if err != nil {
 			return nil, nil, err
 		}
-		if !ib.Enabled {
+		enabled := link.Enabled
+		for _, ib := range bindings {
+			if ib.ID == link.UserInboundID {
+				enabled = ib.Enabled
+			}
+		}
+		if !enabled || !a.Store.WireGuardCapable(ctx, link.ExitID, false) || !a.Store.WireGuardCapable(ctx, link.TransitID, false) {
 			continue
 		}
-		if !a.Store.WireGuardCapable(ctx, link.TransitID, true) || !a.Store.WireGuardCapable(ctx, link.ExitID, false) {
-			continue
-		}
+
 		if link.DomainPreference != "" && !a.Store.WireGuardDomainPreferenceCapable(ctx, link.TransitID) {
 			continue
 		}
 		if link.AutoForwarding && !a.Store.WireGuardForwardingCapable(ctx, link.ExitID) {
 			continue
 		}
-		config, err := link.Config(nodeID == link.ExitID, ib.Settings.PrivateAccess)
+		config, err := link.Config(nodeID == link.ExitID, link.PrivateAccess)
 		if err != nil {
 			return nil, nil, err
 		}
 		configs = append(configs, config)
 		if nodeID == link.TransitID {
-			permitted[ib.ID] = true
+			for _, ib := range bindings {
+				if ib.Enabled && a.Store.WireGuardInboundCapable(ctx, link.TransitID, ib.Spec()) {
+					permitted[ib.ID] = true
+				}
+			}
 		}
 	}
 	return configs, permitted, nil

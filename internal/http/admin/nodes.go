@@ -704,6 +704,9 @@ type bind struct {
 // inbound and the forwards given (the ones being replaced). Disabled
 // inbounds are left out: they bind nothing.
 func (h *handlers) nodeBinds(ctx context.Context, nodeID, skipInbound int64, skipForwards bool) []bind {
+	return h.nodeBindsExceptWG(ctx, nodeID, skipInbound, skipForwards, "")
+}
+func (h *handlers) nodeBindsExceptWG(ctx context.Context, nodeID, skipInbound int64, skipForwards bool, skipLink string) []bind {
 	var out []bind
 	ibs, _ := h.Store.InboundsByNode(ctx, nodeID)
 	for _, o := range ibs {
@@ -716,11 +719,15 @@ func (h *handlers) nodeBinds(ctx context.Context, nodeID, skipInbound int64, ski
 	}
 	links, _ := h.Store.WireGuardLinks(ctx, nodeID)
 	for _, link := range links {
-		if link.TransitID != nodeID || link.UserInboundID == skipInbound {
+		if link.ID == skipLink || link.TransitID != nodeID || (link.UserInboundID != 0 && link.UserInboundID == skipInbound) {
 			continue
 		}
-		user, err := h.Store.InboundByID(ctx, link.UserInboundID)
-		if err == nil && user.Enabled {
+		enabled := link.Enabled
+		if link.UserInboundID != 0 {
+			user, err := h.Store.InboundByID(ctx, link.UserInboundID)
+			enabled = err == nil && user.Enabled
+		}
+		if enabled {
 			out = append(out, bind{listener{"udp", link.ListenPort}, "", "managed WireGuard tunnel"})
 		}
 	}

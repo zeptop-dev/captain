@@ -79,8 +79,10 @@ test('route projection retains explicit entry backend resets and never writes de
 })
 
 test('landing and candidate constraints reject unsafe combinations without changing the draft', () => {
-  for (const field of ['reverse', 'wireguard_slot', 'accept_proxy_protocol']) assert.equal(pathInboundSupported({ Protocol: 'vless', Settings: { [field]: {} } }, 'tcp'), false)
-  assert.equal(pathInboundSupported({ Protocol: 'wireguard', Settings: {} }, 'udp'), false)
+  for (const field of ['reverse', 'accept_proxy_protocol']) assert.equal(pathInboundSupported({ Protocol: 'vless', Settings: { [field]: {} } }, 'tcp'), false)
+  assert.equal(pathInboundSupported({ Protocol: 'wireguard', Settings: {} }, 'udp'), true)
+  assert.equal(pathInboundSupported({ Protocol: 'vless', Settings: { wireguard_slot: 1 } }, 'tcp'), true)
+  assert.equal(pathInboundSupported({ Protocol: 'wireguard', Settings: { wireguard_slot: 1 } }, 'udp'), true)
   assert.equal(pathInboundSupported({ Protocol: 'mieru', Settings: {} }, 'both'), false)
   assert.equal(pathInboundSupported({ Protocol: 'mieru', Settings: {} }, 'udp'), true)
   for (const protocol of ['udp', 'both']) {

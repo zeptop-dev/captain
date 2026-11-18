@@ -85,7 +85,7 @@ func checkRolloutInboundTx(ctx context.Context, tx *sql.Tx, ib *domain.Inbound) 
 	if ib.ID > 0 {
 		var transitID int64
 		var port int
-		err := tx.QueryRowContext(ctx, `SELECT transit_id,listen_port FROM node_wireguard_links WHERE user_inbound_id=?`, ib.ID).Scan(&transitID, &port)
+		err := tx.QueryRowContext(ctx, `SELECT transit_id,listen_port FROM wireguard_inbound_links WHERE inbound_id=?`, ib.ID).Scan(&transitID, &port)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return err
 		}

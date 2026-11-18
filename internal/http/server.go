@@ -679,8 +679,8 @@ func (s *Server) DNSHealth() *service.DNSHealth { return s.dnsHealth }
 // Older panels ignore registration consent and persistent email proofs.
 // Preserve those and prior standalone/agent migration safeguards.
 func captainUpdateFloor(configured string) string {
-	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.70.0", configured) {
-		return "v1.70.0"
+	if !selfupdate.ValidTag(configured) || selfupdate.Newer("v1.72.0", configured) {
+		return "v1.72.0"
 	}
 	return configured
 }

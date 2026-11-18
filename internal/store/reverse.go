@@ -56,7 +56,7 @@ func (s *Store) ReverseCapable(ctx context.Context, nodeID int64) bool {
 
 func (s *Store) ReverseOwnedInbound(ctx context.Context, id int64) bool {
 	var n int
-	err := s.db.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM node_reverse_links WHERE user_inbound_id = ? OR receiver_inbound_id = ?) + (SELECT COUNT(*) FROM node_wireguard_links WHERE user_inbound_id = ?)`, id, id, id).Scan(&n)
+	err := s.db.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM node_reverse_links WHERE user_inbound_id = ? OR receiver_inbound_id = ?) + (SELECT COUNT(*) FROM wireguard_inbound_links WHERE inbound_id = ?)`, id, id, id).Scan(&n)
 	return err != nil || n > 0
 }
 func (s *Store) ReverseOwnedEntry(ctx context.Context, id int64) bool {
@@ -73,7 +73,7 @@ type EntryConnection struct {
 }
 
 func (s *Store) EntryConnections(ctx context.Context) (map[int64]*EntryConnection, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT entry_id,exit_id,'reverse' FROM node_reverse_links UNION ALL SELECT entry_id,exit_id,'wireguard' FROM node_wireguard_links`)
+	rows, err := s.db.QueryContext(ctx, `SELECT entry_id,exit_id,'reverse' FROM node_reverse_links UNION ALL SELECT e.id,w.exit_id,'wireguard' FROM wireguard_inbound_links w JOIN entries e ON e.inbound_id=w.inbound_id`)
 	if err != nil {
 		return nil, err
 	}

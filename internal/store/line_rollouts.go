@@ -299,7 +299,7 @@ func prepareLineRolloutTx(ctx context.Context, tx *sql.Tx, draft *ForwardLine, r
 			return nil, nil, e
 		}
 		var reverse int
-		if e = tx.QueryRowContext(ctx, `SELECT (SELECT count(*) FROM node_wireguard_links WHERE user_inbound_id=?) + (SELECT count(*) FROM node_reverse_links WHERE user_inbound_id=?)`, ib.ID, ib.ID).Scan(&reverse); e != nil {
+		if e = tx.QueryRowContext(ctx, `SELECT (SELECT count(*) FROM wireguard_inbound_links WHERE inbound_id=?) + (SELECT count(*) FROM node_reverse_links WHERE user_inbound_id=?)`, ib.ID, ib.ID).Scan(&reverse); e != nil {
 			return nil, nil, e
 		}
 		if reverse > 0 || ib.Settings.Reverse != nil {

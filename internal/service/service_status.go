@@ -307,7 +307,7 @@ func (e *runtimeEvaluation) inbound(ib *domain.Inbound) EntryRuntimeStatus {
 		return e.failure(err)
 	}
 	for _, link := range wg {
-		if link.UserInboundID == ib.ID {
+		if link.Slot == ib.Settings.WireGuardSlot && ib.Settings.WireGuardSlot != 0 {
 			result = runtimeSeries(result, e.wireguard(link))
 			e.inbounds[ib.ID] = result
 			return result

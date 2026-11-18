@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/zeptop-dev/bosun/pkg/agentproto"
@@ -15,27 +16,34 @@ import (
 )
 
 type WireGuardLink struct {
-	Slot             int    `json:"slot"`
-	ID               string `json:"id"`
-	ExitID           int64  `json:"exit_id"`
-	TransitID        int64  `json:"transit_id"`
-	UserInboundID    int64  `json:"user_inbound_id"`
-	EntryID          int64  `json:"entry_id"`
-	Version          int64  `json:"version"`
-	TransitKey       string `json:"-"`
-	ExitKey          string `json:"-"`
-	Endpoint         string `json:"endpoint"`
-	ListenPort       int    `json:"listen_port"`
-	MTU              int    `json:"mtu"`
-	DomainPreference string `json:"domain_preference"`
-	AutoForwarding   bool   `json:"auto_forwarding"`
+	Name             string              `json:"name"`
+	Enabled          bool                `json:"enabled"`
+	PrivateAccess    *spec.PrivateAccess `json:"private_access,omitempty"`
+	Slot             int                 `json:"slot"`
+	ID               string              `json:"id"`
+	ExitID           int64               `json:"exit_id"`
+	TransitID        int64               `json:"transit_id"`
+	UserInboundID    int64               `json:"user_inbound_id"`
+	EntryID          int64               `json:"entry_id"`
+	Version          int64               `json:"version"`
+	TransitKey       string              `json:"-"`
+	ExitKey          string              `json:"-"`
+	Endpoint         string              `json:"endpoint"`
+	ListenPort       int                 `json:"listen_port"`
+	MTU              int                 `json:"mtu"`
+	DomainPreference string              `json:"domain_preference"`
+	AutoForwarding   bool                `json:"auto_forwarding"`
 }
 
-const wireGuardColumns = "slot,id,exit_id,transit_id,user_inbound_id,entry_id,version,transit_key,exit_key,endpoint,listen_port,mtu,domain_preference,auto_forwarding"
+const wireGuardColumns = "slot,id,exit_id,transit_id,COALESCE(user_inbound_id,0),COALESCE(entry_id,0),version,transit_key,exit_key,endpoint,listen_port,mtu,domain_preference,auto_forwarding,name,enabled,private_access_json"
 
 func scanWireGuard(row interface{ Scan(...any) error }) (WireGuardLink, error) {
 	var l WireGuardLink
-	err := row.Scan(&l.Slot, &l.ID, &l.ExitID, &l.TransitID, &l.UserInboundID, &l.EntryID, &l.Version, &l.TransitKey, &l.ExitKey, &l.Endpoint, &l.ListenPort, &l.MTU, &l.DomainPreference, &l.AutoForwarding)
+	var grant string
+	err := row.Scan(&l.Slot, &l.ID, &l.ExitID, &l.TransitID, &l.UserInboundID, &l.EntryID, &l.Version, &l.TransitKey, &l.ExitKey, &l.Endpoint, &l.ListenPort, &l.MTU, &l.DomainPreference, &l.AutoForwarding, &l.Name, &l.Enabled, &grant)
+	if err == nil {
+		err = json.Unmarshal([]byte(grant), &l.PrivateAccess)
+	}
 	return l, wrapNotFound(err)
 }
 func (s *Store) WireGuardLinks(ctx context.Context, nodeID int64) ([]WireGuardLink, error) {
@@ -92,6 +100,7 @@ func (s *Store) SaveWireGuardLink(ctx context.Context, w *WireGuardWrite) error 
 	l := w.Link
 	ib := w.User
 	e := w.Entry
+	l.Name, l.Enabled, l.PrivateAccess = e.Name, ib.Enabled, ib.Settings.PrivateAccess
 	if l.ID == "" || l.ExitID == l.TransitID || ib.NodeID != l.TransitID {
 		return errors.New("invalid WireGuard ownership")
 	}
@@ -104,6 +113,15 @@ func (s *Store) SaveWireGuardLink(ctx context.Context, w *WireGuardWrite) error 
 			return ErrReverseConflict
 		}
 		l.TransitKey, l.ExitKey = old.TransitKey, old.ExitKey
+		if !reflect.DeepEqual(l.PrivateAccess.EffectiveRules(), old.PrivateAccess.EffectiveRules()) {
+			var count int
+			if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM wireguard_bindings WHERE link_id=?", l.ID).Scan(&count); err != nil {
+				return err
+			}
+			if count > 0 {
+				return errors.New("detach shared inbounds before changing connection private access")
+			}
+		}
 	} else {
 		if ib.ID != 0 || e.ID != 0 || l.Slot != 0 {
 			return errors.New("new WireGuard link cannot adopt existing resources")
@@ -135,7 +153,7 @@ func (s *Store) SaveWireGuardLink(ctx context.Context, w *WireGuardWrite) error 
 		return err
 	}
 	ib.Settings.WireGuardSlot = l.Slot
-	if err := ib.Spec().Validate(); err != nil {
+	if err := validateWireGuardBinding(l, ib); err != nil {
 		return err
 	}
 	if err := checkRolloutWireGuardTunnelTx(ctx, tx, l.TransitID, l.ListenPort, ib.Enabled); err != nil {
@@ -145,7 +163,7 @@ func (s *Store) SaveWireGuardLink(ctx context.Context, w *WireGuardWrite) error 
 		// Updating the user inbound recompiles dependent line plans. Expose
 		// the proposed tunnel port first, so enabling a disabled link while
 		// moving it off a reserved port validates the final transaction view.
-		if _, err = tx.ExecContext(ctx, `UPDATE node_wireguard_links SET endpoint=?,listen_port=?,mtu=?,domain_preference=?,auto_forwarding=?,version=version+1 WHERE id=? AND version=?`, l.Endpoint, l.ListenPort, l.MTU, l.DomainPreference, boolInt(l.AutoForwarding), l.ID, l.Version); err != nil {
+		if _, err = tx.ExecContext(ctx, `UPDATE node_wireguard_links SET endpoint=?,listen_port=?,mtu=?,domain_preference=?,auto_forwarding=?,name=?,enabled=?,private_access_json=?,version=version+1 WHERE id=? AND version=?`, l.Endpoint, l.ListenPort, l.MTU, l.DomainPreference, boolInt(l.AutoForwarding), l.Name, boolInt(l.Enabled), string(mustWGJSON(l.PrivateAccess)), l.ID, l.Version); err != nil {
 			return err
 		}
 		l.Version++
@@ -168,7 +186,7 @@ func (s *Store) SaveWireGuardLink(ctx context.Context, w *WireGuardWrite) error 
 		}
 	}
 	if l.Version == 0 {
-		result, err := tx.ExecContext(ctx, `INSERT INTO node_wireguard_links(id,exit_id,transit_id,user_inbound_id,entry_id,transit_key,exit_key,endpoint,listen_port,mtu,domain_preference,auto_forwarding) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, l.ID, l.ExitID, l.TransitID, ib.ID, e.ID, l.TransitKey, l.ExitKey, l.Endpoint, l.ListenPort, l.MTU, l.DomainPreference, boolInt(l.AutoForwarding))
+		result, err := tx.ExecContext(ctx, `INSERT INTO node_wireguard_links(id,exit_id,transit_id,user_inbound_id,entry_id,transit_key,exit_key,endpoint,listen_port,mtu,domain_preference,auto_forwarding,name,enabled,private_access_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, l.ID, l.ExitID, l.TransitID, ib.ID, e.ID, l.TransitKey, l.ExitKey, l.Endpoint, l.ListenPort, l.MTU, l.DomainPreference, boolInt(l.AutoForwarding), l.Name, boolInt(l.Enabled), string(mustWGJSON(l.PrivateAccess)))
 		if err != nil {
 			return err
 		}
@@ -179,6 +197,9 @@ func (s *Store) SaveWireGuardLink(ctx context.Context, w *WireGuardWrite) error 
 		l.Slot = int(slot)
 		l.Version = 1
 		ib.Settings.WireGuardSlot = l.Slot
+		if err := validateWireGuardBinding(l, ib); err != nil {
+			return err
+		}
 		if err := saveReverseInbound(ctx, tx, &ib); err != nil {
 			return err
 		}
@@ -198,15 +219,24 @@ func (s *Store) DeleteWireGuardLink(ctx context.Context, exitID int64, id string
 	}
 	defer tx.Rollback()
 	var inboundID int64
-	err = tx.QueryRowContext(ctx, `SELECT user_inbound_id FROM node_wireguard_links WHERE id=? AND exit_id=? AND version=?`, id, exitID, version).Scan(&inboundID)
+	err = tx.QueryRowContext(ctx, `SELECT COALESCE(user_inbound_id,0) FROM node_wireguard_links WHERE id=? AND exit_id=? AND version=?`, id, exitID, version).Scan(&inboundID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrReverseConflict
 	}
 	if err != nil {
 		return err
 	}
-	if err = checkReverseInboundRemoval(ctx, tx, inboundID); err != nil {
+	var bindings int
+	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM wireguard_bindings WHERE link_id=?", id).Scan(&bindings); err != nil {
 		return err
+	}
+	if bindings > 0 {
+		return fmt.Errorf("%w: detach all shared inbounds before deleting the connection", ErrLineInUse)
+	}
+	if inboundID != 0 {
+		if err = checkReverseInboundRemoval(ctx, tx, inboundID); err != nil {
+			return err
+		}
 	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM node_wireguard_links WHERE id=? AND exit_id=? AND version=?`, id, exitID, version); err != nil {
 		return err
@@ -301,6 +331,36 @@ func (s *Store) WireGuardCapable(ctx context.Context, id int64, transit bool) bo
 	if json.Unmarshal(st.Cores, &cores) != nil {
 		return false
 	}
-	c := cores["xray"]
-	return c.Capabilities != nil && c.Capabilities.Supports(spec.Inbound{Protocol: spec.VLESS, WireGuardSlot: 1})
+	for name, c := range cores {
+		if c.Capabilities == nil || !c.Capabilities.WireGuardReverse {
+			continue
+		}
+		for _, protocol := range c.Capabilities.Protocols {
+			if c.Capabilities.Supports(spec.Inbound{Protocol: protocol, Core: name, WireGuardSlot: 1}) {
+				return true
+			}
+		}
+	}
+	return false
 }
+
+// WireGuardInboundCapable checks the selected adapter and actual protocol,
+// rather than inferring every protocol from an unrelated VLESS capability.
+func (s *Store) WireGuardInboundCapable(ctx context.Context, id int64, ib spec.Inbound) bool {
+	if !s.WireGuardCapable(ctx, id, false) {
+		return false
+	}
+	st, err := s.NodeStatus(ctx, id)
+	if err != nil {
+		return false
+	}
+	var cores map[string]agentproto.CoreStatus
+	if json.Unmarshal(st.Cores, &cores) != nil {
+		return false
+	}
+	ib.WireGuardSlot = 1
+	c := cores[ib.Core]
+	return c.Capabilities != nil && c.Capabilities.Supports(ib)
+}
+
+func mustWGJSON(value any) []byte { data, _ := json.Marshal(value); return data }

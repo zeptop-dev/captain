@@ -37,7 +37,7 @@ Independent inbounds have no EffectiveUsers, no customer counters, and their log
 are excluded from customer online-device attribution, including username collisions.
 
 Shared validation restricts this initial mode to SOCKS5 and SS2022. Managed reverse,
-WireGuard slots, ShadowTLS and per-user private-access grants are not combined with it.
+ShadowTLS and per-user private-access grants are not combined with it. Explicit sing-box standalone SOCKS5/SS2022 entries may bind a reverse WireGuard connection; they remain outside subscriber quotas and subscriptions.
 The existing default destination guard is not relaxed. All state fields are additive;
 settings are stored in the existing inbound JSON, with no schema migration. Configuration
 structure records only the independent-mode boolean; credentials remain outside the

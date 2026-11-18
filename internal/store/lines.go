@@ -660,8 +660,13 @@ func nodeHasLines(ctx context.Context, q interface {
 	SELECT id FROM inbounds WHERE node_id=?
 	UNION SELECT user_inbound_id FROM node_reverse_links WHERE exit_id=?
 	UNION SELECT receiver_inbound_id FROM node_reverse_links WHERE exit_id=?
-	UNION SELECT user_inbound_id FROM node_wireguard_links WHERE exit_id=?))`, id, id, id, id, id, id).Scan(&n)
+	UNION SELECT inbound_id FROM wireguard_inbound_links WHERE exit_id=?))`, id, id, id, id, id, id).Scan(&n)
 	if err != nil || n > 0 {
+		return n > 0, err
+	}
+	// Shared WG inbounds are borrowed resources, so removing either server
+	// must not cascade through their transport or leave an unintended direct exit.
+	if err = q.QueryRowContext(ctx, `SELECT count(*) FROM wireguard_bindings b JOIN node_wireguard_links w ON w.id=b.link_id WHERE w.transit_id=? OR w.exit_id=?`, id, id).Scan(&n); err != nil || n > 0 {
 		return n > 0, err
 	}
 	if err = q.QueryRowContext(ctx, `SELECT count(*) FROM line_rollouts WHERE status IN ('running','paused') AND EXISTS(SELECT 1 FROM json_each(dependencies_json) WHERE json_extract(value,'$.node_id')=?)`, id).Scan(&n); err != nil || n > 0 {

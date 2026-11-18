@@ -436,7 +436,7 @@ func (p *topologyPlan) node(ctx context.Context, tx *sql.Tx, id, lineID int64) (
 			base.binds = append(base.binds, lineBind{proto, f.Port, listen})
 		}
 	}
-	rows, e := tx.QueryContext(ctx, `SELECT w.listen_port FROM node_wireguard_links w JOIN inbounds i ON i.id=w.user_inbound_id WHERE w.transit_id=? AND i.enabled=1`, id)
+	rows, e := tx.QueryContext(ctx, `SELECT w.listen_port FROM node_wireguard_links w LEFT JOIN inbounds i ON i.id=w.user_inbound_id WHERE w.transit_id=? AND COALESCE(i.enabled,w.enabled)=1`, id)
 	if e != nil {
 		return nil, e
 	}
@@ -633,12 +633,7 @@ func (p *topologyPlan) checkTopologyPrivateAccess(ctx context.Context, tx *sql.T
 			e = e2
 			break
 		}
-		ib := p.view.inbounds[l.UserInboundID]
-		if ib == nil {
-			e = ErrNotFound
-			break
-		}
-		cfg, e2 := l.Config(id == l.ExitID, ib.Settings.PrivateAccess)
+		cfg, e2 := l.Config(id == l.ExitID, l.PrivateAccess)
 		if e2 != nil {
 			e = e2
 			break

@@ -442,7 +442,7 @@
         "reverse": "このプロトコルまたはコアはユーザー別計測付き VLESS Reverse に対応していません。",
         "privateAccess": "対応サーバー・コアからの最新の機能報告が必要です。",
         "listenAddress": "この Mieru ビルドは特定の IP にバインドできません。mita を使用してください。",
-        "wireguardReverse": "リバース WireGuard には、対応 Linux サーバーと Xray コアからの最新の機能レポートが必要です。",
+        "wireguardReverse": "この入口には対応コアからの最新の WireGuard 機能報告が必要です。",
         "privateAccessCoreOnly": "対応する sing-box、無効な送信保護、新しい報告が必要です。Xray と管理リバーストンネルは非対応です。",
         "privateAccessPolicyUnknown": "自動ポリシーには独立した能力と新しい実行状態の報告が必要です。",
         "privateAccessRuntime": "実行条件が満たされていません。サーバーの準備状況を確認してください。",
@@ -2654,13 +2654,15 @@
     "openwrtHint": "OpenWrt は bosun 0.89.0 以降で amd64 / arm64 の監視専用インストールに対応します。ネイティブインストーラーは procd で自動起動を管理します。"
   },
   "wireguard": {
+    "entrySecurity": "入口のセキュリティ",
+    "entrySettingsHint": "中継で認証・計量し、WireGuard 経由で出力します。通常の TLS はドメインと証明書が必要です。入口とトンネルの設定は独立しています。",
     "sni": "ユーザー入口の REALITY SNI",
     "sniHint": "A の VLESS REALITY インバウンドに使用します。WireGuard トンネル自体は SNI を使用しません。",
     "scanFrom": "中継サーバー A（{{node}}）から検査して接続先を選択します。",
     "selectTransitToScan": "先に中継サーバー A を選択してから、自動選択または現在の SNI の検査を行ってください。",
     "title": "リバース WireGuard",
     "hint": "B が A に接続します。A はユーザー認証と課金、B はインターネット接続と明示的に許可した LAN アクセスを担当します。",
-    "requirements": "両サーバーに Linux WireGuard 対応と最新の機能報告が必要です。ユーザー接続には VLESS REALITY を使用します。転送の自動管理には B で稼働中の UFW が必要です。他のファイアウォールは手動で設定してください。入口マッピングが必須のサーバーは A にできません。",
+    "requirements": "両端に Linux WireGuard と最新の機能報告が必要です。対応するプロトコルとコアを選択できます。自動転送には B の UFW が必要です。他のファイアウォールは手動設定してください。",
     "transit": "中継サーバー A",
     "endpoint": "A の公開 UDP エンドポイント",
     "endpointHint": "B から接続できる IP と UDP ポートを入力してください。NAT でポートが変わる場合は公開ポートを指定し、上のトンネルポートにはローカルポートを指定します。",
@@ -2704,7 +2706,16 @@
       "inactive_backend_rules_retained": "以前のファイアウォール設定のルールを保持しました。手動で確認してください。",
       "automatic_forwarding_disabled": "B サーバーのファイアウォール自動許可が無効です。サーバーで有効にするか、この接続の転送を手動で管理してください。",
       "ufw_forward_runtime_verification_failed": "保存済みの UFW ルールと実際に適用されているルールが一致しません。B のファイアウォールを確認してから再試行してください。"
-    }
+    },
+    "independent": "独立した接続のみ作成",
+    "independentHint": "WG 接続を作成してから既存のインバウンドを関連付けます。",
+    "bindings": "関連付けたインバウンド",
+    "bindingsHint": "認証と計量は各インバウンドに保持されます。共有時はプライベートアクセス規則を一致させ、対応コアを明示的に選択してください。",
+    "ownedEntry": "接続所有のインバウンド",
+    "attachEntry": "既存のインバウンドを選択",
+    "attach": "関連付け",
+    "detach": "解除",
+    "detachHint": "解除するとこのインバウンドは無効になります。新しい経路を確認してから有効にしてください。"
   },
   "host": {
     "title": "ホスト管理",
@@ -2964,7 +2975,7 @@
     "root": "bosun を root で実行",
     "shaper": "帯域制御が利用可能",
     "runtime": "リバース WG の実行環境",
-    "xray": "A：Xray のリバース WG 対応",
+    "xray": "A：対応コアが WG をサポート",
     "path": "サービスの実行ファイル PATH",
     "loadError": "実行条件を取得できません。保存前に更新してください。",
     "loading": "実行条件を確認中…",

@@ -14,6 +14,7 @@ const object = (v: unknown): Record<string, unknown> => v !== null && typeof v =
 function probe(ib: Record<string, unknown>): string {
   return new URLSearchParams({
     standalone: String(!!ib.standalone),
+    wireguard_transit: String(!!ib.wireguard_slot),
     bound_listen: String(!!ib.listen && !['::', '0.0.0.0'].includes(String(ib.listen))),
     private_enforcement: String(object(ib.private_access).enforcement || 'dual'),
     allow_core_only: String(object(ib.private_access).allow_core_only === true),

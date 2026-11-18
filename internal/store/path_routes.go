@@ -250,8 +250,11 @@ func compilePathRouteTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, p *Path
 	if e != nil {
 		return nil, nil, e
 	}
-	if ib.Settings.Reverse != nil || ib.Settings.WireGuardSlot != 0 || ib.Settings.AcceptProxyProtocol {
-		return nil, nil, errors.New("complete path routes require an ordinary landing without reverse, WireGuard or PROXY protocol")
+	if ib.Settings.Reverse != nil || ib.Settings.AcceptProxyProtocol {
+		return nil, nil, errors.New("complete path routes require an ordinary landing without reverse or PROXY protocol")
+	}
+	if e := checkWireGuardLandingTx(ctx, tx, ib); e != nil {
+		return nil, nil, e
 	}
 	backends, e := pathRouteMemberBackendsTx(ctx, tx, p)
 	if e != nil {
@@ -598,6 +601,24 @@ func pathRouteDependenciesTx(ctx context.Context, tx *sql.Tx, l *ForwardLine, p 
 		return e
 	}
 	p.Dependencies = append(p.Dependencies, LineDependency{landing, name, "landing", "", len(l.Groups)})
+	rows, err := tx.QueryContext(ctx, "SELECT w.exit_id,n.name FROM wireguard_inbound_links w JOIN nodes n ON n.id=w.exit_id WHERE w.inbound_id=?", l.TargetInboundID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id int64
+		var name string
+		if err = rows.Scan(&id, &name); err != nil {
+			return err
+		}
+		p.Dependencies = append(p.Dependencies, LineDependency{id, name, "wireguard", "", len(l.Groups) + 1})
+		p.Edges = append(p.Edges, LineEdge{landing, id, "wireguard"})
+	}
+	if err = rows.Err(); err != nil {
+		return err
+	}
+
 	// The existing use walk is shared without letting it invent Cartesian edges.
 	originalDeps, originalEdges := p.Dependencies, p.Edges
 	plain := *l

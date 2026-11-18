@@ -122,7 +122,7 @@ func addProxyTrafficTx(ctx context.Context, tx *sql.Tx, collectorNodeID int64, s
 		if !found {
 			err := tx.QueryRowContext(ctx, `SELECT i.node_id, COALESCE(w.exit_id, r.exit_id, i.node_id)
 				FROM inbounds i
-				LEFT JOIN node_wireguard_links w ON w.user_inbound_id = i.id AND w.transit_id = i.node_id
+				LEFT JOIN wireguard_inbound_links w ON w.inbound_id = i.id AND w.transit_id = i.node_id
 				LEFT JOIN node_reverse_links r ON r.user_inbound_id = i.id AND r.transit_id = i.node_id
 				WHERE i.id = ?`, sample.InboundID).Scan(&d.collector, &d.exit)
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {

@@ -442,7 +442,7 @@
         "reverse": "이 프로토콜 또는 코어는 사용자별 집계가 있는 VLESS Reverse를 지원하지 않습니다.",
         "privateAccess": "지원되는 서버와 코어의 최신 기능 보고가 필요합니다.",
         "listenAddress": "이 Mieru 빌드는 특정 수신 IP에 바인딩할 수 없습니다. mita를 사용하세요.",
-        "wireguardReverse": "역방향 WireGuard에는 지원되는 Linux 서버와 Xray 코어의 최신 기능 보고가 필요합니다.",
+        "wireguardReverse": "이 인바운드는 호환 코어의 최신 WireGuard 기능 보고가 필요합니다.",
         "privateAccessCoreOnly": "지원되는 sing-box, 비활성화된 출력 보호 및 최신 보고가 필요합니다. Xray와 관리형 역방향 터널은 지원하지 않습니다.",
         "privateAccessPolicyUnknown": "자동 정책에는 독립 기능과 최신 실행 상태 보고가 필요합니다.",
         "privateAccessRuntime": "실행 전제 조건을 충족하지 않습니다. 서버 준비 상태를 확인하세요.",
@@ -2654,13 +2654,15 @@
     "openwrtHint": "OpenWrt는 bosun 0.89.0 이상에서 amd64 / arm64 모니터링 전용 설치를 지원합니다. 기본 설치 스크립트는 procd로 부팅 시 실행을 관리합니다."
   },
   "wireguard": {
+    "entrySecurity": "입구 보안",
+    "entrySettingsHint": "중계 서버에서 인증 및 사용량을 집계한 뒤 WireGuard로 나갑니다. 일반 TLS에는 도메인과 인증서가 필요하며 입구와 터널 설정은 독립적입니다.",
     "sni": "사용자 인바운드 REALITY SNI",
     "sniHint": "A의 VLESS REALITY 인바운드에 사용됩니다. WireGuard 터널 자체는 SNI를 사용하지 않습니다.",
     "scanFrom": "중계 서버 A({{node}})에서 검사하고 대상을 선택합니다.",
     "selectTransitToScan": "먼저 중계 서버 A를 선택한 후 자동 선택 또는 현재 SNI 검사를 실행하세요.",
     "title": "역방향 WireGuard",
     "hint": "B가 A에 연결합니다. A는 사용자 인증과 과금을 담당하고 B는 인터넷 출구 및 명시적으로 허용된 내부망 접근을 제공합니다.",
-    "requirements": "두 서버 모두 Linux WireGuard 지원과 최근 기능 보고가 필요합니다. 사용자 연결은 VLESS REALITY를 사용합니다. 전달 자동 관리는 B에서 실행 중인 UFW가 필요합니다. 다른 방화벽은 수동으로 설정하세요. 입구 매핑 선택이 필수인 서버는 A로 사용할 수 없습니다.",
+    "requirements": "양쪽에 Linux WireGuard와 최신 기능 보고가 필요합니다. 지원 프로토콜과 코어를 선택하세요. 자동 전달은 B의 UFW가 필요하며 다른 방화벽은 수동 설정해야 합니다.",
     "transit": "중계 서버 A",
     "endpoint": "A의 공용 UDP 엔드포인트",
     "endpointHint": "B에서 접근 가능한 IP와 UDP 포트를 입력하세요. NAT가 포트를 변경하면 여기에는 공용 매핑 포트를, 위의 터널 포트에는 로컬 포트를 입력하세요.",
@@ -2704,7 +2706,16 @@
       "inactive_backend_rules_retained": "이전 방화벽 설정의 규칙을 유지했습니다. 직접 확인하세요.",
       "automatic_forwarding_disabled": "B 서버의 전역 방화벽 자동 허용이 꺼져 있습니다. 서버에서 켜거나 이 연결의 포워딩을 수동으로 관리하세요.",
       "ufw_forward_runtime_verification_failed": "저장된 UFW 규칙과 실제 적용된 규칙이 일치하지 않습니다. B의 방화벽을 확인한 후 다시 시도하세요."
-    }
+    },
+    "independent": "독립 연결만 만들기",
+    "independentHint": "먼저 WG 연결을 만든 후 기존 인바운드를 연결합니다.",
+    "bindings": "연결된 인바운드",
+    "bindingsHint": "각 인바운드의 인증과 사용량 계산은 유지됩니다. 공유 연결은 사설망 규칙이 같아야 합니다. 지원 코어를 명시적으로 선택하세요.",
+    "ownedEntry": "연결 소유 인바운드",
+    "attachEntry": "기존 인바운드 선택",
+    "attach": "연결",
+    "detach": "연결 해제",
+    "detachHint": "연결을 해제하면 인바운드가 비활성화됩니다. 새 경로를 검토한 후 활성화하세요."
   },
   "host": {
     "title": "호스트 관리",
@@ -2964,7 +2975,7 @@
     "root": "bosun이 root로 실행됨",
     "shaper": "트래픽 제한 사용 가능",
     "runtime": "역방향 WG 실행 환경",
-    "xray": "A: Xray 역방향 WG 지원",
+    "xray": "A: 호환 코어의 WG 지원",
     "path": "서비스 실행 파일 PATH",
     "loadError": "실행 조건을 불러오지 못했습니다. 저장 전에 새로 고치세요.",
     "loading": "실행 조건 확인 중…",

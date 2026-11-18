@@ -67,7 +67,7 @@ func (s *Store) SetEntryLocation(ctx context.Context, id int64, settings domain.
 // inbound. Looking only at a connection's original Entry would locate those
 // aliases at the authentication front rather than the actual exit.
 func (s *Store) InboundExitNodes(ctx context.Context) (map[int64]int64, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT user_inbound_id,exit_id FROM node_reverse_links UNION ALL SELECT user_inbound_id,exit_id FROM node_wireguard_links`)
+	rows, err := s.db.QueryContext(ctx, `SELECT user_inbound_id,exit_id FROM node_reverse_links UNION ALL SELECT inbound_id,exit_id FROM wireguard_inbound_links`)
 	if err != nil {
 		return nil, err
 	}

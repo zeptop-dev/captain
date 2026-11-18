@@ -421,8 +421,8 @@ func pinnedLineHopsTx(ctx context.Context, tx *sql.Tx, st *PathStep) ([]PathHop,
 		if e != nil {
 			return nil, e
 		}
-		if ib.Settings.Reverse != nil || ib.Settings.WireGuardSlot != 0 {
-			return nil, errors.New("reverse and WireGuard landings cannot be imported as ordinary paths")
+		if ib.Settings.Reverse != nil {
+			return nil, errors.New("reverse landings cannot be imported as ordinary paths")
 		}
 		hops = append(hops, PathHop{Key: "landing", NodeID: ib.NodeID, IngressID: ib.IngressID, AddressMode: l.TargetAddressMode})
 	}

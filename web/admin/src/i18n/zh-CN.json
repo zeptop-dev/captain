@@ -442,7 +442,7 @@
         "reverse": "此协议或内核不支持带用户计费的托管 VLESS Reverse。",
         "privateAccess": "私网访问需要支持此功能的服务器、内核及最近的能力上报。",
         "listenAddress": "此 Mieru 构建不能绑定指定监听 IP，请使用 mita。",
-        "wireguardReverse": "反向 WireGuard 需要支持此功能的 Linux 服务器和 Xray 内核上报最新能力。",
+        "wireguardReverse": "此入口需要兼容内核的新鲜 WireGuard 能力报告。",
         "privateAccessCoreOnly": "仅内核策略需要支持的 sing-box 服务器、已关闭的出站防护及新鲜上报；暂不支持 Xray 或托管反向隧道。",
         "privateAccessPolicyUnknown": "自动策略需要服务器上报独立的内核能力及新鲜运行状态，请升级服务器后重新检查。",
         "privateAccessRuntime": "运行前提尚未满足，请查看服务器就绪检查中的具体原因。",
@@ -2654,13 +2654,15 @@
     "openwrtHint": "OpenWrt 支持 amd64 / arm64 的仅监控安装，需要 bosun 0.89.0 或更新版本。原生安装脚本通过 procd 管理开机启动。"
   },
   "wireguard": {
+    "entrySecurity": "入口安全方式",
+    "entrySettingsHint": "用户在转发机认证和计费，再经 WireGuard 出站。普通 TLS 需填写域名并配置证书；协议设置与隧道设置独立。",
     "sni": "用户入口 REALITY SNI",
     "sniHint": "用于用户连接 A 的 VLESS REALITY 入站；WireGuard 隧道本身不使用 SNI。",
     "scanFrom": "从中转服务器 A（{{node}}）检测并选用目标。",
     "selectTransitToScan": "请先选择中转服务器 A，再自动优选或检测当前 SNI。",
     "title": "反向 WireGuard",
     "hint": "B 主动连接 A；A 负责用户鉴权和计费，B 提供公网出口与明确授权的内网访问。",
-    "requirements": "两端需支持 Linux WireGuard 并有新鲜能力上报。用户入口使用 VLESS REALITY。自动管理转发需要 B 已启用 UFW，其他防火墙需手动配置。强制选择入口映射的服务器不能用作 A。",
+    "requirements": "两端需要 Linux WireGuard 支持和新鲜的能力报告。入口可选择受支持的协议与内核。自动转发需要 B 上已启用 UFW；其他防火墙须手动配置。",
     "transit": "中转服务器 A",
     "endpoint": "A 的公网 UDP 端点",
     "endpointHint": "填写 B 可达的 IP 和 UDP 端口。若 NAT 改写端口，此处填公网映射端口，上方隧道端口仍为本地端口。",
@@ -2704,7 +2706,16 @@
       "inactive_backend_rules_retained": "旧防火墙配置中的规则已保留，请人工核对。",
       "automatic_forwarding_disabled": "B 服务器的全局自动放行已关闭。请在服务器开启，或将此连接改为手动管理转发。",
       "ufw_forward_runtime_verification_failed": "UFW 已保存的规则与实际运行规则不一致，请检查 B 的防火墙后重试。"
-    }
+    },
+    "independent": "仅创建独立连接",
+    "independentHint": "先创建 WG 传输连接，再绑定已有入站。",
+    "bindings": "绑定的入站",
+    "bindingsHint": "各入站保留自己的鉴权和计费；共享连接必须使用相同的私网权限。绑定前须显式选择支持的内核。",
+    "ownedEntry": "连接自带入站",
+    "attachEntry": "选择已有入站",
+    "attach": "绑定",
+    "detach": "解绑",
+    "detachHint": "解绑会停用此入站，请检查新出口后再启用。"
   },
   "host": {
     "title": "主机管理",
@@ -2964,7 +2975,7 @@
     "root": "bosun 以 root 运行",
     "shaper": "流量整形可用",
     "runtime": "反向 WG 运行环境就绪",
-    "xray": "A：Xray 支持反向 WG",
+    "xray": "A：兼容代理内核支持 WG",
     "path": "服务可执行文件 PATH",
     "loadError": "运行条件加载失败，请刷新后再保存。",
     "loading": "正在检查运行条件…",

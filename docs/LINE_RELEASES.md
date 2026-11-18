@@ -107,8 +107,7 @@ Multiple candidates always use a native relay entry. realm and nft entries
 accept one candidate, and internal hops have one next target. realm 2.9.6 uses
 only its primary UDP target, so extra UDP candidates are never advertised as
 realm balancing. nft requires the same IP family on each edge and cannot use
-a same-server hop: its DNAT path has no OUTPUT hook. Reverse tunnels, WireGuard,
-PROXY protocol, and Mieru BOTH with two different ports remain unsupported.
+a same-server hop: its DNAT path has no OUTPUT hook. VLESS Reverse tunnels, PROXY protocol, and Mieru BOTH with two different ports remain unsupported.
 
 Optional path handshake health and automatic health selection remain limited
 to all-native TCP routes. UDP/both and mixed backends cannot reuse a TCP result
@@ -190,3 +189,11 @@ can still be retried or compensated. The snapshot carries only owned forwarding
 intent, never frozen user authorization. Built-in Captain rollback is limited
 to v1.53.0 or later, because older panels can discard the new transport/backend
 intent during recompilation.
+
+A complete route may terminate at an inbound bound to reverse WireGuard. The
+protocol on the client-facing route is still derived from that inbound; WG is
+its separate egress connection. Dependency previews include the WG exit, and
+removal checks protect it. This does not make a WG interface an arbitrary raw
+relay hop. Private ACLs, source-bound sockets and connection capabilities remain
+mandatory. Native WireGuard user inbounds require a modern Xray with device
+accounting; their keys and address space are independent of the transport.

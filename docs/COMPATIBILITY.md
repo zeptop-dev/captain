@@ -1445,3 +1445,17 @@ inbound keys and remote host/client keys can then fail validation, including whe
 editing otherwise unrelated settings. New generated SSH identities remain Ed25519.
 A dependency-only update must not silently change the 1.x accepted-key contract.
 This preserves existing configurations; it is not a recommendation to create DSA keys.
+
+## Optional inbound protocols and shared reverse WG (development)
+
+Migration 126 separates transport ownership from optional inbound bindings.
+Legacy connections preserve their owned inlet and subscription entry; new
+independent connections need neither. A connection can share multiple explicitly
+selected inbounds with identical private-access rules. Detaching disables the
+inbound, so it cannot silently start using ordinary egress. Deletion refuses
+borrowed inbounds and referenced complete paths. The reserved containing-release
+rollback floor is v1.72.0: older panels cannot preserve these relationships.
+
+Agent fields remain additive. Actual selected-core capabilities gate delivery;
+old agents retain legacy Xray protocols and cannot receive unsupported entries.
+See [reverse WireGuard](REVERSE_WIREGUARD.md) for the protocol and core boundaries.

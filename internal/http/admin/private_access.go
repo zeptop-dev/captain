@@ -49,14 +49,11 @@ func (h *handlers) privateAccessNode(ctx context.Context, id int64, proposed *do
 		return nil, err
 	}
 	for _, link := range wgLinks {
-		ib, err := h.Store.InboundByID(ctx, link.UserInboundID)
-		if err != nil {
-			return nil, err
+		grant := link.PrivateAccess
+		if proposed != nil && proposed.ID == link.UserInboundID {
+			grant = proposed.Settings.PrivateAccess
 		}
-		if proposed != nil && proposed.ID == ib.ID {
-			ib = proposed
-		}
-		cfg, err := link.Config(id == link.ExitID, ib.Settings.PrivateAccess)
+		cfg, err := link.Config(id == link.ExitID, grant)
 		if err != nil {
 			return nil, err
 		}

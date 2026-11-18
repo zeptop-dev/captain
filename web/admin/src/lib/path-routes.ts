@@ -68,8 +68,8 @@ export function linearSourceLine(line: Line & { path_route?: unknown }) {
 export const pathBackend = (backend?: string | null) => backend || 'relay'
 export const pathNetworkLabel = (protocol?: string) => protocol === 'both' ? 'TCP + UDP' : protocol?.toUpperCase() || '—'
 export function pathInboundSupported(inbound: Pick<Inbound, 'Protocol' | 'Settings'>, protocol?: string) {
-  return !inbound.Settings.reverse && !inbound.Settings.wireguard_slot && !inbound.Settings.accept_proxy_protocol
-    && inbound.Protocol !== 'wireguard' && !(inbound.Protocol === 'mieru' && protocol === 'both')
+  return !inbound.Settings.reverse && !inbound.Settings.accept_proxy_protocol
+    && !(inbound.Protocol === 'mieru' && protocol === 'both')
 }
 export function pathSelectionIssue(protocol: string | undefined, backend: string | undefined, branches: number, strategy: string) {
   if (branches > 1 && pathBackend(backend) !== 'relay') return 'entryRelayRequired'

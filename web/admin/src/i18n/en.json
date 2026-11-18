@@ -442,7 +442,7 @@
         "reverse": "This protocol or core does not support managed VLESS Reverse with per-user accounting.",
         "privateAccess": "Private access requires a recent capability report from a supported server and core.",
         "listenAddress": "This Mieru build cannot bind a specific listening IP. Use mita.",
-        "wireguardReverse": "Reverse WireGuard requires a fresh capability report from a supported Linux server and Xray core.",
+        "wireguardReverse": "This entry needs a fresh capability report from a compatible WireGuard core.",
         "privateAccessCoreOnly": "Core-only needs a supported sing-box server, disabled egress guard and a fresh capability report; Xray and managed reverse tunnels are unsupported.",
         "privateAccessPolicyUnknown": "Automatic policy requires a fresh server report with separate policy capabilities.",
         "privateAccessRuntime": "The runtime prerequisites are not satisfied. Check the server readiness details.",
@@ -2654,13 +2654,15 @@
     "openwrtHint": "OpenWrt supports monitor-only installation on amd64 / arm64 with bosun 0.89.0 or later. The native installer manages startup with procd."
   },
   "wireguard": {
+    "entrySecurity": "Entry security",
+    "entrySettingsHint": "Users authenticate and are accounted on the transit, then exit through WireGuard. Standard TLS needs a domain and certificate; entry and tunnel settings are independent.",
     "sni": "Subscriber REALITY SNI",
     "sniHint": "Used by the VLESS REALITY listener on A. The WireGuard tunnel itself does not use SNI.",
     "scanFrom": "Scan and select a target from transit A ({{node}}).",
     "selectTransitToScan": "Select transit server A first to auto-select a target or probe the current SNI.",
     "title": "Reverse WireGuard",
     "hint": "B actively connects to A. A authenticates and bills users; B provides public egress and explicitly authorized LAN access.",
-    "requirements": "Both servers need Linux WireGuard support and a fresh capability report. Users connect with VLESS REALITY. Automatic forwarding requires active UFW on B; other firewalls need manual setup. Servers requiring an ingress mapping cannot be used as A.",
+    "requirements": "Both servers need Linux WireGuard and fresh capability reports. Select a supported entry protocol and core. Automatic forwarding requires active UFW on B; other firewalls need manual setup.",
     "transit": "Transit server A",
     "endpoint": "Public UDP endpoint of A",
     "endpointHint": "Enter the IP and UDP port reachable from B. If NAT changes the port, enter the public mapped port here; the tunnel port above remains local.",
@@ -2704,7 +2706,16 @@
       "inactive_backend_rules_retained": "Rules from a previous firewall configuration were retained. Review them manually.",
       "automatic_forwarding_disabled": "Automatic firewall management is disabled on B. Enable it on the server or manage this connection's forwarding manually.",
       "ufw_forward_runtime_verification_failed": "Saved UFW rules do not match the active rules. Check B's firewall before retrying."
-    }
+    },
+    "independent": "Create an independent connection",
+    "independentHint": "Create the WG transport first, then attach existing inbounds.",
+    "bindings": "Attached inbounds",
+    "bindingsHint": "Entries retain their authentication and accounting. Shared entries must have identical private-access rules. Choose an explicit supported core before attaching.",
+    "ownedEntry": "Owned entry",
+    "attachEntry": "Select an existing inbound",
+    "attach": "Attach",
+    "detach": "Detach",
+    "detachHint": "Detaching disables this inbound. Review its new route before enabling it again."
   },
   "host": {
     "title": "Host management",
@@ -2964,7 +2975,7 @@
     "root": "bosun runs as root",
     "shaper": "Traffic shaping available",
     "runtime": "Reverse WG runtime ready",
-    "xray": "A: Xray reverse WG capability",
+    "xray": "A: compatible proxy core supports WG",
     "path": "Service executable PATH",
     "loadError": "Could not load prerequisites. Refresh before saving.",
     "loading": "Checking prerequisites…",
