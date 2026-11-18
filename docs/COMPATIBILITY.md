@@ -1436,3 +1436,12 @@ legacy-grant projection and explicit checked cleanup endpoint are additive.
 Cleanup only removes a redundant override after revalidating the same permission
 scheme on a usable subscription. Financial records and node credentials stay
 unchanged. No schema or bosun change is required. See [legacy account grants](PLAN_ACCESS.md#legacy-account-grants-in-the-console).
+
+## SSH key parsing dependency boundary
+
+Keep golang.org/x/crypto at v0.58.0 until legacy DSA key handling has an explicit
+migration decision. v0.59.0 removes DSA parsing: previously accepted custom SSH
+inbound keys and remote host/client keys can then fail validation, including when
+editing otherwise unrelated settings. New generated SSH identities remain Ed25519.
+A dependency-only update must not silently change the 1.x accepted-key contract.
+This preserves existing configurations; it is not a recommendation to create DSA keys.
