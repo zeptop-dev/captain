@@ -318,6 +318,8 @@
     "recipes": {
       "vlessReality": "VLESS + REALITY",
       "vlessRealityDesc": "Самый устойчивый к обнаружению TCP-вариант; нужна пара ключей x25519.",
+      "vlessTLSVision": "VLESS · TLS + Vision",
+      "vlessTLSVisionDesc": "Прямое подключение со своим доменом и TLS-сертификатом; не для обычных HTTP CDN.",
       "hysteria2": "Hysteria2",
       "hysteria2Desc": "QUIC, лучшая пропускная способность на линиях с потерями; нужен сертификат.",
       "anytls": "AnyTLS",

@@ -318,6 +318,8 @@
     "recipes": {
       "vlessReality": "VLESS + REALITY",
       "vlessRealityDesc": "Best TCP stealth; needs an x25519 key pair.",
+      "vlessTLSVision": "VLESS · TLS + Vision",
+      "vlessTLSVisionDesc": "Direct connections with your own domain and TLS certificate; not for ordinary HTTP CDNs.",
       "hysteria2": "Hysteria2",
       "hysteria2Desc": "QUIC, best throughput on lossy lines; needs a certificate.",
       "anytls": "AnyTLS",

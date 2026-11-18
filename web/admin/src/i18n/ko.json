@@ -318,6 +318,8 @@
     "recipes": {
       "vlessReality": "VLESS + REALITY",
       "vlessRealityDesc": "탐지 저항이 가장 강한 TCP 방식으로 x25519 키 쌍이 필요합니다.",
+      "vlessTLSVision": "VLESS · TLS + Vision",
+      "vlessTLSVisionDesc": "자체 도메인과 TLS 인증서를 사용하는 직접 연결용입니다. 일반 HTTP CDN에는 사용할 수 없습니다.",
       "hysteria2": "Hysteria2",
       "hysteria2Desc": "QUIC 기반으로 패킷 손실이 많은 회선에서 처리량이 가장 좋습니다. 인증서가 필요합니다.",
       "anytls": "AnyTLS",

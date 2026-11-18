@@ -318,6 +318,8 @@
     "recipes": {
       "vlessReality": "VLESS + REALITY",
       "vlessRealityDesc": "検出耐性が最も高い TCP 方式。x25519 の鍵ペアが必要です。",
+      "vlessTLSVision": "VLESS · TLS + Vision",
+      "vlessTLSVisionDesc": "独自ドメインと TLS 証明書を使う直接接続向け。通常の HTTP CDN には非対応。",
       "hysteria2": "Hysteria2",
       "hysteria2Desc": "QUIC。パケットロスの多い回線で最高のスループット。証明書が必要です。",
       "anytls": "AnyTLS",

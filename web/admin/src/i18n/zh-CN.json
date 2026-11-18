@@ -318,6 +318,8 @@
     "recipes": {
       "vlessReality": "VLESS + REALITY",
       "vlessRealityDesc": "抗检测最好的 TCP 方案，需要一对 x25519 密钥。",
+      "vlessTLSVision": "VLESS · TLS + Vision",
+      "vlessTLSVisionDesc": "使用自有域名和 TLS 证书，适合直连，不适用于普通 HTTP CDN。",
       "hysteria2": "Hysteria2",
       "hysteria2Desc": "QUIC，高丢包线路吞吐最好，需要证书。",
       "anytls": "AnyTLS",
