@@ -33,7 +33,7 @@ jobs:
         run: cd web/site && pnpm install --frozen-lockfile && pnpm test && pnpm exec oxlint src && pnpm build
       - name: Build probe
         run: cd web/probe && pnpm install --frozen-lockfile && pnpm build
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with: { go-version-file: go.mod }
       - name: Check Go formatting
         run: |
